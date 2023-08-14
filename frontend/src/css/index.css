@@ -1,0 +1,32 @@
+@import url("./fonts.css");
+@import url("./common.css");
+@import url("./globals.css");
+@import url("./codehilite.css");
+@import url("./katex.min.css");
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  font-family: var(--text-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+code {
+  font-family: var(--monospace-font);
+}

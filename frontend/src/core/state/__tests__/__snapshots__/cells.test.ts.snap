@@ -1,0 +1,358 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cell reducer > can run cell and receive cell messages 1`] = `
+{
+  "code": "",
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": null,
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 2`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [],
+  "edited": true,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": null,
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 3`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 4`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "queued",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 5`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": 20,
+  "serializedEditorState": null,
+  "status": "running",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 6`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": 20,
+  "serializedEditorState": null,
+  "status": "running",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 7`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": {
+    "channel": "output",
+    "data": "ok",
+    "mimetype": "text/plain",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": 13000,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 8`] = `
+{
+  "code": "import marimo as mo
+import numpy",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": true,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": {
+    "channel": "output",
+    "data": "ok",
+    "mimetype": "text/plain",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": 13000,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 9`] = `
+{
+  "code": "import marimo as mo",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": {
+    "channel": "output",
+    "data": "ok",
+    "mimetype": "text/plain",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": 13000,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 10`] = `
+{
+  "code": "import marimo as mo
+import numpy",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": true,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo",
+  "name": "__",
+  "output": {
+    "channel": "output",
+    "data": "ok",
+    "mimetype": "text/plain",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": 13000,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 11`] = `
+{
+  "code": "import marimo as mo
+import numpy",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": false,
+  "errored": true,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "0",
+  "lastCodeRun": "import marimo as mo
+import numpy",
+  "name": "__",
+  "output": {
+    "channel": "marimo-error",
+    "data": [
+      {
+        "msg": "Oh no!",
+        "type": "exception",
+      },
+    ],
+    "mimetype": "application/vnd.marimo+error",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;
+
+exports[`cell reducer > can run cell and receive cell messages 12`] = `
+{
+  "code": "import marimo as mo
+import numpy",
+  "consoleOutputs": [
+    {
+      "channel": "console",
+      "data": "hello!hello!",
+      "mimetype": "text/plain",
+      "timestamp": "",
+    },
+  ],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": true,
+  "key": "0",
+  "lastCodeRun": null,
+  "name": "__",
+  "output": {
+    "channel": "marimo-error",
+    "data": [
+      {
+        "type": "interruption",
+      },
+    ],
+    "mimetype": "application/vnd.marimo+error",
+    "timestamp": "",
+  },
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": 11000,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "idle",
+}
+`;

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base", "schedule:weekly"],
+  "labels": ["dependencies"],
+  "pin": false,
+  "rangeStrategy": "bump",
+  "python": {
+    "enabled": false
+  },
+  "pep621": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "depTypeList": ["peerDependencies"],
+      "enabled": false
+    },
+    {
+      "packageNames": ["node"],
+      "enabled": false
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch",
+      "excludePackagePatterns": [".*eslint.*", ".*radix.*", ".*storybook.*"],
+      "excludePackageNames": ["typescript", "partysocket"]
+    },
+    {
+      "packagePatterns": [".*radix.*"],
+      "groupName": "all radix dependencies",
+      "groupSlug": "all-radix",
+      "matchUpdateTypes": ["minor", "patch", "major"]
+    },
+    {
+      "packagePatterns": [".*storybook.*"],
+      "groupName": "all storybook dependencies",
+      "groupSlug": "all-storybook",
+      "matchUpdateTypes": ["minor", "patch", "major"]
+    },
+    {
+      "packagePatterns": [".*eslint.*"],
+      "groupName": "all eslint dependencies",
+      "groupSlug": "all-eslint",
+      "matchUpdateTypes": ["minor", "patch", "major"]
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+#Header {
+  padding-bottom: 10px;
+  padding-top: 60px;
+  margin-bottom: 20px;
+}
+
+#Disconnected {
+  font-family: var(--monospace-font);
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--red-11);
+}
+
+#Welcome {
+  max-width: var(--content-width);
+  margin: auto;
+  display: grid;
+
+  /* center filename input , with whitespace on either side */
+  grid-template-columns: 1fr auto 1fr;
+}
+
+#Welcome > div:first-child {
+  position: relative;
+  grid-column: 2;
+}
+
+@keyframes running-app-animation {
+  0% {
+    transform: rotate(0turn);
+    visibility: visible;
+  }
+
+  50% {
+    transform: rotate(0.5turn);
+    visibility: visible;
+  }
+
+  100% {
+    transform: rotate(1turn);
+    visibility: visible;
+  }
+}
+
+.running-app-icon {
+  width: 45px;
+  visibility: hidden;
+  animation: running-app-animation 2000ms;
+  animation-timing-function: cubic-bezier(0.61, -0.01, 0.47, 0.99);
+  animation-iteration-count: infinite;
+  animation-delay: 1000ms;
+}
+
+.closed-app-icon {
+  width: 25px;
+  height: 25px;
+  color: var(--red-11);
+}
+
+.app-status-indicator {
+  position: fixed;
+  left: 20px;
+  top: 12px;
+}
+
+.keyboard-shortcut-group {
+  margin-bottom: 40px;
+}
+
+.keyboard-shortcut {
+  /* [shortcut] [auto:whitespace] [description] */
+  grid-template-columns: 1fr auto 1fr;
+  display: grid;
+  margin: 15px 5px;
+  align-items: baseline;
+}
+
+.keyboard-shortcut span {
+  grid-column: 3;
+}
+
+#Filename {
+  text-align: center;
+  margin-bottom: 25px;
+  font-family: var(--monospace-font);
+
+  @apply text-muted-foreground;
+}
+
+.missing-filename {
+  text-align: center;
+  box-shadow: var(--light-shadow-stale);
+}
+
+.missing-filename:hover,
+.missing-filename:focus {
+  box-shadow: var(--medium-shadow-stale);
+}
+
+.missing-filename:focus {
+  border-radius: 4px 4px 0 0;
+}
+
+.filename {
+  text-align: center;
+  box-shadow: none;
+}
+
+.filename:hover,
+.filename:focus {
+  box-shadow: var(--medium-shadow);
+}
+
+.filename:focus {
+  border-radius: 4px 4px 0 0;
+}
+
+#filename-form {
+  display: contents;
+}
+
+#filename-input:focus {
+  min-width: 200px;
+}
+
+.DirCompletionInput {
+  position: relative;
+}
+
+.autocomplete-list {
+  padding: 0;
+  margin-top: 0;
+  border-top-width: 0;
+  border-radius: 0 0 5px 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  text-align: left;
+  list-style: none;
+  z-index: 1;
+  position: absolute;
+  box-shadow: var(--medium-shadow);
+
+  @apply bg-card;
+}
+
+.autocomplete-list li {
+  padding: 3px;
+}
+
+.autocomplete-list li:not(:last-of-type) {
+  border-bottom: 1px dashed var(--gray-9);
+}
+
+.active-suggestion,
+.autocomplete-list li:hover {
+  background-color: var(--grass-4);
+  cursor: pointer;
+}
+
+.active-suggestion {
+  border-left: 2px solid var(--grass-11);
+}
+
+.active-suggestion.file,
+.autocomplete-list li.file:hover {
+  border-left: 2px solid var(--gray-11);
+  background-color: var(--gray-2);
+}
+
+.file {
+  color: var(--gray-10);
+}

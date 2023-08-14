@@ -1,0 +1,29 @@
+import { Meta, Story } from "@storybook/addon-docs";
+
+import { Plus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  TooltipRoot,
+  TooltipProvider,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+<Meta title="Tooltip" component={TooltipRoot} />
+
+# Tooltip
+
+<TooltipProvider>
+  <TooltipRoot>
+    <TooltipTrigger asChild>
+      <Button variant="outline" className="rounded-full">
+        <Plus className="h-4 w-4" />
+        <span className="sr-only">Add</span>
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>Add to library</p>
+    </TooltipContent>
+  </TooltipRoot>
+</TooltipProvider>

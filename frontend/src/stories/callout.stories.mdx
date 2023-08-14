@@ -1,0 +1,40 @@
+import { Meta, Story } from "@storybook/addon-docs";
+
+import { CalloutOutput } from "@/editor/output/CalloutOutput";
+import { Mail, Loader2 } from "lucide-react";
+
+<Meta title="CalloutOutput" component={CalloutOutput} />
+
+# CalloutOutput
+
+<Story name="Default">
+  <CalloutOutput html="<p>CalloutOutput with <strong>HTML</strong></p>" />
+</Story>
+
+<Story name="neutral">
+  <CalloutOutput
+    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    kind="neutral"
+  />
+</Story>
+
+<Story name="alert">
+  <CalloutOutput
+    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    kind="alert"
+  />
+</Story>
+
+<Story name="warn">
+  <CalloutOutput
+    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    kind="warn"
+  />
+</Story>
+
+<Story name="success">
+  <CalloutOutput
+    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    kind="success"
+  />
+</Story>

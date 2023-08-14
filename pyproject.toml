@@ -1,0 +1,137 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marimo"
+description = "A library for making reactive notebooks and apps"
+dynamic = ["version"]
+dependencies = [
+    # cli
+    "click>=8.0,<9",
+    # python 3.8 compatibility
+    "importlib_resources>=5.10.2",
+    # code completion
+    "jedi>=0.18.0",
+    # compile markdown to html
+    "markdown>=3.4,<4",
+    # add features to markdown
+    "pymdown-extensions>=9.0,<11",
+    # syntax highlighting of code in markdown
+    "pygments>=2.3,<3",
+    # web server
+    "tornado>=6.1,<7",
+    # python 3.8 compatibility
+    "typing_extensions>=4.4.0",
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+marimo = "marimo._cli.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "click < 8.1.4",  # https://github.com/pallets/click/issues/2558
+    "black~=23.3.0",
+    "build~=0.10.0",
+    "pytest~=7.4.0",
+    "mypy~=1.4.1",
+    "ruff~=0.0.275",
+    # For docs
+    "pypandoc_binary",
+    "autoclasstoc",
+    "sphinx",
+    "sphinx-copybutton",
+    "sphinx-new-tab-link",
+    "myst_parser~=2.0.0",
+    "furo"
+]
+
+[project.urls]
+homepage = "https://github.com/marimo-team/marimo"
+
+[tool.setuptools.dynamic]
+version = { attr = "marimo.__version__" }
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.ruff]
+line-length=79
+exclude = [
+    "marimo/_tutorials",
+    "marimo/_smoke_tests",
+    "marimo/_test_utils/codegen_data",
+    "marimo/_test_utils/_tutorials",
+    "frontend",
+    "docs",
+    "build",
+]
+ignore = []
+select = [
+    # pyflakes
+    "F",
+    # pycodestyle
+    "E",
+    # warning
+    "W",
+    # flake8 builtin-variable-shadowing
+    "A001",
+    # flake8 builtin-argument-shadowing
+    "A002",
+    # flake8-bugbear
+    "B",
+    # future annotations
+    "FA102",
+    # isort
+    "I001",
+    # copyright notice
+    "CPY001",
+]
+
+# Never try to fix `F401` (unused imports).
+unfixable = ["F401"]
+
+[tool.black]
+line-length = 79
+extend-exclude = """
+(
+    ^/examples/*
+    | ^/marimo/_test_utils/codegen_data/*
+    | ^/marimo/_test_utils/ipynb_data/*
+    | ^/marimo/_tutorials/*
+    | ^/marimo/_smoke_tests/*
+)
+"""
+
+[tool.isort]
+profile = "black"
+line_length = 79
+
+[tool.mypy]
+strict = true
+exclude = [
+    'examples',
+    'marimo/_test_utils/codegen_data',
+    'marimo/_test_utils/ipynb_data',
+    'marimo/_tutorials/',
+    'marimo/_smoke_tests/',
+]
+
+# tutorials shouldn't be type-checked (should be excluded), but they
+# get included anyway, maybe due to import following; this is coarse but works
+[[tool.mypy.overrides]]
+module= "marimo._tutorials.*"
+ignore_errors = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q -v --ignore marimo/_test_utils/"
+testpaths = [
+    "marimo",
+]

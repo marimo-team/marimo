@@ -1,0 +1,2 @@
+recursive-include marimo/_static *
+include marimo/py.typed

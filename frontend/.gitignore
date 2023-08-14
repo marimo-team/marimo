@@ -1,0 +1,19 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# library output
+/lib
+!/src/lib
+
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/

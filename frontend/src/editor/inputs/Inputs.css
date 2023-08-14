@@ -1,0 +1,116 @@
+/* See https://www.radix-ui.com/docs/colors/palette-composition/understanding-the-scale
+ *
+ * We use the above guidelines to inform decisions below, in particular
+ * background and hover colors, but deviate from it when appropriate.
+ * */
+
+.mo-button.gray {
+  background-color: var(--slate-1);
+  color: var(--slate-11);
+  border-color: var(--slate-6);
+}
+
+.mo-button.gray:hover {
+  background-color: var(--slate-3);
+  border-color: var(--slate-8);
+}
+
+.mo-button.gray.selected .mo-button.gray:active {
+  background-color: var(--slate-4);
+  border-color: var(--slate-7);
+}
+
+/* Neutral; relies on border and shadow (defined elsewhere) to provide
+ * sufficient contrast. */
+.mo-button.white {
+  @apply bg-background;
+
+  color: var(--slate-11);
+  border-color: var(--slate-7);
+}
+
+.mo-button.white:hover {
+  background-color: var(--slate-1);
+  border-color: var(--slate-8);
+}
+
+.mo-button.white.selected .mo-button.white:active {
+  background-color: var(--slate-2);
+  border-color: var(--slate-7);
+}
+
+/* Disabled control. */
+.mo-button.disabled {
+  @apply bg-background;
+
+  color: var(--slate-7);
+  border-color: var(--slate-6);
+}
+
+.mo-button.green {
+  background-color: var(--grass-3);
+  color: var(--grass-11);
+  border-color: var(--grass-6);
+}
+
+.mo-button.green:hover {
+  background-color: var(--grass-2);
+  border-color: var(--grass-7);
+}
+
+.mo-button.green.selected .mo-button.green:active {
+  background-color: var(--grass-4);
+  border-color: var(--grass-7);
+}
+
+/* Looks like white, but hovers like green. */
+.mo-button.hint-green {
+  @apply bg-background;
+
+  color: var(--slate-11);
+  border-color: var(--slate-7);
+}
+
+.mo-button.hint-green:hover {
+  background-color: var(--grass-2);
+  color: var(--grass-11);
+  border-color: var(--grass-7);
+}
+
+.mo-button.hint-green.selected .mo-button.hint-green:active {
+  background-color: var(--grass-4);
+  color: var(--slate-11);
+  border-color: var(--grass-7);
+}
+
+.mo-button.red {
+  background-color: var(--red-3);
+  color: var(--red-11);
+  border-color: var(--red-6);
+}
+
+.mo-button.red:hover {
+  background-color: var(--red-4);
+  border-color: var(--red-8);
+}
+
+.mo-button.red.selected .mo-button.red:active {
+  background-color: var(--red-5);
+  border-color: var(--red-7);
+}
+
+.mo-button.yellow {
+  background-color: var(--yellow-3);
+  color: var(--yellow-11);
+  border-color: var(--yellow-6);
+}
+
+.mo-button.yellow:hover {
+  background-color: var(--yellow-4);
+  border-color: var(--yellow-8);
+}
+
+.mo-button.yellow.selected .mo-button.yellow:active {
+  background-color: var(--yellow-5);
+  border-color: var(--yellow-7);
+}

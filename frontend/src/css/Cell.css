@@ -1,0 +1,527 @@
+.Cell {
+  position: relative;
+  margin-bottom: 21px;
+  border-radius: 10px;
+  max-width: inherit;
+  width: 100%;
+  border: 1px solid transparent;
+  box-shadow: var(--light-shadow);
+
+  @apply bg-background;
+}
+
+.dark .Cell {
+  @apply border-border;
+}
+
+#App.disconnected .Cell {
+  /* Background determined by disconnected gradient/noise. */
+  background-color: transparent;
+}
+
+.Cell:hover {
+  box-shadow: var(--medium-shadow);
+}
+
+.Cell.has-error,
+.Cell.error-outline {
+  outline: 1px solid var(--red-4);
+  box-shadow: var(--light-shadow-error);
+}
+
+.Cell.has-error:hover {
+  box-shadow: var(--medium-shadow-error);
+}
+
+.Cell:not(.published).has-error:focus-within {
+  box-shadow: var(--heavy-shadow-error);
+}
+
+.Cell.error-outline,
+.Cell:not(.published).error-outline:focus-within {
+  box-shadow: 8px 8px 0 0 hsl(var(--error) / 80%);
+  background-color: var(--red-2);
+}
+
+.Cell:focus-visible {
+  /* focus-visible outlines the entire cell body in black, but the cell's
+   * body is an irregular shape because of psuedo-elements that extend
+   * its hit-box / hover area. */
+  outline: none;
+}
+
+.Cell:not(.published):focus-within {
+  border: 1px solid var(--gray-5);
+
+  /* a sharp box shadow with a slight blur to outline the element */
+  box-shadow: var(--heavy-shadow);
+
+  /* a little bit of motion
+   *
+   * Note: we use left/top instead of transform because transform creates a new
+   * stacking context and makes completion tooltip appear below surrounding
+   * cells/outputs. See
+   *
+   * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
+   * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
+   * */
+  left: -1px;
+  top: -1px;
+}
+
+.tray {
+  display: flex;
+  position: relative;
+}
+
+.tray:first-child .cm-editor {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.tray:last-child .cm-editor {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.tray::before {
+  /* expand the hover area */
+  content: "";
+  position: absolute;
+  width: 2000px;
+  left: -1000px;
+  height: 100%;
+}
+
+/* -------------------------- Shoulders/Buttons ---------------------------- */
+.Cell .shoulder-left {
+  position: absolute;
+  left: -34px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  height: 100%;
+}
+
+.shoulder-elem-top {
+  margin-bottom: auto;
+}
+
+.shoulder-elem-bottom {
+  vertical-align: bottom;
+}
+
+#App.disconnected .Cell .ShoulderButton {
+  background-color: transparent;
+}
+
+.Cell .shoulder-right {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  position: absolute;
+  right: -98px;
+  width: 80px;
+}
+
+.Cell .shoulder-bottom {
+  position: absolute;
+  bottom: -2px;
+  right: 2px;
+  z-index: 1; /* lie above editor */
+}
+
+/* --------------------------- Status Indicators ---------------------------- */
+.cell-status-icon {
+  margin-top: 4px;
+  margin-left: 3px;
+  margin-bottom: auto;
+}
+
+@keyframes appear {
+  from {
+    visibility: visible;
+  }
+
+  to {
+    visibility: visible;
+  }
+}
+
+.elapsed-time {
+  font-family: var(--monospace-font);
+  font-size: 0.8125rem;
+  color: var(--gray-11);
+}
+
+.elapsed-time.running {
+  animation: appear 1000ms;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: 50ms;
+}
+
+#App.disconnected .elapsed-time {
+  visibility: hidden;
+}
+
+.cell-status-queued,
+.cell-status-stale {
+  animation: appear 1000ms;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: 100ms;
+}
+
+.cell-status-queued svg,
+.cell-status-stale svg {
+  color: var(--gray-10);
+  width: 16px;
+  height: 16px;
+}
+
+/* ------------------------ CodeMirror Editor ----------------------------- */
+
+.cm {
+  width: 100%;
+}
+
+.cm-editor {
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  padding: 3px;
+
+  /* leave some room for UI elements inside the code editor */
+  padding-right: 24px;
+}
+
+/* .Cell is needed to take precedence over codemirror's generated class ... */
+.Cell .cm-editor.cm-focused {
+  outline: 0;
+}
+
+.Cell .cm-editor.cm-focused .cm-activeLineGutter {
+  background: #e2f2ff;
+}
+
+.dark .Cell .cm-editor.cm-focused .cm-activeLineGutter {
+  background: #0e1e25;
+}
+
+.Cell .cm-editor .cm-activeLineGutter {
+  background: transparent;
+}
+
+.Cell .cm-editor.cm-focused .cm-activeLine {
+  background: hsl(210deg 100% 50% / 3%);
+}
+
+.dark .Cell .cm-editor.cm-focused .cm-activeLine {
+  background: hsl(210deg 100% 2% / 75%);
+}
+
+#App.disconnected .Cell .cm-editor.cm-focused .cm-activeLineGutter,
+#App.disconnected .Cell .cm-editor.cm-focused .cm-activeLine {
+  background: transparent;
+}
+
+.Cell .cm-editor .cm-activeLine {
+  background: transparent;
+
+  /* Soften the corners of the active-line highlight. */
+  border-radius: 2px;
+}
+
+.cm .cm-gutters {
+  @apply bg-background;
+
+  /* Style line numbers. */
+  font-size: 0.75rem;
+  color: var(--gray-10);
+}
+
+.dark .cm .cm-gutters {
+  background-color: transparent;
+}
+
+.disconnected .cm .cm-gutters {
+  background-color: transparent !important;
+}
+
+.cm-scroller {
+  overflow: auto;
+}
+
+/* Code completion pop-up. */
+.cm .cm-tooltip {
+  font-family: var(--monospace-font);
+  font-size: 0.875rem;
+  border: none;
+  box-shadow: var(--light-shadow);
+  border-radius: 4px 0 4px 4px;
+
+  @apply bg-popover;
+}
+
+.cm .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: #1177ccb0;
+}
+
+.dark .cm .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: #1177cc80;
+}
+
+/* Code completion pop-up for docstrings, type-hints and completion info. */
+.cm .cm-tooltip.cm-completionInfo {
+  max-height: 800px;
+  overflow: auto;
+
+  /* Respect newlines. */
+  white-space: pre-wrap;
+
+  /* Codemirror generates an inline style for these properties,
+   * so we have to override them with !important. */
+  top: 0 !important;
+
+  /* Completion Info shows up to the right of another menu item. */
+  border-radius: 0 4px 4px;
+  padding: 0.625rem 0.875rem;
+}
+
+.cm .cm-tooltip.cm-completionInfo pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.cm .cm-completionIcon-function::after {
+  content: "λ";
+}
+
+.cm .cm-completionIcon-class::after {
+  content: "τ";
+}
+
+.cm .cm-completionIcon-module::after {
+  content: "μ";
+}
+
+.cm .cm-completionIcon-statement::after {
+  content: "χ";
+}
+
+.cm .cm-completionIcon-keyword::after {
+  content: "κ";
+}
+
+#App.disconnected .cell-running-icon,
+#App.disconnected .cell-queued-icon {
+  visibility: hidden;
+  animation: none;
+}
+
+/* ------------------------------ Output Areas ------------------------------ */
+
+.OutputArea,
+.ConsoleOutputArea {
+  max-width: inherit;
+  width: 100%;
+
+  /* Prevent floated elements from extending out of the output areas and into
+   * the editor. */
+  clear: both;
+  display: flow-root;
+
+  /* TODO: Find a way to accommodate large elements, ideally in a way that
+   * doesn't break margin collapse. Setting overflow (eg, overflow: auto)
+   * breaks margin collapse. */
+}
+
+/* Only restrain output length in edit mode. */
+.Cell:not(.published) .OutputArea,
+.ConsoleOutputArea {
+  max-height: 600px;
+  overflow: auto;
+}
+
+.marimo-output-stale {
+  opacity: 0.2;
+  transition: opacity 300ms;
+  transition-delay: 200ms;
+}
+
+.OutputArea {
+  padding: 0.5% 4%;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--gray-5);
+}
+
+.ConsoleOutputArea {
+  padding: 20px;
+  border-radius: 0 0 8px 8px;
+  border-top: 1px solid var(--gray-5);
+  border-bottom: 1px solid var(--gray-3);
+  border-right: 1px solid var(--gray-3);
+  border-left: 1px solid var(--gray-3);
+  background-color: var(--gray-1);
+}
+
+#App.disconnected .ConsoleOutputArea {
+  /* Background determined by disconnected gradient/noise. */
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+/* ------------------------------- Published -------------------------------- */
+
+.Cell.published .OutputArea {
+  /* flow-root interferes with margin collapsing, but appears to be unneeded
+   * when cell outlines are hidden; clear:both is sufficient.
+   *
+   * if developers just use css-grid instead of float, this won't matter.
+   * */
+  display: block;
+  padding-top: 0%;
+  padding-bottom: 0%;
+}
+
+/* We remove all borders and vertical padding to make sure that margins
+ * collapse across cells. Removing the borders will cause a 1px shift/jump,
+ * but nothing can be done about that. */
+.Cell.published:hover {
+  border: none;
+  box-shadow: none;
+}
+
+.Cell.published:focus-within {
+  transform: none;
+}
+
+.Cell:focus-within .cm-editor {
+  box-shadow: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+}
+
+.Cell.published {
+  margin-bottom: 0;
+}
+
+.Cell.published,
+.Cell.published .OutputArea,
+.Cell.published .ConsoleOutputArea {
+  border: none;
+  box-shadow: none;
+}
+
+/* ------------------------------ Needs Run---------------------------------- */
+.Cell.needs-run {
+  box-shadow: var(--light-shadow-stale);
+}
+
+.Cell.needs-run:hover {
+  box-shadow: var(--medium-shadow-stale);
+}
+
+.Cell.needs-run:focus-within {
+  box-shadow: var(--heavy-shadow-stale);
+}
+
+.Cell.needs-run:focus-within .cm-editor {
+  box-shadow: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+}
+
+.Cell.needs-run .OutputArea {
+  border-bottom: 1px solid var(--stale-color);
+}
+
+.Cell.needs-run .RunButton {
+  visibility: visible;
+}
+
+/* ------------------------ Output Formatting ---------------------------- */
+.output,
+.media,
+.stdout,
+.stderr,
+.return,
+.marimo-error {
+  width: 100%;
+}
+
+.output {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.marimo-error a {
+  color: hsl(var(--link));
+}
+
+.output > * {
+  max-width: 100%;
+}
+
+.stdout,
+.stderr,
+.marimo-error,
+.Cell .cm-content {
+  font-family: var(--monospace-font);
+}
+
+.stdout,
+.stderr {
+  font-size: 0.813rem;
+}
+
+.Cell .cm-content {
+  font-size: 0.875rem;
+}
+
+.marimo-error,
+.stderr {
+  color: hsl(var(--error));
+  font-weight: bold;
+}
+
+.marimo-error {
+  background: #ffc0cb30;
+  padding: 3%;
+  font-size: 0.8125rem;
+  border-radius: 20px;
+  white-space: pre-wrap; /* respect newlines */
+}
+
+.return {
+  display: block;
+}
+
+.text-plain {
+  white-space: pre-wrap; /* respect newlines */
+}
+
+.output.text-plain {
+  font-family: var(--text-font);
+}
+
+.marimo-json-output {
+  padding-top: 2px;
+  padding-bottom: 2px;
+
+  /* content-visiblity is set by material UI;
+   * when set on an element that has overflow auto, causes abrupt jumps when
+   * scrolling in Chrome */
+  content-visibility: unset;
+
+  /* Coarse hack to stop children from overflowing; doesn't seem to affect
+   * margin collapse. */
+  overflow: auto;
+}
+
+.marimo-json-output .data-key-pair:not(:last-child) {
+  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
+}

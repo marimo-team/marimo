@@ -1,0 +1,152 @@
+@import url("@radix-ui/colors/grass.css");
+@import url("@radix-ui/colors/grass-dark.css");
+@import url("@radix-ui/colors/gray.css");
+@import url("@radix-ui/colors/gray-dark.css");
+@import url("@radix-ui/colors/lime.css");
+@import url("@radix-ui/colors/lime-dark.css");
+@import url("@radix-ui/colors/red.css");
+@import url("@radix-ui/colors/red-dark.css");
+@import url("@radix-ui/colors/slate.css");
+@import url("@radix-ui/colors/slate-dark.css");
+@import url("@radix-ui/colors/sage.css");
+@import url("@radix-ui/colors/sage-dark.css");
+@import url("@radix-ui/colors/yellow.css");
+@import url("@radix-ui/colors/yellow-dark.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+
+    /* tailwind slate-400 */
+    --input: 0 0% 64%;
+    --primary: 222.2 47.4% 25%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* tailwind blue-500 */
+    --accent: 217 91% 60%;
+
+    /* white */
+    --accent-foreground: 100 100% 100%;
+    --destructive: 0 100% 70%;
+    --destructive-foreground: 210 40% 98%;
+    --error: 0 77% 64%;
+    --error-foreground: 210 40% 98%;
+    --success: 130 100% 70%;
+    --success-foreground: 210 40% 98%;
+    --action: 52 96.8% 82%;
+    --action-hover: 54 100% 86.7%;
+    --action-foreground: 42 100% 29%;
+
+    /* tailwind blue-600 */
+    --link: 221 83% 53%;
+
+    /* tailwind violet-600 */
+    --link-visited: 262 83% 58%;
+    --ring: 215 20.2% 65.1%;
+    --radius: 8px;
+    --base-shadow: hsl(0deg 0% 85% / 40%);
+    --base-shadow-darker: hsl(0deg 0% 50% / 40%);
+
+    /* Fuzzy shadows. */
+    --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
+    --shadow-xs: 1px 1px 2px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
+    --shadow-sm: 2px 2px 2px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 25% / 5%);
+    --shadow-md: 4px 4px 4px 0px var(--base-shadow),
+      0 0px 4px 0px hsl(0deg 0% 60% / 5%);
+    --shadow-lg: 5px 6px 4px 0px var(--base-shadow),
+      0 0px 4px 0px hsl(0deg 0% 75% / 5%);
+    --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
+      0 0px 6px 0px hsl(0deg 0% 85% / 5%);
+    --callout-neutral-border: #a1a1a18f;
+    --callout-neutral-bg: #fff;
+    --callout-alert-border: #a573008f;
+    --callout-alert-bg: #af893105;
+    --callout-warn-border: #a527008f;
+    --callout-warn-bg: #a5270000;
+    --callout-success-border: #94d8ed;
+    --callout-success-bg: #94d8ed1c;
+  }
+
+  .dark {
+    /* sage-2 */
+    --background: 150 7.7% 10.2%;
+    /* sage-12 */
+    --foreground: 155 7% 93%;
+    /* sage-3 */
+    --muted: 151 5.5% 15.2%;
+    /* sage-11 */
+    --muted-foreground: 155 5% 68.3%;
+    /* sage-3 */
+    --popover: 151 5.5% 15.2%;
+    /* sage-11 */
+    --popover-foreground: 155 5% 68.3%;
+    /* sage-3 */
+    --card: 151 5.5% 15.2%;
+    /* sage-11 */
+    --card-foreground: 155 5% 68.3%;
+    /* sage-6 */
+    --border: 153 3.7% 24.2%;
+    /* sage-7 */
+    --input: 154 3.3% 28.7%;
+    /* cyan-3 */
+    --primary: 193 52.6% 14.1%;
+    /* cyan-12 */
+    --primary-foreground: 190 80% 84%;
+    /* sage-12 */
+    --secondary: 155 7% 93%;
+    /* cyan-3 */
+    --secondary-foreground: 193 51.9% 11.9%;
+    /* cyan-7*/
+    --accent: 192 56.6% 26.5%;
+    /* cyan-11 */
+    --accent-foreground: 190 90% 54%;
+
+    --destructive: 0 63% 41%;
+    --destructive-foreground: 155 7% 93%;
+    --success: 130 100% 70%;
+    --success-foreground: 155 7% 93%;
+    --ring: 216 34% 17%;
+    --radius: 8px;
+    --callout-neutral-border: #5f5f5f8f;
+    --callout-neutral-bg: #2f2f2f;
+    --callout-alert-border: #ffaa008f;
+    --callout-alert-bg: #fa03;
+    --callout-warn-border: #ff55008f;
+    --callout-warn-bg: #f503;
+    --callout-success-border: #2ca4b6;
+    --callout-success-bg: #2ca4b633;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+button {
+  padding: 0;
+  margin: 0;
+}

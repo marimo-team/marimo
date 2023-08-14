@@ -1,0 +1,361 @@
+/*
+ * xcode pygments style, edited to look like github prettylights
+ *
+ *     pygmentize -S xcode -f html -a .codehilite  > codehilite.css
+ */
+
+@layer base {
+  :root {
+    --linenos-special: #000;
+    --linenos-special-bg: #ffffc0;
+    --codehilite-hll: #ffc;
+    --codehilite-c: #177500;
+    --codehilite-err: #000;
+    --codehilite-k: #cf222e;
+    --codehilite-l: #1c01ce;
+    --codehilite-n: #000;
+    --codehilite-o: #000;
+    --codehilite-ch: #177500;
+    --codehilite-cm: #177500;
+    --codehilite-cp: #633820;
+    --codehilite-cpf: #177500;
+    --codehilite-c1: #177500;
+    --codehilite-cs: #177500;
+    --codehilite-kc: #a90d91;
+    --codehilite-kd: #a90d91;
+    --codehilite-kn: #a90d91;
+    --codehilite-kp: #a90d91;
+    --codehilite-kr: #a90d91;
+    --codehilite-kt: #cf222e;
+    --codehilite-ld: #1c01ce;
+    --codehilite-m: #0550ae;
+    --codehilite-s: #0a3069;
+    --codehilite-na: #836c28;
+    --codehilite-nb: #cf222e;
+    --codehilite-nc: #8250df;
+    --codehilite-no: #000;
+    --codehilite-nd: #8250df;
+    --codehilite-ni: #000;
+    --codehilite-ne: #000;
+    --codehilite-nf: #8250df;
+    --codehilite-nl: #000;
+    --codehilite-nn: #000;
+    --codehilite-nx: #000;
+    --codehilite-py: #000;
+    --codehilite-nt: #8250df;
+    --codehilite-nv: #000;
+    --codehilite-ow: #000;
+    --codehilite-mb: #1c01ce;
+    --codehilite-mf: #1c01ce;
+    --codehilite-mh: #1c01ce;
+    --codehilite-mi: #1c01ce;
+    --codehilite-mo: #1c01ce;
+    --codehilite-sa: #0a3069;
+    --codehilite-sb: #0a3069;
+    --codehilite-sc: #0a3069;
+    --codehilite-dl: #0a3069;
+    --codehilite-sd: #0a3069;
+    --codehilite-s2: #0a3069;
+    --codehilite-se: #0a3069;
+    --codehilite-sh: #0a3069;
+    --codehilite-si: #0a3069;
+    --codehilite-sx: #0a3069;
+    --codehilite-sr: #0a3069;
+    --codehilite-s1: #0a3069;
+    --codehilite-ss: #0a3069;
+    --codehilite-bp: #5b269a;
+    --codehilite-fm: #000;
+    --codehilite-vc: #000;
+    --codehilite-vg: #000;
+    --codehilite-vi: #000;
+    --codehilite-vm: #000;
+    --codehilite-il: #1c01ce;
+  }
+
+  .dark {
+    --linenos-special: #fff;
+    --linenos-special-bg: #303030;
+    --codehilite-hll: #303030;
+    --codehilite-c: #88ff70;
+    --codehilite-err: #f00;
+    --codehilite-k: #ff5572;
+    --codehilite-l: #7289da;
+    --codehilite-n: #fff;
+    --codehilite-o: #fff;
+    --codehilite-ch: #88ff70;
+    --codehilite-cm: #88ff70;
+    --codehilite-cp: #ffcc80;
+    --codehilite-cpf: #88ff70;
+    --codehilite-c1: #88ff70;
+    --codehilite-cs: #88ff70;
+    --codehilite-kc: #ff80bf;
+    --codehilite-kd: #ff80bf;
+    --codehilite-kn: #ff80bf;
+    --codehilite-kp: #ff80bf;
+    --codehilite-kr: #ff80bf;
+    --codehilite-kt: #ff5572;
+    --codehilite-ld: #7289da;
+    --codehilite-m: #55a8ff;
+    --codehilite-s: #5af;
+    --codehilite-na: #ffcc80;
+    --codehilite-nb: #ff5572;
+    --codehilite-nc: #b39ddb;
+    --codehilite-no: #fff;
+    --codehilite-nd: #b39ddb;
+    --codehilite-ni: #fff;
+    --codehilite-ne: #fff;
+    --codehilite-nf: #b39ddb;
+    --codehilite-nl: #fff;
+    --codehilite-nn: #fff;
+    --codehilite-nx: #fff;
+    --codehilite-py: #fff;
+    --codehilite-nt: #b39ddb;
+    --codehilite-nv: #fff;
+    --codehilite-ow: #fff;
+    --codehilite-mb: #7289da;
+    --codehilite-mf: #7289da;
+    --codehilite-mh: #7289da;
+    --codehilite-mi: #7289da;
+    --codehilite-mo: #7289da;
+    --codehilite-sa: #5af;
+    --codehilite-sb: #5af;
+    --codehilite-sc: #5af;
+    --codehilite-dl: #5af;
+    --codehilite-sd: #5af;
+    --codehilite-s2: #5af;
+    --codehilite-se: #5af;
+    --codehilite-sh: #5af;
+    --codehilite-si: #5af;
+    --codehilite-sx: #5af;
+    --codehilite-sr: #5af;
+    --codehilite-s1: #5af;
+    --codehilite-ss: #5af;
+    --codehilite-bp: #9c4dcc;
+    --codehilite-fm: #fff;
+    --codehilite-vc: #fff;
+    --codehilite-vg: #fff;
+    --codehilite-vi: #fff;
+    --codehilite-vm: #fff;
+    --codehilite-il: #7289da;
+  }
+}
+
+pre {
+  line-height: 125%;
+}
+
+td.linenos .normal {
+  color: inherit;
+  background-color: transparent;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+span.linenos {
+  color: inherit;
+  background-color: transparent;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+td.linenos .special {
+  color: var(--linenos-special);
+  background-color: var(--linenos-special-bg);
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+span.linenos.special {
+  color: var(--linenos-special);
+  background-color: var(--linenos-special-bg);
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.codehilite .hll {
+  color: var(--codehilite-hll);
+}
+
+.codehilite .c {
+  color: var(--codehilite-c);
+} /* Comment */
+.codehilite .err {
+  color: var(--codehilite-err);
+} /* Error */
+.codehilite .k {
+  color: var(--codehilite-k);
+} /* Keyword */
+.codehilite .l {
+  color: var(--codehilite-l);
+} /* Literal */
+.codehilite .n {
+  color: var(--codehilite-n);
+} /* Name */
+.codehilite .o {
+  color: var(--codehilite-o);
+} /* Operator */
+.codehilite .ch {
+  color: var(--codehilite-ch);
+} /* Comment.Hashbang */
+.codehilite .cm {
+  color: var(--codehilite-cm);
+} /* Comment.Multiline */
+.codehilite .cp {
+  color: var(--codehilite-cp);
+} /* Comment.Preproc */
+.codehilite .cpf {
+  color: var(--codehilite-cpf);
+} /* Comment.PreprocFile */
+.codehilite .c1 {
+  color: var(--codehilite-c1);
+} /* Comment.Single */
+.codehilite .cs {
+  color: var(--codehilite-cs);
+} /* Comment.Special */
+.codehilite .kc {
+  color: var(--codehilite-kc);
+} /* Keyword.Constant */
+.codehilite .kd {
+  color: var(--codehilite-kd);
+} /* Keyword.Declaration */
+.codehilite .kn {
+  color: var(--codehilite-kn);
+} /* Keyword.Namespace */
+.codehilite .kp {
+  color: var(--codehilite-kp);
+} /* Keyword.Pseudo */
+.codehilite .kr {
+  color: var(--codehilite-kr);
+} /* Keyword.Reserved */
+.codehilite .kt {
+  color: var(--codehilite-kt);
+} /* Keyword.Type */
+.codehilite .ld {
+  color: var(--codehilite-ld);
+} /* Literal.Date */
+.codehilite .m {
+  color: var(--codehilite-m);
+} /* Literal.Number */
+.codehilite .s {
+  color: var(--codehilite-s);
+} /* Literal.String */
+.codehilite .na {
+  color: var(--codehilite-na);
+} /* Name.Attribute */
+.codehilite .nb {
+  color: var(--codehilite-nb);
+} /* Name.Builtin */
+.codehilite .nc {
+  color: var(--codehilite-nc);
+} /* Name.Class */
+.codehilite .no {
+  color: var(--codehilite-no);
+} /* Name.Constant */
+.codehilite .nd {
+  color: var(--codehilite-nd);
+} /* Name.Decorator */
+.codehilite .ni {
+  color: var(--codehilite-ni);
+} /* Name.Entity */
+.codehilite .ne {
+  color: var(--codehilite-ne);
+} /* Name.Exception */
+.codehilite .nf {
+  color: var(--codehilite-nf);
+} /* Name.Function */
+.codehilite .nl {
+  color: var(--codehilite-nl);
+} /* Name.Label */
+.codehilite .nn {
+  color: var(--codehilite-nn);
+} /* Name.Namespace */
+.codehilite .nx {
+  color: var(--codehilite-nx);
+} /* Name.Other */
+.codehilite .py {
+  color: var(--codehilite-py);
+} /* Name.Property */
+.codehilite .nt {
+  color: var(--codehilite-nt);
+} /* Name.Tag */
+.codehilite .nv {
+  color: var(--codehilite-nv);
+} /* Name.Variable */
+.codehilite .ow {
+  color: var(--codehilite-ow);
+} /* Operator.Word */
+.codehilite .mb {
+  color: var(--codehilite-mb);
+} /* Literal.Number.Bin */
+.codehilite .mf {
+  color: var(--codehilite-mf);
+} /* Literal.Number.Float */
+.codehilite .mh {
+  color: var(--codehilite-mh);
+} /* Literal.Number.Hex */
+.codehilite .mi {
+  color: var(--codehilite-mi);
+} /* Literal.Number.Integer */
+.codehilite .mo {
+  color: var(--codehilite-mo);
+} /* Literal.Number.Oct */
+.codehilite .sa {
+  color: var(--codehilite-sa);
+} /* Literal.String.Affix */
+.codehilite .sb {
+  color: var(--codehilite-sb);
+} /* Literal.String.Backtick */
+.codehilite .sc {
+  color: var(--codehilite-sc);
+} /* Literal.String.Char */
+.codehilite .dl {
+  color: var(--codehilite-dl);
+} /* Literal.String.Delimiter */
+.codehilite .sd {
+  color: var(--codehilite-sd);
+} /* Literal.String.Doc */
+.codehilite .s2 {
+  color: var(--codehilite-s2);
+} /* Literal.String.Double */
+.codehilite .se {
+  color: var(--codehilite-se);
+} /* Literal.String.Escape */
+.codehilite .sh {
+  color: var(--codehilite-sh);
+} /* Literal.String.Heredoc */
+.codehilite .si {
+  color: var(--codehilite-si);
+} /* Literal.String.Interpol */
+.codehilite .sx {
+  color: var(--codehilite-sx);
+} /* Literal.String.Other */
+.codehilite .sr {
+  color: var(--codehilite-sr);
+} /* Literal.String.Regex */
+.codehilite .s1 {
+  color: var(--codehilite-s1);
+} /* Literal.String.Single */
+.codehilite .ss {
+  color: var(--codehilite-ss);
+} /* Literal.String.Symbol */
+.codehilite .bp {
+  color: var(--codehilite-bp);
+} /* Name.Builtin.Pseudo */
+.codehilite .fm {
+  color: var(--codehilite-fm);
+} /* Name.Function.Magic */
+.codehilite .vc {
+  color: var(--codehilite-vc);
+} /* Name.Variable.Class */
+.codehilite .vg {
+  color: var(--codehilite-vg);
+} /* Name.Variable.Global */
+.codehilite .vi {
+  color: var(--codehilite-vi);
+} /* Name.Variable.Instance */
+.codehilite .vm {
+  color: var(--codehilite-vm);
+} /* Name.Variable.Magic */
+.codehilite .il {
+  color: var(--codehilite-il);
+} /* Literal.Number.Integer.Long */

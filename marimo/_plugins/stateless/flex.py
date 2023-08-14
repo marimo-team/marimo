@@ -1,0 +1,190 @@
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Literal, Optional
+
+from marimo._output.formatting import as_html
+from marimo._output.hypertext import Html
+from marimo._output.rich_help import mddoc
+
+
+def _flex(
+    items: Sequence[object],
+    direction: Literal["row", "column"],
+    justify: Literal[
+        "start", "center", "end", "space-between", "space-around"
+    ],
+    align: Optional[Literal["start", "end", "center", "stretch"]],
+    wrap: bool,
+    gap: float,
+) -> Html:
+    justify_content_map = {
+        "start": "flex-start",
+        "center": "center",
+        "end": "flex-end",
+        "space-between": "space-between",
+        "space-around": "space-around",
+        None: "space-between",
+    }
+    align_items_map = {
+        "start": "flex-start",
+        "center": "center",
+        "end": "flex-end",
+        "stretch": "stretch",
+        None: "normal",
+    }
+    style = ";".join(
+        [
+            "display: flex",
+            f"flex-direction: {direction}",
+            f"justify-content: {justify_content_map[justify]}",
+            f"align-items: {align_items_map[align]}",
+            f"flex-wrap: {'wrap' if wrap else 'nowrap'}",
+            f"gap: {gap}rem",
+        ]
+    )
+    grid_items = "".join(
+        ["<div>" + as_html(item).text + "</div>" for item in items]
+    )
+    return Html(f"<div style='{style}'>" + grid_items + "</div>")
+
+
+@mddoc
+def vstack(
+    items: Sequence[object],
+    align: Optional[Literal["start", "end", "center", "stretch"]] = None,
+    gap: float = 0.5,
+) -> Html:
+    """Stack items vertically, in a column.
+
+    Combine with `hstack` to build a grid of items.
+
+    **Example.**
+
+    ```python3
+    # Build a column of items
+    mo.vstack([mo.md("..."), mo.ui.text_area()])
+    ```
+
+    ```python3
+    # Build a grid.
+    mo.vstack([
+        mo.hstack([mo.md("..."), mo.ui.text_area()]),
+        mo.hstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()])
+    ])
+    ```
+
+    **Args.**
+
+    - `items`: A list of items.
+    - `align`: Align items horizontally: start, end, center, or stretch.
+    - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
+
+    **Returns.**
+
+    - An `Html` object.
+    """
+    return _flex(
+        items,
+        direction="column",
+        justify="start",
+        align=align,
+        wrap=False,
+        gap=gap,
+    )
+
+
+@mddoc
+def hstack(
+    items: Sequence[object],
+    justify: Literal[
+        "start", "center", "end", "space-between", "space-around"
+    ] = "space-between",
+    align: Optional[Literal["start", "end", "center", "stretch"]] = None,
+    wrap: bool = False,
+    gap: float = 0.5,
+) -> Html:
+    """Stack items horizontally, in a row.
+
+    Combine with `vstack` to build a grid.
+
+    **Example.**
+
+    ```python3
+    # Build a row of items
+    mo.hstack([mo.md("..."), mo.ui.text_area()])
+    ```
+
+    ```python3
+    # Build a grid.
+    mo.hstack([
+        mo.vstack([mo.md("..."), mo.ui.text_area()]),
+        mo.vstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()])
+    ])
+    ```
+
+    **Args.**
+
+    - `items`: A list of items.
+    - `justify`: Justify items horizontally: start, center, end,
+        space-between, or space-around.
+    - `align`: Align items vertically: start, end, center, or stretch.
+    - `wrap`: Wrap items or not.
+    - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
+
+    **Returns.**
+
+    - An `Html` object.
+    """
+    return _flex(
+        items,
+        direction="row",
+        justify=justify,
+        align=align,
+        wrap=wrap,
+        gap=gap,
+    )
+
+
+# TODO(akshayka): Implement as a stateless plugin in frontend.
+# Unused, but may be nice to keep around in case we want to add `mo.grid`
+def _spaced(
+    items: Sequence[object],
+    justify: Literal["left", "right", "center", "normal"] = "center",
+    items_per_row: Optional[int] = None,
+    column_gap: float = 1,
+    row_gap: float = 1,
+) -> Html:
+    """Space items evenly in row-major order.
+
+    A grid built with this function has a fixed number of items per row.
+    For more flexibility, use `hstack` and `vstack`.
+
+    **Args.**
+
+    - `items`: Items to arrange
+    - `justify`: Justify items normally, left, right, or center.
+    - `items_per_row`: Number of items to place in each row
+    - `column_gap`: Minimum gap in rem between columns
+    - `row_gap`: Minimum gap in rem between rows
+
+    **Returns.**
+
+    - An `Html` object.
+    """
+    items_per_row = len(items) if items_per_row is None else items_per_row
+    style = ";".join(
+        [
+            "display: grid",
+            f"grid-template-columns: repeat({items_per_row}, 1fr)",
+            f"column-gap: {column_gap}rem",
+            f"row-gap: {row_gap}rem",
+            f"justify-items: {justify}",
+            "overflow: auto",
+        ]
+    )
+    grid_items = "".join(
+        ["<div>" + as_html(item).text + "</div>" for item in items]
+    )
+    return Html(f"<div style='{style}'>" + grid_items + "</div>")

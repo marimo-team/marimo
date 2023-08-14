@@ -1,0 +1,12 @@
+/* Hover actions */
+.hover-action {
+  display: none !important;
+}
+
+.hover-action:hover {
+  display: inline-flex !important;
+}
+
+.hover-actions-parent:hover .hover-action {
+  display: inline-flex !important;
+}

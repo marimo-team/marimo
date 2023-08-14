@@ -1,0 +1,101 @@
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Any
+
+from marimo._output.formatters.structures import format_structure
+from marimo._output.rich_help import mddoc
+from marimo._plugins.stateless.json_output import json_output
+from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.batch import _batch_base
+
+
+@mddoc
+class dictionary(_batch_base):
+    """
+    A dictionary of UI elements.
+
+    Use a dictionary to
+    - create a set of UI elements at runtime
+    - group together logically related UI elements
+    - keep the number of global variables in your program small
+
+    The UI elements in the dictionary are clones of the original elements:
+    interacting with the dictionary will _not_ update the original
+    elements, and vice versa.
+
+    **Examples.**
+
+    A heterogeneous collection of UI elements:
+
+    ```python
+    d = mo.ui.dictionary({
+            "slider": mo.ui.slider(1, 10),
+            "text": mo.ui.text(),
+            "date": mo.ui.date()
+        })
+    ```
+
+    ```python
+    # d.value returns a dict with keys "slider", "text", "date"
+    d.value
+    ```
+
+    Some number of UI elements, determined at runtime:
+
+    ```python
+    mo.ui.dictionary({
+        f"option {i}": mo.ui.slider(1, 10)
+        for i in range random.randint(4, 8)
+    })
+    ```
+
+    **Attributes.**
+
+    - `value`: a dict holding the values of the UI elements, keyed by
+               their names.
+    - `elements`: a dict of the wrapped elements (clones of the originals)
+
+    **Initialization Args.**
+
+    - `elements`: a dict mapping names to UI elements to include
+    - `label`: a descriptive name for the dictionary
+       to trigger value updates
+    """
+
+    def __init__(
+        self,
+        elements: dict[str, UIElement[Any, Any]],
+        label: str = "",
+    ) -> None:
+        # Why we clone the wrapped elements:
+        #
+        # We don't have good semantics for embedding the original
+        # elements into the dictionary. Here are some complications
+        # with doing that:
+        #
+        # 1. Interacting with an element in the dict might cause the cell
+        # that created the dict to re-run (if the element were declared
+        # in another cell), causing the dict to be destroyed and recreated
+        # with a new object-id, which in turn will re-initialize the dict
+        # and interrupt all interactivity
+        #
+        # 2. Interacting with the original element in another cell may
+        # again cause the dict to be destroyed/recreated; moreover, the
+        # interaction will not update the value of the dictionary (unless
+        # additional logic were added to the frontend DictPlugin to spy on
+        # marimoValueUpdateEvents of children), and in any case will not
+        # trigger cells that ref the dictionary to run, leading to confusion
+        elements = {key: element._clone() for key, element in elements.items()}
+
+        self._label = label
+        # slot a JSON tree viewer as the contents of this element
+        slotted_html = json_output(
+            json_data=format_structure(elements),
+            name="dictionary" if not label else label,
+        )
+        super().__init__(html=slotted_html, elements=elements, label=label)
+
+    def _clone(self) -> dictionary:
+        """Custom clone method so new dict gets copies of UI elements."""
+        return dictionary(self.elements, self._label)

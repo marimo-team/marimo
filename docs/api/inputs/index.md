@@ -1,0 +1,56 @@
+# Inputs
+
+```{eval-rst}
+.. toctree::
+  :maxdepth: 1
+  :hidden:
+
+  array
+  batch
+  button
+  checkbox
+  date
+  dictionary
+  dropdown
+  file
+  form
+  multiselect
+  number
+  radio
+  slider
+  switch
+  table
+  text_area
+  text
+```
+
+marimo comes packaged with interactive UI elements that you can use to build
+powerful notebooks and apps. These elements are available in `marimo.ui`.
+
+```{eval-rst}
+.. autosummary::
+  :nosignatures:
+
+  marimo.ui.array
+  marimo.ui.batch
+  marimo.ui.button
+  marimo.ui.checkbox
+  marimo.ui.date
+  marimo.ui.dictionary
+  marimo.ui.dropdown
+  marimo.ui.file
+  marimo.ui.form
+  marimo.ui.multiselect
+  marimo.ui.number
+  marimo.ui.radio
+  marimo.ui.slider
+  marimo.ui.switch
+  marimo.ui.table
+  marimo.ui.text_area
+  marimo.ui.text
+```
+
+To use a UI element, assign it to a global variable and output it in a cell.
+When you interact with the frontend element, the Python object's `value`
+attribute is automatically updated, and all cells referencing that object
+automatically run with the element's latest value.

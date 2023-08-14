@@ -1,0 +1,32 @@
+name: "🐞 Bug report"
+description: Report an issue with marimo
+labels: [pending triage, bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for filing this bug report and helping us improve marimo!
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: |
+        A clear and concise description of the bug. If you have a workaround or plan to submit a PR for this issue, please let us know.
+        You may also include a stack trace or screenshots here.
+      placeholder: What happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Please provide the version of marimo you are using.
+      placeholder: pip show marimo
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-code
+    attributes:
+      label: Code to reproduce
+      description: If possible, paste a minimal reproducible example or link to a repository that reproduces the issue.
+      placeholder: import marimo

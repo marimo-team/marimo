@@ -1,0 +1,47 @@
+@font-face {
+  font-family: Lora;
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/Lora/Lora-VariableFont_wght.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "PT Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/PT_Sans/PTSans-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "PT Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("../fonts/PT_Sans/PTSans-Bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Fira Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/Fira_Mono/FiraMono-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Fira Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("../fonts/Fira_Mono/FiraMono-Medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Fira Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("../fonts/Fira_Mono/FiraMono-Bold.ttf") format("truetype");
+}

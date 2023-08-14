@@ -1,0 +1,49 @@
+import { Meta, Story } from "@storybook/addon-docs";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+<Meta title="Tabs" component={Tabs} />
+
+# Tabs
+
+<Tabs defaultValue="config" className="w-[400px]">
+  <TabsList>
+    <TabsTrigger value="config">Config</TabsTrigger>
+    <TabsTrigger value="variables">Variables</TabsTrigger>
+  </TabsList>
+  <TabsContent value="config">
+    <p className="text-sm text-slate-500 dark:text-slate-400">
+      Change your account settings here.
+    </p>
+    <div className="grid gap-2 py-4">
+      <div className="space-y-1">
+        <Label htmlFor="name">Auto Save Delay</Label>
+        <Input id="name" defaultValue="1000" />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="username">Default Filename</Label>
+        <Input id="username" defaultValue="" />
+      </div>
+    </div>
+    <div className="flex">
+      <Button>Save changes</Button>
+    </div>
+  </TabsContent>
+  <TabsContent value="variables">
+    <p className="text-sm text-slate-500 dark:text-slate-400">
+      Change your variables here.
+    </p>
+    <div className="grid gap-2 py-4">
+      <div className="space-y-1">
+        <Label htmlFor="env1">ENV 1</Label>
+        <Input id="env1" />
+      </div>
+    </div>
+    <div className="flex">
+      <Button>Save</Button>
+    </div>
+  </TabsContent>
+</Tabs>
