@@ -76,7 +76,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "ci": "run-s lint typecheck test build",
+    "ci": "CI=true run-s lint typecheck test build",
     "start": "vite",
     "dev": "vite",
     "dev:msw": "VITE_MSW=true vite",

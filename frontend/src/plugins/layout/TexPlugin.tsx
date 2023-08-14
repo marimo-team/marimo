@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { PropsWithChildren, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import katex from "katex";
 
 import { z } from "zod";
@@ -17,32 +17,33 @@ export class TexPlugin implements IStatelessPlugin<{}> {
   validator = z.object({});
 
   render(props: IStatelessPluginProps<{}>): JSX.Element {
-    return <TexComponent>{props.children}</TexComponent>;
+    return (
+      <TexComponent tex={props.host.textContent || props.host.innerHTML} />
+    );
   }
 }
 
-function renderLatex(element: HTMLElement) {
-  const tex = element.textContent || element.innerText;
+function renderLatex(mount: HTMLElement, tex: string) {
   if (tex.startsWith("||(||(") && tex.endsWith("||)||)")) {
     // when $$...$$ is used without newlines before/after the $$.
-    katex.render(tex.slice(6, -6), element, {
+    katex.render(tex.slice(6, -6), mount, {
       displayMode: true,
       throwOnError: false,
     });
   } else if (tex.startsWith("||(") && tex.endsWith("||)")) {
-    katex.render(tex.slice(3, -3), element, {
+    katex.render(tex.slice(3, -3), mount, {
       displayMode: false,
       throwOnError: false,
     });
   } else if (tex.startsWith("||[") && tex.endsWith("||]")) {
-    katex.render(tex.slice(3, -3), element, {
+    katex.render(tex.slice(3, -3), mount, {
       displayMode: true,
       throwOnError: false,
     });
   }
 }
 
-const TexComponent = ({ children }: PropsWithChildren<{}>): JSX.Element => {
+const TexComponent = ({ tex }: { tex: string }): JSX.Element => {
   const ref = useRef<HTMLSpanElement>(null);
 
   // The arithmatex markdown extension we use in Python produces nested
@@ -68,19 +69,10 @@ const TexComponent = ({ children }: PropsWithChildren<{}>): JSX.Element => {
 
   // Re-render when the text content changes.
   useLayoutEffect(() => {
-    if (ref.current?.firstElementChild) {
-      renderLatex(ref.current.firstElementChild as HTMLElement);
+    if (ref.current) {
+      renderLatex(ref.current, tex);
     }
-  }, [ref.current?.textContent]);
+  }, [tex]);
 
-  // When we > 1 children, we're in display math mode, so style accordingly.
-  const childrenToRender =
-    React.Children.count(children) > 1 ? (
-      <div className="block my-4 text-center">
-        {React.Children.toArray(children)[1]}
-      </div>
-    ) : (
-      children
-    );
-  return <span ref={ref}>{childrenToRender}</span>;
+  return <span ref={ref} />;
 };

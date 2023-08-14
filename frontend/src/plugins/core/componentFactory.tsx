@@ -28,7 +28,7 @@ import { parseAttrValue, parseInitialValue } from "../../core/dom/htmlUtils";
 import { IPlugin } from "../types";
 import { Objects } from "../../utils/objects";
 import { renderError } from "./BadPlugin";
-import { RenderHTML } from "./RenderHTML";
+import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
 
@@ -245,27 +245,9 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
     /**
      * Get the children of the element as React nodes.
-     * Any text nodes will be wrapped in a <span> element.
-     *
-     * TODO: would be nicer to just do `<RenderHTML html={this.innerHTML} />
-     * but downstream plugins (like Tex) may assume a wrapped element.
-     * We can fix this in future.
      */
     private getChildren(): React.ReactNode {
-      return Array.from(this.childNodes)
-        .map((child) => {
-          if (
-            child.nodeType === Node.ELEMENT_NODE &&
-            child instanceof HTMLElement
-          ) {
-            return <RenderHTML html={child.outerHTML} />;
-          } else if (child.nodeType === Node.TEXT_NODE) {
-            return <span>{child.textContent}</span>;
-          } else {
-            return undefined;
-          }
-        })
-        .filter(Boolean);
+      return renderHTML({ html: this.innerHTML });
     }
 
     /**

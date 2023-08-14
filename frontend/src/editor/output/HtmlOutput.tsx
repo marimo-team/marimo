@@ -2,7 +2,7 @@
 import { memo, useLayoutEffect, useRef } from "react";
 import { lookupScript, updateScriptCache } from "./scripts";
 import { Logger } from "../../utils/Logger";
-import { RenderHTML } from "../../plugins/core/RenderHTML";
+import { renderHTML } from "../../plugins/core/RenderHTML";
 import { cn } from "../../lib/utils";
 
 interface Props {
@@ -78,7 +78,7 @@ export const HtmlOutput: React.FC<Props> = memo(
         })}
         ref={nodeRef}
       >
-        <RenderHTML html={html} />
+        {renderHTML({ html })}
       </div>
     );
   }
