@@ -4,7 +4,11 @@ import { assertExists } from "../utils/assertExists";
 
 const SaveConfigSchema = z.object({
   autosave: z.enum(["off", "after_delay"]),
-  autosave_delay: z.number().nonnegative(),
+  autosave_delay: z
+    .number()
+    .nonnegative()
+    // Ensure that the delay is at least 1 second
+    .transform((millis) => Math.max(millis, 1000)),
 });
 
 const CompletionConfigSchema = z.object({

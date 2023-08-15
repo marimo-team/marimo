@@ -126,6 +126,11 @@ export const App: React.FC<AppProps> = ({ initialMode, userConfig }) => {
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, showToast: boolean) => {
+    // Don't save if there are no cells
+    if (codes.length === 0) {
+      return;
+    }
+
     // Don't save if we are in read mode
     if (isReading) {
       return;

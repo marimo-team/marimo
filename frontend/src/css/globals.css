@@ -86,37 +86,51 @@
   .dark {
     /* sage-2 */
     --background: 150 7.7% 10.2%;
+
     /* sage-12 */
     --foreground: 155 7% 93%;
+
     /* sage-3 */
     --muted: 151 5.5% 15.2%;
+
     /* sage-11 */
     --muted-foreground: 155 5% 68.3%;
+
     /* sage-3 */
     --popover: 151 5.5% 15.2%;
+
     /* sage-11 */
     --popover-foreground: 155 5% 68.3%;
+
     /* sage-3 */
     --card: 151 5.5% 15.2%;
+
     /* sage-11 */
     --card-foreground: 155 5% 68.3%;
+
     /* sage-6 */
     --border: 153 3.7% 24.2%;
+
     /* sage-7 */
     --input: 154 3.3% 28.7%;
+
     /* cyan-3 */
     --primary: 193 52.6% 14.1%;
+
     /* cyan-12 */
     --primary-foreground: 190 80% 84%;
+
     /* sage-12 */
     --secondary: 155 7% 93%;
+
     /* cyan-3 */
     --secondary-foreground: 193 51.9% 11.9%;
-    /* cyan-7*/
+
+    /* cyan-7 */
     --accent: 192 56.6% 26.5%;
+
     /* cyan-11 */
     --accent-foreground: 190 90% 54%;
-
     --destructive: 0 63% 41%;
     --destructive-foreground: 155 7% 93%;
     --success: 130 100% 70%;

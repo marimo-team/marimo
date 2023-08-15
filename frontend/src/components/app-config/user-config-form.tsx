@@ -71,6 +71,7 @@ export const UserConfigForm: React.FC = () => {
                   disabled={form.getValues("save.autosave") !== "after_delay"}
                   {...field}
                   value={field.value / 1000}
+                  min={1}
                   onChange={(e) =>
                     field.onChange(Number.parseInt(e.target.value) * 1000)
                   }
