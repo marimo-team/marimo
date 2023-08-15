@@ -1,0 +1,13 @@
+cvxpy >= 1.2.0
+langchain >= 0.0.245
+marimo >= 0.1.0
+matplotlib >= 3.2.0
+mortgage >= 1.0.5
+numpy >= 1.22.0
+openai >= 0.27.8
+pandas >= 2.0.0
+pymde >= 0.1.18
+pypdf2 >= 3.0.1
+seaborn >= 0.12.0
+sig-decomp == 0.1.1
+tiktoken >= 0.4.0
