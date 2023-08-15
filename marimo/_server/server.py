@@ -224,7 +224,7 @@ async def start_server(
                 api.SaveUserConfigurationHandler,
             ),
             (
-                r"/(favicon\.svg)",
+                r"/(favicon\.ico)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
             ),
@@ -244,12 +244,12 @@ async def start_server(
                 {"path": root},
             ),
             (
-                r"/(logo192\.png)",
+                r"/(android-chrome-192x192\.png)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
             ),
             (
-                r"/(logo512\.png)",
+                r"/(android-chrome-512x512\.png)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
             ),
