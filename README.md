@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
   <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord</strong></a> ·
-  <a href="https://marimo.io/examples" target="_blank"><strong>Examples</strong></a>
+  <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
 </p>
 
 **marimo** is a Python library for creating **reactive notebooks
