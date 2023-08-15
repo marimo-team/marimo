@@ -43,7 +43,7 @@ dev = [
     "mypy~=1.4.1",
     "ruff~=0.0.275",
     # For docs
-    "pypandoc_binary",
+    "pypandoc",
     "autoclasstoc",
     "sphinx",
     "sphinx-copybutton",
