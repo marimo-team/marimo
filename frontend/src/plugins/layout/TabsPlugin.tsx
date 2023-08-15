@@ -9,7 +9,7 @@ import {
 } from "../../components/ui/tabs";
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
-import { RenderHTML } from "../core/RenderHTML";
+import { renderHTML } from "../core/RenderHTML";
 
 interface Data {
   /**
@@ -39,7 +39,7 @@ const TabComponent = ({
       <TabsList>
         {tabs.map((tab, index) => (
           <TabsTrigger key={index} value={index.toString()}>
-            <RenderHTML html={tab} />
+            {renderHTML({ html: tab })}
           </TabsTrigger>
         ))}
       </TabsList>

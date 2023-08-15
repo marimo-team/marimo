@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { IPlugin, IPluginProps } from "@/plugins/types";
 import * as labelStyles from "@/plugins/impl/Label.styles";
 import { cn } from "@/lib/utils";
-import { RenderHTML } from "../core/RenderHTML";
+import { renderHTML } from "../core/RenderHTML";
 
 export class SwitchPlugin
   implements IPlugin<boolean, { label: string | null }>
@@ -33,7 +33,7 @@ const SwitchComponent = ({
   const labelElement =
     data.label === null ? null : (
       <Label htmlFor={id} className="text-md">
-        <RenderHTML html={data.label} />
+        {renderHTML({ html: data.label })}
       </Label>
     );
 

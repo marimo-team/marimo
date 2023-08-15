@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion";
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
-import { RenderHTML } from "../core/RenderHTML";
+import { renderHTML } from "../core/RenderHTML";
 
 interface Data {
   /**
@@ -54,7 +54,7 @@ const AccordionComponent = ({
             className="border-muted-foreground-20"
           >
             <AccordionTrigger className="py-2 text-md">
-              <RenderHTML html={labels[index]} />
+              {renderHTML({ html: labels[index] })}
             </AccordionTrigger>
             <AccordionContent className="text-md">{child}</AccordionContent>
           </AccordionItem>

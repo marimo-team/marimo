@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { IPlugin, IPluginProps } from "../types";
 import { Button } from "../../components/ui/button";
-import { RenderHTML } from "../core/RenderHTML";
+import { renderHTML } from "../core/RenderHTML";
 
 export class ButtonPlugin implements IPlugin<number, { label: string }> {
   tagName = "marimo-button";
@@ -19,7 +19,7 @@ export class ButtonPlugin implements IPlugin<number, { label: string }> {
         onClick={() => props.setValue((v) => v + 1)}
         type="submit"
       >
-        <RenderHTML html={props.data.label} />
+        {renderHTML({ html: props.data.label })}
       </Button>
     );
   }

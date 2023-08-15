@@ -7,7 +7,7 @@ import * as labelStyles from "./Label.styles";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Label } from "../../components/ui/label";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { RenderHTML } from "../core/RenderHTML";
+import { renderHTML } from "../core/RenderHTML";
 
 export class CheckboxPlugin
   implements IPlugin<boolean, { label: string | null }>
@@ -40,7 +40,7 @@ const CheckboxComponent = ({
   const labelElement =
     data.label === null ? null : (
       <Label htmlFor={id} className="text-md">
-        <RenderHTML html={data.label} />
+        {renderHTML({ html: data.label })}
       </Label>
     );
 

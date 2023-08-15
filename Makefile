@@ -33,7 +33,7 @@ fe-check: fe-lint fe-typecheck
 .PHONY: fe-test
 # test frontend
 fe-test:
-	cd frontend; pnpm test
+	cd frontend; CI=true pnpm test
 
 .PHONY: e2e
 # test end-to-end
