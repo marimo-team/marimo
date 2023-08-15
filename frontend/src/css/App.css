@@ -5,6 +5,7 @@
 @import url("CodeMirrorSearchPanel.css");
 
 /* stylelint-disable unit-allowed-list */
+
 /* On smaller screens, scale everything down so more fits on the page. */
 html {
   font-size: 90%;
