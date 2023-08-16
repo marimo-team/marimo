@@ -99,8 +99,8 @@ export const CellArray: React.FC<CellArrayProps> = ({
     <div
       className={cn(
         "m-auto pb-12",
-        appConfig.width === "wide" && "px-24",
-        appConfig.width !== "wide" && "max-w-contentWidth",
+        appConfig.width === "full" && "px-24",
+        appConfig.width !== "full" && "max-w-contentWidth",
         // Hide the cells for a fake loading effect, to avoid flickering
         invisible && "invisible"
       )}

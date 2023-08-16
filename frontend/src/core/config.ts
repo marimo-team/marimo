@@ -20,7 +20,7 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 
 export const AppConfigSchema = z.object({
-  width: z.enum(["wide", "normal"]).default("normal"),
+  width: z.enum(["full", "normal"]).default("normal"),
 });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
