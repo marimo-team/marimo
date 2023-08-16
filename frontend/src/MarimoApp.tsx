@@ -10,7 +10,7 @@ import { Toaster } from "./components/ui/toaster";
 import { ModalProvider } from "./components/modal/ImperativeModal";
 import { DayPickerProvider } from "react-day-picker";
 import { CommandPallette } from "./editor/CommandPallette";
-import { useUserConfig } from "./core/state/user-config";
+import { useAppConfig, useUserConfig } from "@/core/state/config";
 
 interface MarimoAppProps {
   /**
@@ -24,6 +24,7 @@ interface MarimoAppProps {
  */
 export const MarimoApp: React.FC<MarimoAppProps> = ({ initialMode }) => {
   const [userConfig] = useUserConfig();
+  const [appConfig] = useAppConfig();
 
   useEffect(() => {
     initializePlugins();
@@ -34,7 +35,11 @@ export const MarimoApp: React.FC<MarimoAppProps> = ({ initialMode }) => {
       <TooltipProvider>
         <DayPickerProvider initialProps={{}}>
           <ModalProvider>
-            <App initialMode={initialMode} userConfig={userConfig} />
+            <App
+              initialMode={initialMode}
+              userConfig={userConfig}
+              appConfig={appConfig}
+            />
             <Toaster />
             {initialMode !== "read" && <CommandPallette />}
           </ModalProvider>

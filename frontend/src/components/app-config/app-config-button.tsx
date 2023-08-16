@@ -8,6 +8,7 @@ import { Button } from "../../editor/inputs/Inputs";
 import { SettingsIcon } from "lucide-react";
 import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";
+import { AppConfigForm } from "@/components/app-config/app-config-form";
 
 export const AppConfigButton = () => {
   return (
@@ -26,6 +27,8 @@ export const AppConfigButton = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end" side="bottom">
+        <AppConfigForm />
+        <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
         <UserConfigForm />
       </PopoverContent>
     </Popover>

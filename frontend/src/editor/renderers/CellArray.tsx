@@ -6,7 +6,7 @@ import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
 import { ConnectionStatus, WebSocketState } from "../../core/websocket/types";
 import { CellsAndHistory, useCellActions } from "../../core/state/cells";
-import { UserConfig } from "../../core/config";
+import { AppConfig, UserConfig } from "../../core/config";
 import { AppMode } from "../../core/mode";
 import { useHotkey } from "../../hooks/useHotkey";
 import { useEvent } from "../../hooks/useEvent";
@@ -19,6 +19,7 @@ interface CellArrayProps {
   cells: CellsAndHistory;
   mode: AppMode;
   userConfig: UserConfig;
+  appConfig: AppConfig;
   connStatus: ConnectionStatus;
 }
 
@@ -31,6 +32,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   cells,
   mode,
   userConfig,
+  appConfig,
   connStatus,
 }) => {
   const {
@@ -96,7 +98,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
   return (
     <div
       className={cn(
-        "max-w-contentWidth m-auto pb-12",
+        "m-auto pb-12",
+        appConfig.width === "wide" && "px-24",
+        appConfig.width !== "wide" && "max-w-contentWidth",
         // Hide the cells for a fake loading effect, to avoid flickering
         invisible && "invisible"
       )}

@@ -15,7 +15,7 @@ import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { toast } from "../ui/use-toast";
 import { saveUserConfig } from "../../core/network/requests";
-import { useUserConfig } from "../../core/state/user-config";
+import { useUserConfig } from "../../core/state/config";
 import { ThemeToggle } from "./theme-toggle";
 
 export const UserConfigForm: React.FC = () => {
