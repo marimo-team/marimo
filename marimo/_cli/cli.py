@@ -197,7 +197,7 @@ def edit(
                 )
             # module correctness check - don't start the server
             # if we can't import the module
-            codegen.get_codes(name)
+            codegen.get_app(name)
         else:
             # write empty file
             try:
@@ -265,7 +265,7 @@ def run(port: Optional[int], headless: bool, name: str) -> None:
         raise click.UsageError("Invalid NAME - %s is not a file" % name)
 
     # correctness check - don't start the server if we can't import the module
-    codegen.get_codes(name)
+    codegen.get_app(name)
 
     asyncio.run(
         start_server(

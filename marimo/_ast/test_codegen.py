@@ -134,11 +134,10 @@ class TestGeneration:
 class TestGetCodes:
     @staticmethod
     def test_get_codes() -> None:
-        codes, names = codegen.get_codes(
-            get_filepath("test_generate_filecontents")
-        )
-        assert names == ["one", "two", "three", "four", "five"]
-        assert codes == [
+        app = codegen.get_app(get_filepath("test_generate_filecontents"))
+        assert app is not None
+        assert list(app._names()) == ["one", "two", "three", "four", "five"]
+        assert list(app._codes()) == [
             "import numpy as np",
             "x = 0\nxx = 1",
             "y = x + 1",
@@ -149,70 +148,68 @@ class TestGetCodes:
     @staticmethod
     def test_get_codes_with_name_error() -> None:
         # name mo is not defined --- make sure this file is still parseable
-        codes, names = codegen.get_codes(
-            get_filepath("test_get_codes_with_name_error")
-        )
-        assert names == ["one"]
-        assert codes == [
+        app = codegen.get_app(get_filepath("test_get_codes_with_name_error"))
+        assert app is not None
+        assert list(app._names()) == ["one"]
+        assert list(app._codes()) == [
             "mo",
         ]
 
     @staticmethod
     def test_get_codes_multiline_fndef() -> None:
-        codes, names = codegen.get_codes(
-            get_filepath("test_get_codes_multiline_fndef")
-        )
-        assert names == ["one"]
-        assert codes == [
+        app = codegen.get_app(get_filepath("test_get_codes_multiline_fndef"))
+        assert app is not None
+        assert list(app._names()) == ["one"]
+        assert list(app._codes()) == [
             "# comment\nx = 0 + a + b + c + d",
         ]
 
     @staticmethod
     def test_get_codes_messy() -> None:
-        codes, names = codegen.get_codes(get_filepath("test_get_codes_messy"))
-        assert names == ["__"]
-        assert codes == [
+        app = codegen.get_app(get_filepath("test_get_codes_messy"))
+        assert app is not None
+        assert list(app._names()) == ["__"]
+        assert list(app._codes()) == [
             "# comment\n# another comment\n\n# yet another comment\n"
             + "x = 0 + a + b + c + d",
         ]
 
     @staticmethod
     def test_get_codes_single_line_fn() -> None:
-        codes, names = codegen.get_codes(
-            get_filepath("test_get_codes_single_line_fn")
-        )
-        assert names == ["one"]
-        assert codes == ["c = a + b; print(c); "]
+        app = codegen.get_app(get_filepath("test_get_codes_single_line_fn"))
+        assert app is not None
+        assert list(app._names()) == ["one"]
+        assert list(app._codes()) == ["c = a + b; print(c); "]
 
     @staticmethod
     def test_get_codes_multiline_string() -> None:
-        codes, names = codegen.get_codes(
-            get_filepath("test_get_codes_multiline_string")
-        )
-        assert names == ["one"]
-        assert codes == ['c = """\n  a, b"""; ']
+        app = codegen.get_app(get_filepath("test_get_codes_multiline_string"))
+        assert app is not None
+        assert list(app._names()) == ["one"]
+        assert list(app._codes()) == ['c = """\n  a, b"""; ']
 
     @staticmethod
     def test_get_codes_comment_after_sig() -> None:
-        codes, names = codegen.get_codes(
-            get_filepath("test_get_codes_comment_after_sig")
-        )
-        assert names == ["one"]
-        assert codes == ['print("hi")']
+        app = codegen.get_app(get_filepath("test_get_codes_comment_after_sig"))
+        assert app is not None
+        assert list(app._names()) == ["one"]
+        assert list(app._codes()) == ['print("hi")']
 
     @staticmethod
     def test_get_codes_empty() -> None:
-        codes, names = codegen.get_codes(get_filepath("test_get_codes_empty"))
-        assert names == ["one", "two"]
-        assert [c.strip() for c in codes] == ["", ""]
+        app = codegen.get_app(get_filepath("test_get_codes_empty"))
+        assert app is not None
+        assert list(app._names()) == ["one", "two"]
+        assert [c.strip() for c in app._codes()] == ["", ""]
 
     @staticmethod
     def test_get_codes_syntax_error() -> None:
-        codes, names = codegen.get_codes(
+        app = codegen.get_app(
             get_filepath("test_generate_filecontents_with_syntax_error")
         )
-        assert names == ["one", "two", "__", "__"]
-        assert codes == [
+        assert app is not None
+        assert list(app._names()) == ["one", "two", "__", "__"]
+        assert list(app._codes()) == [
             "import numpy as np",
             "_ error",
             "'all good'",

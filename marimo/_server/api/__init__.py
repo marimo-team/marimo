@@ -8,6 +8,7 @@ __all__ = [
     "InterruptHandler",
     "RenameHandler",
     "RunHandler",
+    "SaveAppConfigurationHandler",
     "SaveHandler",
     "SaveUserConfigurationHandler",
     "SetUIElementValueHandler",
@@ -24,5 +25,6 @@ from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.rename import RenameHandler
 from marimo._server.api.run import RunHandler
 from marimo._server.api.save import SaveHandler
+from marimo._server.api.save_app_config import SaveAppConfigurationHandler
 from marimo._server.api.save_user_config import SaveUserConfigurationHandler
 from marimo._server.api.set_ui_element_value import SetUIElementValueHandler

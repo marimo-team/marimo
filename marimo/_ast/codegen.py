@@ -5,14 +5,15 @@ import builtins
 import importlib.util
 import json
 from collections.abc import Sequence
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from marimo import __version__
-from marimo._ast.app import App
+from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import Cell, parse_cell
 from marimo._ast.visitor import Name
 
 INDENT = "    "
+MAX_LINE_LENGTH = 80
 
 
 def indent_text(text: str) -> str:
@@ -42,7 +43,7 @@ def to_functiondef(
 
     decorator = "@app.cell"
     signature = f"def {name}({args}):"
-    if len(INDENT + signature) >= 80:
+    if len(INDENT + signature) >= MAX_LINE_LENGTH:
         signature = f"def {name}{_multiline_tuple(refs)}:"
     fndef = decorator + "\n" + signature + "\n"
     body = indent_text(cell.code)
@@ -58,7 +59,7 @@ def to_functiondef(
             returns += ", ".join(defs)
         fndef += (
             returns
-            if len(INDENT + returns) <= 80
+            if len(INDENT + returns) <= MAX_LINE_LENGTH
             else (indent_text("return " + _multiline_tuple(defs)))
         )
     else:
@@ -85,7 +86,33 @@ def generate_unparseable_cell(code: str, name: Optional[str]) -> str:
         )
 
 
-def generate_filecontents(codes: list[str], names: list[str]) -> str:
+def generate_app_constructor(config: Optional[_AppConfig]) -> str:
+    def _format_arg(arg: Any) -> str:
+        if isinstance(arg, str):
+            return f'"{arg}"'
+        else:
+            return str(arg)
+
+    default_config = _AppConfig().asdict()
+    updates = {}
+    # only include a config setting if it's not a default setting, to
+    # avoid unnecessary edits to the app file
+    if config is not None:
+        updates = config.asdict()
+        for key in default_config:
+            if updates[key] == default_config[key]:
+                updates.pop(key)
+
+    kwargs = [f"{key}={_format_arg(value)}" for key, value in updates.items()]
+    app_constructor = "app = marimo.App(" + ", ".join(kwargs) + ")"
+    if len(app_constructor) >= MAX_LINE_LENGTH:
+        app_constructor = "app = marimo.App" + _multiline_tuple(kwargs)
+    return app_constructor
+
+
+def generate_filecontents(
+    codes: list[str], names: list[str], config: Optional[_AppConfig] = None
+) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
     cell_function_data: list[Union[Cell, str]] = []
     defs: set[Name] = set()
@@ -111,7 +138,7 @@ def generate_filecontents(codes: list[str], names: list[str]) -> str:
         + "\n\n"
         + f'__generated_with = "{__version__}"'
         + "\n"
-        + "app = marimo.App()"
+        + generate_app_constructor(config)
         + "\n\n\n"
         + "\n\n\n".join(fndefs)
         + "\n\n\n"
@@ -127,17 +154,16 @@ class MarimoFileError(Exception):
     pass
 
 
-# TODO refactor to return cell_ids as well?
-def get_codes(filename: Optional[str]) -> tuple[list[str], list[str]]:
-    """Get lists of codes and names from a marimo-generated module"""
+def get_app(filename: Optional[str]) -> Optional[App]:
+    """Load and return app from a marimo-generated module"""
     if filename is None:
-        return [""], ["__"]
+        return None
 
     with open(filename, "r", encoding="utf-8") as f:
         contents = f.read().strip()
 
     if not contents:
-        return [""], ["__"]
+        return None
 
     spec = importlib.util.spec_from_file_location("marimo_app", filename)
     if spec is None:
@@ -151,10 +177,9 @@ def get_codes(filename: Optional[str]) -> tuple[list[str], list[str]]:
     if not isinstance(marimo_app.app, App):
         raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
 
-    marimo_app.app._validate_args()
-    return list(marimo_app.app._codes.values()), list(
-        marimo_app.app._cell_names.values()
-    )
+    app = marimo_app.app
+    app._validate_args()
+    return app
 
 
 RECOVERY_CELL_MARKER = "ↁ"

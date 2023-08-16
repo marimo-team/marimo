@@ -21,7 +21,6 @@ import queue
 import signal
 import sys
 import threading
-from dataclasses import dataclass
 from enum import Enum
 from multiprocessing import connection
 from typing import Any, Callable, Optional
@@ -33,7 +32,7 @@ import tornado.websocket
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.cell import CellId_t
+from marimo._ast.app import App, _AppConfig
 from marimo._messaging.message_types import KernelReady, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
@@ -89,14 +88,21 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         mgr = get_manager()
         codes: tuple[str, ...]
         names: tuple[str, ...]
-        app_data = mgr.app_data()
-        if mgr.mode == SessionMode.EDIT:
-            codes = tuple(cell_data.code for cell_data in app_data.values())
-            names = tuple(cell_data.name for cell_data in app_data.values())
+        app = mgr.load_app()
+        if app is None:
+            codes = ("",)
+            names = ("__",)
+        elif mgr.mode == SessionMode.EDIT:
+            codes = tuple(
+                cell_data.code for cell_data in app._cell_data.values()
+            )
+            names = tuple(
+                cell_data.name for cell_data in app._cell_data.values()
+            )
         else:
             # Don't send code to frontend in run mode
-            codes = tuple("" for _ in app_data)
-            names = tuple("" for _ in app_data)
+            codes = tuple("" for _ in app._cell_data)
+            names = tuple("" for _ in app._cell_data)
         self.write_op(
             op=KernelReady.name,
             data=serialize(KernelReady(codes=codes, names=names)),
@@ -318,12 +324,6 @@ class SessionMode(Enum):
     RUN = 1
 
 
-@dataclass
-class CellData:
-    code: str
-    name: str
-
-
 class SessionManager:
     """Mapping from client session IDs to sessions.
 
@@ -347,15 +347,21 @@ class SessionManager:
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
+        self.app_config: Optional[_AppConfig]
 
-    def app_data(self) -> dict[CellId_t, CellData]:
-        # TODO(akshayka): remove assumption that cell ids are indices
-        codes, names = codegen.get_codes(self.filename)
-        cell_ids = [CellId_t(i) for i in range(len(codes))]
-        return {
-            cid: CellData(code, name)
-            for cid, code, name in zip(cell_ids, codes, names)
-        }
+        if (app := self.load_app()) is not None:
+            self.app_config = app._config
+        else:
+            self.app_config = None
+
+    def load_app(self) -> Optional[App]:
+        return codegen.get_app(self.filename)
+
+    def update_app_config(self, config: dict[str, Any]) -> None:
+        if self.app_config is not None:
+            self.app_config.update(config)
+        else:
+            self.app_config = _AppConfig(**config)
 
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
