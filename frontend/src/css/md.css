@@ -39,6 +39,11 @@
   text-align: center;
 }
 
+.config-width-full .markdown h1 {
+  /* In full-width display, centered headings look odd */
+  text-align: start;
+}
+
 .markdown h2 {
   /* provide by the browser, but removed from 'reset' */
   display: block;

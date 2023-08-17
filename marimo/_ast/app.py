@@ -5,7 +5,8 @@ import builtins
 import itertools
 import textwrap
 from collections.abc import Sequence
-from typing import Any, Optional
+from dataclasses import asdict, dataclass
+from typing import Any, Iterable, Literal, Optional
 
 from marimo._ast.cell import (
     CellFunction,
@@ -24,6 +25,39 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime.dataflow import DirectedGraph, topological_sort
 
 
+@dataclass
+class _AppConfig:
+    """Program-specific configuration.
+
+    Configuration for frontends or runtimes that is specific to
+    a single marimo program.
+    """
+
+    width: Literal["normal", "full"] = "normal"
+
+    def asdict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def update(self, updates: dict[str, Any]) -> None:
+        config_dict = asdict(self)
+        for key in updates:
+            if key in config_dict:
+                self.__setattr__(key, updates[key])
+
+
+@dataclass
+class CellData:
+    """A cell together with some metadata"""
+
+    cell_id: CellId_t
+    # User code comprising the cell
+    code: str
+    # User-provided name for cell (or default)
+    name: str
+    # Callable cell, or None if cell was not parsable
+    cell_function: Optional[CellFunction]
+
+
 @mddoc
 class App:
     """A marimo app.
@@ -34,11 +68,16 @@ class App:
     This class has no public API, but this may change in the future.
     """
 
-    def __init__(self) -> None:
-        # cell is unparsable <=> its value in self._cell_functions is None
-        self._cell_functions: dict[CellId_t, Optional[CellFunction]] = {}
-        self._cell_names: dict[CellId_t, str] = {}
-        self._codes: dict[CellId_t, str] = {}
+    def __init__(self, **kwargs: Any) -> None:
+        # Take `AppConfig` as kwargs for forward/backward compatibility;
+        # unrecognized settings will just be dropped, instead of raising
+        # a TypeError.
+        self._config = _AppConfig()
+        for key in asdict(self._config):
+            if key in kwargs:
+                self._config.__setattr__(key, kwargs.pop("width"))
+
+        self._cell_data: dict[CellId_t, CellData] = {}
         self._registration_order: list[CellId_t] = []
 
         self._cell_id_counter = 0
@@ -57,10 +96,24 @@ class App:
     def cell(self, f: cell_func_t) -> CellFunction:
         cell_function = cell_factory(f)
         cell_id = self._create_cell_id(cell_function)
-        self._cell_functions[cell_id] = cell_function
-        self._cell_names[cell_id] = f.__name__
-        self._codes[cell_id] = cell_function.cell.code
+        self._cell_data[cell_id] = CellData(
+            cell_id=cell_id,
+            code=cell_function.cell.code,
+            name=f.__name__,
+            cell_function=cell_function,
+        )
         return cell_function
+
+    def _names(self) -> Iterable[str]:
+        return (cell_data.name for cell_data in self._cell_data.values())
+
+    def _codes(self) -> Iterable[str]:
+        return (cell_data.code for cell_data in self._cell_data.values())
+
+    def _cell_functions(self) -> Iterable[Optional[CellFunction]]:
+        return (
+            cell_data.cell_function for cell_data in self._cell_data.values()
+        )
 
     def _validate_args(self) -> None:
         """Validate the args of each cell function.
@@ -75,13 +128,11 @@ class App:
         """
         defs = set(
             itertools.chain.from_iterable(
-                f.cell.defs
-                for f in self._cell_functions.values()
-                if f is not None
+                f.cell.defs for f in self._cell_functions() if f is not None
             )
         )
         unshadowed_builtins = set(builtins.__dict__.keys()).difference(defs)
-        for f in self._cell_functions.values():
+        for f in self._cell_functions():
             if f is None:
                 continue
             expected_args = f.cell.refs - unshadowed_builtins
@@ -99,7 +150,7 @@ class App:
 
     def _unparsable_cell(self, code: str, name: Optional[str] = None) -> None:
         cell_id = self._create_cell_id(None)
-        self._cell_names[cell_id] = name if name is not None else "__"
+        name = name if name is not None else "__"
         # - code.split("\n")[1:-1] disregards first and last lines, which are
         #   empty
         # - line[4:] removes leading indent in multiline string
@@ -108,7 +159,9 @@ class App:
         code = "\n".join(
             [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
         )
-        self._codes[cell_id] = code
+        self._cell_data[cell_id] = CellData(
+            cell_id=cell_id, code=code, name=name, cell_function=None
+        )
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
@@ -118,13 +171,13 @@ class App:
             # were registered with the app
             self._cell_ids = [
                 # exclude unparseable cells from graph
-                cid
-                for cid, f in self._cell_functions.items()
-                if f is not None
+                cell_data.cell_id
+                for cell_data in self._cell_data.values()
+                if cell_data.cell_function is not None
             ]
             self._graph = DirectedGraph()
             for cell_id in self._cell_ids:
-                cell_function = self._cell_functions[cell_id]
+                cell_function = self._cell_data[cell_id].cell_function
                 assert cell_function is not None
                 self._graph.register_cell(cell_id, cell_function.cell)
             self._defs = self._graph.definitions.keys()
@@ -180,7 +233,8 @@ class App:
         outputs = {
             cid: execute_cell(cell_function.cell, glbls)
             for cid in self._execution_order
-            if (cell_function := self._cell_functions[cid]) is not None
+            if (cell_function := self._cell_data[cid].cell_function)
+            is not None
         }
         # Return
         # - the outputs, sorted in the order that cells were added to the

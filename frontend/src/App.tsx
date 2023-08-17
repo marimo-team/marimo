@@ -22,7 +22,7 @@ import { useMarimoWebSocket } from "./core/websocket/useMarimoWebSocket";
 import { useCellActions, useCells } from "./core/state/cells";
 import { Disconnected } from "./editor/Disconnected";
 import { derefNotNull } from "./utils/dereference";
-import { UserConfig } from "./core/config";
+import { AppConfig, UserConfig } from "./core/config";
 import { AppMode, toggleAppMode } from "./core/mode";
 import { useHotkey } from "./hooks/useHotkey";
 import { Tooltip } from "./components/ui/tooltip";
@@ -48,6 +48,7 @@ import { RuntimeState } from "./core/RuntimeState";
 interface AppProps {
   initialMode: AppMode;
   userConfig: UserConfig;
+  appConfig: AppConfig;
 }
 
 /**
@@ -65,7 +66,11 @@ interface ViewState {
   cellAnchor: CellId | null;
 }
 
-export const App: React.FC<AppProps> = ({ initialMode, userConfig }) => {
+export const App: React.FC<AppProps> = ({
+  initialMode,
+  userConfig,
+  appConfig,
+}) => {
   const cells = useCells();
   const { setCells } = useCellActions();
   const [viewState, setViewState] = useState<ViewState>({
@@ -297,6 +302,7 @@ export const App: React.FC<AppProps> = ({ initialMode, userConfig }) => {
       connStatus={connStatus}
       mode={viewState.mode}
       userConfig={userConfig}
+      appConfig={appConfig}
     />
   );
 
@@ -305,7 +311,8 @@ export const App: React.FC<AppProps> = ({ initialMode, userConfig }) => {
       id="App"
       className={clsx(
         connStatus.state === WebSocketState.CLOSED && "disconnected",
-        "bg-background w-full h-full text-textColor"
+        "bg-background w-full h-full text-textColor",
+        appConfig.width === "full" && "config-width-full"
       )}
     >
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}

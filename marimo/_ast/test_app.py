@@ -37,12 +37,12 @@ class TestApp:
             z = y + 1
             return y, z
 
-        cell_names = tuple(app._cell_names.values())
+        cell_names = tuple(app._names())
         assert cell_names[0] == "one"
         assert cell_names[1] == "two"
         assert cell_names[2] == "__"
 
-        codes = tuple(app._codes.values())
+        codes = tuple(app._codes())
         assert codes[0] == "x = 0\nx"
         assert codes[1] == "a = x + z\na + 1"
         assert codes[2] == "y = x + 1\nz = y + 1"
@@ -232,3 +232,18 @@ class TestApp:
             return
 
         app.run()
+
+    @staticmethod
+    def test_app_width_config() -> None:
+        app = App(width="full")
+        assert app._config.width == "full"
+
+    @staticmethod
+    def test_app_width_default() -> None:
+        app = App()
+        assert app._config.width == "normal"
+
+    @staticmethod
+    def test_app_config_extra_args_ignored() -> None:
+        app = App(width="full", fake_config="foo")
+        assert app._config.asdict() == {"width": "full"}

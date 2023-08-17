@@ -14,6 +14,7 @@ import {
   SendDirectoryAutocompleteResponse,
   SetComponentValuesRequest,
   SaveUserConfigRequest,
+  SaveAppConfigRequest,
 } from "./types";
 
 interface ValueUpdate {
@@ -107,4 +108,8 @@ export async function sendCodeCompletionRequest(
 
 export function saveUserConfig(request: SaveUserConfigRequest) {
   return API.post<SaveUserConfigRequest>("/kernel/save_user_config/", request);
+}
+
+export function saveAppConfig(request: SaveAppConfigRequest) {
+  return API.post<SaveAppConfigRequest>("/kernel/save_app_config/", request);
 }

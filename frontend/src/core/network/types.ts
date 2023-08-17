@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { UserConfig } from "../config";
-import { CellId } from "../model/ids";
+import { AppConfig, UserConfig } from "../../core/config";
+import { CellId } from "../../core/model/ids";
 
 export interface DeleteRequest {
   cellId: CellId;
@@ -69,4 +69,8 @@ export interface CodeCompletionRequest {
 
 export interface SaveUserConfigRequest {
   config: UserConfig;
+}
+
+export interface SaveAppConfigRequest {
+  config: AppConfig;
 }

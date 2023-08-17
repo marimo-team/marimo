@@ -43,13 +43,14 @@ dev = [
     "mypy~=1.4.1",
     "ruff~=0.0.275",
     # For docs
-    "pypandoc",
-    "autoclasstoc",
-    "sphinx",
-    "sphinx-copybutton",
-    "sphinx-new-tab-link",
+    "pypandoc~=1.11",
+    "autoclasstoc~=1.6.0",
+    # furo raises an error during docs build when sphinx is upgraded
+    "sphinx==7.0.1",
+    "sphinx-copybutton~=0.5.2",
+    "sphinx-new-tab-link~=0.1.1",
     "myst_parser~=2.0.0",
-    "furo"
+    "furo==2023.5.20"
 ]
 
 [project.urls]
