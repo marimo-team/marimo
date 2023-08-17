@@ -44,10 +44,10 @@ export const AppConfigForm: React.FC = () => {
             <FormItem className="flex flex-row items-center space-x-2 space-y-0">
               <FormControl>
                 <Switch
-                  checked={field.value === "wide"}
+                  checked={field.value === "full"}
                   size="sm"
                   onCheckedChange={(checked) => {
-                    return field.onChange(checked === true ? "wide" : "normal");
+                    return field.onChange(checked === true ? "full" : "normal");
                   }}
                 />
               </FormControl>

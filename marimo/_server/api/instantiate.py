@@ -6,6 +6,7 @@ from typing import Any
 
 import tornado.web
 
+from marimo._ast.app import App
 from marimo._runtime import requests
 from marimo._server import sessions
 from marimo._server.api.model import parse_raw
@@ -29,12 +30,22 @@ class InstantiateHandler(tornado.web.RequestHandler):
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, Instantiate)
         mgr = sessions.get_manager()
-        app_data = mgr.app_data()
+        app = mgr.load_app()
+        execution_requests: tuple[requests.ExecutionRequest, ...]
+        if app is None:
+            # Instantiating an empty app
+            # TODO(akshayka): In this case, don't need to run anything ...
+            execution_requests = (
+                requests.ExecutionRequest(App()._create_cell_id(None), ""),
+            )
+        else:
+            execution_requests = tuple(
+                requests.ExecutionRequest(cell_data.cell_id, cell_data.code)
+                for cell_data in app._cell_data.values()
+            )
+
         request = requests.CreationRequest(
-            execution_requests=tuple(
-                requests.ExecutionRequest(cid, cell_data.code)
-                for cid, cell_data in app_data.items()
-            ),
+            execution_requests=execution_requests,
             set_ui_element_value_request=requests.SetUIElementValueRequest(
                 zip(args.object_ids, args.values)
             ),

@@ -47,7 +47,9 @@ class SaveHandler(tornado.web.RequestHandler):
             )
         else:
             # try to save the app under the name `filename`
-            contents = codegen.generate_filecontents(codes, names)
+            contents = codegen.generate_filecontents(
+                codes, names, config=mgr.app_config
+            )
             LOGGER.debug("Saving app to %s", filename)
             try:
                 with open(filename, "w", encoding="utf-8") as f:

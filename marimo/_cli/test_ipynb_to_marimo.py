@@ -20,7 +20,9 @@ def get_codes(ipynb_name: str) -> tuple[Sequence[str], Sequence[str]]:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py") as f:
         f.write(contents)
         f.seek(0)
-        return codegen.get_codes(f.name)
+        app = codegen.get_app(f.name)
+        assert app is not None
+        return list(app._codes()), list(app._names())
 
 
 def test_markdown() -> None:

@@ -111,12 +111,17 @@ class MainHandler(tornado.web.RequestHandler):
                 "_", " "
             )
         )
+        user_config = get_configuration()
+        app_config = (
+            mgr.app_config.asdict() if mgr.app_config is not None else {}
+        )
         self.render(
             "index.html",
             title=title,
             filename=mgr.filename if mgr.filename is not None else "",
             mode="read" if mgr.mode == sessions.SessionMode.RUN else "edit",
-            config=json.dumps(get_configuration()),
+            user_config=json.dumps(user_config),
+            app_config=json.dumps(app_config),
         )
 
 
@@ -222,6 +227,10 @@ async def start_server(
             (
                 r"/api/kernel/save_user_config/",
                 api.SaveUserConfigurationHandler,
+            ),
+            (
+                r"/api/kernel/save_app_config/",
+                api.SaveAppConfigurationHandler,
             ),
             (
                 r"/(favicon\.ico)",

@@ -352,7 +352,7 @@
 }
 
 .OutputArea {
-  padding: 0.5% 4%;
+  padding: 0.25rem 1.85rem;
   border: 1px solid transparent;
   border-bottom: 1px solid var(--gray-5);
 }
