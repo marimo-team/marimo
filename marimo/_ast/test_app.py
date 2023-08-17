@@ -232,3 +232,18 @@ class TestApp:
             return
 
         app.run()
+
+    @staticmethod
+    def test_app_width_config() -> None:
+        app = App(width="full")
+        assert app._config.width == "full"
+
+    @staticmethod
+    def test_app_width_default() -> None:
+        app = App()
+        assert app._config.width == "normal"
+
+    @staticmethod
+    def test_app_config_extra_args_ignored() -> None:
+        app = App(width="full", fake_config="foo")
+        assert app._config.asdict() == {"width": "full"}
