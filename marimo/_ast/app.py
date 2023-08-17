@@ -47,6 +47,8 @@ class _AppConfig:
 
 @dataclass
 class CellData:
+    """A cell together with some metadata"""
+
     cell_id: CellId_t
     # User code comprising the cell
     code: str

@@ -115,13 +115,13 @@ class MainHandler(tornado.web.RequestHandler):
         app_config = (
             mgr.app_config.asdict() if mgr.app_config is not None else {}
         )
-        config = {**user_config, **app_config}
         self.render(
             "index.html",
             title=title,
             filename=mgr.filename if mgr.filename is not None else "",
             mode="read" if mgr.mode == sessions.SessionMode.RUN else "edit",
-            config=json.dumps(config),
+            user_config=json.dumps(user_config),
+            app_config=json.dumps(app_config),
         )
 
 
