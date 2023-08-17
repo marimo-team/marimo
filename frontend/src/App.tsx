@@ -311,7 +311,8 @@ export const App: React.FC<AppProps> = ({
       id="App"
       className={clsx(
         connStatus.state === WebSocketState.CLOSED && "disconnected",
-        "bg-background w-full h-full text-textColor"
+        "bg-background w-full h-full text-textColor",
+        appConfig.width === "full" && "config-width-full"
       )}
     >
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
