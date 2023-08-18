@@ -198,7 +198,7 @@ def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
     flattened, u = _flatten(value, json_compat_keys, seen=set())
 
     def unflatten_with_validation(vector: list[Any]) -> STRUCT_TYPE:
-        if type(vector) != list:
+        if type(vector) != list:  # noqa: E721
             raise ValueError(
                 "unflatten function requires a list as input, "
                 + f" but got {type(list)}"
