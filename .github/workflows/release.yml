@@ -7,8 +7,8 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  upload_dev_wheel:
-    name: Upload dev wheel
+  publish_release:
+    name: 📤 Publish release
     runs-on: ubuntu-latest
     defaults:
       run:
