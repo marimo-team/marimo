@@ -1,0 +1,58 @@
+name: Publish release
+
+# release a new version of marimo on tag push
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish_release:
+    name: 📤 Publish release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v3
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: ⎔ Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: 📥 Install pnpm dependencies
+        working-directory: ./frontend
+        run: pnpm install
+
+      - name: 📦 Build frontend
+        run: ./scripts/buildfrontend.sh
+
+      - name: 🐍 Setup Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: 📦 Build marimo
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+          pip install .
+          python -m build
+
+      - name: 📤 Upload to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USER }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: twine upload --skip-existing dist/*
