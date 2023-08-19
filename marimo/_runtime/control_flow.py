@@ -1,8 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from typing import Optional
 
-from marimo._output.formatting import as_html
-from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 
 
@@ -15,7 +13,7 @@ class MarimoInterrupt(Exception):
 class MarimoStopError(Exception):
     """Conditional stop of cell and its descendants."""
 
-    def __init__(self, output: Optional[Html]) -> None:
+    def __init__(self, output: Optional[object]) -> None:
         self.output = output
 
 
@@ -35,5 +33,4 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
     ```
     """
     if predicate:
-        output = as_html(output) if output is not None else None
         raise MarimoStopError(output)
