@@ -1,0 +1,99 @@
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Any, Generator
+
+import pytest
+
+from marimo._plugins.ui._core.registry import UIElementRegistry
+from marimo._runtime import cell_runner, control_flow
+from marimo._runtime.context import get_context
+from marimo._runtime.requests import (
+    ExecutionRequest,
+)
+from marimo._runtime.runtime import Kernel
+
+
+class _MockStream:
+    def write(self, op: str, data: dict[Any, Any]) -> None:
+        del op
+        del data
+        pass
+
+
+# fixture that provides a kernel (and tears it down)
+@pytest.fixture
+def k() -> Generator[Kernel, None, None]:
+    k = Kernel()
+    get_context().initialize(
+        kernel=k,
+        ui_element_registry=UIElementRegistry(),
+        stream=_MockStream(),  # type: ignore
+        stdout=None,
+        stderr=None,
+    )
+    yield k
+    get_context()._kernel = None
+    get_context()._ui_element_registry = None
+    get_context()._stream = None
+    get_context()._initialized = False
+
+
+def test_stop_false(k: Kernel) -> None:
+    k.run(
+        [
+            ExecutionRequest(
+                "0", "import marimo as mo; x = 0; mo.stop(False); y = 1"
+            ),
+            ExecutionRequest("1", "z = y + 1"),
+        ]
+    )
+    assert k.globals["x"] == 0
+    assert k.globals["y"] == 1
+    assert k.globals["z"] == 2
+
+
+def test_stop_true(k: Kernel) -> None:
+    # Populate the kernel and its globals
+    k.run(
+        [
+            ExecutionRequest("0", "x = 0; y = 1"),
+            ExecutionRequest("1", "z = y + 1"),
+        ]
+    )
+    assert k.globals["x"] == 0
+    assert k.globals["y"] == 1
+    assert k.globals["z"] == 2
+
+    # Force cell 0 to stop
+    k.run(
+        [
+            ExecutionRequest(
+                "0", "import marimo as mo; x = 0; mo.stop(True); y = 1"
+            ),
+        ]
+    )
+    # stop happened after x was assigned, so it should still exist
+    assert k.globals["x"] == 0
+    # y is assigned after stop, so it should not exist
+    assert "y" not in k.globals
+    # cell 1's defs should be invalidated
+    assert "z" not in k.globals
+
+
+def test_stop_output(k: Kernel) -> None:
+    # Run a cell through the kernel to populate graph
+    k.run(
+        [
+            ExecutionRequest(
+                "0",
+                "import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",
+            ),
+        ]
+    )
+    # Run the cell through the runner to get the output
+    runner = cell_runner.Runner(set(["0"]), k.graph, k.globals)
+    run_result = runner.run("0")
+    # Check that the cell was stopped and its output is the stop output
+    assert run_result.output == "stopped!"
+    assert isinstance(run_result.exception, control_flow.MarimoStopError)
