@@ -20,6 +20,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellId_t, parse_cell
 from marimo._messaging.errors import (
     Error,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,
@@ -501,16 +502,18 @@ class Kernel:
                 )
                 # don't clear console because this cell was running and
                 # its console outputs are not stale
+                exception_type = type(run_result.exception).__name__
                 write_marimo_error(
                     data=[
                         MarimoExceptionRaisedError(
                             msg="This cell raised an exception: %s%s"
                             % (
-                                type(run_result.exception).__name__,
+                                exception_type,
                                 f"('{str(run_result.exception)}')"
                                 if str(run_result.exception)
                                 else "",
                             ),
+                            exception_type=exception_type,
                             raising_cell=None,
                         )
                     ],
@@ -540,13 +543,30 @@ class Kernel:
             for cid in runner.cells_cancelled[raising_cell]:
                 # `cid` was not run. Its defs should be deleted.
                 self._invalidate_cell_state(cid)
+                exception = runner.exceptions[raising_cell]
+                data: Error
+                if isinstance(exception, MarimoStopError):
+                    data = MarimoAncestorStoppedError(
+                        msg=(
+                            "This cell wasn't run because an "
+                            "ancestor was stopped with `mo.stop`: "
+                        ),
+                        raising_cell=raising_cell,
+                    )
+                else:
+                    exception_type = type(
+                        runner.exceptions[raising_cell]
+                    ).__name__
+                    data = MarimoExceptionRaisedError(
+                        msg=(
+                            "An ancestor raised an exception "
+                            f"({exception_type}): "
+                        ),
+                        exception_type=exception_type,
+                        raising_cell=raising_cell,
+                    )
                 write_marimo_error(
-                    data=[
-                        MarimoExceptionRaisedError(
-                            msg="The following ancestor raised an exception: ",
-                            raising_cell=raising_cell,
-                        )
-                    ],
+                    data=[data],
                     # these cells are transitioning from queued to stopped
                     # (interrupted); they didn't get to run, so their consoles
                     # reflect a previous run and should be cleared

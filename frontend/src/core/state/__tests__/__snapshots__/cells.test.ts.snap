@@ -301,6 +301,7 @@ import numpy",
     "channel": "marimo-error",
     "data": [
       {
+        "exception_type": "ValueError",
         "msg": "Oh no!",
         "type": "exception",
       },

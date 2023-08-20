@@ -5,10 +5,16 @@ import { CellId } from "../model/ids";
 export type MarimoError =
   | { type: "syntax"; msg?: string }
   | { type: "interruption"; msg?: string }
-  | { type: "exception"; msg: string; raising_cell?: number }
-  | { type: "cycle"; edges: Array<[number, number]> }
-  | { type: "multiple-defs"; name: string; cells: number[] }
-  | { type: "delete-nonlocal"; name: string; cells: number[] }
+  | {
+      type: "exception";
+      exception_type: string;
+      msg: string;
+      raising_cell?: CellId;
+    }
+  | { type: "ancestor-stopped"; msg: string; raising_cell: CellId }
+  | { type: "cycle"; edges: Array<[CellId, CellId]> }
+  | { type: "multiple-defs"; name: string; cells: CellId[] }
+  | { type: "delete-nonlocal"; name: string; cells: CellId[] }
   | { type: "unknown"; msg?: string };
 
 export type OutputMessage =

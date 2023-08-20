@@ -148,6 +148,7 @@ class Runner:
         self.cells_to_run = dataflow.topological_sort(graph, cell_ids)
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
         self.interrupted = False
+        self.exceptions: dict[CellId_t, Exception] = {}
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
@@ -171,24 +172,34 @@ class Runner:
         """Get the next cell to run."""
         return self.cells_to_run.pop(0)
 
+    def print_traceback(self) -> None:
+        """Print a traceback to stderr."""
+        error_msg = format_traceback(self.graph)
+        sys.stderr.write(error_msg)
+
     def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         cell = self.graph.cells[cell_id]
         try:
             return_value = execute_cell(cell, self.glbls)
             run_result = RunResult(output=return_value, exception=None)
+        except MarimoInterrupt as e:
+            # interrupt the entire runner
+            self.interrupted = True
+            run_result = RunResult(output=None, exception=e)
+            self.print_traceback()
         except MarimoStopError as e:
+            # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=e.output, exception=e)
-            error_msg = format_traceback(self.graph)
-            sys.stderr.write(error_msg)
+            self.print_traceback()
         except Exception as e:  # noqa: E722
+            # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
-            error_msg = format_traceback(self.graph)
-            sys.stderr.write(error_msg)
+            self.print_traceback()
 
-        if isinstance(run_result.exception, MarimoInterrupt):
-            self.interrupted = True
+        if run_result.exception is not None:
+            self.exceptions[cell_id] = run_result.exception
 
         return run_result

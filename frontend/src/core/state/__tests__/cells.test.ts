@@ -415,7 +415,9 @@ describe("cell reducer", () => {
         output: {
           channel: "marimo-error",
           mimetype: "application/vnd.marimo+error",
-          data: [{ type: "exception", msg: "Oh no!" }],
+          data: [
+            { type: "exception", exception_type: "ValueError", msg: "Oh no!" },
+          ],
           timestamp: "",
         },
         console: null,
