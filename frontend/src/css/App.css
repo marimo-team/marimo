@@ -1,8 +1,8 @@
-@import url("Header.css");
-@import url("Cell.css");
-@import url("md.css");
-@import url("table.css");
-@import url("CodeMirrorSearchPanel.css");
+@import url("./Header.css");
+@import url("./Cell.css");
+@import url("./md.css");
+@import url("./table.css");
+@import url("./CodeMirrorSearchPanel.css");
 
 /* stylelint-disable unit-allowed-list */
 
@@ -62,7 +62,7 @@ html {
 
   /* Use an image because hard to get consistent result across browsers with
    * css gradients. */
-  background-image: url("/gradient.png");
+  background-image: url("../assets/gradient.png");
   background-repeat: no-repeat;
 
   /* Scale gradient with zoom in/out. */
@@ -76,7 +76,7 @@ html {
   width: 100vw;
   height: 100vh;
   z-index: -1;
-  background-image: url("/noise.png");
+  background-image: url("../assets/noise.png");
   background-repeat: repeat;
   opacity: 0.5;
 }
