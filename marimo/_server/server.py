@@ -243,22 +243,7 @@ async def start_server(
                 {"path": root},
             ),
             (
-                r"/(noise\.png)",
-                tornado.web.StaticFileHandler,
-                {"path": root},
-            ),
-            (
-                r"/(gradient\.png)",
-                tornado.web.StaticFileHandler,
-                {"path": root},
-            ),
-            (
-                r"/(android-chrome-192x192\.png)",
-                tornado.web.StaticFileHandler,
-                {"path": root},
-            ),
-            (
-                r"/(android-chrome-512x512\.png)",
+                r"/(android-chrome-(192x192|512x512)\.png)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
             ),

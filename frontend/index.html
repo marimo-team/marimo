@@ -3,8 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
-    <link rel="preload" href="/gradient.png" as="image" />
-    <link rel="preload" href="/noise.png" as="image" />
+    <!-- Preload is necessary because we show this when we disconnect from the server,
+    but at that point we cannot load these images from the server -->
+    <link rel="preload" href="/src/assets/gradient.png" as="image" />
+    <link rel="preload" href="/src/assets/noise.png" as="image" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="a marimo app" />
