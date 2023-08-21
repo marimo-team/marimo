@@ -36,6 +36,9 @@ module.exports = {
       maxWidth: {
         contentWidth: "var(--content-width)",
       },
+      padding: {
+        18: "4.5rem",
+      },
       colors: {
         border: "hsl(var(--border) / <alpha-value>)",
         input: "hsl(var(--input) / <alpha-value>)",

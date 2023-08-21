@@ -84,13 +84,27 @@
   border-bottom-right-radius: 10px;
 }
 
-.tray::before {
-  /* expand the hover area */
+:root {
+  /* In wide mode, this will overextend, but that's fine */
+  --gutter-width: calc(50vw - (var(--content-width) / 2));
+}
+
+/* expand the hover area left and right */
+.tray::before,
+.tray::after {
   content: "";
   position: absolute;
-  width: 2000px;
-  left: -1000px;
+  width: var(--gutter-width);
+  max-width: var(--gutter-width);
   height: 100%;
+}
+
+.tray::before {
+  left: calc(var(--gutter-width) * -1);
+}
+
+.tray::after {
+  right: calc(var(--gutter-width) * -1);
 }
 
 /* -------------------------- Shoulders/Buttons ---------------------------- */

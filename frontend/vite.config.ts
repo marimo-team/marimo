@@ -12,7 +12,7 @@ const htmlDevPlugin = (): Plugin => {
         .replace(`{{ filename }}`, `dev-mode`)
         .replace(`{{ mode }}`, `"edit"`)
         .replace(
-          `{{ config }}`,
+          `{{ user_config }}`,
           JSON.stringify({
             completion: {
               activate_on_typing: false,
@@ -23,6 +23,7 @@ const htmlDevPlugin = (): Plugin => {
             },
           })
         )
+        .replace(`{{ app_config }}`, JSON.stringify({}))
         .replace(`{{ title }}`, `dev-mode`);
     },
   };
