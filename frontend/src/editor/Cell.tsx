@@ -542,7 +542,7 @@ const CellComponent = (
     published: !editing,
     "needs-run": needsRun,
     "has-error": errored,
-    "stopped": stopped,
+    stopped: stopped,
   });
 
   const HTMLId = HTMLCellId.create(cellId);
