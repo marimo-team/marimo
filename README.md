@@ -256,7 +256,7 @@ collections of elements.
 ### Layout
 
 The marimo library also comes with layout elements, including `mo.hstack`,
-`mo.vstack`, `mo.tabs`, and more.
+`mo.vstack`, and `mo.tabs`. See the [API reference](https://docs.marimo.io/api/layouts/index.html) for more info.
 
 ## Examples
 
