@@ -173,7 +173,10 @@ class Runner:
         return self.cells_to_run.pop(0)
 
     def print_traceback(self) -> None:
-        """Print a traceback to stderr."""
+        """Print a traceback to stderr.
+
+        Must be called when there is an exception on the stack.
+        """
         error_msg = format_traceback(self.graph)
         sys.stderr.write(error_msg)
 
@@ -187,17 +190,19 @@ class Runner:
             # interrupt the entire runner
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
+            self.print_traceback()
         except MarimoStopError as e:
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=e.output, exception=e)
+            self.print_traceback()
         except Exception as e:  # noqa: E722
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
+            self.print_traceback()
 
         if run_result.exception is not None:
             self.exceptions[cell_id] = run_result.exception
-            self.print_traceback()
 
         return run_result
