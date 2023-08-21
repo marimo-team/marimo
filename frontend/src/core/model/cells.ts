@@ -31,6 +31,7 @@ export function createCell({
   edited = false,
   interrupted = false,
   errored = false,
+  stopped = false,
   runElapsedTimeMs = null,
   runStartTimestamp = null,
   lastCodeRun = null,
@@ -47,6 +48,7 @@ export function createCell({
     edited: edited,
     interrupted: interrupted,
     errored: errored,
+    stopped: stopped,
     runElapsedTimeMs: runElapsedTimeMs,
     runStartTimestamp: runStartTimestamp,
     lastCodeRun: lastCodeRun,
@@ -74,6 +76,8 @@ export interface CellState {
   edited: boolean;
   /** whether this cell has been interrupted since its last run */
   interrupted: boolean;
+  /** whether this cell was stopped with mo.stop */
+  stopped: boolean;
   /** snapshot of code that was last run */
   lastCodeRun: string | null;
   /**

@@ -19,6 +19,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -41,6 +42,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -63,6 +65,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -85,6 +88,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "queued",
+  "stopped": false,
 }
 `;
 
@@ -107,6 +111,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
   "runStartTimestamp": 20,
   "serializedEditorState": null,
   "status": "running",
+  "stopped": false,
 }
 `;
 
@@ -136,6 +141,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
   "runStartTimestamp": 20,
   "serializedEditorState": null,
   "status": "running",
+  "stopped": false,
 }
 `;
 
@@ -170,6 +176,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -205,6 +212,7 @@ import numpy",
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -239,6 +247,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -274,6 +283,7 @@ import numpy",
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -301,6 +311,7 @@ import numpy",
     "channel": "marimo-error",
     "data": [
       {
+        "exception_type": "ValueError",
         "msg": "Oh no!",
         "type": "exception",
       },
@@ -315,6 +326,7 @@ import numpy",
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;
 
@@ -354,5 +366,6 @@ import numpy",
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",
+  "stopped": false,
 }
 `;

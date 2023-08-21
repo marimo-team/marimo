@@ -13,6 +13,7 @@ export function transitionCell(
   // implies a status transition
   switch (message.status) {
     case "queued":
+      nextCell.stopped = false;
       nextCell.interrupted = false;
       nextCell.errored = false;
       // We intentionally don't update lastCodeRun, since the kernel queues
@@ -45,6 +46,13 @@ export function transitionCell(
       // its lastCodeRun
       nextCell.lastCodeRun = null;
       nextCell.interrupted = true;
+    } else if (
+      message.output.data.some((error) => error["type"] === "ancestor-stopped")
+    ) {
+      // The cell didn't run, but it was intentional, so don't count as
+      // errored.
+      nextCell.stopped = true;
+      nextCell.runElapsedTimeMs = null;
     } else {
       nextCell.errored = true;
       // The cell didn't actually run.

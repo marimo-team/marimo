@@ -5,6 +5,7 @@ import { logNever } from "../../utils/assertNever";
 import { MarimoError } from "../../core/kernel/messages";
 import { Alert } from "../../components/ui/alert";
 import { AlertTitle } from "../../components/ui/alert";
+import { CellId } from "@/core/model/ids";
 
 import {
   Accordion,
@@ -37,7 +38,7 @@ const Tip = (props: {
 };
 
 /* Component that adds a link to a cell, for use in a MarimoError. */
-const CellLink = (props: { cellId: number }): JSX.Element => {
+const CellLink = (props: { cellId: CellId }): JSX.Element => {
   const cellName = `cell-${props.cellId}`;
   return (
     <div
@@ -74,7 +75,9 @@ export const MarimoErrorOutput = ({
   errors,
   className,
 }: Props): JSX.Element => {
-  let runtimeError = false;
+  let titleContents = "This cell wasn't run because it has errors";
+  let alertVariant: "destructive" | "default" = "destructive";
+  let textColor = "text-error";
   const liStyle = "my-0.5 ml-8 text-muted-foreground/40";
   const msgs = errors.map((error, idx) => {
     switch (error.type) {
@@ -137,13 +140,13 @@ export const MarimoErrorOutput = ({
         );
 
       case "interruption":
-        runtimeError = true;
+        titleContents = "Interrupted";
         return (
           <p key={idx}>{"This cell was interrupted and needs to be re-run."}</p>
         );
 
       case "exception":
-        runtimeError = true;
+        titleContents = error.exception_type;
         return error.raising_cell == null ? (
           <Fragment key={idx}>
             <p>{error.msg}</p>
@@ -159,6 +162,16 @@ export const MarimoErrorOutput = ({
             </Tip>
           </p>
         );
+      case "ancestor-stopped":
+        titleContents = "Ancestor stopped";
+        alertVariant = "default";
+        textColor = "text-secondary-foreground";
+        return (
+          <p key={idx}>
+            {error.msg}
+            <CellLink cellId={error.raising_cell} />
+          </p>
+        );
 
       default:
         logNever(error);
@@ -166,19 +179,17 @@ export const MarimoErrorOutput = ({
     }
   });
 
-  const title = runtimeError ? (
-    <AlertTitle className="font-code font-bold mb-4">Runtime error</AlertTitle>
-  ) : (
+  const title = (
     <AlertTitle className="font-code font-bold mb-4">
-      This cell wasn't run because it has errors
+      {titleContents}
     </AlertTitle>
   );
 
   return (
     <Alert
-      variant="destructive"
+      variant={alertVariant}
       className={cn(
-        "border-none font-code text-sm text-[0.84375rem] px-0 text-error [&:has(svg)]:pl-0",
+        `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0`,
         className
       )}
     >

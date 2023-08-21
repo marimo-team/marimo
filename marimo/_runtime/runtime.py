@@ -6,9 +6,7 @@ import contextlib
 import io
 import itertools
 import multiprocessing as mp
-import pprint
 import queue
-import re
 import signal
 import sys
 import threading
@@ -19,9 +17,10 @@ from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t, execute_cell, parse_cell
+from marimo._ast.cell import CellId_t, parse_cell
 from marimo._messaging.errors import (
     Error,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,
@@ -37,16 +36,16 @@ from marimo._messaging.messages import (
     write_remove_ui_elements,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
-from marimo._output.formatting import get_formatter
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.registry import UIElementRegistry
-from marimo._runtime import dataflow
+from marimo._runtime import cell_runner, dataflow
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
     get_context,
     get_global_context,
     initialize_context,
 )
+from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.requests import (
     CompletionRequest,
     ConfigurationRequest,
@@ -62,21 +61,6 @@ from marimo._runtime.validate_graph import check_for_errors
 from marimo.config._config import configure
 
 LOGGER = _loggers.marimo_logger()
-
-
-class MarimoInterrupt(Exception):
-    pass
-
-
-def cell_filename(cell_id: CellId_t) -> str:
-    return f"<cell-{cell_id}>"
-
-
-def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
-    matches = re.findall(r"<cell-([0-9]+)>", filename)
-    if matches:
-        return str(matches[0])
-    return None
 
 
 @mddoc
@@ -167,7 +151,9 @@ class Kernel:
         """
         error: Optional[Error] = None
         try:
-            cell = parse_cell(code, cell_filename(cell_id), cell_id)
+            cell = parse_cell(
+                code, cell_runner.cell_filename(cell_id), cell_id
+            )
         except Exception as e:
             cell = None
             if isinstance(e, SyntaxError):
@@ -448,8 +434,9 @@ class Kernel:
         for cid in cell_ids:
             write_queued(cell_id=cid)
 
-        cells_to_run = dataflow.topological_sort(self.graph, cell_ids)
-        cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        runner = cell_runner.Runner(
+            cell_ids=cell_ids, graph=self.graph, glbls=self.globals
+        )
 
         # I/O
         #
@@ -461,173 +448,88 @@ class Kernel:
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         # TODO(akshayka): pdb support
-        LOGGER.debug("final set of cells to run %s", cells_to_run)
-        interrupted = False
-        while not interrupted and cells_to_run:
-            curr_cell_id = cells_to_run.pop(0)
-            if any(
-                curr_cell_id in cancelled
-                for cancelled in cells_cancelled.values()
-            ):
+        LOGGER.debug("final set of cells to run %s", runner.cells_to_run)
+        while runner.pending():
+            cell_id = runner.pop_cell()
+            if runner.cancelled(cell_id):
                 continue
 
-            LOGGER.debug("running cell %s", curr_cell_id)
-            write_new_run(curr_cell_id)
-            curr_cell = self.graph.cells[curr_cell_id]
-
+            LOGGER.debug("running cell %s", cell_id)
+            write_new_run(cell_id)
             # State clean-up: don't leak names, UI elements, ...
-            self._invalidate_cell_state(curr_cell_id)
+            self._invalidate_cell_state(cell_id)
 
-            return_value = None
-            raised_exception = None
-            with self._execution_ctx(curr_cell_id):
-                try:
-                    return_value = execute_cell(curr_cell, self.globals)
-                except Exception as e:  # noqa: E722
-                    raised_exception = e
-                    # all three values are guaranteed to be non-None because an
-                    # exception is on the stack:
-                    # https://docs.python.org/3/library/sys.html#sys.exc_info
-                    exc_type, exc_value, tb = sys.exc_info()
-                    # custom traceback formatting strips out marimo internals
-                    # and adds source code from cells
-                    frames = traceback.extract_tb(tb)
-                    error_msg_lines = []
-                    found_cell_frame = False
-                    for filename, lineno, fn_name, text in frames:
-                        filename_cell_id = cell_id_from_filename(filename)
-                        in_cell = filename_cell_id is not None
-                        if in_cell:
-                            found_cell_frame = True
-                        if not found_cell_frame:
-                            continue
+            with self._execution_ctx(cell_id):
+                run_result = runner.run(cell_id)
 
-                        line = "  "
-                        if in_cell:
-                            # TODO: hyperlink to cell ... should the traceback
-                            # be assembled in the frontend?
-                            line += f"Cell {filename}, "
-                        else:
-                            line += f"File {filename}, "
-                        line += f"line {lineno}"
-
-                        if fn_name != "<module>":
-                            line += f", in {fn_name}"
-                        error_msg_lines.append(line)
-
-                        if filename_cell_id is not None:
-                            lines = self.graph.cells[
-                                filename_cell_id
-                            ].code.split("\n")
-                            error_msg_lines.append(
-                                "    " + lines[lineno - 1].strip()
-                            )
-                        else:
-                            error_msg_lines.append("    " + text.strip())
-
-                    error_msg = (
-                        "Traceback (most recent call last):\n"
-                        + "\n".join(error_msg_lines)
-                        + "\n"
-                        + exc_type.__name__  # type: ignore
-                        + ": "
-                        + str(exc_value)
-                    )
-                    sys.stderr.write(error_msg)
-
-            if raised_exception is None:
-                return_value = "" if return_value is None else return_value
-                if (formatter := get_formatter(return_value)) is not None:
-                    try:
-                        mimetype, data = formatter(return_value)
-                        write_output(
-                            channel="output",
-                            mimetype=mimetype,
-                            data=data,
-                            cell_id=curr_cell_id,
-                        )
-                    except Exception:  # noqa: E722
-                        with self._execution_ctx(curr_cell_id):
-                            sys.stderr.write(traceback.format_exc())
-                        write_output(
-                            channel="output",
-                            mimetype="text/plain",
-                            data="",
-                            cell_id=curr_cell_id,
-                        )
-                else:
-                    tmpio = io.StringIO()
-                    if isinstance(return_value, str):
-                        tmpio.write(return_value)
-                    else:
-                        try:
-                            pprint.pprint(return_value, stream=tmpio)
-                        except Exception:  # noqa: E722
-                            tmpio.write("")
-                            with self._execution_ctx(curr_cell_id):
-                                sys.stderr.write(traceback.format_exc())
-                    tmpio.seek(0)
-                    write_output(
-                        channel="output",
-                        mimetype="text/plain",
-                        data=tmpio.read(),
-                        cell_id=curr_cell_id,
-                    )
-            elif isinstance(raised_exception, MarimoInterrupt):
-                # We don't cleanup the cell: users may want to
-                # access variables/state that was computed before interruption
-                # happened
-                LOGGER.debug("Cell %s was interrupted", curr_cell_id)
+            if run_result.success():
+                formatted_output = run_result.format_output()
+                if formatted_output.traceback is not None:
+                    with self._execution_ctx(cell_id):
+                        sys.stderr.write(formatted_output.traceback)
+                write_output(
+                    channel=formatted_output.channel,
+                    mimetype=formatted_output.mimetype,
+                    data=formatted_output.data,
+                    cell_id=cell_id,
+                )
+            elif isinstance(run_result.exception, MarimoStopError):
+                LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
+                formatted_output = run_result.format_output()
+                if formatted_output.traceback is not None:
+                    with self._execution_ctx(cell_id):
+                        sys.stderr.write(formatted_output.traceback)
+                write_output(
+                    channel=formatted_output.channel,
+                    mimetype=formatted_output.mimetype,
+                    data=formatted_output.data,
+                    cell_id=cell_id,
+                )
+            elif isinstance(run_result.exception, MarimoInterrupt):
+                LOGGER.debug("Cell %s was interrupted", cell_id)
                 # don't clear console because this cell was running and
                 # its console outputs are not stale
                 write_marimo_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
-                    cell_id=curr_cell_id,
+                    cell_id=cell_id,
                 )
-                interrupted = True
-            else:
+            elif run_result.exception is not None:
                 LOGGER.debug(
                     "Cell %s raised %s",
-                    curr_cell_id,
-                    type(raised_exception).__name__,
+                    cell_id,
+                    type(run_result.exception).__name__,
                 )
                 # don't clear console because this cell was running and
                 # its console outputs are not stale
+                exception_type = type(run_result.exception).__name__
                 write_marimo_error(
                     data=[
                         MarimoExceptionRaisedError(
                             msg="This cell raised an exception: %s%s"
                             % (
-                                type(raised_exception).__name__,
-                                f"('{str(raised_exception)}')"
-                                if str(raised_exception)
+                                exception_type,
+                                f"('{str(run_result.exception)}')"
+                                if str(run_result.exception)
                                 else "",
                             ),
+                            exception_type=exception_type,
                             raising_cell=None,
                         )
                     ],
                     clear_console=False,
-                    cell_id=curr_cell_id,
-                )
-                cells_cancelled[curr_cell_id] = set(
-                    cid
-                    for cid in dataflow.transitive_closure(
-                        self.graph, set([curr_cell_id])
-                    )
-                    if cid in cells_to_run
+                    cell_id=cell_id,
                 )
 
             if get_global_context().mpl_installed:
                 # ensures that every cell gets a fresh axis.
                 exec("__marimo__._output.mpl.close_figures()", self.globals)
 
-        if cells_to_run:
-            assert interrupted
-            for cid in cells_to_run:
-                # once again, we don't cleanup the cell's definitions, because
-                # the user may want to inspect state that was computed
-                # on a previous run
+        if runner.cells_to_run:
+            assert runner.interrupted
+            for cid in runner.cells_to_run:
+                # `cid` was not run. Its defs should be deleted.
+                self._invalidate_cell_state(cid)
                 write_marimo_error(
                     data=[MarimoInterruptionError()],
                     # these cells are transitioning from queued to stopped
@@ -637,17 +539,34 @@ class Kernel:
                     cell_id=cid,
                 )
 
-        for raising_cell in cells_cancelled:
-            for cid in cells_cancelled[raising_cell]:
+        for raising_cell in runner.cells_cancelled:
+            for cid in runner.cells_cancelled[raising_cell]:
                 # `cid` was not run. Its defs should be deleted.
                 self._invalidate_cell_state(cid)
+                exception = runner.exceptions[raising_cell]
+                data: Error
+                if isinstance(exception, MarimoStopError):
+                    data = MarimoAncestorStoppedError(
+                        msg=(
+                            "This cell wasn't run because an "
+                            "ancestor was stopped with `mo.stop`: "
+                        ),
+                        raising_cell=raising_cell,
+                    )
+                else:
+                    exception_type = type(
+                        runner.exceptions[raising_cell]
+                    ).__name__
+                    data = MarimoExceptionRaisedError(
+                        msg=(
+                            "An ancestor raised an exception "
+                            f"({exception_type}): "
+                        ),
+                        exception_type=exception_type,
+                        raising_cell=raising_cell,
+                    )
                 write_marimo_error(
-                    data=[
-                        MarimoExceptionRaisedError(
-                            msg="The following ancestor raised an exception: ",
-                            raising_cell=raising_cell,
-                        )
-                    ],
+                    data=[data],
                     # these cells are transitioning from queued to stopped
                     # (interrupted); they didn't get to run, so their consoles
                     # reflect a previous run and should be cleared

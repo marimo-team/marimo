@@ -34,8 +34,16 @@ class MarimoInterruptionError:
 
 
 @dataclass
+class MarimoAncestorStoppedError:
+    msg: str
+    raising_cell: CellId_t
+    type: str = "ancestor-stopped"
+
+
+@dataclass
 class MarimoExceptionRaisedError:
     msg: str
+    exception_type: str
     # None for if raising_cell is the current cell
     raising_cell: Optional[CellId_t]
     type: str = "exception"
@@ -57,6 +65,7 @@ Error = Union[
     CycleError,
     MultipleDefinitionError,
     DeleteNonlocalError,
+    MarimoAncestorStoppedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,

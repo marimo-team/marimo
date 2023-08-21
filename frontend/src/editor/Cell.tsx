@@ -80,6 +80,7 @@ export interface CellProps
     | "edited"
     | "errored"
     | "interrupted"
+    | "stopped"
     | "runElapsedTimeMs"
   > {
   theme: Theme;
@@ -124,6 +125,7 @@ const CellComponent = (
     edited,
     interrupted,
     errored,
+    stopped,
     registerRunStart,
     serializedEditorState,
     editing,
@@ -540,11 +542,13 @@ const CellComponent = (
     published: !editing,
     "needs-run": needsRun,
     "has-error": errored,
+    stopped: stopped,
   });
 
   const HTMLId = HTMLCellId.create(cellId);
   if (!editing) {
-    return errored || interrupted ? null : (
+    const hidden = errored || interrupted || stopped;
+    return hidden ? null : (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         {outputArea}
       </div>
