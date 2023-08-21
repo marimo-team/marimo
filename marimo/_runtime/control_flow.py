@@ -11,7 +11,7 @@ class MarimoInterrupt(Exception):
 
 
 class MarimoStopError(Exception):
-    """Conditional stop of cell and its descendants."""
+    """Raised by `marimo.stop` to stop execution of a cell and descendants."""
 
     def __init__(self, output: Optional[object]) -> None:
         self.output = output
@@ -26,11 +26,15 @@ def stop(predicate: bool, output: Optional[object] = None) -> None:
     that were previously scheduled to run will not be run, and their defs will
     be removed from program memory.
 
-    Example:
+    **Example:**
 
     ```python
     mo.stop(form.value is None, mo.md("**Submit the form to continue.**"))
     ```
+
+    **Raises:**
+
+    When `predicate` is `True`, raises a `MarimoStopError`.
     """
     if predicate:
         raise MarimoStopError(output)

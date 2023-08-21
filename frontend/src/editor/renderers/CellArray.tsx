@@ -121,6 +121,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           edited={cell.edited}
           interrupted={cell.interrupted}
           errored={cell.errored}
+          stopped={cell.stopped}
           runElapsedTimeMs={cell.runElapsedTimeMs}
           registerRunStart={registerRunStart}
           serializedEditorState={cell.serializedEditorState}

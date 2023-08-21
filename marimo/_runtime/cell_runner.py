@@ -187,19 +187,17 @@ class Runner:
             # interrupt the entire runner
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
-            self.print_traceback()
         except MarimoStopError as e:
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=e.output, exception=e)
-            self.print_traceback()
         except Exception as e:  # noqa: E722
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
-            self.print_traceback()
 
         if run_result.exception is not None:
             self.exceptions[cell_id] = run_result.exception
+            self.print_traceback()
 
         return run_result

@@ -14,6 +14,7 @@ marimo is designed to be:
 
 __all__ = [
     "App",
+    "MarimoStopError",
     "accordion",
     "as_html",
     "callout",
@@ -44,5 +45,5 @@ from marimo._plugins.stateless.callout_output import callout
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
-from marimo._runtime.control_flow import stop
+from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import defs, refs

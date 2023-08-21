@@ -23,6 +23,7 @@ const props: CellProps = {
   edited: false,
   interrupted: false,
   errored: false,
+  stopped: false,
   updateCellCode: console.log,
   prepareCellForRun: console.log,
   registerRunStart: console.log,

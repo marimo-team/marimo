@@ -76,6 +76,8 @@ export const MarimoErrorOutput = ({
   className,
 }: Props): JSX.Element => {
   let titleContents = "This cell wasn't run because it has errors";
+  let alertVariant: "destructive" | "default" = "destructive";
+  let textColor = "text-error";
   const liStyle = "my-0.5 ml-8 text-muted-foreground/40";
   const msgs = errors.map((error, idx) => {
     switch (error.type) {
@@ -162,6 +164,8 @@ export const MarimoErrorOutput = ({
         );
       case "ancestor-stopped":
         titleContents = "Ancestor stopped";
+        alertVariant = "default";
+        textColor = "text-secondary-foreground";
         return (
           <p key={idx}>
             {error.msg}
@@ -180,11 +184,12 @@ export const MarimoErrorOutput = ({
       {titleContents}
     </AlertTitle>
   );
+
   return (
     <Alert
-      variant="destructive"
+      variant={alertVariant}
       className={cn(
-        "border-none font-code text-sm text-[0.84375rem] px-0 text-error [&:has(svg)]:pl-0",
+        `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0`,
         className
       )}
     >

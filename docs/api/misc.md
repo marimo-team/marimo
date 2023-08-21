@@ -8,6 +8,10 @@ This function is useful for validating user input.
 .. autofunction:: marimo.stop
 ```
 
+```{eval-rst}
+.. autoclass:: marimo.MarimoStopError
+```
+
 ## Debugging
 Use `mo.defs` and `mo.refs` to get the global definitions and references of
 a cell.
