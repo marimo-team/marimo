@@ -87,3 +87,8 @@ docs:
 # autobuild docs
 docs-auto:
 	sphinx-autobuild $(ARGS) docs/ docs/_build
+
+.PHONY: docs-clean
+# remove built docs
+docs-clean:
+	cd docs && make clean
