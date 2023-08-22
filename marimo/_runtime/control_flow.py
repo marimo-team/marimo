@@ -21,10 +21,11 @@ class MarimoStopError(Exception):
 def stop(predicate: bool, output: Optional[object] = None) -> None:
     """Stops execution of a cell when `predicate` is `False`
 
-    When `predicate` is `True`, this function stops execution of the
-    current cell and makes `output` its output. Any descendants of this cell
-    that were previously scheduled to run will not be run, and their defs will
-    be removed from program memory.
+    When `predicate` is `True`, this function raises a `MarimoStopError`. If
+    uncaught, this exception stops execution of the current cell and makes
+    `output` its output. Any descendants of this cell that were previously
+    scheduled to run will not be run, and their defs will be removed from
+    program memory.
 
     **Example:**
 
