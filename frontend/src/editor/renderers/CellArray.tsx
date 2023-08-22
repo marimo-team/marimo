@@ -96,47 +96,48 @@ export const CellArray: React.FC<CellArrayProps> = ({
   }, [cells.present, cells.scrollKey, scrollToTarget]);
 
   return (
-    <div
-      className={cn(
-        "m-auto pb-12",
-        appConfig.width === "full" && "px-24",
-        appConfig.width !== "full" && "max-w-contentWidth",
-        // Hide the cells for a fake loading effect, to avoid flickering
-        invisible && "invisible"
-      )}
-    >
-      {cells.present.map((cell) => (
-        <Cell
-          key={cell.key.toString()}
-          theme={theme}
-          showPlaceholder={cells.present.length === 1}
-          allowFocus={!invisible}
-          cellId={cell.key}
-          initialContents={cell.initialContents}
-          output={cell.output}
-          consoleOutputs={cell.consoleOutputs}
-          status={cell.status}
-          updateCellCode={updateCellCode}
-          prepareCellForRun={prepareForRun}
-          edited={cell.edited}
-          interrupted={cell.interrupted}
-          errored={cell.errored}
-          stopped={cell.stopped}
-          runElapsedTimeMs={cell.runElapsedTimeMs}
-          registerRunStart={registerRunStart}
-          serializedEditorState={cell.serializedEditorState}
-          showDeleteButton={cells.present.length > 1}
-          createNewCell={createNewCell}
-          deleteCell={onDeleteCell}
-          focusCell={focusCell}
-          moveToNextCell={moveToNextCell}
-          moveCell={moveCell}
-          editing={mode === "edit"}
-          appClosed={connStatus.state !== WebSocketState.OPEN}
-          ref={cell.ref}
-          userConfig={userConfig}
-        />
-      ))}
+    <div className="px-18">
+      <div
+        className={cn(
+          "m-auto pb-12",
+          appConfig.width !== "full" && "max-w-contentWidth",
+          // Hide the cells for a fake loading effect, to avoid flickering
+          invisible && "invisible"
+        )}
+      >
+        {cells.present.map((cell) => (
+          <Cell
+            key={cell.key.toString()}
+            theme={theme}
+            showPlaceholder={cells.present.length === 1}
+            allowFocus={!invisible}
+            cellId={cell.key}
+            initialContents={cell.initialContents}
+            output={cell.output}
+            consoleOutputs={cell.consoleOutputs}
+            status={cell.status}
+            updateCellCode={updateCellCode}
+            prepareCellForRun={prepareForRun}
+            edited={cell.edited}
+            interrupted={cell.interrupted}
+            errored={cell.errored}
+            stopped={cell.stopped}
+            runElapsedTimeMs={cell.runElapsedTimeMs}
+            registerRunStart={registerRunStart}
+            serializedEditorState={cell.serializedEditorState}
+            showDeleteButton={cells.present.length > 1}
+            createNewCell={createNewCell}
+            deleteCell={onDeleteCell}
+            focusCell={focusCell}
+            moveToNextCell={moveToNextCell}
+            moveCell={moveCell}
+            editing={mode === "edit"}
+            appClosed={connStatus.state !== WebSocketState.OPEN}
+            ref={cell.ref}
+            userConfig={userConfig}
+          />
+        ))}
+      </div>
     </div>
   );
 };
