@@ -17,6 +17,7 @@ __all__ = [
     "multiselect",
     "number",
     "radio",
+    "refresh",
     "slider",
     "switch",
     "table",
@@ -44,3 +45,4 @@ from marimo._plugins.ui._impl.input import (
     text_area,
 )
 from marimo._plugins.ui._impl.switch import switch
+from marimo._plugins.ui._impl.refresh import refresh
