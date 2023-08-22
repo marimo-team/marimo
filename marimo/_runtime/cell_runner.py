@@ -195,7 +195,8 @@ class Runner:
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=e.output, exception=e)
-            self.print_traceback()
+            # don't print a traceback, since quitting is the intended
+            # behavior (like sys.exit())
         except Exception as e:  # noqa: E722
             # cancel only the descendants of this cell
             self.cancel(cell_id)
