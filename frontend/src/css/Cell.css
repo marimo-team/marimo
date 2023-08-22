@@ -116,6 +116,7 @@
   gap: 4px;
   justify-content: center;
   height: 100%;
+  z-index: 2;
 }
 
 .shoulder-elem-top {
@@ -138,13 +139,14 @@
   position: absolute;
   right: -98px;
   width: 80px;
+  z-index: 2;
 }
 
 .Cell .shoulder-bottom {
   position: absolute;
   bottom: -2px;
   right: 2px;
-  z-index: 1; /* lie above editor */
+  z-index: 2; /* lie above editor */
 }
 
 /* --------------------------- Status Indicators ---------------------------- */
