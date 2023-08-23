@@ -17,11 +17,12 @@
   multiselect
   number
   radio
+  refresh
   slider
   switch
   table
-  text_area
   text
+  text_area
 ```
 
 marimo comes packaged with interactive UI elements that you can use to build
@@ -43,11 +44,12 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.multiselect
   marimo.ui.number
   marimo.ui.radio
+  marimo.ui.refresh
   marimo.ui.slider
   marimo.ui.switch
   marimo.ui.table
-  marimo.ui.text_area
   marimo.ui.text
+  marimo.ui.text_area
 ```
 
 To use a UI element, assign it to a global variable and output it in a cell.
