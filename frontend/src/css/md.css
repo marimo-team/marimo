@@ -153,6 +153,13 @@
   color: hsl(var(--link-visited));
 }
 
+.markdown blockquote {
+  padding: 0 1rem;
+
+  @apply border-l-4;
+  @apply text-muted-foreground;
+}
+
 .mo-label .markdown p,
 .mo-label-block .markdown p,
 .mo-label .markdown .paragraph,
