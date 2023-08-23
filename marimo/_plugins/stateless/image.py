@@ -1,7 +1,9 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
+import io
+import base64
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -11,7 +13,7 @@ from marimo._output.utils import create_style
 
 @mddoc
 def image(
-    src: str,
+    src: Union[str, io.IOBase],
     alt: Optional[str] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
@@ -21,6 +23,7 @@ def image(
     """Render an image as HTML.
 
     **Example.**
+
     ```python3
     mo.image(
         src="https://marimo.io/logo.png",
@@ -29,10 +32,14 @@ def image(
         height=100,
         rounded=True,
     )
+
+    with open("logo.png", "rb") as file:
+        mo.image(src=file)
     ```
+
     **Args.**
 
-    - `src`: the URL of the image
+    - `src`: the URL of the image or a file-like object
     - `alt`: the alt text of the image
     - `width`: the width of the image
     - `height`: the height of the image
@@ -43,6 +50,7 @@ def image(
 
     `Html` object
     """
+    resolved_src = src if isinstance(src, str) else _io_to_data_url(src)
     styles = create_style(
         {
             "width": width,
@@ -51,5 +59,9 @@ def image(
             **(style or {}),
         }
     )
-    img = h.img(src=src, alt=alt, style=styles)
+    img = h.img(src=resolved_src, alt=alt, style=styles)
     return Html(img)
+
+def _io_to_data_url(readable: io.IOBase) -> str:
+    base64_string = base64.b64encode(readable.read()).decode("utf-8")
+    return f"data:image/png;base64,{base64_string}"
