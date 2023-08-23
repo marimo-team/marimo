@@ -11,7 +11,9 @@ interface ILogger {
  */
 export const Logger: ILogger = {
   debug: (...args) => {
-    console.debug(...args);
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(...args);
+    }
   },
   log: (...args) => {
     console.log(...args);
