@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar, cast
 
 from marimo import _loggers
 from marimo._output.hypertext import Html
@@ -65,6 +65,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         label: Optional[str],
         args: dict[str, JSONType],
         slotted_html: str = "",
+        on_change: Optional[Callable[[T], None]] = None,
     ) -> None:
         """Initialize a UIElement
 
@@ -77,7 +78,14 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         slotted_html: any html to slot in the custom element
         """
         # arguments stored in signature order for cloning
-        self._args = (component_name, initial_value, label, args, slotted_html)
+        self._args = (
+            component_name,
+            initial_value,
+            label,
+            on_change,
+            args,
+            slotted_html,
+        )
         self._initialized = False
         self._initialize(*self._args)
         self._initialized = True
@@ -87,6 +95,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: str,
         initial_value: S,
         label: Optional[str],
+        on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str,
     ) -> None:
@@ -143,6 +152,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 pass
         self._initial_value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
+        self._on_change = on_change
 
         self._inner_text = build_ui_plugin(
             component_name,
@@ -235,6 +245,8 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
     def _update(self, value: S) -> None:
         self._value = self._convert_value(value)
+        if self._on_change is not None:
+            self._on_change(self._value)
 
     def __del__(self) -> None:
         ctx = get_context()

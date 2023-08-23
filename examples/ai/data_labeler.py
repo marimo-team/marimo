@@ -11,11 +11,68 @@ def __(mo):
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, mo):
-    index = mo.ui.number(0, NUMBER_OF_EXAMPLES, step=1)
+def __(NUMBER_OF_EXAMPLES):
+    class Index:
+        value = 0
 
-    mo.md(f"**Choose an example to label.** {index}")
+        def next(self):
+            self.value = min(self.value + 1, NUMBER_OF_EXAMPLES)
+
+        def previous(self):
+            self.value = max(0, self.value - 1)
+
+        def set(self, value):
+            self.value = value
+    return Index,
+
+
+@app.cell
+def __(Index):
+    # next_button, previous_button, and index (mo.ui.number) all share same state
+    index_state = Index()
+    return index_state,
+
+
+@app.cell
+def __(index_state, mo):
+    next_button = mo.ui.button(
+        label="next", on_change=lambda _: index_state.next()
+    )
+
+    previous_button = mo.ui.button(
+        label="previous", on_change=lambda _: index_state.previous()
+    )
+    return next_button, previous_button
+
+
+@app.cell
+def __(mo):
+    mo.md(f"**Choose an example to label.**")
+    return
+
+
+@app.cell
+def __(NUMBER_OF_EXAMPLES, index_state, mo, next_button, previous_button):
+    # want this cell to run when index_state is updated. But we don't have 
+    # observable/signal/set_state like behavior on index_state. So have to 
+    # manually include references to the buttons ...
+    next_button, previous_button
+
+    index = mo.ui.number(
+        0,
+        NUMBER_OF_EXAMPLES,
+        value=index_state.value,
+        step=1,
+        label="example number",
+        on_change=lambda v: index_state.set(v),
+    )
     return index,
+
+
+@app.cell
+def __(index, mo, next_button, previous_button):
+    mo.hstack([index, previous_button, next_button], justify="start")
+    return
 
 
 @app.cell
@@ -31,32 +88,46 @@ def __(mo):
 
 
 @app.cell
-def __(index, labels, mo):
+def __(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
+    labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
+    return labels,
+
+
+@app.cell
+def __(LABELS_PATH, labels, write_labels):
+    def update_label(value, index):
+        labels[index]["label"] = value
+        write_labels(labels, LABELS_PATH)
+    return update_label,
+
+
+@app.cell
+def __(LABELS_PATH, labels, write_labels):
+    def update_notes(value, index):
+        labels[index]["notes"] = value
+        write_labels(labels, LABELS_PATH)
+    return update_notes,
+
+
+@app.cell
+def __(index, labels, mo, update_label, update_notes):
     data = labels[index.value]
 
     label_picker = mo.ui.radio(
         ["Real", "AI Generated", "Unlabeled"],
         value=data["label"],
         label="**Selection.**",
+        on_change=lambda v: update_label(v, index.value),
     )
 
-    notes = mo.ui.text_area(value=data["notes"], label="**Notes.**")
+    notes = mo.ui.text_area(
+        value=data["notes"],
+        label="**Notes.**",
+        on_change=lambda v: update_notes(v, index.value),
+    )
 
     mo.hstack([label_picker, notes], justify="space-around")
     return data, label_picker, notes
-
-
-@app.cell
-def __(LABELS_PATH, index, label_picker, labels, notes, write_labels):
-    labels[index.value] = {"label": label_picker.value, "notes": notes.value}
-    write_labels(labels, LABELS_PATH)
-    return
-
-
-@app.cell
-def __(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
-    labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
-    return labels,
 
 
 @app.cell

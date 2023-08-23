@@ -66,6 +66,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         label: str = "",
+        on_change=None,
     ) -> None:
         value = start if value is None else value
         if stop < start:
@@ -94,6 +95,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "stop": stop,
                 "step": step if step is not None else None,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: Optional[Numeric]) -> Optional[Numeric]:
@@ -258,6 +260,7 @@ class radio(UIElement[Optional[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         label: str = "",
+        on_change=None,
     ) -> None:
         if not isinstance(options, dict):
             if len(set(options)) != len(options):
@@ -268,6 +271,7 @@ class radio(UIElement[Optional[str], Any]):
             component_name=radio._name,
             initial_value=value,
             label=label,
+            on_change=on_change,
             args={
                 "options": list(options.keys()),
             },
@@ -353,11 +357,13 @@ class text_area(UIElement[str, str]):
         value: str = "",
         placeholder: str = "",
         label: str = "",
+        on_change=None,
     ) -> None:
         super().__init__(
             component_name=text_area._name,
             initial_value=value,
             label=label,
+            on_change=on_change,
             args={
                 "placeholder": placeholder,
             },
@@ -642,6 +648,7 @@ class button(UIElement[Any, Any]):
     def __init__(
         self,
         on_click: Optional[Callable[[Any], Any]] = None,
+        on_change=None,
         value: Optional[Any] = None,
         label: str = "click here",
     ) -> None:
@@ -652,6 +659,7 @@ class button(UIElement[Any, Any]):
             # frontend's value is always a counter
             initial_value=0,
             label=label,
+            on_change=on_change,
             args={},
         )
 
