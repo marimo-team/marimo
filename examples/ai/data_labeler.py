@@ -64,7 +64,7 @@ def __(json, os):
     def load_labels(path, number_of_examples):
         if not os.path.exists(path):
             return [
-                {"label": "Unlabeled", "labels": ""}
+                {"label": "Unlabeled", "notes": ""}
                 for _ in range(number_of_examples)
             ]
 
