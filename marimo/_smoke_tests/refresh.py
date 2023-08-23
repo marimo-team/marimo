@@ -30,7 +30,7 @@ def __(mo, random, reset_button):
 @app.cell
 def __(mo):
     refresh = mo.ui.refresh(options=["1s", "10s", "1m"])
-    mo.md(f"Choose an internval to guess {refresh}")
+    mo.md(f"Choose an interval to guess {refresh}")
     return refresh,
 
 
