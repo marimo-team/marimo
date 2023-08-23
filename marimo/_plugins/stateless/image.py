@@ -1,8 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
-import io
-import base64
 
+import base64
+import io
 from typing import Any, Optional, Union
 
 from marimo._output.builder import h
@@ -61,6 +61,7 @@ def image(
     )
     img = h.img(src=resolved_src, alt=alt, style=styles)
     return Html(img)
+
 
 def _io_to_data_url(readable: io.IOBase) -> str:
     base64_string = base64.b64encode(readable.read()).decode("utf-8")
