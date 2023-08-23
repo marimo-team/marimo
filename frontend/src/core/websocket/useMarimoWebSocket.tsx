@@ -13,6 +13,7 @@ import { sendInstantiate } from "../network/requests";
 import { CellId } from "../model/ids";
 import { CellState, createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
+import { Logger } from "@/utils/Logger";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -139,6 +140,7 @@ export function useMarimoWebSocket(opts: {
 
         case "MARIMO_WRONG_KERNEL_ID":
         case "MARIMO_SHUTDOWN":
+          Logger.warn("WebSocket closed", e.reason);
           setConnStatus({
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.KERNEL_DISCONNECTED,
@@ -171,12 +173,14 @@ export function useMarimoWebSocket(opts: {
      * When we encounter an error, we should close the connection.
      */
     onError: (e) => {
+      Logger.warn("WebSocket error", e);
       setConnStatus({
         state: WebSocketState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       });
-      ws.current?.close();
+      // Try reconnecting as this could have been a network error.
+      ws.current?.reconnect();
     },
   });
 
