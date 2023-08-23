@@ -23,6 +23,7 @@ __all__ = [
     "doc",
     "hstack",
     "Html",
+    "image",
     "md",
     "refs",
     "stop",
@@ -43,6 +44,7 @@ from marimo._plugins import ui
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.callout_output import callout
 from marimo._plugins.stateless.flex import hstack, vstack
+from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime.control_flow import MarimoStopError, stop

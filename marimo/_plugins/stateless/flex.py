@@ -4,9 +4,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal, Optional
 
+from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
+from marimo._output.utils import create_style
 
 
 def _flex(
@@ -34,20 +36,18 @@ def _flex(
         "stretch": "stretch",
         None: "normal",
     }
-    style = ";".join(
-        [
-            "display: flex",
-            f"flex-direction: {direction}",
-            f"justify-content: {justify_content_map[justify]}",
-            f"align-items: {align_items_map[align]}",
-            f"flex-wrap: {'wrap' if wrap else 'nowrap'}",
-            f"gap: {gap}rem",
-        ]
+    style = create_style(
+        {
+            "display": "flex",
+            "flex-direction": direction,
+            "justify-content": justify_content_map[justify],
+            "align-items": align_items_map[align],
+            "flex-wrap": "wrap" if wrap else "nowrap",
+            "gap": f"{gap}rem",
+        }
     )
-    grid_items = "".join(
-        ["<div>" + as_html(item).text + "</div>" for item in items]
-    )
-    return Html(f"<div style='{style}'>" + grid_items + "</div>")
+    grid_items = [h.div(as_html(item).text) for item in items]
+    return Html(h.div(grid_items, style=style))
 
 
 @mddoc
@@ -174,17 +174,15 @@ def _spaced(
     - An `Html` object.
     """
     items_per_row = len(items) if items_per_row is None else items_per_row
-    style = ";".join(
-        [
-            "display: grid",
-            f"grid-template-columns: repeat({items_per_row}, 1fr)",
-            f"column-gap: {column_gap}rem",
-            f"row-gap: {row_gap}rem",
-            f"justify-items: {justify}",
-            "overflow: auto",
-        ]
+    style = create_style(
+        {
+            "display": "grid",
+            "grid-template-columns": f"repeat({items_per_row}, 1fr)",
+            "column-gap": f"{column_gap}rem",
+            "row-gap": f"{row_gap}rem",
+            "justify-items": justify,
+            "overflow": "auto",
+        }
     )
-    grid_items = "".join(
-        ["<div>" + as_html(item).text + "</div>" for item in items]
-    )
-    return Html(f"<div style='{style}'>" + grid_items + "</div>")
+    grid_items = [h.div(as_html(item).text) for item in items]
+    return Html(h.div(grid_items, style=style))
