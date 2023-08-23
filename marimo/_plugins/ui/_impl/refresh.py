@@ -1,12 +1,13 @@
+# Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Final
+from typing import Final, Optional, Union
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from typing import Any, Literal, Optional, Union, Type
 
 InternalValue = Union[int, float, str]
+
 
 @mddoc
 class refresh(UIElement[int, int]):
@@ -33,16 +34,21 @@ class refresh(UIElement[int, int]):
 
     name: Final[str] = "marimo-refresh"
 
-    def __init__(self, options: list[InternalValue], default_value: Optional[InternalValue] = None) -> None:
+    def __init__(
+        self,
+        options: list[InternalValue],
+        default_value: Optional[InternalValue] = None,
+    ) -> None:
         if default_value and not isinstance(default_value, (int, float, str)):
             raise ValueError(
-                "Invalid type: `default_value` must be an int, float or str, not %s"
-                % type(default_value)
+                "Invalid type: `default_value` must be "
+                + "an int, float or str, not %s" % type(default_value)
             )
 
         if not isinstance(options, list):
             raise ValueError(
-                "Invalid type: `options` must be a list, not %s" % type(options)
+                "Invalid type: `options` must be a list, not %s"
+                % type(options)
             )
 
         super().__init__(
@@ -51,7 +57,7 @@ class refresh(UIElement[int, int]):
             label=None,
             args={
                 "options": options,
-                "default_value": default_value,
+                "default-value": default_value,
             },
         )
         self.options = options

@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.1"
@@ -13,9 +14,7 @@ def __():
 
 @app.cell
 def __(mo):
-    reset_button = mo.ui.button(
-        label="Reset"
-    )
+    reset_button = mo.ui.button(label="Reset")
     reset_button
     return reset_button,
 
@@ -24,17 +23,13 @@ def __(mo):
 def __(mo, random, reset_button):
     reset_button
     my_pick = random.randint(0, 10)
-    mo.accordion({
-        "My pick": my_pick
-    })
+    mo.accordion({"My pick": my_pick})
     return my_pick,
 
 
 @app.cell
 def __(mo):
-    refresh = mo.ui.refresh(
-        options = ['1s', '10s', '1m']
-    )
+    refresh = mo.ui.refresh(options=["1s", "10s", "1m"])
     mo.md(f"Choose an internval to guess {refresh}")
     return refresh,
 
@@ -45,8 +40,7 @@ def __(mo, my_pick, random, refresh):
     guess = random.randint(0, 10)
     mo.stop(
         guess == my_pick,
-        mo.md(f"That is correct: {my_pick}").callout(kind="success"
-        )
+        mo.md(f"That is correct: {my_pick}").callout(kind="success"),
     )
 
     mo.md(f"Not correct, your guess was {random.randint(0, 10)}").callout(

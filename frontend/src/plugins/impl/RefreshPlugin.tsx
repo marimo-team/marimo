@@ -7,6 +7,8 @@ import { RefreshCwIcon } from "lucide-react";
 import timestring from "timestring";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
+import { useEvent } from "../../hooks/useEvent";
+import { cn } from "@/lib/utils";
 
 type Value = string | number | undefined;
 
@@ -46,6 +48,13 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
   const [selected, setSelected] = useState<string | number>(
     data.defaultValue ?? OFF
   );
+  const [spin, setSpin] = useState(false);
+
+  const refresh = useEvent(() => {
+    setSpin(true);
+    setValue(() => `${selected} (${count++})`);
+    setTimeout(() => setSpin(false), 500); // spin for 500ms
+  });
 
   useEffect(() => {
     if (selected === OFF) {
@@ -55,30 +64,35 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
     const asSeconds =
       typeof selected === "number" ? selected : timestring(selected);
 
-    const id = setInterval(
-      () => setValue(() => `${selected} (${count++})`),
-      asSeconds * 1000
-    );
+    const id = setInterval(refresh, asSeconds * 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
+  }, [selected, refresh]);
+
+  const noShadow =
+    "shadow-none! hover:shadow-none! focus:shadow-none! active:shadow-none!";
 
   return (
-    <span className="inline-flex items-center">
+    <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
       <Button
-        variant="outline"
+        variant="secondary"
         size="icon"
-        className="border-0 shadow-none"
-        onClick={() => setValue(() => `${selected} (${count++})`)}
+        className={cn(
+          noShadow,
+          "border mb-0 border-r-0 rounded-tr-none rounded-br-none"
+        )}
+        onClick={refresh}
       >
-        <RefreshCwIcon className="w-4 h-4" />
+        <RefreshCwIcon className={cn("w-3.5 h-3.5", spin && "animate-spin")} />
       </Button>
       <NativeSelect
         onChange={(e) => {
           setSelected(e.target.value);
         }}
         value={selected}
-        className="border-0 shadow-none"
+        className={cn(
+          noShadow,
+          "border mb-0 bg-secondary rounded-tl-none rounded-bl-none hover:bg-secondary/60"
+        )}
       >
         <option value={OFF}>off</option>
         {data.options.map((option) => (
