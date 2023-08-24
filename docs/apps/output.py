@@ -23,7 +23,7 @@ def __(array, ax, dictionary, mo, plots, table, text):
                 \]
                 """
                 + f"""
-                You can even interpolate arbitrary Python values and marimo 
+                You can even interpolate arbitrary Python values and marimo
                 elements into your markdown. Try typing your name below:
 
                 {mo.hstack([
@@ -44,7 +44,7 @@ def __(array, ax, dictionary, mo, plots, table, text):
             "accordion": mo.accordion(
                 {
                     "Tip!": f"""
-                    Express yourself with outputs! Put anything in accordions, 
+                    Express yourself with outputs! Put anything in accordions,
                     like plots:
 
                     {mo.as_html(ax)}.
@@ -108,14 +108,14 @@ def __(mo):
             {
                 "first_name": "Michael",
                 "last_name": "Scott",
-                "ability": mo.ui.slider(1, 10, value=3),
-                "favorite place": mo.md("![img](https://picsum.photos/100)"),
+                "skill": mo.ui.slider(1, 10, value=3),
+                "favorite place": mo.image(src="https://picsum.photos/100"),
             },
             {
                 "first_name": "Jim",
                 "last_name": "Halpert",
-                "ability": mo.ui.slider(1, 10, value=7),
-                "favorite place": mo.md("![img](https://picsum.photos/100)"),
+                "skill": mo.ui.slider(1, 10, value=7),
+                "favorite place": mo.image(src="https://picsum.photos/100"),
             },
         ],
         selection="single"
@@ -135,7 +135,7 @@ def __(mo, np, plt):
     x = np.linspace(-2, 2, 100)
     linear = plot(x, x, "$x$")
     quadratic = plot(x, x**2, "$x^2$")
-    sine = plot(x, np.sin(x), "$\sin(x)$") 
+    sine = plot(x, np.sin(x), "$\sin(x)$")
     cos = plot(x, np.cos(x), "$\cos(x)$")
     exp = plot(x, np.exp(x), "$\exp(x)$")
 

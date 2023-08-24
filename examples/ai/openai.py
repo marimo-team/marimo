@@ -118,9 +118,9 @@ def __(mo, openai, superhero):
     mo.md(
         f"""
         💬 Create a catchphrase for {superhero.value}
-        
+
         🤖 Response:
-        
+
         {catchphrase}
         """
     ) if superhero.value else None
@@ -147,7 +147,7 @@ def __(generate_image_button, mo, openai, superhero):
         )
         url = res["data"][0]["url"]
 
-    mo.Html(f"<img src={url} />") if url else None
+    mo.image(src=url) if url else None
     return res, url
 
 

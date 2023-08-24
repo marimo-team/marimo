@@ -14,4 +14,4 @@ def _pillow_image_to_base64_string(img):
 def image(path: str) -> str:
     img = Image.open(path)
     data_url = "data:image/png;base64," + _pillow_image_to_base64_string(img)
-    return f"<img src='{data_url}' />"
+    return mo.image(src=data_url)
