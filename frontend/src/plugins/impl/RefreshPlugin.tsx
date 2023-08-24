@@ -9,6 +9,8 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { useEvent } from "../../hooks/useEvent";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { HtmlOutput } from "@/editor/output/HtmlOutput";
 
 type Value = string | number | undefined;
 
@@ -24,6 +26,8 @@ interface Data {
    * The initial value.
    */
   defaultInterval?: string | number;
+
+  label?: string | null;
 }
 
 const zodTimestring = z.string().superRefine((s, ctx) => {
@@ -51,6 +55,7 @@ export class RefreshPlugin implements IPlugin<Value, Data> {
   validator = z.object({
     options: z.array(z.union([zodTimestring, z.number().min(1)])).default([]),
     defaultInterval: z.union([zodTimestring, z.number().min(1)]).optional(),
+    label: z.string().nullable(),
   });
 
   render(props: IPluginProps<Value, Data>): JSX.Element {
@@ -107,6 +112,11 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
 
   return (
     <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
+      {data.label && (
+        <Label>
+          <HtmlOutput html={data.label} inline={true} />
+        </Label>
+      )}
       <Button
         variant="secondary"
         size="icon"
