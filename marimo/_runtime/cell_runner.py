@@ -7,12 +7,15 @@ import re
 import sys
 import traceback
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell
 from marimo._output import formatting
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+
+if TYPE_CHECKING:
+    from marimo._runtime.state import GetState, State
 
 
 def cell_filename(cell_id: CellId_t) -> str:
@@ -145,6 +148,7 @@ class Runner:
     ):
         self.graph = graph
         self.glbls = glbls
+        self.pending_getters: set[GetState] = set({})
         self.cells_to_run = dataflow.topological_sort(graph, cell_ids)
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
         self.interrupted = False
@@ -179,6 +183,9 @@ class Runner:
         """
         error_msg = format_traceback(self.graph)
         sys.stderr.write(error_msg)
+
+    def register_state_update(self, state: State) -> None:
+        self.pending_getters.add(state.get_value)
 
     def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
