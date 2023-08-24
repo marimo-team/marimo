@@ -116,6 +116,7 @@ class Kernel:
         self.graph = dataflow.DirectedGraph()
         self.executing = False
         self.cell_id: Optional[CellId_t] = None
+        self.runner: Optional[cell_runner.Runner] = None
         self.ui_initializers: dict[str, Any] = {}
         self.errors: dict[CellId_t, tuple[Error, ...]] = {}
 
@@ -127,9 +128,12 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     @contextlib.contextmanager
-    def _execution_ctx(self, cell_id: CellId_t) -> Iterator[None]:
+    def _execution_ctx(
+        self, cell_id: CellId_t, runner: cell_runner.Runner
+    ) -> Iterator[None]:
         self.executing = True
         self.cell_id = cell_id
+        self.runner = runner
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id
         ):
@@ -138,6 +142,7 @@ class Kernel:
             finally:
                 self.executing = False
                 self.cell_id = None
+                self.runner = None
 
     def _try_registering_cell(
         self, cell_id: CellId_t, code: str
@@ -435,7 +440,9 @@ class Kernel:
             write_queued(cell_id=cid)
 
         runner = cell_runner.Runner(
-            cell_ids=cell_ids, graph=self.graph, glbls=self.globals
+            cell_ids=cell_ids,
+            graph=self.graph,
+            glbls=self.globals,
         )
 
         # I/O
@@ -459,7 +466,7 @@ class Kernel:
             # State clean-up: don't leak names, UI elements, ...
             self._invalidate_cell_state(cell_id)
 
-            with self._execution_ctx(cell_id):
+            with self._execution_ctx(cell_id, runner):
                 run_result = runner.run(cell_id)
 
             if run_result.success():
@@ -574,8 +581,29 @@ class Kernel:
                     cell_id=cid,
                 )
 
-        LOGGER.debug("Finished run.")
-        write_completed_run()
+        # TODO: cleanup/refactor elsewhere
+        state_getter_cids_to_run: set[CellId_t] = set()
+        LOGGER.debug("pending getters: %s", runner.pending_getters)
+        for state_getter in runner.pending_getters:
+            for cid, cell in self.graph.cells.items():
+                if cid in self.errors:
+                    continue
+                for ref in cell.refs:
+                    if (
+                        ref in self.globals
+                        and self.globals[ref] == state_getter
+                    ):
+                        state_getter_cids_to_run.add(cid)
+        execution_requests = [
+            ExecutionRequest(cid, self.graph.cells[cid].code)
+            for cid in state_getter_cids_to_run
+        ]
+        LOGGER.debug("pending ers: %s", execution_requests)
+        if execution_requests:
+            self.run(execution_requests)
+        else:
+            LOGGER.debug("Finished run.")
+            write_completed_run()
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""

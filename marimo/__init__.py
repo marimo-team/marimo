@@ -26,6 +26,7 @@ __all__ = [
     "image",
     "md",
     "refs",
+    "state",
     "stop",
     "tabs",
     "tree",
@@ -49,3 +50,4 @@ from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import defs, refs
+from marimo._runtime.state import state
