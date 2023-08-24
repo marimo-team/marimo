@@ -578,6 +578,8 @@ class Kernel:
                     cell_id=cid,
                 )
 
+        # TODO: if a cell was just run (in particular, if it was run after
+        # the state update, don't run it again here)
         # TODO: cleanup/refactor elsewhere
         state_getter_cids_to_run: set[CellId_t] = set()
         LOGGER.debug("pending getters: %s", self.state_updates)
