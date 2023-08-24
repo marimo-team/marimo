@@ -148,7 +148,6 @@ class Runner:
     ):
         self.graph = graph
         self.glbls = glbls
-        self.pending_getters: set[GetState] = set({})
         self.cells_to_run = dataflow.topological_sort(graph, cell_ids)
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
         self.interrupted = False
@@ -183,9 +182,6 @@ class Runner:
         """
         error_msg = format_traceback(self.graph)
         sys.stderr.write(error_msg)
-
-    def register_state_update(self, state: State) -> None:
-        self.pending_getters.add(state.get_value)
 
     def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""

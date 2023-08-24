@@ -18,16 +18,19 @@ class SetState:
     def __init__(self, state: State) -> None:
         self.state = state
 
-    def __call__(self, value: object) -> object:
-        self.state.value = value
+    def __call__(self, update: object) -> object:
+        if callable(update):
+            self.state.value = update(self.state.value)
+        else:
+            self.state.value = update
         ctx = get_context()
         if not ctx.initialized:
             return
         # TODO: need to handle case when triggered by UI element (runner will
         # be None, need to communciate directly with kernel)
-        runner = ctx.kernel.runner
-        assert runner is not None
-        runner.register_state_update(self.state)
+        kernel = ctx.kernel
+        assert kernel is not None
+        kernel.register_state_update(self.state)
 
 
 class State:
