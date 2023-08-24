@@ -6,10 +6,13 @@ export const calloutStyles = cva(
   {
     variants: {
       kind: {
-        neutral: `bg-calloutNeutralBg border-calloutNeutralBorder shadow-calloutNeutralBorder`,
-        alert: `bg-calloutAlertBg border-calloutAlertBorder shadow-calloutAlertBorder`,
-        warn: `bg-calloutWarnBg border-calloutWarnBorder shadow-calloutWarnBorder`,
-        success: `bg-calloutSuccessBg border-calloutSuccessBorder shadow-calloutSuccessBorder`,
+        neutral: `bg-[var(--slate-1)] border-[var(--slate-9)] shadow-[var(--slate-8)]`,
+        // @deprecated, use danger instead
+        alert: `bg-[var(--red-2)] border-[var(--red-9)] shadow-[var(--red-8)]`,
+        info: `bg-[var(--sky-1)] border-[var(--sky-8)] shadow-[var(--sky-7)]`,
+        danger: `bg-[var(--red-2)] border-[var(--red-9)] shadow-[var(--red-8)]`,
+        warn: `bg-[var(--amber-2)] border-[var(--amber-9)] shadow-[var(--amber-8)]`,
+        success: `bg-[var(--grass-2)] border-[var(--grass-9)] shadow-[var(--grass-8)]`,
       },
     },
     defaultVariants: {

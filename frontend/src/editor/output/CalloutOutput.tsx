@@ -2,10 +2,11 @@
 import { memo } from "react";
 import { HtmlOutput } from "./HtmlOutput";
 import { calloutStyles } from "./CalloutOutput.styles";
+import { Intent } from "@/plugins/impl/common/intent";
 
 interface Props {
   html: string;
-  kind: "neutral" | "alert" | "warn" | "success";
+  kind: Intent;
 }
 
 export const CalloutOutput: React.FC<Props> = memo(({ html, kind }) => {
