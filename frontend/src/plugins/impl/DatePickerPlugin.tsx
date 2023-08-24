@@ -1,12 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useId, useRef } from "react";
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { Input } from "../../components/ui/input";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 
@@ -63,16 +61,9 @@ const DatePicker = (props: DatePickerProps): JSX.Element => {
   };
 
   const id = useId();
-  const labelElement =
-    props.label === null ? null : (
-      <Label htmlFor={id}>
-        <HtmlOutput html={props.label} inline={true} />
-      </Label>
-    );
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {labelElement}
+    <Labeled label={props.label} id={id}>
       <Input
         ref={inputRef}
         type="date"
@@ -82,6 +73,6 @@ const DatePicker = (props: DatePickerProps): JSX.Element => {
         onInput={handleInput}
         id={id}
       />
-    </div>
+    </Labeled>
   );
 };

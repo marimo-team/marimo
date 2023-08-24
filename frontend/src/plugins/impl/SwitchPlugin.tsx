@@ -3,11 +3,8 @@ import { useId } from "react";
 import { z } from "zod";
 
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { IPlugin, IPluginProps } from "@/plugins/types";
-import * as labelStyles from "@/plugins/impl/Label.styles";
-import { cn } from "@/lib/utils";
-import { renderHTML } from "../core/RenderHTML";
+import { Labeled } from "./common/labeled";
 
 export class SwitchPlugin
   implements IPlugin<boolean, { label: string | null }>
@@ -30,29 +27,20 @@ const SwitchComponent = ({
   data,
 }: IPluginProps<boolean, { label: string | null }>): JSX.Element => {
   const id = useId();
-  const labelElement =
-    data.label === null ? null : (
-      <Label htmlFor={id} className="text-md">
-        {renderHTML({ html: data.label })}
-      </Label>
-    );
 
   return (
-    <div
-      className={cn(
-        labelStyles.labelContainer,
-        "align-middle",
-        "items-start",
-        "gap-x-2"
-      )}
+    <Labeled
+      label={data.label}
+      align="right"
+      id={id}
+      labelClassName="text-md ml-1"
     >
       <Switch
         checked={value}
         onCheckedChange={setValue}
         id={id}
-        className="data-[state=unchecked]:hover:bg-input/80"
+        className="data-[state=unchecked]:hover:bg-input/80 mb-0"
       />
-      {labelElement}
-    </div>
+    </Labeled>
   );
 };

@@ -1,12 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useId } from "react";
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps } from "../types";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { NativeSelect } from "../../components/ui/native-select";
+import { Labeled } from "./common/labeled";
 
 interface Data {
   label: string | null;
@@ -53,19 +51,12 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
   const { label, options, value, setValue, allowSelectNone } = props;
 
   const id = useId();
-  const labelElement =
-    label === null ? null : (
-      <Label htmlFor={id}>
-        <HtmlOutput html={label} inline={true} />
-      </Label>
-    );
 
   const defaultValue = allowSelectNone ? EMPTY_VALUE : options[0];
   const singleValue = value.length === 0 ? defaultValue : value[0];
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {labelElement}
+    <Labeled label={label} id={id}>
       <NativeSelect
         onChange={(e) => {
           const newValue = e.target.value;
@@ -89,6 +80,6 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
           </option>
         ))}
       </NativeSelect>
-    </div>
+    </Labeled>
   );
 };

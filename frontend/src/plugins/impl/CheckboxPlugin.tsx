@@ -3,11 +3,9 @@ import { useId } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps } from "../types";
-import * as labelStyles from "./Label.styles";
 import { Checkbox } from "../../components/ui/checkbox";
-import { Label } from "../../components/ui/label";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import { renderHTML } from "../core/RenderHTML";
+import { Labeled } from "./common/labeled";
 
 export class CheckboxPlugin
   implements IPlugin<boolean, { label: string | null }>
@@ -37,17 +35,10 @@ const CheckboxComponent = ({
     setValue(newValue);
   };
   const id = useId();
-  const labelElement =
-    data.label === null ? null : (
-      <Label htmlFor={id} className="text-md">
-        {renderHTML({ html: data.label })}
-      </Label>
-    );
 
   return (
-    <div className={`${labelStyles.labelContainer} align-middle`}>
+    <Labeled label={data.label} align="right" id={id} labelClassName="text-md">
       <Checkbox checked={value} onCheckedChange={onClick} id={id} />
-      {labelElement}
-    </div>
+    </Labeled>
   );
 };

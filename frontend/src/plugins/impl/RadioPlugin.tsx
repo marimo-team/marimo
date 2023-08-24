@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { HtmlOutput } from "@/editor/output/HtmlOutput";
 import { IPlugin, IPluginProps } from "@/plugins/types";
+import { Labeled } from "./common/labeled";
 
 /**
  * Arguments for a radio group
@@ -45,18 +45,9 @@ interface RadioProps extends Data {
 
 const Radio = (props: RadioProps): JSX.Element => {
   const id = useId();
-  const labelElement =
-    props.label === null ? null : (
-      <div className="pb-3">
-        <Label htmlFor={id} className="pb-3">
-          <HtmlOutput html={props.label} inline={true} />
-        </Label>
-      </div>
-    );
 
   return (
-    <div>
-      {labelElement}
+    <Labeled label={props.label} id={id} align="top">
       <RadioGroup
         value={props.value ?? ""}
         onValueChange={props.setValue}
@@ -77,6 +68,6 @@ const Radio = (props: RadioProps): JSX.Element => {
           </div>
         ))}
       </RadioGroup>
-    </div>
+    </Labeled>
   );
 };

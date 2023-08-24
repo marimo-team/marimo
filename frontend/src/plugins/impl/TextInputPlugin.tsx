@@ -1,14 +1,12 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 
@@ -49,13 +47,6 @@ interface TextComponentProps extends Data {
 const TextComponent = (props: TextComponentProps) => {
   const [valueOnBlur, setValueOnBlur] = useState(props.value);
 
-  const labelElement =
-    props.label === null ? null : (
-      <Label className={labelStyles.label}>
-        <HtmlOutput html={props.label} inline={true} />
-      </Label>
-    );
-
   const valueToValidate = valueOnBlur == null ? props.value : valueOnBlur;
   const isValid = validate(props.kind, valueToValidate);
 
@@ -67,8 +58,7 @@ const TextComponent = (props: TextComponentProps) => {
   };
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {labelElement}
+    <Labeled label={props.label}>
       <Input
         type={props.kind}
         icon={icon[props.kind]}
@@ -80,7 +70,7 @@ const TextComponent = (props: TextComponentProps) => {
         onInput={(event) => props.setValue(event.currentTarget.value)}
         onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
       />
-    </div>
+    </Labeled>
   );
 };
 

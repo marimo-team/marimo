@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { filesToBase64 } from "../../utils/fileToBase64";
 import { buttonVariants } from "../../components/ui/button";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
+import { renderHTML } from "../core/RenderHTML";
 
 type FileUploadType = "button" | "area";
 
@@ -141,7 +141,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
             size: "xs",
           })}
         >
-          <HtmlOutput html={label} inline={true} />
+          {renderHTML({ html: label })}
           <Upload size={16} className="ml-2" />
         </button>
         <input {...getInputProps({})} type="file" />
@@ -177,13 +177,9 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
       >
         <input {...getInputProps()} />
         {uploaded ? (
-          <span>
-            To re-upload: <HtmlOutput html={label} inline={true} />
-          </span>
+          <span>To re-upload: {renderHTML({ html: label })}</span>
         ) : (
-          <span className="mt-0">
-            <HtmlOutput html={label} inline={true} />
-          </span>
+          <span className="mt-0">{renderHTML({ html: label })}</span>
         )}
       </div>
 

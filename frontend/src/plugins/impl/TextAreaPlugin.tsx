@@ -1,11 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { Textarea } from "../../components/ui/textarea";
+import { Labeled } from "./common/labeled";
 
 type T = string;
 
@@ -40,21 +38,10 @@ interface TextAreaComponentProps extends Data {
 }
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
-  const labelElement =
-    props.label === null ? null : (
-      <Label className="text-md">
-        <HtmlOutput html={props.label} />
-      </Label>
-    );
-
   return (
-    <div className={labelStyles.labelContainerBlock}>
-      {labelElement}
+    <Labeled label={props.label} align="top" labelClassName="text-md">
       <Textarea
-        className="mt-3"
-        style={{
-          fontFamily: "var(--monospace-font)",
-        }}
+        className="font-code"
         rows={5}
         cols={33}
         value={props.value}
@@ -63,6 +50,6 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
         }
         placeholder={props.placeholder}
       />
-    </div>
+    </Labeled>
   );
 };
