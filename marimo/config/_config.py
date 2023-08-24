@@ -75,7 +75,7 @@ class MarimoConfig(TypedDict, total=False):
 
 _DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True},
-    "save": {"autosave": "off", "autosave_delay": 1000},
+    "save": {"autosave": "after_delay", "autosave_delay": 1000},
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 

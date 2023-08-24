@@ -7,12 +7,13 @@ export const UserConfigSchema = z.object({
     activate_on_typing: z.boolean(),
   }),
   save: z.object({
-    autosave: z.enum(["off", "after_delay"]),
+    autosave: z.enum(["off", "after_delay"]).default("after_delay"),
     autosave_delay: z
       .number()
       .nonnegative()
       // Ensure that the delay is at least 1 second
-      .transform((millis) => Math.max(millis, 1000)),
+      .transform((millis) => Math.max(millis, 1000))
+      .default(1000),
   }),
 });
 export type UserConfig = z.infer<typeof UserConfigSchema>;
