@@ -623,6 +623,12 @@ class button(UIElement[Any, Any]):
       on_click=lambda value: value + 1,
       label='increment'
     )
+
+    # adding intent
+    delete_button = mo.ui.button(
+        label='Do not click',
+        kind='danger',
+    )
     ```
 
     **Attributes.**
@@ -634,6 +640,8 @@ class button(UIElement[Any, Any]):
     - `on_click`: a callable called on click that takes the current
        value of the button and returns a new value
     - `value`: an initial value for the button
+    - `kind`: 'neutral', 'success', 'warn', or 'danger'
+    - `disabled`: whether the button is disabled
     - `label`: text label for the element
     """
 
@@ -643,6 +651,8 @@ class button(UIElement[Any, Any]):
         self,
         on_click: Optional[Callable[[Any], Any]] = None,
         value: Optional[Any] = None,
+        kind: Literal["neutral", "success", "warn", "danger"] = "neutral",
+        disabled: bool = False,
         label: str = "click here",
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
@@ -652,7 +662,10 @@ class button(UIElement[Any, Any]):
             # frontend's value is always a counter
             initial_value=0,
             label=label,
-            args={},
+            args={
+                "kind": kind,
+                "disabled": disabled,
+            },
         )
 
     def _convert_value(self, value: Any) -> Any:
