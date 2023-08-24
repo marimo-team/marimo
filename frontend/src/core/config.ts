@@ -13,7 +13,7 @@ export const UserConfigSchema = z.object({
       .nonnegative()
       // Ensure that the delay is at least 1 second
       .transform((millis) => Math.max(millis, 1000))
-      .default(5000),
+      .default(1000),
   }),
 });
 export type UserConfig = z.infer<typeof UserConfigSchema>;
