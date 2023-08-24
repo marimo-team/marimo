@@ -7,6 +7,7 @@ import { RefreshCwIcon } from "lucide-react";
 import timestring from "timestring";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
+import * as labelStyles from "./Label.styles";
 import { useEvent } from "../../hooks/useEvent";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -111,42 +112,46 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
   const hasOptions = data.options.length > 0;
 
   return (
-    <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
+    <div className={labelStyles.labelContainer}>
       {data.label && (
-        <Label>
+        <Label className={labelStyles.label}>
           <HtmlOutput html={data.label} inline={true} />
         </Label>
       )}
-      <Button
-        variant="secondary"
-        size="icon"
-        className={cn(
-          noShadow,
-          "border mb-0 rounded",
-          hasOptions && "border-r-0 rounded-tr-none rounded-br-none"
-        )}
-        onClick={refresh}
-      >
-        <RefreshCwIcon className={cn("w-3.5 h-3.5", spin && "animate-spin")} />
-      </Button>
-      <NativeSelect
-        onChange={(e) => {
-          setSelected(e.target.value);
-        }}
-        value={selected}
-        className={cn(
-          noShadow,
-          "border mb-0 bg-secondary rounded rounded-tl-none rounded-bl-none hover:bg-secondary/60",
-          !hasOptions && "hidden"
-        )}
-      >
-        <option value={OFF}>off</option>
-        {data.options.map((option) => (
-          <option value={option} key={option}>
-            {typeof option === "number" ? `${option}s` : option}
-          </option>
-        ))}
-      </NativeSelect>
-    </span>
+      <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
+        <Button
+          variant="secondary"
+          size="icon"
+          className={cn(
+            noShadow,
+            "border mb-0 rounded",
+            hasOptions && "border-r-0 rounded-tr-none rounded-br-none"
+          )}
+          onClick={refresh}
+        >
+          <RefreshCwIcon
+            className={cn("w-3.5 h-3.5", spin && "animate-spin")}
+          />
+        </Button>
+        <NativeSelect
+          onChange={(e) => {
+            setSelected(e.target.value);
+          }}
+          value={selected}
+          className={cn(
+            noShadow,
+            "border mb-0 bg-secondary rounded rounded-tl-none rounded-bl-none hover:bg-secondary/60",
+            !hasOptions && "hidden"
+          )}
+        >
+          <option value={OFF}>off</option>
+          {data.options.map((option) => (
+            <option value={option} key={option}>
+              {typeof option === "number" ? `${option}s` : option}
+            </option>
+          ))}
+        </NativeSelect>
+      </span>
+    </div>
   );
 };
