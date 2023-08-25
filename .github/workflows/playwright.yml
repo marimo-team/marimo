@@ -98,18 +98,6 @@ jobs:
           base-branch: main
           snapshot-path: frontend/e2e-tests/screenshots
 
-      - name: 💬 Comment with artifact link
-        uses: peter-evans/create-or-update-comment@v3
-        # Only comment on PRs
-        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
-        # Beta: Don't fail the build
-        continue-on-error: true
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ### 📸 Playwright screenshots
-            [Results Page](${{ steps.visual-snapshots-diff.outputs.results-path }})
-
       - uses: actions/upload-artifact@v3
         if: always()
         with:
