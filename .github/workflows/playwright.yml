@@ -90,7 +90,7 @@ jobs:
         # Only run on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
         with:
-          diff: true
+          base-branch: main
           snapshot-path: frontend/e2e-tests/screenshots
 
       - name: 💬 Comment with artifact link
