@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { Page, expect } from "@playwright/test";
+import path from "node:path";
 
 export async function createCellBelow(opts: {
   page: Page;
@@ -41,4 +42,22 @@ export async function runCell(opts: { page: Page; cellSelector: string }) {
 
   // Run the new cell
   await page.getByTestId("run-button").locator(":visible").first().click();
+}
+
+const countsForName: Record<string, number> = {};
+/**
+ * Take a screenshot of the page.
+ * @example
+ * await takeScreenshot(page, __filename);
+ */
+export async function takeScreenshot(page: Page, filename: string) {
+  const clean = path.basename(filename).replace(".spec.ts", "");
+
+  const count = countsForName[clean] || 0;
+  countsForName[clean] = count + 1;
+  const fullName = `${clean}.${count}`;
+  await page.screenshot({
+    path: `e2e-tests/screenshots/${fullName}.png`,
+    fullPage: true,
+  });
 }

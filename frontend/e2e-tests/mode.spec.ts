@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
+import { takeScreenshot } from "./helper";
 
 test("page renders edit feature in edit mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");
@@ -11,6 +12,8 @@ test("page renders edit feature in edit mode", async ({ page }) => {
 
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
 });
 
 test("can toggle to read mode", async ({ page }) => {
@@ -35,6 +38,8 @@ test("can toggle to read mode", async ({ page }) => {
   // Can see output and code
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
   await expect(page.getByText("# Hello Marimo!")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
 });
 
 test("page renders read only view in read mode", async ({ page }) => {
@@ -48,4 +53,6 @@ test("page renders read only view in read mode", async ({ page }) => {
 
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
 });

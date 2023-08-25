@@ -76,6 +76,33 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test
 
+      - name: 📸 Save screenshots
+        uses: getsentry/action-visual-snapshot@main
+        with:
+          # Only save on main
+          # if: github.ref == 'refs/heads/main'
+          save-only: true
+          snapshot-path: frontend/e2e-tests/screenshots
+
+      - name: 📊 Diff screenshots
+        uses: getsentry/action-visual-snapshot@main
+        id: visual-snapshots-diff
+        # Only run on PRs
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        with:
+          diff: true
+          snapshot-path: frontend/e2e-tests/screenshots
+
+      - name: 💬 Comment with artifact link
+        uses: peter-evans/create-or-update-comment@v3
+        # Only comment on PRs
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### 📸 Playwright screenshots
+            [Results Page](${{ steps.visual-snapshots-diff.outputs.results-path }})
+
       - uses: actions/upload-artifact@v3
         if: always()
         with:
