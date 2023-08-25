@@ -78,18 +78,23 @@ jobs:
 
       - name: 📸 Save screenshots
         uses: getsentry/action-visual-snapshot@main
+        # Only save on main
+        if: github.ref == 'refs/heads/main'
+        # Beta: Don't fail the build
+        continue-on-error: true
         with:
-          # Only save on main
-          # if: github.ref == 'refs/heads/main'
           save-only: true
           snapshot-path: frontend/e2e-tests/screenshots
 
       - name: 📊 Diff screenshots
         uses: getsentry/action-visual-snapshot@main
         id: visual-snapshots-diff
-        # Only run on PRs
+        # Only diff on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        # Beta: Don't fail the build
+        continue-on-error: true
         with:
+          save-only: true
           base-branch: main
           snapshot-path: frontend/e2e-tests/screenshots
 
@@ -97,6 +102,8 @@ jobs:
         uses: peter-evans/create-or-update-comment@v3
         # Only comment on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        # Beta: Don't fail the build
+        continue-on-error: true
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
