@@ -7,11 +7,11 @@ import {
   marimoValueInputEvent,
   MarimoValueInputEventType,
 } from "@/core/dom/events";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Button } from "../../components/ui/button";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { cn } from "../../lib/utils";
+import { renderHTML } from "../core/RenderHTML";
 
 type T = unknown;
 
@@ -77,9 +77,7 @@ const SubmitBox = <T,>({
       }}
     >
       {label === null ? null : (
-        <div className="text-center mt-4">
-          <HtmlOutput html={label} inline={true} />
-        </div>
+        <div className="text-center mt-4">{renderHTML({ html: label })}</div>
       )}
       <div className="pl-12 pr-12 pt-4">{children}</div>
       <div className="text-right mt-0.5 font-code p-4">

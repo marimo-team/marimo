@@ -1,13 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useCallback, useId } from "react";
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
 import { IPlugin, IPluginProps, Setter } from "../types";
-import * as labelStyles from "./Label.styles";
 import { Slider } from "../../components/ui/slider";
-import clsx from "clsx";
+import { Labeled } from "./common/labeled";
 
 type T = number;
 
@@ -54,16 +51,9 @@ const SliderComponent = (props: SliderProps): JSX.Element => {
     [setValue]
   );
   const id = useId();
-  const labelElement =
-    props.label === null ? null : (
-      <Label htmlFor={id}>
-        <HtmlOutput html={props.label} inline={true} />
-      </Label>
-    );
 
   return (
-    <div className={clsx(labelStyles.labelContainer, "mb-2")}>
-      {labelElement}
+    <Labeled label={props.label} id={id}>
       <Slider
         className={"relative flex items-center select-none w-36"}
         value={[props.value]}
@@ -73,6 +63,6 @@ const SliderComponent = (props: SliderProps): JSX.Element => {
         onValueChange={onValueChange}
         id={id}
       />
-    </div>
+    </Labeled>
   );
 };

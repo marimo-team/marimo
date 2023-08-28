@@ -7,11 +7,9 @@ import { RefreshCwIcon } from "lucide-react";
 import timestring from "timestring";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
-import * as labelStyles from "./Label.styles";
 import { useEvent } from "../../hooks/useEvent";
 import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { HtmlOutput } from "@/editor/output/HtmlOutput";
+import { Labeled } from "./common/labeled";
 
 type Value = string | number | undefined;
 
@@ -112,12 +110,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
   const hasOptions = data.options.length > 0;
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {data.label && (
-        <Label className={labelStyles.label}>
-          <HtmlOutput html={data.label} inline={true} />
-        </Label>
-      )}
+    <Labeled label={data.label}>
       <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
         <Button
           variant="secondary"
@@ -152,6 +145,6 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
           ))}
         </NativeSelect>
       </span>
-    </div>
+    </Labeled>
   );
 };

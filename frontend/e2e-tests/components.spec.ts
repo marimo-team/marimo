@@ -306,7 +306,7 @@ test("complex - array", async ({ page }) => {
     `
 [3 Items
 0:"hi marimo"
-1:6
+1:5
 2:2020-01-20
 ]
 `.trim()

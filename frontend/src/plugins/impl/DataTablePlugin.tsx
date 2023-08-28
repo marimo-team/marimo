@@ -1,12 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useId, useMemo } from "react";
+import { useMemo } from "react";
 import { z } from "zod";
 
-import { Label } from "@/components/ui/label";
-import { HtmlOutput } from "@/editor/output/HtmlOutput";
 import { IPlugin, IPluginProps } from "@/plugins/types";
 import { DataTable } from "../../components/data-table/data-table";
 import { generateColumns } from "../../components/data-table/columns";
+import { Labeled } from "./common/labeled";
 
 /**
  * Arguments for a data table
@@ -59,13 +58,6 @@ const DataTableComponent = ({
   value,
   setValue,
 }: DataTableProps): JSX.Element => {
-  const id = useId();
-  const labelElement = label && (
-    <Label htmlFor={id} className="pb-3">
-      <HtmlOutput html={label} inline={true} />
-    </Label>
-  );
-
   const columns = useMemo(
     () => generateColumns(data, selection),
     [data, selection]
@@ -74,8 +66,7 @@ const DataTableComponent = ({
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
   return (
-    <div className="flex flex-col">
-      {labelElement}
+    <Labeled label={label} align="top">
       <DataTable
         data={data}
         columns={columns}
@@ -95,6 +86,6 @@ const DataTableComponent = ({
           }
         }}
       />
-    </div>
+    </Labeled>
   );
 };
