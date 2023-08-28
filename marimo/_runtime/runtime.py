@@ -119,7 +119,11 @@ class Kernel:
         self.cell_id: Optional[CellId_t] = None
         self.ui_initializers: dict[str, Any] = {}
         self.errors: dict[CellId_t, tuple[Error, ...]] = {}
-        self.state_updates: set[GetState] = set()
+        # Mapping from a getter to the cell when the corresponding setter
+        # was invoked. New state updates evict older ones. The cell is None
+        # only when the setter is called through a set-ui-element-value
+        # request.
+        self.state_updates: dict[GetState, Optional[CellId_t]] = {}
 
         self.completion_thread: Optional[threading.Thread] = None
         self.completion_queue: queue.Queue[CompletionRequest] = queue.Queue()
@@ -578,16 +582,25 @@ class Kernel:
                     cell_id=cid,
                 )
 
-        # TODO: if a cell was just run (in particular, if it was run after
-        # the state update, don't run it again here)
         # TODO: cleanup/refactor elsewhere
         state_getter_cids_to_run: set[CellId_t] = set()
         LOGGER.debug("pending getters: %s", self.state_updates)
-        for state_getter in self.state_updates:
+        for state_getter, setter_cell_id in self.state_updates.items():
             for cid, cell in self.graph.cells.items():
-                if cid in self.errors:
+                if cid in self.errors or runner.cancelled(cid):
+                    # cid is in an error state (can't run) or was cancelled
+                    # due to a runtime error; don't run it
+                    continue
+                # setter_cell_id is None when setter is invoked as part of
+                # a UI element callback
+                if setter_cell_id is not None and runner.runs_after(
+                    source=cid, target=setter_cell_id
+                ):
+                    # If `cid` already ran after the setter ran, don't
+                    # run it
                     continue
                 for ref in cell.refs:
+                    # run this cell if any of its refs match the getter
                     if (
                         ref in self.globals
                         and self.globals[ref] == state_getter
@@ -606,7 +619,7 @@ class Kernel:
             write_completed_run()
 
     def register_state_update(self, state: State) -> None:
-        self.state_updates.add(state.get_value)
+        self.state_updates[state.get_value] = self.cell_id
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""

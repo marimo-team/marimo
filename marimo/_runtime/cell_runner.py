@@ -153,6 +153,10 @@ class Runner:
         self.interrupted = False
         self.exceptions: dict[CellId_t, Exception] = {}
 
+        self._run_position = {
+            cell_id: index for index, cell_id in enumerate(self.cells_to_run)
+        }
+
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
         self.cells_cancelled[cell_id] = set(
@@ -170,6 +174,26 @@ class Runner:
     def pending(self) -> bool:
         """Whether there are more cells to run."""
         return not self.interrupted and len(self.cells_to_run) > 0
+
+    def run_position(self, cell_id: CellId_t) -> Optional[int]:
+        """Position in the original run queue"""
+        return (
+            self._run_position[cell_id]
+            if cell_id in self._run_position
+            else None
+        )
+
+    def runs_after(self, source: CellId_t, target: CellId_t) -> Optional[bool]:
+        """Compare run positions.
+
+        Returns `True` if source runs after target, `False` if target runs
+        after source, or `None` if not comparable
+        """
+        source_pos = self.run_position(source)
+        target_pos = self.run_position(target)
+        if source_pos is None or target_pos is None:
+            return None
+        return source_pos > target_pos
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""
