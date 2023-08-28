@@ -24,7 +24,7 @@ def __(mo):
 
 @app.cell
 def __(set_state):
-    set_state(10)
+    set_state(9)
     return
 
 

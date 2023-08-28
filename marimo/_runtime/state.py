@@ -26,8 +26,6 @@ class SetState:
         ctx = get_context()
         if not ctx.initialized:
             return
-        # TODO: need to handle case when triggered by UI element (runner will
-        # be None, need to communciate directly with kernel)
         kernel = ctx.kernel
         assert kernel is not None
         kernel.register_state_update(self.state)
