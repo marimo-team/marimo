@@ -37,7 +37,7 @@ const CheckboxComponent = ({
   const id = useId();
 
   return (
-    <Labeled label={data.label} align="right" id={id} labelClassName="text-md">
+    <Labeled label={data.label} align="right" id={id}>
       <Checkbox checked={value} onCheckedChange={onClick} id={id} />
     </Labeled>
   );

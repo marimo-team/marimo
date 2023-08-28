@@ -39,7 +39,7 @@ interface TextAreaComponentProps extends Data {
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
   return (
-    <Labeled label={props.label} align="top" labelClassName="text-md">
+    <Labeled label={props.label} align="top">
       <Textarea
         className="font-code"
         rows={5}
