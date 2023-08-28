@@ -318,7 +318,7 @@ export const App: React.FC<AppProps> = ({
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
       {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
       {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
-      <div id="Header">
+      <div className="pt-4 sm:pt-10 pb-2 mb-4">
         {isEditing && (
           <div id="Welcome">
             <FilenameForm
