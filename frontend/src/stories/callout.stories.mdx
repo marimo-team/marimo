@@ -7,34 +7,44 @@ import { Mail, Loader2 } from "lucide-react";
 
 # CalloutOutput
 
-<Story name="Default">
-  <CalloutOutput html="<p>CalloutOutput with <strong>HTML</strong></p>" />
-</Story>
-
 <Story name="neutral">
   <CalloutOutput
-    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    html="<p><b>NEUTRAL</b> CalloutOutput with <strong>HTML</strong></p>"
     kind="neutral"
+  />
+</Story>
+
+<Story name="info">
+  <CalloutOutput
+    html="<p><b>INFO</b> CalloutOutput with <strong>HTML</strong></p>"
+    kind="info"
   />
 </Story>
 
 <Story name="alert">
   <CalloutOutput
-    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    html="<p><b>ALERT</b> CalloutOutput with <strong>HTML</strong></p>"
     kind="alert"
+  />
+</Story>
+
+<Story name="danger">
+  <CalloutOutput
+    html="<p><b>DANGER</b> CalloutOutput with <strong>HTML</strong></p>"
+    kind="danger"
   />
 </Story>
 
 <Story name="warn">
   <CalloutOutput
-    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    html="<p><b>WARN</b> CalloutOutput with <strong>HTML</strong></p>"
     kind="warn"
   />
 </Story>
 
 <Story name="success">
   <CalloutOutput
-    html="<p>CalloutOutput with <strong>HTML</strong></p>"
+    html="<p><b>SUCCESS</b> CalloutOutput with <strong>HTML</strong></p>"
     kind="success"
   />
 </Story>

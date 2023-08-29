@@ -6,10 +6,14 @@
 @import url("@radix-ui/colors/lime-dark.css");
 @import url("@radix-ui/colors/red.css");
 @import url("@radix-ui/colors/red-dark.css");
+@import url("@radix-ui/colors/sky.css");
+@import url("@radix-ui/colors/sky-dark.css");
 @import url("@radix-ui/colors/slate.css");
 @import url("@radix-ui/colors/slate-dark.css");
 @import url("@radix-ui/colors/sage.css");
 @import url("@radix-ui/colors/sage-dark.css");
+@import url("@radix-ui/colors/amber.css");
+@import url("@radix-ui/colors/amber-dark.css");
 @import url("@radix-ui/colors/yellow.css");
 @import url("@radix-ui/colors/yellow-dark.css");
 
@@ -73,14 +77,6 @@
       0 0px 4px 0px hsl(0deg 0% 75% / 5%);
     --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
       0 0px 6px 0px hsl(0deg 0% 85% / 5%);
-    --callout-neutral-border: #a1a1a18f;
-    --callout-neutral-bg: #fff;
-    --callout-alert-border: #a573008f;
-    --callout-alert-bg: #af893105;
-    --callout-warn-border: #a527008f;
-    --callout-warn-bg: #a5270000;
-    --callout-success-border: #94d8ed;
-    --callout-success-bg: #94d8ed1c;
   }
 
   .dark {
@@ -128,23 +124,6 @@
 
     /* cyan-7 */
     --accent: 192 56.6% 26.5%;
-
-    /* cyan-11 */
-    --accent-foreground: 190 90% 54%;
-    --destructive: 0 63% 41%;
-    --destructive-foreground: 155 7% 93%;
-    --success: 130 100% 70%;
-    --success-foreground: 155 7% 93%;
-    --ring: 216 34% 17%;
-    --radius: 8px;
-    --callout-neutral-border: #5f5f5f8f;
-    --callout-neutral-bg: #2f2f2f;
-    --callout-alert-border: #ffaa008f;
-    --callout-alert-bg: #fa03;
-    --callout-warn-border: #ff55008f;
-    --callout-warn-bg: #f503;
-    --callout-success-border: #2ca4b6;
-    --callout-success-bg: #2ca4b633;
   }
 }
 

@@ -12,7 +12,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 @mddoc
 def callout(
     value: object,
-    kind: Literal["neutral", "alert", "warn", "success"] = "neutral",
+    kind: Literal["neutral", "warn", "success", "info", "danger"] = "neutral",
 ) -> Html:
     """Build a callout output.
 

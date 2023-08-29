@@ -82,15 +82,6 @@ module.exports = {
           DEFAULT: "hsl(var(--card) / <alpha-value>)",
           foreground: "hsl(var(--card-foreground) / <alpha-value>)",
         },
-
-        calloutNeutralBorder: "var(--callout-neutral-border)",
-        calloutNeutralBg: "var(--callout-neutral-bg)",
-        calloutAlertBorder: "var(--callout-alert-border)",
-        calloutAlertBg: "var(--callout-alert-bg)",
-        calloutWarnBorder: "var(--callout-warn-border)",
-        calloutWarnBg: "var(--callout-warn-bg)",
-        calloutSuccessBorder: "var(--callout-success-border)",
-        calloutSuccessBg: "var(--callout-success-bg)",
       },
       fontFamily: {
         prose: "var(--text-font)",

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { CalloutOutput } from "../../editor/output/CalloutOutput";
+import { Intent, zodIntent } from "../impl/common/intent";
 
 interface Data {
   /**
@@ -12,7 +13,7 @@ interface Data {
   /**
    * The kind of callout
    */
-  kind: "neutral" | "alert" | "warn" | "success";
+  kind: Intent;
 }
 
 export class CalloutPlugin implements IStatelessPlugin<Data> {
@@ -20,7 +21,7 @@ export class CalloutPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     html: z.string(),
-    kind: z.enum(["neutral", "alert", "warn", "success"]),
+    kind: zodIntent,
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {

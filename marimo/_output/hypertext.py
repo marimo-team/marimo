@@ -153,7 +153,10 @@ class Html(MIME):
 
     @mddoc
     def callout(
-        self, kind: Literal["neutral", "alert", "warn", "success"] = "neutral"
+        self,
+        kind: Literal[
+            "neutral", "danger", "warn", "success", "info"
+        ] = "neutral",
     ) -> Html:
         """Create a callout containing this HTML element.
 

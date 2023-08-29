@@ -94,7 +94,6 @@ jobs:
         # Beta: Don't fail the build
         continue-on-error: true
         with:
-          save-only: true
           base-branch: main
           snapshot-path: frontend/e2e-tests/screenshots
 
