@@ -13,25 +13,13 @@ def __(mo):
 @app.cell
 def __(NUMBER_OF_EXAMPLES, mo):
     def next_index(index: int) -> int:
-        return min(index + 1, NUMBER_OF_EXAMPLES)
+        return min(index + 1, NUMBER_OF_EXAMPLES - 1)
 
     def previous_index(index: int) -> int:
         return max(0, index - 1)
 
-    # TODO hack to prevent on_change from destorying and recreating 
-    # the target element ... otherwise if on_change is slow relative to how
-    # quickly the element is interacted with, element can get recreated with a
-    # stale value, leading to janky behavior where interactions get undone
     get_index, set_index = mo.state(0)
-    get_slider_index, set_slider_index = mo.state(0)
-    return (
-        get_index,
-        get_slider_index,
-        next_index,
-        previous_index,
-        set_index,
-        set_slider_index,
-    )
+    return get_index, next_index, previous_index, set_index
 
 
 @app.cell
@@ -47,33 +35,42 @@ def __(mo, next_index, previous_index, set_index):
 
 
 @app.cell
+def __(set_index):
+    def on_change(v):
+        import time
+        time.sleep(0)
+        set_index(v)
+    return on_change,
+
+
+@app.cell
 def __(mo):
     mo.md(f"**Choose an example to label.**")
     return
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, get_slider_index, mo, set_index):
+def __(NUMBER_OF_EXAMPLES, get_index, mo, on_change):
     index = mo.ui.number(
         0,
-        NUMBER_OF_EXAMPLES,
-        value=get_slider_index(),
+        NUMBER_OF_EXAMPLES - 1,
+        value=get_index(),
         step=1,
         label="example number",
-        on_change=set_index,
+        on_change=on_change,
     )
     return index,
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, get_index, mo, set_slider_index):
+def __(NUMBER_OF_EXAMPLES, get_index, mo, on_change):
     index_slider = mo.ui.slider(
         0,
-        NUMBER_OF_EXAMPLES,
+        NUMBER_OF_EXAMPLES - 1,
         value=get_index(),
         step=1,
         label="example number",
-        on_change=set_slider_index,
+        on_change=on_change,
     )
     return index_slider,
 
