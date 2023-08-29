@@ -31,7 +31,7 @@ def __(mo):
 @app.cell
 def __(get_state, set_state):
     # No self-loops: shouldn't be a cycle
-    set_state(get_state() + 1)
+    set_state(get_state())
     return
 
 
