@@ -211,9 +211,15 @@ class Runner:
             1. It has among its refs the getter for a state object whose setter
                was invoked.
             2. It was not already run after its setter was called.
-            3. It is not errored (unable to run) or cancelled.
+            3. It isn't the cell that called the setter.
+            4. It is not errored (unable to run) or cancelled.
+            5. The runner was not interrupted.
 
-        If the runner was interrupted, no cells will be returned.
+        (3) means that a state update in a given cell will never re-trigger
+        the same cell to run. This is similar to how interacting with
+        a UI element in the cell that created it won't re-trigger the cell,
+        and this behavior is useful when tieing UI elements together with a
+        state object.
 
         **Arguments.**
 
@@ -221,24 +227,27 @@ class Runner:
           its setter
         - errored_cells: cell ids that are unable to run
         """
+        # No updates when the runner is interrupted (condition 5)
         if self.interrupted:
             return set()
 
         cids_to_run: set[CellId_t] = set()
         for state_getter, setter_cell_id in state_updates.items():
             for cid, cell in self.graph.cells.items():
-                if cid in errored_cells or self.cancelled(cid):
-                    # cid is in an error state (can't run) or was cancelled
-                    # due to a runtime error; don't run it
-                    continue
-                # setter_cell_id is None when setter is invoked as part of
-                # a UI element callback
+                # Don't re-run cells that already ran with new state (2)
                 if setter_cell_id is not None and self._runs_after(
                     source=cid, target=setter_cell_id
                 ):
-                    # If `cid` already ran after the setter ran, don't
-                    # run it
+                    # setter_cell_id is None when setter is invoked as part of
+                    # a UI element callback
                     continue
+                # No self-loops (3)
+                if cid == setter_cell_id:
+                    continue
+                # No errorred/cancelled cells (5)
+                if cid in errored_cells or self.cancelled(cid):
+                    continue
+                # Getter in refs (1)
                 for ref in cell.refs:
                     # run this cell if any of its refs match the getter
                     if ref in self.glbls and self.glbls[ref] == state_getter:
