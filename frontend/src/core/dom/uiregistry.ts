@@ -98,11 +98,11 @@ export class UIElementRegistry {
    * Get the value of a registered UIElement.
    *
    * @param objectId - id of the UIElement
-   * @returns the value for `objectId`, or `null` if the object was not found.
+   * @returns the value for `objectId`, or `undefined` if the object was not found.
    */
-  lookupValue(objectId: string): ValueType | null {
+  lookupValue(objectId: string): ValueType | undefined {
     const entry = this.entries.get(objectId);
-    return entry === undefined ? null : entry.value;
+    return entry === undefined ? undefined : entry.value;
   }
 
   /**
