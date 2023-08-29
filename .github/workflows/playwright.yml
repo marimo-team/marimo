@@ -95,6 +95,7 @@ jobs:
         continue-on-error: true
         with:
           base-branch: main
+          merge-base: ${{ github.event.pull_request.base.sha }}
           api-endpoint: "https://marimo.io/api"
           api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
           gcs-bucket: "marimo-oss-visual-snapshots"
