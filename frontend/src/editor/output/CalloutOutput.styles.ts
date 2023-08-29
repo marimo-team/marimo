@@ -6,7 +6,7 @@ export const calloutStyles = cva(
   {
     variants: {
       kind: {
-        neutral: `bg-[var(--slate-1)] border-[var(--slate-9)] shadow-[var(--slate-8)]`,
+        neutral: `border-[var(--slate-9)] shadow-[var(--slate-8)]`,
         // @deprecated, use danger instead
         alert: `bg-[var(--red-2)] border-[var(--red-9)] shadow-[var(--red-8)]`,
         info: `bg-[var(--sky-1)] border-[var(--sky-8)] shadow-[var(--sky-7)]`,
