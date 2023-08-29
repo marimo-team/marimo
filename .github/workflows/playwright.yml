@@ -77,7 +77,7 @@ jobs:
         run: npx playwright test
 
       - name: 📸 Save screenshots
-        uses: getsentry/action-visual-snapshot@v2.0.0
+        uses: getsentry/action-visual-snapshot@main
         # Beta: Don't fail the build
         # Only on main
         if: github.ref == 'refs/heads/main'
@@ -87,7 +87,7 @@ jobs:
           snapshot-path: frontend/e2e-tests/screenshots
 
       - name: 📊 Diff screenshots
-        uses: getsentry/action-visual-snapshot@v2.0.0
+        uses: getsentry/action-visual-snapshot@main
         id: visual-snapshots-diff
         # Only diff on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
