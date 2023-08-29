@@ -93,7 +93,6 @@ jobs:
         continue-on-error: true
         with:
           base-branch: main
-          base-workflow-id: 66216417
           api-endpoint: "https://marimo.io/api"
           api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
           snapshot-path: frontend/e2e-tests/screenshots
