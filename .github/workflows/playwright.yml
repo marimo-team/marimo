@@ -79,6 +79,8 @@ jobs:
       - name: 📸 Save screenshots
         uses: getsentry/action-visual-snapshot@main
         # Beta: Don't fail the build
+        # Only on main
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         with:
           save-only: true
