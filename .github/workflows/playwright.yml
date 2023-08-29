@@ -76,6 +76,28 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test
 
+      - name: 📸 Save screenshots
+        uses: getsentry/action-visual-snapshot@main
+        # Only save on main
+        if: github.ref == 'refs/heads/main'
+        # Beta: Don't fail the build
+        continue-on-error: true
+        with:
+          save-only: true
+          snapshot-path: frontend/e2e-tests/screenshots
+
+      - name: 📊 Diff screenshots
+        uses: getsentry/action-visual-snapshot@main
+        id: visual-snapshots-diff
+        # Only diff on PRs
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        # Beta: Don't fail the build
+        continue-on-error: true
+        with:
+          save-only: true
+          base-branch: main
+          snapshot-path: frontend/e2e-tests/screenshots
+
       - uses: actions/upload-artifact@v3
         if: always()
         with:
