@@ -77,17 +77,17 @@ jobs:
         run: npx playwright test
 
       - name: 📸 Save screenshots
-        uses: getsentry/action-visual-snapshot@main
-        # Only save on main
-        if: github.ref == 'refs/heads/main'
+        uses: getsentry/action-visual-snapshot@v2.0.0
         # Beta: Don't fail the build
+        # Only on main
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         with:
           save-only: true
           snapshot-path: frontend/e2e-tests/screenshots
 
-      - name: 📊 Diff screenshots
-        uses: getsentry/action-visual-snapshot@main
+      - name: 🤖 Diff screenshots
+        uses: getsentry/action-visual-snapshot@v2.0.0
         id: visual-snapshots-diff
         # Only diff on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
@@ -95,9 +95,25 @@ jobs:
         continue-on-error: true
         with:
           base-branch: main
+          api-endpoint: "https://marimo.io/api"
+          api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
+          gcs-bucket: "marimo-oss-visual-snapshots"
           snapshot-path: frontend/e2e-tests/screenshots
 
-      - uses: actions/upload-artifact@v3
+      - name: 📊 Upload snapshots
+        uses: actions/upload-artifact@v3
+        # Beta: Don't fail the build
+        continue-on-error: true
+        with:
+          name: visual-snapshots-diffs
+          path: |
+            ${{ steps.visual-snapshots-diff.outputs.merge-base-images-path }}
+            ${{ steps.visual-snapshots-diff.outputs.base-images-path }}
+            ${{ steps.visual-snapshots-diff.outputs.results-path }}
+          retention-days: 1
+
+      - name: 📊 Upload report
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
