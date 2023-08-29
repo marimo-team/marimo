@@ -86,7 +86,7 @@ jobs:
           save-only: true
           snapshot-path: frontend/e2e-tests/screenshots
 
-      - name: 📊 Diff screenshots
+      - name: 🤖 Diff screenshots
         uses: getsentry/action-visual-snapshot@main
         id: visual-snapshots-diff
         # Only diff on PRs
@@ -95,13 +95,25 @@ jobs:
         continue-on-error: true
         with:
           base-branch: main
-          merge-base: ${{ github.event.pull_request.base.sha }}
           api-endpoint: "https://marimo.io/api"
           api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
           gcs-bucket: "marimo-oss-visual-snapshots"
           snapshot-path: frontend/e2e-tests/screenshots
 
-      - uses: actions/upload-artifact@v3
+      - name: 📊 Upload snapshots
+        uses: actions/upload-artifact@v3
+        # Beta: Don't fail the build
+        continue-on-error: true
+        with:
+          name: visual-snapshots-diffs
+          path: |
+            ${{ steps.visual-snapshots-diff.outputs.merge-base-images-path }}
+            ${{ steps.visual-snapshots-diff.outputs.base-images-path }}
+            ${{ steps.visual-snapshots-diff.outputs.results-path }}
+          retention-days: 1
+
+      - name: 📊 Upload report
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
