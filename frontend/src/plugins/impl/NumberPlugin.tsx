@@ -1,12 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useEffect, useId, useRef } from "react";
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { Input } from "../../components/ui/input";
+import { Labeled } from "./common/labeled";
 
 type T = number;
 
@@ -69,16 +67,9 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
   }, [inputRef]);
 
   const id = useId();
-  const labelElement =
-    props.label === null ? null : (
-      <Label htmlFor={id}>
-        <HtmlOutput html={props.label} inline={true} />
-      </Label>
-    );
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {labelElement}
+    <Labeled label={props.label} id={id}>
       <Input
         className="min-w-[3em]"
         ref={inputRef}
@@ -90,6 +81,6 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         onInput={oninput}
         id={id}
       />
-    </div>
+    </Labeled>
   );
 };

@@ -15,7 +15,7 @@ export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
 };
 
 export const container =
-  "w-full h-full flex items-center justify-center flex-col space-y-4";
+  "flex-1 flex items-center justify-center flex-col space-y-4";
 
 const FallbackComponent: React.FC<FallbackProps> = (props) => {
   return (

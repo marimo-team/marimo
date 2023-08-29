@@ -1,12 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useId } from "react";
-import { Label } from "../../components/ui/label";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
-import { HtmlOutput } from "../../editor/output/HtmlOutput";
-import * as labelStyles from "./Label.styles";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
+import { Labeled } from "./common/labeled";
 
 interface Data {
   label: string | null;
@@ -50,16 +48,9 @@ interface MultiselectProps extends Data {
 
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
-  const labelElement =
-    props.label === null ? null : (
-      <Label htmlFor={id}>
-        <HtmlOutput html={props.label} inline={true} />
-      </Label>
-    );
 
   return (
-    <div className={labelStyles.labelContainer}>
-      {labelElement}
+    <Labeled label={props.label} id={id}>
       <Combobox<string>
         displayValue={(option) => option}
         placeholder="Select..."
@@ -73,6 +64,6 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
           </ComboboxItem>
         ))}
       </Combobox>
-    </div>
+    </Labeled>
   );
 };
