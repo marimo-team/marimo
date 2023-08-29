@@ -9,6 +9,7 @@ import { SettingsIcon } from "lucide-react";
 import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
+import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 
 export const AppConfigButton = () => {
   return (
@@ -30,6 +31,8 @@ export const AppConfigButton = () => {
         <AppConfigForm />
         <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
         <UserConfigForm />
+        <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
+        <CopilotConfig />
       </PopoverContent>
     </Popover>
   );
