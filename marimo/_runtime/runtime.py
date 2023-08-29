@@ -639,7 +639,10 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            component._update(value)
+            with self._execution_ctx(
+                get_context().ui_element_registry.get_cell(object_id)
+            ):
+                component._update(value)
             bound_names = get_context().ui_element_registry.bound_names(
                 object_id
             )
