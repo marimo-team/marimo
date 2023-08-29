@@ -436,6 +436,15 @@ class Kernel:
         return descendants
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
+        while cells_with_stale_state := self._run_cells_internal(cell_ids):
+            LOGGER.debug("Running state updates")
+            cell_ids = dataflow.transitive_closure(
+                self.graph, cells_with_stale_state
+            )
+        LOGGER.debug("Finished run.")
+        write_completed_run()
+
+    def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
         for cid in cell_ids:
             write_queued(cell_id=cid)
@@ -582,43 +591,18 @@ class Kernel:
                     cell_id=cid,
                 )
 
-        # TODO: cleanup/refactor elsewhere
-        state_getter_cids_to_run: set[CellId_t] = set()
-        LOGGER.debug("pending getters: %s", self.state_updates)
-        for state_getter, setter_cell_id in self.state_updates.items():
-            for cid, cell in self.graph.cells.items():
-                if cid in self.errors or runner.cancelled(cid):
-                    # cid is in an error state (can't run) or was cancelled
-                    # due to a runtime error; don't run it
-                    continue
-                # setter_cell_id is None when setter is invoked as part of
-                # a UI element callback
-                if setter_cell_id is not None and runner.runs_after(
-                    source=cid, target=setter_cell_id
-                ):
-                    # If `cid` already ran after the setter ran, don't
-                    # run it
-                    continue
-                for ref in cell.refs:
-                    # run this cell if any of its refs match the getter
-                    if (
-                        ref in self.globals
-                        and self.globals[ref] == state_getter
-                    ):
-                        state_getter_cids_to_run.add(cid)
+        cells_with_stale_state = runner.resolve_state_updates(
+            self.state_updates, self.errors
+        )
         self.state_updates.clear()
-        execution_requests = [
-            ExecutionRequest(cid, self.graph.cells[cid].code)
-            for cid in state_getter_cids_to_run
-        ]
-        LOGGER.debug("pending ers: %s", execution_requests)
-        if execution_requests:
-            self.run(execution_requests)
-        else:
-            LOGGER.debug("Finished run.")
-            write_completed_run()
+        return cells_with_stale_state
 
     def register_state_update(self, state: State) -> None:
+        """Register a state object as having been updated.
+
+        Should be called when a state's setter is called.
+        """
+        # store the state's getter and the currently executing cell (if any)
         self.state_updates[state.get_value] = self.cell_id
 
     def delete(self, request: DeleteRequest) -> None:

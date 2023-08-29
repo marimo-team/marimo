@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.2"
@@ -17,14 +18,22 @@ def __():
 
 
 @app.cell
+def __():
+    import time
+    return time,
+
+
+@app.cell
 def __(mo):
     get_state, set_state = mo.state(0)
     return get_state, set_state
 
 
 @app.cell
-def __(set_state):
-    set_state(9)
+def __(get_state, set_state):
+    _current = get_state()
+    if _current < 2000:
+        set_state(_current + 1)
     return
 
 

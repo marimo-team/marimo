@@ -6,6 +6,7 @@ import pprint
 import re
 import sys
 import traceback
+from collections.abc import Container
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -15,7 +16,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 
 if TYPE_CHECKING:
-    from marimo._runtime.state import GetState, State
+    from marimo._runtime.state import GetState
 
 
 def cell_filename(cell_id: CellId_t) -> str:
@@ -175,7 +176,7 @@ class Runner:
         """Whether there are more cells to run."""
         return not self.interrupted and len(self.cells_to_run) > 0
 
-    def run_position(self, cell_id: CellId_t) -> Optional[int]:
+    def _get_run_position(self, cell_id: CellId_t) -> Optional[int]:
         """Position in the original run queue"""
         return (
             self._run_position[cell_id]
@@ -183,17 +184,66 @@ class Runner:
             else None
         )
 
-    def runs_after(self, source: CellId_t, target: CellId_t) -> Optional[bool]:
+    def _runs_after(
+        self, source: CellId_t, target: CellId_t
+    ) -> Optional[bool]:
         """Compare run positions.
 
         Returns `True` if source runs after target, `False` if target runs
         after source, or `None` if not comparable
         """
-        source_pos = self.run_position(source)
-        target_pos = self.run_position(target)
+        source_pos = self._get_run_position(source)
+        target_pos = self._get_run_position(target)
         if source_pos is None or target_pos is None:
             return None
         return source_pos > target_pos
+
+    def resolve_state_updates(
+        self,
+        state_updates: dict[GetState, Optional[CellId_t]],
+        errored_cells: Container[CellId_t],
+    ) -> set[CellId_t]:
+        """
+        Get cells that need to be run as a consequence of state updates
+
+        A cell is marked as needing to run if all of the following are true:
+
+            1. It has among its refs the getter for a state object whose setter
+               was invoked.
+            2. It was not already run after its setter was called.
+            3. It is not errored (unable to run) or cancelled.
+
+        If the runner was interrupted, no cells will be returned.
+
+        **Arguments.**
+
+        - state_updates: mapping from impacted getter to the cell that last ran
+          its setter
+        - errored_cells: cell ids that are unable to run
+        """
+        if self.interrupted:
+            return set()
+
+        cids_to_run: set[CellId_t] = set()
+        for state_getter, setter_cell_id in state_updates.items():
+            for cid, cell in self.graph.cells.items():
+                if cid in errored_cells or self.cancelled(cid):
+                    # cid is in an error state (can't run) or was cancelled
+                    # due to a runtime error; don't run it
+                    continue
+                # setter_cell_id is None when setter is invoked as part of
+                # a UI element callback
+                if setter_cell_id is not None and self._runs_after(
+                    source=cid, target=setter_cell_id
+                ):
+                    # If `cid` already ran after the setter ran, don't
+                    # run it
+                    continue
+                for ref in cell.refs:
+                    # run this cell if any of its refs match the getter
+                    if ref in self.glbls and self.glbls[ref] == state_getter:
+                        cids_to_run.add(cid)
+        return cids_to_run
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""
