@@ -96,7 +96,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   }, [cells.present, cells.scrollKey, scrollToTarget]);
 
   return (
-    <div className="px-18">
+    <div className="px-2 sm:px-18">
       <div
         className={cn(
           "m-auto pb-12",

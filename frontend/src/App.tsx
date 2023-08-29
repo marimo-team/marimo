@@ -318,7 +318,12 @@ export const App: React.FC<AppProps> = ({
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
       {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
       {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
-      <div id="Header">
+      <div
+        className={clsx(
+          (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
+          (isPresenting || isReading) && "sm:pt-8"
+        )}
+      >
         {isEditing && (
           <div id="Welcome">
             <FilenameForm
@@ -327,7 +332,6 @@ export const App: React.FC<AppProps> = ({
             />
           </div>
         )}
-
         {connStatus.state === WebSocketState.CLOSED && (
           <Disconnected reason={connStatus.reason} />
         )}
