@@ -63,7 +63,7 @@ export class RuntimeState {
         Array.from(this.componentsToUpdate.values(), (objectId) => ({
           objectId: objectId,
           value: this.uiElementRegistry.lookupValue(objectId),
-        })).filter((update) => update !== undefined)
+        })).filter((update) => update.value !== undefined)
       );
       this.componentsToUpdate.clear();
     }
