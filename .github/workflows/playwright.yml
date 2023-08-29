@@ -77,7 +77,7 @@ jobs:
         run: npx playwright test
 
       - name: 📸 Save screenshots
-        uses: getsentry/action-visual-snapshot@main
+        uses: getsentry/action-visual-snapshot@v2.0.0
         # Beta: Don't fail the build
         # Only on main
         if: github.ref == 'refs/heads/main'
@@ -87,7 +87,7 @@ jobs:
           snapshot-path: frontend/e2e-tests/screenshots
 
       - name: 📊 Diff screenshots
-        uses: getsentry/action-visual-snapshot@main
+        uses: getsentry/action-visual-snapshot@v2.0.0
         id: visual-snapshots-diff
         # Only diff on PRs
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
@@ -97,6 +97,7 @@ jobs:
           base-branch: main
           api-endpoint: "https://marimo.io/api"
           api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
+          gcs-bucket: "marimo-oss-visual-snapshots"
           snapshot-path: frontend/e2e-tests/screenshots
 
       - uses: actions/upload-artifact@v3
