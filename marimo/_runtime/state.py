@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Optional
@@ -18,7 +19,7 @@ class SetState:
     def __init__(self, state: State) -> None:
         self.state = state
 
-    def __call__(self, update: object) -> object:
+    def __call__(self, update: object) -> None:
         if callable(update):
             self.state.value = update(self.state.value)
         else:
