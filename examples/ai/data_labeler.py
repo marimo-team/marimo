@@ -11,36 +11,37 @@ def __(mo):
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES):
-    class Index:
-        value = 0
+def __(NUMBER_OF_EXAMPLES, mo):
+    def next_index(index: int) -> int:
+        return min(index + 1, NUMBER_OF_EXAMPLES)
 
-        def next(self):
-            self.value = min(self.value + 1, NUMBER_OF_EXAMPLES)
+    def previous_index(index: int) -> int:
+        return max(0, index - 1)
 
-        def previous(self):
-            self.value = max(0, self.value - 1)
-
-        def set(self, value):
-            self.value = value
-    return Index,
+    # TODO hack to prevent on_change from destorying and recreating 
+    # the target element ... otherwise if on_change is slow relative to how
+    # quickly the element is interacted with, element can get recreated with a
+    # stale value, leading to janky behavior where interactions get undone
+    get_index, set_index = mo.state(0)
+    get_slider_index, set_slider_index = mo.state(0)
+    return (
+        get_index,
+        get_slider_index,
+        next_index,
+        previous_index,
+        set_index,
+        set_slider_index,
+    )
 
 
 @app.cell
-def __(Index):
-    # next_button, previous_button, and index (mo.ui.number) all share same state
-    index_state = Index()
-    return index_state,
-
-
-@app.cell
-def __(index_state, mo):
+def __(mo, next_index, previous_index, set_index):
     next_button = mo.ui.button(
-        label="next", on_change=lambda _: index_state.next()
+        label="next", on_change=lambda _: set_index(next_index)
     )
 
     previous_button = mo.ui.button(
-        label="previous", on_change=lambda _: index_state.previous()
+        label="previous", on_change=lambda _: set_index(previous_index)
     )
     return next_button, previous_button
 
@@ -52,26 +53,34 @@ def __(mo):
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, index_state, mo, next_button, previous_button):
-    # want this cell to run when index_state is updated. But we don't have 
-    # observable/signal/set_state like behavior on index_state. So have to 
-    # manually include references to the buttons ...
-    next_button, previous_button
-
+def __(NUMBER_OF_EXAMPLES, get_slider_index, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES,
-        value=index_state.value,
+        value=get_slider_index(),
         step=1,
         label="example number",
-        on_change=lambda v: index_state.set(v),
+        on_change=set_index,
     )
     return index,
 
 
 @app.cell
-def __(index, mo, next_button, previous_button):
-    mo.hstack([index, previous_button, next_button], justify="start")
+def __(NUMBER_OF_EXAMPLES, get_index, mo, set_slider_index):
+    index_slider = mo.ui.slider(
+        0,
+        NUMBER_OF_EXAMPLES,
+        value=get_index(),
+        step=1,
+        label="example number",
+        on_change=set_slider_index,
+    )
+    return index_slider,
+
+
+@app.cell
+def __(index, index_slider, mo, next_button, previous_button):
+    mo.hstack([index, previous_button, next_button, index_slider], justify="start")
     return
 
 

@@ -139,6 +139,7 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         label: str = "",
+        on_change=None,
     ) -> None:
         self._dtype = (
             float
@@ -176,6 +177,7 @@ class slider(UIElement[Numeric, Numeric]):
                 "stop": stop,
                 "step": step if step is not None else None,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: Numeric) -> Numeric:
