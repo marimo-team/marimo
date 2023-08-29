@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.2"
@@ -31,9 +30,8 @@ def __(mo):
 
 @app.cell
 def __(get_state, set_state):
-    _current = get_state()
-    if _current < 2000:
-        set_state(_current + 1)
+    # No self-loops: shouldn't be a cycle
+    set_state(get_state() + 1)
     return
 
 
