@@ -17,8 +17,24 @@ const buttonVariants = cva(
           activeCommon
         ),
         destructive: cn(
-          "bg-destructive text-destructive-foreground shadow-smSolid",
-          "hover:bg-destructive/90 border border-destructive",
+          "border shadow-smSolid",
+          "bg-[var(--red-9)] hover:bg-[var(--red-10)]",
+          "text-[var(--red-1)]",
+          "border-[var(--red-11)]",
+          activeCommon
+        ),
+        success: cn(
+          "border shadow-smSolid",
+          "bg-[var(--grass-9)] hover:bg-[var(--grass-10)]",
+          "text-[var(--grass-1)]",
+          "border-[var(--grass-11)]",
+          activeCommon
+        ),
+        warn: cn(
+          "border shadow-smSolid",
+          "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)]",
+          "text-[var(--yellow-12)]",
+          "border-[var(--yellow-11)]",
           activeCommon
         ),
         action: cn(
