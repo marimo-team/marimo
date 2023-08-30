@@ -1,4 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
 import textwrap
 from typing import Any, Generator
 
@@ -6,9 +8,7 @@ import pytest
 
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.context import get_context
-from marimo._runtime.requests import (
-    ExecutionRequest,
-)
+from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
 
