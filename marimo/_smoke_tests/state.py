@@ -25,20 +25,20 @@ def __():
 
 @app.cell
 def __(mo):
-    get_state, set_state = mo.state(0)
-    return get_state, set_state
+    state, set_state = mo.state(0)
+    return set_state, state
 
 
 @app.cell
-def __(get_state, set_state):
+def __(set_state, state):
     # No self-loops: shouldn't be a cycle
-    set_state(get_state())
+    set_state(state.value)
     return
 
 
 @app.cell
-def __(get_state):
-    get_state()
+def __(state):
+    state.value
     return
 
 
@@ -50,6 +50,12 @@ def __(mo, set_state):
     )
     button
     return button,
+
+
+@app.cell
+def __(state):
+    state.value
+    return
 
 
 if __name__ == "__main__":

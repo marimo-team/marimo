@@ -16,7 +16,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 
 if TYPE_CHECKING:
-    from marimo._runtime.state import GetState
+    from marimo._runtime.state import State
 
 
 def cell_filename(cell_id: CellId_t) -> str:
@@ -200,7 +200,7 @@ class Runner:
 
     def resolve_state_updates(
         self,
-        state_updates: dict[GetState, Optional[CellId_t]],
+        state_updates: dict[State[Any], CellId_t],
         errored_cells: Container[CellId_t],
     ) -> set[CellId_t]:
         """
@@ -208,7 +208,7 @@ class Runner:
 
         A cell is marked as needing to run if all of the following are true:
 
-            1. It has among its refs the getter for a state object whose setter
+            1. It has among its refs the state object whose setter
                was invoked.
             2. It was not already run after its setter was called.
             3. It isn't the cell that called the setter.
@@ -223,7 +223,7 @@ class Runner:
 
         **Arguments.**
 
-        - state_updates: mapping from impacted getter to the cell that last ran
+        - state_updates: mapping from state object to the cell that last ran
           its setter
         - errored_cells: cell ids that are unable to run
         """
@@ -232,14 +232,10 @@ class Runner:
             return set()
 
         cids_to_run: set[CellId_t] = set()
-        for state_getter, setter_cell_id in state_updates.items():
+        for state, setter_cell_id in state_updates.items():
             for cid, cell in self.graph.cells.items():
                 # Don't re-run cells that already ran with new state (2)
-                if setter_cell_id is not None and self._runs_after(
-                    source=cid, target=setter_cell_id
-                ):
-                    # setter_cell_id is None when setter is invoked as part of
-                    # a UI element callback
+                if self._runs_after(source=cid, target=setter_cell_id):
                     continue
                 # No self-loops (3)
                 if cid == setter_cell_id:
@@ -249,8 +245,8 @@ class Runner:
                     continue
                 # Getter in refs (1)
                 for ref in cell.refs:
-                    # run this cell if any of its refs match the getter
-                    if ref in self.glbls and self.glbls[ref] == state_getter:
+                    # run this cell if any of its refs match the state
+                    if ref in self.glbls and self.glbls[ref] == state:
                         cids_to_run.add(cid)
         return cids_to_run
 

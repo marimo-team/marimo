@@ -1,44 +1,34 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Generic, TypeVar
 
 from marimo._runtime.context import get_context
 
-
-# TODO(akshayka): consider refactoring to remove reference cycles ...
-class GetState:
-    def __init__(self, state: State) -> None:
-        self.state = state
-
-    def __call__(self) -> object:
-        return self.state.value
+T = TypeVar("T")
 
 
-class SetState:
-    def __init__(self, state: State) -> None:
-        self.state = state
+class State(Generic[T]):
+    def __init__(self, value: T) -> None:
+        self._value = value
 
-    def __call__(self, update: object) -> None:
+    @property
+    def value(self) -> T:
+        return self._value
+
+    def _set_value(self, update: T | Callable[[T], T]) -> None:
         if callable(update):
-            self.state.value = update(self.state.value)
+            self._value = update(self.value)
         else:
-            self.state.value = update
+            self._value = update
         ctx = get_context()
         if not ctx.initialized:
             return
         kernel = ctx.kernel
         assert kernel is not None
-        kernel.register_state_update(self.state)
+        kernel.register_state_update(self)
 
 
-class State:
-    def __init__(self, value: object) -> None:
-        self.value = value
-        self.get_value = GetState(self)
-        self.set_value = SetState(self)
-
-
-def state(value: Optional[object] = None) -> tuple[GetState, SetState]:
+def state(value: T) -> tuple[State[T], Callable[[T | Callable[[T], T]], None]]:
     state_instance = State(value)
-    return state_instance.get_value, state_instance.set_value
+    return state_instance, state_instance._set_value
