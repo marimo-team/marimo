@@ -173,9 +173,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         ctx = get_context()
         if (
             ctx.initialized
-            and ctx.kernel.cell_id
             and not ctx.kernel.setting_element_value
-            == ctx.ui_element_registry.get_cell(self._id)
+            and (
+                ctx.kernel.cell_id
+                == ctx.ui_element_registry.get_cell(self._id)
+            )
         ):
             raise RuntimeError(
                 "Accessing the value of a UIElement in the cell that created "
