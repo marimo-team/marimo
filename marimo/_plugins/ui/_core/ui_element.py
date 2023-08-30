@@ -173,9 +173,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         ctx = get_context()
         if (
             ctx.initialized
-            and not ctx.kernel.setting_element_value
+            and ctx.kernel.execution_context is not None
+            and not ctx.kernel.execution_context.setting_element_value
             and (
-                ctx.kernel.cell_id
+                ctx.kernel.execution_context.cell_id
                 == ctx.ui_element_registry.get_cell(self._id)
             )
         ):

@@ -29,8 +29,8 @@ class UIElementRegistry:
     ) -> None:
         kernel = get_context().kernel
         self._objects[object_id] = weakref.ref(ui_element)
-        assert kernel.cell_id is not None
-        self._constructing_cells[object_id] = kernel.cell_id
+        assert kernel.execution_context is not None
+        self._constructing_cells[object_id] = kernel.execution_context.cell_id
         if object_id in self._bindings:
             # If `register` is called on an object_id that is being
             # reused before `delete` is called, bindings won't have been
