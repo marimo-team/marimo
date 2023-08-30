@@ -54,6 +54,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `stop`: the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
+    - `debounce`: whether to debounce the number picker
     - `label`: text label for the element
     """
 
@@ -65,6 +66,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         stop: float,
         step: Optional[float] = None,
         value: Optional[float] = None,
+        debounce: bool = False,
         label: str = "",
     ) -> None:
         value = start if value is None else value
@@ -93,6 +95,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "start": start,
                 "stop": stop,
                 "step": step if step is not None else None,
+                "debounce": debounce,
             },
         )
 
@@ -125,6 +128,8 @@ class slider(UIElement[Numeric, Numeric]):
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
     - `value`: default value
+    - `debounce`: whether to debounce the slider to only send
+        the value on mouseup
     - `label`: text label for the element
     """
 
@@ -136,6 +141,7 @@ class slider(UIElement[Numeric, Numeric]):
         stop: float,
         step: Optional[float] = None,
         value: Optional[float] = None,
+        debounce: bool = False,
         label: str = "",
     ) -> None:
         self._dtype = (
@@ -173,6 +179,7 @@ class slider(UIElement[Numeric, Numeric]):
                 "start": start,
                 "stop": stop,
                 "step": step if step is not None else None,
+                "debounce": debounce,
             },
         )
 
