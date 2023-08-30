@@ -114,10 +114,15 @@ class Kernel:
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
         }
+        # graph of cells
         self.graph = dataflow.DirectedGraph()
+        # execution context
         self.executing = False
+        self.setting_element_value = False
         self.cell_id: Optional[CellId_t] = None
+        # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
+        # errored cells
         self.errors: dict[CellId_t, tuple[Error, ...]] = {}
         # Mapping from state to the cell when its setter
         # was invoked. New state updates evict older ones.
@@ -131,8 +136,11 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     @contextlib.contextmanager
-    def _execution_ctx(self, cell_id: CellId_t) -> Iterator[None]:
+    def _execution_ctx(
+        self, cell_id: CellId_t, setting_element_value: bool = False
+    ) -> Iterator[None]:
         self.executing = True
+        self.setting_element_value = setting_element_value
         self.cell_id = cell_id
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id
@@ -141,6 +149,7 @@ class Kernel:
                 yield
             finally:
                 self.executing = False
+                self.setting_element_value = False
                 self.cell_id = None
 
     def _try_registering_cell(
@@ -639,7 +648,8 @@ class Kernel:
                 continue
 
             with self._execution_ctx(
-                get_context().ui_element_registry.get_cell(object_id)
+                get_context().ui_element_registry.get_cell(object_id),
+                setting_element_value=True,
             ):
                 component._update(value)
             bound_names = get_context().ui_element_registry.bound_names(
