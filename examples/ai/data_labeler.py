@@ -54,21 +54,8 @@ def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
-    index_slider = mo.ui.slider(
-        0,
-        NUMBER_OF_EXAMPLES - 1,
-        value=index_state.value,
-        step=1,
-        label="example number",
-        on_change=set_index,
-    )
-    return index_slider,
-
-
-@app.cell
-def __(index, index_slider, mo, next_button, previous_button):
-    mo.hstack([index, previous_button, next_button, index_slider], justify="start")
+def __(index, mo, next_button, previous_button):
+    mo.hstack([index, previous_button, next_button], justify="start")
     return
 
 
