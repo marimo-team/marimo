@@ -9,6 +9,7 @@ import { getInitialAppMode } from "./core/mode";
 import { Logger } from "./utils/Logger";
 import { reportVitals } from "./utils/vitals";
 import { Provider } from "jotai";
+import { store } from "./core/state/jotai";
 
 /**
  * Main entry point for the Marimo app.
@@ -36,7 +37,7 @@ try {
   const initialMode = getInitialAppMode();
   root.render(
     <React.StrictMode>
-      <Provider>
+      <Provider store={store}>
         <ThemeProvider>
           <MarimoApp initialMode={initialMode} />
         </ThemeProvider>
