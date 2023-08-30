@@ -439,8 +439,8 @@ class Soiling(OSDProblem):
         return "Solar Panel Soiling"
 
     def description(self):
-        reference_decomposition = mo.Html(
-            layout.image("assets/solar_power_soiling_reference.png")
+        reference_decomposition = layout.image(
+            "assets/solar_power_soiling_reference.png"
         )
         return mo.md(
             f"""
@@ -463,7 +463,7 @@ class Soiling(OSDProblem):
             We've created what we think is a good decomposition for this
             data. Here it is:
 
-            {mo.tree([reference_decomposition], label="Reference Decomposition")}
+            {mo.tree([reference_decomposition], label="reference decomposition")}
 
             **Your task:** Create a decomposition that matches our reference
             decomposition.
