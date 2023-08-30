@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.2"
 app = marimo.App()
 
 
@@ -46,9 +46,13 @@ def __(complib, mo):
     ]
 
     # will be used to track which options the user has tried
-    component_radio_tracker = set()
+    component_radio_tracker, set_component_radio_tracker = mo.state(set())
 
-    component_radio = mo.ui.radio(component_options, label="**Component Class**")
+    component_radio = mo.ui.radio(
+        component_options,
+        label="**Component Class**",
+        on_change=lambda v: set_component_radio_tracker(lambda w: w.union({v}))
+    )
     other_component_radio = mo.ui.radio(
         component_options, label="**Component Class**"
     )
@@ -57,7 +61,15 @@ def __(complib, mo):
         component_radio,
         component_radio_tracker,
         other_component_radio,
+        set_component_radio_tracker,
     )
+
+
+@app.cell
+def __(component_options, component_radio_tracker):
+    def user_tried_all_components():
+        return len(component_radio_tracker.value) == len(component_options)
+    return user_tried_all_components,
 
 
 @app.cell
@@ -84,8 +96,8 @@ def __(intro_problem, mo):
 
 @app.cell
 def __(mo, show_third_component):
-    _n_components = "2" if not show_third_component else "3"
-    _three_component_text = " and third " if show_third_component else ""
+    _n_components = "2" if not show_third_component.value else "3"
+    _three_component_text = " and third " if show_third_component.value else ""
 
     mo.md(
         f"""
@@ -124,21 +136,10 @@ def __(intro, mo, radios, show_third_component):
                 ),
             ],
         )
-        if not show_third_component
+        if not show_third_component.value
         else mo.hstack(radios, justify="space-around")
     )
     return
-
-
-@app.cell
-def __(component_options, component_radio_tracker, radios):
-    if radios[0].value is not None:
-        component_radio_tracker.add(radios[0].value)
-
-
-    def user_tried_all_components():
-        return len(component_radio_tracker) == len(component_options)
-    return user_tried_all_components,
 
 
 @app.cell
@@ -146,7 +147,7 @@ def __(intro, mo, radios, show_third_component):
     # Plot 3-component decomposition
     (
         None
-        if not show_third_component
+        if not show_third_component.value
         else mo.hstack(
             [
                 *intro.plot_decomp(
@@ -174,29 +175,22 @@ def __(explainer, mo, radios, show_third_component):
 
 @app.cell
 def __(mo):
-    class _Toggle:
-        value = False
+    show_third_component, set_show_third_component = mo.state(False)
 
-        def toggle(self):
-            self.value = not self.value
-            return self
-
-        def __bool__(self):
-            return self.value
-
-
-    _show_third_component = _Toggle()
     add_component_button = mo.ui.button(
         label="Add another component 🔧",
-        value=_show_third_component,
-        on_click=lambda v: v.toggle(),
+        on_change=lambda _: set_show_third_component(True),
     )
     remove_component_button = mo.ui.button(
         label="Remove third component 🔧",
-        value=_show_third_component,
-        on_click=lambda v: v.toggle(),
+        on_change=lambda _: set_show_third_component(False),
     )
-    return add_component_button, remove_component_button
+    return (
+        add_component_button,
+        remove_component_button,
+        set_show_third_component,
+        show_third_component,
+    )
 
 
 @app.cell
@@ -218,9 +212,9 @@ def __(
             small and random. _When that happens, that usually means we 
             need to add another component to our decomposition_.
             """
-        ).callout(kind="alert")
+        ).callout(kind="warn")
         if user_tried_all_components()
-        and not show_third_component
+        and not show_third_component.value
         and not solved.now
         else None
     )
@@ -309,7 +303,7 @@ def __(mo, solved):
              ever unsure about what a component does, check out the reference
              at the bottom of the page.
              """
-        ).callout(kind="alert")
+        ).callout(kind="warn")
         if solved.ever
         else None
     )
@@ -336,20 +330,13 @@ def __(
             Hint: we generated the signal by adding a seasonal fluctuation
             to a line with constant slope.
             """
-        ).callout(kind="alert")
-        if user_tried_all_components() and show_third_component and not solved.now
+        ).callout(kind="warn")
+        if user_tried_all_components()
+        and show_third_component.value
+        and not solved.now
         else None
     )
     return
-
-
-@app.cell
-def __(add_component_button, remove_component_button):
-    # Interacting with either button should update `show_third_component`
-    (add_component_button, remove_component_button)
-
-    show_third_component = add_component_button.value
-    return show_third_component,
 
 
 @app.cell
@@ -397,7 +384,7 @@ def __(mo, selected_problem, solved):
             component classes in part 1 until you've "solved" the decomposition,
             then return here.
             """
-        ).callout(kind="warn")
+        ).callout(kind="alert")
     )
     return
 
