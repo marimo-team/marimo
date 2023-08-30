@@ -195,3 +195,28 @@ export const replaceNext = searchCommand(({ query }) => {
 
   return false; // If no matches are found in any view, return false
 });
+
+/**
+ * @returns The number of matches in the document for each view.
+ */
+export const getMatches = searchCommand(({ query }) => {
+  const views = getAllEditorViews();
+  let count = 0;
+
+  // Position in the document, keyed by view and then by to:from
+  const position = new Map<EditorView, Map<string, number>>();
+  for (const view of views) {
+    const matches = query.matchAll(view.state, 1e9) || [];
+    for (const match of matches) {
+      const { from, to } = match;
+      const viewPosition = position.get(view) || new Map<string, number>();
+      viewPosition.set(`${from}:${to}`, count++);
+      position.set(view, viewPosition);
+    }
+  }
+
+  return {
+    count: count,
+    position: position,
+  };
+});

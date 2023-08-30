@@ -81,7 +81,9 @@ export function useImperativeModal() {
           <AlertDialogContent>
             {content}
             <AlertDialogFooter>
-              <AlertDialogAction onClick={closeModal}>Ok</AlertDialogAction>
+              <AlertDialogAction autoFocus={true} onClick={closeModal}>
+                Ok
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
