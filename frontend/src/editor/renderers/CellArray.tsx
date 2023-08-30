@@ -59,8 +59,10 @@ export const CellArray: React.FC<CellArrayProps> = ({
     const delay = Math.max(Math.min((cells.present.length - 1) * 15, 100), 0);
     const timeout = setTimeout(() => {
       setInvisible(false);
-      // Focus on the first cell if it's been mounted
-      cells.present[0]?.ref.current?.editorView.focus();
+      // After 1 frame, focus on the first cell if it's been mounted
+      requestAnimationFrame(() => {
+        cells.present[0]?.ref.current?.editorView.focus();
+      });
     }, delay);
     return () => clearTimeout(timeout);
     // Delay only when app is first loaded
