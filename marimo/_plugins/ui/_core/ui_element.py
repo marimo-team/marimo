@@ -63,9 +63,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: str,
         initial_value: S,
         label: Optional[str],
+        on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str = "",
-        on_change: Optional[Callable[[T], None]] = None,
     ) -> None:
         """Initialize a UIElement
 
@@ -76,6 +76,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         label: markdown string, label of element
         args: arguments that the element takes
         slotted_html: any html to slot in the custom element
+        on_change: callback, called with element's new value on change
         """
         # arguments stored in signature order for cloning
         self._args = (
@@ -244,6 +245,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         return form_plugin(element=self, label=label)
 
     def _update(self, value: S) -> None:
+        """Update value, given a value from the frontend
+
+        Calls the on_change handler with the element's new value as a
+        side-effect.
+        """
         self._value = self._convert_value(value)
         if self._on_change is not None:
             self._on_change(self._value)

@@ -143,5 +143,15 @@ def test_button() -> None:
     assert button.value == 2
 
 
+def test_on_change() -> None:
+    state = []
+    button = ui.checkbox(on_change=lambda v: state.append(v))
+    assert not state
+    button._update(False)
+    assert state == [False]
+    button._update(True)
+    assert state == [False, True]
+
+
 # TODO(akshayka): test file
 # TODO(akshayka): test date
