@@ -55,6 +55,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `step`: the number increment
     - `value`: default value
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-number"
@@ -66,7 +67,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         label: str = "",
-        on_change=None,
+        on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
     ) -> None:
         value = start if value is None else value
         if stop < start:
@@ -128,6 +129,7 @@ class slider(UIElement[Numeric, Numeric]):
     - `step`: the slider increment
     - `value`: default value
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-slider"
@@ -139,7 +141,7 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         label: str = "",
-        on_change=None,
+        on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
     ) -> None:
         self._dtype = (
             float
@@ -203,16 +205,23 @@ class checkbox(UIElement[bool, bool]):
 
     - `value`: default value, True or False
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-checkbox"
 
-    def __init__(self, value: bool = False, label: str = "") -> None:
+    def __init__(
+        self,
+        value: bool = False,
+        label: str = "",
+        on_change: Optional[Callable[[bool], None]] = None,
+    ) -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
             label=label,
             args={},
+            on_change=on_change,
         )
 
     def _convert_value(self, value: bool) -> bool:
@@ -253,6 +262,7 @@ class radio(UIElement[Optional[str], Any]):
                  to option value
     - `value`: default option name, if None, starts with nothing checked
     - `label`: optional text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-radio"
@@ -262,7 +272,7 @@ class radio(UIElement[Optional[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         label: str = "",
-        on_change=None,
+        on_change: Optional[Callable[[Any], None]] = None,
     ) -> None:
         if not isinstance(options, dict):
             if len(set(options)) != len(options):
@@ -273,10 +283,10 @@ class radio(UIElement[Optional[str], Any]):
             component_name=radio._name,
             initial_value=value,
             label=label,
-            on_change=on_change,
             args={
                 "options": list(options.keys()),
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: Optional[str]) -> Any:
@@ -305,6 +315,7 @@ class text(UIElement[str, str]):
     - `kind`: input kind, one of `"text"`, `"password"`, `"email"`, or `"url"`
         defaults to `"text"`
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-text"
@@ -315,6 +326,7 @@ class text(UIElement[str, str]):
         placeholder: str = "",
         kind: Literal["text", "password", "email", "url"] = "text",
         label: str = "",
+        on_change: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(
             component_name=text._name,
@@ -324,6 +336,7 @@ class text(UIElement[str, str]):
                 "placeholder": placeholder,
                 "kind": kind,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: str) -> str:
@@ -350,6 +363,7 @@ class text_area(UIElement[str, str]):
     - `value`: initial value of the text area
     - `placeholder`: placeholder text to display when the text area is empty
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-text-area"
@@ -359,16 +373,16 @@ class text_area(UIElement[str, str]):
         value: str = "",
         placeholder: str = "",
         label: str = "",
-        on_change=None,
+        on_change: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(
             component_name=text_area._name,
             initial_value=value,
             label=label,
-            on_change=on_change,
             args={
                 "placeholder": placeholder,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: str) -> str:
@@ -412,6 +426,7 @@ class dropdown(UIElement[List[str], Any]):
                            `None` value; when `None`, defaults to `True` when
                            `value` is `None`
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-dropdown"
@@ -422,6 +437,7 @@ class dropdown(UIElement[List[str], Any]):
         value: Optional[str] = None,
         allow_select_none: Optional[bool] = None,
         label: str = "",
+        on_change: Optional[Callable[[Any], None]] = None,
     ) -> None:
         if not isinstance(options, dict):
             options = {option: option for option in options}
@@ -450,6 +466,7 @@ class dropdown(UIElement[List[str], Any]):
                 "options": list(self.options.keys()),
                 "allow-select-none": allow_select_none,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: list[str]) -> Any:
@@ -485,6 +502,7 @@ class multiselect(UIElement[List[str], List[object]]):
                  to option value
     - `value`: a list of initially selected options
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-multiselect"
@@ -494,6 +512,7 @@ class multiselect(UIElement[List[str], List[object]]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[Sequence[str]] = None,
         label: str = "",
+        on_change: Optional[Callable[[List[object]], None]] = None,
     ) -> None:
         if not isinstance(options, dict):
             options = {option: option for option in options}
@@ -508,6 +527,7 @@ class multiselect(UIElement[List[str], List[object]]):
             args={
                 "options": list(self.options.keys()),
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: list[str]) -> list[object]:
@@ -558,6 +578,7 @@ class table(UIElement[List[str], List[object]]):
     - `selection`: 'single' or 'multi' to enable row selection, or `None` to
         disable
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-table"
@@ -569,6 +590,7 @@ class table(UIElement[List[str], List[object]]):
         pagination: bool = False,
         selection: Optional[Literal["single", "multi"]] = "multi",
         label: str = "",
+        on_change: Optional[Callable[[List[object]], None]] = None,
     ) -> None:
         if not isinstance(data, (list, tuple)):
             raise ValueError("data must be a list or tuple.")
@@ -596,6 +618,7 @@ class table(UIElement[List[str], List[object]]):
                 "pagination": pagination,
                 "selection": selection,
             },
+            on_change=on_change,
         )
 
     @property
@@ -643,6 +666,7 @@ class button(UIElement[Any, Any]):
        value of the button and returns a new value
     - `value`: an initial value for the button
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-button"
@@ -650,9 +674,9 @@ class button(UIElement[Any, Any]):
     def __init__(
         self,
         on_click: Optional[Callable[[Any], Any]] = None,
-        on_change=None,
         value: Optional[Any] = None,
         label: str = "click here",
+        on_change: Optional[Callable[[Any], None]] = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
@@ -661,8 +685,8 @@ class button(UIElement[Any, Any]):
             # frontend's value is always a counter
             initial_value=0,
             label=label,
-            on_change=on_change,
             args={},
+            on_change=on_change,
         )
 
     def _convert_value(self, value: Any) -> Any:
@@ -759,6 +783,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
     - `multiple`: if True, allow the user to upload multiple files
     - `kind`: `"button"` or `"area"`
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-file"
@@ -769,6 +794,9 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
         label: str = "",
+        on_change: Optional[
+            Callable[[Sequence[FileUploadResults]], None]
+        ] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -779,6 +807,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
                 "multiple": multiple,
                 "kind": kind,
             },
+            on_change=on_change,
         )
 
     def _convert_value(
@@ -846,6 +875,7 @@ class date(UIElement[str, dt.date]):
         - else if `None` and `start` is not `None`, defaults to `start`;
         - else if `None` and `stop` is not `None`, defaults to `stop`
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-date-picker"
@@ -858,6 +888,7 @@ class date(UIElement[str, dt.date]):
         stop: Optional[dt.date | str] = None,
         value: Optional[dt.date | str] = None,
         label: str = "",
+        on_change: Optional[Callable[[dt.date], None]] = None,
     ) -> None:
         if isinstance(start, str):
             start = self._convert_value(start)
@@ -898,6 +929,7 @@ class date(UIElement[str, dt.date]):
                 "start": self._start.isoformat(),
                 "stop": self._stop.isoformat(),
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: str) -> dt.date:
@@ -962,6 +994,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
 
     - `element`: the element to wrap
     - `label`: text label for the form
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-form"
@@ -970,6 +1003,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         self,
         element: UIElement[JSONTypeBound, T],
         label: str = "",
+        on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
         self.element = element._clone()
         super().__init__(
@@ -978,6 +1012,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
             label=label,
             args={"element-id": self.element._id},
             slotted_html=self.element.text,
+            on_change=on_change,
         )
 
     def _convert_value(self, value: Optional[JSONTypeBound]) -> Optional[T]:
