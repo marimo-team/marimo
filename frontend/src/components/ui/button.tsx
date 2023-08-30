@@ -44,8 +44,8 @@ const buttonVariants = cva(
         ),
         outline: cn(
           "border border-slate-500 shadow-smSolid",
-          "hover:bg-accent/90 hover:text-accent-foreground",
-          "hover:border-transparent",
+          "hover:bg-secondary/90 hover:text-secondary-foreground",
+          "hover:border-input",
           activeCommon
         ),
         secondary: cn(
