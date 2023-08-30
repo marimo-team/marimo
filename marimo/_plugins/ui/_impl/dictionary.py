@@ -66,6 +66,7 @@ class dictionary(_batch_base):
     def __init__(
         self,
         elements: dict[str, UIElement[Any, Any]],
+        *,
         label: str = "",
     ) -> None:
         # Why we clone the wrapped elements:
@@ -98,4 +99,4 @@ class dictionary(_batch_base):
 
     def _clone(self) -> dictionary:
         """Custom clone method so new dict gets copies of UI elements."""
-        return dictionary(self.elements, self._label)
+        return dictionary(self.elements, label=self._label)

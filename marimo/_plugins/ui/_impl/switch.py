@@ -30,7 +30,7 @@ class switch(UIElement[bool, bool]):
 
     _name: Final[str] = "marimo-switch"
 
-    def __init__(self, value: bool = False, label: str = "") -> None:
+    def __init__(self, value: bool = False, *, label: str = "") -> None:
         if not isinstance(value, bool):
             raise ValueError(
                 "Invalid type: `value` must be a bool, but got %s"

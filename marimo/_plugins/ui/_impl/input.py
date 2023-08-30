@@ -68,6 +68,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
+        *,
         label: str = "",
     ) -> None:
         value = start if value is None else value
@@ -143,6 +144,7 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
+        *,
         label: str = "",
     ) -> None:
         self._dtype = (
@@ -211,7 +213,7 @@ class checkbox(UIElement[bool, bool]):
 
     _name: Final[str] = "marimo-checkbox"
 
-    def __init__(self, value: bool = False, label: str = "") -> None:
+    def __init__(self, value: bool = False, *, label: str = "") -> None:
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,
@@ -265,6 +267,7 @@ class radio(UIElement[Optional[str], Any]):
         self,
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
+        *,
         label: str = "",
     ) -> None:
         if not isinstance(options, dict):
@@ -316,6 +319,7 @@ class text(UIElement[str, str]):
         value: str = "",
         placeholder: str = "",
         kind: Literal["text", "password", "email", "url"] = "text",
+        *,
         label: str = "",
     ) -> None:
         super().__init__(
@@ -360,6 +364,7 @@ class text_area(UIElement[str, str]):
         self,
         value: str = "",
         placeholder: str = "",
+        *,
         label: str = "",
     ) -> None:
         super().__init__(
@@ -421,6 +426,7 @@ class dropdown(UIElement[List[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         allow_select_none: Optional[bool] = None,
+        *,
         label: str = "",
     ) -> None:
         if not isinstance(options, dict):
@@ -493,6 +499,7 @@ class multiselect(UIElement[List[str], List[object]]):
         self,
         options: Sequence[str] | dict[str, Any],
         value: Optional[Sequence[str]] = None,
+        *,
         label: str = "",
     ) -> None:
         if not isinstance(options, dict):
@@ -568,6 +575,7 @@ class table(UIElement[List[str], List[object]]):
         | Sequence[dict[str, str | int | float | bool | MIME | None]],
         pagination: bool = False,
         selection: Optional[Literal["single", "multi"]] = "multi",
+        *,
         label: str = "",
     ) -> None:
         if not isinstance(data, (list, tuple)):
@@ -661,6 +669,7 @@ class button(UIElement[Any, Any]):
         value: Optional[Any] = None,
         kind: Literal["neutral", "success", "warn", "danger"] = "neutral",
         disabled: bool = False,
+        *,
         label: str = "click here",
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
@@ -779,6 +788,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         filetypes: Optional[Sequence[str]] = None,
         multiple: bool = False,
         kind: Literal["button", "area"] = "button",
+        *,
         label: str = "",
     ) -> None:
         super().__init__(
@@ -868,6 +878,7 @@ class date(UIElement[str, dt.date]):
         start: Optional[dt.date | str] = None,
         stop: Optional[dt.date | str] = None,
         value: Optional[dt.date | str] = None,
+        *,
         label: str = "",
     ) -> None:
         if isinstance(start, str):
@@ -980,6 +991,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     def __init__(
         self,
         element: UIElement[JSONTypeBound, T],
+        *,
         label: str = "",
     ) -> None:
         self.element = element._clone()
