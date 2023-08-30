@@ -62,6 +62,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     def __init__(
         self,
         elements: Sequence[UIElement[Any, Any]],
+        *,
         label: str = "",
     ) -> None:
         self._elements = [e._clone() for e in elements]

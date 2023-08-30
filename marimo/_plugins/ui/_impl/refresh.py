@@ -49,6 +49,7 @@ class refresh(UIElement[int, int]):
         self,
         options: Optional[list[Union[int, float, str]]] = None,
         default_interval: Optional[Union[int, float, str]] = None,
+        *,
         label: str = "",
     ) -> None:
         if default_interval and not isinstance(
