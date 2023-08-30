@@ -11,6 +11,7 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import { CellId } from "../model/ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
+import { store } from "./jotai";
 
 /* The array of cells on the page, together with a history of
  * deleted cells to implement an "undo delete" action
@@ -466,6 +467,13 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
 const cellsAtom = atom<CellsAndHistory>(initialCellState());
 
 export const useCells = () => useAtomValue(cellsAtom);
+
+export const getAllEditorViews = () => {
+  const cells = store.get(cellsAtom).present;
+  return cells
+    .map((cell) => cell.ref.current?.editorView)
+    .flatMap((x) => (x ? [x] : []));
+};
 
 /**
  * Use this hook to dispatch cell actions. This hook will not cause a re-render

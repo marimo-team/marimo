@@ -127,6 +127,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-f",
   },
+  "cell.selectNextOccurrence": {
+    name: "Select next occurrence",
+    group: "Editing",
+    key: "Mod-d",
+  },
   "cell.fold": {
     name: "Fold",
     group: "Editing",

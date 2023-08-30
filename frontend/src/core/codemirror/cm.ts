@@ -42,18 +42,15 @@ import {
   tooltips,
   EditorView,
 } from "@codemirror/view";
-import {
-  closeSearchPanel,
-  openSearchPanel,
-  highlightSelectionMatches,
-} from "@codemirror/search";
+
 import { EditorState, Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
 import { CompletionConfig } from "../config";
 import { Theme } from "../../theme/useTheme";
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+
 import { completer } from "@/core/codemirror/completion/completer";
+import { findReplaceBundle } from "./find-replace/extension";
 
 // Customize python to support folding some additional syntax nodes
 const customizedPython = pythonLanguage.configure({
@@ -103,7 +100,6 @@ export const setup = (
     closeBrackets(),
     rectangularSelection(),
     highlightActiveLine(),
-    highlightSelectionMatches(),
     keymap.of([
       {
         key: "Tab",
@@ -131,21 +127,7 @@ export const setup = (
         },
       },
     ]),
-    keymap.of([
-      {
-        key: HOTKEYS.getHotkey("cell.findAndReplace").key,
-        preventDefault: true,
-        run: openSearchPanel,
-      },
-    ]),
-    keymap.of([
-      {
-        key: "Escape",
-        preventDefault: true,
-        run: closeSearchPanel,
-        scope: "editor search-panel",
-      },
-    ]),
+    findReplaceBundle(),
     new LanguageSupport(customizedPython, [
       customizedPython.data.of({ autocomplete: localCompletionSource }),
       customizedPython.data.of({ autocomplete: globalCompletion }),

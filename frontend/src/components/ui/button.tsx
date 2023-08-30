@@ -53,6 +53,7 @@ const buttonVariants = cva(
           "border border-input shadow-smSolid",
           activeCommon
         ),
+        text: cn("opacity-60 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
           "hover:bg-accent/90 hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
           activeCommon,

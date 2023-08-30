@@ -19,6 +19,7 @@ import { renderShortcut } from "../components/shortcuts/renderShortcut";
 import { useCellActions } from "../core/state/cells";
 import { AppConfigButton } from "../components/app-config/app-config-button";
 import { useState, useEffect } from "react";
+import { FindReplace } from "@/components/find-replace/find-replace";
 
 interface ControlsProps {
   filename: string | null;
@@ -77,7 +78,9 @@ export const Controls = ({
 
   return (
     <>
-      {closed ? null : (
+      {!presenting && <FindReplace />}
+
+      {!closed && (
         <div className={styles.topRightControls}>
           <AppConfigButton />
           <ShutdownButton onShutdown={onShutdown} />
