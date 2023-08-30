@@ -13,6 +13,7 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
@@ -73,11 +74,13 @@ def defs() -> tuple[str, ...]:
     - tuple of the currently executing cell's defs.
     """
     ctx = get_context()
-    if ctx.initialized and ctx.kernel.cell_id is not None:
+    if ctx.initialized and ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[ctx.kernel.cell_id].defs
+                for defn in ctx.kernel.graph.cells[
+                    ctx.kernel.execution_context.cell_id
+                ].defs
             )
         )
     return tuple()
@@ -96,16 +99,24 @@ def refs() -> tuple[str, ...]:
     unshadowed_builtins = set(builtins.__dict__.keys()).difference(
         set(ctx.kernel.graph.definitions.keys())
     )
-    if ctx.initialized and ctx.kernel.cell_id is not None:
+    if ctx.initialized and ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[ctx.kernel.cell_id].refs
+                for defn in ctx.kernel.graph.cells[
+                    ctx.kernel.execution_context.cell_id
+                ].refs
                 # exclude builtins that have not been shadowed
                 if defn not in unshadowed_builtins
             )
         )
     return tuple()
+
+
+@dataclass
+class ExecutionContext:
+    cell_id: CellId_t
+    setting_element_value: bool
 
 
 class Kernel:
@@ -114,12 +125,8 @@ class Kernel:
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
         }
-        # graph of cells
         self.graph = dataflow.DirectedGraph()
-        # execution context
-        self.executing = False
-        self.setting_element_value = False
-        self.cell_id: Optional[CellId_t] = None
+        self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
         # errored cells
@@ -136,21 +143,19 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     @contextlib.contextmanager
-    def _execution_ctx(
+    def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[None]:
-        self.executing = True
-        self.setting_element_value = setting_element_value
-        self.cell_id = cell_id
+        self.execution_context = ExecutionContext(
+            cell_id, setting_element_value
+        )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id
         ):
             try:
                 yield
             finally:
-                self.executing = False
-                self.setting_element_value = False
-                self.cell_id = None
+                self.execution_context = None
 
     def _try_registering_cell(
         self, cell_id: CellId_t, code: str
@@ -483,13 +488,13 @@ class Kernel:
             # State clean-up: don't leak names, UI elements, ...
             self._invalidate_cell_state(cell_id)
 
-            with self._execution_ctx(cell_id):
+            with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
             if run_result.success():
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
-                    with self._execution_ctx(cell_id):
+                    with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 write_output(
                     channel=formatted_output.channel,
@@ -501,7 +506,7 @@ class Kernel:
                 LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
-                    with self._execution_ctx(cell_id):
+                    with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 write_output(
                     channel=formatted_output.channel,
@@ -610,8 +615,8 @@ class Kernel:
         Should be called when a state's setter is called.
         """
         # store the state and the currently executing cell
-        assert self.cell_id is not None
-        self.state_updates[state] = self.cell_id
+        assert self.execution_context is not None
+        self.state_updates[state] = self.execution_context.cell_id
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
@@ -647,7 +652,7 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            with self._execution_ctx(
+            with self._install_execution_context(
                 get_context().ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
@@ -776,8 +781,9 @@ def launch_kernel(
                     break
 
             # TODO(akshayka): if kernel is in `run` but not executing,
-            # it won't be interrupted, which isn't right
-            if kernel.executing:
+            # it won't be interrupted, which isn't right ... but the
+            # probability of that happening is low.
+            if kernel.execution_context is not None:
                 write_interrupted()
                 raise MarimoInterrupt
 
