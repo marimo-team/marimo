@@ -138,13 +138,13 @@ export const FindReplace: React.FC = () => {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Tooltip content="Find Next">
-          <Button size="xs" variant="secondary" onClick={() => findNext()}>
+        <Tooltip content="Find Previous">
+          <Button size="xs" variant="secondary" onClick={() => findPrev()}>
             <ArrowLeftIcon className="w-4 h-4" />
           </Button>
         </Tooltip>
-        <Tooltip content="Find Previous">
-          <Button size="xs" variant="secondary" onClick={() => findPrev()}>
+        <Tooltip content="Find Next">
+          <Button size="xs" variant="secondary" onClick={() => findNext()}>
             <ArrowRightIcon className="w-4 h-4" />
           </Button>
         </Tooltip>
