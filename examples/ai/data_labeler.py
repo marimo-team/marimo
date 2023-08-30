@@ -18,8 +18,8 @@ def __(NUMBER_OF_EXAMPLES, mo):
     def previous_index(index: int) -> int:
         return max(0, index - 1)
 
-    get_index, set_index = mo.state(0)
-    return get_index, next_index, previous_index, set_index
+    index_state, set_index = mo.state(0)
+    return index_state, next_index, previous_index, set_index
 
 
 @app.cell
@@ -35,42 +35,33 @@ def __(mo, next_index, previous_index, set_index):
 
 
 @app.cell
-def __(set_index):
-    def on_change(v):
-        import time
-        time.sleep(0)
-        set_index(v)
-    return on_change,
-
-
-@app.cell
 def __(mo):
     mo.md(f"**Choose an example to label.**")
     return
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, get_index, mo, on_change):
+def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES - 1,
-        value=get_index(),
+        value=index_state.value,
         step=1,
         label="example number",
-        on_change=on_change,
+        on_change=set_index,
     )
     return index,
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, get_index, mo, on_change):
+def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
     index_slider = mo.ui.slider(
         0,
         NUMBER_OF_EXAMPLES - 1,
-        value=get_index(),
+        value=index_state.value,
         step=1,
         label="example number",
-        on_change=on_change,
+        on_change=set_index,
     )
     return index_slider,
 
