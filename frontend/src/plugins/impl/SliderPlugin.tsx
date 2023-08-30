@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useCallback, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -13,6 +13,7 @@ interface Data {
   stop: T;
   step?: T;
   label: string | null;
+  debounce: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -24,6 +25,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     start: z.number(),
     stop: z.number(),
     step: z.number().optional(),
+    debounce: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -42,26 +44,46 @@ interface SliderProps extends Data {
   setValue: Setter<T>;
 }
 
-const SliderComponent = (props: SliderProps): JSX.Element => {
-  const setValue = props.setValue;
-  const onValueChange = useCallback(
-    (values: number[]) => {
-      setValue(values[0]);
-    },
-    [setValue]
-  );
+const SliderComponent = ({
+  label,
+  setValue,
+  value,
+  start,
+  stop,
+  step,
+  debounce,
+}: SliderProps): JSX.Element => {
   const id = useId();
 
+  // Hold internal value
+  const [internalValue, setInternalValue] = useState(value);
+  // Update internal value on prop change
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+
   return (
-    <Labeled label={props.label} id={id}>
+    <Labeled label={label} id={id}>
       <Slider
-        className={"relative flex items-center select-none w-36"}
-        value={[props.value]}
-        min={props.start}
-        max={props.stop}
-        step={props.step}
-        onValueChange={onValueChange}
         id={id}
+        className={"relative flex items-center select-none w-36"}
+        value={[internalValue]}
+        min={start}
+        max={stop}
+        step={step}
+        // Triggered on all value changes
+        onValueChange={([nextValue]) => {
+          setInternalValue(nextValue);
+          if (!debounce) {
+            setValue(nextValue);
+          }
+        }}
+        // Triggered on mouse up
+        onValueCommit={([nextValue]) => {
+          if (debounce) {
+            setValue(nextValue);
+          }
+        }}
       />
     </Labeled>
   );

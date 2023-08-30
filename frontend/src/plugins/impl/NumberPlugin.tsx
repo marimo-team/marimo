@@ -1,10 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useEffect, useId, useRef } from "react";
+import { useId, useRef } from "react";
 import { z } from "zod";
 
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Input } from "../../components/ui/input";
 import { Labeled } from "./common/labeled";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
 
 type T = number;
 
@@ -13,6 +14,7 @@ interface Data {
   stop: T;
   step?: T;
   label: string | null;
+  debounce: boolean;
 }
 
 export class NumberPlugin implements IPlugin<T, Data> {
@@ -24,6 +26,7 @@ export class NumberPlugin implements IPlugin<T, Data> {
     start: z.number(),
     stop: z.number(),
     step: z.number().optional(),
+    debounce: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -44,29 +47,15 @@ interface NumberComponentProps extends Data {
 
 const NumberComponent = (props: NumberComponentProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const oninput = () => {
-    if (inputRef.current !== null) {
-      props.setValue(inputRef.current.valueAsNumber);
-    }
-  };
-
-  useEffect(() => {
-    // scrolling inside the input causes the value to change, which
-    // is very surprising, so we disable it.
-    if (inputRef.current !== null) {
-      inputRef.current.addEventListener(
-        "wheel",
-        (e) => {
-          if (e.target === inputRef.current) {
-            e.preventDefault();
-          }
-        },
-        { passive: false }
-      );
-    }
-  }, [inputRef]);
-
   const id = useId();
+
+  // Create a debounced value of 200
+  const { value, onChange } = useDebounceControlledState({
+    initialValue: props.value,
+    delay: 200,
+    disabled: !props.debounce,
+    onChange: props.setValue,
+  });
 
   return (
     <Labeled label={props.label} id={id}>
@@ -77,8 +66,13 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         min={props.start}
         max={props.stop}
         step={props.step}
-        value={props.value}
-        onInput={oninput}
+        value={value}
+        onWheel={(e) => {
+          e.preventDefault();
+        }}
+        onChange={(e) => {
+          onChange(e.target.valueAsNumber);
+        }}
         id={id}
       />
     </Labeled>
