@@ -54,7 +54,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `stop`: the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
-    - `debounce`: whether to debounce (rate-limit) value updates from the frontend
+    - `debounce`: whether to debounce (rate-limit) value
+        updates from the frontend
     - `label`: text label for the element
     """
 
