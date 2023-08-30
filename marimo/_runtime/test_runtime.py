@@ -1,9 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Generator, Sequence
-
-import pytest
+from typing import Sequence
 
 from marimo._messaging.errors import (
     CycleError,
@@ -12,8 +10,6 @@ from marimo._messaging.errors import (
     MultipleDefinitionError,
 )
 from marimo._plugins.ui._core.ids import IDProvider
-from marimo._plugins.ui._core.registry import UIElementRegistry
-from marimo._runtime.context import get_context
 from marimo._runtime.dataflow import Edge
 from marimo._runtime.requests import (
     CreationRequest,
@@ -22,31 +18,6 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
-
-
-class _MockStream:
-    def write(self, op: str, data: dict[Any, Any]) -> None:
-        del op
-        del data
-        pass
-
-
-# fixture that provides a kernel (and tears it down)
-@pytest.fixture
-def k() -> Generator[Kernel, None, None]:
-    k = Kernel()
-    get_context().initialize(
-        kernel=k,
-        ui_element_registry=UIElementRegistry(),
-        stream=_MockStream(),  # type: ignore
-        stdout=None,
-        stderr=None,
-    )
-    yield k
-    get_context()._kernel = None
-    get_context()._ui_element_registry = None
-    get_context()._stream = None
-    get_context()._initialized = False
 
 
 def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:
