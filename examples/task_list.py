@@ -53,7 +53,7 @@ def __(add_task_button, clear_tasks_button, mo, task_entry_box):
 
 @app.cell
 def __(mo, task_list):
-    mo.as_html(task_list)
+    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 
