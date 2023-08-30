@@ -57,7 +57,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     StopRequest,
 )
-from marimo._runtime.state import GetState, State
+from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
 from marimo.config._config import configure
 
@@ -119,11 +119,9 @@ class Kernel:
         self.cell_id: Optional[CellId_t] = None
         self.ui_initializers: dict[str, Any] = {}
         self.errors: dict[CellId_t, tuple[Error, ...]] = {}
-        # Mapping from a getter to the cell when the corresponding setter
-        # was invoked. New state updates evict older ones. The cell is None
-        # only when the setter is called through a set-ui-element-value
-        # request.
-        self.state_updates: dict[GetState, Optional[CellId_t]] = {}
+        # Mapping from state to the cell when its setter
+        # was invoked. New state updates evict older ones.
+        self.state_updates: dict[State[Any], CellId_t] = {}
 
         self.completion_thread: Optional[threading.Thread] = None
         self.completion_queue: queue.Queue[CompletionRequest] = queue.Queue()
@@ -597,13 +595,14 @@ class Kernel:
         self.state_updates.clear()
         return cells_with_stale_state
 
-    def register_state_update(self, state: State) -> None:
+    def register_state_update(self, state: State[Any]) -> None:
         """Register a state object as having been updated.
 
         Should be called when a state's setter is called.
         """
-        # store the state's getter and the currently executing cell (if any)
-        self.state_updates[state.get_value] = self.cell_id
+        # store the state and the currently executing cell
+        assert self.cell_id is not None
+        self.state_updates[state] = self.cell_id
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
