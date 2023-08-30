@@ -68,6 +68,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         step={props.step}
         value={value}
         onWheel={(e) => {
+          e.currentTarget.blur();
           e.preventDefault();
         }}
         onChange={(e) => {
