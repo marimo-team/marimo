@@ -54,7 +54,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `stop`: the maximum value of the interval
     - `step`: the number increment
     - `value`: default value
-    - `debounce`: whether to debounce the number picker
+    - `debounce`: whether to debounce (rate-limit) value updates from the frontend
     - `label`: text label for the element
     """
 
@@ -129,7 +129,7 @@ class slider(UIElement[Numeric, Numeric]):
     - `step`: the slider increment
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
-        the value on mouseup
+        the value on mouse-up or drag-end
     - `label`: text label for the element
     """
 
