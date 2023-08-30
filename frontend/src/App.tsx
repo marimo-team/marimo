@@ -273,7 +273,9 @@ export const App: React.FC<AppProps> = ({
   // HOTKEYS
   useHotkey("global.runStale", runStaleCells);
   useHotkey("global.save", saveOrNameNotebook);
-  useHotkey("global.interrupt", sendInterrupt);
+  useHotkey("global.interrupt", () => {
+    sendInterrupt();
+  });
   useHotkey("global.hideCode", () => {
     if (isReading) {
       return;

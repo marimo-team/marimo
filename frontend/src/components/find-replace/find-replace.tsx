@@ -120,21 +120,19 @@ export const FindReplace: React.FC = () => {
               size="xs"
               variant="outline"
               className="h-6 text-xs"
-              onClick={() => replaceAll()}
-              disabled={state.findText === ""}
+              onClick={() => replaceNext()}
+              disabled={state.findText === "" || state.replaceText === ""}
             >
-              Replace All
+              Replace Next
             </Button>
             <Button
               size="xs"
               variant="outline"
               className="h-6 text-xs"
-              onClick={() => {
-                replaceNext();
-              }}
-              disabled={state.findText === ""}
+              onClick={() => replaceAll()}
+              disabled={state.findText === "" || state.replaceText === ""}
             >
-              Replace Next
+              Replace All
             </Button>
           </div>
         </div>
