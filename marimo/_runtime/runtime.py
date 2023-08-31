@@ -285,7 +285,7 @@ class Kernel:
         execution_requests: Sequence[ExecutionRequest],
         deletion_requests: Sequence[DeleteRequest],
     ) -> set[CellId_t]:
-        """Add and remove cells to the graph.
+        """Add and remove cells to/from the graph.
 
         This method adds the cells in `execution_requests` to the kernel's
         graph (deleting old versions of these cells, if any), and removes the
@@ -448,8 +448,9 @@ class Kernel:
         return descendants
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
+        """Run cells and any state updates they trigger"""
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
-            LOGGER.debug("Running state updates")
+            LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
                 self.graph, cells_with_stale_state
             )
@@ -457,6 +458,7 @@ class Kernel:
         write_completed_run()
 
     def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
+        """Run cells, send outputs to frontends"""
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
         for cid in cell_ids:
             write_queued(cell_id=cid)
