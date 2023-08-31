@@ -631,11 +631,22 @@ class Kernel:
             )
 
     def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
+        """Run cells and their descendants.
+
+        The cells may be cells already existing in the graph or new cells.
+        Adds the cells in `execution_requests` to the graph before running
+        them.
+        """
+
         self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
+        """Set the value of a UI element bound to a global variable.
+
+        Runs cells that reference the UI element by name.
+        """
         referring_cells = set()
         for object_id, value in request.ids_and_values:
             try:
@@ -696,6 +707,7 @@ class Kernel:
         self.ui_initializers = {}
 
     def complete(self, request: CompletionRequest) -> None:
+        """Code completion"""
         if self.completion_thread is None:
             self.completion_thread = threading.Thread(
                 target=complete,
