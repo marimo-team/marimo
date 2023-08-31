@@ -40,10 +40,10 @@ const Microphone = ({ setValue, data }: IPluginProps<Value, Data>) => {
   return (
     <Labeled label={data.label} align="top">
       {!allowed && (
-        <p className="text-destructive text-sm pb-2">
-          Microphone access is not allowed. Please allow microphone access in
-          your browser.
-        </p>
+        <div className="text-destructive text-sm">
+          Microphone access is disabled. Please allow microphone access in your
+          browser.
+        </div>
       )}
       <AudioRecorder
         onStart={start}
