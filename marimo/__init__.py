@@ -32,7 +32,7 @@ __all__ = [
     "ui",
     "vstack",
 ]
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from marimo import config
 from marimo._ast.app import App
