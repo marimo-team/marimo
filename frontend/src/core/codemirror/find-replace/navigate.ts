@@ -126,6 +126,7 @@ export const findPrev = findInDirection("prev");
  */
 export const replaceAll = searchCommand(({ query }) => {
   const views = getAllEditorViews();
+  const undoHandlers: Array<() => void> = [];
   for (const view of views) {
     if (view.state.readOnly) {
       continue;
@@ -136,9 +137,17 @@ export const replaceAll = searchCommand(({ query }) => {
       return { from, to, insert: query.getReplacement(match) };
     });
 
-    if (changes && changes.length === 0) {
+    if (!changes || changes.length === 0) {
       continue;
     }
+
+    const prevDoc = view.state.doc.toString();
+    undoHandlers.push(() => {
+      view.dispatch({
+        changes: [{ from: 0, to: view.state.doc.length, insert: prevDoc }],
+        userEvent: "input.replace.all",
+      });
+    });
 
     view.dispatch({
       changes,
@@ -146,7 +155,13 @@ export const replaceAll = searchCommand(({ query }) => {
     });
   }
 
-  return true;
+  const handleUndo = () => {
+    for (const undoHandler of undoHandlers) {
+      undoHandler();
+    }
+  };
+
+  return handleUndo;
 });
 
 /**
