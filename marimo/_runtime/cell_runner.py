@@ -208,12 +208,12 @@ class Runner:
 
         A cell is marked as needing to run if all of the following are true:
 
-            1. It has among its refs the state object whose setter
-               was invoked.
+            1. The runner was not interrupted.
             2. It was not already run after its setter was called.
             3. It isn't the cell that called the setter.
             4. It is not errored (unable to run) or cancelled.
-            5. The runner was not interrupted.
+            5. It has among its refs the state object whose setter
+               was invoked.
 
         (3) means that a state update in a given cell will never re-trigger
         the same cell to run. This is similar to how interacting with
@@ -227,7 +227,7 @@ class Runner:
           its setter
         - errored_cells: cell ids that are unable to run
         """
-        # No updates when the runner is interrupted (condition 5)
+        # No updates when the runner is interrupted (condition 1)
         if self.interrupted:
             return set()
 
@@ -240,10 +240,10 @@ class Runner:
                 # No self-loops (3)
                 if cid == setter_cell_id:
                     continue
-                # No errorred/cancelled cells (5)
+                # No errorred/cancelled cells (4)
                 if cid in errored_cells or self.cancelled(cid):
                     continue
-                # Getter in refs (1)
+                # State object in refs (5)
                 for ref in cell.refs:
                     # run this cell if any of its refs match the state
                     if ref in self.glbls and self.glbls[ref] == state:
