@@ -70,7 +70,7 @@ jobs:
       - name: 📥 Install Playwright Browsers
         working-directory: ./frontend
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install chromium webkit --with-deps
 
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend

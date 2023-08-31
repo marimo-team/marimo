@@ -76,13 +76,15 @@ const config: PlaywrightTestConfig = {
     trace: "on-first-retry",
   },
 
-  // TODO(akshayka): Consider testing on firefox, safari
+  // TODO(akshayka): Consider testing on firefox
   projects: [
     {
       name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-      },
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
 
