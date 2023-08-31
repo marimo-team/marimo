@@ -3,7 +3,7 @@ import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { historyField } from "@codemirror/commands";
 import { foldAll, unfoldAll } from "@codemirror/language";
 import { EditorState, Prec, StateEffect } from "@codemirror/state";
-import { keymap, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { keymap, EditorView, KeyBinding } from "@codemirror/view";
 import {
   memo,
   FocusEvent,
@@ -232,7 +232,7 @@ const CellComponent = (
   );
 
   useEffect(() => {
-    const runKeymap = keymap.of([
+    const cellEditingHotkeys: KeyBinding[] = [
       {
         key: HOTKEYS.getHotkey("cell.run").key,
         preventDefault: true,
@@ -241,8 +241,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const runAndNewCellBelowKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.runAndNewBelow").key,
         preventDefault: true,
@@ -253,8 +251,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const runAndNewCellAboveKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.runAndNewAbove").key,
         preventDefault: true,
@@ -265,8 +261,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const deleteCellKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.delete").key,
         preventDefault: true,
@@ -284,8 +278,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const moveDownKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.moveDown").key,
         preventDefault: true,
@@ -294,8 +286,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const moveUpKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.moveUp").key,
         preventDefault: true,
@@ -304,8 +294,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const focusDownKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.focusDown").key,
         preventDefault: true,
@@ -314,8 +302,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const focusUpKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.focusUp").key,
         preventDefault: true,
@@ -324,8 +310,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const sendToBottomKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.sendToBottom").key,
         preventDefault: true,
@@ -334,8 +318,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const sendToTopKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.sendToTop").key,
         preventDefault: true,
@@ -344,8 +326,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const createAboveKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.createAbove").key,
         preventDefault: true,
@@ -355,8 +335,6 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
-    const createBelowKeymap = keymap.of([
       {
         key: HOTKEYS.getHotkey("cell.createBelow").key,
         preventDefault: true,
@@ -366,34 +344,18 @@ const CellComponent = (
           return true;
         },
       },
-    ]);
+    ];
 
-    const onChangePlugin = ViewPlugin.fromClass(
-      class {
-        constructor(private readonly view: EditorView) {}
-        update(update: ViewUpdate) {
-          if (update.docChanged) {
-            const nextCode = this.view.state.doc.toString();
-            updateCellCode(cellId, nextCode);
-          }
-        }
+    const onChangePlugin = EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        const nextCode = update.state.doc.toString();
+        updateCellCode(cellId, nextCode);
       }
-    );
+    });
 
     const extensions = [
       ...setup(userConfig.completion, theme),
-      Prec.highest(runKeymap),
-      Prec.highest(runAndNewCellBelowKeymap),
-      Prec.highest(runAndNewCellAboveKeymap),
-      Prec.highest(deleteCellKeymap),
-      Prec.highest(moveDownKeymap),
-      Prec.highest(moveUpKeymap),
-      Prec.highest(focusDownKeymap),
-      Prec.highest(focusUpKeymap),
-      Prec.highest(sendToBottomKeymap),
-      Prec.highest(sendToTopKeymap),
-      Prec.highest(createAboveKeymap),
-      Prec.highest(createBelowKeymap),
+      Prec.highest(keymap.of(cellEditingHotkeys)),
       Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
       scrollActiveLineIntoView(),
       onChangePlugin,
