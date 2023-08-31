@@ -256,11 +256,6 @@ async def start_server(
         cookie_secret=secrets.token_hex(),
         template_path=root,
         xsrf_cookies=True,
-        # This allows embedding the app in an iframe on another domain
-        xsrf_cookie_kwargs={
-            "samesite": "None",
-            "secure": True,
-        },
         debug=development_mode,
         # ping the websocket once a second to prevent intermittent
         # disconnections
