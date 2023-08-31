@@ -18,12 +18,9 @@ class State(Generic[T]):
     def value(self) -> T:
         return self._value
 
-    def _set_value(self, update: T | Callable[[T], T]) -> None:
+    def _set_value(self, value: T) -> None:
         """Update the state and register the update with the kernel"""
-        if callable(update):
-            self._value = update(self.value)
-        else:
-            self._value = update
+        self._value = value
         ctx = get_context()
         if not ctx.initialized:
             return
@@ -32,7 +29,7 @@ class State(Generic[T]):
         kernel.register_state_update(self)
 
 
-def state(value: T) -> tuple[State[T], Callable[[T | Callable[[T], T]], None]]:
+def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     """Mutable reactive state
 
     This function takes an initial value and returns:
@@ -73,15 +70,7 @@ def state(value: T) -> tuple[State[T], Callable[[T | Callable[[T], T]], None]]:
     Update the state based on the current value:
 
     ```
-    # pass in a new value
     set_count(count.value + 1)
-    ```
-
-    or
-
-    ```
-    # pass in a callable that takes the current value and returns a new value
-    set_count(lambda value: value + 1)
     ```
 
     *Note: Never mutate the state object directly. You should only change its
