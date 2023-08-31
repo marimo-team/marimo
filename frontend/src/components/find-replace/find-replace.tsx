@@ -26,6 +26,7 @@ import {
 import { useHotkey } from "@/hooks/useHotkey";
 import { EditorView } from "codemirror";
 import { FocusScope } from "@react-aria/focus";
+import { toast } from "../ui/use-toast";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -168,7 +169,29 @@ export const FindReplace: React.FC = () => {
                 size="xs"
                 variant="outline"
                 className="h-6 text-xs"
-                onClick={() => replaceAll()}
+                onClick={() => {
+                  const undo = replaceAll();
+                  if (!undo) {
+                    return;
+                  }
+
+                  // Show toast with undo button
+                  const { dismiss } = toast({
+                    title: "Replaced all occurrences",
+                    action: (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          undo();
+                          dismiss();
+                        }}
+                      >
+                        Undo
+                      </Button>
+                    ),
+                  });
+                }}
                 disabled={state.findText === "" || state.replaceText === ""}
               >
                 Replace All
