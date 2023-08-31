@@ -1,0 +1,72 @@
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
+import base64
+import io
+from typing import Any, Optional, Union
+
+from marimo._output.builder import h
+from marimo._output.hypertext import Html
+from marimo._output.rich_help import mddoc
+
+
+@mddoc
+def audio(
+    src: Union[str, io.IOBase],
+) -> Html:
+    """Render an audio file as HTML.
+
+    **Example.**
+
+    ```python3
+    mo.audio(
+        src="https://developer.mozilla.org/media/cc0-audio/t-rex-roar.mp3"
+    )
+
+    with open("recording.wav", "rb") as file:
+        mo.audio(src=file)
+    ```
+
+    **Args.**
+
+    - `src`: the URL of the audio or a file-like object
+
+    **Returns.**
+
+    `Html` object
+    """
+    resolved_src = src if isinstance(src, str) else _io_to_data_url(src)
+    audio = h.audio(src=resolved_src, controls=True)
+    return Html(audio)
+
+
+def _io_to_data_url(readable: io.IOBase) -> str:
+    base64_string = base64.b64encode(readable.read()).decode("utf-8")
+    file_type = _guess_mime_type(readable)
+    return f"data:{file_type};base64,{base64_string}"
+
+def _guess_mime_type(src: Union[str, io.IOBase]) -> str:
+    if isinstance(src, str):
+        file_name = src
+    elif isinstance(src, io.FileIO):
+        file_name = src.name
+    else:
+        file_name = None
+
+    # If we can't guess the file type, default to audio/wav
+    if file_name is None:
+        return "audio/wav"
+
+    file_type = file_name.split(".")[-1]
+    if file_type in INCONSISTENT_AUDIO_MIME_TYPES:
+        return f"audio/{INCONSISTENT_AUDIO_MIME_TYPES[file_type]}"
+    return f"audio/{file_type}"
+
+# Reference here:
+# https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+INCONSISTENT_AUDIO_MIME_TYPES = {
+    "mp3": "mpeg",
+    "oga": "ogg",
+    "mid": "midi",
+    "weba": "webm",
+}

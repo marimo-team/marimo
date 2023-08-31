@@ -15,6 +15,13 @@ def test_img() -> None:
         == "<img src='image.jpg' alt='image' style='width:100px' />"
     )
 
+def test_audio() -> None:
+    assert h.audio() == "<audio controls />"
+    assert (
+        h.audio(src="audio.mp3", controls=True)
+        == "<audio src='audio.mp3' controls='' />"
+    )
+
 
 def test_join_params() -> None:
     assert (
