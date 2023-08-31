@@ -381,7 +381,7 @@ const CellComponent = (
     );
 
     const extensions = [
-      ...setup(userConfig.completion, theme),
+      ...setup(userConfig.completion, userConfig.keymap, theme),
       Prec.highest(runKeymap),
       Prec.highest(runAndNewCellBelowKeymap),
       Prec.highest(runAndNewCellAboveKeymap),
@@ -457,6 +457,7 @@ const CellComponent = (
   }, [
     cellId,
     userConfig.completion.activate_on_typing,
+    userConfig.keymap,
     theme,
     showPlaceholder,
     initialContents,

@@ -57,7 +57,11 @@ export const Primary: Story = {
   render: (args, ctx) => (
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
-        extensions={setup({ activate_on_typing: false }, ctx.globals.theme)}
+        extensions={setup(
+          { activate_on_typing: false },
+          { preset: "default" },
+          ctx.globals.theme
+        )}
       />
     </div>
   ),

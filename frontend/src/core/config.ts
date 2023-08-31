@@ -15,10 +15,14 @@ export const UserConfigSchema = z.object({
       .transform((millis) => Math.max(millis, 1000))
       .default(1000),
   }),
+  keymap: z.object({
+    preset: z.enum(["default", "vim"]).default("default"),
+  }),
 });
 export type UserConfig = z.infer<typeof UserConfigSchema>;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
+export type KeymapConfig = UserConfig["keymap"];
 
 export const AppConfigSchema = z.object({
   width: z.enum(["full", "normal"]).default("normal"),

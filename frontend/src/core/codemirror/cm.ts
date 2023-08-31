@@ -7,7 +7,6 @@ import {
 } from "@codemirror/autocomplete";
 import {
   history,
-  defaultKeymap,
   historyKeymap,
   indentWithTab,
   indentMore,
@@ -46,11 +45,12 @@ import {
 import { EditorState, Extension } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
-import { CompletionConfig } from "../config";
+import { CompletionConfig, KeymapConfig } from "../config";
 import { Theme } from "../../theme/useTheme";
 
 import { completer } from "@/core/codemirror/completion/completer";
 import { findReplaceBundle } from "./find-replace/extension";
+import { keymapBundle } from "./keymaps/keymaps";
 
 // Customize python to support folding some additional syntax nodes
 const customizedPython = pythonLanguage.configure({
@@ -66,9 +66,13 @@ const customizedPython = pythonLanguage.configure({
 // Based on codemirror's basicSetup extension
 export const setup = (
   completionConfig: CompletionConfig,
+  keymapConfig: KeymapConfig,
   theme: Theme
 ): Extension[] => {
   return [
+    // make sure this comes first since it contains keymaps based on user config
+    keymapBundle(keymapConfig),
+
     // Whether or not to require keypress to activate autocompletion (default
     // keymap is Ctrl+Space)
     autocompletion({
@@ -111,7 +115,6 @@ export const setup = (
     ]),
     keymap.of([
       ...closeBracketsKeymap,
-      ...defaultKeymap,
       ...historyKeymap,
       ...foldKeymap,
       ...lintKeymap,
