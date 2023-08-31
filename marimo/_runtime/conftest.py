@@ -31,12 +31,14 @@ def k() -> Generator[Kernel, None, None]:
         stderr=None,
     )
     yield k
+    # have to teardown the runtime context because it's a global
     get_context()._kernel = None
     get_context()._ui_element_registry = None
     get_context()._stream = None
     get_context()._initialized = False
 
 
+# Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
         self.counter = 0
@@ -47,6 +49,7 @@ class ExecReqProvider:
         return ExecutionRequest(key, textwrap.dedent(code))
 
 
+# fixture that provides an ExecReqProvider
 @pytest.fixture
 def exec_req() -> Generator[ExecReqProvider, None, None]:
     yield ExecReqProvider()

@@ -73,12 +73,14 @@ def state(value: T) -> tuple[State[T], Callable[[T | Callable[[T], T]], None]]:
     Update the state based on the current value:
 
     ```
+    # pass in a new value
     set_count(count.value + 1)
     ```
 
     or
 
     ```
+    # pass in a callable that takes the current value and returns a new value
     set_count(lambda value: value + 1)
     ```
 
@@ -92,12 +94,12 @@ def state(value: T) -> tuple[State[T], Callable[[T | Callable[[T], T]], None]]:
     ```
 
     ```python
-    # updating the state through the slider will recreate the number component
+    # updating the state through the slider will recreate the number (below)
     slider = mo.ui.slider(0, 100, value=state.value, on_change=set_state)
     ```
 
     ```python
-    # updating the state through the number will recreate the slider component
+    # updating the state through the number will recreate the slider (above)
     number = mo.ui.number(0, 100, value=state.value, on_change=set_state)
     ```
 
