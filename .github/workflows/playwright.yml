@@ -65,7 +65,7 @@ jobs:
         with:
           path: |
             ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}
+          key: ${{ runner.os }}-playwright-2-${{ env.PLAYWRIGHT_VERSION }}
 
       - name: 📥 Install Playwright Browsers
         working-directory: ./frontend
