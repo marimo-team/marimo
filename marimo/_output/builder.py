@@ -58,12 +58,8 @@ class _HTMLBuilder:
             return f"<audio {_join_params(params)} />"
 
 
-
-
 def _join_params(params: List[Tuple[str, str]]) -> str:
-    return " ".join([
-        f"{k}='{v}'" if v is not "" else f"{k}"
-        for k, v in params])
+    return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])
 
 
 h = _HTMLBuilder()

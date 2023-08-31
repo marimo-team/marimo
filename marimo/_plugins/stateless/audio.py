@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Any, Optional, Union
+from typing import Union
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -20,7 +20,7 @@ def audio(
 
     ```python3
     mo.audio(
-        src="https://developer.mozilla.org/media/cc0-audio/t-rex-roar.mp3"
+        src="/recording.wav"
     )
 
     with open("recording.wav", "rb") as file:
@@ -45,22 +45,26 @@ def _io_to_data_url(readable: io.IOBase) -> str:
     file_type = _guess_mime_type(readable)
     return f"data:{file_type};base64,{base64_string}"
 
+
 def _guess_mime_type(src: Union[str, io.IOBase]) -> str:
+    file_name: str
     if isinstance(src, str):
         file_name = src
     elif isinstance(src, io.FileIO):
-        file_name = src.name
+        src_name = src.name
+        if isinstance(src_name, str):
+            file_name = src_name
+        else:
+            # If we can't guess the file type, default to audio/wav
+            return "audio/wav"
     else:
-        file_name = None
-
-    # If we can't guess the file type, default to audio/wav
-    if file_name is None:
         return "audio/wav"
 
     file_type = file_name.split(".")[-1]
     if file_type in INCONSISTENT_AUDIO_MIME_TYPES:
         return f"audio/{INCONSISTENT_AUDIO_MIME_TYPES[file_type]}"
     return f"audio/{file_type}"
+
 
 # Reference here:
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types

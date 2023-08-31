@@ -23,9 +23,18 @@ certain way.
 
   marimo.accordion
   marimo.callout
-  marimo.image
   marimo.hstack
   marimo.vstack
   marimo.tabs
   marimo.tree
+```
+
+There are also a set of utility elements that make it easier to build HTML components.
+
+```{eval-rst}
+.. autosummary::
+  :nosignatures:
+
+  marimo.image
+  marimo.audio
 ```
