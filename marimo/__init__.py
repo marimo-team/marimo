@@ -19,14 +19,17 @@ __all__ = [
     "as_html",
     "audio",
     "callout",
+    "center",
     "config",
     "defs",
     "doc",
     "hstack",
     "Html",
     "image",
+    "left",
     "md",
     "refs",
+    "right",
     "stop",
     "tabs",
     "tree",
@@ -40,6 +43,7 @@ from marimo._ast.app import App
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
+from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._plugins import ui
 from marimo._plugins.stateless.accordion import accordion
