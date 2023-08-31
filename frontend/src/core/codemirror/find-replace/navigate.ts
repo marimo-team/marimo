@@ -141,14 +141,10 @@ export const replaceAll = searchCommand(({ query }) => {
       continue;
     }
 
-    const undoChanges = changes.map((change) => ({
-      from: change.from,
-      to: change.from + change.insert.length,
-      insert: view.state.sliceDoc(change.from, change.to),
-    }));
+    const prevDoc = view.state.doc.toString();
     undoHandlers.push(() => {
       view.dispatch({
-        changes: undoChanges,
+        changes: [{ from: 0, to: view.state.doc.length, insert: prevDoc }],
         userEvent: "input.replace.all",
       });
     });
