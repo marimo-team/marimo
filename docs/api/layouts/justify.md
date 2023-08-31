@@ -1,4 +1,4 @@
-# Stacks
+# Justify
 
 ```{eval-rst}
 .. autofunction:: marimo.center
