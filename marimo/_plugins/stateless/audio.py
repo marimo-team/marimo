@@ -20,7 +20,7 @@ def audio(
 
     ```python3
     mo.audio(
-        src="/recording.wav"
+        src="https://upload.wikimedia.org/wikipedia/commons/8/8c/Ivan_Ili%C4%87-Chopin_-_Prelude_no._1_in_C_major.ogg"
     )
 
     with open("recording.wav", "rb") as file:
@@ -33,7 +33,7 @@ def audio(
 
     **Returns.**
 
-    `Html` object
+    An audio player as an `Html` object.
     """
     resolved_src = src if isinstance(src, str) else _io_to_data_url(src)
     audio = h.audio(src=resolved_src, controls=True)

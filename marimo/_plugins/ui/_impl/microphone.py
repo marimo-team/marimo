@@ -11,19 +11,25 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 @mddoc
 class microphone(UIElement[str, io.BytesIO]):
-    """
-    An element that can be used to record audio via the user's browser.
-    The user must grant permission to use the microphone.
+    """An audio recorder element.
+
+    Use `mo.microphone` to record audio via the user's browser. The
+    user must grant permission to use the microphone.
 
     **Example.**
 
     ```python
     mic = mo.ui.microphone()
+    mic
+    ```
+
+    ```python
+    mo.audio(mic.value)
     ```
 
     **Attributes.**
 
-    - `value`: The blob of the recorded audio, as a bytes object.
+    - `value`: The blob of the recorded audio, as an `io.BytesIO` object.
 
     **Initialization Args.**
 
