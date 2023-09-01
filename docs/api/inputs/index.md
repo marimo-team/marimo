@@ -41,6 +41,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.dropdown
   marimo.ui.file
   marimo.ui.form
+  marimo.ui.microphone
   marimo.ui.multiselect
   marimo.ui.number
   marimo.ui.radio

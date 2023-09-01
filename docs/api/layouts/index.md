@@ -23,7 +23,6 @@ certain way.
 
   marimo.accordion
   marimo.callout
-  marimo.image
   marimo.hstack
   marimo.vstack
   marimo.tabs

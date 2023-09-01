@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-function fileToBase64(file: File): Promise<[string, string]> {
+export function blobToBase64(file: Blob): Promise<[string, string]> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -20,5 +20,5 @@ function fileToBase64(file: File): Promise<[string, string]> {
  * Returns a promised array of tuples [file name, file contents].
  */
 export function filesToBase64(files: File[]): Promise<Array<[string, string]>> {
-  return Promise.all(files.map((file) => fileToBase64(file)));
+  return Promise.all(files.map((file) => blobToBase64(file)));
 }
