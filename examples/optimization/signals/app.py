@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.2"
 app = marimo.App()
 
 
@@ -46,9 +46,13 @@ def __(complib, mo):
     ]
 
     # will be used to track which options the user has tried
-    component_radio_tracker = set()
+    component_radio_tracker, set_component_radio_tracker = mo.state(set())
 
-    component_radio = mo.ui.radio(component_options, label="**Component Class**")
+    component_radio = mo.ui.radio(
+        component_options,
+        label="**Component Class**",
+        on_change=lambda v: set_component_radio_tracker(lambda w: w.union({v}))
+    )
     other_component_radio = mo.ui.radio(
         component_options, label="**Component Class**"
     )
@@ -57,7 +61,15 @@ def __(complib, mo):
         component_radio,
         component_radio_tracker,
         other_component_radio,
+        set_component_radio_tracker,
     )
+
+
+@app.cell
+def __(component_options, component_radio_tracker):
+    def user_tried_all_components():
+        return len(component_radio_tracker.value) == len(component_options)
+    return user_tried_all_components,
 
 
 @app.cell
@@ -84,8 +96,8 @@ def __(intro_problem, mo):
 
 @app.cell
 def __(mo, show_third_component):
-    _n_components = "2" if not show_third_component else "3"
-    _three_component_text = " and third " if show_third_component else ""
+    _n_components = "2" if not show_third_component.value else "3"
+    _three_component_text = " and third " if show_third_component.value else ""
 
     mo.md(
         f"""
@@ -124,21 +136,10 @@ def __(intro, mo, radios, show_third_component):
                 ),
             ],
         )
-        if not show_third_component
+        if not show_third_component.value
         else mo.hstack(radios, justify="space-around")
     )
     return
-
-
-@app.cell
-def __(component_options, component_radio_tracker, radios):
-    if radios[0].value is not None:
-        component_radio_tracker.add(radios[0].value)
-
-
-    def user_tried_all_components():
-        return len(component_radio_tracker) == len(component_options)
-    return user_tried_all_components,
 
 
 @app.cell
@@ -146,7 +147,7 @@ def __(intro, mo, radios, show_third_component):
     # Plot 3-component decomposition
     (
         None
-        if not show_third_component
+        if not show_third_component.value
         else mo.hstack(
             [
                 *intro.plot_decomp(
@@ -174,29 +175,22 @@ def __(explainer, mo, radios, show_third_component):
 
 @app.cell
 def __(mo):
-    class _Toggle:
-        value = False
+    show_third_component, set_show_third_component = mo.state(False)
 
-        def toggle(self):
-            self.value = not self.value
-            return self
-
-        def __bool__(self):
-            return self.value
-
-
-    _show_third_component = _Toggle()
     add_component_button = mo.ui.button(
         label="Add another component 🔧",
-        value=_show_third_component,
-        on_click=lambda v: v.toggle(),
+        on_change=lambda _: set_show_third_component(True),
     )
     remove_component_button = mo.ui.button(
         label="Remove third component 🔧",
-        value=_show_third_component,
-        on_click=lambda v: v.toggle(),
+        on_change=lambda _: set_show_third_component(False),
     )
-    return add_component_button, remove_component_button
+    return (
+        add_component_button,
+        remove_component_button,
+        set_show_third_component,
+        show_third_component,
+    )
 
 
 @app.cell
@@ -218,9 +212,9 @@ def __(
             small and random. _When that happens, that usually means we 
             need to add another component to our decomposition_.
             """
-        ).callout(kind="alert")
+        ).callout(kind="warn")
         if user_tried_all_components()
-        and not show_third_component
+        and not show_third_component.value
         and not solved.now
         else None
     )
@@ -309,7 +303,7 @@ def __(mo, solved):
              ever unsure about what a component does, check out the reference
              at the bottom of the page.
              """
-        ).callout(kind="alert")
+        ).callout(kind="warn")
         if solved.ever
         else None
     )
@@ -336,20 +330,13 @@ def __(
             Hint: we generated the signal by adding a seasonal fluctuation
             to a line with constant slope.
             """
-        ).callout(kind="alert")
-        if user_tried_all_components() and show_third_component and not solved.now
+        ).callout(kind="warn")
+        if user_tried_all_components()
+        and show_third_component.value
+        and not solved.now
         else None
     )
     return
-
-
-@app.cell
-def __(add_component_button, remove_component_button):
-    # Interacting with either button should update `show_third_component`
-    (add_component_button, remove_component_button)
-
-    show_third_component = add_component_button.value
-    return show_third_component,
 
 
 @app.cell
@@ -397,15 +384,9 @@ def __(mo, selected_problem, solved):
             component classes in part 1 until you've "solved" the decomposition,
             then return here.
             """
-        ).callout(kind="warn")
+        ).callout(kind="alert")
     )
     return
-
-
-@app.cell
-def __(problems, selected_problem):
-    show_data_uploader = selected_problem.value == problems.CustomDataProblem
-    return show_data_uploader,
 
 
 @app.cell
@@ -416,7 +397,7 @@ def __(mo):
 
 
 @app.cell
-def __(csv_has_header, data_uploader, mo, show_data_uploader):
+def __(csv_has_header, data_uploader, mo):
     def read_uploaded_csv():
         from io import BytesIO
         import pandas as pd
@@ -435,7 +416,7 @@ def __(csv_has_header, data_uploader, mo, show_data_uploader):
     )
 
 
-    def _show_csv_parameters():
+    def show_csv_parameters():
         if _uploaded_df is not None:
             return f"""
 
@@ -449,31 +430,33 @@ def __(csv_has_header, data_uploader, mo, show_data_uploader):
             """
         else:
             return ""
+    return column_name, read_uploaded_csv, show_csv_parameters
 
 
-    (
-        mo.md(
-            f"""
-            **Upload a signal.**
+@app.cell
+def __(data_uploader, mo, problems, selected_problem, show_csv_parameters):
+    mo.stop(selected_problem.value != problems.CustomDataProblem)
 
-            You can upload your own signal and use this app to build a 
-            decomposition for it. Your signal should be a CSV file.
+    mo.md(
+        f"""
+        **Upload a signal.**
 
-            {data_uploader}
+        You can upload your own signal and use this app to build a 
+        decomposition for it. Your signal should be a CSV file.
 
-            {_show_csv_parameters()}
-            """
-        ).callout()
-        if show_data_uploader
-        else None
-    )
-    return column_name, read_uploaded_csv
+        {data_uploader}
+
+        {show_csv_parameters()}
+        """
+    ).callout()
+    return
 
 
 @app.cell
 def __(
     column_name,
     data_uploader,
+    mo,
     problems,
     read_uploaded_csv,
     selected_problem,
@@ -493,193 +476,127 @@ def __(
 
 
     problem = _construct_problem(selected_problem.value)
-    return problem,
+
+    # State associated with each problem
+    # The number of components in the decomposition
+    part_two_k, set_part_two_k = mo.state(2)
+
+    # The components selected: maintain as state so we can pre-populate
+    # them as components are added and removed
+    selected_components, set_selected_components = mo.state([])
+    selected_aggregate_components, set_selected_aggregate_components = mo.state({})
+
+    # The parameters selected: maintain as state so we can pre-populate
+    selected_params, set_selected_params = mo.state({})
+    selected_aggregate_params, set_selected_aggregate_params = mo.state({})
+    return (
+        part_two_k,
+        problem,
+        selected_aggregate_components,
+        selected_aggregate_params,
+        selected_components,
+        selected_params,
+        set_part_two_k,
+        set_selected_aggregate_components,
+        set_selected_aggregate_params,
+        set_selected_components,
+        set_selected_params,
+    )
 
 
 @app.cell
-def __(mo, problem):
-    mo.md(f"### {problem.name()}") if problem is not None else None
-    return
-
-
-@app.cell
-def __(problem):
-    problem.description() if problem is not None else None
-    return
-
-
-@app.cell
-def __(mo, problem):
-    # Add a ref to `problem`:
-    # When the problem is changed, this cell should be reset.
-    problem
-
-
-    class _Counter:
-        def __init__(self, value):
-            self.value = value
-
-        def increment(self):
-            self.value += 1
-            return self
-
-        def decrement(self):
-            self.value = max(2, self.value - 1)
-            return self
-
-
-    part_two_n_components_counter = _Counter(2)
-
+def __(mo, set_part_two_k):
     add_button = mo.ui.button(
-        value=part_two_n_components_counter,
-        on_click=lambda v: v.increment(),
+        on_change=lambda _: set_part_two_k(lambda k: k + 1),
         label="Add a component",
     )
+
     remove_button = mo.ui.button(
-        value=part_two_n_components_counter,
-        on_click=lambda v: v.decrement(),
+        on_click=lambda _: set_part_two_k(lambda k: max(2, k - 1)),
         label="Remove a component",
     )
-    return add_button, part_two_n_components_counter, remove_button
-
-
-@app.cell
-def __(add_button, part_two_n_components_counter, remove_button):
-    (add_button, remove_button)
-
-    part_two_k = part_two_n_components_counter.value
-    return part_two_k,
-
-
-@app.cell
-def __(problem):
-    # Add a ref to `problem`:
-    # When the problem is changed, this cell should be reset.
-    problem
-
-    selected_components = []
-    selected_params = {}
-
-
-    def get_default_component_value(index):
-        if index >= len(selected_components):
-            return None
-        return selected_components[index]
-    return get_default_component_value, selected_components, selected_params
+    return add_button, remove_button
 
 
 @app.cell
 def __(
-    component_array,
-    component_params,
+    complib,
+    mo,
+    part_two_k,
     selected_components,
-    selected_params,
+    set_selected_components,
 ):
-    # When the component classes or their parameters change, we need to update
-    # their default values
-    selected_components[:] = component_array.value
-
-    selected_params.clear()
-    selected_params.update(component_params.value)
-    return
+    def _get_default_component_value(index):
+        if index >= len(selected_components.value):
+            return None
+        return selected_components.value[index]
 
 
-@app.cell
-def __(complib, get_default_component_value, mo, part_two_k):
     _dropdowns = [
         mo.ui.dropdown(
             complib.RESIDUAL_COMPONENTS if i == 0 else complib.COMPONENT_LIBRARY,
-            value=get_default_component_value(i),
+            value=_get_default_component_value(i),
             allow_select_none=True,
         )
-        for i in range(part_two_k)
+        for i in range(part_two_k.value)
     ]
 
-    component_array = mo.ui.array(_dropdowns, label="Components")
+    component_array = mo.ui.array(
+        _dropdowns, label="Components", on_change=set_selected_components
+    )
     return component_array,
 
 
 @app.cell
-def __(
-    add_button,
-    complib,
-    component_array,
-    mo,
-    problem,
-    remove_button,
-    selected_params,
-):
-    # Add a ref to `problem`:
-    # This cell shouldn't show when a problem isn't selected,
-    # and when the problem is changed, this cell should be reset.
-    problem
-
+def __(complib, component_array, mo, selected_params, set_selected_params):
     component_params = mo.ui.dictionary(
         {
-            f"{i}": complib.parameter_controls(c, selected_params.get(str(i), {}))
+            f"{i}": complib.parameter_controls(
+                c, selected_params.value.get(str(i), {})
+            )
             for i, c in enumerate(component_array.value)
             if c is not None
         },
         label="Parameters",
-    )
-
-    (
-        mo.md(
-            f"""
-            ## {mo.md(f"{add_button} {remove_button}").center()}
-            """
-        )
-        if problem is not None
-        else None
+        on_change=set_selected_params,
     )
     return component_params,
 
 
 @app.cell
-def __(component_array, component_params, mo, problem):
-    (
-        mo.hstack([component_array, component_params])
-        if problem is not None
-        else None
+def __(mo, problem):
+    mo.stop(problem is None)
+
+    mo.md(f"### {problem.name()}")
+    return
+
+
+@app.cell
+def __(mo, problem):
+    mo.stop(problem is None)
+
+    problem.description()
+    return
+
+
+@app.cell
+def __(add_button, mo, problem, remove_button):
+    mo.stop(problem is None)
+
+    mo.md(
+        f"""
+        ## {mo.md(f"{add_button} {remove_button}").center()}
+        """
     )
     return
 
 
 @app.cell
-def __(component_array):
-    noise_component_selected = component_array.value[0] is not None
-    return noise_component_selected,
+def __(component_array, component_params, mo, problem):
+    mo.stop(problem is None)
 
-
-@app.cell
-def __(component_array, noise_component_selected, problem):
-    should_compute_decomposition = (
-        noise_component_selected
-        and sum(1 for v in component_array.value if v is not None) >= 2
-    ) and problem is not None
-    return should_compute_decomposition,
-
-
-@app.cell
-def __(problem):
-    problem
-
-    selected_aggregate_components = {}
-    selected_aggregate_params = {}
-
-
-    def get_default_aggregate_component_value(key, index):
-        if key not in selected_aggregate_components:
-            return None
-        selected_components = selected_aggregate_components[key]
-        if index >= len(selected_components):
-            return None
-        return selected_components[index]
-    return (
-        get_default_aggregate_component_value,
-        selected_aggregate_components,
-        selected_aggregate_params,
-    )
+    mo.hstack([component_array, component_params])
+    return
 
 
 @app.cell
@@ -687,11 +604,22 @@ def __(
     complib,
     component_array,
     component_params,
-    get_default_aggregate_component_value,
     mo,
+    selected_aggregate_components,
+    set_selected_aggregate_components,
 ):
     _aggregates = {}
     _options = [v for v in complib.COMPONENT_LIBRARY if v != "Aggregate"]
+
+
+    def _get_default_aggregate_component_value(key, index):
+        if key not in selected_aggregate_components.value:
+            return None
+        selected_components = selected_aggregate_components.value[key]
+        if index >= len(selected_components):
+            return None
+        return selected_components[index]
+
 
     for _i, _component in enumerate(component_array.value):
         _key = str(_i)
@@ -699,40 +627,33 @@ def __(
             _dropdowns = [
                 mo.ui.dropdown(
                     _options,
-                    get_default_aggregate_component_value(_key, i),
+                    _get_default_aggregate_component_value(_key, i),
                     allow_select_none=True,
                 )
                 for i in range(component_params.value[_key]["components"])
             ]
             _aggregates[_key] = mo.ui.array(_dropdowns, label="components")
 
-    aggregates = mo.ui.dictionary(_aggregates, label="Aggregates")
+    aggregates = mo.ui.dictionary(
+        _aggregates,
+        label="Aggregates",
+        on_change=set_selected_aggregate_components,
+    )
     return aggregates,
 
 
 @app.cell
 def __(
-    aggregate_params,
     aggregates,
-    selected_aggregate_components,
+    complib,
+    mo,
     selected_aggregate_params,
+    set_selected_aggregate_params,
 ):
-    selected_aggregate_components.clear()
-    selected_aggregate_components.update(aggregates.value)
-
-    selected_aggregate_params.clear()
-    selected_aggregate_params.update(aggregate_params.value)
-    return
-
-
-@app.cell
-def __(aggregates, complib, mo, problem, selected_aggregate_params):
-    problem
-
     _aggregate_params = {}
 
     for _key, _components in aggregates.value.items():
-        defaults = selected_aggregate_params.get(_key, {})
+        defaults = selected_aggregate_params.value.get(_key, {})
         _aggregate_params[_key] = mo.ui.dictionary(
             {
                 f"{i}": complib.parameter_controls(c, defaults.get(str(i), {}))
@@ -743,7 +664,9 @@ def __(aggregates, complib, mo, problem, selected_aggregate_params):
         )
 
     aggregate_params = mo.ui.dictionary(
-        _aggregate_params, label="Aggregate Parameters"
+        _aggregate_params,
+        label="Aggregate Parameters",
+        on_change=set_selected_aggregate_params,
     )
 
     (mo.hstack([aggregates, aggregate_params]) if aggregates.value else None)
@@ -771,6 +694,21 @@ def __(aggregate_params, aggregates, component_params):
 
 
 @app.cell
+def __(component_array):
+    noise_component_selected = component_array.value[0] is not None
+    return noise_component_selected,
+
+
+@app.cell
+def __(component_array, noise_component_selected, problem):
+    should_compute_decomposition = (
+        noise_component_selected
+        and sum(1 for v in component_array.value if v is not None) >= 2
+    ) and problem is not None
+    return should_compute_decomposition,
+
+
+@app.cell
 def __(
     component_array,
     mo,
@@ -779,6 +717,8 @@ def __(
     rolled_up_params,
     should_compute_decomposition,
 ):
+    mo.stop(problem is None)
+
     def _feedback():
         if not noise_component_selected and any(
             v is not None for v in component_array.value
@@ -801,8 +741,7 @@ def __(
                 rolled_up_params,
             )
 
-
-    _feedback() if problem is not None else None
+    _feedback()
     return
 
 
@@ -836,11 +775,14 @@ def __(construct_components):
 def __(
     component_array,
     decompose,
+    mo,
     plt,
     problem,
     rolled_up_params,
     should_compute_decomposition,
 ):
+    mo.stop(not should_compute_decomposition)
+
     def _do_decomposition():
         components = tuple([v for v in component_array.value if v is not None])
         f = decompose(problem, components, rolled_up_params)
@@ -853,7 +795,7 @@ def __(
         return f
 
 
-    _do_decomposition() if should_compute_decomposition else None
+    _do_decomposition()
     return
 
 
@@ -865,16 +807,14 @@ def __(complib, mo):
 
 @app.cell
 def __(explainer_choice, mo, solved):
-    (
-        mo.md(
-            f"""
-            ## Reference
+    mo.stop(not solved.ever)
 
-            Tell me more about the {explainer_choice} component class.
-            """
-        )
-        if solved.ever
-        else None
+    mo.md(
+        f"""
+        ## Reference
+
+        Tell me more about the {explainer_choice} component class.
+        """
     )
     return
 
@@ -889,22 +829,20 @@ def __(explainer, explainer_choice, mo):
 
 @app.cell
 def __(mo, solved):
-    (
-        mo.md(
-            """
-            #### More about Signal Decomposition
+    mo.stop(not solved.ever)
 
-            This tutorial is based on the research book, ["Signal Decomposition 
-            Using  Masked Proximal Operators"](https://web.stanford.edu/~boyd/papers/sig_decomp_mprox.html),
-            by Bennet Meyers and Stephen Boyd. It uses the [`signal-decomp`](https://github.com/cvxgrp/signal-decomposition) Python library to
-            compute decompositions.
+    mo.md(
+        """
+        #### More about Signal Decomposition
 
-            We hope this app shows that math can be intuitive, actionable,
-            and fun.
-            """
-        )
-        if solved.ever
-        else None
+        This tutorial is based on the research book, ["Signal Decomposition 
+        Using  Masked Proximal Operators"](https://web.stanford.edu/~boyd/papers/sig_decomp_mprox.html),
+        by Bennet Meyers and Stephen Boyd. It uses the [`signal-decomp`](https://github.com/cvxgrp/signal-decomposition) Python library to
+        compute decompositions.
+
+        We hope this app shows that math can be intuitive, actionable,
+        and fun.
+        """
     )
     return
 

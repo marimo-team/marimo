@@ -12,10 +12,51 @@ def __(mo):
 
 @app.cell
 def __(NUMBER_OF_EXAMPLES, mo):
-    index = mo.ui.number(0, NUMBER_OF_EXAMPLES, step=1)
+    index_state, set_index = mo.state(0)
 
-    mo.md(f"**Choose an example to label.** {index}")
+
+    def increment_index():
+        set_index(min(index_state.value + 1, NUMBER_OF_EXAMPLES - 1))
+
+
+    def decrement_index() -> int:
+        set_index(max(0, index_state.value - 1))
+    return decrement_index, increment_index, index_state, set_index
+
+
+@app.cell
+def __(decrement_index, increment_index, mo):
+    next_button = mo.ui.button(label="next", on_change=lambda _: increment_index())
+
+    previous_button = mo.ui.button(
+        label="previous", on_change=lambda _: decrement_index()
+    )
+    return next_button, previous_button
+
+
+@app.cell
+def __(mo):
+    mo.md(f"**Choose an example to label.**")
+    return
+
+
+@app.cell
+def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
+    index = mo.ui.number(
+        0,
+        NUMBER_OF_EXAMPLES - 1,
+        value=index_state.value,
+        step=1,
+        label="example number",
+        on_change=set_index,
+    )
     return index,
+
+
+@app.cell
+def __(index, mo, next_button, previous_button):
+    mo.hstack([index, previous_button, next_button], justify="start")
+    return
 
 
 @app.cell
@@ -31,32 +72,46 @@ def __(mo):
 
 
 @app.cell
-def __(index, labels, mo):
+def __(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
+    labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
+    return labels,
+
+
+@app.cell
+def __(LABELS_PATH, labels, write_labels):
+    def update_label(value, index):
+        labels[index]["label"] = value
+        write_labels(labels, LABELS_PATH)
+    return update_label,
+
+
+@app.cell
+def __(LABELS_PATH, labels, write_labels):
+    def update_notes(value, index):
+        labels[index]["notes"] = value
+        write_labels(labels, LABELS_PATH)
+    return update_notes,
+
+
+@app.cell
+def __(index, labels, mo, update_label, update_notes):
     data = labels[index.value]
 
     label_picker = mo.ui.radio(
         ["Real", "AI Generated", "Unlabeled"],
         value=data["label"],
         label="**Selection.**",
+        on_change=lambda v: update_label(v, index.value),
     )
 
-    notes = mo.ui.text_area(value=data["notes"], label="**Notes.**")
+    notes = mo.ui.text_area(
+        value=data["notes"],
+        label="**Notes.**",
+        on_change=lambda v: update_notes(v, index.value),
+    )
 
     mo.hstack([label_picker, notes], justify="space-around")
     return data, label_picker, notes
-
-
-@app.cell
-def __(LABELS_PATH, index, label_picker, labels, notes, write_labels):
-    labels[index.value] = {"label": label_picker.value, "notes": notes.value}
-    write_labels(labels, LABELS_PATH)
-    return
-
-
-@app.cell
-def __(LABELS_PATH, NUMBER_OF_EXAMPLES, load_labels):
-    labels = load_labels(LABELS_PATH, NUMBER_OF_EXAMPLES)
-    return labels,
 
 
 @app.cell

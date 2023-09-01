@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, Optional
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.rich_help import mddoc
@@ -55,6 +55,7 @@ class dictionary(_batch_base):
     - `value`: a dict holding the values of the UI elements, keyed by
                their names.
     - `elements`: a dict of the wrapped elements (clones of the originals)
+    - `on_change`: optional callback to run when this element's value changes
 
     **Initialization Args.**
 
@@ -68,6 +69,7 @@ class dictionary(_batch_base):
         elements: dict[str, UIElement[Any, Any]],
         *,
         label: str = "",
+        on_change: Optional[Callable[[dict[str, object]], None]] = None,
     ) -> None:
         # Why we clone the wrapped elements:
         #
@@ -95,7 +97,12 @@ class dictionary(_batch_base):
             json_data=format_structure(elements),
             name="dictionary" if not label else label,
         )
-        super().__init__(html=slotted_html, elements=elements, label=label)
+        super().__init__(
+            html=slotted_html,
+            elements=elements,
+            label=label,
+            on_change=on_change,
+        )
 
     def _clone(self) -> dictionary:
         """Custom clone method so new dict gets copies of UI elements."""

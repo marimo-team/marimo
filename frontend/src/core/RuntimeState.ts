@@ -59,6 +59,7 @@ export class RuntimeState {
   flushUpdates() {
     if (this.componentsToUpdate.size > 0) {
       this.registerRunStart();
+
       sendComponentValues(
         Array.from(this.componentsToUpdate.values(), (objectId) => ({
           objectId: objectId,

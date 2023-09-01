@@ -9,15 +9,11 @@ import pandas as pd
 
 
 def get_c02_data() -> pd.DataFrame:
-    path = "../data/co2_weekly_mlo.csv"
-    if not os.path.isfile(path):
-        path = (
-            "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv"
-        )
+    path = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_weekly_mlo.csv"
     df = pd.read_csv(
         path,
-        # column names on row 52, data starts on row 53
-        skiprows=51,
+        # column names on row 35, data starts on row 56
+        skiprows=34,
         index_col=False,
         na_values=[-999.99],
     )

@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Final
+from typing import Any, Callable, Dict, Final, Optional
 
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -23,6 +23,7 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
         html: Html,
         elements: dict[str, UIElement[JSONType, object]],
         label: str = "",
+        on_change: Optional[Callable[[Dict[str, object]], None]] = None,
     ) -> None:
         self._elements = elements
         super().__init__(
@@ -38,6 +39,7 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
                 },
             },
             slotted_html=html.text,
+            on_change=on_change,
         )
 
     @property
@@ -96,23 +98,27 @@ class batch(_batch_base):
 
     - `value`: a `dict` of the batched elements' values
     - `elements`: a `dict` of the batched elements (clones of the originals)
+    - `on_change`: optional callback to run when this element's value changes
 
     **Initialization Args.**
 
     - html: a templated `Html` object
     - elements: the UI elements to interpolate into the HTML template
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     def __init__(
         self,
         html: Html,
         elements: dict[str, UIElement[Any, Any]],
+        on_change: Optional[Callable[[Dict[str, object]], None]] = None,
     ) -> None:
         self._html = html
         elements = {key: element._clone() for key, element in elements.items()}
         super().__init__(
             html=Html(self._html.text.format(**elements)),
             elements=elements,
+            on_change=on_change,
         )
 
     def _clone(self) -> batch:
