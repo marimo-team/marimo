@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Final, Optional, Union
+from typing import Callable, Final, Optional, Union
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -41,6 +41,7 @@ class refresh(UIElement[int, int]):
     the refresh button will not be displayed with a dropdown for auto-refresh.
     - `default_interval`: The default value of the refresh interval.
     - `label`: optional text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     name: Final[str] = "marimo-refresh"
@@ -51,6 +52,7 @@ class refresh(UIElement[int, int]):
         default_interval: Optional[Union[int, float, str]] = None,
         *,
         label: str = "",
+        on_change: Optional[Callable[[int], None]] = None,
     ) -> None:
         if default_interval and not isinstance(
             default_interval, (int, float, str)
@@ -92,6 +94,7 @@ class refresh(UIElement[int, int]):
                 "options": resolved_options,
                 "default-interval": default_interval,
             },
+            on_change=on_change,
         )
 
     def _convert_value(self, value: int) -> int:
