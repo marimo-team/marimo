@@ -359,7 +359,9 @@ const CellComponent = (
       Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
       scrollActiveLineIntoView(),
       onChangePlugin,
-      showPlaceholder ? smartPlaceholderExtension("import marimo as mo") : [],
+      showPlaceholder
+        ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
+        : [],
     ];
 
     // Should focus will be true if its a newly created editor

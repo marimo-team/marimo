@@ -5,8 +5,31 @@ import { formatEditorViews } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 
+function acceptPlaceholder(cm: EditorView, text: string) {
+  // if empty, insert the placeholder
+  if (cm.state.doc.length === 0) {
+    cm.dispatch({
+      changes: {
+        from: 0,
+        to: cm.state.doc.length,
+        insert: text,
+      },
+    });
+    // move cursor to end of placeholder
+    cm.dispatch({
+      selection: {
+        anchor: cm.state.doc.length,
+        head: cm.state.doc.length,
+      },
+    });
+    return true;
+  }
+  return false;
+}
+
 /**
- * A placeholder that will be shown when the editor is empty and support auto-complete on right arrow.
+ * A placeholder that will be shown when the editor is empty and support
+ * auto-complete on right arrow or Tab.
  */
 export function smartPlaceholderExtension(text: string) {
   return [
@@ -15,27 +38,12 @@ export function smartPlaceholderExtension(text: string) {
       {
         key: "ArrowRight",
         preventDefault: true,
-        run: (cm) => {
-          // if empty, insert the placeholder
-          if (cm.state.doc.length === 0) {
-            cm.dispatch({
-              changes: {
-                from: 0,
-                to: cm.state.doc.length,
-                insert: text,
-              },
-            });
-            // move cursor to end of placeholder
-            cm.dispatch({
-              selection: {
-                anchor: cm.state.doc.length,
-                head: cm.state.doc.length,
-              },
-            });
-            return true;
-          }
-          return false;
-        },
+        run: (cm) => acceptPlaceholder(cm, text),
+      },
+      {
+        key: "Tab",
+        preventDefault: true,
+        run: (cm) => acceptPlaceholder(cm, text),
       },
     ]),
   ];
