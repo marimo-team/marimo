@@ -12,24 +12,24 @@ def __(mo):
 
 @app.cell
 def __(NUMBER_OF_EXAMPLES, mo):
-    def next_index(index: int) -> int:
-        return min(index + 1, NUMBER_OF_EXAMPLES - 1)
-
-    def previous_index(index: int) -> int:
-        return max(0, index - 1)
-
     index_state, set_index = mo.state(0)
-    return index_state, next_index, previous_index, set_index
+
+
+    def increment_index():
+        set_index(min(index_state.value + 1, NUMBER_OF_EXAMPLES - 1))
+
+
+    def decrement_index() -> int:
+        set_index(max(0, index_state.value - 1))
+    return decrement_index, increment_index, index_state, set_index
 
 
 @app.cell
-def __(mo, next_index, previous_index, set_index):
-    next_button = mo.ui.button(
-        label="next", on_change=lambda _: set_index(next_index)
-    )
+def __(decrement_index, increment_index, mo):
+    next_button = mo.ui.button(label="next", on_change=lambda _: increment_index())
 
     previous_button = mo.ui.button(
-        label="previous", on_change=lambda _: set_index(previous_index)
+        label="previous", on_change=lambda _: decrement_index()
     )
     return next_button, previous_button
 
