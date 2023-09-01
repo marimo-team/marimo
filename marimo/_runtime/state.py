@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable, Generic, TypeVar
 
 from marimo._runtime.context import get_context
+from marimo._output.rich_help import mddoc
 
 T = TypeVar("T")
 
@@ -29,6 +30,7 @@ class State(Generic[T]):
         kernel.register_state_update(self)
 
 
+@mddoc
 def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     """Mutable reactive state
 
