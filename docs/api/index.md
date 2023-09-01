@@ -10,6 +10,7 @@
   layouts/index
   media/index
   html
+  state
   misc
 ```
 
@@ -26,4 +27,5 @@ markdown and tabs.
 | {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more         |
 | {doc}`media/index`   | Output media like images and audio                                |
 | {doc}`html`          | Working with HTML objects                                         |
+| {doc}`state`         | Using reactive state                                              |
 | {doc}`misc`          | Miscellaneous utilities                                           |

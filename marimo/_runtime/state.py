@@ -43,7 +43,7 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     all other cells that read any global variables assigned to the state
     object will automatically run.
 
-    You can use this function in conjunction with UI element `on_change`
+    You can use this function in conjunction with `UIElement` `on_change`
     handlers to trigger side-effects when an element's value is updated. For
     example, you can tie multiple UI elements to derive their values from
     shared state.
@@ -95,12 +95,13 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     ```
 
     ```python
+    # slider and number are synchronized to have the same value (try it!)
     [slider, number]
     ```
 
     **Args**:
 
-    - value: initial value of the state
+    - `value`: initial value of the state
 
     **Returns**:
 
