@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Callable, Generic, TypeVar
 
-from marimo._runtime.context import get_context
 from marimo._output.rich_help import mddoc
+from marimo._runtime.context import get_context
 
 T = TypeVar("T")
 
