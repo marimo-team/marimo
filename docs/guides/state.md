@@ -109,10 +109,11 @@ automatically runs all _other_ cells that reference any **global** variables
 assigned to the state object.
 ```
 
-<div align="center">
+<div align="center" style="margin-bottom: 2rem; margin-top:2rem">
 <figure>
 <img src="/_static/docs-state-update.gif"/>
 </figure>
+<figcaption>Calling `set_counter` in the second cell triggers the third cell (which refs `counter`) to run.</figcaption>
 </div>
 
 This rule has some important aspects:
