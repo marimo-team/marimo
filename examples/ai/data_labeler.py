@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -47,6 +47,7 @@ def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
         NUMBER_OF_EXAMPLES - 1,
         value=index_state.value,
         step=1,
+        debounce=True,
         label="example number",
         on_change=set_index,
     )
@@ -94,6 +95,20 @@ def __(LABELS_PATH, labels, write_labels):
 
 
 @app.cell
+def __(mo, notes):
+    mo.stop(len(notes.value) <= 100)
+
+    _character_count = mo.md(f"`{len(notes.value)}/100` characters used").right()
+
+    mo.md(
+        f"""
+        Notes can't be longer than 100 characters. {_character_count}
+        """
+    ).callout(kind="alert")
+    return
+
+
+@app.cell
 def __(index, labels, mo, update_label, update_notes):
     data = labels[index.value]
 
@@ -130,6 +145,11 @@ def __(json, os):
 
 
     def write_labels(labels, path):
+        # Trunacate notes
+        labels = [
+            {"label": item["label"], "notes": item["notes"][:100]}
+            for item in labels
+        ]
         with open(path, "w") as f:
             f.write(json.dumps(labels))
     return load_labels, write_labels
