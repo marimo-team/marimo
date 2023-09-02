@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -22,16 +22,29 @@ def __(dataclass):
 @app.cell
 def __(mo):
     tasks, set_tasks = mo.state([])
-    return set_tasks, tasks
+    mutation_signal, set_mutation_signal = mo.state(False)
+    return mutation_signal, set_mutation_signal, set_tasks, tasks
 
 
 @app.cell
-def __(Task, mo, set_tasks, tasks):
+def __(mo, mutation_signal):
+    mutation_signal
+
     task_entry_box = mo.ui.text(placeholder="a task ...")
+    return task_entry_box,
+
+
+@app.cell
+def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box, tasks):
+    def add_task():
+        if task_entry_box.value:
+            set_tasks(tasks.value + [Task(task_entry_box.value)])
+        set_mutation_signal(True)
+
 
     add_task_button = mo.ui.button(
         label="add task",
-        on_change=lambda _: set_tasks(tasks.value + [Task(task_entry_box.value)]),
+        on_change=lambda _: add_task(),
     )
 
     clear_tasks_button = mo.ui.button(
@@ -40,7 +53,7 @@ def __(Task, mo, set_tasks, tasks):
             [task for task in tasks.value if not task.done]
         ),
     )
-    return add_task_button, clear_tasks_button, task_entry_box
+    return add_task, add_task_button, clear_tasks_button
 
 
 @app.cell
@@ -48,12 +61,6 @@ def __(add_task_button, clear_tasks_button, mo, task_entry_box):
     mo.hstack(
         [task_entry_box, add_task_button, clear_tasks_button], justify="start"
     )
-    return
-
-
-@app.cell
-def __(mo, task_list):
-    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 
@@ -67,6 +74,12 @@ def __(Task, mo, set_tasks, tasks):
         ),
     )
     return task_list,
+
+
+@app.cell
+def __(mo, task_list):
+    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
+    return
 
 
 @app.cell

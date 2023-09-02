@@ -16,18 +16,34 @@ You can build powerful, interactive notebooks and apps using just `mo.ui` and
 reactivity.
 
 Sometimes, however, you might want interactions to mutate state:
+
 - Maybe you're building a checklist, and you want to maintain a list of action
   items, even as you add and remove some items.
+
+<div align="center" style="margin-top:2rem; margin-bottom:2rem">
+<figure>
+<img src="/_static/docs-state-task-list.gif"/>
+</figure>
+<figcaption>A proof-of-concept TODO list made using state.</figcaption>
+</div>
+
+
 - Maybe you want to tie two different UI elements, so that updating one updates
   the other.
+
+<div align="center" style="margin-top:2rem; margin-bottom:2rem">
+<figure>
+<img src="/_static/docs-state-tied.gif"/>
+<figcaption>Use state to tie two elements together.</figcaption>
+</figure>
+</div>
+
 
 For cases like these, marimo provides the function [`mo.state`](/api/state),
 which returns a state object and a function that updates the state. When you
 call the setter function in one cell, all other cells that reference the state
 object **via a global variable** are automatically run (similar to UI elements).
 
-
-TODO gifs
 
 ```{admonition} State and UI Elements
 :class: tip
@@ -98,6 +114,12 @@ automatically runs all _other_ cells that reference any **global** variables
 assigned to the state object.
 ```
 
+<div align="center">
+<figure>
+<img src="/_static/docs-state-update.gif"/>
+</figure>
+</div>
+
 This rule has some important aspects:
 
 1. The cell that called the setter won't be re-run, even if it reads
@@ -106,7 +128,6 @@ This rule has some important aspects:
 
 Notice how similar this rule is to the reactivity rule for UI elements.
 
-TODO GIF
 
 ## Using state with UI Elements
 
@@ -128,7 +149,11 @@ particular example could be implemented without state (try it!), but the
 implementation using state is simpler. 
 
 
-TODO Gif
+<div align="center">
+<figure>
+<img src="/_static/docs-state-counter.gif"/>
+</figure>
+</div>
 
 
 ```python
@@ -167,7 +192,12 @@ mo.md(
 This example shows how to tie two different UI elements so that each one's
 value depends on the other. This is impossible to do without `mo.state`.
 
-TODO gif
+<div align="center">
+<figure>
+<img src="/_static/docs-state-tied.gif"/>
+</figure>
+</div>
+
 
 ```python
 import marimo as mo
@@ -208,7 +238,14 @@ the one that just called the setter.
 
 ### Example: todo list
 
-The next few cells use state to create a TODO list.
+The next few cells use state to create a todo list.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-state-task-list.gif"/>
+</figure>
+</div>
+
 
 ```python
 import marimo as mo
