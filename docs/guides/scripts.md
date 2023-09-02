@@ -1,4 +1,4 @@
-# Scripts
+# Run as a script
 
 You can run marimo notebooks as scripts at the command line, just like
 any other Python script. For example,

@@ -1,4 +1,4 @@
-# Best Practices
+# Best practices
 
 The few constraints marimo puts on your notebooks are natural consequences of
 the fact that marimo programs are directed acyclic graphs. As long as you keep

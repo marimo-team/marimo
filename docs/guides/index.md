@@ -9,6 +9,7 @@
   reactivity
   interactivity
   outputs
+  state
   apps
   scripts
   best_practices
@@ -22,11 +23,12 @@ These guides cover marimo's core concepts.
 | {doc}`reactivity`     | How reactive execution works              |
 | {doc}`interactivity`  | Using interactive UI elements             |
 | {doc}`outputs`        | Markdown, plots, and other visual outputs |
+| {doc}`state`          | Reacting to interactions with state       |
 | {doc}`apps`           | Running notebooks as apps                 |
 | {doc}`scripts`        | Running notebooks as scripts              |
 | {doc}`best_practices` | Best practices when working with marimo   |
 
-```{admonition} Learn by doing
+```{admonition} Learn by doing!
 :class: tip
 
 Prefer a hands-on learning experience? marimo comes packaged with interactive

@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -197,11 +196,11 @@ def __(mo):
 
         Sometimes, however, you might want interactions to mutate **state**. 
         Maybe you're building a checklist, and you want to maintain a list
-        of action items. Or maybe you want tie two different UI elements, so that 
-        updating one updates the other. 
+        of action items. Or maybe you want to tie two different UI elements, so 
+        that updating one updates the other. 
 
         For these and other cases, marimo provides the function `mo.state`, which
-        return a state object and a function that updates the state. When you
+        returns a state object and a function that updates the state. When you
         call the setter function in one cell, all other cells that reference the
         state object via a global variable are automatically run (similar to UI 
         elements).
@@ -263,7 +262,7 @@ def __(mo):
                 """
                 You can get far using just `mo.ui`, without state. That said,
                 judiciously using state can simplify the implementation of highly 
-                interactive notebooks/apps, and also enables new use cases..
+                interactive notebooks/apps, and also enables new use cases.
                 """
             ),
         }
@@ -336,9 +335,9 @@ def __(counter, mo):
     mo.md(
         f"""
         The counter's current value is **{counter.value}**!
-        
-        Notice that this cell runs automatically, even though it doesn't reference 
-        either button. 
+
+        This cell runs automatically on button click, even though it 
+        doesn't reference either button. 
         """
     )
     return
@@ -470,7 +469,7 @@ def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box, tasks):
             [task for task in tasks.value if not task.done]
         )
         set_task_list_mutated(True)
-        
+
     add_task_button = mo.ui.button(
         label="add task",
         on_change=lambda _: add_task(),
