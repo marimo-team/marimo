@@ -3,21 +3,18 @@
 ```{admonition} Advanced topic!
 :class: warning
 
-This guide covers reactive state, an advanced topic. Unless you're
-making complex apps, you likely won't need the concepts in this guide. You
-most likely don't need state for your day-to-day exploratory data analysis
-or for running numerical experiments.
-
-With that in mind, we recommend skipping this guide and only returning here if
-you feel limited in your options to responding to user interactions.
+This guide covers reactive state, an advanced topic. You likely don't need
+state for day-to-day exploratory data analysis or numerical experiments. We
+recommend skipping this guide and only returning here if you feel limited in
+your options to responding to user interactions.
 ```
 
 You can build powerful, interactive notebooks and apps using just `mo.ui` and
 reactivity.
 
-Sometimes, however, you might want interactions to mutate state:
+But sometimes, you might want interactions to mutate state:
 
-- Maybe you're building a checklist, and you want to maintain a list of action
+- You're building a checklist, and you want to maintain a list of action
   items, even as you add and remove some items.
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
@@ -28,7 +25,7 @@ Sometimes, however, you might want interactions to mutate state:
 </div>
 
 
-- Maybe you want to tie two different UI elements, so that updating one updates
+- You want to tie two different UI elements so that updating one updates
   the other.
 
 <div align="center" style="margin-top:2rem; margin-bottom:2rem">
@@ -39,30 +36,28 @@ Sometimes, however, you might want interactions to mutate state:
 </div>
 
 
-For cases like these, marimo provides the function [`mo.state`](/api/state),
+For cases like these, marimo provides the function [`mo.state()`](/api/state),
 which returns a state object and a function that updates the state. When you
 call the setter function in one cell, all other cells that reference the state
 object **via a global variable** are automatically run (similar to UI elements).
 
 
-```{admonition} State and UI Elements
-:class: tip
+```{admonition} State and UI elements are similar
+:class: note
 
-In marimo, a `State` object is analogous to a UI element. When you interact
+A `State` object is analogous to a UI element. When you interact
 with a UI element, all cells that reference that element via a global variable
 run automatically with the new value. In the same way, when you update a state
 object via its setter, all other cells that reference the object via
 a global variable run automatically with the new value.
 
 `State` is particularly useful when used in conjunction with a `UIElement`'s
-`on_change` callback to run side effects based on user input. You can also use
-it to introduce cycles into a marimo program. Just be careful not to introduce
-an infinite loop!
+`on_change` callback to run side effects based on user input.
 ```
 
 ## Creating state
 
-[`mo.state`](/api/state) takes an initial state value as its argument, and
+[`mo.state()`](/api/state) takes an initial state value as its argument, and
 returns
 
 - a `State` object;
@@ -122,21 +117,33 @@ assigned to the state object.
 
 This rule has some important aspects:
 
-1. The cell that called the setter won't be re-run, even if it reads
+1. Only cells that read the state via a global variable will be run.
+2. The cell that called the setter won't be re-run, even if it reads
    the `State` object's value.
-2. Only cells that read the state via a global variable will be run.
 
-Notice how similar this rule is to the reactivity rule for UI elements.
+Notice how similar this rule is to the reactivity rule for UI element
+interactions.
 
+```{admonition} Cycles at runtime
+:class: warning
+You can use state to introduce cycles across cells at runtime. This lets
+you tie multiple UI elements together, for example. Just be careful not to
+introduce an infinite loop!
 
-## Using state with UI Elements
+marimo programs are statically parsed into directed acyclic graphs (DAGs)
+involving cells, and state doesn't change that. Think of state setters
+as hooking into the DAG: at runtime, when they're invoked (and only when
+they're invoked), they trigger additional computation.
+```
+
+## Using state with UI elements
 
 Every UI element takes an optional `on_change` callback, a function that takes
 the new value of the element and does anything with it. You can use the setter
 function in an `on_change` callback to mutate state.
 
 ```{admonition} Use state sparingly
-:class: tip
+:class: note
 
 You can get far using just `mo.ui`, without state. But judiciously using
 state can simplify the implementation of highly interactive notebooks/apps, and
@@ -204,12 +211,12 @@ import marimo as mo
 ```
 
 ```python
-shared_state, set_shared_state = mo.state(0)
+x_state, set_x_state = mo.state(0)
 ```
 
 ```python
 x = mo.ui.slider(
-    0, 10, value=shared_state.value, on_change=set_shared_state, label="$x$:"
+    0, 10, value=x_state.value, on_change=set_x_state, label="$x$:"
 )
 ```
 
@@ -217,8 +224,8 @@ x = mo.ui.slider(
 x_plus_one = mo.ui.number(
     1,
     11,
-    value=shared_state.value + 1,
-    on_change=lambda v: set_shared_state(v - 1),
+    value=x_state.value + 1,
+    on_change=lambda v: set_x_state(v - 1),
     label="$x + 1$:",
 )
 ```
@@ -228,7 +235,7 @@ x_plus_one = mo.ui.number(
 ```
 
 ```{admonition} Create tied UI elements in separate cells
-:class: tip
+:class: note
 
 Notice that we created the slider and number elements in different cells.
 When tying elements, this is necessary, because calling a setter
@@ -249,6 +256,7 @@ The next few cells use state to create a todo list.
 
 ```python
 import marimo as mo
+from dataclasses import dataclass
 ```
 
 ```python
@@ -259,12 +267,12 @@ class Task:
 
 
 tasks, set_tasks = mo.state([])
-task_list_mutated, set_task_list_mutated = mo.state(False)
+task_added, set_task_added = mo.state(False)
 ```
 
 ```python
-# Refresh the text box whenever the task list is mutated
-task_list_mutated
+# Refresh the text box whenever a task is added
+task_added
 
 task_entry_box = mo.ui.text(placeholder="a task ...")
 ```
@@ -273,13 +281,12 @@ task_entry_box = mo.ui.text(placeholder="a task ...")
 def add_task():
     if task_entry_box.value:
         set_tasks(tasks.value + [Task(task_entry_box.value)])
-        set_task_list_mutated(True)
+        set_task_added(True)
 
 def clear_tasks():
     set_tasks(
         [task for task in tasks.value if not task.done]
     )
-    set_task_list_mutated(True)
 
 add_task_button = mo.ui.button(
     label="add task",
