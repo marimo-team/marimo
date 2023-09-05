@@ -26,7 +26,6 @@ certain way.
   marimo.callout
   marimo.center
   marimo.hstack
-  marimo.image
   marimo.left
   marimo.right
   marimo.vstack
