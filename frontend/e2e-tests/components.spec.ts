@@ -212,13 +212,9 @@ test("table", async ({ page }) => {
   await expect(element).toBeVisible();
   // Click first checkbox to select all
   await page.getByRole("checkbox").first().click();
-  await page.waitForTimeout(100); // Sleeps are not ideal
-  const output = await page
-    .locator("#cell-3")
-    .locator(".marimo-json-output")
-    .first()
-    .innerText();
-  expect(output).toMatch(
+  expect(
+    page.locator("#cell-3").locator(".marimo-json-output").first()
+  ).toHaveText(
     `
 [2 Items
 0:{2 Items
@@ -230,18 +226,15 @@ test("table", async ({ page }) => {
 "last_name":"Schrute"
 }
 ]
-  `.trim()
+  `.trim(),
+    { useInnerText: true }
   );
 
   // Click second checkbox to remove first row
   await page.getByRole("checkbox").nth(1).click();
-  await page.waitForTimeout(100); // Sleeps are not ideal
-  const output2 = await page
-    .locator("#cell-3")
-    .locator(".marimo-json-output")
-    .first()
-    .innerText();
-  expect(output2).toMatch(
+  expect(
+    page.locator("#cell-3").locator(".marimo-json-output").first()
+  ).toHaveText(
     `
 [1 Items
 0:{2 Items
@@ -249,7 +242,8 @@ test("table", async ({ page }) => {
 "last_name":"Schrute"
 }
 ]
-`.trim()
+`.trim(),
+    { useInnerText: true }
   );
 });
 
@@ -296,20 +290,17 @@ test("complex - array", async ({ page }) => {
   await slider.dragTo(page.locator("marimo-slider").first());
   await date.fill("2020-01-20");
   // Verify output
-  await page.waitForTimeout(100); // Sleeps are not ideal
-  const output = await page
-    .locator("#cell-6")
-    .locator(".marimo-json-output")
-    .first()
-    .innerText();
-  expect(output).toMatch(
+  expect(
+    page.locator("#cell-6").locator(".marimo-json-output").first()
+  ).toHaveText(
     `
 [3 Items
 0:"hi marimo"
 1:5
 2:2020-01-20
 ]
-`.trim()
+`.trim(),
+    { useInnerText: true }
   );
 });
 
@@ -327,19 +318,16 @@ test("complex - batch", async ({ page }) => {
   await textbox.fill("hi again marimo");
   await date.fill("2020-04-20");
   // Verify output
-  await page.waitForTimeout(100); // Sleeps are not ideal
-  const output = await page
-    .locator("#cell-6")
-    .locator(".marimo-json-output")
-    .first()
-    .innerText();
-  expect(output).toMatch(
+  expect(
+    page.locator("#cell-6").locator(".marimo-json-output").first()
+  ).toHaveText(
     `
 {2 Items
 "name":"hi again marimo"
 "date":2020-04-20
 }
-`.trim()
+`.trim(),
+    { useInnerText: true }
   );
 });
 
@@ -361,13 +349,9 @@ test("complex - dictionary", async ({ page }) => {
   // Click last once
   await buttons.last().click();
   // Verify output
-  await page.waitForTimeout(100); // Sleeps are not ideal
-  const output = await page
-    .locator("#cell-6")
-    .locator(".marimo-json-output")
-    .first()
-    .innerText();
-  expect(output).toMatch(
+  expect(
+    page.locator("#cell-6").locator(".marimo-json-output").first()
+  ).toHaveText(
     `
 {3 Items
 "slider":1
@@ -378,7 +362,8 @@ test("complex - dictionary", async ({ page }) => {
 2:1
 ]
 }
-`.trim()
+`.trim(),
+    { useInnerText: true }
   );
 });
 

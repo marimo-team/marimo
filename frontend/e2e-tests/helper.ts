@@ -79,7 +79,7 @@ export async function pressShortcut(page: Page, action: HotkeyAction) {
   const capitalized = split.map((s) => s[0].toUpperCase() + s.slice(1));
   const keymap = capitalized
     .join("+")
-    .replace("Cmd", "Meta")
+    .replace("Cmd", isMac ? "Meta" : "Control")
     .replace("Ctrl", "Control");
 
   await page.keyboard.press(keymap);
