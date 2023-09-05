@@ -26,6 +26,7 @@ __all__ = [
     "Html",
     "image",
     "md",
+    "pdf",
     "refs",
     "stop",
     "tabs",
@@ -47,6 +48,7 @@ from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout_output import callout
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime.control_flow import MarimoStopError, stop
