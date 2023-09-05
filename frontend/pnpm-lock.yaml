@@ -124,7 +124,7 @@ dependencies:
     version: 3.14.0(react@18.2.0)
   '@replit/codemirror-vim':
     specifier: ^6.0.14
-    version: 6.0.14(@codemirror/commands@6.2.5)(@codemirror/language@6.9.0)(@codemirror/search@6.5.2)(@codemirror/state@6.2.1)(@codemirror/view@6.17.0)
+    version: 6.0.14(@codemirror/commands@6.2.5)(@codemirror/language@6.9.0)(@codemirror/search@6.5.2)(@codemirror/state@6.2.1)(@codemirror/view@6.18.0)
   '@storybook/addon-styling':
     specifier: ^1.3.7
     version: 1.3.7(@types/react-dom@18.2.7)(@types/react@18.2.21)(less@4.1.3)(postcss@8.4.29)(react-dom@18.2.0)(react@18.2.0)(webpack@5.88.0)
@@ -4146,7 +4146,7 @@ packages:
       react: 18.2.0
     dev: false
 
-  /@replit/codemirror-vim@6.0.14(@codemirror/commands@6.2.5)(@codemirror/language@6.9.0)(@codemirror/search@6.5.2)(@codemirror/state@6.2.1)(@codemirror/view@6.17.0):
+  /@replit/codemirror-vim@6.0.14(@codemirror/commands@6.2.5)(@codemirror/language@6.9.0)(@codemirror/search@6.5.2)(@codemirror/state@6.2.1)(@codemirror/view@6.18.0):
     resolution: {integrity: sha512-wwhqhvL76FdRTdwfUWpKCbv0hkp2fvivfMosDVlL/popqOiNLtUhL02ThgHZH8mus/NkVr5Mj582lyFZqQrjOA==}
     peerDependencies:
       '@codemirror/commands': ^6.0.0
@@ -4159,7 +4159,7 @@ packages:
       '@codemirror/language': 6.9.0
       '@codemirror/search': 6.5.2
       '@codemirror/state': 6.2.1
-      '@codemirror/view': 6.17.0
+      '@codemirror/view': 6.18.0
     dev: false
 
   /@rollup/pluginutils@5.0.2:
