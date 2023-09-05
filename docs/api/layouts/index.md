@@ -8,6 +8,7 @@
   accordion
   callout
   image
+  justify
   stacks
   tabs
   tree
@@ -23,7 +24,10 @@ certain way.
 
   marimo.accordion
   marimo.callout
+  marimo.center
   marimo.hstack
+  marimo.left
+  marimo.right
   marimo.vstack
   marimo.tabs
   marimo.tree
