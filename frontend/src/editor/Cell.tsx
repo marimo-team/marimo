@@ -372,7 +372,9 @@ const CellComponent = (
       ...setup(userConfig.completion, theme),
       scrollActiveLineIntoView(),
       onChangePlugin,
-      showPlaceholder ? smartPlaceholderExtension("import marimo as mo") : [],
+      showPlaceholder
+        ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
+        : [],
     ];
 
     // Should focus will be true if its a newly created editor

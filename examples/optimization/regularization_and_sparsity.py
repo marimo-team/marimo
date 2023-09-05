@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -35,7 +35,7 @@ def __(mo):
         Let's experiment how solutions to this problem differ for $p=1$,
 
         \[
-        \|x\|_1 = \sqrt{|x_1| + |x_2| + \cdots + |x_n|}, 
+        \|x\|_1 = |x_1| + |x_2| + \cdots + |x_n|, 
         \]
 
         and $p=2$,

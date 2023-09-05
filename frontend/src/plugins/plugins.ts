@@ -25,6 +25,7 @@ import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { TabsPlugin } from "./layout/TabsPlugin";
 import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
+import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 
 // List of UI plugins
 const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -36,6 +37,7 @@ const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new DropdownPlugin(),
   new FileUploadPlugin(),
   new FormPlugin(),
+  new MicrophonePlugin(),
   new MultiselectPlugin(),
   new NumberPlugin(),
   new RadioPlugin(),

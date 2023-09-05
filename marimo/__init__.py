@@ -17,6 +17,7 @@ __all__ = [
     "MarimoStopError",
     "accordion",
     "as_html",
+    "audio",
     "callout",
     "config",
     "defs",
@@ -42,6 +43,7 @@ from marimo._output.hypertext import Html
 from marimo._output.md import md
 from marimo._plugins import ui
 from marimo._plugins.stateless.accordion import accordion
+from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout_output import callout
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image

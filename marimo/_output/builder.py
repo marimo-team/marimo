@@ -41,9 +41,25 @@ class _HTMLBuilder:
         else:
             return f"<img {_join_params(params)} />"
 
+    @staticmethod
+    def audio(
+        src: Optional[str] = None,
+        controls: bool = True,
+    ) -> str:
+        params: List[Tuple[str, str]] = []
+        if src:
+            params.append(("src", src))
+        if controls:
+            params.append(("controls", ""))
+
+        if len(params) == 0:
+            return "<audio />"
+        else:
+            return f"<audio {_join_params(params)} />"
+
 
 def _join_params(params: List[Tuple[str, str]]) -> str:
-    return " ".join([f"{k}='{v}'" for k, v in params])
+    return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])
 
 
 h = _HTMLBuilder()
