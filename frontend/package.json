@@ -65,7 +65,7 @@
     "jotai": "^2.4.1",
     "katex": "^0.16.8",
     "lucide-react": "^0.274.0",
-    "partysocket": "0.0.0-fffe721",
+    "partysocket": "0.0.3",
     "react-day-picker": "^8.8.1",
     "react-dropzone": "^14.2.3",
     "react-error-boundary": "^4.0.11",
