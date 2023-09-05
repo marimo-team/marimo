@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { pressShortcut } from "./helper";
 
-test.beforeAll(() => {
+test.beforeEach(() => {
   // Need to reset the file because this test modifies it
   resetFile("cells.py");
 });
