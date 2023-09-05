@@ -1,13 +1,16 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 
-test.beforeEach(async ({ page }) => {
-  const appUrl = getAppUrl("components.py");
+const appUrl = getAppUrl("components.py");
+test.beforeEach(async ({ page }, info) => {
   await page.goto(appUrl);
+  if (info.retry) {
+    await page.reload();
+  }
 });
 
-const pageHelper = async (page) => {
+const pageHelper = async (page: Page) => {
   return {
     selectBasicComponent: async (type: string) => {
       const select = await page.locator("#cell-1").locator("select");

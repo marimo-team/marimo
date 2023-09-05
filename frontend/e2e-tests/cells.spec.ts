@@ -3,6 +3,14 @@ import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { pressShortcut } from "./helper";
 
+const appUrl = getAppUrl("cells.py");
+test.beforeEach(async ({ page }, info) => {
+  await page.goto(appUrl);
+  if (info.retry) {
+    await page.reload();
+  }
+});
+
 test.beforeEach(async () => {
   // Need to reset the file because this test modifies it
   await resetFile("cells.py");
@@ -12,8 +20,6 @@ test.beforeEach(async () => {
  * Cell re-render count is a good indicator of performance.
  */
 test("keeps re-renders from growing", async ({ page }) => {
-  const appUrl = getAppUrl("cells.py");
-  await page.goto(appUrl);
   await page.waitForLoadState("networkidle");
 
   // Read the render count
@@ -39,9 +45,6 @@ test("keeps re-renders from growing", async ({ page }) => {
  *  - moving cells up and down
  */
 test("page renders 2 cells", async ({ page }) => {
-  const appUrl = getAppUrl("cells.py");
-  await page.goto(appUrl);
-
   // Can see output / code
   await expect(page.locator("h1").getByText("Cell 1")).toBeVisible();
   await expect(page.locator("h1").getByText("Cell 2")).toBeVisible();

@@ -3,14 +3,19 @@ import { test, expect } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { createCellBelow, runCell } from "./helper";
 
+const appUrl = getAppUrl("bugs.py");
+test.beforeEach(async ({ page }, info) => {
+  await page.goto(appUrl);
+  if (info.retry) {
+    await page.reload();
+  }
+});
+
 /**
  * This test makes sure that downstream UI elements are re-initialized when
  * upstream source cells are re-run.
  */
-test("correctly initializes cells", async ({ page }) => {
-  const appUrl = getAppUrl("bugs.py");
-  await page.goto(appUrl);
-
+test("correctly initializes cells", async ({ page }, info) => {
   // Is initialized to 1
   const number = page.getByRole("spinbutton");
   await expect(number).toBeVisible();
