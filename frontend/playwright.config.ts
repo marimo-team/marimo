@@ -102,6 +102,12 @@ const config: PlaywrightTestConfig = {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
     },
+    {
+      name: "ios",
+      use: { ...devices["iPhone 13"] },
+      // Just run the cells tests for read-only apps
+      testMatch: ["**/components.spec.ts", "**/mode.spec.ts"],
+    },
   ],
 
   // Run marimo servers before starting the tests, one for each app/test

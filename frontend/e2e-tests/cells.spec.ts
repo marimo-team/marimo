@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
+import { pressShortcut } from "./helper";
 
 test.beforeAll(() => {
   // Need to reset the file because this test modifies it
@@ -94,14 +95,14 @@ test("page renders 2 cells", async ({ page }) => {
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 0")' })
     .click();
-  await page.keyboard.press("Control+Shift+J");
+  await pressShortcut(page, "cell.moveDown");
 
   // Focus on Cell 2 and move it up
   await page
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 2")' })
     .click();
-  await page.keyboard.press("Control+Shift+K");
+  await pressShortcut(page, "cell.moveUp");
 
   // Verify the rendered cells
   await expect(page.locator("h1")).toHaveText([
@@ -111,22 +112,22 @@ test("page renders 2 cells", async ({ page }) => {
     "Cell 1.5",
   ]);
 
-  // Revert the file: delete the new cells and move the original cells back
-  // Delete all text in the cell
+  // Revert the file by deleting the new cells
+  // Delete cell 1.5
   await page
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 1.5")' })
     .selectText();
   await page.keyboard.press("Backspace");
-  // Delete the cell
-  await page.keyboard.press("Shift+Backspace");
-  // Move the original cells back
+  await pressShortcut(page, "cell.delete");
+  // Delete cell 0
   await page
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 0")' })
-    .click();
-  await page.keyboard.press("Control+Shift+K");
+    .selectText();
+  await page.keyboard.press("Backspace");
+  await pressShortcut(page, "cell.delete");
 
   // Verify the rendered cells
-  await expect(page.locator("h1")).toHaveText(["Cell 0", "Cell 1", "Cell 2"]);
+  await expect(page.locator("h1")).toHaveText(["Cell 1", "Cell 2"]);
 });

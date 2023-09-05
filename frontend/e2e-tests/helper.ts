@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { Page, expect } from "@playwright/test";
+import { HotkeyProvider, HotkeyAction } from "../src/core/hotkeys/hotkeys";
 import path from "node:path";
 
 export async function createCellBelow(opts: {
@@ -60,4 +61,26 @@ export async function takeScreenshot(page: Page, filename: string) {
     path: `e2e-tests/screenshots/${fullName}.png`,
     fullPage: true,
   });
+}
+
+/**
+ * Press a hotkey on the page.
+ *
+ * It uses the hotkey provider to get the correct key for the current platform
+ * and then maps it to the correct key for playwright.
+ */
+export async function pressShortcut(page: Page, action: HotkeyAction) {
+  const isMac = await page.evaluate(() => navigator.userAgent.includes("Mac"));
+  const provider = HotkeyProvider.create(isMac);
+  const key = provider.getHotkey(action);
+  // playwright uses "Meta" for command key on mac, "Control" for windows/linux
+  // we also need to capitalize the first letter of each key
+  const split = key.key.split("-");
+  const capitalized = split.map((s) => s[0].toUpperCase() + s.slice(1));
+  const keymap = capitalized
+    .join("+")
+    .replace("Cmd", "Meta")
+    .replace("Ctrl", "Control");
+
+  await page.keyboard.press(keymap);
 }
