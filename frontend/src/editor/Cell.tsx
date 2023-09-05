@@ -43,6 +43,7 @@ import { CellDragHandle, SortableCell } from "./SortableCell";
 import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { keymapBundle } from "@/core/codemirror/keymaps/keymaps";
 
 /**
  * Imperative interface of the cell.
@@ -354,7 +355,11 @@ const CellComponent = (
     });
 
     const extensions = [
-      ...setup(userConfig.completion, userConfig.keymap, theme, {
+      // Our keymap goes first
+      Prec.highest(keymap.of(cellEditingHotkeys)),
+      Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
+      // Then editor keymaps (vim or defaults) based on user config
+      keymapBundle(userConfig.keymap, {
         deleteCell: () => {
           // Cannot delete running cells, since we're waiting for their output.
           if (!runningOrQueuedRef.current) {
@@ -363,8 +368,8 @@ const CellComponent = (
           return true;
         },
       }),
-      Prec.highest(keymap.of(cellEditingHotkeys)),
-      Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
+      // Default setup
+      ...setup(userConfig.completion, theme),
       scrollActiveLineIntoView(),
       onChangePlugin,
       showPlaceholder ? smartPlaceholderExtension("import marimo as mo") : [],
