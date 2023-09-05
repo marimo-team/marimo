@@ -212,7 +212,7 @@ test("table", async ({ page }) => {
   await expect(element).toBeVisible();
   // Click first checkbox to select all
   await page.getByRole("checkbox").first().click();
-  expect(
+  await expect(
     page.locator("#cell-3").locator(".marimo-json-output").first()
   ).toHaveText(
     `
@@ -232,7 +232,7 @@ test("table", async ({ page }) => {
 
   // Click second checkbox to remove first row
   await page.getByRole("checkbox").nth(1).click();
-  expect(
+  await expect(
     page.locator("#cell-3").locator(".marimo-json-output").first()
   ).toHaveText(
     `
@@ -290,7 +290,7 @@ test("complex - array", async ({ page }) => {
   await slider.dragTo(page.locator("marimo-slider").first());
   await date.fill("2020-01-20");
   // Verify output
-  expect(
+  await expect(
     page.locator("#cell-6").locator(".marimo-json-output").first()
   ).toHaveText(
     `
@@ -318,7 +318,7 @@ test("complex - batch", async ({ page }) => {
   await textbox.fill("hi again marimo");
   await date.fill("2020-04-20");
   // Verify output
-  expect(
+  await expect(
     page.locator("#cell-6").locator(".marimo-json-output").first()
   ).toHaveText(
     `
@@ -349,7 +349,7 @@ test("complex - dictionary", async ({ page }) => {
   // Click last once
   await buttons.last().click();
   // Verify output
-  expect(
+  await expect(
     page.locator("#cell-6").locator(".marimo-json-output").first()
   ).toHaveText(
     `
