@@ -2,6 +2,7 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { devices } from "@playwright/test";
 import path from "node:path";
+import { execSync, exec } from "node:child_process";
 
 export interface ServerOptions {
   command: "edit" | "run";
@@ -41,6 +42,21 @@ function getUrl(port: number): string {
 // For tests to lookup their url/server
 export function getAppUrl(app: ApplicationNames): string {
   return getUrl(appToOptions[app].port);
+}
+
+// Reset file via git checkout
+export function resetFile(app: ApplicationNames): void {
+  const pathToApp = path.join(pydir, app);
+  const cmd = `git checkout ${pathToApp}`;
+  execSync(cmd);
+}
+
+// Start marimo server for the given app
+export function startServer(app: ApplicationNames): void {
+  const { command, port } = appToOptions[app];
+  const pathToApp = path.join(pydir, app);
+  const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+  exec(marimoCmd);
 }
 
 // See https://playwright.dev/docs/test-configuration.
@@ -90,11 +106,13 @@ const config: PlaywrightTestConfig = {
 
   // Run marimo servers before starting the tests, one for each app/test
   webServer: Object.entries(appToOptions).map(([app, options]) => {
+    const { command, port } = options;
+    const pathToApp = path.join(pydir, app);
+    const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+
     return {
-      command: `marimo -q ${options.command} ${path.join(pydir, app)} -p ${
-        options.port
-      } --headless`,
-      url: getUrl(options.port),
+      command: marimoCmd,
+      url: getUrl(port),
       reuseExistingServer: false,
     };
   }),

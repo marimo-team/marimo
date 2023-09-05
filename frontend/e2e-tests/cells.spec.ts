@@ -1,6 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
-import { getAppUrl } from "../playwright.config";
+import { getAppUrl, resetFile } from "../playwright.config";
+
+test.beforeAll(() => {
+  // Need to reset the file because this test modifies it
+  resetFile("cells.py");
+});
 
 /**
  * Cell re-render count is a good indicator of performance.
@@ -105,4 +110,23 @@ test("page renders 2 cells", async ({ page }) => {
     "Cell 2",
     "Cell 1.5",
   ]);
+
+  // Revert the file: delete the new cells and move the original cells back
+  // Delete all text in the cell
+  await page
+    .getByRole("textbox")
+    .filter({ hasText: 'mo.md("# Cell 1.5")' })
+    .selectText();
+  await page.keyboard.press("Backspace");
+  // Delete the cell
+  await page.keyboard.press("Shift+Backspace");
+  // Move the original cells back
+  await page
+    .getByRole("textbox")
+    .filter({ hasText: 'mo.md("# Cell 0")' })
+    .click();
+  await page.keyboard.press("Control+Shift+K");
+
+  // Verify the rendered cells
+  await expect(page.locator("h1")).toHaveText(["Cell 0", "Cell 1", "Cell 2"]);
 });
