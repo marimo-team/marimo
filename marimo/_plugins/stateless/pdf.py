@@ -16,13 +16,13 @@ def pdf(
     src: Union[str, io.IOBase],
     initial_page: Optional[int] = None,
     width: Optional[Union[int, str]] = "100%",
-    height: Optional[Union[int, str]] = "70vh", # arbitrary, but good default
+    height: Optional[Union[int, str]] = "70vh",  # arbitrary, but good default
     style: Optional[dict[str, Any]] = None,
 ) -> Html:
     """Render a PDF.
 
-    This currently uses the native browser PDF viewer, but may be replaced with a
-    custom viewer.
+    This currently uses the native browser PDF viewer,
+    but may be replaced with a custom viewer.
 
     **Example.**
 
@@ -63,12 +63,12 @@ def pdf(
             **(style or {}),
         }
     )
-    return Html(h.iframe(
-        src=resolved_src,
-        style=styles,
-        width=width,
-        height=height,
-    ))
+    return Html(
+        h.iframe(
+            src=resolved_src,
+            style=styles,
+        )
+    )
 
 
 def _io_to_data_url(readable: io.IOBase) -> str:

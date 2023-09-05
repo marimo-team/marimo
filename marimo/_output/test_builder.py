@@ -26,8 +26,10 @@ def test_audio() -> None:
 def test_iframe() -> None:
     assert h.iframe() == "<iframe />"
     assert (
-        h.iframe(src="https://marimo.io") == "<iframe src='https://marimo.io' />"
+        h.iframe(src="https://marimo.io")
+        == "<iframe src='https://marimo.io' />"
     )
+
 
 def test_join_params() -> None:
     assert (
