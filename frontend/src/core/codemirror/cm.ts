@@ -67,11 +67,14 @@ const customizedPython = pythonLanguage.configure({
 export const setup = (
   completionConfig: CompletionConfig,
   keymapConfig: KeymapConfig,
-  theme: Theme
+  theme: Theme,
+  callbacks: {
+    deleteCell: () => void;
+  }
 ): Extension[] => {
   return [
     // make sure this comes first since it contains keymaps based on user config
-    keymapBundle(keymapConfig),
+    keymapBundle(keymapConfig, callbacks),
 
     // Whether or not to require keypress to activate autocompletion (default
     // keymap is Ctrl+Space)

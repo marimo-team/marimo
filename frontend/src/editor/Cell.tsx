@@ -354,7 +354,15 @@ const CellComponent = (
     });
 
     const extensions = [
-      ...setup(userConfig.completion, userConfig.keymap, theme),
+      ...setup(userConfig.completion, userConfig.keymap, theme, {
+        deleteCell: () => {
+          // Cannot delete running cells, since we're waiting for their output.
+          if (!runningOrQueuedRef.current) {
+            deleteCell(cellId);
+          }
+          return true;
+        },
+      }),
       Prec.highest(keymap.of(cellEditingHotkeys)),
       Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
       scrollActiveLineIntoView(),

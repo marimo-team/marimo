@@ -60,7 +60,10 @@ export const Primary: Story = {
         extensions={setup(
           { activate_on_typing: false },
           { preset: "default" },
-          ctx.globals.theme
+          ctx.globals.theme,
+          {
+            deleteCell: () => "",
+          }
         )}
       />
     </div>
