@@ -2,7 +2,7 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { devices } from "@playwright/test";
 import path from "node:path";
-import { execSync, exec } from "node:child_process";
+import { exec } from "node:child_process";
 
 export interface ServerOptions {
   command: "edit" | "run";
@@ -45,10 +45,11 @@ export function getAppUrl(app: ApplicationNames): string {
 }
 
 // Reset file via git checkout
-export function resetFile(app: ApplicationNames): void {
+export async function resetFile(app: ApplicationNames): Promise<void> {
   const pathToApp = path.join(pydir, app);
-  const cmd = `git checkout ${pathToApp}`;
-  execSync(cmd);
+  const cmd = `git checkout -- ${pathToApp}`;
+  await exec(cmd);
+  return;
 }
 
 // Start marimo server for the given app

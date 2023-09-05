@@ -3,9 +3,9 @@ import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { pressShortcut } from "./helper";
 
-test.beforeEach(() => {
+test.beforeEach(async () => {
   // Need to reset the file because this test modifies it
-  resetFile("cells.py");
+  await resetFile("cells.py");
 });
 
 /**
@@ -26,10 +26,7 @@ test("keeps re-renders from growing", async ({ page }) => {
   // unexpectedly, it is a sign that something is causing cells to re-render.
   // It is also ok to decrease the count if we find a way to reduce the number
   // of renders.
-
-  // It is not clear why, but webkit has 2 fewer renders than chromium.
-  const isWebkit = page.context().browser()?.browserType().name() === "webkit";
-  await expect(cellRenderCount).toBe(isWebkit ? "12" : "14");
+  await expect(cellRenderCount).toBe("10");
 });
 
 /**
