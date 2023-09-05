@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.4"
@@ -181,7 +182,7 @@ def __(mo):
 
         The rest of this tutorial covers state, an advanced topic. Feel free
         to return here later, if or when you find yourself
-        limited in building interactive, stateful apps.
+        limited in building interactive stateful apps.
         """
     ).callout(kind="warn")
     return
@@ -191,7 +192,7 @@ def __(mo):
 def __(mo):
     mo.md(
         """
-        You can build powerful, interactive notebooks and apps using just
+        You can build powerful interactive notebooks and apps using just
         `mo.ui` and reactivity.
 
         Sometimes, however, you might want interactions to mutate **state**. 
@@ -200,10 +201,10 @@ def __(mo):
         that updating one updates the other. 
 
         For these and other cases, marimo provides the function `mo.state`, which
-        returns a state object and a function that updates the state. When you
-        call the setter function in one cell, all other cells that reference the
-        state object via a global variable are automatically run (similar to UI 
-        elements).
+        creates state returns a getter function and a setter function. When you 
+        call the setter function in one cell, all other 
+        cells that reference the getter via a global variable are automatically 
+        run (similar to UI elements).
         """
     )
     return
@@ -221,15 +222,15 @@ def __(mo):
         """
         ### Creating state
 
-        `mo.state` takes an initial state value as its argument, and returns a
+        `mo.state` takes an initial state value as its argument, and returns
 
-        - `State` object;
-        - function you can call to update the state value.
+        - a function that returns the state value;
+        - a function that updates the state value.
 
         For exaxmple,
 
         ```python
-        counter, set_counter = mo.state(0)
+        get_counter, set_counter = mo.state(0)
         ```
         """
     )
@@ -238,24 +239,19 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    counter, set_counter = mo.state(0)
-    return counter, set_counter
+    get_counter, set_counter = mo.state(0)
+    return get_counter, set_counter
 
 
 @app.cell
 def __(mo):
     mo.accordion(
         {
-            "Tip: assign state objects to global variables": (
+            "Tip: assign state getters to global variables": (
                 """
                 Calling a state's setter function will only 
-                trigger reactive execution if the state object is assigned
-                to a global variable.
-                """
-            ),
-            "Tip: accessing an element's value": (
-                """
-                Every state object has a value attribute, e.g., `counter.value`.
+                trigger reactive execution if the corresponding getter is 
+                assigned to and referenced via a global variable.
                 """
             ),
             "Tip: use state sparingly": (
@@ -271,11 +267,11 @@ def __(mo):
 
 
 @app.cell
-def __(counter, mo):
+def __(get_counter, mo):
     mo.md(
         f"""
-        Acccess the value of the state via its `value` attribute: `counter.value` 
-        is **{counter.value}**
+        Acccess the value of the state via its getter: `get_counter()` 
+        returned **{get_counter()}**
         """
     )
     return
@@ -287,11 +283,15 @@ def __(mo):
         """
         ### Setting State
 
-        Set an element's state by calling its setter function. For example, 
-        `set_counter(1)`.
+        Set an element's state by calling its setter function.
+        
+        - Call it with a new value: `set_counter(1)`
+        - Call it with a function that takes the current value and returns a new 
+          one: `set_counter(lambda count: count + 1)`
 
         **State updates are reactive.** When you call a state's setter in one
-        cell, _all other cells that read the state object_ are automatically
+        cell, _all other cells that reference the state getter via a global 
+        variable_ are automatically
         run with the new state value. This is similar to how interacting with
         a UI element automatically runs all cells that use the element.
         """
@@ -315,15 +315,15 @@ def __(mo):
 
 
 @app.cell
-def __(counter, mo, set_counter):
+def __(mo, set_counter):
     increment = mo.ui.button(
         label="increment",
-        on_change=lambda _: set_counter(counter.value + 1),
+        on_change=lambda _: set_counter(lambda v: v + 1),
     )
 
     decrement = mo.ui.button(
         label="decrement",
-        on_change=lambda _: set_counter(counter.value - 1),
+        on_change=lambda _: set_counter(lambda v: v - 1),
     )
 
     mo.hstack([increment, decrement], justify="center")
@@ -331,10 +331,10 @@ def __(counter, mo, set_counter):
 
 
 @app.cell
-def __(counter, mo):
+def __(get_counter, mo):
     mo.md(
         f"""
-        The counter's current value is **{counter.value}**!
+        The counter's current value is **{get_counter()}**!
 
         This cell runs automatically on button click, even though it 
         doesn't reference either button. 
@@ -348,8 +348,9 @@ def __(mo):
     mo.accordion(
         {
             "Tip: no self-loops": (
-                """Calling a state's setter in one cell won't ever cause that same
-                cell to re-execute, even if it reads that `state` object. This 
+                """
+                Calling a state's setter in one cell won't ever cause that same
+                cell to re-execute, even if it reads that state getter. This 
                 prevents accidental infinite loops and makes some things, like
                 tying elements, easier."
                 """
@@ -377,24 +378,24 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    shared_state, set_shared_state = mo.state(0)
-    return set_shared_state, shared_state
+    get_shared_state, set_shared_state = mo.state(0)
+    return get_shared_state, set_shared_state
 
 
 @app.cell
-def __(mo, set_shared_state, shared_state):
+def __(get_shared_state, mo, set_shared_state):
     x = mo.ui.slider(
-        0, 10, value=shared_state.value, on_change=set_shared_state, label="$x$:"
+        0, 10, value=get_shared_state(), on_change=set_shared_state, label="$x$:"
     )
     return x,
 
 
 @app.cell
-def __(mo, set_shared_state, shared_state):
+def __(get_shared_state, mo, set_shared_state):
     x_plus_one = mo.ui.number(
         1,
         11,
-        value=shared_state.value + 1,
+        value=get_shared_state() + 1,
         on_change=lambda v: set_shared_state(v - 1),
         label="$x + 1$:",
     )
@@ -416,9 +417,6 @@ def __(mo):
                 To tie elements, you must `mo.state`, and the tied elements
                 must be created in different cells (since self-loops with state
                 are not allowed).
-
-                Tying elements is an example of how state lets you add cycles to
-                the graph.
                 """
             )
         }
@@ -444,9 +442,15 @@ def __(dataclass, mo):
         done: bool = False
 
 
-    tasks, set_tasks = mo.state([])
+    get_tasks, set_tasks = mo.state([])
     task_list_mutated, set_task_list_mutated = mo.state(False)
-    return Task, set_task_list_mutated, set_tasks, task_list_mutated, tasks
+    return (
+        Task,
+        get_tasks,
+        set_task_list_mutated,
+        set_tasks,
+        task_list_mutated,
+    )
 
 
 @app.cell
@@ -458,17 +462,17 @@ def __(mo, task_list_mutated):
 
 
 @app.cell
-def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box, tasks):
+def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box):
     def add_task():
         if task_entry_box.value:
-            set_tasks(tasks.value + [Task(task_entry_box.value)])
+            set_tasks(lambda v: v + [Task(task_entry_box.value)])
             set_task_list_mutated(True)
 
+
     def clear_tasks():
-        set_tasks(
-            [task for task in tasks.value if not task.done]
-        )
+        set_tasks(lambda v: [task for task in v if not task.done])
         set_task_list_mutated(True)
+
 
     add_task_button = mo.ui.button(
         label="add task",
@@ -476,19 +480,18 @@ def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box, tasks):
     )
 
     clear_tasks_button = mo.ui.button(
-        label="clear completed tasks",
-        on_change=lambda _: clear_tasks()
+        label="clear completed tasks", on_change=lambda _: clear_tasks()
     )
     return add_task, add_task_button, clear_tasks, clear_tasks_button
 
 
 @app.cell
-def __(Task, mo, set_tasks, tasks):
+def __(Task, get_tasks, mo, set_tasks):
     task_list = mo.ui.array(
-        [mo.ui.checkbox(value=task.done, label=task.name) for task in tasks.value],
+        [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
         label="tasks",
         on_change=lambda v: set_tasks(
-            [Task(task.name, done=v[i]) for i, task in enumerate(tasks.value)]
+            [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
         ),
     )
     return task_list,
@@ -504,9 +507,7 @@ def __(add_task_button, clear_tasks_button, mo, task_entry_box):
 
 @app.cell
 def __(mo, task_list):
-    mo.as_html(task_list) if task_list.value else mo.md(
-        "No tasks! 🎉"
-    )
+    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 

@@ -21,9 +21,9 @@ def __(dataclass):
 
 @app.cell
 def __(mo):
-    tasks, set_tasks = mo.state([])
+    get_tasks, set_tasks = mo.state([])
     mutation_signal, set_mutation_signal = mo.state(False)
-    return mutation_signal, set_mutation_signal, set_tasks, tasks
+    return get_tasks, mutation_signal, set_mutation_signal, set_tasks
 
 
 @app.cell
@@ -35,10 +35,10 @@ def __(mo, mutation_signal):
 
 
 @app.cell
-def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box, tasks):
+def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box):
     def add_task():
         if task_entry_box.value:
-            set_tasks(tasks.value + [Task(task_entry_box.value)])
+            set_tasks(lambda v: v + [Task(task_entry_box.value)])
         set_mutation_signal(True)
 
 
@@ -50,7 +50,7 @@ def __(Task, mo, set_mutation_signal, set_tasks, task_entry_box, tasks):
     clear_tasks_button = mo.ui.button(
         label="clear completed tasks",
         on_change=lambda _: set_tasks(
-            [task for task in tasks.value if not task.done]
+            lambda v: [task for task in v if not task.done]
         ),
     )
     return add_task, add_task_button, clear_tasks_button
@@ -65,12 +65,12 @@ def __(add_task_button, clear_tasks_button, mo, task_entry_box):
 
 
 @app.cell
-def __(Task, mo, set_tasks, tasks):
+def __(Task, get_tasks, mo, set_tasks):
     task_list = mo.ui.array(
-        [mo.ui.checkbox(value=task.done, label=task.name) for task in tasks.value],
+        [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
         label="tasks",
         on_change=lambda v: set_tasks(
-            [Task(task.name, done=v[i]) for i, task in enumerate(tasks.value)]
+            [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
         ),
     )
     return task_list,

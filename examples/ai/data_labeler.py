@@ -12,16 +12,16 @@ def __(mo):
 
 @app.cell
 def __(NUMBER_OF_EXAMPLES, mo):
-    index_state, set_index = mo.state(0)
+    get_index, set_index = mo.state(0)
 
 
     def increment_index():
-        set_index(min(index_state.value + 1, NUMBER_OF_EXAMPLES - 1))
+        set_index(lambda v: min(v + 1, NUMBER_OF_EXAMPLES - 1))
 
 
     def decrement_index() -> int:
-        set_index(max(0, index_state.value - 1))
-    return decrement_index, increment_index, index_state, set_index
+        set_index(lambda v: max(0, v - 1))
+    return decrement_index, get_index, increment_index, set_index
 
 
 @app.cell
@@ -41,11 +41,11 @@ def __(mo):
 
 
 @app.cell
-def __(NUMBER_OF_EXAMPLES, index_state, mo, set_index):
+def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
     index = mo.ui.number(
         0,
         NUMBER_OF_EXAMPLES - 1,
-        value=index_state.value,
+        value=get_index(),
         step=1,
         debounce=True,
         label="example number",
