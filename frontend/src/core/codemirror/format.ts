@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { EditorView } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import { CellId } from "../model/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";

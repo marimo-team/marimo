@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
-import { EditorView } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import { atomWithReducer } from "jotai/utils";
 
 interface FindReplaceState {
@@ -90,6 +90,13 @@ export const findReplaceAtom = atomWithReducer<FindReplaceState, Action>(
 );
 
 export function openFindReplacePanel(initialView?: EditorView): boolean {
+  // If any radix dialog is open, don't open the find/replace panel
+  // they have role="dialog" and data-state="open"
+  const element = document.querySelector('[role="dialog"][data-state="open"]');
+  if (element) {
+    return false;
+  }
+
   if (initialView) {
     // Set the selected text and focus
     const selection = initialView.state.selection.main;
