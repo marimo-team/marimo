@@ -37,51 +37,52 @@ But sometimes, you might want interactions to mutate state:
 
 
 For cases like these, marimo provides the function [`mo.state()`](/api/state),
-which returns a state object and a function that updates the state. When you
-call the setter function in one cell, all other cells that reference the state
-object **via a global variable** are automatically run (similar to UI elements).
+which creates a state object and returns a getter and setter function. When you
+call the setter function in one cell, all other cells that reference the getter
+function **via a global variable** are automatically run (similar to UI
+elements).
 
 
 ```{admonition} State and UI elements are similar
 :class: note
 
-A `State` object is analogous to a UI element. When you interact
+State is analogous to UI elements. When you interact
 with a UI element, all cells that reference that element via a global variable
-run automatically with the new value. In the same way, when you update a state
-object via its setter, all other cells that reference the object via
+run automatically with the new value. In the same way, when you update state
+via the setter, all other cells that reference the getter via
 a global variable run automatically with the new value.
 
-`State` is particularly useful when used in conjunction with a `UIElement`'s
+State is particularly useful when used in conjunction with a `UIElement`'s
 `on_change` callback to run side effects based on user input.
 ```
 
 ## Creating state
 
-[`mo.state()`](/api/state) takes an initial state value as its argument, and
-returns
+[`mo.state()`](/api/state) takes an initial state value as its argument, creates
+a state object, and returns
 
-- a `State` object;
-- a function you can call to update the state value.
+- a getter function for reading the state
+- a setter function for updating the state
 
 For exaxmple,
 
 ```python
-counter, set_counter = mo.state(0)
+get_counter, set_counter = mo.state(0)
 ```
 
 ```{admonition} Assign state to global variables!
 :class: attention
 
-When using `mo.state()`, **you must assign the `State` object
-to a global variable**. This is similar to UI elements work.
+When using `mo.state()`, **you must assign the state getter to a global
+variable**. This is similar to UI elements work.
 ```
 
 ## Reading state
 
-Access the state's latest value via the `value` attribute:
+Access the state's latest value via the getter:
 
 ```python
-counter.value
+get_counter()
 ```
 
 ## Updating state
@@ -93,10 +94,11 @@ For example,
 set_counter(1)
 ```
 
-or
+To update the state based on its current value, pass a function that takes
+the current state value as an argument and returns a new value
 
 ```python
-set_counter(counter.value + 1)
+set_counter(lambda count: count + 1)
 ```
 
 A single rule determines what happens next:
@@ -104,38 +106,26 @@ A single rule determines what happens next:
 ```{admonition} State reactivity rule
 :class: tip
 
-When the setter function for a `State` object is run in one cell, marimo
+When a state setter function is called in one cell,  marimo
 automatically runs all _other_ cells that reference any **global** variables
-assigned to the state object.
+assigned to the state getter.
 ```
 
 <div align="center" style="margin-bottom: 2rem; margin-top:2rem">
 <figure>
 <img src="/_static/docs-state-update.gif"/>
 </figure>
-<figcaption>Calling `set_counter` in the second cell triggers the third cell (which refs `counter`) to run.</figcaption>
+<figcaption>Calling `set_counter` in the second cell triggers the third cell (which refs `get_counter`) to run.</figcaption>
 </div>
 
 This rule has some important aspects:
 
-1. Only cells that read the state via a global variable will be run.
-2. The cell that called the setter won't be re-run, even if it reads
-   the `State` object's value.
+1. Only cells that read the state getter via a global variable will be run.
+2. The cell that called the setter won't be re-run, even if it references
+   the getter.
 
 Notice how similar this rule is to the reactivity rule for UI element
 interactions.
-
-```{admonition} Cycles at runtime
-:class: warning
-You can use state to introduce cycles across cells at runtime. This lets
-you tie multiple UI elements together, for example. Just be careful not to
-introduce an infinite loop!
-
-marimo programs are statically parsed into directed acyclic graphs (DAGs)
-involving cells, and state doesn't change that. Think of state setters
-as hooking into the DAG: at runtime, when they're invoked (and only when
-they're invoked), they trigger additional computation.
-```
 
 ## Using state with UI elements
 
@@ -169,16 +159,16 @@ import marimo as mo
 ```
 
 ```python
-counter, set_counter = mo.state(0)
+get_counter, set_counter = mo.state(0)
 
 increment = mo.ui.button(
     label="increment",
-    on_change=lambda _: set_counter(counter.value + 1),
+    on_change=lambda _: set_counter(lambda v: v + 1),
 )
 
 decrement = mo.ui.button(
     label="decrement",
-    on_change=lambda _: set_counter(counter.value - 1),
+    on_change=lambda _: set_counter(lambda v: v - 1),
 )
 
 mo.hstack([increment, decrement], justify="center")
@@ -212,12 +202,12 @@ import marimo as mo
 ```
 
 ```python
-x_state, set_x_state = mo.state(0)
+get_x, set_x = mo.state(0)
 ```
 
 ```python
 x = mo.ui.slider(
-    0, 10, value=x_state.value, on_change=set_x_state, label="$x$:"
+    0, 10, value=get_x(), on_change=set_x, label="$x$:"
 )
 ```
 
@@ -225,7 +215,7 @@ x = mo.ui.slider(
 x_plus_one = mo.ui.number(
     1,
     11,
-    value=x_state.value + 1,
+    value=get_x() + 1,
     on_change=lambda v: set_x_state(v - 1),
     label="$x + 1$:",
 )
@@ -242,6 +232,18 @@ Notice that we created the slider and number elements in different cells.
 When tying elements, this is necessary, because calling a setter
 in a cell queues all _other_ cells reading the state to run, not including
 the one that just called the setter.
+```
+
+```{admonition} Cycles at runtime
+:class: warning
+You can use state to introduce cycles across cells at runtime. This lets
+you tie multiple UI elements together, for example. Just be careful not to
+introduce an infinite loop!
+
+marimo programs are statically parsed into directed acyclic graphs (DAGs)
+involving cells, and state doesn't change that. Think of state setters
+as hooking into the DAG: at runtime, when they're invoked (and only when
+they're invoked), they trigger additional computation.
 ```
 
 ### Example: todo list
@@ -267,7 +269,7 @@ class Task:
     done: bool = False
 
 
-tasks, set_tasks = mo.state([])
+get_tasks, set_tasks = mo.state([])
 task_added, set_task_added = mo.state(False)
 ```
 
@@ -281,13 +283,11 @@ task_entry_box = mo.ui.text(placeholder="a task ...")
 ```python
 def add_task():
     if task_entry_box.value:
-        set_tasks(tasks.value + [Task(task_entry_box.value)])
+        set_tasks(lambda v: v + [Task(task_entry_box.value)])
         set_task_added(True)
 
 def clear_tasks():
-    set_tasks(
-        [task for task in tasks.value if not task.done]
-    )
+    set_tasks(lambda v: [task for task in v if not task.done])
 
 add_task_button = mo.ui.button(
     label="add task",
@@ -302,10 +302,10 @@ clear_tasks_button = mo.ui.button(
 
 ```
 task_list = mo.ui.array(
-    [mo.ui.checkbox(value=task.done, label=task.name) for task in tasks.value],
+    [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
     label="tasks",
     on_change=lambda v: set_tasks(
-        [Task(task.name, done=v[i]) for i, task in enumerate(tasks.value)]
+        [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
     ),
 )
 ```
