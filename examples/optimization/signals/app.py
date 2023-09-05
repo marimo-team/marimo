@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -51,7 +51,9 @@ def __(complib, mo):
     component_radio = mo.ui.radio(
         component_options,
         label="**Component Class**",
-        on_change=lambda v: set_component_radio_tracker(lambda w: w.union({v}))
+        on_change=lambda v: set_component_radio_tracker(
+            component_radio_tracker.value.union({v})
+        ),
     )
     other_component_radio = mo.ui.radio(
         component_options, label="**Component Class**"
@@ -505,14 +507,14 @@ def __(
 
 
 @app.cell
-def __(mo, set_part_two_k):
+def __(mo, part_two_k, set_part_two_k):
     add_button = mo.ui.button(
-        on_change=lambda _: set_part_two_k(lambda k: k + 1),
+        on_change=lambda _: set_part_two_k(part_two_k.value + 1),
         label="Add a component",
     )
 
     remove_button = mo.ui.button(
-        on_click=lambda _: set_part_two_k(lambda k: max(2, k - 1)),
+        on_click=lambda _: set_part_two_k(max(2, part_two_k.value - 1)),
         label="Remove a component",
     )
     return add_button, remove_button
