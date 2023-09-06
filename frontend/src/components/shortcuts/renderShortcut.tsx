@@ -22,7 +22,7 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
   const hotkey = HOTKEYS.getHotkey(shortcut);
 
   return (
-    <span className="text-xs flex gap-1 text-muted-foreground items-center">
+    <span className="text-xs flex gap-1 text-muted-foreground items-center font-mono">
       {prettyPrintHotkey(hotkey.key).map((key) => (
         <span key={key}>{capitalize(key)}</span>
       ))}
