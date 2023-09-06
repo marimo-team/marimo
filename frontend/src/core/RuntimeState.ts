@@ -59,11 +59,12 @@ export class RuntimeState {
   flushUpdates() {
     if (this.componentsToUpdate.size > 0) {
       this.registerRunStart();
+
       sendComponentValues(
         Array.from(this.componentsToUpdate.values(), (objectId) => ({
           objectId: objectId,
           value: this.uiElementRegistry.lookupValue(objectId),
-        }))
+        })).filter((update) => update.value !== undefined)
       );
       this.componentsToUpdate.clear();
     }

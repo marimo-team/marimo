@@ -1,4 +1,4 @@
-# Apps
+# Run as an app
 
 The marimo CLI lets you run any notebook as an app: `marimo run` hides the
 notebook's code and starts a web server that hosts the resulting app. 

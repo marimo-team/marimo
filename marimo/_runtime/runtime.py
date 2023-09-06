@@ -13,6 +13,7 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
@@ -57,6 +58,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     StopRequest,
 )
+from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
 from marimo.config._config import configure
 
@@ -72,11 +74,13 @@ def defs() -> tuple[str, ...]:
     - tuple of the currently executing cell's defs.
     """
     ctx = get_context()
-    if ctx.initialized and ctx.kernel.cell_id is not None:
+    if ctx.initialized and ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[ctx.kernel.cell_id].defs
+                for defn in ctx.kernel.graph.cells[
+                    ctx.kernel.execution_context.cell_id
+                ].defs
             )
         )
     return tuple()
@@ -95,16 +99,24 @@ def refs() -> tuple[str, ...]:
     unshadowed_builtins = set(builtins.__dict__.keys()).difference(
         set(ctx.kernel.graph.definitions.keys())
     )
-    if ctx.initialized and ctx.kernel.cell_id is not None:
+    if ctx.initialized and ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[ctx.kernel.cell_id].refs
+                for defn in ctx.kernel.graph.cells[
+                    ctx.kernel.execution_context.cell_id
+                ].refs
                 # exclude builtins that have not been shadowed
                 if defn not in unshadowed_builtins
             )
         )
     return tuple()
+
+
+@dataclass
+class ExecutionContext:
+    cell_id: CellId_t
+    setting_element_value: bool
 
 
 class Kernel:
@@ -114,10 +126,14 @@ class Kernel:
             "__builtins__": globals()["__builtins__"],
         }
         self.graph = dataflow.DirectedGraph()
-        self.executing = False
-        self.cell_id: Optional[CellId_t] = None
+        self.execution_context: Optional[ExecutionContext] = None
+        # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
+        # errored cells
         self.errors: dict[CellId_t, tuple[Error, ...]] = {}
+        # Mapping from state to the cell when its setter
+        # was invoked. New state updates evict older ones.
+        self.state_updates: dict[State[Any], CellId_t] = {}
 
         self.completion_thread: Optional[threading.Thread] = None
         self.completion_queue: queue.Queue[CompletionRequest] = queue.Queue()
@@ -127,17 +143,19 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     @contextlib.contextmanager
-    def _execution_ctx(self, cell_id: CellId_t) -> Iterator[None]:
-        self.executing = True
-        self.cell_id = cell_id
+    def _install_execution_context(
+        self, cell_id: CellId_t, setting_element_value: bool = False
+    ) -> Iterator[None]:
+        self.execution_context = ExecutionContext(
+            cell_id, setting_element_value
+        )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
             cell_id
         ):
             try:
                 yield
             finally:
-                self.executing = False
-                self.cell_id = None
+                self.execution_context = None
 
     def _try_registering_cell(
         self, cell_id: CellId_t, code: str
@@ -267,7 +285,7 @@ class Kernel:
         execution_requests: Sequence[ExecutionRequest],
         deletion_requests: Sequence[DeleteRequest],
     ) -> set[CellId_t]:
-        """Add and remove cells to the graph.
+        """Add and remove cells to/from the graph.
 
         This method adds the cells in `execution_requests` to the kernel's
         graph (deleting old versions of these cells, if any), and removes the
@@ -430,12 +448,25 @@ class Kernel:
         return descendants
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
+        """Run cells and any state updates they trigger"""
+        while cells_with_stale_state := self._run_cells_internal(cell_ids):
+            LOGGER.debug("Running state updates ...")
+            cell_ids = dataflow.transitive_closure(
+                self.graph, cells_with_stale_state
+            )
+        LOGGER.debug("Finished run.")
+        write_completed_run()
+
+    def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
+        """Run cells, send outputs to frontends"""
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
         for cid in cell_ids:
             write_queued(cell_id=cid)
 
         runner = cell_runner.Runner(
-            cell_ids=cell_ids, graph=self.graph, glbls=self.globals
+            cell_ids=cell_ids,
+            graph=self.graph,
+            glbls=self.globals,
         )
 
         # I/O
@@ -459,13 +490,13 @@ class Kernel:
             # State clean-up: don't leak names, UI elements, ...
             self._invalidate_cell_state(cell_id)
 
-            with self._execution_ctx(cell_id):
+            with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
             if run_result.success():
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
-                    with self._execution_ctx(cell_id):
+                    with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 write_output(
                     channel=formatted_output.channel,
@@ -477,7 +508,7 @@ class Kernel:
                 LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
-                    with self._execution_ctx(cell_id):
+                    with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 write_output(
                     channel=formatted_output.channel,
@@ -574,8 +605,20 @@ class Kernel:
                     cell_id=cid,
                 )
 
-        LOGGER.debug("Finished run.")
-        write_completed_run()
+        cells_with_stale_state = runner.resolve_state_updates(
+            self.state_updates, self.errors
+        )
+        self.state_updates.clear()
+        return cells_with_stale_state
+
+    def register_state_update(self, state: State[Any]) -> None:
+        """Register a state object as having been updated.
+
+        Should be called when a state's setter is called.
+        """
+        # store the state and the currently executing cell
+        assert self.execution_context is not None
+        self.state_updates[state] = self.execution_context.cell_id
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
@@ -588,11 +631,22 @@ class Kernel:
             )
 
     def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
+        """Run cells and their descendants.
+
+        The cells may be cells already existing in the graph or new cells.
+        Adds the cells in `execution_requests` to the graph before running
+        them.
+        """
+
         self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
+        """Set the value of a UI element bound to a global variable.
+
+        Runs cells that reference the UI element by name.
+        """
         referring_cells = set()
         for object_id, value in request.ids_and_values:
             try:
@@ -611,7 +665,11 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            component._update(value)
+            with self._install_execution_context(
+                get_context().ui_element_registry.get_cell(object_id),
+                setting_element_value=True,
+            ):
+                component._update(value)
             bound_names = get_context().ui_element_registry.bound_names(
                 object_id
             )
@@ -649,6 +707,7 @@ class Kernel:
         self.ui_initializers = {}
 
     def complete(self, request: CompletionRequest) -> None:
+        """Code completion"""
         if self.completion_thread is None:
             self.completion_thread = threading.Thread(
                 target=complete,
@@ -736,8 +795,9 @@ def launch_kernel(
                     break
 
             # TODO(akshayka): if kernel is in `run` but not executing,
-            # it won't be interrupted, which isn't right
-            if kernel.executing:
+            # it won't be interrupted, which isn't right ... but the
+            # probability of that happening is low.
+            if kernel.execution_context is not None:
                 write_interrupted()
                 raise MarimoInterrupt
 

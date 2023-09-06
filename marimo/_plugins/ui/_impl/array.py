@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Final, Sequence
+from typing import Any, Callable, Dict, Final, Optional, Sequence
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.rich_help import mddoc
@@ -55,6 +55,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
 
     - `elements`: the UI elements to include
     - `label`: a descriptive name for the array
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-dict"
@@ -64,6 +65,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
         elements: Sequence[UIElement[Any, Any]],
         *,
         label: str = "",
+        on_change: Optional[Callable[[Sequence[object]], None]] = None,
     ) -> None:
         self._elements = [e._clone() for e in elements]
         self._label = label
@@ -84,6 +86,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
                 },
             },
             slotted_html=slotted_html.text,
+            on_change=on_change,
         )
 
     @property

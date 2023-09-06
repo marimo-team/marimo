@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Final
+from typing import Callable, Final, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -34,6 +34,7 @@ class microphone(UIElement[str, io.BytesIO]):
     **Initialization Args.**
 
     - `label`: optional text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     name: Final[str] = "marimo-microphone"
@@ -42,12 +43,14 @@ class microphone(UIElement[str, io.BytesIO]):
         self,
         *,
         label: str = "",
+        on_change: Optional[Callable[[io.BytesIO], None]] = None,
     ) -> None:
         super().__init__(
             component_name=microphone.name,
             initial_value="",
             label=label,
             args={},
+            on_change=on_change,
         )
 
     def _convert_value(self, value: str) -> io.BytesIO:

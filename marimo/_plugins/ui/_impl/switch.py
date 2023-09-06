@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Final
+from typing import Callable, Final, Optional
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -26,11 +26,18 @@ class switch(UIElement[bool, bool]):
 
     - `value`: default value, True or False
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-switch"
 
-    def __init__(self, value: bool = False, *, label: str = "") -> None:
+    def __init__(
+        self,
+        value: bool = False,
+        *,
+        label: str = "",
+        on_change: Optional[Callable[[bool], None]] = None,
+    ) -> None:
         if not isinstance(value, bool):
             raise ValueError(
                 "Invalid type: `value` must be a bool, but got %s"
@@ -46,6 +53,7 @@ class switch(UIElement[bool, bool]):
             initial_value=value,
             label=label,
             args={},
+            on_change=on_change,
         )
 
     def _convert_value(self, value: bool) -> bool:

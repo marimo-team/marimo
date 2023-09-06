@@ -6,13 +6,17 @@ import pprint
 import re
 import sys
 import traceback
+from collections.abc import Container
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell
 from marimo._output import formatting
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+
+if TYPE_CHECKING:
+    from marimo._runtime.state import State
 
 
 def cell_filename(cell_id: CellId_t) -> str:
@@ -150,6 +154,10 @@ class Runner:
         self.interrupted = False
         self.exceptions: dict[CellId_t, Exception] = {}
 
+        self._run_position = {
+            cell_id: index for index, cell_id in enumerate(self.cells_to_run)
+        }
+
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
         self.cells_cancelled[cell_id] = set(
@@ -167,6 +175,80 @@ class Runner:
     def pending(self) -> bool:
         """Whether there are more cells to run."""
         return not self.interrupted and len(self.cells_to_run) > 0
+
+    def _get_run_position(self, cell_id: CellId_t) -> Optional[int]:
+        """Position in the original run queue"""
+        return (
+            self._run_position[cell_id]
+            if cell_id in self._run_position
+            else None
+        )
+
+    def _runs_after(
+        self, source: CellId_t, target: CellId_t
+    ) -> Optional[bool]:
+        """Compare run positions.
+
+        Returns `True` if source runs after target, `False` if target runs
+        after source, or `None` if not comparable
+        """
+        source_pos = self._get_run_position(source)
+        target_pos = self._get_run_position(target)
+        if source_pos is None or target_pos is None:
+            return None
+        return source_pos > target_pos
+
+    def resolve_state_updates(
+        self,
+        state_updates: dict[State[Any], CellId_t],
+        errored_cells: Container[CellId_t],
+    ) -> set[CellId_t]:
+        """
+        Get cells that need to be run as a consequence of state updates
+
+        A cell is marked as needing to run if all of the following are true:
+
+            1. The runner was not interrupted.
+            2. It was not already run after its setter was called.
+            3. It isn't the cell that called the setter.
+            4. It is not errored (unable to run) or cancelled.
+            5. It has among its refs the state object whose setter
+               was invoked.
+
+        (3) means that a state update in a given cell will never re-trigger
+        the same cell to run. This is similar to how interacting with
+        a UI element in the cell that created it won't re-trigger the cell,
+        and this behavior is useful when tieing UI elements together with a
+        state object.
+
+        **Arguments.**
+
+        - state_updates: mapping from state object to the cell that last ran
+          its setter
+        - errored_cells: cell ids that are unable to run
+        """
+        # No updates when the runner is interrupted (condition 1)
+        if self.interrupted:
+            return set()
+
+        cids_to_run: set[CellId_t] = set()
+        for state, setter_cell_id in state_updates.items():
+            for cid, cell in self.graph.cells.items():
+                # Don't re-run cells that already ran with new state (2)
+                if self._runs_after(source=cid, target=setter_cell_id):
+                    continue
+                # No self-loops (3)
+                if cid == setter_cell_id:
+                    continue
+                # No errorred/cancelled cells (4)
+                if cid in errored_cells or self.cancelled(cid):
+                    continue
+                # State object in refs (5)
+                for ref in cell.refs:
+                    # run this cell if any of its refs match the state
+                    if ref in self.glbls and self.glbls[ref] == state:
+                        cids_to_run.add(cid)
+        return cids_to_run
 
     def pop_cell(self) -> CellId_t:
         """Get the next cell to run."""

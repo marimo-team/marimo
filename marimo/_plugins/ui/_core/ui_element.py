@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar, cast
 
 from marimo import _loggers
 from marimo._output.hypertext import Html
@@ -63,6 +63,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: str,
         initial_value: S,
         label: Optional[str],
+        on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str = "",
     ) -> None:
@@ -75,9 +76,17 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         label: markdown string, label of element
         args: arguments that the element takes
         slotted_html: any html to slot in the custom element
+        on_change: callback, called with element's new value on change
         """
         # arguments stored in signature order for cloning
-        self._args = (component_name, initial_value, label, args, slotted_html)
+        self._args = (
+            component_name,
+            initial_value,
+            label,
+            on_change,
+            args,
+            slotted_html,
+        )
         self._initialized = False
         self._initialize(*self._args)
         self._initialized = True
@@ -87,6 +96,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: str,
         initial_value: S,
         label: Optional[str],
+        on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str,
     ) -> None:
@@ -143,6 +153,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 pass
         self._initial_value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
+        self._on_change = on_change
 
         self._inner_text = build_ui_plugin(
             component_name,
@@ -173,8 +184,12 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         ctx = get_context()
         if (
             ctx.initialized
-            and ctx.kernel.cell_id
-            == ctx.ui_element_registry.get_cell(self._id)
+            and ctx.kernel.execution_context is not None
+            and not ctx.kernel.execution_context.setting_element_value
+            and (
+                ctx.kernel.execution_context.cell_id
+                == ctx.ui_element_registry.get_cell(self._id)
+            )
         ):
             raise RuntimeError(
                 "Accessing the value of a UIElement in the cell that created "
@@ -230,7 +245,14 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         return form_plugin(element=self, label=label)
 
     def _update(self, value: S) -> None:
+        """Update value, given a value from the frontend
+
+        Calls the on_change handler with the element's new value as a
+        side-effect.
+        """
         self._value = self._convert_value(value)
+        if self._on_change is not None:
+            self._on_change(self._value)
 
     def __del__(self) -> None:
         ctx = get_context()

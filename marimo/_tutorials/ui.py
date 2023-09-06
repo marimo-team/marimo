@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -170,23 +170,41 @@ def __(composite_elements, documentation):
 
 @app.cell
 def __(mo):
+    mo.md("## State")
+    return
+
+
+@app.cell
+def __(mo):
     mo.md(
         """
-        ## Example: A task list
+        **Heads up!**
 
-        The next three cells implement a task list. The task list is
-        built using three basic UI elements:
+        The rest of this tutorial covers state, an advanced topic. Feel free
+        to return here later, if or when you find yourself
+        limited in building interactive stateful apps.
+        """
+    ).callout(kind="warn")
+    return
 
-        - `mo.checkbox` for the task items
-        - `mo.text` for the task entry input
-        - `mo.button` for adding and removing tasks
 
-        and one composite element:
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        You can build powerful interactive notebooks and apps using just
+        `mo.ui` and reactivity.
 
-        - `mo.array` for maintaining a list of tasks.
+        Sometimes, however, you might want interactions to mutate **state**. 
+        Maybe you're building a checklist, and you want to maintain a list
+        of action items. Or maybe you want to tie two different UI elements, so 
+        that updating one updates the other. 
 
-        This is an advanced example. You can get far with marimo without
-        ever having to implement a stateful element like this one.
+        For these and other cases, marimo provides the function `mo.state`, which
+        creates state returns a getter function and a setter function. When you 
+        call the setter function in one cell, all other 
+        cells that reference the getter via a global variable are automatically 
+        run (similar to UI elements).
         """
     )
     return
@@ -194,84 +212,304 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    # A text input for entering a task
-    task = mo.ui.text(placeholder="a task ...")
-
-    class TaskListState:
-        """
-        This class holds the state of the task list: the tasks (labels),
-        and whether they've been completed (values).
-        """
-        def __init__(self):
-            # The task labels
-            self.labels = []
-            # Whether each label is checked
-            self.values = []
-
-        def add_task(self):
-            if task.value:
-                # Add the current value of the task input to `self.labels`
-                self.labels.append(task.value)
-                # The task starts as incomplete
-                self.values.append(False)
-            return self
-
-        def clear_tasks(self):
-            # Remove all completed tasks from state
-            self.labels[:] = [
-                label
-                for i, label in enumerate(self.labels)
-                if not self.values[i]
-            ]
-            self.values[:] = [v for v in self.values if not v]
-            return self
-
-    state = TaskListState()
-
-    # Buttons to add and remove tasks; these buttons mutate state when they
-    # are clicked.
-    add_task_button = mo.ui.button(
-        value=state,
-        on_click=lambda state: state.add_task(),
-        label="add task",
-    )
-
-    clear_tasks_button = mo.ui.button(
-        value=state,
-        on_click=lambda state: state.clear_tasks(),
-        label="clear completed tasks",
-    )
-    return TaskListState, add_task_button, clear_tasks_button, state, task
+    mo.accordion({"Documentation on `mo.state`": mo.doc(mo.state)})
+    return
 
 
 @app.cell
-def __(add_task_button, clear_tasks_button, mo, state, task):
-    # Construct the task list based on the task list state.
-    #
-    # This cell will re-run and reconstruct the task list with updated state 
-    # whenever either of the buttons are clicked, since they include references 
-    # to the button elements.
-    task_list = mo.ui.array(
-        [
-            mo.ui.checkbox(value=v, label=l)
-            for v, l in zip(state.values, state.labels)
-        ],
-        label="tasks",
+def __(mo):
+    mo.md(
+        """
+        ### Creating state
+
+        `mo.state` takes an initial state value as its argument, and returns
+
+        - a function that returns the state value;
+        - a function that updates the state value.
+
+        For exaxmple,
+
+        ```python
+        get_counter, set_counter = mo.state(0)
+        ```
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    get_counter, set_counter = mo.state(0)
+    return get_counter, set_counter
+
+
+@app.cell
+def __(mo):
+    mo.accordion(
+        {
+            "Tip: assign state getters to global variables": (
+                """
+                Calling a state's setter function will only 
+                trigger reactive execution if the corresponding getter is 
+                assigned to and referenced via a global variable.
+                """
+            ),
+            "Tip: use state sparingly": (
+                """
+                You can get far using just `mo.ui`, without state. That said,
+                judiciously using state can simplify the implementation of highly 
+                interactive notebooks/apps, and also enables new use cases.
+                """
+            ),
+        }
+    )
+    return
+
+
+@app.cell
+def __(get_counter, mo):
+    mo.md(
+        f"""
+        Acccess the value of the state via its getter: `get_counter()` 
+        returned **{get_counter()}**
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        ### Setting State
+
+        Set an element's state by calling its setter function.
+
+        - Call it with a new value: `set_counter(1)`
+        - Call it with a function that takes the current value and returns a new 
+          one: `set_counter(lambda count: count + 1)`
+
+        **State updates are reactive.** When you call a state's setter in one
+        cell, _all other cells that reference the state getter via a global 
+        variable_ are automatically
+        run with the new state value. This is similar to how interacting with
+        a UI element automatically runs all cells that use the element.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        **The `on_change` callback.** Every UI element takes an optional 
+        `on_change` callback, a function
+        that takes the new value of the element and does anything with it. You can
+        use the setter function in an `on_change` callback to mutate state.
+
+        **🌊 Try it!** Click the button below and watch what happens.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo, set_counter):
+    increment = mo.ui.button(
+        label="increment",
+        on_change=lambda _: set_counter(lambda v: v + 1),
     )
 
-    (
-        task,
-        add_task_button,
-        clear_tasks_button,
-        task_list if state.values else mo.md("No tasks! 🎉"),
+    decrement = mo.ui.button(
+        label="decrement",
+        on_change=lambda _: set_counter(lambda v: v - 1),
+    )
+
+    mo.hstack([increment, decrement], justify="center")
+    return decrement, increment
+
+
+@app.cell
+def __(get_counter, mo):
+    mo.md(
+        f"""
+        The counter's current value is **{get_counter()}**!
+
+        This cell runs automatically on button click, even though it 
+        doesn't reference either button. 
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.accordion(
+        {
+            "Tip: no self-loops": (
+                """
+                Calling a state's setter in one cell won't ever cause that same
+                cell to re-execute, even if it reads that state getter. This 
+                prevents accidental infinite loops and makes some things, like
+                tying elements, easier."
+                """
+            )
+        }
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("### Tied elements")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        Use state to tie two UI elements to the same value.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    get_shared_state, set_shared_state = mo.state(0)
+    return get_shared_state, set_shared_state
+
+
+@app.cell
+def __(get_shared_state, mo, set_shared_state):
+    x = mo.ui.slider(
+        0, 10, value=get_shared_state(), on_change=set_shared_state, label="$x$:"
+    )
+    return x,
+
+
+@app.cell
+def __(get_shared_state, mo, set_shared_state):
+    x_plus_one = mo.ui.number(
+        1,
+        11,
+        value=get_shared_state() + 1,
+        on_change=lambda v: set_shared_state(v - 1),
+        label="$x + 1$:",
+    )
+    return x_plus_one,
+
+
+@app.cell
+def __(x, x_plus_one):
+    [x, x_plus_one]
+    return
+
+
+@app.cell
+def __(mo):
+    mo.accordion(
+        {
+            "Tip: tying elements and cycles": (
+                """
+                To tie elements, you must `mo.state`, and the tied elements
+                must be created in different cells (since self-loops with state
+                are not allowed).
+                """
+            )
+        }
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        ### Example: Task list
+        """
+    )
+    return
+
+
+@app.cell
+def __(dataclass, mo):
+    @dataclass
+    class Task:
+        name: str
+        done: bool = False
+
+
+    get_tasks, set_tasks = mo.state([])
+    task_list_mutated, set_task_list_mutated = mo.state(False)
+    return (
+        Task,
+        get_tasks,
+        set_task_list_mutated,
+        set_tasks,
+        task_list_mutated,
+    )
+
+
+@app.cell
+def __(mo, task_list_mutated):
+    task_list_mutated
+
+    task_entry_box = mo.ui.text(placeholder="a task ...")
+    return task_entry_box,
+
+
+@app.cell
+def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box):
+    def add_task():
+        if task_entry_box.value:
+            set_tasks(lambda v: v + [Task(task_entry_box.value)])
+            set_task_list_mutated(True)
+
+
+    def clear_tasks():
+        set_tasks(lambda v: [task for task in v if not task.done])
+        set_task_list_mutated(True)
+
+
+    add_task_button = mo.ui.button(
+        label="add task",
+        on_change=lambda _: add_task(),
+    )
+
+    clear_tasks_button = mo.ui.button(
+        label="clear completed tasks", on_change=lambda _: clear_tasks()
+    )
+    return add_task, add_task_button, clear_tasks, clear_tasks_button
+
+
+@app.cell
+def __(Task, get_tasks, mo, set_tasks):
+    task_list = mo.ui.array(
+        [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
+        label="tasks",
+        on_change=lambda v: set_tasks(
+            lambda tasks: [
+                Task(task.name, done=v[i]) for i, task in enumerate(tasks)
+            ]
+        ),
     )
     return task_list,
 
 
 @app.cell
-def __(state, task_list):
-    # This cell runs whenever a task is checked or unchecked, updating the state
-    state.values[:] = task_list.value
+def __(add_task_button, clear_tasks_button, mo, task_entry_box):
+    mo.hstack(
+        [task_entry_box, add_task_button, clear_tasks_button], justify="start"
+    )
+    return
+
+
+@app.cell
+def __(mo, task_list):
+    mo.as_html(task_list) if task_list.value else mo.md("No tasks! 🎉")
     return
 
 
@@ -291,12 +529,16 @@ def __(mo):
 @app.cell
 def __(mo):
     composite_elements = mo.ui.dropdown(
-        options=dict(sorted({
-            'array': mo.ui.array,
-            'batch': mo.ui.batch,
-            'dictionary': mo.ui.dictionary,
-            'form': mo.ui.form,
-        }.items())),
+        options=dict(
+            sorted(
+                {
+                    "array": mo.ui.array,
+                    "batch": mo.ui.batch,
+                    "dictionary": mo.ui.dictionary,
+                    "form": mo.ui.form,
+                }.items()
+            )
+        ),
     )
     return composite_elements,
 
@@ -304,21 +546,25 @@ def __(mo):
 @app.cell
 def __(mo):
     basic_ui_elements = mo.ui.dropdown(
-        options=dict(sorted({
-            'button': mo.ui.button,
-            'checkbox': mo.ui.checkbox,
-            'date': mo.ui.date,
-            'dropdown': mo.ui.dropdown,
-            'file': mo.ui.file,
-            'multiselect': mo.ui.multiselect,
-            'number': mo.ui.number,
-            'radio': mo.ui.radio,
-            'slider': mo.ui.slider,
-            'switch': mo.ui.switch,
-            'table': mo.ui.table,
-            'text': mo.ui.text,
-            'text_area': mo.ui.text_area,
-        }.items())),
+        options=dict(
+            sorted(
+                {
+                    "button": mo.ui.button,
+                    "checkbox": mo.ui.checkbox,
+                    "date": mo.ui.date,
+                    "dropdown": mo.ui.dropdown,
+                    "file": mo.ui.file,
+                    "multiselect": mo.ui.multiselect,
+                    "number": mo.ui.number,
+                    "radio": mo.ui.radio,
+                    "slider": mo.ui.slider,
+                    "switch": mo.ui.switch,
+                    "table": mo.ui.table,
+                    "text": mo.ui.text,
+                    "text_area": mo.ui.text_area,
+                }.items()
+            )
+        ),
     )
     return basic_ui_elements,
 
@@ -393,7 +639,7 @@ def __(mo):
 def __(mo):
     def show_element(element):
         if element is not None:
-          return mo.hstack([element], "center")
+            return mo.hstack([element], "center")
     return show_element,
 
 
@@ -422,6 +668,12 @@ def __(mo):
                 {f"Documentation on `mo.ui.{element.__name__}`": mo.doc(element)}
             )
     return documentation,
+
+
+@app.cell
+def __():
+    from dataclasses import dataclass
+    return dataclass,
 
 
 @app.cell
