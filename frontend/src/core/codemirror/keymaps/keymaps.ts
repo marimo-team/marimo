@@ -37,13 +37,17 @@ export function keymapBundle(
       return [
         // delete the cell on double press of "d", if the cell is empty
         Prec.highest(
-          doubleCharacterListener("d", (view: EditorView) => {
-            if (view.state.doc.toString() === "") {
-              callbacks.deleteCell();
-              return true;
+          doubleCharacterListener(
+            "d",
+            (view) => view.state.doc.toString() === "",
+            (view) => {
+              if (view.state.doc.toString() === "") {
+                callbacks.deleteCell();
+                return true;
+              }
+              return false;
             }
-            return false;
-          })
+          )
         ),
         vim({ status: false }),
         keymap.of(defaultKeymap),
@@ -59,6 +63,7 @@ export function keymapBundle(
  */
 function doubleCharacterListener(
   character: string,
+  predicate: (view: EditorView) => boolean,
   onDoubleCharacter: (view: EditorView) => boolean
 ): Extension {
   let lastKey = "";
@@ -69,8 +74,8 @@ function doubleCharacterListener(
         const key = event.key;
         const time = event.timeStamp;
 
-        // Different key
-        if (key !== character) {
+        // Different key or false predicate
+        if (key !== character || !predicate(view)) {
           lastKey = "";
           lastKeyTime = 0;
           return false;
