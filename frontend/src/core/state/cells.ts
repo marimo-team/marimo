@@ -141,6 +141,7 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
           cell,
           ...state.present.slice(insertionIndex),
         ],
+        scrollKey: cell.key,
       };
     }
     case "MOVE_CELL": {

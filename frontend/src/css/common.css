@@ -11,6 +11,12 @@
   display: inline-flex !important;
 }
 
+/* If parent has any children that have an open pop, show hover actions */
+.hover-actions-parent:has(button[aria-haspopup][data-state="open"])
+  .hover-action {
+  display: inline-flex !important;
+}
+
 /* Hide on print
 To hide an element on print, add the class `no-print` to it.
 When printing, the class `printing` is added to the body element to enable this rule. */

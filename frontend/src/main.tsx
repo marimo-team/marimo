@@ -5,7 +5,6 @@ import { worker } from "./mocks/browser";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { ErrorBoundary } from "./editor/boundary/ErrorBoundary";
 import { MarimoApp } from "./MarimoApp";
-import { getInitialAppMode } from "./core/mode";
 import { Logger } from "./utils/Logger";
 import { reportVitals } from "./utils/vitals";
 import { Provider } from "jotai";
@@ -34,12 +33,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_MSW) {
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 try {
-  const initialMode = getInitialAppMode();
   root.render(
     <React.StrictMode>
       <Provider store={store}>
         <ThemeProvider>
-          <MarimoApp initialMode={initialMode} />
+          <MarimoApp />
         </ThemeProvider>
       </Provider>
     </React.StrictMode>

@@ -13,6 +13,7 @@ import { commandPalletteAtom } from "@/editor/CommandPallette";
 import { useSetAtom } from "jotai";
 import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { renderMinimalShortcut } from "../shortcuts/renderShortcut";
+import { runDuringPresentMode } from "@/core/mode";
 
 interface Props {
   filename: string | null;
@@ -44,8 +45,11 @@ export const MenuDropdown: React.FC<Props> = ({ filename }) => {
     {
       icon: <ImageIcon size={13} strokeWidth={1.5} />,
       label: "Export to PNG",
-      handle: () =>
-        downloadHTMLAsImage(document.body, filename || "screenshot.png"),
+      handle: async () => {
+        await runDuringPresentMode(() => {
+          downloadHTMLAsImage(document.body, filename || "screenshot.png");
+        });
+      },
     },
     {
       icon: <CommandIcon size={13} strokeWidth={1.5} />,

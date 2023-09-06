@@ -179,24 +179,32 @@ export const CellActions = ({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <TooltipRoot delayDuration={400}>
-        <TooltipContent className="dark dark-theme w-full bg-card">
-          <div className="text-xs text-foreground-muted flex flex-col text-center">
-            <span>
-              <span className="text-foreground font-semibold">Drag </span>to
-              move cell
-            </span>
-            <span>
-              <span className="text-foreground font-semibold">Click </span>to
-              open menu
-            </span>
-          </div>
-        </TooltipContent>
+      <TooltipRoot delayDuration={400} disableHoverableContent={true}>
+        {!open && (
+          <TooltipContent
+            className="dark dark-theme w-full bg-card"
+            tabIndex={-1}
+          >
+            <div className="text-xs text-foreground-muted flex flex-col text-center">
+              <span>
+                <span className="text-foreground font-semibold">Drag </span>to
+                move cell
+              </span>
+              <span>
+                <span className="text-foreground font-semibold">Click </span>to
+                open menu
+              </span>
+            </div>
+          </TooltipContent>
+        )}
         <TooltipTrigger>
           <PopoverTrigger>{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>
-      <PopoverContent className="w-[300px] p-0 pt-1">
+      <PopoverContent
+        className="w-[300px] p-0 pt-1"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
           <CommandInput
             placeholder="Search actions..."
