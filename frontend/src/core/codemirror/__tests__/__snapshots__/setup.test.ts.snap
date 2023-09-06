@@ -1,0 +1,303 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
+{
+  "ArrowDown": [
+    {
+      "key": "ArrowDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowDown",
+      "preventDefault": true,
+      "run": "cursorLineDown",
+      "shift": "selectLineDown",
+    },
+  ],
+  "ArrowUp": [
+    {
+      "key": "ArrowUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowUp",
+      "preventDefault": true,
+      "run": "cursorLineUp",
+      "shift": "selectLineUp",
+    },
+  ],
+  "Backspace": [
+    {
+      "key": "Backspace",
+      "run": "deleteCharBackward",
+      "shift": "deleteCharBackward",
+    },
+    {
+      "key": "Backspace",
+      "run": "deleteBracketPair",
+    },
+  ],
+  "Enter": [
+    {
+      "key": "Enter",
+      "run": "acceptCompletion",
+    },
+    {
+      "key": "Enter",
+      "run": "<no name>",
+    },
+  ],
+  "Escape": [
+    {
+      "key": "Escape",
+      "run": "closeCompletion",
+    },
+    {
+      "key": "Escape",
+      "run": "simplifySelection",
+    },
+    {
+      "key": "Escape",
+      "preventDefault": true,
+      "run": "run",
+    },
+    {
+      "key": "Escape",
+      "preventDefault": false,
+      "run": "closeFindReplacePanel",
+    },
+  ],
+  "PageDown": [
+    {
+      "key": "PageDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageDown",
+      "run": "cursorPageDown",
+      "shift": "selectPageDown",
+    },
+  ],
+  "PageUp": [
+    {
+      "key": "PageUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageUp",
+      "run": "cursorPageUp",
+      "shift": "selectPageUp",
+    },
+  ],
+  "Tab": [
+    {
+      "key": "Tab",
+      "preventDefault": true,
+      "run": "run",
+    },
+    {
+      "key": "Tab",
+      "run": "indentMore",
+      "shift": "indentLess",
+    },
+  ],
+}
+`;
+
+exports[`snapshot all duplicate keymaps > vim keymaps 1`] = `
+{
+  "ArrowDown": [
+    {
+      "key": "ArrowDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowDown",
+      "preventDefault": true,
+      "run": "cursorLineDown",
+      "shift": "selectLineDown",
+    },
+  ],
+  "ArrowUp": [
+    {
+      "key": "ArrowUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowUp",
+      "preventDefault": true,
+      "run": "cursorLineUp",
+      "shift": "selectLineUp",
+    },
+  ],
+  "Backspace": [
+    {
+      "key": "Backspace",
+      "run": "deleteCharBackward",
+      "shift": "deleteCharBackward",
+    },
+    {
+      "key": "Backspace",
+      "run": "deleteBracketPair",
+    },
+  ],
+  "Enter": [
+    {
+      "key": "Enter",
+      "run": "acceptCompletion",
+    },
+    {
+      "key": "Enter",
+      "run": "<no name>",
+    },
+  ],
+  "Escape": [
+    {
+      "key": "Escape",
+      "run": "closeCompletion",
+    },
+    {
+      "key": "Escape",
+      "run": "simplifySelection",
+    },
+    {
+      "key": "Escape",
+      "preventDefault": false,
+      "run": "closeFindReplacePanel",
+    },
+  ],
+  "PageDown": [
+    {
+      "key": "PageDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageDown",
+      "run": "cursorPageDown",
+      "shift": "selectPageDown",
+    },
+  ],
+  "PageUp": [
+    {
+      "key": "PageUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageUp",
+      "run": "cursorPageUp",
+      "shift": "selectPageUp",
+    },
+  ],
+  "Tab": [
+    {
+      "key": "Tab",
+      "preventDefault": true,
+      "run": "run",
+    },
+    {
+      "key": "Tab",
+      "run": "indentMore",
+      "shift": "indentLess",
+    },
+  ],
+}
+`;
+
+exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
+{
+  "ArrowDown": [
+    {
+      "key": "ArrowDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowDown",
+      "preventDefault": true,
+      "run": "cursorLineDown",
+      "shift": "selectLineDown",
+    },
+  ],
+  "ArrowUp": [
+    {
+      "key": "ArrowUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "ArrowUp",
+      "preventDefault": true,
+      "run": "cursorLineUp",
+      "shift": "selectLineUp",
+    },
+  ],
+  "Backspace": [
+    {
+      "key": "Backspace",
+      "run": "deleteCharBackward",
+      "shift": "deleteCharBackward",
+    },
+    {
+      "key": "Backspace",
+      "run": "deleteBracketPair",
+    },
+  ],
+  "Enter": [
+    {
+      "key": "Enter",
+      "run": "acceptCompletion",
+    },
+    {
+      "key": "Enter",
+      "run": "<no name>",
+    },
+  ],
+  "Escape": [
+    {
+      "key": "Escape",
+      "run": "closeCompletion",
+    },
+    {
+      "key": "Escape",
+      "run": "simplifySelection",
+    },
+    {
+      "key": "Escape",
+      "preventDefault": false,
+      "run": "closeFindReplacePanel",
+    },
+  ],
+  "PageDown": [
+    {
+      "key": "PageDown",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageDown",
+      "run": "cursorPageDown",
+      "shift": "selectPageDown",
+    },
+  ],
+  "PageUp": [
+    {
+      "key": "PageUp",
+      "run": "<no name>",
+    },
+    {
+      "key": "PageUp",
+      "run": "cursorPageUp",
+      "shift": "selectPageUp",
+    },
+  ],
+  "Tab": [
+    {
+      "key": "Tab",
+      "preventDefault": true,
+      "run": "run",
+    },
+    {
+      "key": "Tab",
+      "run": "indentMore",
+      "shift": "indentLess",
+    },
+  ],
+}
+`;

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
 import { EditorState, Extension } from "@codemirror/state";
 import { EditorView, basicSetup } from "codemirror";
-import { setup } from "../core/codemirror/cm";
+import { basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 
 const meta: Meta = {
@@ -57,7 +57,10 @@ export const Primary: Story = {
   render: (args, ctx) => (
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
-        extensions={setup({ activate_on_typing: false }, ctx.globals.theme)}
+        extensions={basicBundle(
+          { activate_on_typing: false },
+          ctx.globals.theme
+        )}
       />
     </div>
   ),
