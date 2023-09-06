@@ -1,6 +1,6 @@
 # Media
 
-Use `mo.image` and `mo.audio` to embed images and audio in your outputs.
+Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
 
 ```{eval-rst}
 .. autosummary::
@@ -8,4 +8,5 @@ Use `mo.image` and `mo.audio` to embed images and audio in your outputs.
 
   marimo.image
   marimo.audio
+  marimo.pdf
 ```

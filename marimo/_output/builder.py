@@ -57,6 +57,28 @@ class _HTMLBuilder:
         else:
             return f"<audio {_join_params(params)} />"
 
+    @staticmethod
+    def iframe(
+        src: Optional[str] = None,
+        width: Optional[str] = None,
+        height: Optional[str] = None,
+        style: Optional[str] = None,
+    ) -> str:
+        params: List[Tuple[str, str]] = []
+        if src:
+            params.append(("src", src))
+        if width:
+            params.append(("width", width))
+        if height:
+            params.append(("height", height))
+        if style:
+            params.append(("style", style))
+
+        if len(params) == 0:
+            return "<iframe />"
+        else:
+            return f"<iframe {_join_params(params)} />"
+
 
 def _join_params(params: List[Tuple[str, str]]) -> str:
     return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])
