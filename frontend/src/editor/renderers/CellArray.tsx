@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { EditorView } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import { useEffect, useState } from "react";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "editor/Cell";

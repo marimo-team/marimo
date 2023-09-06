@@ -24,7 +24,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
-import { EditorView } from "codemirror";
+import { EditorView } from "@codemirror/view";
 import { FocusScope } from "@react-aria/focus";
 import { toast } from "../ui/use-toast";
 
