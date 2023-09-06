@@ -305,7 +305,7 @@ task_list = mo.ui.array(
     [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
     label="tasks",
     on_change=lambda v: set_tasks(
-        [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
+        lambda tasks: [Task(task.name, done=v[i]) for i, task in enumerate(tasks)]
     ),
 )
 ```

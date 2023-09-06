@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.2"
+__generated_with = "0.1.4"
 app = marimo.App()
 
 
@@ -31,20 +30,20 @@ def __():
 
 @app.cell
 def __(mo):
-    state, set_state = mo.state(0)
-    return set_state, state
+    get_state, set_state = mo.state(0)
+    return get_state, set_state
 
 
 @app.cell
-def __(set_state, state):
+def __(get_state, set_state):
     # No self-loops: shouldn't be a cycle
-    set_state(state.value)
+    set_state(get_state())
     return
 
 
 @app.cell
-def __(state):
-    state.value
+def __(get_state):
+    get_state()
     return
 
 
@@ -61,25 +60,25 @@ def __(mo, set_state):
 @app.cell
 def __(mo):
     # tie two number components together
-    angle, set_angle = mo.state(0)
-    return angle, set_angle
+    get_angle, set_angle = mo.state(0)
+    return get_angle, set_angle
 
 
 @app.cell
-def __(angle, mo, set_angle):
+def __(get_angle, mo, set_angle):
     degrees = mo.ui.number(
-        0, 360, step=1, value=angle.value, on_change=set_angle, label="degrees"
+        0, 360, step=1, value=get_angle(), on_change=set_angle, label="degrees"
     )
     return degrees,
 
 
 @app.cell
-def __(angle, math, mo, set_angle):
+def __(get_angle, math, mo, set_angle):
     radians = mo.ui.number(
         0,
         2*math.pi,
         step=0.01,
-        value=angle.value * math.pi / 180,
+        value=get_angle() * math.pi / 180,
         on_change=lambda v: set_angle(v * 180 / math.pi),
         label="radians"
     )

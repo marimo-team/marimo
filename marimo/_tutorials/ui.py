@@ -284,7 +284,7 @@ def __(mo):
         ### Setting State
 
         Set an element's state by calling its setter function.
-        
+
         - Call it with a new value: `set_counter(1)`
         - Call it with a function that takes the current value and returns a new 
           one: `set_counter(lambda count: count + 1)`
@@ -491,7 +491,9 @@ def __(Task, get_tasks, mo, set_tasks):
         [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
         label="tasks",
         on_change=lambda v: set_tasks(
-            [Task(task.name, done=v[i]) for i, task in enumerate(get_tasks())]
+            lambda tasks: [
+                Task(task.name, done=v[i]) for i, task in enumerate(tasks)
+            ]
         ),
     )
     return task_list,
