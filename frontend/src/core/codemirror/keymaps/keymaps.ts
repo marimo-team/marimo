@@ -16,7 +16,19 @@ export function keymapBundle(
 ): Extension {
   switch (config.preset) {
     case "default":
-      return [keymap.of(defaultKeymap)];
+      return [
+        keymap.of(defaultKeymap),
+        keymap.of([
+          {
+            key: "Escape",
+            preventDefault: true,
+            run: (cm) => {
+              cm.contentDOM.blur();
+              return true;
+            },
+          },
+        ]),
+      ];
     case "vim":
       // Delete a cell with :dcell
       Vim.defineEx("dcell", "dcell", () => {

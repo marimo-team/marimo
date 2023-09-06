@@ -12,7 +12,8 @@ export function findReplaceBundle() {
     keymap.of([
       {
         key: "Escape",
-        preventDefault: true,
+        // This is needed for Vim to go back to normal mode
+        preventDefault: false,
         run: closeFindReplacePanel,
       },
       {

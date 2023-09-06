@@ -115,16 +115,6 @@ export const setup = (
       ...lintKeymap,
       indentWithTab,
     ]),
-    keymap.of([
-      {
-        key: "Escape",
-        preventDefault: true,
-        run: (cm) => {
-          cm.contentDOM.blur();
-          return true;
-        },
-      },
-    ]),
     findReplaceBundle(),
     new LanguageSupport(customizedPython, [
       customizedPython.data.of({ autocomplete: localCompletionSource }),
