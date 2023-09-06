@@ -21,6 +21,9 @@ const htmlDevPlugin = (): Plugin => {
               autosave: "off",
               autosave_delay: 0,
             },
+            keymap: {
+              preset: "default",
+            },
           })
         )
         .replace(`{{ app_config }}`, JSON.stringify({}))

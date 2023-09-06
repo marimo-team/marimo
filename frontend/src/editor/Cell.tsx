@@ -43,6 +43,7 @@ import { CellDragHandle, SortableCell } from "./SortableCell";
 import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { keymapBundle } from "@/core/codemirror/keymaps/keymaps";
 
 /**
  * Imperative interface of the cell.
@@ -354,9 +355,21 @@ const CellComponent = (
     });
 
     const extensions = [
-      ...setup(userConfig.completion, theme),
+      // Our keymap goes first
       Prec.highest(keymap.of(cellEditingHotkeys)),
       Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
+      // Then editor keymaps (vim or defaults) based on user config
+      keymapBundle(userConfig.keymap, {
+        deleteCell: () => {
+          // Cannot delete running cells, since we're waiting for their output.
+          if (!runningOrQueuedRef.current) {
+            deleteCell(cellId);
+          }
+          return true;
+        },
+      }),
+      // Default setup
+      ...setup(userConfig.completion, theme),
       scrollActiveLineIntoView(),
       onChangePlugin,
       showPlaceholder
@@ -421,6 +434,7 @@ const CellComponent = (
   }, [
     cellId,
     userConfig.completion.activate_on_typing,
+    userConfig.keymap,
     theme,
     showPlaceholder,
     initialContents,

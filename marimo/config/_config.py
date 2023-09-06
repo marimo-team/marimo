@@ -45,6 +45,18 @@ class SaveConfig(TypedDict, total=False):
 
 
 @mddoc
+class KeymapConfig(TypedDict, total=False):
+    """Configuration for keymaps.
+
+    **Keys.**
+
+    - `preset`: one of `"default"` or `"vim"`
+    """
+
+    preset: Literal["default", "vim"]
+
+
+@mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
 
@@ -67,19 +79,24 @@ class MarimoConfig(TypedDict, total=False):
 
     - `completion`: a `CompletionConfig`
     - `save`: a `SaveConfig`
+    - `keymap`: a `KeymapConfig`
     """
 
     completion: CompletionConfig
     save: SaveConfig
+    keymap: KeymapConfig
 
 
 _DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True},
     "save": {"autosave": "after_delay", "autosave_delay": 1000},
+    "keymap": {"preset": "default"},
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 
-ConfigType = TypeVar("ConfigType", MarimoConfig, SaveConfig, CompletionConfig)
+ConfigType = TypeVar(
+    "ConfigType", MarimoConfig, SaveConfig, CompletionConfig, KeymapConfig
+)
 
 
 # TODO(akshayka): Type-safety, can't index into TypedDict with nonliteral

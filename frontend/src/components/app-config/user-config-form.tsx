@@ -17,6 +17,8 @@ import { toast } from "../ui/use-toast";
 import { saveUserConfig } from "../../core/network/requests";
 import { useUserConfig } from "../../core/state/config";
 import { ThemeToggle } from "./theme-toggle";
+import { NativeSelect } from "../ui/native-select";
+import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -104,6 +106,28 @@ export const UserConfigForm: React.FC = () => {
                 hotkey.
               </FormDescription>
             </div>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="keymap.preset"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Keymap</FormLabel>
+              <FormControl>
+                <NativeSelect
+                  onChange={(e) => field.onChange(e.target.value)}
+                  value={field.value}
+                >
+                  {KEYMAP_PRESETS.map((option) => (
+                    <option value={option} key={option}>
+                      {option}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
         />
       </form>

@@ -7,7 +7,6 @@ import {
 } from "@codemirror/autocomplete";
 import {
   history,
-  defaultKeymap,
   historyKeymap,
   indentWithTab,
   indentMore,
@@ -111,21 +110,10 @@ export const setup = (
     ]),
     keymap.of([
       ...closeBracketsKeymap,
-      ...defaultKeymap,
       ...historyKeymap,
       ...foldKeymap,
       ...lintKeymap,
       indentWithTab,
-    ]),
-    keymap.of([
-      {
-        key: "Escape",
-        preventDefault: true,
-        run: (cm) => {
-          cm.contentDOM.blur();
-          return true;
-        },
-      },
     ]),
     findReplaceBundle(),
     new LanguageSupport(customizedPython, [

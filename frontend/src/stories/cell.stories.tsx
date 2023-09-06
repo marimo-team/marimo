@@ -46,6 +46,9 @@ const props: CellProps = {
       autosave: "off",
       autosave_delay: 1000,
     },
+    keymap: {
+      preset: "default",
+    },
   },
 };
 
