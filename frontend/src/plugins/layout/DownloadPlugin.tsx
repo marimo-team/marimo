@@ -4,6 +4,7 @@ import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { DownloadIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface Data {
   /**
@@ -13,9 +14,13 @@ interface Data {
   /**
    * Filename
    */
-  filename?: string;
+  filename?: string | null;
   /**
-   * Label
+   * Disabled
+   */
+  disabled?: boolean;
+  /**
+   * Button label
    */
   label?: string | null;
 }
@@ -25,8 +30,9 @@ export class DownloadPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     data: z.string(),
+    disabled: z.boolean(),
+    filename: z.string().nullish(),
     label: z.string().nullish(),
-    filename: z.string().optional(),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
@@ -34,10 +40,15 @@ export class DownloadPlugin implements IStatelessPlugin<Data> {
       <a
         href={data.data}
         download={data.filename || true}
-        className={buttonVariants({ variant: "secondary" })}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={buttonVariants({
+          variant: "secondary",
+          disabled: data.disabled,
+        })}
       >
-        <DownloadIcon className="mr-2 w-3 h-3" />
-        {data.label || "Download"}
+        <DownloadIcon className={cn("w-3 h-3", data.label && "mr-2")} />
+        {data.label ?? "Download"}
       </a>
     );
   }

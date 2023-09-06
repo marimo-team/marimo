@@ -23,6 +23,7 @@ __all__ = [
     "config",
     "defs",
     "doc",
+    "download",
     "hstack",
     "Html",
     "image",
@@ -51,6 +52,7 @@ from marimo._plugins import ui
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout_output import callout
+from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.pdf import pdf
