@@ -33,7 +33,7 @@ export const CommandPallette = () => {
     };
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [setOpen]);
 
   const renderShortcutCommandItemIfNotRecent = (shortcut: HotkeyAction) => {
     const isRecent = recentCommands.includes(shortcut);
