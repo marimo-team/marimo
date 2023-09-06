@@ -161,6 +161,9 @@ dependencies:
   html-react-parser:
     specifier: ^4.2.2
     version: 4.2.2(react@18.2.0)
+  html-to-image:
+    specifier: ^1.11.11
+    version: 1.11.11
   jotai:
     specifier: ^2.4.1
     version: 2.4.1(@types/react@18.2.21)(react@18.2.0)
@@ -9028,6 +9031,10 @@ packages:
     resolution: {integrity: sha512-ztqyC3kLto0e9WbNp0aeP+M3kTt+nbaIveGmUxAtZa+8iFgKLUOD4YKM5j+f3QD89bra7UeumolZHKuOXnTmeQ==}
     engines: {node: '>=8'}
     dev: true
+
+  /html-to-image@1.11.11:
+    resolution: {integrity: sha512-9gux8QhvjRO/erSnDPv28noDZcPZmYE7e1vFsBLKLlRlKDSqNJYebj6Qz1TGd5lsRV+X+xYyjCKjuZdABinWjA==}
+    dev: false
 
   /htmlparser2@9.0.0:
     resolution: {integrity: sha512-uxbSI98wmFT/G4P2zXx4OVx04qWUmyFPrD2/CNepa2Zo3GPNaCaaxElDgwUrwYWkK1nr9fft0Ya8dws8coDLLQ==}

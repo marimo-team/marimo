@@ -44,7 +44,7 @@ export const button = cva(
       {
         size: "small",
         shape: "rectangle",
-        class: "px-2 py-1",
+        class: "px-1 py-1 h-[24px] w-[24px]",
       },
       {
         size: "medium",

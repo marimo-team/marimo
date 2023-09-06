@@ -15,9 +15,12 @@ import { useRecentCommands } from "../hooks/useRecentCommands";
 import { Kbd } from "../components/ui/kbd";
 import { prettyPrintHotkey } from "../components/shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { atom, useAtom } from "jotai";
+
+export const commandPalletteAtom = atom(false);
 
 export const CommandPallette = () => {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useAtom(commandPalletteAtom);
   const registeredActions = useRegisteredActions();
   const { recentCommands, addRecentCommand } = useRecentCommands();
 
@@ -78,12 +81,14 @@ export const CommandPallette = () => {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         {recentCommands.length > 0 && (
-          <CommandGroup heading="Recently Used">
-            {recentCommands.map((shortcut) =>
-              renderShortcutCommandItem(shortcut)
-            )}
+          <>
+            <CommandGroup heading="Recently Used">
+              {recentCommands.map((shortcut) =>
+                renderShortcutCommandItem(shortcut)
+              )}
+            </CommandGroup>
             <CommandSeparator />
-          </CommandGroup>
+          </>
         )}
         <CommandGroup heading="Commands">
           {HOTKEYS.iterate().map((shortcut) =>

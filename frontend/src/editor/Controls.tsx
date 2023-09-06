@@ -19,6 +19,7 @@ import { renderShortcut } from "../components/shortcuts/renderShortcut";
 import { useCellActions } from "../core/state/cells";
 import { AppConfigButton } from "../components/app-config/app-config-button";
 import { useState, useEffect } from "react";
+import { MenuDropdown } from "@/components/export/menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
 
 interface ControlsProps {
@@ -82,6 +83,7 @@ export const Controls = ({
 
       {!closed && (
         <div className={styles.topRightControls}>
+          <MenuDropdown filename={filename} />
           <AppConfigButton />
           <ShutdownButton onShutdown={onShutdown} />
         </div>

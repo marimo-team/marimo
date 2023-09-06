@@ -40,11 +40,11 @@
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    /* tailwind blue-500 */
-    --accent: 217 91% 60%;
+    /* blue-3 */
+    --accent: 209 100% 96.5%;
+    /* blue-12 */
+    --accent-foreground: 216 71% 23%;
 
-    /* white */
-    --accent-foreground: 100 100% 100%;
     --destructive: 0 100% 70%;
     --destructive-foreground: 210 40% 98%;
     --error: 0 77% 64%;
