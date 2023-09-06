@@ -30,7 +30,7 @@ export class DownloadPlugin implements IStatelessPlugin<Data> {
 
   validator = z.object({
     data: z.string(),
-    disabled: z.boolean(),
+    disabled: z.boolean().default(false),
     filename: z.string().nullish(),
     label: z.string().nullish(),
   });
