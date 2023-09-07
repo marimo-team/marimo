@@ -268,7 +268,7 @@ gallery](https://marimo.io/@public); try them out!
 
 ## FAQ
 
-See the [FAQ](docs.marimo.io/faq.html) at our docs.
+See the [FAQ](https://docs.marimo.io/faq.html) at our docs.
 
 ## Contributing
 
