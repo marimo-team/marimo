@@ -677,7 +677,7 @@ class Kernel:
                     sys.stderr.write(
                         "An exception was raised when updating a UIElement's "
                         "value. This is a bug in marimo. Please copy "
-                        "the below traceback and paste it an "
+                        "the below traceback and paste it in an "
                         "issue: https://github.com/marimo-team/marimo/issues\n"
                     )
                     tmpio = io.StringIO()
