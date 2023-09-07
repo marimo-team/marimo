@@ -182,7 +182,7 @@ export const CellActions = ({
       <TooltipRoot delayDuration={400} disableHoverableContent={true}>
         {!open && (
           <TooltipContent className="w-full bg-card" tabIndex={-1}>
-            <div className="text-xs text-foreground-muted flex flex-col text-center">
+            <div className="text-foreground-muted flex flex-col text-center">
               <span>
                 <span className="text-foreground font-semibold">Drag </span>to
                 move cell
