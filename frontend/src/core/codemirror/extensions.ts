@@ -54,11 +54,11 @@ export function smartPlaceholderExtension(text: string) {
  */
 export function formatKeymapExtension(
   cellId: CellId,
-  updateCellCode: (
-    cellId: CellId,
-    code: string,
-    formattingChange: boolean
-  ) => void
+  updateCellCode: (payload: {
+    cellId: CellId;
+    code: string;
+    formattingChange: boolean;
+  }) => void
 ) {
   return keymap.of([
     {

@@ -10,11 +10,11 @@ import { sendFormat } from "../network/requests";
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  updateCellCode: (
-    cellId: CellId,
-    code: string,
-    formattingChange: boolean
-  ) => void
+  updateCellCode: (payload: {
+    cellId: CellId;
+    code: string;
+    formattingChange: boolean;
+  }) => void
 ) {
   const codes = Objects.mapValues(views, (view) => view.state.doc.toString());
 
@@ -34,7 +34,7 @@ export async function formatEditorViews(
       continue;
     }
 
-    updateCellCode(cellId, formattedCode, true);
+    updateCellCode({ cellId, code: formattedCode, formattingChange: true });
 
     view.dispatch({
       changes: {
