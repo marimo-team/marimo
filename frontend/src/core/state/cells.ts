@@ -12,6 +12,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { CellId } from "../model/ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "./jotai";
+import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 
 /* The array of cells on the page, together with a history of
  * deleted cells to implement an "undo delete" action
@@ -450,16 +451,16 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
         };
       }
     }
-    case "FOLD_ALL":
-      state.present.forEach((cell) => {
-        cell.ref.current?.foldAll();
-      });
+    case "FOLD_ALL": {
+      const targets = state.present.map((cell) => cell.ref.current?.editorView);
+      foldAllBulk(targets);
       return state;
-    case "UNFOLD_ALL":
-      state.present.forEach((cell) => {
-        cell.ref.current?.unfoldAll();
-      });
+    }
+    case "UNFOLD_ALL": {
+      const targets = state.present.map((cell) => cell.ref.current?.editorView);
+      unfoldAllBulk(targets);
       return state;
+    }
     default:
       return state;
   }

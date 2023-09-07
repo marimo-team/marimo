@@ -42,14 +42,62 @@ import {
   EditorView,
 } from "@codemirror/view";
 
-import { EditorState, Extension } from "@codemirror/state";
+import { EditorState, Extension, Prec } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
-import { CompletionConfig } from "../config";
+import { CompletionConfig, KeymapConfig } from "../config";
 import { Theme } from "../../theme/useTheme";
 
 import { completer } from "@/core/codemirror/completion/completer";
 import { findReplaceBundle } from "./find-replace/extension";
+import {
+  CodeCallbacks,
+  MovementCallbacks,
+  cellCodeEditingBundle,
+  cellMovementBundle,
+} from "./cells/extensions";
+import { CellId } from "../model/ids";
+import { keymapBundle } from "./keymaps/keymaps";
+import {
+  scrollActiveLineIntoView,
+  smartPlaceholderExtension,
+} from "./extensions";
+
+export interface CodeMirrorSetupOpts {
+  cellId: CellId;
+  showPlaceholder: boolean;
+  cellMovementCallbacks: MovementCallbacks;
+  cellCodeCallbacks: CodeCallbacks;
+  completionConfig: CompletionConfig;
+  keymapConfig: KeymapConfig;
+  theme: Theme;
+}
+
+/**
+ * Setup CodeMirror for a cell
+ */
+export const setupCodeMirror = ({
+  cellId,
+  showPlaceholder,
+  cellMovementCallbacks,
+  cellCodeCallbacks,
+  completionConfig,
+  keymapConfig,
+  theme,
+}: CodeMirrorSetupOpts): Extension[] => {
+  return [
+    // Editor keymaps (vim or defaults) based on user config
+    keymapBundle(keymapConfig, cellMovementCallbacks),
+    // Cell editing
+    cellMovementBundle(cellId, cellMovementCallbacks),
+    cellCodeEditingBundle(cellId, cellCodeCallbacks),
+    // Comes last so that it can be overridden
+    basicBundle(completionConfig, theme),
+    showPlaceholder
+      ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
+      : [],
+  ];
+};
 
 // Customize python to support folding some additional syntax nodes
 const customizedPython = pythonLanguage.configure({
@@ -63,11 +111,25 @@ const customizedPython = pythonLanguage.configure({
 });
 
 // Based on codemirror's basicSetup extension
-export const setup = (
+export const basicBundle = (
   completionConfig: CompletionConfig,
   theme: Theme
 ): Extension[] => {
   return [
+    ///// View
+    EditorView.lineWrapping,
+    drawSelection(),
+    dropCursor(),
+    highlightActiveLine(),
+    highlightActiveLineGutter(),
+    highlightSpecialChars(),
+    lineNumbers(),
+    rectangularSelection(),
+    tooltips({ position: "absolute" }),
+    scrollActiveLineIntoView(),
+    theme === "dark" ? oneDark : [],
+
+    ///// Language Support
     // Whether or not to require keypress to activate autocompletion (default
     // keymap is Ctrl+Space)
     autocompletion({
@@ -81,24 +143,25 @@ export const setup = (
       closeOnBlur: false,
       override: [completer],
     }),
-    tooltips({ position: "absolute" }),
-    EditorView.lineWrapping,
-    lineNumbers(),
-    highlightActiveLineGutter(),
-    highlightSpecialChars(),
-    history(),
     foldGutter(),
-    drawSelection(),
-    dropCursor(),
-    theme === "dark" ? oneDark : [],
-    EditorState.allowMultipleSelections.of(true),
+    closeBrackets(),
+    keymap.of(closeBracketsKeymap),
+    bracketMatching(),
     indentOnInput(),
     indentUnit.of("    "),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    bracketMatching(),
-    closeBrackets(),
-    rectangularSelection(),
-    highlightActiveLine(),
+    keymap.of([...foldKeymap, ...lintKeymap]),
+
+    ///// Python Support
+    new LanguageSupport(customizedPython, [
+      customizedPython.data.of({ autocomplete: localCompletionSource }),
+      customizedPython.data.of({ autocomplete: globalCompletion }),
+    ]),
+
+    ///// Editing
+    history(),
+    EditorState.allowMultipleSelections.of(true),
+    findReplaceBundle(),
     keymap.of([
       {
         key: "Tab",
@@ -108,18 +171,7 @@ export const setup = (
         preventDefault: true,
       },
     ]),
-    keymap.of([
-      ...closeBracketsKeymap,
-      ...historyKeymap,
-      ...foldKeymap,
-      ...lintKeymap,
-      indentWithTab,
-    ]),
-    findReplaceBundle(),
-    new LanguageSupport(customizedPython, [
-      customizedPython.data.of({ autocomplete: localCompletionSource }),
-      customizedPython.data.of({ autocomplete: globalCompletion }),
-    ]),
+    keymap.of([...historyKeymap, indentWithTab]),
   ];
 };
 

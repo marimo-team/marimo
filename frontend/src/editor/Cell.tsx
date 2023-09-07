@@ -1,9 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { historyField } from "@codemirror/commands";
-import { foldAll, unfoldAll } from "@codemirror/language";
-import { EditorState, Prec, StateEffect } from "@codemirror/state";
-import { keymap, EditorView, KeyBinding } from "@codemirror/view";
+import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
   memo,
   FocusEvent,
@@ -17,7 +16,7 @@ import {
 } from "react";
 
 import { sendRun } from "@/core/network/requests";
-import { autocompletionKeymap, setup } from "@/core/codemirror/cm";
+import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
 
 import { UserConfig } from "../core/config";
 import { CellState } from "../core/model/cells";
@@ -30,11 +29,6 @@ import { DeleteButton } from "./cell/DeleteButton";
 import { CellStatusComponent } from "./cell/CellStatus";
 import clsx from "clsx";
 import { renderShortcut } from "../components/shortcuts/renderShortcut";
-import {
-  formatKeymapExtension,
-  scrollActiveLineIntoView,
-  smartPlaceholderExtension,
-} from "../core/codemirror/extensions";
 import { useCellRenderCount } from "../hooks/useCellRenderCount";
 import { Functions } from "../utils/functions";
 import { Logger } from "../utils/Logger";
@@ -42,8 +36,6 @@ import { SerializedEditorState } from "../core/codemirror/types";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
-import { keymapBundle } from "@/core/codemirror/keymaps/keymaps";
 import { CellActions } from "./cell/cell-actions";
 
 /**
@@ -54,14 +46,6 @@ export interface CellHandle {
    * The CodeMirror editor view.
    */
   editorView: EditorView;
-  /**
-   * Folds all code in the editor.
-   */
-  foldAll: () => boolean;
-  /**
-   * Unfolds all code in the editor.
-   */
-  unfoldAll: () => boolean;
   /**
    * Get the serialized editor state.
    */
@@ -175,18 +159,6 @@ const CellComponent = (
       get editorView() {
         return derefNotNull(editorView);
       },
-      foldAll() {
-        if (editorView.current !== null) {
-          return foldAll(derefNotNull(editorView));
-        }
-        return false;
-      },
-      unfoldAll() {
-        if (editorView.current !== null) {
-          return unfoldAll(derefNotNull(editorView));
-        }
-        return false;
-      },
       editorStateJSON: () => {
         return derefNotNull(editorView).state.toJSON({ history: historyField });
       },
@@ -234,149 +206,38 @@ const CellComponent = (
   );
 
   useEffect(() => {
-    const cellEditingHotkeys: KeyBinding[] = [
-      {
-        key: HOTKEYS.getHotkey("cell.run").key,
-        preventDefault: true,
-        run: () => {
-          onRun();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.runAndNewBelow").key,
-        preventDefault: true,
-        run: (ev) => {
-          onRun();
-          ev.contentDOM.blur();
-          moveToNextCell(cellId, /*before=*/ false);
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.runAndNewAbove").key,
-        preventDefault: true,
-        run: (ev) => {
-          onRun();
-          ev.contentDOM.blur();
-          moveToNextCell(cellId, /*before=*/ true);
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.delete").key,
-        preventDefault: true,
-        run: (cm) => {
-          // Cannot delete running cells, since we're waiting for their output.
-          // Cannot delete non-empty cells for safety
-          if (!runningOrQueuedRef.current && cm.state.doc.length === 0) {
-            deleteCell(cellId);
-          }
-          // shortcuts.delete (shift-backspace) overlaps with
-          // defaultKeymap's deleteCharBackward (backspace); we don't want
-          // shift-backspace to trigger character deletion, because otherwise
-          // users might accidentally delete their whole notebook if they
-          // absent-mindedly held these keys. That's why we always return true.
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.moveDown").key,
-        preventDefault: true,
-        run: () => {
-          moveDown();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.moveUp").key,
-        preventDefault: true,
-        run: () => {
-          moveUp();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.focusDown").key,
-        preventDefault: true,
-        run: () => {
-          focusDown();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.focusUp").key,
-        preventDefault: true,
-        run: () => {
-          focusUp();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.sendToBottom").key,
-        preventDefault: true,
-        run: () => {
-          sendToBottom(cellId);
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.sendToTop").key,
-        preventDefault: true,
-        run: () => {
-          sendToTop(cellId);
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.createAbove").key,
-        preventDefault: true,
-        run: (ev) => {
-          ev.contentDOM.blur();
-          createAbove();
-          return true;
-        },
-      },
-      {
-        key: HOTKEYS.getHotkey("cell.createBelow").key,
-        preventDefault: true,
-        run: (ev) => {
-          ev.contentDOM.blur();
-          createBelow();
-          return true;
-        },
-      },
-    ];
-
-    const onChangePlugin = EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        const nextCode = update.state.doc.toString();
-        updateCellCode(cellId, nextCode);
+    const deleteCellIfNotRunning = () => {
+      // Cannot delete running cells, since we're waiting for their output.
+      if (!runningOrQueuedRef.current) {
+        deleteCell(cellId);
+        return true;
       }
-    });
+      return false;
+    };
 
-    const extensions = [
-      // Our keymap goes first
-      Prec.highest(keymap.of(cellEditingHotkeys)),
-      Prec.highest(formatKeymapExtension(cellId, updateCellCode)),
-      // Then editor keymaps (vim or defaults) based on user config
-      keymapBundle(userConfig.keymap, {
-        deleteCell: () => {
-          // Cannot delete running cells, since we're waiting for their output.
-          if (!runningOrQueuedRef.current) {
-            deleteCell(cellId);
-          }
-          return true;
-        },
-      }),
-      // Default setup
-      ...setup(userConfig.completion, theme),
-      scrollActiveLineIntoView(),
-      onChangePlugin,
-      showPlaceholder
-        ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
-        : [],
-    ];
+    const extensions = setupCodeMirror({
+      cellId,
+      showPlaceholder,
+      cellCodeCallbacks: {
+        updateCellCode,
+      },
+      cellMovementCallbacks: {
+        onRun,
+        deleteCell: deleteCellIfNotRunning,
+        createAbove,
+        createBelow,
+        moveUp,
+        moveDown,
+        focusUp,
+        focusDown,
+        sendToTop,
+        sendToBottom,
+        moveToNextCell,
+      },
+      completionConfig: userConfig.completion,
+      keymapConfig: userConfig.keymap,
+      theme,
+    });
 
     // Should focus will be true if its a newly created editor
     let shouldFocus: boolean;
