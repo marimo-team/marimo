@@ -1,6 +1,5 @@
-# Misc
+# Control flow
 
-## Control flow
 Use `mo.stop` to halt execution of a cell, and optionally output an object.
 This function is useful for validating user input.
 
@@ -12,14 +11,12 @@ This function is useful for validating user input.
 .. autoclass:: marimo.MarimoStopError
 ```
 
-## Debugging
-Use `mo.defs` and `mo.refs` to get the global definitions and references of
-a cell.
+Use `mo.ui.refresh` to trigger other cells to run periodically, on a configurable
+interval (or on click).
 
 ```{eval-rst}
-.. autofunction:: marimo.defs
-```
+.. autoclass:: marimo.ui.refresh
+  :members:
 
-```{eval-rst}
-.. autofunction:: marimo.refs
+  .. autoclasstoc:: marimo._plugins.ui._impl.refresh.refresh
 ```

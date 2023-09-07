@@ -10,22 +10,24 @@
   layouts/index
   media/index
   html
+  control_flow
   state
-  misc
+  debugging
 ```
 
-The marimo library comes with UI elements that you can use to make your data
-tangible and build applications. Some elements like sliders and dropdowns are
-interactive and can be used to collect user input and drive execution, while
-others are static and can be used to display or layout information like
-markdown and tabs.
+Use the marimo library in marimo notebooks (`import marimo as mo`) to connect
+interactive components like sliders, dropdowns, and tables to Python, layout
+information with tabs or grids, output media like images and audio, express
+yourself with dynamically created markdown (parametrized by Python values!),
+and more.
 
-|                      |                                                                   |
-| :------------------- | :---------------------------------------------------------------- |
-| {doc}`markdown`      | Write markdown with `mo.md`                                       |
-| {doc}`inputs/index`  | Seamlessly connect sliders, dropdowns, tables, and more to Python |
-| {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more         |
-| {doc}`media/index`   | Output media like images and audio                                |
-| {doc}`html`          | Working with HTML objects                                         |
-| {doc}`state`         | Using reactive state                                              |
-| {doc}`misc`          | Miscellaneous utilities                                           |
+|                      |                                                           |
+| :------------------- | :-------------------------------------------------------- |
+| {doc}`markdown`      | Write markdown with `mo.md`                               |
+| {doc}`inputs/index`  | Connect sliders, dropdowns, tables, and more to Python    |
+| {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
+| {doc}`media/index`   | Output media like images, audio, and PDFs                 |
+| {doc}`html`          | Manipulate HTML objects                                   |
+| {doc}`control_flow`  | Control how cells execute                                 |
+| {doc}`state`         | Make stateful apps with `mo.state`                        |
+| {doc}`debugging`     | Debugging utilities                                       |
