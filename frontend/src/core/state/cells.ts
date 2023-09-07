@@ -49,9 +49,9 @@ function initialCellState(): CellsAndHistory {
 }
 
 const { reducer, createActions } = createReducer(initialCellState, {
-  createCell: (state, action: { cellKey: CellId; before: boolean }) => {
-    const { cellKey, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+  createNewCell: (state, action: { cellId: CellId; before: boolean }) => {
+    const { cellId, before } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     const insertionIndex = before ? index : index + 1;
     const cell = createCell({ key: CellId.create() });
 
@@ -61,21 +61,21 @@ const { reducer, createActions } = createReducer(initialCellState, {
       scrollKey: cell.key,
     };
   },
-  moveCell: (state, action: { cellKey: CellId; before: boolean }) => {
-    const { cellKey, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+  moveCell: (state, action: { cellId: CellId; before: boolean }) => {
+    const { cellId, before } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     const cell = state.present[index];
     if (before && index === 0) {
       return {
         ...state,
         present: [cell, ...state.present.slice(1)],
-        scrollKey: cellKey,
+        scrollKey: cellId,
       };
     } else if (!before && index === state.present.length - 1) {
       return {
         ...state,
         present: [...state.present.slice(0, -1), cell],
-        scrollKey: cellKey,
+        scrollKey: cellId,
       };
     }
 
@@ -83,31 +83,31 @@ const { reducer, createActions } = createReducer(initialCellState, {
       ? {
           ...state,
           present: arrayMove(state.present, index, index - 1),
-          scrollKey: cellKey,
+          scrollKey: cellId,
         }
       : {
           ...state,
           present: arrayMove(state.present, index, index + 1),
-          scrollKey: cellKey,
+          scrollKey: cellId,
         };
   },
-  dropCellOver: (state, action: { cellKey: CellId; overCellKey: CellId }) => {
-    const { cellKey, overCellKey } = action;
-    const fromIndex = state.present.findIndex((cell) => cell.key === cellKey);
-    const toIndex = state.present.findIndex((cell) => cell.key === overCellKey);
+  dropCellOver: (state, action: { cellId: CellId; overCellId: CellId }) => {
+    const { cellId, overCellId } = action;
+    const fromIndex = state.present.findIndex((cell) => cell.key === cellId);
+    const toIndex = state.present.findIndex((cell) => cell.key === overCellId);
     return {
       ...state,
       present: arrayMove(state.present, fromIndex, toIndex),
       scrollKey: null,
     };
   },
-  focusCell: (state, action: { cellKey: CellId; before: boolean }) => {
+  focusCell: (state, action: { cellId: CellId; before: boolean }) => {
     if (state.present.length === 0) {
       return state;
     }
 
-    const { cellKey, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+    const { cellId, before } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     let focusIndex = before ? index - 1 : index + 1;
     // clamp
     focusIndex = Math.max(0, Math.min(focusIndex, state.present.length - 1));
@@ -134,39 +134,39 @@ const { reducer, createActions } = createReducer(initialCellState, {
     scrollToBottom();
     return state;
   },
-  sendToTop: (state, action: { cellKey: CellId }) => {
+  sendToTop: (state, action: { cellId: CellId }) => {
     if (state.present.length === 0) {
       return state;
     }
 
-    const { cellKey } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+    const { cellId } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     return {
       ...state,
       present: arrayMove(state.present, index, 0),
-      scrollKey: cellKey,
+      scrollKey: cellId,
     };
   },
-  sendToBottom: (state, action: { cellKey: CellId }) => {
+  sendToBottom: (state, action: { cellId: CellId }) => {
     if (state.present.length === 0) {
       return state;
     }
 
-    const { cellKey } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+    const { cellId } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     return {
       ...state,
       present: arrayMove(state.present, index, state.present.length - 1),
-      scrollKey: cellKey,
+      scrollKey: cellId,
     };
   },
-  deleteCell: (state, action: { cellKey: CellId }) => {
-    const cellKey = action.cellKey;
+  deleteCell: (state, action: { cellId: CellId }) => {
+    const cellId = action.cellId;
     if (state.present.length === 1) {
       return state;
     }
 
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.present[focusIndex].key;
 
@@ -212,7 +212,7 @@ const { reducer, createActions } = createReducer(initialCellState, {
   updateCellCode: (
     state,
     action: {
-      cellKey: CellId;
+      cellId: CellId;
       code: string;
       /**
        * Whether or not the update is a formatting change,
@@ -221,14 +221,14 @@ const { reducer, createActions } = createReducer(initialCellState, {
       formattingChange: boolean;
     }
   ) => {
-    const { cellKey, code, formattingChange } = action;
-    const cellToUpdate = state.present.find((cell) => cell.key === cellKey);
+    const { cellId, code, formattingChange } = action;
+    const cellToUpdate = state.present.find((cell) => cell.key === cellId);
 
     if (!cellToUpdate || cellToUpdate.code === code) {
       return state;
     }
 
-    return updateCell(state, cellKey, (cell) => {
+    return updateCell(state, cellId, (cell) => {
       // Formatting-only change means we can re-use the last code run
       // if it was not previously edited. And we don't change the edited state.
       return formattingChange
@@ -246,33 +246,33 @@ const { reducer, createActions } = createReducer(initialCellState, {
   },
   updateCellConfig: (
     state,
-    action: { cellKey: CellId; config: Partial<CellConfig> }
+    action: { cellId: CellId; config: Partial<CellConfig> }
   ) => {
-    const { cellKey, config } = action;
-    return updateCell(state, cellKey, (cell) => {
+    const { cellId, config } = action;
+    return updateCell(state, cellId, (cell) => {
       return {
         ...cell,
         config: { ...cell.config, ...config },
       };
     });
   },
-  prepareForRun: (state, action: { cellKey: CellId }) => {
+  prepareForRun: (state, action: { cellId: CellId }) => {
     const cellToUpdate = state.present.find(
-      (cell) => cell.key === action.cellKey
+      (cell) => cell.key === action.cellId
     );
     if (!cellToUpdate) {
       return state;
     }
-    return updateCell(state, action.cellKey, (cell) => {
+    return updateCell(state, action.cellId, (cell) => {
       return prepareCellForExecution(cell);
     });
   },
   handleCellMessage: (
     state,
-    action: { cellKey: CellId; message: CellMessage }
+    action: { cellId: CellId; message: CellMessage }
   ) => {
-    const { cellKey, message } = action;
-    return updateCell(state, cellKey, (cell) => {
+    const { cellId, message } = action;
+    return updateCell(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
   },
@@ -291,9 +291,9 @@ const { reducer, createActions } = createReducer(initialCellState, {
    *
    * Replicates Shift+Enter functionality of Jupyter
    */
-  moveToNextCell: (state, action: { cellKey: CellId; before: boolean }) => {
-    const { cellKey, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellKey);
+  moveToNextCell: (state, action: { cellId: CellId; before: boolean }) => {
+    const { cellId, before } = action;
+    const index = state.present.findIndex((cell) => cell.key === cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
@@ -361,13 +361,13 @@ const { reducer, createActions } = createReducer(initialCellState, {
 // Helper function to update a cell in the array
 function updateCell(
   state: CellsAndHistory,
-  cellKey: CellId,
+  cellId: CellId,
   cellReducer: ReducerWithoutAction<CellState>
 ) {
   return {
     ...state,
     present: state.present.map((cell) =>
-      cell.key === cellKey ? cellReducer(cell) : cell
+      cell.key === cellId ? cellReducer(cell) : cell
     ),
   };
 }
@@ -403,6 +403,8 @@ export function useCellActions() {
     return actions;
   }, [setState]);
 }
+
+export type CellActions = ReturnType<typeof createActions>;
 
 /**
  * This is exported for testing purposes only.

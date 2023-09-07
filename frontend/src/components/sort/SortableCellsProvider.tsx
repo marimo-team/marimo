@@ -54,8 +54,8 @@ const SortableCellsProviderInternal = ({
       return;
     }
     dropCellOver({
-      cellKey: active.id as CellId,
-      overCellKey: over.id as CellId,
+      cellId: active.id as CellId,
+      overCellId: over.id as CellId,
     });
   });
 

@@ -85,9 +85,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
     formatEditorViews(views, updateCellCode);
   });
 
-  const onDeleteCell = useEvent((cellId: CellId) => {
-    sendDeleteCell(cellId);
-    deleteCell(cellId);
+  const onDeleteCell: typeof deleteCell = useEvent((payload) => {
+    sendDeleteCell(payload.cellId);
+    deleteCell(payload);
   });
 
   // Scroll to a cell targeted by a previous action
@@ -119,7 +119,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
             consoleOutputs={cell.consoleOutputs}
             status={cell.status}
             updateCellCode={updateCellCode}
-            prepareCellForRun={prepareForRun}
+            prepareForRun={prepareForRun}
             edited={cell.edited}
             interrupted={cell.interrupted}
             errored={cell.errored}
@@ -137,6 +137,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
             appClosed={connStatus.state !== WebSocketState.OPEN}
             ref={cell.ref}
             userConfig={userConfig}
+            config={cell.config}
           />
         ))}
       </div>

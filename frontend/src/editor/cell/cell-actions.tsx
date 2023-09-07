@@ -32,6 +32,7 @@ import {
   ImageIcon,
   PlusCircleIcon,
   Trash2Icon,
+  ZapIcon,
 } from "lucide-react";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { HotkeyAction } from "@/core/hotkeys/hotkeys";
@@ -39,11 +40,14 @@ import { EditorView } from "codemirror";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { cn } from "@/lib/utils";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
+import { CellConfig } from "@/core/model/cells";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   editorView: EditorView | null;
   hasOutput: boolean;
   cellId: CellId;
+  config: CellConfig;
 }
 
 interface Action {
@@ -52,18 +56,21 @@ interface Action {
   hotkey?: HotkeyAction;
   icon?: React.ReactNode;
   hidden?: boolean;
+  rightElement?: React.ReactNode;
   handle: () => void;
 }
 
-export const CellActions = ({
+export const CellActionsDropdown = ({
   cellId,
   children,
   hasOutput,
   editorView,
+  config,
 }: PropsWithChildren<Props>) => {
   const [open, setOpen] = useState(false);
   const {
-    createNewCell,
+    createNewCell: createCell,
+    updateCellConfig,
     updateCellCode,
     deleteCell,
     focusCell,
@@ -71,6 +78,13 @@ export const CellActions = ({
     sendToTop,
     sendToBottom,
   } = useCellActions();
+  const toggleAutoRun = () => {
+    if (config.autoRun === false) {
+      updateCellConfig({ cellId, config: { autoRun: null } });
+    } else {
+      updateCellConfig({ cellId, config: { autoRun: false } });
+    }
+  };
 
   const actions: Action[][] = [
     // Actions
@@ -92,6 +106,22 @@ export const CellActions = ({
           formatEditorViews({ [cellId]: editorView }, updateCellCode);
         },
       },
+      {
+        icon: <ZapIcon size={13} strokeWidth={1.5} />,
+        // TODO: this feature is still a WIP
+        hidden: true,
+        label:
+          config.autoRun === false ? "Enable auto-run" : "Disable auto-run",
+        rightElement: (
+          <Switch
+            // null implies true
+            checked={config.autoRun === false ? false : true}
+            size="sm"
+            onCheckedChange={toggleAutoRun}
+          />
+        ),
+        handle: toggleAutoRun,
+      },
     ],
 
     // Movement
@@ -105,7 +135,7 @@ export const CellActions = ({
         ),
         label: "Create cell above",
         hotkey: "cell.createAbove",
-        handle: () => createNewCell(cellId, /*before=*/ true),
+        handle: () => createCell({ cellId, before: true }),
       },
       {
         icon: (
@@ -116,19 +146,19 @@ export const CellActions = ({
         ),
         label: "Create cell below",
         hotkey: "cell.createBelow",
-        handle: () => createNewCell(cellId, /*before=*/ false),
+        handle: () => createCell({ cellId, before: false }),
       },
       {
         icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
         label: "Move cell up",
         hotkey: "cell.moveUp",
-        handle: () => moveCell(cellId, /*before=*/ true),
+        handle: () => moveCell({ cellId, before: true }),
       },
       {
         icon: <ChevronDownIcon size={13} strokeWidth={1.5} />,
         label: "Move cell down",
         hotkey: "cell.moveDown",
-        handle: () => moveCell(cellId, /*before=*/ false),
+        handle: () => moveCell({ cellId, before: false }),
       },
       {
         icon: (
@@ -139,7 +169,7 @@ export const CellActions = ({
         ),
         label: "Focus cell above",
         hotkey: "cell.focusUp",
-        handle: () => focusCell(cellId, /*before=*/ true),
+        handle: () => focusCell({ cellId, before: true }),
       },
       {
         icon: (
@@ -150,19 +180,19 @@ export const CellActions = ({
         ),
         label: "Focus cell below",
         hotkey: "cell.focusDown",
-        handle: () => focusCell(cellId, /*before=*/ false),
+        handle: () => focusCell({ cellId, before: false }),
       },
       {
         icon: <ChevronsUpIcon size={13} strokeWidth={1.5} />,
         label: "Send to top",
         hotkey: "cell.sendToTop",
-        handle: () => sendToTop(cellId),
+        handle: () => sendToTop({ cellId }),
       },
       {
         icon: <ChevronsDownIcon size={13} strokeWidth={1.5} />,
         label: "Send to bottom",
         hotkey: "cell.sendToBottom",
-        handle: () => sendToBottom(cellId),
+        handle: () => sendToBottom({ cellId }),
       },
     ],
 
@@ -172,7 +202,7 @@ export const CellActions = ({
         label: "Delete",
         variant: "danger",
         icon: <Trash2Icon size={13} strokeWidth={1.5} />,
-        handle: () => deleteCell(cellId),
+        handle: () => deleteCell({ cellId }),
       },
     ],
   ];

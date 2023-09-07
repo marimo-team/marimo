@@ -7,7 +7,7 @@ import { GripVerticalIcon } from "lucide-react";
 import { CellId } from "@/core/model/ids";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
-  cellKey: CellId;
+  cellId: CellId;
 }
 
 /**
@@ -22,7 +22,7 @@ export const CellDragHandle: React.FC = memo(() => {
 CellDragHandle.displayName = "DragHandle";
 
 const SortableCellInternal = React.forwardRef(
-  ({ cellKey, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
+  ({ cellId, ...props }: Props, ref: React.Ref<HTMLDivElement>) => {
     // Sort
     const {
       attributes,
@@ -31,7 +31,7 @@ const SortableCellInternal = React.forwardRef(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: cellKey.toString() });
+    } = useSortable({ id: cellId.toString() });
 
     const style: React.CSSProperties = {
       transform: transform
