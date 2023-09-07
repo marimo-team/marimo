@@ -23,7 +23,7 @@ import { useCellActions, useCells } from "./core/state/cells";
 import { Disconnected } from "./editor/Disconnected";
 import { derefNotNull } from "./utils/dereference";
 import { AppConfig, UserConfig } from "./core/config";
-import { AppMode, toggleAppMode } from "./core/mode";
+import { toggleAppMode, viewStateAtom } from "./core/mode";
 import { useHotkey } from "./hooks/useHotkey";
 import { Tooltip } from "./components/ui/tooltip";
 import { useImperativeModal } from "./components/modal/ImperativeModal";
@@ -44,39 +44,17 @@ import { CellId, HTMLCellId } from "./core/model/ids";
 import { getFilenameFromDOM } from "./core/dom/htmlUtils";
 import { CellArray } from "./editor/renderers/CellArray";
 import { RuntimeState } from "./core/RuntimeState";
+import { useAtom } from "jotai";
 
 interface AppProps {
-  initialMode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;
 }
 
-/**
- * View state for the app.
- */
-interface ViewState {
-  /**
-   * The mode of the app: read/edit/present
-   */
-  mode: AppMode;
-  /**
-   * A cell ID to anchor scrolling to when toggling between presenting and
-   * editing views
-   */
-  cellAnchor: CellId | null;
-}
-
-export const App: React.FC<AppProps> = ({
-  initialMode,
-  userConfig,
-  appConfig,
-}) => {
+export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const cells = useCells();
   const { setCells } = useCellActions();
-  const [viewState, setViewState] = useState<ViewState>({
-    mode: initialMode,
-    cellAnchor: null,
-  });
+  const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useState(getFilenameFromDOM());
   const [savedCodes, setSavedCodes] = useState<string[]>([""]);
   const { openModal, closeModal, openAlert } = useImperativeModal();

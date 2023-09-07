@@ -1,4 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+
+import { atom } from "jotai";
+import { CellId } from "./model/ids";
+import { store } from "./state/jotai";
+
 /**
  * This is the internal mode.
  * - `read`: A user is reading the notebook. Cannot switch to edit/present mode.
@@ -33,3 +38,40 @@ export function toggleAppMode(mode: AppMode): AppMode {
 
   return mode === "edit" ? "present" : "edit";
 }
+
+/**
+ * View state for the app.
+ */
+interface ViewState {
+  /**
+   * The mode of the app: read/edit/present
+   */
+  mode: AppMode;
+  /**
+   * A cell ID to anchor scrolling to when toggling between presenting and
+   * editing views
+   */
+  cellAnchor: CellId | null;
+}
+
+export const initialMode = getInitialAppMode();
+
+export async function runDuringPresentMode(fn: () => void): Promise<void> {
+  const state = store.get(viewStateAtom);
+  if (state.mode === "present") {
+    return fn();
+  }
+
+  store.set(viewStateAtom, { ...state, mode: "present" });
+  // wait 2 frames
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  fn();
+  store.set(viewStateAtom, { ...state, mode: "edit" });
+  return undefined;
+}
+
+export const viewStateAtom = atom<ViewState>({
+  mode: initialMode,
+  cellAnchor: null,
+});

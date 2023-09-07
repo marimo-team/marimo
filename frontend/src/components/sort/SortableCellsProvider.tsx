@@ -32,7 +32,12 @@ const SortableCellsProviderInternal = ({
   const { dropCellOver } = useCellActions();
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        // to support click and drag on the same element
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })

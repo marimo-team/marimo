@@ -11,6 +11,7 @@ import { MarimoErrorOutput } from "./output/MarimoErrorOutput";
 import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
 import { CellId } from "@/core/model/ids";
+import { cn } from "@/lib/utils";
 
 /**
  * Renders an output based on an OutputMessage.
@@ -82,10 +83,13 @@ export const OutputArea = React.memo(
     } else if (props.output.channel === "output" && props.output.data === "") {
       return null;
     } else {
-      const cls = `OutputArea${props.stale ? " marimo-output-stale" : ""}`;
       const title = props.stale ? "This output is stale" : undefined;
       return (
-        <div title={title} className={cls}>
+        <div
+          title={title}
+          id={`output-${props.cellId}`}
+          className={cn("OutputArea", props.stale && "marimo-output-stale")}
+        >
           {formatOutput({
             message: props.output,
             parsedJsonData: parsedJsonData,

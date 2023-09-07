@@ -54,7 +54,7 @@ const SortableCellInternal = React.forwardRef(
         {...attributes}
         {...listeners}
         data-testid="drag-button"
-        className="py-[1px] mx-2 cursor-grab opacity-50 hover:opacity-100 hover-action"
+        className="py-[1px] mx-2 cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded"
       >
         <GripVerticalIcon strokeWidth={1} size={20} />
       </div>

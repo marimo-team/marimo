@@ -11,9 +11,21 @@ export function renderShortcut(shortcut: HotkeyAction) {
       {hotkey.name}{" "}
       <span className="flex ml-1 gap-1">
         {prettyPrintHotkey(hotkey.key).map((key) => (
-          <Kbd key={key}>{key}</Kbd>
+          <Kbd key={key}>{capitalize(key)}</Kbd>
         ))}
       </span>
+    </span>
+  );
+}
+
+export function renderMinimalShortcut(shortcut: HotkeyAction) {
+  const hotkey = HOTKEYS.getHotkey(shortcut);
+
+  return (
+    <span className="text-xs flex gap-1 text-muted-foreground items-center font-mono">
+      {prettyPrintHotkey(hotkey.key).map((key) => (
+        <span key={key}>{capitalize(key)}</span>
+      ))}
     </span>
   );
 }
@@ -36,4 +48,8 @@ export function prettyPrintHotkey(keyboard: string) {
         return key.toLowerCase();
     }
   });
+}
+
+function capitalize(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }

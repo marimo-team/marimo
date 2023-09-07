@@ -44,6 +44,7 @@ import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { keymapBundle } from "@/core/codemirror/keymaps/keymaps";
+import { CellActions } from "./cell/cell-actions";
 
 /**
  * Imperative interface of the cell.
@@ -579,7 +580,13 @@ const CellComponent = (
               status={status}
               needsRun={needsRun}
             />
-            <CellDragHandle />
+            <CellActions
+              cellId={cellId}
+              editorView={editorView.current}
+              hasOutput={!!output}
+            >
+              <CellDragHandle />
+            </CellActions>
           </div>
         </div>
         <div className="shoulder-bottom hover-action">

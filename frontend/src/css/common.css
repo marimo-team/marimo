@@ -10,3 +10,29 @@
 .hover-actions-parent:hover .hover-action {
   display: inline-flex !important;
 }
+
+/* If parent has any children that have an open pop, show hover actions */
+.hover-actions-parent:has(button[aria-haspopup][data-state="open"])
+  .hover-action {
+  display: inline-flex !important;
+}
+
+/* Hide on print
+To hide an element on print, add the class `no-print` to it.
+When printing, the class `printing` is added to the body element to enable this rule. */
+body.printing .no-print {
+  visibility: hidden !important;
+}
+
+body.printing,
+body.printing #root {
+  /* Full screen print */
+  height: 100% !important;
+}
+
+/* When printing the output of a cell, this unset the max-height set by the notebook to capture the full output */
+.printing-output {
+  max-height: none !important;
+
+  @apply bg-background;
+}

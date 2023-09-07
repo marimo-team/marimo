@@ -16,6 +16,8 @@
 @import url("@radix-ui/colors/amber-dark.css");
 @import url("@radix-ui/colors/yellow.css");
 @import url("@radix-ui/colors/yellow-dark.css");
+@import url("@radix-ui/colors/blue.css");
+@import url("@radix-ui/colors/blue-dark.css");
 
 @tailwind base;
 @tailwind components;
@@ -42,9 +44,9 @@
 
     /* tailwind blue-500 */
     --accent: 217 91% 60%;
-
     /* white */
     --accent-foreground: 100 100% 100%;
+
     --destructive: 0 100% 70%;
     --destructive-foreground: 210 40% 98%;
     --error: 0 77% 64%;
