@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { Reducer, ReducerWithoutAction, useMemo } from "react";
 import { CellMessage } from "../kernel/messages";
-import { CellState, createCell } from "../model/cells";
+import { CellConfig, CellState, createCell } from "../model/cells";
 import {
   scrollToBottom,
   scrollToTop,
@@ -116,6 +116,11 @@ export type CellAction =
       formattingChange: boolean;
     }
   | {
+      type: "UPDATE_CELL_CONFIG";
+      cellKey: CellId;
+      config: Partial<CellConfig>;
+    }
+  | {
       type: "PREPARE_FOR_RUN";
       cellKey: CellId;
     }
@@ -127,6 +132,22 @@ export type CellAction =
     };
 
 function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
+  // Helper function to update a cell in the array
+  const updateCell = (
+    cellKey: CellId,
+    cellReducer: ReducerWithoutAction<CellState>
+  ) => {
+    return {
+      ...state,
+      present: state.present.map((cell) => {
+        if (cell.key === cellKey) {
+          return cellReducer(cell);
+        }
+        return cell;
+      }),
+    };
+  };
+
   switch (action.type) {
     case "CREATE_CELL": {
       const { cellKey, before } = action;
@@ -136,11 +157,7 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
 
       return {
         ...state,
-        present: [
-          ...state.present.slice(0, insertionIndex),
-          cell,
-          ...state.present.slice(insertionIndex),
-        ],
+        present: arrayInsert(state.present, insertionIndex, cell),
         scrollKey: cell.key,
       };
     }
@@ -165,22 +182,12 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
       return before
         ? {
             ...state,
-            present: [
-              ...state.present.slice(0, index - 1),
-              cell,
-              state.present[index - 1],
-              ...state.present.slice(index + 1),
-            ],
+            present: arrayMove(state.present, index, index - 1),
             scrollKey: cellKey,
           }
         : {
             ...state,
-            present: [
-              ...state.present.slice(0, index),
-              state.present[index + 1],
-              cell,
-              ...state.present.slice(index + 2),
-            ],
+            present: arrayMove(state.present, index, index + 1),
             scrollKey: cellKey,
           };
     }
@@ -239,11 +246,7 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
       const index = state.present.findIndex((cell) => cell.key === cellKey);
       return {
         ...state,
-        present: [
-          state.present[index],
-          ...state.present.slice(0, index),
-          ...state.present.slice(index + 1),
-        ],
+        present: arrayMove(state.present, index, 0),
         scrollKey: cellKey,
       };
     }
@@ -256,11 +259,7 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
       const index = state.present.findIndex((cell) => cell.key === cellKey);
       return {
         ...state,
-        present: [
-          ...state.present.slice(0, index),
-          ...state.present.slice(index + 1),
-          state.present[index],
-        ],
+        present: arrayMove(state.present, index, state.present.length - 1),
         scrollKey: cellKey,
       };
     }
@@ -275,10 +274,7 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
       const scrollKey = state.present[focusIndex].key;
 
       return {
-        present: [
-          ...state.present.slice(0, index),
-          ...state.present.slice(index + 1),
-        ],
+        present: arrayDelete(state.present, index),
         history: [
           ...state.history,
           [
@@ -301,59 +297,53 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
           doc: "",
         };
         const index = mostRecentlyDeleted[2];
-
-        const cells = [
-          ...state.present.slice(0, index),
-          createCell({
-            key: CellId.create(),
-            name,
-            initialContents: serializedEditorState.doc,
-            code: serializedEditorState.doc,
-            edited: serializedEditorState.doc.trim().length > 0,
-            serializedEditorState,
-          }),
-          ...state.present.slice(index),
-        ];
-
+        const undoCell = createCell({
+          key: CellId.create(),
+          name,
+          initialContents: serializedEditorState.doc,
+          code: serializedEditorState.doc,
+          edited: serializedEditorState.doc.trim().length > 0,
+          serializedEditorState,
+        });
         return {
           ...state,
-          present: cells,
+          present: arrayInsert(state.present, index, undoCell),
           history: state.history.slice(0, -1),
         };
       }
 
     case "UPDATE_CELL_CODE": {
-      const cellToUpdate = state.present.find(
-        (cell) => cell.key === action.cellKey
-      );
-      if (!cellToUpdate) {
-        return state;
-      }
-      if (cellToUpdate.code === action.code) {
+      const { cellKey, code, formattingChange } = action;
+      const cellToUpdate = state.present.find((cell) => cell.key === cellKey);
+
+      if (!cellToUpdate || cellToUpdate.code === code) {
         return state;
       }
 
-      return {
-        ...state,
-        present: state.present.map((cell) => {
-          if (cell.key === action.cellKey) {
-            return action.formattingChange
-              ? // Formatting-only change means we can re-use the last code run
-                // if it was not previously edited. And we don't change the edited state.
-                {
-                  ...cell,
-                  code: action.code,
-                  lastCodeRun: cell.edited ? cell.lastCodeRun : action.code,
-                }
-              : {
-                  ...cell,
-                  code: action.code,
-                  edited: action.code.trim() !== cell.lastCodeRun,
-                };
-          }
-          return cell;
-        }),
-      };
+      return updateCell(cellKey, (cell) => {
+        // Formatting-only change means we can re-use the last code run
+        // if it was not previously edited. And we don't change the edited state.
+        return formattingChange
+          ? {
+              ...cell,
+              code: code,
+              lastCodeRun: cell.edited ? cell.lastCodeRun : code,
+            }
+          : {
+              ...cell,
+              code: code,
+              edited: code.trim() !== cell.lastCodeRun,
+            };
+      });
+    }
+    case "UPDATE_CELL_CONFIG": {
+      const { cellKey, config } = action;
+      return updateCell(cellKey, (cell) => {
+        return {
+          ...cell,
+          config: { ...cell.config, ...config },
+        };
+      });
     }
     case "PREPARE_FOR_RUN": {
       const cellToUpdate = state.present.find(
@@ -362,24 +352,15 @@ function reducer(state: CellsAndHistory, action: CellAction): CellsAndHistory {
       if (!cellToUpdate) {
         return state;
       }
-      return {
-        ...state,
-        present: state.present.map((cell) => {
-          if (cell.key === action.cellKey) {
-            return prepareCellForExecution(cellToUpdate);
-          }
-          return cell;
-        }),
-      };
+      return updateCell(action.cellKey, (cell) => {
+        return prepareCellForExecution(cell);
+      });
     }
     case "HANDLE_CELL_MESSAGE": {
-      const { cellKey, message: body } = action;
-      return {
-        ...state,
-        present: state.present.map((cell) => {
-          return cell.key === cellKey ? transitionCell(cell, body) : cell;
-        }),
-      };
+      const { cellKey, message } = action;
+      return updateCell(cellKey, (cell) => {
+        return transitionCell(cell, message);
+      });
     }
     case "SET_CELLS":
       return {
@@ -561,6 +542,14 @@ export function useCellActions() {
       },
     };
   }, [setState]);
+}
+
+function arrayDelete<T>(array: T[], index: number): T[] {
+  return [...array.slice(0, index), ...array.slice(index + 1)];
+}
+
+function arrayInsert<T>(array: T[], index: number, value: T): T[] {
+  return [...array.slice(0, index), value, ...array.slice(index)];
 }
 
 /**

@@ -3,6 +3,7 @@
 exports[`cell reducer > can run cell and receive cell messages 1`] = `
 {
   "code": "",
+  "config": {},
   "consoleOutputs": [],
   "edited": false,
   "errored": false,
@@ -26,6 +27,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
 exports[`cell reducer > can run cell and receive cell messages 2`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [],
   "edited": true,
   "errored": false,
@@ -49,6 +51,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
 exports[`cell reducer > can run cell and receive cell messages 3`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [],
   "edited": false,
   "errored": false,
@@ -72,6 +75,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
 exports[`cell reducer > can run cell and receive cell messages 4`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [],
   "edited": false,
   "errored": false,
@@ -95,6 +99,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
 exports[`cell reducer > can run cell and receive cell messages 5`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [],
   "edited": false,
   "errored": false,
@@ -118,6 +123,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
 exports[`cell reducer > can run cell and receive cell messages 6`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -148,6 +154,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
 exports[`cell reducer > can run cell and receive cell messages 7`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -184,6 +191,7 @@ exports[`cell reducer > can run cell and receive cell messages 8`] = `
 {
   "code": "import marimo as mo
 import numpy",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -219,6 +227,7 @@ import numpy",
 exports[`cell reducer > can run cell and receive cell messages 9`] = `
 {
   "code": "import marimo as mo",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -255,6 +264,7 @@ exports[`cell reducer > can run cell and receive cell messages 10`] = `
 {
   "code": "import marimo as mo
 import numpy",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -291,6 +301,7 @@ exports[`cell reducer > can run cell and receive cell messages 11`] = `
 {
   "code": "import marimo as mo
 import numpy",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",
@@ -334,6 +345,7 @@ exports[`cell reducer > can run cell and receive cell messages 12`] = `
 {
   "code": "import marimo as mo
 import numpy",
+  "config": {},
   "consoleOutputs": [
     {
       "channel": "console",

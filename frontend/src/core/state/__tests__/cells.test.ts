@@ -555,4 +555,28 @@ describe("cell reducer", () => {
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
   });
+
+  it("can update a cells config", () => {
+    const firstCellKey = state.present[0].key;
+    let cell = state.present[0];
+    // Starts empty
+    expect(cell.config).toEqual({});
+
+    state = reducer(state, {
+      type: "UPDATE_CELL_CONFIG",
+      cellKey: firstCellKey,
+      config: { autoRun: false },
+    });
+    cell = state.present[0];
+    expect(cell.config.autoRun).toBe(false);
+
+    // Revert
+    state = reducer(state, {
+      type: "UPDATE_CELL_CONFIG",
+      cellKey: firstCellKey,
+      config: { autoRun: null },
+    });
+    cell = state.present[0];
+    expect(cell.config.autoRun).toBe(null);
+  });
 });

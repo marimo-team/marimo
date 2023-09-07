@@ -36,10 +36,12 @@ export function createCell({
   runStartTimestamp = null,
   lastCodeRun = null,
   serializedEditorState = null,
+  config = {},
 }: Partial<CellState> & Pick<CellState, "key">): CellState {
   return {
     key: key,
     ref: ref,
+    config: config,
     name: name,
     initialContents: initialContents,
     output: output,
@@ -94,4 +96,15 @@ export interface CellState {
 
   /** handle to access the underlying cell */
   ref: React.RefObject<CellHandle>;
+
+  /** cell configuration */
+  config: CellConfig;
+}
+
+export interface CellConfig {
+  /**
+   * If false, the cell will not be run automatically.
+   * Cannot be true, and instead will be set to null.
+   */
+  autoRun?: false | null;
 }
