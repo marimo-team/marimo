@@ -5,6 +5,7 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { CellId } from "../core/model/ids";
 
 const meta: Meta<typeof Cell> = {
+  title: "Cell",
   component: Cell,
   args: {},
 };

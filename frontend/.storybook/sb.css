@@ -3,3 +3,11 @@
   gap: 20px;
   flex-direction: column;
 }
+
+.sbdocs.sbdocs-wrapper {
+  @apply bg-background text-foreground;
+}
+
+.sbdocs.sbdocs-wrapper h1 {
+  @apply text-foreground !important;
+}

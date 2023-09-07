@@ -140,8 +140,9 @@
 }
 
 .markdown a {
-  color: hsl(var(--link));
   cursor: pointer;
+
+  @apply text-link;
 }
 
 .markdown a:hover,
@@ -150,7 +151,7 @@
 }
 
 .markdown a:visited {
-  color: hsl(var(--link-visited));
+  @apply text-link-visited;
 }
 
 .markdown blockquote {
