@@ -14,6 +14,7 @@
   dropdown
   file
   form
+  microphone
   multiselect
   number
   radio

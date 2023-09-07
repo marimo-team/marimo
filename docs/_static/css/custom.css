@@ -29,6 +29,7 @@ iframe.demo {
   height: 250px;
   border: 1px solid var(--color-background-border);
   border-radius: 5px;
+  padding-top: 1rem;
 }
 
 iframe.demo.medium {
