@@ -474,7 +474,7 @@
 }
 
 .marimo-error a {
-  color: hsl(var(--link));
+  @apply text-link;
 }
 
 .output > * {
@@ -499,8 +499,9 @@
 
 .marimo-error,
 .stderr {
-  color: hsl(var(--error));
   font-weight: bold;
+
+  @apply text-error;
 }
 
 .marimo-error {
