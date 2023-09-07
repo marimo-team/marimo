@@ -497,6 +497,73 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
 
+  it("can run cell a stale cell", () => {
+    // Update code of first cell
+    state = reducer(state, {
+      type: "UPDATE_CELL_CODE",
+      cellKey: firstCellKey,
+      code: "import marimo as mo",
+      formattingChange: false,
+    });
+    // Add cell
+    state = reducer(state, {
+      type: "CREATE_CELL",
+      cellKey: firstCellKey,
+      before: false,
+    });
+    const secondCell = state.present[1].key;
+    // Update code
+    state = reducer(state, {
+      type: "UPDATE_CELL_CODE",
+      code: "mo.slider()",
+      cellKey: secondCell,
+      formattingChange: false,
+    });
+
+    // Prepare for run
+    state = reducer(state, { type: "PREPARE_FOR_RUN", cellKey: secondCell });
+
+    // Receive queued messages
+    state = reducer(state, {
+      type: "HANDLE_CELL_MESSAGE",
+      cellKey: secondCell,
+      message: {
+        cell_id: secondCell,
+        output: null,
+        console: null,
+        status: "queued",
+        timestamp: new Date(10).getTime(),
+      },
+    });
+    let cell = state.present[1];
+    expect(cell.status).toBe("queued");
+    expect(cell.lastCodeRun).toBe("mo.slider()");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive stale message
+    state = reducer(state, {
+      type: "HANDLE_CELL_MESSAGE",
+      cellKey: secondCell,
+      message: {
+        cell_id: secondCell,
+        output: null,
+        console: null,
+        status: "stale",
+        timestamp: new Date(20).getTime(),
+      },
+    });
+    cell = state.present[1];
+    expect(cell.status).toBe("stale");
+    expect(cell.lastCodeRun).toBe("mo.slider()");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+  });
+
   it("can format code and update cell", () => {
     const firstCellKey = state.present[0].key;
     state = reducer(state, {

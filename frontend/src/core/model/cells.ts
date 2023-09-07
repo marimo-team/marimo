@@ -13,8 +13,9 @@ export const DEFAULT_CELL_NAME = "__";
  * queued: queued by the kernel.
  * running: currently executing.
  * idle: not running.
+ * stale: not run because auto-run is disabled.
  */
-export type CellStatus = "queued" | "running" | "idle";
+export type CellStatus = "queued" | "running" | "idle" | "stale";
 
 /**
  * Create a new cell with default state.

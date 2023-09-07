@@ -1,5 +1,53 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`cell reducer > can run cell a stale cell 1`] = `
+{
+  "code": "mo.slider()",
+  "config": {},
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "1",
+  "lastCodeRun": "mo.slider()",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "queued",
+  "stopped": false,
+}
+`;
+
+exports[`cell reducer > can run cell a stale cell 2`] = `
+{
+  "code": "mo.slider()",
+  "config": {},
+  "consoleOutputs": [],
+  "edited": false,
+  "errored": false,
+  "initialContents": "",
+  "interrupted": false,
+  "key": "1",
+  "lastCodeRun": "mo.slider()",
+  "name": "__",
+  "output": null,
+  "ref": {
+    "current": null,
+  },
+  "runElapsedTimeMs": null,
+  "runStartTimestamp": null,
+  "serializedEditorState": null,
+  "status": "stale",
+  "stopped": false,
+}
+`;
+
 exports[`cell reducer > can run cell and receive cell messages 1`] = `
 {
   "code": "",
