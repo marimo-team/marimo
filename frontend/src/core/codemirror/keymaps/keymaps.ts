@@ -13,7 +13,7 @@ export function keymapBundle(
   callbacks: {
     deleteCell: () => void;
   }
-): Extension {
+): Extension[] {
   switch (config.preset) {
     case "default":
       return [

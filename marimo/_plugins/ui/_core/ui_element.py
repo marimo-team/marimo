@@ -29,6 +29,10 @@ T = TypeVar("T")
 LOGGER = _loggers.marimo_logger()
 
 
+class MarimoConvertValueException(Exception):
+    pass
+
+
 @mddoc
 class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     """An HTML element with a value
@@ -250,7 +254,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         Calls the on_change handler with the element's new value as a
         side-effect.
         """
-        self._value = self._convert_value(value)
+        try:
+            self._value = self._convert_value(value)
+        except MarimoConvertValueException:
+            raise
+
         if self._on_change is not None:
             self._on_change(self._value)
 

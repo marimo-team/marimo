@@ -39,6 +39,7 @@ from marimo._messaging.messages import (
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.registry import UIElementRegistry
+from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
@@ -669,7 +670,34 @@ class Kernel:
                 get_context().ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
-                component._update(value)
+                try:
+                    component._update(value)
+                except MarimoConvertValueException:
+                    # Internal marimo error
+                    sys.stderr.write(
+                        "An exception was raised when updating a UIElement's "
+                        "value. This is a bug in marimo. Please copy "
+                        "the below traceback and paste it in an "
+                        "issue: https://github.com/marimo-team/marimo/issues\n"
+                    )
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    sys.stderr.write(tmpio.read())
+                    # Don't run descendants
+                    continue
+                except Exception:
+                    # User's on_change handler an exception ...
+                    sys.stderr.write(
+                        "An exception was raised by a "
+                        "UIElement's on_change handler:\n"
+                    )
+
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    sys.stderr.write(tmpio.read())
+
             bound_names = get_context().ui_element_registry.bound_names(
                 object_id
             )

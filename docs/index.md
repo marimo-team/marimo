@@ -61,8 +61,8 @@ marimo is _not_ built on Jupyter or any other notebook or app library.
    getting_started/index
    guides/index
    api/index
-   getting_started/examples
-   getting_started/faq
+   examples
+   faq
 ```
 
 <h3>Index</h3>

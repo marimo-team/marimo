@@ -14,6 +14,7 @@ import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "./jotai";
 import { createReducer } from "../../utils/createReducer";
 import { arrayInsert, arrayDelete } from "@/utils/arrays";
+import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 
 /* The array of cells on the page, together with a history of
  * deleted cells to implement an "undo delete" action
@@ -345,15 +346,13 @@ const { reducer, createActions } = createReducer(initialCellState, {
     }
   },
   foldAll: (state) => {
-    state.present.forEach((cell) => {
-      cell.ref.current?.foldAll();
-    });
+    const targets = state.present.map((cell) => cell.ref.current?.editorView);
+    foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
-    state.present.forEach((cell) => {
-      cell.ref.current?.unfoldAll();
-    });
+    const targets = state.present.map((cell) => cell.ref.current?.editorView);
+    unfoldAllBulk(targets);
     return state;
   },
 });

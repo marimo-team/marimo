@@ -72,6 +72,13 @@ export function formatKeymapExtension(
   ]);
 }
 
+/**
+ * Scroll the active line into view when the editor is resized,
+ * with an offset.
+ *
+ * This is necessary when typings at the edges of the editor
+ * and the user is blocked by the hovering action bar.
+ */
 export function scrollActiveLineIntoView() {
   return EditorView.updateListener.of((update) => {
     // A new line was added, scroll the active line into view
