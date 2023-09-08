@@ -116,7 +116,7 @@ export function useMarimoWebSocket(opts: {
            * affects how the cell should be rendered.
            */
           const body = msg.data;
-          handleCellMessage(body.cell_id, body);
+          handleCellMessage({ cellId: body.cell_id, message: body });
           return;
         }
         default:

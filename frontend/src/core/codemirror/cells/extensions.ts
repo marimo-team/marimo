@@ -5,8 +5,10 @@ import { EditorView } from "codemirror";
 import { CellId } from "@/core/model/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
+import { CellActions } from "@/core/state/cells";
 
-export interface MovementCallbacks {
+export interface MovementCallbacks
+  extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
   onRun: () => void;
   deleteCell: () => void;
   createAbove: () => void;
@@ -15,9 +17,6 @@ export interface MovementCallbacks {
   moveDown: () => void;
   focusUp: () => void;
   focusDown: () => void;
-  sendToTop: (cellId: CellId) => void;
-  sendToBottom: (cellId: CellId) => void;
-  moveToNextCell: (cellId: CellId, before: boolean) => void;
 }
 
 /**
@@ -56,7 +55,7 @@ export function cellMovementBundle(
       run: (ev) => {
         onRun();
         ev.contentDOM.blur();
-        moveToNextCell(cellId, /*before=*/ false);
+        moveToNextCell({ cellId, before: false });
         return true;
       },
     },
@@ -66,7 +65,7 @@ export function cellMovementBundle(
       run: (ev) => {
         onRun();
         ev.contentDOM.blur();
-        moveToNextCell(cellId, /*before=*/ true);
+        moveToNextCell({ cellId, before: true });
         return true;
       },
     },
@@ -122,7 +121,7 @@ export function cellMovementBundle(
       key: HOTKEYS.getHotkey("cell.sendToBottom").key,
       preventDefault: true,
       run: () => {
-        sendToBottom(cellId);
+        sendToBottom({ cellId });
         return true;
       },
     },
@@ -130,7 +129,7 @@ export function cellMovementBundle(
       key: HOTKEYS.getHotkey("cell.sendToTop").key,
       preventDefault: true,
       run: () => {
-        sendToTop(cellId);
+        sendToTop({ cellId });
         return true;
       },
     },
@@ -159,7 +158,7 @@ export function cellMovementBundle(
 }
 
 export interface CodeCallbacks {
-  updateCellCode: (cellId: CellId, code: string) => void;
+  updateCellCode: CellActions["updateCellCode"];
 }
 
 /**
@@ -174,7 +173,7 @@ export function cellCodeEditingBundle(
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
       const nextCode = update.state.doc.toString();
-      updateCellCode(cellId, nextCode);
+      updateCellCode({ cellId, code: nextCode, formattingChange: false });
     }
   });
 

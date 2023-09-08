@@ -20,7 +20,7 @@ import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
 
 import { UserConfig } from "../core/config";
 import { CellState } from "../core/model/cells";
-import { useCellActions } from "../core/state/cells";
+import { CellActions, useCellActions } from "../core/state/cells";
 import { derefNotNull } from "../utils/dereference";
 import { ConsoleOutputArea, OutputArea } from "./Output";
 import { CreateCellButton } from "./cell/CreateCellButton";
@@ -36,7 +36,7 @@ import { SerializedEditorState } from "../core/codemirror/types";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
-import { CellActions } from "./cell/cell-actions";
+import { CellActionsDropdown } from "./cell/cell-actions";
 
 /**
  * Imperative interface of the cell.
@@ -58,26 +58,31 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-    CellState,
-    | "consoleOutputs"
-    | "status"
-    | "output"
-    | "initialContents"
-    | "edited"
-    | "errored"
-    | "interrupted"
-    | "stopped"
-    | "runElapsedTimeMs"
-  > {
+      CellState,
+      | "consoleOutputs"
+      | "status"
+      | "output"
+      | "initialContents"
+      | "edited"
+      | "errored"
+      | "interrupted"
+      | "config"
+      | "stopped"
+      | "runElapsedTimeMs"
+    >,
+    Pick<
+      CellActions,
+      | "updateCellCode"
+      | "prepareForRun"
+      | "createNewCell"
+      | "deleteCell"
+      | "focusCell"
+      | "moveCell"
+      | "moveToNextCell"
+    > {
   theme: Theme;
   showPlaceholder: boolean;
   cellId: CellId;
-  updateCellCode: (
-    cellId: CellId,
-    code: string,
-    formattingChange?: boolean
-  ) => void;
-  prepareCellForRun: (cellId: CellId) => void;
   registerRunStart: () => void;
   serializedEditorState: SerializedEditorState | null;
   editing: boolean;
@@ -88,11 +93,6 @@ export interface CellProps
    * This is false when the app is initially loading.
    */
   allowFocus: boolean;
-  createNewCell: (cellId: CellId, before: boolean) => void;
-  deleteCell: (cellId: CellId) => void;
-  focusCell: (cellId: CellId, before: boolean) => void;
-  moveCell: (cellId: CellId, before: boolean) => void;
-  moveToNextCell: (cellId: CellId, before: boolean) => void;
   userConfig: UserConfig;
 }
 
@@ -118,13 +118,14 @@ const CellComponent = (
     appClosed,
     showDeleteButton,
     updateCellCode,
-    prepareCellForRun,
+    prepareForRun,
     createNewCell,
     deleteCell,
     focusCell,
     moveCell,
     moveToNextCell,
     userConfig,
+    config: cellConfig,
   }: CellProps,
   ref: React.ForwardedRef<CellHandle>
 ) => {
@@ -148,9 +149,9 @@ const CellComponent = (
   const prepareToRunEffects = useCallback(() => {
     const code = derefNotNull(editorView).state.doc.toString();
     closeCompletion(derefNotNull(editorView));
-    prepareCellForRun(cellId);
+    prepareForRun({ cellId });
     return code;
-  }, [cellId, editorView, prepareCellForRun]);
+  }, [cellId, editorView, prepareForRun]);
 
   // An imperative interface to the code editor
   useImperativeHandle(
@@ -181,27 +182,27 @@ const CellComponent = (
   }, [cellId, registerRunStart, prepareToRunEffects]);
 
   const createBelow = useCallback(
-    () => createNewCell(cellId, /*before=*/ false),
+    () => createNewCell({ cellId, before: false }),
     [cellId, createNewCell]
   );
   const createAbove = useCallback(
-    () => createNewCell(cellId, /*before=*/ true),
+    () => createNewCell({ cellId, before: true }),
     [cellId, createNewCell]
   );
   const moveDown = useCallback(
-    () => moveCell(cellId, /*before=*/ false),
+    () => moveCell({ cellId, before: false }),
     [cellId, moveCell]
   );
   const moveUp = useCallback(
-    () => moveCell(cellId, /*before=*/ true),
+    () => moveCell({ cellId, before: true }),
     [cellId, moveCell]
   );
   const focusDown = useCallback(
-    () => focusCell(cellId, /*before=*/ false),
+    () => focusCell({ cellId, before: false }),
     [cellId, focusCell]
   );
   const focusUp = useCallback(
-    () => focusCell(cellId, /*before=*/ true),
+    () => focusCell({ cellId, before: true }),
     [cellId, focusCell]
   );
 
@@ -209,7 +210,7 @@ const CellComponent = (
     const deleteCellIfNotRunning = () => {
       // Cannot delete running cells, since we're waiting for their output.
       if (!runningOrQueuedRef.current) {
-        deleteCell(cellId);
+        deleteCell({ cellId });
         return true;
       }
       return false;
@@ -405,7 +406,7 @@ const CellComponent = (
       className={className}
       onBlur={closeCompletionHandler}
       onKeyDown={resumeCompletionHandler}
-      cellKey={cellId}
+      cellId={cellId}
     >
       {outputArea}
       <div className="tray">
@@ -441,13 +442,14 @@ const CellComponent = (
               status={status}
               needsRun={needsRun}
             />
-            <CellActions
+            <CellActionsDropdown
               cellId={cellId}
               editorView={editorView.current}
+              config={cellConfig}
               hasOutput={!!output}
             >
               <CellDragHandle />
-            </CellActions>
+            </CellActionsDropdown>
           </div>
         </div>
         <div className="shoulder-bottom hover-action">
@@ -457,7 +459,7 @@ const CellComponent = (
               status={status}
               onClick={() => {
                 if (!loading && !appClosed) {
-                  deleteCell(cellId);
+                  deleteCell({ cellId });
                 }
               }}
             />

@@ -70,7 +70,7 @@ export interface CellMessage {
    * Encodes status transitions. Non-null means a transition happened. Null
    * means no transition in status.
    */
-  status: "idle" | "queued" | "running" | null;
+  status: "idle" | "queued" | "running" | "stale" | null;
   /**
    * Timestamp in seconds since epoch, when the message was sent
    */

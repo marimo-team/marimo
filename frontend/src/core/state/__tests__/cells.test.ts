@@ -4,7 +4,7 @@ import { CellState, createCell } from "../../model/cells";
 import { CellsAndHistory, exportedForTesting } from "../cells";
 import { CellId } from "@/core/model/ids";
 
-const { initialCellState, reducer } = exportedForTesting;
+const { initialCellState, reducer, createActions } = exportedForTesting;
 
 function formatCells(cells: CellState[]) {
   return `\n${cells
@@ -14,20 +14,23 @@ function formatCells(cells: CellState[]) {
 
 describe("cell reducer", () => {
   let state: CellsAndHistory;
-  let firstCellKey: CellId;
+  let firstCellId: CellId;
+
+  const actions = createActions((action) => {
+    state = reducer(state, action);
+  });
 
   beforeEach(() => {
     CellId.reset();
 
     state = initialCellState();
     state.present = [createCell({ key: CellId.create() })];
-    firstCellKey = state.present[0].key;
+    firstCellId = state.present[0].key;
   });
 
   it("can add a cell after another cell", () => {
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: firstCellKey,
+    actions.createNewCell({
+      cellId: firstCellId,
       before: false,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -41,9 +44,8 @@ describe("cell reducer", () => {
   });
 
   it("can add a cell before another cell", () => {
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: firstCellKey,
+    actions.createNewCell({
+      cellId: firstCellId,
       before: true,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -57,14 +59,12 @@ describe("cell reducer", () => {
   });
 
   it("can delete a cell", () => {
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: firstCellKey,
+    actions.createNewCell({
+      cellId: firstCellId,
       before: false,
     });
-    state = reducer(state, {
-      type: "DELETE_CELL",
-      cellKey: firstCellKey,
+    actions.deleteCell({
+      cellId: firstCellId,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
       "
@@ -73,7 +73,7 @@ describe("cell reducer", () => {
     `);
 
     // undo
-    state = reducer(state, { type: "UNDO_DELETE_CELL" });
+    actions.undoDeleteCell();
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
       "
       key: 2
@@ -85,9 +85,8 @@ describe("cell reducer", () => {
   });
 
   it("can update a cell", () => {
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import numpy as np",
       formattingChange: false,
     });
@@ -99,9 +98,8 @@ describe("cell reducer", () => {
   });
 
   it("can move a cell", () => {
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: firstCellKey,
+    actions.createNewCell({
+      cellId: firstCellId,
       before: false,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -114,9 +112,8 @@ describe("cell reducer", () => {
     `);
 
     // move first cell to the end
-    state = reducer(state, {
-      type: "MOVE_CELL",
-      cellKey: firstCellKey,
+    actions.moveCell({
+      cellId: firstCellId,
       before: false,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -129,9 +126,8 @@ describe("cell reducer", () => {
     `);
 
     // move it back
-    state = reducer(state, {
-      type: "MOVE_CELL",
-      cellKey: firstCellKey,
+    actions.moveCell({
+      cellId: firstCellId,
       before: true,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -145,14 +141,12 @@ describe("cell reducer", () => {
   });
 
   it("can drag and drop a cell", () => {
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: firstCellKey,
+    actions.createNewCell({
+      cellId: firstCellId,
       before: false,
     });
-    state = reducer(state, {
-      type: "CREATE_CELL",
-      cellKey: "1" as CellId,
+    actions.createNewCell({
+      cellId: "1" as CellId,
       before: false,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
@@ -168,10 +162,9 @@ describe("cell reducer", () => {
     `);
 
     // drag first cell to the end
-    state = reducer(state, {
-      type: "DROP_CELL_OVER",
-      cellKey: firstCellKey,
-      overCellKey: "2" as CellId,
+    actions.dropCellOver({
+      cellId: firstCellId,
+      overCellId: "2" as CellId,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
       "
@@ -186,10 +179,9 @@ describe("cell reducer", () => {
     `);
 
     // drag it back to the middle
-    state = reducer(state, {
-      type: "DROP_CELL_OVER",
-      cellKey: firstCellKey,
-      overCellKey: "2" as CellId,
+    actions.dropCellOver({
+      cellId: firstCellId,
+      overCellId: "2" as CellId,
     });
     expect(formatCells(state.present)).toMatchInlineSnapshot(`
       "
@@ -215,9 +207,8 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Update code
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as mo",
       formattingChange: false,
     });
@@ -228,9 +219,8 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Prepare for run
-    state = reducer(state, {
-      type: "PREPARE_FOR_RUN",
-      cellKey: firstCellKey,
+    actions.prepareForRun({
+      cellId: firstCellId,
     });
     cell = state.present[0];
     expect(cell.status).toBe("idle");
@@ -239,11 +229,10 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive queued messages
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "queued",
@@ -259,11 +248,10 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive running messages
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "running",
@@ -279,11 +267,10 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Console messags shouldn't transition status
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: {
           channel: "console",
@@ -303,11 +290,10 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive output messages
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: {
           channel: "output",
           mimetype: "text/plain",
@@ -334,9 +320,8 @@ describe("cell reducer", () => {
     // EDITING BACK AND FORTH
     /////////////////
     // Update code again
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as mo\nimport numpy",
       formattingChange: false,
     });
@@ -346,9 +331,8 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Update code should be unedited
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as mo",
       formattingChange: false,
     });
@@ -357,9 +341,8 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Update code should be edited again
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as mo\nimport numpy",
       formattingChange: false,
     });
@@ -372,18 +355,16 @@ describe("cell reducer", () => {
     // ERROR RESPONSE
     /////////////////
     // Prepare for run
-    state = reducer(state, {
-      type: "PREPARE_FOR_RUN",
-      cellKey: firstCellKey,
+    actions.prepareForRun({
+      cellId: firstCellId,
     });
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "queued",
@@ -393,11 +374,10 @@ describe("cell reducer", () => {
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "running",
@@ -407,11 +387,10 @@ describe("cell reducer", () => {
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: {
           channel: "marimo-error",
           mimetype: "application/vnd.marimo+error",
@@ -437,18 +416,16 @@ describe("cell reducer", () => {
     // INTERRUPT RESPONSE
     /////////////////
     // Prepare for run
-    state = reducer(state, {
-      type: "PREPARE_FOR_RUN",
-      cellKey: firstCellKey,
+    actions.prepareForRun({
+      cellId: firstCellId,
     });
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "queued",
@@ -458,11 +435,10 @@ describe("cell reducer", () => {
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: null,
         console: null,
         status: "running",
@@ -472,11 +448,10 @@ describe("cell reducer", () => {
     cell = state.present[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: {
           channel: "marimo-error",
           mimetype: "application/vnd.marimo+error",
@@ -497,11 +472,74 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
 
+  it("can run cell a stale cell", () => {
+    // Update code of first cell
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "import marimo as mo",
+      formattingChange: false,
+    });
+    // Add cell
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    const secondCell = state.present[1].key;
+    // Update code
+    actions.updateCellCode({
+      code: "mo.slider()",
+      cellId: secondCell,
+      formattingChange: false,
+    });
+
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: secondCell,
+    });
+
+    // Receive queued messages
+    actions.handleCellMessage({
+      cellId: secondCell,
+      message: {
+        cell_id: secondCell,
+        output: null,
+        console: null,
+        status: "queued",
+        timestamp: new Date(10).getTime(),
+      },
+    });
+    let cell = state.present[1];
+    expect(cell.status).toBe("queued");
+    expect(cell.lastCodeRun).toBe("mo.slider()");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive stale message
+    actions.handleCellMessage({
+      cellId: secondCell,
+      message: {
+        cell_id: secondCell,
+        output: null,
+        console: null,
+        status: "stale",
+        timestamp: new Date(20).getTime(),
+      },
+    });
+    cell = state.present[1];
+    expect(cell.status).toBe("stale");
+    expect(cell.lastCodeRun).toBe("mo.slider()");
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+  });
+
   it("can format code and update cell", () => {
-    const firstCellKey = state.present[0].key;
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    const firstCellId = state.present[0].key;
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as    mo",
       formattingChange: false,
     });
@@ -511,15 +549,13 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(true);
 
     // Run
-    state = reducer(state, {
-      type: "PREPARE_FOR_RUN",
-      cellKey: firstCellKey,
+    actions.prepareForRun({
+      cellId: firstCellId,
     });
-    state = reducer(state, {
-      type: "HANDLE_CELL_MESSAGE",
-      cellKey: firstCellKey,
+    actions.handleCellMessage({
+      cellId: firstCellId,
       message: {
-        cell_id: firstCellKey,
+        cell_id: firstCellId,
         output: {
           channel: "output",
           mimetype: "text/plain",
@@ -544,9 +580,8 @@ describe("cell reducer", () => {
     expect(cell.lastCodeRun).toBe("import marimo as    mo");
 
     // Format code
-    state = reducer(state, {
-      type: "UPDATE_CELL_CODE",
-      cellKey: firstCellKey,
+    actions.updateCellCode({
+      cellId: firstCellId,
       code: "import marimo as mo",
       formattingChange: true,
     });
@@ -554,5 +589,27 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
+  });
+
+  it("can update a cells config", () => {
+    const firstCellId = state.present[0].key;
+    let cell = state.present[0];
+    // Starts empty
+    expect(cell.config).toEqual({});
+
+    actions.updateCellConfig({
+      cellId: firstCellId,
+      config: { autoRun: false },
+    });
+    cell = state.present[0];
+    expect(cell.config.autoRun).toBe(false);
+
+    // Revert
+    actions.updateCellConfig({
+      cellId: firstCellId,
+      config: { autoRun: null },
+    });
+    cell = state.present[0];
+    expect(cell.config.autoRun).toBe(null);
   });
 });

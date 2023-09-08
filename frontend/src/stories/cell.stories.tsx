@@ -26,7 +26,7 @@ const props: CellProps = {
   errored: false,
   stopped: false,
   updateCellCode: console.log,
-  prepareCellForRun: console.log,
+  prepareForRun: console.log,
   registerRunStart: console.log,
   runElapsedTimeMs: 10,
   serializedEditorState: null,
@@ -39,6 +39,7 @@ const props: CellProps = {
   focusCell: console.log,
   moveCell: console.log,
   moveToNextCell: console.log,
+  config: {},
   userConfig: {
     completion: {
       activate_on_typing: true,

@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { logNever } from "@/utils/assertNever";
 import { CellMessage } from "../kernel/messages";
 import { CellState } from "../model/cells";
 import { collapseConsoleOutputs } from "../model/collapseConsoleOutputs";
@@ -31,6 +32,13 @@ export function transitionCell(
         nextCell.runStartTimestamp = null;
       }
       break;
+    case null:
+      break;
+    case "stale":
+      // Everything should already be up to date from prepareCellForExecution
+      break;
+    default:
+      logNever(message.status);
   }
   nextCell.status = message.status ?? cell.status;
 

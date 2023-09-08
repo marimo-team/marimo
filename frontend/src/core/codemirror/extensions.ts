@@ -4,6 +4,7 @@ import { CellId } from "../model/ids";
 import { formatEditorViews } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { CellActions } from "../state/cells";
 
 function acceptPlaceholder(cm: EditorView, text: string) {
   // if empty, insert the placeholder
@@ -54,11 +55,7 @@ export function smartPlaceholderExtension(text: string) {
  */
 export function formatKeymapExtension(
   cellId: CellId,
-  updateCellCode: (
-    cellId: CellId,
-    code: string,
-    formattingChange: boolean
-  ) => void
+  updateCellCode: CellActions["updateCellCode"]
 ) {
   return keymap.of([
     {
