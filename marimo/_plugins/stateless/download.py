@@ -46,7 +46,9 @@ def download(
         or a file-like object.
     - `filename`: The name of the file to download.
         If not provided, the name will be guessed from the data.
-    - `mimetype`: The mimetype of the file to download.
+    - `mimetype`: The mimetype of the file to download, for example,
+        (e.g. "text/csv", "image/png"). If not provided,
+        the mimetype will be guessed from the filename.
 
     **Returns.**
 

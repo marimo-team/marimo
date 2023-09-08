@@ -8,6 +8,7 @@
   image
   audio
   pdf
+  download
 ```
 
 Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
