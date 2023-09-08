@@ -32,10 +32,7 @@ test("keeps re-renders from growing", async ({ page }) => {
   // unexpectedly, it is a sign that something is causing cells to re-render.
   // It is also ok to decrease the count if we find a way to reduce the number
   // of renders.
-
-  // It is not clear why, but webkit has 2 fewer renders than chromium.
-  const isWebkit = page.context().browser()?.browserType().name() === "webkit";
-  await expect(cellRenderCount).toBe(isWebkit ? "12" : "10");
+  await expect(cellRenderCount).toBe("10");
 });
 
 /**
