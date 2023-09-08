@@ -8,6 +8,7 @@
   image
   audio
   pdf
+  download
 ```
 
 Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
@@ -19,4 +20,5 @@ Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
   marimo.image
   marimo.audio
   marimo.pdf
+  marimo.download
 ```

@@ -1,7 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import io
 from typing import Any, Optional, Union
 
@@ -9,11 +8,12 @@ from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import create_style
+from marimo._plugins.core.media import io_to_data_url
 
 
 @mddoc
 def image(
-    src: Union[str, io.IOBase],
+    src: Union[str, io.BytesIO],
     alt: Optional[str] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
@@ -50,7 +50,7 @@ def image(
 
     `Html` object
     """
-    resolved_src = src if isinstance(src, str) else _io_to_data_url(src)
+    resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
     styles = create_style(
         {
             "width": width,
@@ -61,8 +61,3 @@ def image(
     )
     img = h.img(src=resolved_src, alt=alt, style=styles)
     return Html(img)
-
-
-def _io_to_data_url(readable: io.IOBase) -> str:
-    base64_string = base64.b64encode(readable.read()).decode("utf-8")
-    return f"data:image/png;base64,{base64_string}"

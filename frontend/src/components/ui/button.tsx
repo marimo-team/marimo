@@ -8,7 +8,10 @@ import { cn } from "@/lib/utils";
 const activeCommon = "active:shadow-xsSolid";
 
 const buttonVariants = cva(
-  "inline-flex mb-1 items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
+  cn(
+    "disabled:opacity-50 disabled:pointer-events-none",
+    "inline-flex mb-1 items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+  ),
   {
     variants: {
       variant: {
@@ -68,6 +71,9 @@ const buttonVariants = cva(
         lg: "h-11 px-8 rounded-md",
         icon: "h-6 w-6",
       },
+      disabled: {
+        true: "opacity-50 pointer-events-none",
+      },
     },
     defaultVariants: {
       variant: "default",
@@ -78,7 +84,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+    Omit<VariantProps<typeof buttonVariants>, "disabled"> {
   asChild?: boolean;
 }
 
@@ -87,7 +93,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(
+          buttonVariants({ variant, size, className, disabled: props.disabled })
+        )}
         ref={ref}
         {...props}
       />
