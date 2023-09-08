@@ -2,6 +2,7 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { devices } from "@playwright/test";
 import path from "node:path";
+import { exec } from "node:child_process";
 
 export interface ServerOptions {
   command: "edit" | "run";
@@ -43,6 +44,22 @@ export function getAppUrl(app: ApplicationNames): string {
   return getUrl(appToOptions[app].port);
 }
 
+// Reset file via git checkout
+export async function resetFile(app: ApplicationNames): Promise<void> {
+  const pathToApp = path.join(pydir, app);
+  const cmd = `git checkout -- ${pathToApp}`;
+  await exec(cmd);
+  return;
+}
+
+// Start marimo server for the given app
+export function startServer(app: ApplicationNames): void {
+  const { command, port } = appToOptions[app];
+  const pathToApp = path.join(pydir, app);
+  const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+  exec(marimoCmd);
+}
+
 // See https://playwright.dev/docs/test-configuration.
 const config: PlaywrightTestConfig = {
   testDir: "./e2e-tests",
@@ -76,23 +93,38 @@ const config: PlaywrightTestConfig = {
     trace: "on-first-retry",
   },
 
-  // TODO(akshayka): Consider testing on firefox, safari
+  // TODO(akshayka): Consider testing on firefox
   projects: [
     {
       name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-      },
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      testIgnore: [
+        // This test uses keyboard shortcuts which seem to work locally with webkit, but not on CI
+        // Disable this test until we can figure out why
+        "**/cells.spec.ts",
+      ],
+    },
+    {
+      name: "ios",
+      use: { ...devices["iPhone 13"] },
+      // Just run the cells tests for read-only apps
+      testMatch: ["**/components.spec.ts", "**/mode.spec.ts"],
     },
   ],
 
   // Run marimo servers before starting the tests, one for each app/test
   webServer: Object.entries(appToOptions).map(([app, options]) => {
+    const { command, port } = options;
+    const pathToApp = path.join(pydir, app);
+    const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+
     return {
-      command: `marimo -q ${options.command} ${path.join(pydir, app)} -p ${
-        options.port
-      } --headless`,
-      url: getUrl(options.port),
+      command: marimoCmd,
+      url: getUrl(port),
       reuseExistingServer: false,
     };
   }),

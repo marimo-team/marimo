@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
-import { getAppUrl } from "../playwright.config";
+import { getAppUrl, startServer } from "../playwright.config";
 
 test("shutdown shows disconnected text", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");
@@ -26,4 +26,8 @@ test("shutdown shows disconnected text", async ({ page }) => {
     .type("1234");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Download unsaved changes?")).toHaveCount(1);
+});
+
+test.afterAll(async () => {
+  startServer("shutdown.py"); // restart the server
 });

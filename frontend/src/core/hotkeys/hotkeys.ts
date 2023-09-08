@@ -237,10 +237,19 @@ export interface IHotkeyProvider {
 }
 
 export class HotkeyProvider implements IHotkeyProvider {
-  private mod = isPlatformMac() ? "Cmd" : "Ctrl";
-  private platform: Platform = isPlatformMac() ? "mac" : "windows";
+  private mod: string;
+  private platform: Platform;
 
-  constructor(private hotkeys: Record<HotkeyAction, Hotkey>) {}
+  static create(isMac?: boolean): HotkeyProvider {
+    return new HotkeyProvider(DEFAULT_HOT_KEY, isMac);
+  }
+
+  constructor(private hotkeys: Record<HotkeyAction, Hotkey>, isMac?: boolean) {
+    isMac = isMac ?? isPlatformMac();
+
+    this.mod = isMac ? "Cmd" : "Ctrl";
+    this.platform = isMac ? "mac" : "windows";
+  }
 
   iterate(): HotkeyAction[] {
     return Objects.keys(this.hotkeys);

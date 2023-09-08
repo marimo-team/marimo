@@ -1,13 +1,25 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
-import { getAppUrl } from "../playwright.config";
+import { getAppUrl, resetFile } from "../playwright.config";
+import { pressShortcut } from "./helper";
+
+const appUrl = getAppUrl("cells.py");
+test.beforeEach(async ({ page }, info) => {
+  await page.goto(appUrl);
+  if (info.retry) {
+    await page.reload();
+  }
+});
+
+test.beforeEach(async () => {
+  // Need to reset the file because this test modifies it
+  await resetFile("cells.py");
+});
 
 /**
  * Cell re-render count is a good indicator of performance.
  */
 test("keeps re-renders from growing", async ({ page }) => {
-  const appUrl = getAppUrl("cells.py");
-  await page.goto(appUrl);
   await page.waitForLoadState("networkidle");
 
   // Read the render count
@@ -30,9 +42,6 @@ test("keeps re-renders from growing", async ({ page }) => {
  *  - moving cells up and down
  */
 test("page renders 2 cells", async ({ page }) => {
-  const appUrl = getAppUrl("cells.py");
-  await page.goto(appUrl);
-
   // Can see output / code
   await expect(page.locator("h1").getByText("Cell 1")).toBeVisible();
   await expect(page.locator("h1").getByText("Cell 2")).toBeVisible();
@@ -89,14 +98,14 @@ test("page renders 2 cells", async ({ page }) => {
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 0")' })
     .click();
-  await page.keyboard.press("Control+Shift+J");
+  await pressShortcut(page, "cell.moveDown");
 
   // Focus on Cell 2 and move it up
   await page
     .getByRole("textbox")
     .filter({ hasText: 'mo.md("# Cell 2")' })
     .click();
-  await page.keyboard.press("Control+Shift+K");
+  await pressShortcut(page, "cell.moveUp");
 
   // Verify the rendered cells
   await expect(page.locator("h1")).toHaveText([
@@ -105,4 +114,23 @@ test("page renders 2 cells", async ({ page }) => {
     "Cell 2",
     "Cell 1.5",
   ]);
+
+  // Revert the file by deleting the new cells
+  // Delete cell 1.5
+  await page
+    .getByRole("textbox")
+    .filter({ hasText: 'mo.md("# Cell 1.5")' })
+    .selectText();
+  await page.keyboard.press("Backspace");
+  await pressShortcut(page, "cell.delete");
+  // Delete cell 0
+  await page
+    .getByRole("textbox")
+    .filter({ hasText: 'mo.md("# Cell 0")' })
+    .selectText();
+  await page.keyboard.press("Backspace");
+  await pressShortcut(page, "cell.delete");
+
+  // Verify the rendered cells
+  await expect(page.locator("h1")).toHaveText(["Cell 1", "Cell 2"]);
 });
