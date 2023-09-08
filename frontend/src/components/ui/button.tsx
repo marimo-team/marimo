@@ -13,7 +13,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: cn(
-          "bg-accent text-accent-foreground hover:bg-accent/90 shadow-smSolid border border-accent",
+          "bg-primary text-primary-foreground hover:bg-primary/90 shadow-smSolid border border-primary",
           activeCommon
         ),
         destructive: cn(
@@ -55,11 +55,11 @@ const buttonVariants = cva(
         ),
         text: cn("opacity-60 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
-          "hover:bg-accent/90 hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
+          "hover:bg-accent hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
           activeCommon,
           "active:text-accent-foreground"
         ),
-        link: "underline-offset-4 hover:underline text-primary",
+        link: "underline-offset-4 hover:underline text-link",
       },
       size: {
         default: "h-10 py-2 px-4",

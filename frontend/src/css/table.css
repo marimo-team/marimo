@@ -21,7 +21,7 @@ table.dataframe tbody tr:nth-child(odd) {
 }
 
 table.dataframe tbody tr:nth-child(even) {
-  background: hsl(var(--card));
+  @apply bg-card;
 }
 
 table.dataframe tbody tr:hover {
