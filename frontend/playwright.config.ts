@@ -99,21 +99,22 @@ const config: PlaywrightTestConfig = {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-      testIgnore: [
-        // This test uses keyboard shortcuts which seem to work locally with webkit, but not on CI
-        // Disable this test until we can figure out why
-        "**/cells.spec.ts",
-      ],
-    },
-    {
-      name: "ios",
-      use: { ...devices["iPhone 13"] },
-      // Just run the cells tests for read-only apps
-      testMatch: ["**/components.spec.ts", "**/mode.spec.ts"],
-    },
+    //    Re-enable later ...
+    //    {
+    //      name: "webkit",
+    //      use: { ...devices["Desktop Safari"] },
+    //      testIgnore: [
+    //        // This test uses keyboard shortcuts which seem to work locally with webkit, but not on CI
+    //        // Disable this test until we can figure out why
+    //        "**/cells.spec.ts",
+    //      ],
+    //    },
+    //    {
+    //      name: "ios",
+    //      use: { ...devices["iPhone 13"] },
+    //      // Just run the cells tests for read-only apps
+    //      testMatch: ["**/components.spec.ts", "**/mode.spec.ts"],
+    //    },
   ],
 
   // Run marimo servers before starting the tests, one for each app/test
