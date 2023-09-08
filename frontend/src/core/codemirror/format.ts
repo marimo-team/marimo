@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { CellId } from "../model/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
+import { CellActions } from "../state/cells";
 
 /**
  * Format the code in the editor views via the marimo server,
@@ -10,11 +11,7 @@ import { sendFormat } from "../network/requests";
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  updateCellCode: (payload: {
-    cellId: CellId;
-    code: string;
-    formattingChange: boolean;
-  }) => void
+  updateCellCode: CellActions["updateCellCode"]
 ) {
   const codes = Objects.mapValues(views, (view) => view.state.doc.toString());
 
