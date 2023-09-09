@@ -22,7 +22,6 @@ def __(NUMBER_OF_EXAMPLES, mo):
     def decrement_index() -> int:
         set_index(lambda v: max(0, v - 1))
 
-
     next_button = mo.ui.button(label="next", on_change=lambda _: increment_index())
     previous_button = mo.ui.button(
         label="previous", on_change=lambda _: decrement_index()
@@ -53,36 +52,43 @@ def __(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
 
 @app.cell
 def __(mo):
-    mo.md(f"_Which predicted span do you prefer: model A or model B?._")
+    mo.md(f"_Models A and B both predict spans. Which do you prefer?_")
+    return
+
+
+@app.cell
+def __(NUMBER_OF_EXAMPLES, mo, num_a_preferred, num_b_preferred):
+    mo.ui.table(
+        [
+            {"Model": "A", "Score": f"{num_a_preferred}/{NUMBER_OF_EXAMPLES}"},
+            {"Model": "B", "Score": f"{num_b_preferred}/{NUMBER_OF_EXAMPLES}"},
+        ],
+        selection=None,
+    )
     return
 
 
 @app.cell
 def __(index, mo, next_button, previous_button):
-    mo.hstack([index, previous_button, next_button], justify="start")
+    mo.hstack([index, previous_button, next_button], justify="center")
     return
 
 
 @app.cell
-def __(mo):
-    mo.md("**Choose the better model.**").center()
-    return
+def __(CHOICES_PATH, get_choices, index, mo, write_choices):
+    preference = get_choices()[index.value]
+    mo.stop(preference is None, mo.md("**Choose the better model**.").center())
+    write_choices(get_choices(), CHOICES_PATH)
+    mo.md(f"You prefer **model {preference}**.").center()
+    return preference,
 
 
 @app.cell
-def __(mo):
+def __(annotate, mo):
     mo.hstack(
         [
-            mo.md(
-                """
-                <span style='text-decoration: underline; text-decoration-color: red; text-decoration-thickness:3px'>Model A</span>
-                """
-            ),
-            mo.md(
-                """
-                <span style='text-decoration: underline; text-decoration-color: blue; text-decoration-thickness:3px'>Model B</span>
-                """
-            ),
+            mo.md(annotate("Model A", [0, len("Model A")], "yellow")),
+            mo.md(annotate("Model B", [0, len("Model B")], "lightblue")),
         ],
         justify="space-around",
     )
@@ -90,8 +96,10 @@ def __(mo):
 
 
 @app.cell
-def __(choices, mo):
-    get_choices, set_choices = mo.state([choice for choice in choices])
+def __(CHOICES_PATH, PARAGRAPHS, load_choices, mo):
+    get_choices, set_choices = mo.state(
+        load_choices(CHOICES_PATH, len(PARAGRAPHS))
+    )
     return get_choices, set_choices
 
 
@@ -115,46 +123,38 @@ def __(index, mo, set_choices):
 
 
 @app.cell
-def __(CHOICES_PATH, get_choices, index, mo, write_choices):
-    preference = get_choices()[index.value]
-    mo.stop(preference is None, mo.md("Choose your preference.").callout("warn"))
-    write_choices(get_choices(), CHOICES_PATH)
-
-    mo.md(f"You prefer model {preference}!").callout(
-        kind="info" if preference == "B" else "danger"
-    )
-    return preference,
-
-
-@app.cell
 def __(PARAGRAPHS, SPANS, annotate, index, mo):
-    mo.md(
+    model_A_prediction = mo.md(
         annotate(
             PARAGRAPHS[index.value],
             SPANS[index.value][0],
-            SPANS[index.value][1],
+            color="yellow"
         )
-    ).callout()
+    )
+
+    model_B_prediction = mo.md(
+        annotate(
+            PARAGRAPHS[index.value],
+            SPANS[index.value][1],
+            color="lightblue"
+        )
+    )
+    return model_A_prediction, model_B_prediction
+
+
+@app.cell
+def __(mo, model_A_prediction, model_B_prediction):
+    mo.hstack(
+        [model_A_prediction, model_B_prediction], gap=2, justify="space-around"
+    )
     return
 
 
 @app.cell
-def __(PARAGRAPHS, SPANS, index, mo):
-    mo.tabs({
-        "Model A": PARAGRAPHS[index.value][
-            SPANS[index.value][0][0] : SPANS[index.value][0][1]
-        ],
-        "Model B": PARAGRAPHS[index.value][
-            SPANS[index.value][1][0] : SPANS[index.value][1][1]
-        ]
-    })
-    return
-
-
-@app.cell
-def __(CHOICES_PATH, NUMBER_OF_EXAMPLES, load_choices):
-    choices = load_choices(CHOICES_PATH, NUMBER_OF_EXAMPLES)
-    return choices,
+def __(get_choices):
+    num_a_preferred = sum(1 for c in get_choices() if c == "A")
+    num_b_preferred = sum(1 for c in get_choices() if c == "B")
+    return num_a_preferred, num_b_preferred
 
 
 @app.cell
@@ -165,7 +165,6 @@ def __():
 
 @app.cell
 def __(json, os):
-
     def load_choices(path, number_of_examples):
         if not os.path.exists(path):
             return [
@@ -192,10 +191,10 @@ def __(PARAGRAPHS, random):
 
 
     def predict_spans(text):
-        first = [random.randint(0, len(text) - 1)]
-        first.append(random.randint(first[0], len(text) - 1))
-        second = [random.randint(0, len(text) - 1)]
-        second.append(random.randint(second[0], len(text) - 1))
+        first = [random.randint(0, len(text) - 2)]
+        first.append(random.randint(first[0] + 1, len(text) - 1))
+        second = [random.randint(0, len(text) - 2)]
+        second.append(random.randint(second[0] + 1, len(text) - 1))
 
         return first, second
 
@@ -215,34 +214,14 @@ def __(HAMLET, textwrap):
 
 @app.cell
 def __():
-    def annotate(text, first_span, second_span):
-        red_span = "<span style='text-decoration: underline 3px red'>"
-        resolved_span = [second_span[0], second_span[1]]
-        if resolved_span[0] > first_span[0] and resolved_span[0] < first_span[1]:
-            resolved_span[0] += len(red_span)
-        elif resolved_span[0] >= first_span[1]:
-            resolved_span[0] += len(red_span) + len("</span>")
-
-        if resolved_span[1] > first_span[0] and resolved_span[1] < first_span[1]:
-            resolved_span[1] += len(red_span)
-        elif resolved_span[1] >= first_span[1]:
-            resolved_span[1] += len(red_span) + len("</span>")
-
-        text = (
-            text[: first_span[0]]
-            + red_span
-            + text[first_span[0] : first_span[1]]
-            + "</span>"
-            + text[first_span[1] :]
-        )
-
-        blue_span = "<span style='text-decoration: underline 3px blue'>"
+    def annotate(text, span, color):
+        mark_start = f"<mark style='background-color:{color}'>"
         return (
-            text[: resolved_span[0]]
-            + blue_span
-            + text[resolved_span[0] : resolved_span[1]]
-            + "</span>"
-            + text[resolved_span[1] :]
+            text[: span[0]]
+            + mark_start
+            + text[span[0] : span[1]]
+            + "</mark>"
+            + text[span[1] :]
         )
     return annotate,
 
