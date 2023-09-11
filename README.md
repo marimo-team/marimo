@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/_static/marimo-logotype-thick.svg">
+  <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-thick.svg">
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@ marimo was built from the ground up to solve many [well-known problems
 with traditional notebooks](#faq-jupyter). marimo is _not_ built on top of
 Jupyter or any other notebook or app library.
 
-![marimo](docs/_static/intro_condensed.gif)
+![marimo](https://github.com/marimo-team/marimo/blob/main/docs/_static/intro_condensed.gif)
 
 **Contents.**
 
@@ -64,7 +64,7 @@ marimo tutorial intro
 You should see a tutorial notebook in your browser:
 
 <div align="center">
-<img src="docs/_static/intro_tutorial.gif" width="400px" />
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/intro_tutorial.gif" width="400px" />
 </div>
 
 If that doesn't work, please [open a Github issue](https://github.com/marimo-team/marimo/issues).
@@ -132,7 +132,7 @@ consistent.
 
 <div align="center">
 <figure>
-<img src="docs/_static/reactive.gif" width="600px"/>
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/reactive.gif" width="600px"/>
 </figure>
 </div>
 
@@ -188,7 +188,7 @@ to build rich composite outputs.
 
 <div align="center">
 <figure>
-<img src="docs/_static/outputs.gif" width="600px"/>
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/outputs.gif" width="600px"/>
 </figure>
 </div>
 
@@ -213,7 +213,7 @@ that can wrap other UI elements.
 
 <div align="center">
 <figure>
-<img src="docs/_static/readme-ui.gif" width="600px"/>
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/readme-ui.gif" width="600px"/>
 </figure>
 </div>
 
@@ -248,7 +248,7 @@ collections of elements.
 
 <div align="center">
 <figure>
-<img src="docs/_static/readme-ui-form.gif" width="600px"/>
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/readme-ui-form.gif" width="600px"/>
 </figure>
 </div>
 
