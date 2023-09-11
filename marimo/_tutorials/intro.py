@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.6"
+__generated_with = "0.1.5"
 app = marimo.App()
 
 
@@ -359,8 +359,8 @@ def __():
               command line, e.g., `marimo edit app_name.py`.
 
             - _Save_ by clicking the save icon on the bottom left, or by
-              inputting `Ctrl/Cmd+s`. You can also configure marimo to
-              autosave.
+              inputting `Ctrl/Cmd+s`. By default marimo is configured
+              to autosave.
             """
         ),
         "Running": (
@@ -425,25 +425,9 @@ def __():
             """
         ),
         "Configuration": (
-            """
-            Configure the editor by creating a file called
-            `marimo.config.py` that includes a call to
-            `marimo.config.configure()`.
-
-            _Example._
-
-            ```python3
-            import marimo as mo
-
-            mo.config.configure(
-                config={{
-                    # Autocomplete
-                    "completion": {{"activate_on_typing": True}},
-                    # Enable autosave
-                    "save": {{"autosave": "after_delay", "autosave_delay": 1000}},
-                }}
-            )
-            ```
+           """
+           Configure the editor by clicking the gears icon near the top-right
+           of the screen.
            """
         ),
     }

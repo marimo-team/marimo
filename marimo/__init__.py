@@ -20,7 +20,6 @@ __all__ = [
     "audio",
     "callout",
     "center",
-    "config",
     "defs",
     "doc",
     "download",
@@ -41,7 +40,6 @@ __all__ = [
 ]
 __version__ = "0.1.5"
 
-from marimo import config
 from marimo._ast.app import App
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html
