@@ -75,8 +75,8 @@ def register_formatters() -> None:
         # late-binding and we're in a for loop ...
         def find_spec(  # type:ignore[no-untyped-def]
             fullname,
-            path,
-            target,
+            path=None,
+            target=None,
             original_find_spec=original_find_spec,
         ) -> Any:
             spec = original_find_spec(fullname, path, target)
@@ -108,7 +108,7 @@ def register_formatters() -> None:
 
             return spec
 
-        finder.find_spec = find_spec  # type:ignore[assignment]
+        finder.find_spec = find_spec  # type: ignore[method-assign]
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.
