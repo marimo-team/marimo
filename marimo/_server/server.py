@@ -255,7 +255,7 @@ async def start_server(
         ],
         cookie_secret=secrets.token_hex(),
         template_path=root,
-        xsrf_cookies=True,
+        xsrf_cookies=not development_mode,
         debug=development_mode,
         # ping the websocket once a second to prevent intermittent
         # disconnections
