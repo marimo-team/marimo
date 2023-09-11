@@ -30,10 +30,10 @@ import tornado.web
 import tornado.websocket
 
 from marimo import _loggers
+from marimo._config.config import get_configuration
+from marimo._config.utils import load_config
 from marimo._server import api, sessions
 from marimo._server.utils import TAB, print_tabbed
-from marimo.config._config import get_configuration
-from marimo.config._utils import load_config
 
 DEFAULT_PORT = 2718
 UTF8_SUPPORTED = False

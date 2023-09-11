@@ -5,15 +5,16 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+import tomlkit
 import tornado.web
 
 from marimo import _loggers
+from marimo._config.config import MarimoConfig, configure
+from marimo._config.utils import get_config_path
 from marimo._runtime import requests
 from marimo._server import sessions
 from marimo._server.api.model import parse_raw
 from marimo._server.api.status import HTTPStatus
-from marimo.config._config import MarimoConfig, configure
-from marimo.config._utils import get_config_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -57,21 +58,10 @@ class SaveUserConfigurationHandler(tornado.web.RequestHandler):
             else os.path.expanduser("~")
         )
         LOGGER.debug("Saving user configuration to %s", config_dir)
-        config_path = os.path.join(config_dir, "marimo.config.py")
-        file_contents = "\n".join(
-            [
-                "import marimo as mo",
-                "",
-                "mo.config.configure(",
-                f"{_INDENT}config="
-                + _format_configuration(args.config, depth=2),
-                ")",
-            ]
-        )
-
+        config_path = os.path.join(config_dir, ".marimo.toml")
         try:
             with open(config_path, "w", encoding="utf-8") as f:
-                f.write(file_contents)
+                tomlkit.dump(args.config, f)
         except Exception as e:
             raise tornado.web.HTTPError(
                 HTTPStatus.SERVER_ERROR,

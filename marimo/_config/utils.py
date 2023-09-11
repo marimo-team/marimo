@@ -1,10 +1,11 @@
 # Copyright 2023 Marimo. All rights reserved.
-import importlib.util
 import os
-from typing import Optional
+from typing import Optional, cast
+
+import tomlkit
 
 from marimo import _loggers
-from marimo.config._config import MarimoConfig, get_configuration
+from marimo._config.config import MarimoConfig, configure, get_configuration
 
 LOGGER = _loggers.marimo_logger()
 
@@ -28,7 +29,7 @@ def _check_directory_for_file(directory: str, filename: str) -> Optional[str]:
 
 
 def get_config_path() -> Optional[str]:
-    """Find path of config file (marimo.config.py).
+    """Find path of config file (.marimo.toml).
 
     Searches from current directory to home, return the first config file
     found, if Any.
@@ -38,7 +39,7 @@ def get_config_path() -> Optional[str]:
 
     May raise an OSError.
     """
-    filename = "marimo.config.py"
+    filename = ".marimo.toml"
 
     # we use os.path.realpath to canonicalize paths, just in case
     # some these functions don't eliminate symlinks on some platforms
@@ -88,15 +89,14 @@ def load_config() -> Optional[MarimoConfig]:
 
     if path is not None:
         LOGGER.debug("Using config at %s", path)
-        spec = importlib.util.spec_from_file_location("marimo_config", path)
-        if spec is None:
-            raise RuntimeError("Failed to load module spec")
-        marimo_config = importlib.util.module_from_spec(spec)
-        if spec.loader is None:
-            raise RuntimeError("Failed to load module spec's loader")
-        # loaded module should modify global in `config` module by running
-        # `config.configure()`
-        spec.loader.exec_module(marimo_config)
+        try:
+            with open(path, "rb") as f:
+                user_config = tomlkit.parse(f.read())
+        except Exception as e:
+            LOGGER.error("Failed to read user config at %s", path)
+            LOGGER.error(str(e))
+            return get_configuration()
+        configure(cast(MarimoConfig, user_config))
     else:
         LOGGER.debug("No config found; loading default settings.")
     return get_configuration()

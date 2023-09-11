@@ -19,6 +19,7 @@ from typing import Any, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t, parse_cell
+from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
     MarimoAncestorStoppedError,
@@ -61,7 +62,6 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
-from marimo.config._config import configure
 
 LOGGER = _loggers.marimo_logger()
 
