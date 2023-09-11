@@ -87,7 +87,7 @@ class MarimoConfig(TypedDict, total=False):
     keymap: KeymapConfig
 
 
-_DEFAULT_CONFIG: MarimoConfig = {
+DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True},
     "save": {"autosave": "after_delay", "autosave_delay": 1000},
     "keymap": {"preset": "default"},
@@ -125,7 +125,7 @@ def _merge_configs(defaults: ConfigType, override: ConfigType) -> ConfigType:
 
 
 @mddoc
-def configure(config: MarimoConfig) -> None:
+def configure(config: MarimoConfig) -> MarimoConfig:
     """Configure the marimo editor with a user config.
 
     **Args.**
@@ -134,12 +134,13 @@ def configure(config: MarimoConfig) -> None:
     """
     global _USER_CONFIG
     # Robust merging of configs (want to merge on leaves, not just keys)
-    _USER_CONFIG = cast(MarimoConfig, _merge_configs(_DEFAULT_CONFIG, config))
+    _USER_CONFIG = cast(MarimoConfig, _merge_configs(DEFAULT_CONFIG, config))
+    return _USER_CONFIG
 
 
 def get_configuration() -> MarimoConfig:
     """Return the current configuration."""
     return cast(
         MarimoConfig,
-        _USER_CONFIG if _USER_CONFIG is not None else _DEFAULT_CONFIG,
+        _USER_CONFIG if _USER_CONFIG is not None else DEFAULT_CONFIG,
     )
