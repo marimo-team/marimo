@@ -18,7 +18,7 @@ import {
 import { sendRun } from "@/core/network/requests";
 import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
 
-import { UserConfig } from "../core/config";
+import { UserConfig } from "../core/config/config";
 import { CellState } from "../core/model/cells";
 import { CellActions, useCellActions } from "../core/state/cells";
 import { derefNotNull } from "../utils/dereference";

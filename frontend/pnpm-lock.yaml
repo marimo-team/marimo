@@ -134,6 +134,9 @@ dependencies:
   '@textea/json-viewer':
     specifier: ^3.1.1
     version: 3.1.1(@emotion/react@11.11.1)(@emotion/styled@11.11.0)(@mui/material@5.13.6)(react-dom@18.2.0)(react@18.2.0)
+  '@types/js-cookie':
+    specifier: ^3.0.3
+    version: 3.0.3
   class-variance-authority:
     specifier: ^0.7.0
     version: 0.7.0
@@ -167,6 +170,9 @@ dependencies:
   jotai:
     specifier: ^2.4.2
     version: 2.4.2(@types/react@18.2.21)(react@18.2.0)
+  js-cookie:
+    specifier: ^3.0.5
+    version: 3.0.5
   katex:
     specifier: ^0.16.8
     version: 0.16.8
@@ -5616,6 +5622,10 @@ packages:
       pretty-format: 27.5.1
     dev: true
 
+  /@types/js-cookie@3.0.3:
+    resolution: {integrity: sha512-Xe7IImK09HP1sv2M/aI+48a20VX+TdRJucfq4vfRVy6nWN8PYPOEnlMRSgxJAgYQIXJVL8dZ4/ilAM7dWNaOww==}
+    dev: false
+
   /@types/js-levenshtein@1.1.1:
     resolution: {integrity: sha512-qC4bCqYGy1y/NP7dDVr7KJarn+PbX1nSpwA7JXdu0HxT3QYjO8MJ+cntENtHFVy2dRAyBV23OZ6MxsW1AM1L8g==}
     dev: true
@@ -9638,6 +9648,11 @@ packages:
     dependencies:
       '@types/react': 18.2.21
       react: 18.2.0
+    dev: false
+
+  /js-cookie@3.0.5:
+    resolution: {integrity: sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw==}
+    engines: {node: '>=14'}
     dev: false
 
   /js-levenshtein@1.1.6:

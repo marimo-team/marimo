@@ -6,7 +6,7 @@ import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
 import { ConnectionStatus, WebSocketState } from "../../core/websocket/types";
 import { CellsAndHistory, useCellActions } from "../../core/state/cells";
-import { AppConfig, UserConfig } from "../../core/config";
+import { AppConfig, UserConfig } from "../../core/config/config";
 import { AppMode } from "../../core/mode";
 import { useHotkey } from "../../hooks/useHotkey";
 import { useEvent } from "../../hooks/useEvent";

@@ -80,11 +80,13 @@ class MarimoConfig(TypedDict, total=False):
     - `completion`: a `CompletionConfig`
     - `save`: a `SaveConfig`
     - `keymap`: a `KeymapConfig`
+    - `experimental`: a `dict` of experimental features
     """
 
     completion: CompletionConfig
     save: SaveConfig
     keymap: KeymapConfig
+    experimental: dict[str, Any]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
