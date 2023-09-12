@@ -5,7 +5,6 @@ import { logNever } from "../../utils/assertNever";
 import { MarimoError } from "../../core/kernel/messages";
 import { Alert } from "../../components/ui/alert";
 import { AlertTitle } from "../../components/ui/alert";
-import { CellId } from "@/core/model/ids";
 
 import {
   Accordion,
@@ -13,8 +12,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Logger } from "../../utils/Logger";
 import { Fragment } from "react";
+import { CellLink } from "../links/cell-link";
 
 const Tip = (props: {
   className?: string;
@@ -34,32 +33,6 @@ const Tip = (props: {
         </AccordionContent>
       </AccordionItem>
     </Accordion>
-  );
-};
-
-/* Component that adds a link to a cell, for use in a MarimoError. */
-const CellLink = (props: { cellId: CellId }): JSX.Element => {
-  const cellName = `cell-${props.cellId}`;
-  return (
-    <div
-      className="inline-block cursor-pointer text-blue-500 hover:underline"
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const cell: HTMLElement | null = document.getElementById(cellName);
-        if (cell === null) {
-          Logger.error(`Cell ${cellName} not found on page.`);
-        } else {
-          cell.classList.add("error-outline");
-          cell.scrollIntoView({ behavior: "smooth", block: "center" });
-          setTimeout(() => {
-            cell.classList.remove("error-outline");
-          }, 1000);
-        }
-      }}
-    >
-      {cellName}
-    </div>
   );
 };
 

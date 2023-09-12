@@ -2,9 +2,7 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 
 import { invariant } from "@/utils/invariant";
-
-export type TypedNumber<T> = number & { __type__: T };
-export type TypedString<T> = string & { __type__: T };
+import { TypedString } from "./typed";
 
 /**
  * A typed CellId
