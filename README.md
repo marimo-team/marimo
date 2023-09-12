@@ -1,3 +1,4 @@
+
 <p align="center">
   <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-thick.svg">
 </p>
@@ -10,6 +11,14 @@
   <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord</strong></a> ·
   <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
 </p>
+
+<p align="center">
+<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%23&label=pypi" /></a>
+<a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
+</p>
+
+<!--[![version](https://img.shields.io/pypi/v/marimo.svg)](https://pypi.org/project/marimo/)
+[![license](https://img.shields.io/pypi/l/marimo.svg)](https://github.com/marimo-team/marimo/blob/main/LICENSE)-->
 
 **marimo** is a Python library for creating **reactive notebooks
 that double as apps**. marimo is:
