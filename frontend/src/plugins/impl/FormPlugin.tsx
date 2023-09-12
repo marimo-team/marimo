@@ -64,8 +64,8 @@ const SubmitBox = <T,>({
   return (
     <div
       className={cn("rounded-lg border mt-2 mb-2 shadow-md", {
-        "border-calloutNeutralBorder bg-calloutNeutralBg": synchronized,
-        "border-calloutAlertBorder bg-calloutAlertBg": !synchronized,
+        "bg-[var(--gray-1)] border-input": synchronized,
+        "bg-[var(--amber-1)] border-[var(--amber-7)]": !synchronized,
       })}
       onKeyDown={(evt) => {
         // Handle enter + ctrl/meta key
