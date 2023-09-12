@@ -10,6 +10,9 @@ type T = string;
 interface Data {
   placeholder: string;
   label: string | null;
+  maxLength?: number;
+  minLength?: number;
+  disabled?: boolean;
 }
 
 export class TextAreaPlugin implements IPlugin<T, Data> {
@@ -19,6 +22,9 @@ export class TextAreaPlugin implements IPlugin<T, Data> {
     initialValue: z.string(),
     placeholder: z.string(),
     label: z.string().nullable(),
+    maxLength: z.number().optional(),
+    minLength: z.number().optional(),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -38,12 +44,23 @@ interface TextAreaComponentProps extends Data {
 }
 
 const TextAreaComponent = (props: TextAreaComponentProps) => {
+  const bottomAdornment = props.maxLength ? (
+    <span className="text-muted-foreground text-xs font-medium">
+      {props.value.length}/{props.maxLength}
+    </span>
+  ) : null;
+
   return (
     <Labeled label={props.label} align="top">
       <Textarea
         className="font-code"
         rows={5}
         cols={33}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
+        disabled={props.disabled}
+        bottomAdornment={bottomAdornment}
         value={props.value}
         onInput={(event) =>
           props.setValue((event.target as HTMLInputElement).value)
