@@ -20,10 +20,18 @@ export function maybeRegisterVSCodeBindings() {
 }
 
 function registerCopyPaste() {
-  window.addEventListener("copy", (event) => {
+  window.addEventListener("copy", () => {
     const selection = window.getSelection()?.toString() ?? "";
     sendToPanelManager({
       command: "copy",
+      text: selection,
+    });
+  });
+
+  window.addEventListener("cut", () => {
+    const selection = window.getSelection()?.toString() ?? "";
+    sendToPanelManager({
+      command: "cut",
       text: selection,
     });
   });
@@ -45,6 +53,15 @@ function registerKeyboard() {
       const selection = window.getSelection()?.toString() ?? "";
       sendToPanelManager({
         command: "copy",
+        text: selection,
+      });
+      return;
+    }
+    // Cut
+    if ((event.ctrlKey || event.metaKey) && event.key === "x") {
+      const selection = window.getSelection()?.toString() ?? "";
+      sendToPanelManager({
+        command: "cut",
         text: selection,
       });
       return;
@@ -101,6 +118,10 @@ export type VscodeMessage =
     }
   | {
       command: "copy";
+      text: string;
+    }
+  | {
+      command: "cut";
       text: string;
     }
   | {
