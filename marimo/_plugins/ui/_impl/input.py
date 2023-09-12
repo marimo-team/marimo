@@ -326,6 +326,9 @@ class text(UIElement[str, str]):
     - `placeholder`: placeholder text to display when the text area is empty
     - `kind`: input kind, one of `"text"`, `"password"`, `"email"`, or `"url"`
         defaults to `"text"`
+    - `max_length`: maximum length of input
+    - `min_length`: minimum length of input
+    - `disabled`: whether the input is disabled
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -337,6 +340,9 @@ class text(UIElement[str, str]):
         value: str = "",
         placeholder: str = "",
         kind: Literal["text", "password", "email", "url"] = "text",
+        max_length: Optional[int] = None,
+        min_length: Optional[int] = None,
+        disabled: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -348,6 +354,9 @@ class text(UIElement[str, str]):
             args={
                 "placeholder": placeholder,
                 "kind": kind,
+                "max-length": max_length,
+                "min-length": min_length,
+                "disabled": disabled,
             },
             on_change=on_change,
         )
@@ -375,6 +384,9 @@ class text_area(UIElement[str, str]):
 
     - `value`: initial value of the text area
     - `placeholder`: placeholder text to display when the text area is empty
+    - `max_length`: maximum length of input
+    - `min_length`: minimum length of input
+    - `disabled`: whether the input is disabled
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -385,6 +397,9 @@ class text_area(UIElement[str, str]):
         self,
         value: str = "",
         placeholder: str = "",
+        max_length: Optional[int] = None,
+        min_length: Optional[int] = None,
+        disabled: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -395,6 +410,9 @@ class text_area(UIElement[str, str]):
             label=label,
             args={
                 "placeholder": placeholder,
+                "max-length": max_length,
+                "min-length": min_length,
+                "disabled": disabled,
             },
             on_change=on_change,
         )

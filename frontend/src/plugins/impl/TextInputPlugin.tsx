@@ -16,6 +16,9 @@ interface Data {
   placeholder: string;
   label: string | null;
   kind: InputType;
+  maxLength?: number;
+  minLength?: number;
+  disabled?: boolean;
 }
 
 export class TextInputPlugin implements IPlugin<T, Data> {
@@ -26,6 +29,9 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     placeholder: z.string(),
     label: z.string().nullable(),
     kind: z.enum(["text", "password", "email", "url"]).default("text"),
+    maxLength: z.number().optional(),
+    minLength: z.number().optional(),
+    disabled: z.boolean().optional(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -57,15 +63,25 @@ const TextComponent = (props: TextComponentProps) => {
     url: <GlobeIcon size={16} />,
   };
 
+  const endAdornment = props.maxLength ? (
+    <span className="text-muted-foreground text-xs font-medium">
+      {props.value.length}/{props.maxLength}
+    </span>
+  ) : null;
+
   return (
     <Labeled label={props.label}>
       <Input
         type={props.kind}
         icon={icon[props.kind]}
         placeholder={props.placeholder}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        disabled={props.disabled}
         className={cn({
           "border-destructive": !isValid,
         })}
+        endAdornment={endAdornment}
         value={props.value}
         onInput={(event) => props.setValue(event.currentTarget.value)}
         onBlur={(event) => setValueOnBlur(event.currentTarget.value)}
