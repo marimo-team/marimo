@@ -51,6 +51,7 @@ const props: CellProps = {
     keymap: {
       preset: "default",
     },
+    experimental: {},
   },
 };
 
