@@ -4,3 +4,7 @@
   will often lose focus during find/replace or in another editor */
   background-color: #d7d4f0 !important;
 }
+
+.dark .cm-selectionBackground {
+  background-color: #4d4d4d !important;
+}

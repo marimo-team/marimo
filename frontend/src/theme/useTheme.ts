@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { store } from "@/core/state/jotai";
 import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
@@ -22,4 +23,11 @@ export function useTheme() {
 
   // Dark theme is not ready so return light theme.
   return { theme: "light" as const, setTheme };
+}
+
+export function getTheme(): Theme {
+  if (process.env.NODE_ENV === "development") {
+    return store.get(themeAtom);
+  }
+  return "light";
 }

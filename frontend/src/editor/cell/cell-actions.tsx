@@ -255,7 +255,7 @@ export const CellActionsDropdown = ({
                       }}
                       className={cn(
                         action.variant === "danger" &&
-                          "aria-selected:bg-[var(--red-5)] aria-selected:text-destructive-[var(--red-11)]"
+                          "aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]"
                       )}
                     >
                       <div className="flex items-center flex-1">
