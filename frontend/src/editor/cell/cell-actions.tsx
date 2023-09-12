@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { PropsWithChildren, useState } from "react";
+import { Fragment, PropsWithChildren, useState } from "react";
 
 import {
   Command,
@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { CellConfig } from "@/core/model/cells";
 import { Switch } from "@/components/ui/switch";
+import React from "react";
 
 interface Props {
   editorView: EditorView | null;
@@ -240,7 +241,7 @@ export const CellActionsDropdown = ({
           />
           <CommandEmpty>No results</CommandEmpty>
           {actions.map((group, i) => (
-            <>
+            <Fragment key={i}>
               <CommandGroup key={i}>
                 {group.map((action) => {
                   if (action.hidden) {
@@ -273,7 +274,7 @@ export const CellActionsDropdown = ({
                 })}
               </CommandGroup>
               {i < actions.length - 1 && <CommandSeparator />}
-            </>
+            </Fragment>
           ))}
         </Command>
       </PopoverContent>

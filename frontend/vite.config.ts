@@ -24,6 +24,9 @@ const htmlDevPlugin = (): Plugin => {
             keymap: {
               preset: "default",
             },
+            experimental: {
+              theming: true,
+            },
           })
         )
         .replace(`{{ app_config }}`, JSON.stringify({}))

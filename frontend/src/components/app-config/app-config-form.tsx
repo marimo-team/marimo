@@ -8,7 +8,7 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/ui/form";
-import { AppConfig, AppConfigSchema } from "../../core/config";
+import { AppConfig, AppConfigSchema } from "../../core/config/config";
 import { toast } from "../ui/use-toast";
 import { useAppConfig } from "@/core/state/config";
 import { Switch } from "@/components/ui/switch";
@@ -36,7 +36,7 @@ export const AppConfigForm: React.FC = () => {
 
   return (
     <Form {...form}>
-      <form onChange={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onChange={form.handleSubmit(onSubmit)}>
         <FormField
           control={form.control}
           name="width"

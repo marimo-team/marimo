@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { AppConfig, UserConfig } from "../../core/config";
+import { AppConfig, UserConfig } from "../config/config";
 import { CellId } from "../../core/model/ids";
 
 export interface DeleteRequest {

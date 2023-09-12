@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { KeymapConfig } from "@/core/config";
+import { KeymapConfig } from "@/core/config/config";
 import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";
 import { Extension, Prec } from "@codemirror/state";

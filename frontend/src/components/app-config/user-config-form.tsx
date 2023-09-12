@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { DefaultValues, useForm } from "react-hook-form";
 import {
   Form,
   FormControl,
@@ -10,7 +10,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { UserConfig, UserConfigSchema } from "../../core/config";
+import { UserConfig, UserConfigSchema } from "../../core/config/config";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { toast } from "../ui/use-toast";
@@ -26,7 +26,7 @@ export const UserConfigForm: React.FC = () => {
   // Create form
   const form = useForm<UserConfig>({
     resolver: zodResolver(UserConfigSchema),
-    defaultValues: config,
+    defaultValues: config as DefaultValues<UserConfig>,
   });
 
   const onSubmit = async (values: UserConfig) => {
@@ -41,7 +41,10 @@ export const UserConfigForm: React.FC = () => {
 
   return (
     <Form {...form}>
-      <form onChange={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onChange={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
         <FormField
           control={form.control}
           name="save.autosave"
@@ -130,8 +133,8 @@ export const UserConfigForm: React.FC = () => {
             </FormItem>
           )}
         />
+        <ThemeToggle />
       </form>
-      <ThemeToggle />
     </Form>
   );
 };
