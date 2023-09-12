@@ -9,6 +9,9 @@ import { Logger } from "./utils/Logger";
 import { reportVitals } from "./utils/vitals";
 import { Provider } from "jotai";
 import { store } from "./core/state/jotai";
+import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
+
+maybeRegisterVSCodeBindings();
 
 /**
  * Main entry point for the Marimo app.
