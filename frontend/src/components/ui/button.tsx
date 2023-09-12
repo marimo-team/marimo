@@ -21,21 +21,21 @@ const buttonVariants = cva(
         ),
         destructive: cn(
           "border shadow-smSolid",
-          "bg-[var(--red-9)] hover:bg-[var(--red-10)]",
-          "text-[var(--red-1)]",
+          "bg-[var(--red-9)] hover:bg-[var(--red-10)] dark:bg-[var(--red-6)] dark:hover:bg-[var(--red-7)]",
+          "text-[var(--red-1)] dark:text-[var(--red-12)]",
           "border-[var(--red-11)]",
           activeCommon
         ),
         success: cn(
           "border shadow-smSolid",
-          "bg-[var(--grass-9)] hover:bg-[var(--grass-10)]",
-          "text-[var(--grass-1)]",
+          "bg-[var(--grass-9)] hover:bg-[var(--grass-10)] dark:bg-[var(--grass-6)] dark:hover:bg-[var(--grass-7)]",
+          "text-[var(--grass-1)] dark:text-[var(--grass-12)]",
           "border-[var(--grass-11)]",
           activeCommon
         ),
         warn: cn(
           "border shadow-smSolid",
-          "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)]",
+          "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)] dark:bg-[var(--yellow-6)] dark:hover:bg-[var(--yellow-7)]",
           "text-[var(--yellow-12)]",
           "border-[var(--yellow-11)]",
           activeCommon

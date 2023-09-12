@@ -31,6 +31,7 @@ import { renderError } from "./BadPlugin";
 import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
+import { getTheme } from "@/theme/useTheme";
 
 export interface PluginSlotHandle {
   /**
@@ -52,6 +53,7 @@ interface PluginSlotProps<T> {
 }
 
 /* Handles synchronization of value on behalf of the component */
+// eslint-disable-next-line react/function-component-definition
 function PluginSlotInternal<T>(
   { hostElement, plugin, children, getInitialValue }: PluginSlotProps<T>,
   ref: React.Ref<PluginSlotHandle>
@@ -150,13 +152,18 @@ function PluginSlotInternal<T>(
   }
 
   // Render the plugin
-  return plugin.render({
-    setValue: setValueAndSendInput,
-    value,
-    data: parseResult.data,
-    children: childNodes,
-    host: hostElement,
-  });
+  const theme = getTheme();
+  return (
+    <div className={`contents ${theme}`}>
+      {plugin.render({
+        setValue: setValueAndSendInput,
+        value,
+        data: parseResult.data,
+        children: childNodes,
+        host: hostElement,
+      })}
+    </div>
+  );
 }
 
 const PluginSlot: React.ForwardRefExoticComponent<
@@ -277,7 +284,6 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
     private async copyStyles() {
       const shadowRoot = this.shadowRoot;
       invariant(shadowRoot, "Shadow root should exist");
-
       // If we don't support adopted stylesheets, we need to copy the styles
       if (!this.isAdoptedStyleSheetsSupported()) {
         this.copyStylesFallback();

@@ -2,6 +2,7 @@
 import { HotkeyAction, HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/shortcuts/shortcuts";
 import { Kbd } from "../ui/kbd";
+import { DropdownMenuShortcut } from "../ui/dropdown-menu";
 
 export function renderShortcut(shortcut: HotkeyAction) {
   const hotkey = HOTKEYS.getHotkey(shortcut);
@@ -22,11 +23,11 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
   const hotkey = HOTKEYS.getHotkey(shortcut);
 
   return (
-    <span className="text-xs flex gap-1 text-muted-foreground items-center font-mono">
+    <DropdownMenuShortcut className="flex gap-1 items-center font-mono">
       {prettyPrintHotkey(hotkey.key).map((key) => (
         <span key={key}>{capitalize(key)}</span>
       ))}
-    </span>
+    </DropdownMenuShortcut>
   );
 }
 

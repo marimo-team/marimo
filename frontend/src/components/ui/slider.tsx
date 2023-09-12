@@ -27,14 +27,14 @@ const Slider = React.forwardRef<
       )}
       {...props}
     >
-      <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-slate-200">
-        <SliderPrimitive.Range className="absolute h-full bg-blue-500 dark:bg-blue-800" />
+      <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60">
+        <SliderPrimitive.Range className="absolute h-full bg-blue-500 dark:bg-primary" />
       </SliderPrimitive.Track>
       <TooltipProvider>
         <TooltipRoot delayDuration={0} open={open}>
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
-              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:bg-blue-800 bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}
