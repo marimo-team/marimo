@@ -58,6 +58,7 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
         cols={33}
         maxLength={props.maxLength}
         minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
         disabled={props.disabled}
         bottomAdornment={bottomAdornment}
         value={props.value}

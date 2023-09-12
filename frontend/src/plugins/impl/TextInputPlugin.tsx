@@ -77,6 +77,7 @@ const TextComponent = (props: TextComponentProps) => {
         placeholder={props.placeholder}
         maxLength={props.maxLength}
         minLength={props.minLength}
+        required={props.minLength != null && props.minLength > 0}
         disabled={props.disabled}
         className={cn({
           "border-destructive": !isValid,
