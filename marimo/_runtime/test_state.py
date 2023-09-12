@@ -125,3 +125,33 @@ def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
 
     assert "y" not in k.globals
+
+
+def test_set_state_with_overriden_eq(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    create_class = """
+    class A:
+        def __eq__(self, other):
+            # shouldn't be triggered by marimo
+            import sys
+            sys.exit()
+    a = A()
+    """
+    k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(create_class),
+            exec_req.get("state, set_state = mo.state(None)"),
+            exec_req.get("x = state()"),
+            exec_req.get(
+                """
+                x
+                if x is None:
+                    set_state(a)
+                """
+            ),
+        ]
+    )
+
+    assert type(k.globals["x"]).__name__ == "A"

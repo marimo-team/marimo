@@ -245,8 +245,9 @@ class Runner:
                     continue
                 # State object in refs (5)
                 for ref in cell.refs:
-                    # run this cell if any of its refs match the state
-                    if ref in self.glbls and self.glbls[ref] == state:
+                    # run this cell if any of its refs match the state object
+                    # by object ID (via is operator)
+                    if ref in self.glbls and self.glbls[ref] is state:
                         cids_to_run.add(cid)
         return cids_to_run
 
