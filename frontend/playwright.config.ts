@@ -31,6 +31,8 @@ const appToOptions = {
   "components.py": { port: port(), command: "run" },
   "cells.py": { port: port(), command: "edit" },
   "bugs.py": { port: port(), command: "edit" },
+  "layout_grid.py//edit": { port: port(), command: "edit" },
+  "layout_grid.py//run": { port: port(), command: "run" },
 } satisfies Record<string, ServerOptions>;
 
 export type ApplicationNames = keyof typeof appToOptions;
@@ -119,6 +121,8 @@ const config: PlaywrightTestConfig = {
 
   // Run marimo servers before starting the tests, one for each app/test
   webServer: Object.entries(appToOptions).map(([app, options]) => {
+    app = app.replace("//edit", "").replace("//run", "");
+
     const { command, port } = options;
     const pathToApp = path.join(pydir, app);
     const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;

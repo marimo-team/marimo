@@ -44,6 +44,8 @@ import { CellId, HTMLCellId } from "./core/model/ids";
 import { getFilenameFromDOM } from "./core/dom/htmlUtils";
 import { CellArray } from "./editor/renderers/CellArray";
 import { RuntimeState } from "./core/RuntimeState";
+import { CellsRenderer } from "./editor/renderers/cells-renderer";
+import { getSerializedLayout } from "./core/state/layout";
 import { useAtom } from "jotai";
 
 interface AppProps {
@@ -126,7 +128,12 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     }
 
     Logger.log("saving to ", filename);
-    sendSave(codes, cellNames, filename)
+    sendSave({
+      codes,
+      names: cellNames,
+      filename,
+      layout: getSerializedLayout(),
+    })
       .then(() => {
         if (showToast) {
           toast({ title: "Notebook saved" });
@@ -216,7 +223,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   // Toggle the array's presenting state, and sets a cell to anchor scrolling to
   const togglePresenting = useCallback(() => {
-    const outputAreas = document.getElementsByClassName("OutputArea");
+    const outputAreas = document.getElementsByClassName("output-area");
     const viewportEnd =
       window.innerHeight || document.documentElement.clientHeight;
     let cellAnchor: CellId | null = null;
@@ -276,7 +283,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     );
   });
 
-  const cellsArray = (
+  const editableCellsArray = (
     <CellArray
       cells={cells}
       connStatus={connStatus}
@@ -292,6 +299,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       className={clsx(
         connStatus.state === WebSocketState.CLOSED && "disconnected",
         "bg-background w-full h-full text-textColor",
+        "flex flex-col",
         appConfig.width === "full" && "config-width-full"
       )}
     >
@@ -318,10 +326,13 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       </div>
 
       {/* Don't render until we have a single cell */}
-      {cells.present.length > 0 && (
+      {cells.present.length > 0 && isEditing && (
         <SortableCellsProvider disabled={!isEditing}>
-          {cellsArray}
+          {editableCellsArray}
         </SortableCellsProvider>
+      )}
+      {cells.present.length > 0 && !isEditing && (
+        <CellsRenderer appConfig={appConfig} mode={viewState.mode} />
       )}
 
       {(isEditing || isPresenting) && (

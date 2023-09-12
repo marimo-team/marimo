@@ -37,6 +37,7 @@ from marimo._messaging.message_types import KernelReady, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._server.api.status import HTTPStatus
+from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.utils import print_tabbed
 
 LOGGER = _loggers.marimo_logger()
@@ -89,6 +90,7 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         codes: tuple[str, ...]
         names: tuple[str, ...]
         app = mgr.load_app()
+        layout: Optional[LayoutConfig] = None
         if app is None:
             codes = ("",)
             names = ("__",)
@@ -103,9 +105,20 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
             # Don't send code to frontend in run mode
             codes = tuple("" for _ in app._cell_data)
             names = tuple("" for _ in app._cell_data)
+
+        if (
+            app
+            and app._config.layout_file is not None
+            and isinstance(mgr.filename, str)
+        ):
+            app_dir = os.path.dirname(mgr.filename)
+            layout = read_layout_config(app_dir, app._config.layout_file)
+
         self.write_op(
             op=KernelReady.name,
-            data=serialize(KernelReady(codes=codes, names=names)),
+            data=serialize(
+                KernelReady(codes=codes, names=names, layout=layout)
+            ),
         )
 
     def reconnect_session(self, session: "Session") -> None:

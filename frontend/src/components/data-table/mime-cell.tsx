@@ -20,7 +20,7 @@ export const MimeCell = ({ value }: MimeCellProps) => {
     <div className={cn("flex items-center space-x-2")}>
       {formatOutput({
         message: {
-          channel: "",
+          channel: "output",
           data: value.data,
           mimetype: value.mimetype,
           timestamp: "",

@@ -42,12 +42,8 @@ export function sendRename(filename: string | null) {
   });
 }
 
-export function sendSave(codes: string[], names: string[], filename: string) {
-  return API.post<SaveKernelRequest>("/kernel/save/", {
-    codes: codes,
-    names: names,
-    filename: filename,
-  });
+export function sendSave(request: SaveKernelRequest) {
+  return API.post<SaveKernelRequest>("/kernel/save/", request);
 }
 
 export function sendFormat(codes: Record<CellId, string>) {

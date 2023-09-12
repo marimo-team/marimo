@@ -1,0 +1,30 @@
+{
+  "type": "grid",
+  "data": {
+    "columns": 12,
+    "rowHeight": 40,
+    "cells": [
+      {
+        "position": [0, 0, 12, 1]
+      },
+      {
+        "position": [0, 1, 6, 3]
+      },
+      {
+        "position": [0, 4, 6, 13]
+      },
+      {
+        "position": [6, 1, 6, 3]
+      },
+      {
+        "position": [6, 4, 6, 13]
+      },
+      {
+        "position": null
+      },
+      {
+        "position": null
+      }
+    ]
+  }
+}

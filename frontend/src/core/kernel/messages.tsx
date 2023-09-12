@@ -1,6 +1,15 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
+import { LayoutType } from "@/editor/renderers/types";
 import { CellId } from "../model/ids";
+
+export type OutputChannel =
+  | "output"
+  | "console"
+  | "media"
+  | "marimo-error"
+  | "stderr"
+  | "stdout";
 
 export type MarimoError =
   | { type: "syntax"; msg?: string }
@@ -19,13 +28,13 @@ export type MarimoError =
 
 export type OutputMessage =
   | {
-      channel: string;
+      channel: OutputChannel;
       mimetype: "application/vnd.marimo+error";
       data: MarimoError[];
       timestamp: string;
     }
   | {
-      channel: string;
+      channel: OutputChannel;
       mimetype:
         | "text/plain"
         | "text/html"
@@ -43,7 +52,7 @@ export type OutputMessage =
       timestamp: string;
     }
   | {
-      channel: string;
+      channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
       timestamp: string;
@@ -114,6 +123,22 @@ export type OperationMessage =
          * The cell codes. Will be empty in Read mode.
          */
         codes: string[];
+        /**
+         * The layout of the notebook
+         * May be undefined if there is no layout set.
+         */
+        layout:
+          | {
+              /**
+               * The type of the layout
+               */
+              type: LayoutType;
+              /**
+               * The serialized layout
+               */
+              data: unknown;
+            }
+          | undefined;
       };
     }
   | {

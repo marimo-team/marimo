@@ -16,7 +16,7 @@ test("page renders edit feature in edit mode", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
-test("can toggle to read mode", async ({ page }) => {
+test("can toggle to presenter mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");
   await page.goto(appUrl);
 

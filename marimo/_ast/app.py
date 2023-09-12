@@ -35,6 +35,9 @@ class _AppConfig:
 
     width: Literal["normal", "full"] = "normal"
 
+    # The file path of the layout file, relative to the app file.
+    layout_file: Optional[str] = None
+
     def asdict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -75,7 +78,7 @@ class App:
         self._config = _AppConfig()
         for key in asdict(self._config):
             if key in kwargs:
-                self._config.__setattr__(key, kwargs.pop("width"))
+                self._config.__setattr__(key, kwargs.pop(key))
 
         self._cell_data: dict[CellId_t, CellData] = {}
         self._registration_order: list[CellId_t] = []

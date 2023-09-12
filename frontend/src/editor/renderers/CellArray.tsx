@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { useEffect } from "react";
 import { EditorView } from "@codemirror/view";
-import { useEffect, useState } from "react";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
@@ -12,8 +12,9 @@ import { useHotkey } from "../../hooks/useHotkey";
 import { useEvent } from "../../hooks/useEvent";
 import { CellId } from "../../core/model/ids";
 import { formatEditorViews } from "../../core/codemirror/format";
-import { cn } from "../../lib/utils";
 import { useTheme } from "../../theme/useTheme";
+import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
+import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
 
 interface CellArrayProps {
   cells: CellsAndHistory;
@@ -51,23 +52,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   } = useCellActions();
   const { theme } = useTheme();
 
-  // Start the app as invisible and delay proportional to the number of cells,
-  // to avoid most of the flickering when the app is loaded (b/c it is
-  // streamed). Delaying also helps prevent cell editors from stealing focus.
-  const [invisible, setInvisible] = useState(true);
-  useEffect(() => {
-    const delay = Math.max(Math.min((cells.present.length - 1) * 15, 100), 0);
-    const timeout = setTimeout(() => {
-      setInvisible(false);
-      // After 1 frame, focus on the first cell if it's been mounted
-      requestAnimationFrame(() => {
-        cells.present[0]?.ref.current?.editorView.focus();
-      });
-    }, delay);
-    return () => clearTimeout(timeout);
-    // Delay only when app is first loaded
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { invisible } = useDelayVisibility(cells.present);
 
   // HOTKEYS
   useHotkey("global.focusTop", focusTopCell);
@@ -98,49 +83,40 @@ export const CellArray: React.FC<CellArrayProps> = ({
   }, [cells.present, cells.scrollKey, scrollToTarget]);
 
   return (
-    <div className="px-2 sm:px-18">
-      <div
-        className={cn(
-          "m-auto pb-12",
-          appConfig.width !== "full" && "max-w-contentWidth",
-          // Hide the cells for a fake loading effect, to avoid flickering
-          invisible && "invisible"
-        )}
-      >
-        {cells.present.map((cell) => (
-          <Cell
-            key={cell.key.toString()}
-            theme={theme}
-            showPlaceholder={cells.present.length === 1}
-            allowFocus={!invisible}
-            cellId={cell.key}
-            initialContents={cell.initialContents}
-            output={cell.output}
-            consoleOutputs={cell.consoleOutputs}
-            status={cell.status}
-            updateCellCode={updateCellCode}
-            prepareForRun={prepareForRun}
-            edited={cell.edited}
-            interrupted={cell.interrupted}
-            errored={cell.errored}
-            stopped={cell.stopped}
-            runElapsedTimeMs={cell.runElapsedTimeMs}
-            registerRunStart={registerRunStart}
-            serializedEditorState={cell.serializedEditorState}
-            showDeleteButton={cells.present.length > 1}
-            createNewCell={createNewCell}
-            deleteCell={onDeleteCell}
-            focusCell={focusCell}
-            moveToNextCell={moveToNextCell}
-            moveCell={moveCell}
-            editing={mode === "edit"}
-            appClosed={connStatus.state !== WebSocketState.OPEN}
-            ref={cell.ref}
-            userConfig={userConfig}
-            config={cell.config}
-          />
-        ))}
-      </div>
-    </div>
+    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+      {cells.present.map((cell) => (
+        <Cell
+          key={cell.key.toString()}
+          theme={theme}
+          showPlaceholder={cells.present.length === 1}
+          allowFocus={!invisible}
+          cellId={cell.key}
+          initialContents={cell.initialContents}
+          output={cell.output}
+          consoleOutputs={cell.consoleOutputs}
+          status={cell.status}
+          updateCellCode={updateCellCode}
+          prepareForRun={prepareForRun}
+          edited={cell.edited}
+          interrupted={cell.interrupted}
+          errored={cell.errored}
+          stopped={cell.stopped}
+          runElapsedTimeMs={cell.runElapsedTimeMs}
+          registerRunStart={registerRunStart}
+          serializedEditorState={cell.serializedEditorState}
+          showDeleteButton={cells.present.length > 1}
+          createNewCell={createNewCell}
+          deleteCell={onDeleteCell}
+          focusCell={focusCell}
+          moveToNextCell={moveToNextCell}
+          moveCell={moveCell}
+          editing={mode === "edit"}
+          appClosed={connStatus.state !== WebSocketState.OPEN}
+          ref={cell.ref}
+          userConfig={userConfig}
+          config={cell.config}
+        />
+      ))}
+    </VerticalLayoutWrapper>
   );
 };

@@ -22,7 +22,8 @@ import { UserConfig } from "../core/config/config";
 import { CellState } from "../core/model/cells";
 import { CellActions, useCellActions } from "../core/state/cells";
 import { derefNotNull } from "../utils/dereference";
-import { ConsoleOutputArea, OutputArea } from "./Output";
+import { OutputArea } from "./Output";
+import { ConsoleOutput } from "./output/ConsoleOutput";
 import { CreateCellButton } from "./cell/CreateCellButton";
 import { RunButton } from "./cell/RunButton";
 import { DeleteButton } from "./cell/DeleteButton";
@@ -374,6 +375,7 @@ const CellComponent = (
   const outputArea = (
     <OutputArea
       output={output}
+      className="output-area"
       cellId={cellId}
       stale={(loading || edited) && !interrupted}
     />
@@ -466,9 +468,8 @@ const CellComponent = (
           ) : null}
         </div>
       </div>
-      <ConsoleOutputArea
+      <ConsoleOutput
         consoleOutputs={consoleOutputs}
-        cellId={cellId}
         stale={(status === "queued" || edited) && !interrupted}
       />
     </SortableCell>

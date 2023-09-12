@@ -339,8 +339,8 @@
 
 /* ------------------------------ Output Areas ------------------------------ */
 
-.OutputArea,
-.ConsoleOutputArea {
+.output-area,
+.console-output-area {
   max-width: inherit;
   width: 100%;
 
@@ -355,8 +355,8 @@
 }
 
 /* Only restrain output length in edit mode. */
-.Cell:not(.published) .OutputArea,
-.ConsoleOutputArea {
+.Cell:not(.published) .output-area,
+.console-output-area {
   max-height: 600px;
   overflow: auto;
 }
@@ -367,13 +367,13 @@
   transition-delay: 200ms;
 }
 
-.OutputArea {
+.output-area {
   padding: 0.25rem 1.85rem;
   border: 1px solid transparent;
   border-bottom: 1px solid var(--gray-5);
 }
 
-.ConsoleOutputArea {
+.console-output-area {
   padding: 20px;
   border-radius: 0 0 8px 8px;
   border-top: 1px solid var(--gray-5);
@@ -383,7 +383,7 @@
   background-color: var(--gray-1);
 }
 
-#App.disconnected .ConsoleOutputArea {
+#App.disconnected .console-output-area {
   /* Background determined by disconnected gradient/noise. */
   background-color: transparent;
   border: 1px solid transparent;
@@ -391,7 +391,7 @@
 
 /* ------------------------------- Published -------------------------------- */
 
-.Cell.published .OutputArea {
+.Cell.published .output-area {
   /* flow-root interferes with margin collapsing, but appears to be unneeded
    * when cell outlines are hidden; clear:both is sufficient.
    *
@@ -425,10 +425,15 @@
 }
 
 .Cell.published,
-.Cell.published .OutputArea,
-.Cell.published .ConsoleOutputArea {
+.Cell.published .output-area,
+.Cell.published .console-output-area {
   border: none;
   box-shadow: none;
+}
+
+.Cell .cm-content {
+  font-size: 0.875rem;
+  font-family: var(--monospace-font);
 }
 
 /* ------------------------------ Needs Run---------------------------------- */
@@ -450,95 +455,10 @@
   border-radius: 0;
 }
 
-.Cell.needs-run .OutputArea {
+.Cell.needs-run .output-area {
   border-bottom: 1px solid var(--stale-color);
 }
 
 .Cell.needs-run .RunButton {
   visibility: visible;
-}
-
-/* ------------------------ Output Formatting ---------------------------- */
-.output,
-.media,
-.stdout,
-.stderr,
-.return,
-.marimo-error {
-  width: 100%;
-}
-
-.output {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-}
-
-.marimo-error a {
-  @apply text-link;
-}
-
-.output > * {
-  max-width: 100%;
-}
-
-.stdout,
-.stderr,
-.marimo-error,
-.Cell .cm-content {
-  font-family: var(--monospace-font);
-}
-
-.stdout,
-.stderr {
-  font-size: 0.813rem;
-}
-
-.Cell .cm-content {
-  font-size: 0.875rem;
-}
-
-.marimo-error,
-.stderr {
-  font-weight: bold;
-
-  @apply text-error;
-}
-
-.marimo-error {
-  background: #ffc0cb30;
-  padding: 3%;
-  font-size: 0.8125rem;
-  border-radius: 20px;
-  white-space: pre-wrap; /* respect newlines */
-}
-
-.return {
-  display: block;
-}
-
-.text-plain {
-  white-space: pre-wrap; /* respect newlines */
-}
-
-.output.text-plain {
-  font-family: var(--text-font);
-}
-
-.marimo-json-output {
-  padding-top: 2px;
-  padding-bottom: 2px;
-
-  /* content-visiblity is set by material UI;
-   * when set on an element that has overflow auto, causes abrupt jumps when
-   * scrolling in Chrome */
-  content-visibility: unset;
-
-  /* Coarse hack to stop children from overflowing; doesn't seem to affect
-   * margin collapse. */
-  overflow: auto;
-}
-
-.marimo-json-output .data-key-pair:not(:last-child) {
-  margin-top: 0.2rem;
-  margin-bottom: 0.2rem;
 }

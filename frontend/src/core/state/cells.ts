@@ -378,6 +378,8 @@ const cellsAtom = atom<CellsAndHistory>(initialCellState());
  */
 export const useCells = () => useAtomValue(cellsAtom);
 
+export const getCells = () => store.get(cellsAtom).present;
+
 /**
  * Get the editor views for all cells.
  */

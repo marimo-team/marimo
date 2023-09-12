@@ -13,6 +13,8 @@ import { VideoOutput } from "./output/VideoOutput";
 import { CellId } from "@/core/model/ids";
 import { cn } from "@/lib/utils";
 
+import "./output/outputs.css";
+
 /**
  * Renders an output based on an OutputMessage.
  */
@@ -24,20 +26,20 @@ export function formatOutput({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parsedJsonData?: Record<string, any>;
 }): React.ReactNode {
-  const outputCls: string = message.channel;
+  const channel = message.channel;
   // TODO(akshayka): audio; pdf; text/csv; excel?; text/css; text/javascript
   switch (message.mimetype) {
     case "text/html":
-      return <HtmlOutput className={outputCls} html={message.data} />;
+      return <HtmlOutput className={channel} html={message.data} />;
 
     case "text/plain":
-      return <TextOutput className={outputCls} text={message.data} />;
+      return <TextOutput channel={channel} text={message.data} />;
 
     case "application/json":
       // TODO: format is 'auto', but should make configurable once cells can
       // support config
       return (
-        <JsonOutput className={outputCls} data={parsedJsonData} format="auto" />
+        <JsonOutput className={channel} data={parsedJsonData} format="auto" />
       );
     case "image/png":
     case "image/svg+xml":
@@ -46,11 +48,11 @@ export function formatOutput({
     case "image/bmp":
     case "image/gif":
     case "image/jpeg":
-      return <ImageOutput className={outputCls} src={message.data} alt="" />;
+      return <ImageOutput className={channel} src={message.data} alt="" />;
 
     case "video/mp4":
     case "video/mpeg":
-      return <VideoOutput className={outputCls} src={message.data} />;
+      return <VideoOutput className={channel} src={message.data} />;
 
     case "application/vnd.marimo+error":
       return <MarimoErrorOutput errors={message.data} />;
@@ -62,7 +64,12 @@ export function formatOutput({
 }
 
 export const OutputArea = React.memo(
-  (props: { output: OutputMessage | null; cellId: CellId; stale: boolean }) => {
+  (props: {
+    output: OutputMessage | null;
+    cellId: CellId;
+    stale: boolean;
+    className?: string;
+  }) => {
     // Memoize parsing the json data
     const parsedJsonData = useMemo(() => {
       if (!props.output) {
@@ -88,7 +95,7 @@ export const OutputArea = React.memo(
         <div
           title={title}
           id={`output-${props.cellId}`}
-          className={cn("OutputArea", props.stale && "marimo-output-stale")}
+          className={cn(props.stale && "marimo-output-stale", props.className)}
         >
           {formatOutput({
             message: props.output,
@@ -100,25 +107,3 @@ export const OutputArea = React.memo(
   }
 );
 OutputArea.displayName = "OutputArea";
-
-export const ConsoleOutputArea = (props: {
-  consoleOutputs: OutputMessage[];
-  cellId: CellId;
-  stale: boolean;
-}): React.ReactNode => {
-  if (props.consoleOutputs.length === 0) {
-    return null;
-  }
-
-  const cls = `ConsoleOutputArea${props.stale ? " marimo-output-stale" : ""}`;
-  const title = props.stale ? "This console output is stale" : undefined;
-  return (
-    <div title={title} className={cls}>
-      {props.consoleOutputs.map((output) =>
-        formatOutput({
-          message: output,
-        })
-      )}
-    </div>
-  );
-};

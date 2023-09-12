@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { WebSocketClosedReason, WebSocketState } from "./types";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { connectionAtom } from "../state/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
@@ -14,6 +14,8 @@ import { CellId } from "../model/ids";
 import { CellState, createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
+import { layoutDataAtom, layoutViewAtom } from "../state/layout";
+import { deserializeLayout } from "@/editor/renderers/plugins";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -27,6 +29,8 @@ export function useMarimoWebSocket(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
+  const setLayoutView = useSetAtom(layoutViewAtom);
+  const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
 
   const ws = useWebSocket({
@@ -49,13 +53,13 @@ export function useMarimoWebSocket(opts: {
       const msg: OperationMessage = JSON.parse(e.data);
       switch (msg.op) {
         case "kernel-ready": {
-          const { codes, names } = msg.data;
+          const { codes, names, layout } = msg.data;
 
           // TODO(akshayka): Get rid of this once the kernel sends cell IDs in
           // kernel-ready.
           CellId.reset();
 
-          // Set the initial codes and cells
+          // Set the layout, initial codes, cells
           const cells = codes.map((code, i) =>
             createCell({
               key: CellId.create(),
@@ -64,6 +68,10 @@ export function useMarimoWebSocket(opts: {
               name: names[i],
             })
           );
+          if (layout) {
+            setLayoutView(layout.type);
+            setLayoutData(deserializeLayout(layout.type, layout.data, cells));
+          }
           setCells(cells);
           setInitialCodes(codes);
 

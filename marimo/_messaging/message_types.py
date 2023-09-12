@@ -14,6 +14,7 @@ from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._plugins.core.web_component import JSONType
+from marimo._server.layout import LayoutConfig
 
 
 # A cell-op's data has three optional fields:
@@ -58,6 +59,7 @@ class KernelReady:
     name: ClassVar[str] = "kernel-ready"
     codes: tuple[str, ...]
     names: tuple[str, ...]
+    layout: Optional[LayoutConfig]
 
 
 @dataclass
