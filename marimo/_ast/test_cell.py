@@ -76,7 +76,7 @@ class TestCellFactory:
             return x
 
         with pytest.raises(ValueError) as e:
-            cell_factory(f)
+            cell_factory(f)  # type: ignore[type-var]
 
         assert "must return a tuple" in str(e.value)
 
@@ -110,8 +110,8 @@ class TestCellFactory:
 
     @staticmethod
     def test_extra_returns() -> None:
-        def f() -> int:
-            return 1
+        def f() -> tuple[int]:
+            return (1,)
 
         with pytest.raises(ValueError) as e:
             cell_factory(f)

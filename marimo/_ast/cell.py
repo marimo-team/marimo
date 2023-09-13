@@ -8,10 +8,20 @@ import io
 import textwrap
 import token as token_types
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from tokenize import TokenInfo, tokenize
 from types import CodeType
-from typing import Any, Callable, Optional, Protocol, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from marimo._ast.visitor import Name, ScopedVisitor, _is_local
 
@@ -24,8 +34,8 @@ def code_key(code: str) -> int:
 
 @dataclass(frozen=True)
 class CellConfig:
-    # if True, the cell and decentants are not executed
-    # but it will still be registered in the kernel
+    # If True, the cell and its descendants cannot be executed,
+    # but they can still be added to the graph.
     disabled: bool = False
 
 
@@ -40,7 +50,7 @@ class Cell:
 
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
-    config: Optional[CellConfig]
+    config: CellConfig = field(default_factory=CellConfig)
 
     def with_config(self, config: CellConfig) -> Cell:
         return Cell(
@@ -57,9 +67,17 @@ class Cell:
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
+# Cumbersome, but used to ensure function types don't get erased in decorators
+# or creation of CellFunction
+CellFuncTypeBound = TypeVar(
+    "CellFuncTypeBound",
+    bound=Callable[..., Optional[Tuple[Any, ...]]],
+)
 
 
-class CellFunction(Protocol):
+class CellFunction(Protocol[CellFuncTypeBound]):
+    """Wraps a function from which a Cell object was created."""
+
     cell: Cell
     # function name
     __name__: str
@@ -67,12 +85,12 @@ class CellFunction(Protocol):
     code: str
     # arg names of wrapped function
     args: set[str]
-    __call__: CellFuncType
+    __call__: CellFuncTypeBound
 
 
 def cell_function(
-    cell: Cell, args: set[str], code: str, f: CellFuncType
-) -> CellFunction:
+    cell: Cell, args: set[str], code: str, f: CellFuncTypeBound
+) -> CellFunction[CellFuncTypeBound]:
     signature = inspect.signature(f)
 
     n_args = 0
@@ -125,7 +143,7 @@ def cell_function(
         _ = execute_cell(cell, glbls)
         return tuple(glbls[name] for name in return_names)
 
-    cell_func = cast(CellFunction, func)
+    cell_func = cast(CellFunction[CellFuncTypeBound], func)
     cell_func.cell = cell
     cell_func.args = args
     cell_func.code = code
@@ -147,7 +165,6 @@ def parse_cell(
             deleted_refs=set(),
             body=None,
             last_expr=None,
-            config=None,
         )
 
     v = ScopedVisitor("cell_" + str(cell_id) if cell_id is not None else None)
@@ -172,7 +189,6 @@ def parse_cell(
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,
-        config=None,
     )
 
 
@@ -180,7 +196,7 @@ def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
 
 
-def cell_factory(f: Callable[..., Any]) -> CellFunction:
+def cell_factory(f: CellFuncTypeBound) -> CellFunction[CellFuncTypeBound]:
     function_code = textwrap.dedent(inspect.getsource(f))
 
     # tokenize to find the start of the function body, including
