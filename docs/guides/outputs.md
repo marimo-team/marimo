@@ -5,7 +5,6 @@ Outputs are included in the "app" or read-only view of the notebook. marimo
 comes out of the box a number of elements to help you make rich outputs,
 documented in the [API reference](/api/index/).
 
-
 <div align="center">
 <figure>
 <img src="/_static/outputs.gif"/>
@@ -61,3 +60,16 @@ mo.md(
   """
 )
 ```
+
+## Output layouts
+
+By default outputs are rendered in a vertical layout, but you can also use
+a **Grid layout** to arrange outputs in a 12 column grid. Different layouts each have their
+our layout schema that gets saved to disk. Cells can be arranged within the layout
+regardless of their order in the notebook or dependencies between them.
+
+<div align="center">
+<figure>
+<img src="/_static/outputs-grid.gif"/>
+</figure>
+</div>
