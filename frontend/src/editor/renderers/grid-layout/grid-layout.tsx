@@ -100,11 +100,11 @@ const GridLayoutRenderer: React.FC<Props> = ({
           <div
             key={cell.key}
             className={cn(
-              "relative",
+              "relative transparent-when-disconnected",
               !isReading &&
               "hover:bg-[var(--sage-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
               isDragging && "bg-[var(--sage-2)] border-border rounded",
-              "overflow-hidden p-2 transparent-when-disconnected"
+              "overflow-hidden p-2"
             )}
           >
             <GridCell
@@ -140,10 +140,10 @@ const GridLayoutRenderer: React.FC<Props> = ({
 
   return (
     <div className={cn("flex h-full overflow-hidden gap-2 px-2 pb-2")}>
-      <div className="flex-grow overflow-auto border rounded bg-[var(--sage-1)] shadow-sm">
+      <div className="flex-grow overflow-auto border rounded bg-[var(--sage-1)] shadow-sm transparent-when-disconnected">
         {grid}
       </div>
-      <div className="flex-none flex flex-col w-[400px] p-3 gap-3 overflow-auto h-full bg-[var(--sage-3)] border rounded shadow-sm">
+      <div className="flex-none flex flex-col w-[400px] p-3 gap-3 overflow-auto h-full bg-[var(--sage-3)] border rounded shadow-sm transparent-when-disconnected">
         <div className="text font-bold text-[var(--sage-10)] overflow-auto flex-shrink-0">
           Outputs
         </div>
