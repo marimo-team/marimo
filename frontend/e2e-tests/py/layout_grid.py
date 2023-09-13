@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.1.2"
-app = marimo.App(layout_file="./layout_grid.json")
+app = marimo.App(layout_file="layouts/layout_grid.grid.json")
 
 
 @app.cell

@@ -71,10 +71,10 @@ const GridLayoutRenderer: React.FC<Props> = ({
       droppingItem={
         droppingItem
           ? {
-              i: droppingItem.i,
-              w: droppingItem.w || 2,
-              h: droppingItem.h || 2,
-            }
+            i: droppingItem.i,
+            w: droppingItem.w || 2,
+            h: droppingItem.h || 2,
+          }
           : undefined
       }
       onDrop={(cellLayouts, dropped, _event) => {
@@ -102,9 +102,9 @@ const GridLayoutRenderer: React.FC<Props> = ({
             className={cn(
               "relative",
               !isReading &&
-                "hover:bg-[var(--sage-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
+              "hover:bg-[var(--sage-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
               isDragging && "bg-[var(--sage-2)] border-border rounded",
-              "overflow-hidden p-2"
+              "overflow-hidden p-2 transparent-when-disconnected"
             )}
           >
             <GridCell
