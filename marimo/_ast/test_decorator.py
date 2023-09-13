@@ -23,7 +23,7 @@ def test_decorator():
         return (x,)
 
     assert cell_function.cell.code == "x = 2 + 2"
-    assert cell_function.cell.config.disable_autorun is False
+    assert cell_function.cell.config.disabled is False
     assert len(cell_function.args) == 0
     assert cell_function.__name__ == "mock_func1"
     assert cell_function.__call__ is not None
@@ -36,21 +36,34 @@ def test_decorator():
         return (z,)
 
     assert cell_function.cell.code == "z = 3 + 3"
-    assert cell_function.cell.config.disable_autorun is False
+    assert cell_function.cell.config.disabled is False
     assert len(cell_function.args) == 0
     assert cell_function.__name__ == "__"
     assert cell_function.__call__ is not None
     assert cell_function.__call__() == (6,)
 
     # Decorator with args
-    @app.cell(disable_autorun=True)
+    @app.cell(disabled=True)
     def mock_func3(x):
         y = x + 2
         return (y,)
 
     assert cell_function.cell.code == "y = x + 2"
-    assert cell_function.cell.config.disable_autorun is True
+    assert cell_function.cell.config.disabled is True
     assert cell_function.args == {"x"}
     assert cell_function.__name__ == "mock_func3"
     assert cell_function.__call__ is not None
     assert cell_function.__call__(2) == (4,)
+
+    # Decorator with unknown args
+    @app.cell(foo=True)
+    def __():
+        x = 2 + 2
+        return (x,)
+
+    assert cell_function.cell.code == "x = 2 + 2"
+    assert cell_function.cell.config.disabled is False
+    assert len(cell_function.args) == 0
+    assert cell_function.__name__ == "__"
+    assert cell_function.__call__ is not None
+    assert cell_function.__call__() == (4,)

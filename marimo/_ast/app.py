@@ -95,7 +95,7 @@ class App:
         return str(cell_id)
 
     def cell(
-        self, func: Optional[CellFuncType] = None, *, disable_autorun=False
+        self, func: Optional[CellFuncType] = None, *, disabled=False, **kwargs: Any
     ) -> Union[Callable[[CellFuncType], CellFunction], CellFunction]:
         """
         @app.cell decorator
@@ -110,14 +110,15 @@ class App:
         def __(mo):
             # ...
 
-        @app.cell(auto_run=False)
+        @app.cell(disabled=True)
         def __(mo):
             # ...
         ```
 
         Attributes:
             func: The decorated function
-            disable_autorun: Whether autorun is disabled for this cell
+            disabled: Whether the cell should be disabled
+            kwargs: To be able to handle future arguments
         """
         if func is None:
             # If the decorator was used with parentheses, func will be None,
@@ -125,7 +126,7 @@ class App:
             def decorator(func: CellFuncType):
                 cell_function = cell_factory(func)
                 cell_function.cell = cell_function.cell.with_config(
-                    CellConfig(disable_autorun=disable_autorun)
+                    CellConfig(disabled=disabled)
                 )
                 self._register_cell(cell_function)
                 return cell_function
@@ -135,7 +136,7 @@ class App:
             # If the decorator was used without parentheses, func will be the decorated function
             cell_function = cell_factory(func)
             cell_function.cell = cell_function.cell.with_config(
-                CellConfig(disable_autorun=disable_autorun)
+                CellConfig(disabled=disabled)
             )
             self._register_cell(cell_function)
             return cell_function

@@ -24,10 +24,9 @@ def code_key(code: str) -> int:
 
 @dataclass(frozen=True)
 class CellConfig:
-    # if True, the cell will not be executed automatically
-    # by ancestor changes. it will still be executed
-    # when the cell is explicitly called.
-    disable_autorun: bool = False
+    # if True, the cell and decentants are not executed
+    # but it will still be registered in the kernel
+    disabled: bool = False
 
 
 @dataclass(frozen=True)

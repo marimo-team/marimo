@@ -300,11 +300,11 @@ class TestToFunctionDef:
     def test_with_some_config(self) -> None:
         code = "x = 0"
         cell = parse_cell(code)
-        cell = cell.with_config(CellConfig(disable_autorun=True))
+        cell = cell.with_config(CellConfig(disabled=True))
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [
-                "@app.cell(disable_autorun=True)",
+                "@app.cell(disabled=True)",
                 "def foo():",
                 "    x = 0",
                 "    return x,",
