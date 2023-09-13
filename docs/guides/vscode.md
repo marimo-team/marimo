@@ -1,8 +1,8 @@
-# VSCode Integration
+# VS Code integration
 
-marimo can be run directly from VSCode. This is useful for launching marimo directly from the editor.
+marimo can be run directly from VS Code. This is useful for launching marimo directly from the editor.
 
-Just install the [marimo VSCode extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) and you're good to go!
+Just install the [marimo VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) and you're good to go!
 
 <div align="center">
 <figure>
@@ -12,13 +12,13 @@ Just install the [marimo VSCode extension](https://marketplace.visualstudio.com/
 
 ## Features
 
-- 🚀 Launch marimo from VSCode, in both "edit mode" and "run mode".
-- 💻 View the terminal output of marimo directly in VSCode.
-- 🌐 View the marimo browser window directly in VSCode or in your default browser.
+- 🚀 Launch marimo from VS Code, in both "edit mode" and "run mode".
+- 💻 View the terminal output of marimo directly in VS Code.
+- 🌐 View the marimo browser window directly in VS Code or in your default browser.
 
 ## Known Issues
 
-VSCode's embedded browser does not support all native browser features. If you encounter any issues, try opening marimo in your default browser instead.
+VS Code's embedded browser does not support all native browser features. If you encounter any issues, try opening marimo in your default browser instead.
 For example, the embedded browser will not support PDF render, audio recording, or video recording.
 
 ## Extension Settings
@@ -31,4 +31,4 @@ You can configure the extension using the following settings:
 
 ## Repository
 
-The source code for the marimo VSCode extension is available on [GitHub](https://github.com/marimo-team/vscode-marimo).
+The source code for the marimo VS Code extension is available on [GitHub](https://github.com/marimo-team/vscode-marimo).

@@ -27,7 +27,7 @@ These guides cover marimo's core concepts.
 | {doc}`state`          | Reacting to interactions with state       |
 | {doc}`apps`           | Running notebooks as apps                 |
 | {doc}`scripts`        | Running notebooks as scripts              |
-| {doc}`vscode`         | VSCode integration                        |
+| {doc}`vscode`         | VS Code integration                       |
 | {doc}`best_practices` | Best practices when working with marimo   |
 
 ```{admonition} Learn by doing!
