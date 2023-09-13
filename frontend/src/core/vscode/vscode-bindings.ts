@@ -2,8 +2,9 @@
 
 import { Logger } from "@/utils/Logger";
 
-// eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
-const isEmbedded = typeof window !== "undefined" && window.parent !== window;
+export const isEmbedded =
+  // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
+  typeof window !== "undefined" && window.parent !== window;
 
 // To enable keyboard shortcuts of VS Code when the iframe is focused,
 // we have to dispatch keyboard events in the parent window.

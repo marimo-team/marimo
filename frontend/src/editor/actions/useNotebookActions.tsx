@@ -1,21 +1,19 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { runDuringPresentMode } from "@/core/mode";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { useSetAtom } from "jotai";
-import { ImageIcon, CommandIcon, ZapIcon, ZapOffIcon } from "lucide-react";
+import {
+  ImageIcon,
+  CommandIcon,
+  ZapIcon,
+  ZapOffIcon,
+  BookOpenIcon,
+} from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
 import { useCellActions, useCells } from "@/core/state/cells";
 import { saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
-
-interface Action {
-  label: string;
-  hotkey?: HotkeyAction;
-  icon?: React.ReactNode;
-  hidden?: boolean;
-  handle: () => void;
-}
+import { ActionButton } from "./types";
 
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
@@ -27,8 +25,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
   const disabledCells = cells.present.filter((cell) => cell.config.disabled);
   const enabledCells = cells.present.filter((cell) => !cell.config.disabled);
 
-  const actions: Action[] = [
-    // TODO(akshayka): Add these to the command palette
+  const actions: ActionButton[] = [
     {
       icon: <ImageIcon size={13} strokeWidth={1.5} />,
       label: "Export to PNG",
@@ -75,9 +72,17 @@ export function useNotebookActions(opts: { filename?: string | null }) {
 
     {
       icon: <CommandIcon size={13} strokeWidth={1.5} />,
-      label: "Command Palette",
+      label: "Command palette",
       hotkey: "global.commandPalette",
       handle: () => setCommandPalletteOpen((open) => !open),
+    },
+
+    {
+      icon: <BookOpenIcon size={13} strokeWidth={1.5} />,
+      label: "Open documentation",
+      handle: () => {
+        window.open("https://docs.marimo.io", "_blank");
+      },
     },
   ];
 
