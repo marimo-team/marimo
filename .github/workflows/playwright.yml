@@ -14,7 +14,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: "pw:webserver"
+      DEBUG: 'pw:webserver'
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -22,6 +22,11 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v3
+
+      - name: Write TOML
+        run: |
+          echo "[experimental]" > .marimo.toml
+          echo "layouts=true" >> .marimo.toml
 
       - uses: pnpm/action-setup@v2
         with:
@@ -31,8 +36,8 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
 
       - name: 📥 Install pnpm dependencies
         working-directory: ./frontend
@@ -44,7 +49,7 @@ jobs:
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
       - name: 🐍 Install marimo
         run: |
@@ -95,9 +100,9 @@ jobs:
         continue-on-error: true
         with:
           base-branch: main
-          api-endpoint: "https://marimo.io/api"
+          api-endpoint: 'https://marimo.io/api'
           api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
-          gcs-bucket: "marimo-oss-visual-snapshots"
+          gcs-bucket: 'marimo-oss-visual-snapshots'
           snapshot-path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload snapshots
