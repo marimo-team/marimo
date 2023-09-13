@@ -23,6 +23,14 @@ def code_key(code: str) -> int:
 
 
 @dataclass(frozen=True)
+class CellConfig:
+    # if True, the cell will not be executed automatically
+    # by ancestor changes. it will still be executed
+    # when the cell is explicitly called.
+    disable_autorun: bool = False
+
+
+@dataclass(frozen=True)
 class Cell:
     key: int
     code: str
@@ -33,9 +41,23 @@ class Cell:
 
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
+    config: Optional[CellConfig]
+
+    def with_config(self, config: CellConfig) -> Cell:
+        return Cell(
+            key=self.key,
+            code=self.code,
+            mod=self.mod,
+            defs=self.defs,
+            refs=self.refs,
+            deleted_refs=self.deleted_refs,
+            body=self.body,
+            last_expr=self.last_expr,
+            config=config,
+        )
 
 
-cell_func_t = Callable[..., Optional[Tuple[Any, ...]]]
+CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
 
 
 class CellFunction(Protocol):
@@ -46,11 +68,11 @@ class CellFunction(Protocol):
     code: str
     # arg names of wrapped function
     args: set[str]
-    __call__: cell_func_t
+    __call__: CellFuncType
 
 
 def cell_function(
-    cell: Cell, args: set[str], code: str, f: cell_func_t
+    cell: Cell, args: set[str], code: str, f: CellFuncType
 ) -> CellFunction:
     signature = inspect.signature(f)
 
@@ -126,6 +148,7 @@ def parse_cell(
             deleted_refs=set(),
             body=None,
             last_expr=None,
+            config=None,
         )
 
     v = ScopedVisitor("cell_" + str(cell_id) if cell_id is not None else None)
@@ -150,6 +173,7 @@ def parse_cell(
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,
+        config=None,
     )
 
 

@@ -8,7 +8,7 @@ from inspect import cleandoc
 
 from marimo import __version__
 from marimo._ast import codegen
-from marimo._ast.cell import parse_cell
+from marimo._ast.cell import CellConfig, parse_cell
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -284,6 +284,31 @@ class TestToFunctionDef:
             ["@app.cell", "def foo(w, x):"]
             + ["    " + line for line in code.split("\n")]
             + ["    return y, z"]
+        )
+        assert fndef == expected
+
+    def test_with_empty_config(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.with_config(CellConfig())
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+        )
+        assert fndef == expected
+
+    def test_with_some_config(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.with_config(CellConfig(disable_autorun=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(disable_autorun=True)",
+                "def foo():",
+                "    x = 0",
+                "    return x,",
+            ]
         )
         assert fndef == expected
 

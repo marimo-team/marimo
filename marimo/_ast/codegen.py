@@ -9,7 +9,7 @@ from typing import Any, Optional, Union
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
-from marimo._ast.cell import Cell, parse_cell
+from marimo._ast.cell import Cell, CellConfig, parse_cell
 from marimo._ast.visitor import Name
 
 INDENT = "    "
@@ -29,6 +29,19 @@ def _multiline_tuple(elems: Sequence[str]) -> str:
         return "()"
 
 
+def _to_decorator(config: Optional[CellConfig]) -> str:
+    if config is None or config == CellConfig():
+        return "@app.cell"
+    else:
+        return (
+            "@app.cell("
+            + ", ".join(
+                f"{key}={value}" for key, value in config.__dict__.items()
+            )
+            + ")"
+        )
+
+
 def to_functiondef(
     cell: Cell, name: str, unshadowed_builtins: Optional[set[Name]] = None
 ) -> str:
@@ -41,7 +54,7 @@ def to_functiondef(
     refs = [ref for ref in sorted(cell.refs) if ref not in unshadowed_builtins]
     args = ", ".join(refs)
 
-    decorator = "@app.cell"
+    decorator = _to_decorator(cell.config)
     signature = f"def {name}({args}):"
     if len(INDENT + signature) >= MAX_LINE_LENGTH:
         signature = f"def {name}{_multiline_tuple(refs)}:"

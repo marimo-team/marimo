@@ -6,13 +6,14 @@ import itertools
 import textwrap
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Iterable, Literal, Optional
+from typing import Any, Callable, Iterable, Literal, Optional, Union
 
 from marimo._ast.cell import (
+    CellConfig,
     CellFunction,
+    CellFuncType,
     CellId_t,
     cell_factory,
-    cell_func_t,
     execute_cell,
 )
 from marimo._ast.errors import (
@@ -93,16 +94,60 @@ class App:
         self._cell_id_counter += 1
         return str(cell_id)
 
-    def cell(self, f: cell_func_t) -> CellFunction:
-        cell_function = cell_factory(f)
+    def cell(
+        self, func: Optional[CellFuncType] = None, *, disable_autorun=False
+    ) -> Union[Callable[[CellFuncType], CellFunction], CellFunction]:
+        """
+        @app.cell decorator
+
+        This can be called with or without parentheses. Each of the following is valid:
+        ```
+        @app.cell
+        def __(mo):
+            # ...
+
+        @app.cell()
+        def __(mo):
+            # ...
+
+        @app.cell(auto_run=False)
+        def __(mo):
+            # ...
+        ```
+
+        Attributes:
+            func: The decorated function
+            disable_autorun: Whether autorun is disabled for this cell
+        """
+        if func is None:
+            # If the decorator was used with parentheses, func will be None,
+            # and we return a decorator that takes the decorated function as an argument
+            def decorator(func: CellFuncType):
+                cell_function = cell_factory(func)
+                cell_function.cell = cell_function.cell.with_config(
+                    CellConfig(disable_autorun=disable_autorun)
+                )
+                self._register_cell(cell_function)
+                return cell_function
+
+            return decorator
+        else:
+            # If the decorator was used without parentheses, func will be the decorated function
+            cell_function = cell_factory(func)
+            cell_function.cell = cell_function.cell.with_config(
+                CellConfig(disable_autorun=disable_autorun)
+            )
+            self._register_cell(cell_function)
+            return cell_function
+
+    def _register_cell(self, cell_function: CellFunction) -> None:
         cell_id = self._create_cell_id(cell_function)
         self._cell_data[cell_id] = CellData(
             cell_id=cell_id,
             code=cell_function.cell.code,
-            name=f.__name__,
+            name=cell_function.__name__,
             cell_function=cell_function,
         )
-        return cell_function
 
     def _names(self) -> Iterable[str]:
         return (cell_data.name for cell_data in self._cell_data.values())
