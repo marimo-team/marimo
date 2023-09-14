@@ -120,7 +120,7 @@ Because marimo is different from traditional notebooks, your converted
 notebook will likely have errors that you'll need to fix. marimo
 will guide you through fixing them when you open it with `marimo edit`.
 
-### VS Code Extension
+### VS Code extension
 
 Use the marimo
 [VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
