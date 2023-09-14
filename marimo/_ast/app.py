@@ -56,6 +56,9 @@ class CellData:
     code: str
     # User-provided name for cell (or default)
     name: str
+    # Cell config
+    config: CellConfig
+
     # Callable cell, or None if cell was not parsable
     cell_function: Optional[CellFunction[CellFuncType]]
 
@@ -167,6 +170,7 @@ class App:
             cell_id=cell_id,
             code=cell_function.cell.code,
             name=cell_function.__name__,
+            config=cell_function.cell.config,
             cell_function=cast(CellFunction[CellFuncType], cell_function),
         )
 
@@ -216,7 +220,12 @@ class App:
                     f"Fix: Make '{suggested_sig}' this function's signature."
                 )
 
-    def _unparsable_cell(self, code: str, name: Optional[str] = None) -> None:
+    def _unparsable_cell(
+        self,
+        code: str,
+        name: Optional[str] = None,
+        config: Optional[CellConfig] = None,
+    ) -> None:
         cell_id = self._create_cell_id(None)
         name = name if name is not None else "__"
         # - code.split("\n")[1:-1] disregards first and last lines, which are
@@ -228,7 +237,11 @@ class App:
             [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
         )
         self._cell_data[cell_id] = CellData(
-            cell_id=cell_id, code=code, name=name, cell_function=None
+            cell_id=cell_id,
+            code=code,
+            name=name,
+            config=config if config is not None else CellConfig(),
+            cell_function=None,
         )
         self._unparsable = True
 

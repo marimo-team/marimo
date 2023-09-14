@@ -10,7 +10,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import ClassVar, Dict, Literal, Optional, Union, cast
 
-from marimo._ast.cell import CellId_t
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._plugins.core.web_component import JSONType
@@ -58,6 +58,7 @@ class KernelReady:
     name: ClassVar[str] = "kernel-ready"
     codes: tuple[str, ...]
     names: tuple[str, ...]
+    configs: tuple[CellConfig, ...]
 
 
 @dataclass

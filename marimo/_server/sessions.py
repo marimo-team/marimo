@@ -33,6 +33,7 @@ import tornado.websocket
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, _AppConfig
+from marimo._ast.cell import CellConfig
 from marimo._messaging.message_types import KernelReady, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
@@ -84,28 +85,44 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
             return asyncio.ensure_future(return_none())
 
     def write_kernel_ready(self) -> None:
-        """Communicates to the client that the kernel is ready."""
+        """Communicates to the client that the kernel is ready.
+
+        Sends cell code and other metadata to client.
+        """
         mgr = get_manager()
         codes: tuple[str, ...]
         names: tuple[str, ...]
+        configs: tuple[CellConfig, ...]
         app = mgr.load_app()
         if app is None:
             codes = ("",)
             names = ("__",)
+            configs = (CellConfig(),)
         elif mgr.mode == SessionMode.EDIT:
-            codes = tuple(
-                cell_data.code for cell_data in app._cell_data.values()
-            )
-            names = tuple(
-                cell_data.name for cell_data in app._cell_data.values()
+            codes, names, configs = tuple(
+                zip(
+                    *tuple(
+                        (cell_data.code, cell_data.name, cell_data.config)
+                        for cell_data in app._cell_data.values()
+                    )
+                )
             )
         else:
-            # Don't send code to frontend in run mode
-            codes = tuple("" for _ in app._cell_data)
-            names = tuple("" for _ in app._cell_data)
+            codes, names, configs = tuple(
+                zip(
+                    *tuple(
+                        # Don't send code to frontend in run mode
+                        ("", "", cell_data.config)
+                        for cell_data in app._cell_data.values()
+                    )
+                )
+            )
+
         self.write_op(
             op=KernelReady.name,
-            data=serialize(KernelReady(codes=codes, names=names)),
+            data=serialize(
+                KernelReady(codes=codes, names=names, configs=configs)
+            ),
         )
 
     def reconnect_session(self, session: "Session") -> None:
