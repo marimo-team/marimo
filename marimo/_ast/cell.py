@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
 import functools
 import inspect
 import io
 import textwrap
 import token as token_types
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from tokenize import TokenInfo, tokenize
 from types import CodeType
 from typing import (
@@ -32,14 +32,25 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class CellConfig:
     # If True, the cell and its descendants cannot be executed,
     # but they can still be added to the graph.
     disabled: bool = False
 
+    @classmethod
+    @functools.cache
+    def keys(cls) -> set[str]:
+        return {field.name for field in dataclasses.fields(CellConfig)}
 
-@dataclass(frozen=True)
+    @classmethod
+    def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
+        valid_keys = cls.keys()
+        filtered = {k: v for k, v in kwargs.items() if k in valid_keys}
+        return cls(**filtered)
+
+
+@dataclasses.dataclass(frozen=True)
 class Cell:
     key: int
     code: str
@@ -50,7 +61,7 @@ class Cell:
 
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
-    config: CellConfig = field(default_factory=CellConfig)
+    config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
     def with_config(self, config: CellConfig) -> Cell:
         return Cell(

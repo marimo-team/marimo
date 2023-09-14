@@ -18,7 +18,7 @@ from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t, parse_cell
+from marimo._ast.cell import CellConfig, CellId_t, parse_cell
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -57,6 +57,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     Request,
+    SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
 )
@@ -643,6 +644,13 @@ class Kernel:
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
 
+    def set_cell_config(self, request: SetCellConfigRequest) -> None:
+        cell = self.graph.cells.get(request.cell_id)
+        if cell is not None:
+            self.graph.cells[request.cell_id] = cell.with_config(
+                CellConfig.from_dict(request.config)
+            )
+
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.
 
@@ -843,6 +851,8 @@ def launch_kernel(
             kernel.instantiate(request)
         elif isinstance(request, ExecuteMultipleRequest):
             kernel.run(request.execution_requests)
+        elif isinstance(request, SetCellConfigRequest):
+            kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
         elif isinstance(request, DeleteRequest):

@@ -26,6 +26,12 @@ class SetUIElementValueRequest:
 
 
 @dataclass
+class SetCellConfigRequest:
+    cell_id: CellId_t
+    config: dict[str, object]
+
+
+@dataclass
 class CreationRequest:
     execution_requests: tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
@@ -59,6 +65,7 @@ Request = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
+    SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
     CompletionRequest,
