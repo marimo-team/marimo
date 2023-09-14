@@ -220,7 +220,7 @@ def recover(filename: str) -> str:
                 (
                     cell["code"],
                     cell["name"],
-                    cell["config"] if "config" in cell else None,
+                    cell["config"] if "config" in cell else CellConfig(),
                 )
                 for cell in cells
             ]
