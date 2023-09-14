@@ -92,7 +92,8 @@ export const OutputArea = React.memo(
         >
           {formatOutput({
             message: props.output,
-            parsedJsonData: parsedJsonData,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            parsedJsonData: parsedJsonData as Record<string, any>,
           })}
         </div>
       );
