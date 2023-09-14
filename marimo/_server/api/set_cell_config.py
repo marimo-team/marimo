@@ -13,15 +13,12 @@ from marimo._server.api.model import parse_raw
 
 @dataclass
 class SetCellConfig:
-    cell_id: CellId_t
-    # Cell config, possibly partial
-    config: dict[str, object]
+    # Map from Cell ID to (possibily partial) CellConfig
+    configs: dict[CellId_t, dict[str, object]]
 
 
 class SetCellConfigHandler(tornado.web.RequestHandler):
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, SetCellConfig)
-        session.queue.put(
-            requests.SetCellConfigRequest(args.cell_id, args.config)
-        )
+        session.queue.put(requests.SetCellConfigRequest(args.configs))

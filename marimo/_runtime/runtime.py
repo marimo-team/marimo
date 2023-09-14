@@ -645,11 +645,12 @@ class Kernel:
         )
 
     def set_cell_config(self, request: SetCellConfigRequest) -> None:
-        cell = self.graph.cells.get(request.cell_id)
-        if cell is not None:
-            self.graph.cells[request.cell_id] = cell.with_config(
-                CellConfig.from_dict(request.config)
-            )
+        for cell_id, config in request.configs.items():
+            cell = self.graph.cells.get(cell_id)
+            if cell is not None:
+                self.graph.cells[cell_id] = cell.with_config(
+                    CellConfig.from_dict(config)
+                )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.

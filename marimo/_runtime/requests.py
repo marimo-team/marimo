@@ -27,8 +27,7 @@ class SetUIElementValueRequest:
 
 @dataclass
 class SetCellConfigRequest:
-    cell_id: CellId_t
-    config: dict[str, object]
+    configs: dict[CellId_t, dict[str, object]]
 
 
 @dataclass
