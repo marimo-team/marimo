@@ -19,8 +19,24 @@
   background-color: transparent;
 }
 
-.Cell:hover {
+.Cell:not(.disabled):hover {
   box-shadow: var(--medium-shadow);
+}
+
+.Cell.disabled .OutputArea,
+.Cell.disabled.stale .OutputArea,
+.Cell.disabled .cm,
+.Cell.disabled.stale .cm {
+  background-color: var(--gray-2);
+  opacity: 50%;
+  cursor: not-allowed;
+}
+
+.Cell.stale .OutputArea,
+.Cell.stale .cm {
+  background-color: var(--gray-1);
+  opacity: 50%;
+  cursor: not-allowed;
 }
 
 .Cell.has-error,
@@ -139,6 +155,7 @@
   position: absolute;
   right: -98px;
   width: 80px;
+  gap: 4px;
   z-index: 2;
 }
 
@@ -147,55 +164,6 @@
   bottom: -2px;
   right: 2px;
   z-index: 2; /* lie above editor */
-}
-
-/* --------------------------- Status Indicators ---------------------------- */
-.cell-status-icon {
-  margin-top: 4px;
-  margin-left: 3px;
-  margin-bottom: auto;
-}
-
-@keyframes appear {
-  from {
-    visibility: visible;
-  }
-
-  to {
-    visibility: visible;
-  }
-}
-
-.elapsed-time {
-  font-family: var(--monospace-font);
-  font-size: 0.8125rem;
-  color: var(--gray-11);
-}
-
-.elapsed-time.running {
-  animation: appear 1000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-delay: 50ms;
-}
-
-#App.disconnected .elapsed-time {
-  visibility: hidden;
-}
-
-.cell-status-queued,
-.cell-status-stale {
-  animation: appear 1000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-delay: 100ms;
-}
-
-.cell-status-queued svg,
-.cell-status-stale svg {
-  color: var(--gray-10);
-  width: 16px;
-  height: 16px;
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */
@@ -452,10 +420,6 @@
 
 .Cell.needs-run .OutputArea {
   border-bottom: 1px solid var(--stale-color);
-}
-
-.Cell.needs-run .RunButton {
-  visibility: visible;
 }
 
 /* ------------------------ Output Formatting ---------------------------- */

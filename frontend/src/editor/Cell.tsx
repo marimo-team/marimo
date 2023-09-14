@@ -58,28 +58,28 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-      CellState,
-      | "consoleOutputs"
-      | "status"
-      | "output"
-      | "initialContents"
-      | "edited"
-      | "errored"
-      | "interrupted"
-      | "config"
-      | "stopped"
-      | "runElapsedTimeMs"
-    >,
-    Pick<
-      CellActions,
-      | "updateCellCode"
-      | "prepareForRun"
-      | "createNewCell"
-      | "deleteCell"
-      | "focusCell"
-      | "moveCell"
-      | "moveToNextCell"
-    > {
+    CellState,
+    | "consoleOutputs"
+    | "status"
+    | "output"
+    | "initialContents"
+    | "edited"
+    | "errored"
+    | "interrupted"
+    | "config"
+    | "stopped"
+    | "runElapsedTimeMs"
+  >,
+  Pick<
+    CellActions,
+    | "updateCellCode"
+    | "prepareForRun"
+    | "createNewCell"
+    | "deleteCell"
+    | "focusCell"
+    | "moveCell"
+    | "moveToNextCell"
+  > {
   theme: Theme;
   showPlaceholder: boolean;
   cellId: CellId;
@@ -384,6 +384,8 @@ const CellComponent = (
     "needs-run": needsRun,
     "has-error": errored,
     stopped: stopped,
+    disabled: cellConfig.disabled,
+    stale: status === 'stale',
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -404,6 +406,7 @@ const CellComponent = (
       id={HTMLId}
       ref={cellRef}
       className={className}
+      data-status={status}
       onBlur={closeCompletionHandler}
       onKeyDown={resumeCompletionHandler}
       cellId={cellId}
@@ -433,6 +436,7 @@ const CellComponent = (
             interrupted={interrupted}
             editing={editing}
             edited={edited}
+            disabled={cellConfig.disabled ?? false}
             elapsedTime={runElapsedTimeMs}
           />
           <div className="flex align-bottom">
@@ -440,6 +444,7 @@ const CellComponent = (
               onClick={appClosed ? Functions.NOOP : onRun}
               appClosed={appClosed}
               status={status}
+              config={cellConfig}
               needsRun={needsRun}
             />
             <CellActionsDropdown

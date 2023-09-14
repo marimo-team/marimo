@@ -33,6 +33,7 @@ import {
   PlusCircleIcon,
   Trash2Icon,
   ZapIcon,
+  ZapOffIcon,
 } from "lucide-react";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { HotkeyAction } from "@/core/hotkeys/hotkeys";
@@ -108,15 +109,13 @@ export const CellActionsDropdown = ({
         },
       },
       {
-        icon: <ZapIcon size={13} strokeWidth={1.5} />,
-        // TODO: this feature is still a WIP
-        hidden: true,
+        icon: config.disabled ? <ZapIcon size={13} strokeWidth={1.5} /> : <ZapOffIcon size={13} strokeWidth={1.5} />,
         label:
           config.disabled === true ? "Enable and run cell" : "Disable cell",
         rightElement: (
           <Switch
             // null implies true
-            checked={config.disabled === true ? true : false}
+            checked={config.disabled === true ? false : true}
             size="sm"
             onCheckedChange={toggleDisabled}
           />
@@ -131,7 +130,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronUpIcon size={12} strokeWidth={1.5} />
+            <ChevronUpIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Create cell above",
@@ -142,7 +141,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronDownIcon size={12} strokeWidth={1.5} />
+            <ChevronDownIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Create cell below",
@@ -165,7 +164,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <FocusIcon size={13} strokeWidth={1.5} />
-            <ChevronUpIcon size={12} strokeWidth={1.5} />
+            <ChevronUpIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Focus cell above",
@@ -176,7 +175,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <FocusIcon size={13} strokeWidth={1.5} />
-            <ChevronDownIcon size={12} strokeWidth={1.5} />
+            <ChevronDownIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Focus cell below",
@@ -226,7 +225,9 @@ export const CellActionsDropdown = ({
           </TooltipContent>
         )}
         <TooltipTrigger>
-          <PopoverTrigger>{children}</PopoverTrigger>
+          <PopoverTrigger
+            className="flex"
+          >{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>
       <PopoverContent
@@ -256,7 +257,7 @@ export const CellActionsDropdown = ({
                       }}
                       className={cn(
                         action.variant === "danger" &&
-                          "aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]"
+                        "aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]"
                       )}
                     >
                       <div className="flex items-center flex-1">
@@ -267,6 +268,7 @@ export const CellActionsDropdown = ({
                         <div className="flex-shrink-0 text-sm">
                           {action.hotkey &&
                             renderMinimalShortcut(action.hotkey)}
+                          {action.rightElement}
                         </div>
                       </div>
                     </CommandItem>

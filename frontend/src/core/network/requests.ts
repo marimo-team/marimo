@@ -8,14 +8,16 @@ import {
   FormatRequest,
   InstantiateRequest,
   RenameRequest,
-  RunMultipleRequest,
+  RunRequest,
   SaveKernelRequest,
   SendDirectoryAutocompleteRequest,
   SendDirectoryAutocompleteResponse,
   SetComponentValuesRequest,
   SaveUserConfigRequest,
   SaveAppConfigRequest,
+  SaveCellConfigRequest,
 } from "./types";
+import { invariant } from "@/utils/invariant";
 
 interface ValueUpdate {
   objectId: string;
@@ -43,6 +45,9 @@ export function sendRename(filename: string | null) {
 }
 
 export function sendSave(codes: string[], names: string[], filename: string) {
+  // Validate same length
+  invariant(codes.length === names.length, "must be the same length");
+
   return API.post<SaveKernelRequest>("/kernel/save/", {
     codes: codes,
     names: names,
@@ -69,11 +74,20 @@ export function sendRun(cellId: CellId, code: string) {
 }
 
 export function sendInstantiate(request: InstantiateRequest) {
+  // Validate same length
+  invariant(
+    request.objectIds.length === request.values.length,
+    "must be the same length"
+  );
+
   return API.post<InstantiateRequest>("/kernel/instantiate/", request);
 }
 
 export function sendRunMultiple(cellIds: CellId[], codes: string[]) {
-  return API.post<RunMultipleRequest>("/kernel/run/", {
+  // Validate same length
+  invariant(cellIds.length === codes.length, "must be the same length");
+
+  return API.post<RunRequest>("/kernel/run/", {
     cellIds: cellIds,
     codes: codes,
   });
@@ -112,4 +126,8 @@ export function saveUserConfig(request: SaveUserConfigRequest) {
 
 export function saveAppConfig(request: SaveAppConfigRequest) {
   return API.post<SaveAppConfigRequest>("/kernel/save_app_config/", request);
+}
+
+export function saveCellConfig(request: SaveCellConfigRequest) {
+  return API.post<SaveCellConfigRequest>("/kernel/set_cell_config/", request);
 }

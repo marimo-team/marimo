@@ -36,11 +36,11 @@ const SortableCellInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            x: transform.x,
-            y: transform.y,
-            scaleX: 1,
-            scaleY: 1,
-          })
+          x: transform.x,
+          y: transform.y,
+          scaleX: 1,
+          scaleY: 1,
+        })
         : undefined,
       transition,
       zIndex: isDragging ? 2 : undefined,
@@ -54,7 +54,7 @@ const SortableCellInternal = React.forwardRef(
         {...attributes}
         {...listeners}
         data-testid="drag-button"
-        className="py-[1px] mx-2 cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded"
+        className="py-[1px] mx-2 cursor-grab opacity-50 hover:opacity-100 hover-action hover:bg-muted rounded border border-transparent hover:border-border active:bg-accent"
       >
         <GripVerticalIcon strokeWidth={1} size={20} />
       </div>
