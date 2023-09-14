@@ -7,3 +7,14 @@ export const bottomRightControls =
 
 export const bottomLeftControls =
   "fixed bottom-4 left-4 m-0 flex items-center space-x-3 no-print";
+// const topRightControls =
+//   "z-50 fixed top-3 right-3 m-0 flex items-center space-x-3";
+
+// const topLeftControls =
+//   "z-50 fixed top-3 left-3 m-0 flex items-center space-x-3";
+
+// const bottomRightControls =
+//   "z-50 fixed bottom-7 right-4 flex items-center space-x-3";
+
+// const bottomLeftControls =
+//   "z-50 fixed bottom-7 left-4 m-0 flex items-center space-x-3";
