@@ -79,11 +79,11 @@ export const CellActionsDropdown = ({
     sendToTop,
     sendToBottom,
   } = useCellActions();
-  const toggleAutoRun = () => {
-    if (config.autoRun === false) {
-      updateCellConfig({ cellId, config: { autoRun: null } });
+  const toggleDisabled = () => {
+    if (config.disabled === true) {
+      updateCellConfig({ cellId, config: { disabled: null } });
     } else {
-      updateCellConfig({ cellId, config: { autoRun: false } });
+      updateCellConfig({ cellId, config: { disabled: true } });
     }
   };
 
@@ -112,16 +112,16 @@ export const CellActionsDropdown = ({
         // TODO: this feature is still a WIP
         hidden: true,
         label:
-          config.autoRun === false ? "Enable auto-run" : "Disable auto-run",
+          config.disabled === true ? "Enable and run cell" : "Disable cell",
         rightElement: (
           <Switch
             // null implies true
-            checked={config.autoRun === false ? false : true}
+            checked={config.disabled === true ? true : false}
             size="sm"
-            onCheckedChange={toggleAutoRun}
+            onCheckedChange={toggleDisabled}
           />
         ),
-        handle: toggleAutoRun,
+        handle: toggleDisabled,
       },
     ],
 

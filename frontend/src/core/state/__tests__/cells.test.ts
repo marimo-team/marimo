@@ -599,17 +599,17 @@ describe("cell reducer", () => {
 
     actions.updateCellConfig({
       cellId: firstCellId,
-      config: { autoRun: false },
+      config: { disabled: true },
     });
     cell = state.present[0];
-    expect(cell.config.autoRun).toBe(false);
+    expect(cell.config.disabled).toBe(true);
 
     // Revert
     actions.updateCellConfig({
       cellId: firstCellId,
-      config: { autoRun: null },
+      config: { disabled: null },
     });
     cell = state.present[0];
-    expect(cell.config.autoRun).toBe(null);
+    expect(cell.config.disabled).toBe(null);
   });
 });

@@ -104,8 +104,8 @@ export interface CellState {
 
 export interface CellConfig {
   /**
-   * If false, the cell will not be run automatically.
-   * Cannot be true, and instead will be set to null.
+   * If true, the cell and its descendants will be disabled (unable to run).
+   * Cannot be false, and instead will be set to null.
    */
-  autoRun?: false | null;
+  disabled?: true | null;
 }
