@@ -8,6 +8,7 @@ import tornado.web
 
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._ast.cell import CellConfig
 from marimo._server import sessions
 from marimo._server.api.model import parse_raw
 from marimo._server.api.status import HTTPStatus
@@ -22,6 +23,8 @@ class Save:
     codes: list[str]
     # name of each cell
     names: list[str]
+    # config for each cell
+    configs: list[CellConfig]
     # path to app
     filename: str
 
@@ -48,7 +51,7 @@ class SaveHandler(tornado.web.RequestHandler):
         else:
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
-                codes, names, config=mgr.app_config
+                codes, names, cell_configs=args.configs, config=mgr.app_config
             )
             LOGGER.debug("Saving app to %s", filename)
             try:
