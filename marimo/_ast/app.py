@@ -180,6 +180,9 @@ class App:
     def _codes(self) -> Iterable[str]:
         return (cell_data.code for cell_data in self._cell_data.values())
 
+    def _configs(self) -> Iterable[CellConfig]:
+        return (cell_data.config for cell_data in self._cell_data.values())
+
     def _cell_functions(
         self,
     ) -> Iterable[Optional[CellFunction[CellFuncType]]]:
@@ -224,7 +227,7 @@ class App:
         self,
         code: str,
         name: Optional[str] = None,
-        config: Optional[CellConfig] = None,
+        **config: Any,
     ) -> None:
         cell_id = self._create_cell_id(None)
         name = name if name is not None else "__"
@@ -240,7 +243,7 @@ class App:
             cell_id=cell_id,
             code=code,
             name=name,
-            config=config if config is not None else CellConfig(),
+            config=CellConfig.from_dict(config),
             cell_function=None,
         )
         self._unparsable = True

@@ -80,23 +80,27 @@ def to_functiondef(
     return fndef
 
 
-def generate_unparseable_cell(code: str, name: Optional[str]) -> str:
+def generate_unparseable_cell(
+    code: str, name: Optional[str], config: CellConfig
+) -> str:
     # escape double quotes to not interfere with string
     quote_escaped_code = code.replace('"', '\\"')
     # use r-string to handle backslashes (don't want to write
     # escape characters, want to actually write backslash characters)
     code_as_str = f'r"""\n{quote_escaped_code}\n"""'
-    if name is None:
-        return "app._unparsable_cell(\n" + indent_text(code_as_str) + "\n)"
-    else:
-        return (
-            "app._unparsable_cell(\n"
-            + indent_text(code_as_str)
-            + ",\n"
+    text = "app._unparsable_cell(\n" + indent_text(code_as_str)
+    if name is not None:
+        text += ",\n" + INDENT + f'name="{name}"'
+    if config != CellConfig():
+        text += (
+            ",\n"
             + INDENT
-            + f'name="{name}"'
-            + "\n)"
+            + ", ".join(
+                f"{key}={value}" for key, value in config.__dict__.items()
+            )
         )
+    text += "\n)"
+    return text
 
 
 def generate_app_constructor(config: Optional[_AppConfig]) -> str:
@@ -124,19 +128,22 @@ def generate_app_constructor(config: Optional[_AppConfig]) -> str:
 
 
 def generate_filecontents(
-    codes: list[str], names: list[str], config: Optional[_AppConfig] = None
+    codes: list[str],
+    names: list[str],
+    cell_configs: list[CellConfig],
+    config: Optional[_AppConfig] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    cell_function_data: list[Union[Cell, str]] = []
+    cell_function_data: list[Union[Cell, tuple[str, CellConfig]]] = []
     defs: set[Name] = set()
 
-    for code in codes:
+    for code, cell_config in zip(codes, cell_configs):
         try:
-            cell = parse_cell(code)
+            cell = parse_cell(code).with_config(cell_config)
             defs |= cell.defs
             cell_function_data.append(cell)
         except SyntaxError:
-            cell_function_data.append(code)
+            cell_function_data.append((code, cell_config))
 
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []
@@ -144,7 +151,11 @@ def generate_filecontents(
         if isinstance(data, Cell):
             fndefs.append(to_functiondef(data, name, unshadowed_builtins))
         else:
-            fndefs.append(generate_unparseable_cell(data, name))
+            fndefs.append(
+                generate_unparseable_cell(
+                    code=data[0], config=data[1], name=name
+                )
+            )
 
     filecontents = (
         "import marimo"
@@ -203,7 +214,16 @@ def recover(filename: str) -> str:
     with open(filename, "r") as f:
         contents = f.read()
     cells = json.loads(contents)["cells"]
-    codes, names = tuple(
-        zip(*[(cell["code"], cell["name"]) for cell in cells])
+    codes, names, configs = tuple(
+        zip(
+            *[
+                (
+                    cell["code"],
+                    cell["name"],
+                    cell["config"] if "config" in cell else CellConfig(),
+                )
+                for cell in cells
+            ]
+        )
     )
-    return generate_filecontents(codes, names)
+    return generate_filecontents(codes, names, configs)

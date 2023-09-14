@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from marimo._ast import codegen
+from marimo._ast.cell import CellConfig
 
 
 def convert(ipynb_path: str) -> str:
@@ -33,4 +34,8 @@ def convert(ipynb_path: str) -> str:
     if has_markdown:
         sources.append("import marimo as mo")
 
-    return codegen.generate_filecontents(sources, ["_" for _ in sources])
+    return codegen.generate_filecontents(
+        sources,
+        ["_" for _ in sources],
+        [CellConfig() for _ in range(len(sources))],
+    )
