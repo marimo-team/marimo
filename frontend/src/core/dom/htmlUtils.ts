@@ -33,7 +33,7 @@ export function parseAttrValue<T>(value: string | undefined): T {
         return Number.NEGATIVE_INFINITY;
       }
       return v;
-    });
+    }) as T;
   } catch {
     return {} as T;
   }

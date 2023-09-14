@@ -46,7 +46,7 @@ export function useMarimoWebSocket(opts: {
      * Message callback. Handle messages sent by the kernel.
      */
     onMessage: (e: MessageEvent<string>) => {
-      const msg: OperationMessage = JSON.parse(e.data);
+      const msg = JSON.parse(e.data) as OperationMessage;
       switch (msg.op) {
         case "kernel-ready": {
           const { codes, names } = msg.data;

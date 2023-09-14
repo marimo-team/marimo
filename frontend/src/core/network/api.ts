@@ -31,9 +31,9 @@ export const API = {
         } else if (
           response.headers.get("Content-Type")?.startsWith("application/json")
         ) {
-          return response.json();
+          return response.json() as RESP;
         } else {
-          return null;
+          return null as RESP;
         }
       })
       .catch((error) => {
