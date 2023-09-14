@@ -122,10 +122,11 @@ will guide you through fixing them when you open it with `marimo edit`.
 
 ### VS Code extension
 
-Use the marimo
+
+If you prefer VS Code over terminal, try our
 [VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
-to edit and run notebooks directly from VS Code, and to list all marimo
-notebooks in your current directory.
+Use the extension to edit and run notebooks directly from VS Code, and to list
+all marimo notebooks in your current directory.
 
 ## Concepts
 

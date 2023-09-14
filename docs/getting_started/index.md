@@ -67,7 +67,7 @@ will guide you through fixing them when you open it with `marimo edit`.
 
 ## VS Code extension
 
-If you prefer VS Code over terminal, try the marimo
+If you prefer VS Code over terminal, try our
 [VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
 Use this extension to edit and run notebooks directly from VS Code, and to list
 all marimo notebooks in your current directory.
