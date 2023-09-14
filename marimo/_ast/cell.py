@@ -39,15 +39,13 @@ class CellConfig:
     disabled: bool = False
 
     @classmethod
-    @functools.cache
-    def keys(cls) -> set[str]:
-        return {field.name for field in dataclasses.fields(CellConfig)}
-
-    @classmethod
     def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
-        valid_keys = cls.keys()
-        filtered = {k: v for k, v in kwargs.items() if k in valid_keys}
-        return cls(**filtered)
+        return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
+
+
+CellConfigKeys = frozenset(
+    {field.name for field in dataclasses.fields(CellConfig)}
+)
 
 
 @dataclasses.dataclass(frozen=True)
