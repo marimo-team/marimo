@@ -103,7 +103,7 @@ class TestParseRaw:
     def test_nested_tuple_fixed(self) -> None:
         @dataclass
         class Nested:
-            configs: tuple[str, Config]
+            configs: Tuple[str, Config]
 
         nested = Nested(
             configs=(
