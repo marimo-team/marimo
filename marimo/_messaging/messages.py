@@ -59,6 +59,13 @@ def write_output(
     )
 
 
+def write_stale(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(CellOp(cell_id=cell_id, status="stale")),
+    )
+
+
 def write_queued(cell_id: CellId_t) -> None:
     get_context().stream.write(
         op=CellOp.name,

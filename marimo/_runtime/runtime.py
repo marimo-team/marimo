@@ -35,6 +35,7 @@ from marimo._messaging.messages import (
     write_new_run,
     write_output,
     write_queued,
+    write_stale,
     write_remove_ui_elements,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
@@ -462,8 +463,14 @@ class Kernel:
     def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends"""
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
+        disabled_cells: set[CellId_t] = set()
         for cid in cell_ids:
-            write_queued(cell_id=cid)
+            if self.graph.is_disabled(cid):
+                write_stale(cell_id=cid)
+                disabled_cells.add(cid)
+            else:
+                write_queued(cell_id=cid)
+        cell_ids = cell_ids - disabled_cells
 
         runner = cell_runner.Runner(
             cell_ids=cell_ids,

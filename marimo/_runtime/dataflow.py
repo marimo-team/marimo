@@ -190,6 +190,26 @@ class DirectedGraph:
 
             return children
 
+    def is_disabled(self, cell_id: CellId_t) -> bool:
+        if cell_id not in self.cells:
+            raise ValueError(f"Cell {cell_id} not in graph.")
+        cell = self.cells[cell_id]
+        if cell.config.disabled:
+            return True
+        seen: set[CellId_t] = set()
+        queue = [cell_id]
+        while queue:
+            cid = queue.pop()
+            seen.add(cid)
+            for parent_id in self.parents[cid]:
+                if parent_id in seen:
+                    continue
+                elif self.cells[parent_id].config.disabled:
+                    return True
+                else:
+                    queue.append(parent_id)
+        return False
+
 
 def transitive_closure(
     graph: DirectedGraph, cell_ids: set[CellId_t]

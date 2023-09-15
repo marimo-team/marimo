@@ -16,6 +16,9 @@ from marimo._messaging.completion_option import CompletionOption
 from marimo._plugins.core.web_component import JSONType
 
 
+CellStatus = Literal["idle", "queued", "running", "stale"]
+
+
 # A cell-op's data has three optional fields:
 #
 # output  - a CellOutput
@@ -33,7 +36,7 @@ class CellOp:
     cell_id: CellId_t
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, list[CellOutput]]] = None
-    status: Optional[Literal["idle", "queued", "running"]] = None
+    status: Optional[CellStatus] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
 
