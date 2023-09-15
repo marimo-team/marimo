@@ -44,6 +44,7 @@ import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { CellConfig } from "@/core/model/cells";
 import { Switch } from "@/components/ui/switch";
 import React from "react";
+import { saveCellConfig } from "@/core/network/requests";
 
 interface Props {
   editorView: EditorView | null;
@@ -80,10 +81,12 @@ export const CellActionsDropdown = ({
     sendToTop,
     sendToBottom,
   } = useCellActions();
-  const toggleDisabled = () => {
+  const toggleDisabled = async () => {
     if (config.disabled === true) {
+      await saveCellConfig({ configs: { [cellId]: { disabled: null } } });
       updateCellConfig({ cellId, config: { disabled: null } });
     } else {
+      await saveCellConfig({ configs: { [cellId]: { disabled: true } } });
       updateCellConfig({ cellId, config: { disabled: true } });
     }
   };
