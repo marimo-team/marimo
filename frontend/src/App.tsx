@@ -103,6 +103,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const codes = cells.present.map((cell) => cell.code);
   const cellNames = cells.present.map((cell) => cell.name);
+  const configs = cells.present.map((cell) => cell.config);
   const needsSave =
     savedCodes.length !== codes.length ||
     savedCodes.some((code, index) => codes[index] !== code);
@@ -126,7 +127,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     }
 
     Logger.log("saving to ", filename);
-    sendSave(codes, cellNames, filename)
+    sendSave({ codes, names: cellNames, filename, configs })
       .then(() => {
         if (showToast) {
           toast({ title: "Notebook saved" });

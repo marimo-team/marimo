@@ -44,15 +44,18 @@ export function sendRename(filename: string | null) {
   });
 }
 
-export function sendSave(codes: string[], names: string[], filename: string) {
+export function sendSave(request: SaveKernelRequest) {
   // Validate same length
-  invariant(codes.length === names.length, "must be the same length");
+  invariant(
+    request.codes.length === request.names.length,
+    "cell codes and names must be the same length"
+  );
+  invariant(
+    request.codes.length === request.configs.length,
+    "cell codes and configs must be the same length"
+  );
 
-  return API.post<SaveKernelRequest>("/kernel/save/", {
-    codes: codes,
-    names: names,
-    filename: filename,
-  });
+  return API.post<SaveKernelRequest>("/kernel/save/", request);
 }
 
 export function sendFormat(codes: Record<CellId, string>) {

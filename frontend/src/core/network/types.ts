@@ -40,6 +40,7 @@ export interface SaveKernelRequest {
   filename: string;
   codes: string[];
   names: string[];
+  configs: CellConfig[];
 }
 
 export interface SendDirectoryAutocompleteRequest {
