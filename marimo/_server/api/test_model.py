@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 from marimo._server.api.model import parse_raw
 
@@ -56,7 +56,7 @@ class TestParseRaw:
     def test_nested_list(self) -> None:
         @dataclass
         class Nested:
-            configs: list[Config]
+            configs: List[Config]
 
         nested = Nested(
             configs=[
@@ -71,7 +71,7 @@ class TestParseRaw:
     def test_nested_dict(self) -> None:
         @dataclass
         class Nested:
-            configs: dict[str, Config]
+            configs: Dict[str, Config]
 
         nested = Nested(
             configs={
@@ -86,7 +86,7 @@ class TestParseRaw:
     def test_nested_tuple_ellipses(self) -> None:
         @dataclass
         class Nested:
-            configs: tuple[Config, ...]
+            configs: Tuple[Config, ...]
 
         nested = Nested(
             configs=tuple(
