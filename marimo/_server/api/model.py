@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from types import EllipsisType
 from typing import Any, Type, TypeVar, get_args, get_origin, get_type_hints
 
 T = TypeVar("T")
@@ -26,7 +25,7 @@ def _build_value(value: Any, cls: Type[T]) -> T:
         return cls(_build_value(v, arg_type) for v in value)  # type: ignore[call-arg] # noqa: E501
     elif origin_cls == tuple:
         arg_types = get_args(cls)
-        if len(arg_types) == 2 and isinstance(arg_types[1], EllipsisType):
+        if len(arg_types) == 2 and isinstance(arg_types[1], type(Ellipsis)):
             return cls(_build_value(v, arg_types[0]) for v in value)  # type: ignore[call-arg] # noqa: E501
         else:
             return cls(_build_value(v, t) for v, t in zip(value, arg_types))  # type: ignore[call-arg] # noqa: E501
