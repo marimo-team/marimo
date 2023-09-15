@@ -461,8 +461,14 @@ class Kernel:
         write_completed_run()
 
     def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
-        """Run cells, send outputs to frontends"""
+        """Run cells, send outputs to frontends
+
+        Returns set of cells that need to be re-run due to state updates.
+        """
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
+
+        # Status updates: cells transition to queued, except for
+        # cells that are disabled (explicity or implicitly).
         disabled_cells: set[CellId_t] = set()
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
@@ -471,7 +477,6 @@ class Kernel:
             else:
                 write_queued(cell_id=cid)
         cell_ids = cell_ids - disabled_cells
-
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
             graph=self.graph,

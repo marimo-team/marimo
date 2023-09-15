@@ -16,6 +16,13 @@ from marimo._messaging.completion_option import CompletionOption
 from marimo._plugins.core.web_component import JSONType
 
 
+"""CellStatus
+
+idle: cell has run with latest inputs
+queued: cell is queued to run
+running: cell is running
+stale: cell hasn't run with latest inputs, and can't run (disabled)
+"""
 CellStatus = Literal["idle", "queued", "running", "stale"]
 
 
@@ -23,7 +30,7 @@ CellStatus = Literal["idle", "queued", "running", "stale"]
 #
 # output  - a CellOutput
 # console - a CellOutput (console message to append), or a list of CellOutputs
-# status  - execution status (idle, queued, running)
+# status  - execution status
 #
 # NB: omitting a field means that its value should be unchanged
 #
