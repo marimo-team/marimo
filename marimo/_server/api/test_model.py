@@ -1,0 +1,54 @@
+from dataclasses import dataclass, asdict
+import json
+
+from marimo._server.api.model import parse_raw
+
+
+def serialize(obj: object) -> bytes:
+    return bytes(
+        json.dumps(asdict(obj) if not isinstance(obj, dict) else obj),
+        encoding="utf-8",
+    )
+
+
+class TestParseRaw:
+    def test_flat(self) -> None:
+        @dataclass
+        class Flat:
+            x: str
+            y: int
+
+        flat = Flat(x="hello", y=0)
+        parsed = parse_raw(serialize(flat), Flat)
+        assert parsed == flat
+
+    def test_camel_case_to_snake(self) -> None:
+        @dataclass
+        class Flat:
+            my_variable: str
+            my_other_variable: int
+
+        parsed = parse_raw(
+            serialize({"MyVariable": "0", "MyOtherVariable": 1}), Flat
+        )
+        assert parsed == Flat(my_variable="0", my_other_variable=1)
+
+    def test_nested(self) -> None:
+        @dataclass
+        class Config:
+            disabled: bool
+            gpu: bool
+
+        @dataclass
+        class Nested:
+            configs: list[Config]
+
+        nested = Nested(
+            configs=[
+                Config(disabled=True, gpu=False),
+                Config(disabled=False, gpu=True),
+            ]
+        )
+
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
