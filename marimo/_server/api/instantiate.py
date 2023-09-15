@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List
 
 import tornado.web
 
@@ -15,9 +15,9 @@ from marimo._server.api.model import parse_raw
 @dataclass
 class Instantiate:
     # unique identifiers for UIElements
-    object_ids: list[str]
+    object_ids: List[str]
     # initial value of each UIElement
-    values: list[Any]
+    values: List[Any]
 
 
 class InstantiateHandler(tornado.web.RequestHandler):

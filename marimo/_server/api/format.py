@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Dict
 
 import tornado.web
 
@@ -16,7 +17,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class Format:
     # map from cell id to code
-    codes: dict[cell.CellId_t, str]
+    codes: Dict[cell.CellId_t, str]
 
 
 class FormatHandler(tornado.web.RequestHandler):

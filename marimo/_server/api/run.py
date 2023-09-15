@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import List
 
 import tornado.web
 
@@ -14,9 +15,9 @@ from marimo._server.api.model import parse_raw
 @dataclass
 class Run:
     # ids of cells to run
-    cell_ids: list[CellId_t]
+    cell_ids: List[CellId_t]
     # code to register/run for each cell
-    codes: list[str]
+    codes: List[str]
 
 
 class RunHandler(tornado.web.RequestHandler):

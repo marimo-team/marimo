@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List
 
 import tornado.web
 
@@ -14,9 +14,9 @@ from marimo._server.api.model import parse_raw
 @dataclass
 class SetUIElementValue:
     # ids of UI elements whose values we'll set
-    object_ids: list[str]
+    object_ids: List[str]
     # value of each UI element; same length as object_ids
-    values: list[Any]
+    values: List[Any]
 
 
 class SetUIElementValueHandler(tornado.web.RequestHandler):
