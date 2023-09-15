@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Optional, cast
+from typing import Any, Dict, Optional, cast
 
 from typing_extensions import Literal
 
@@ -87,7 +87,7 @@ class MarimoConfig(TypedDict, total=False):
     completion: CompletionConfig
     save: SaveConfig
     keymap: KeymapConfig
-    experimental: dict[str, Any]
+    experimental: Dict[str, Any]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -110,7 +110,7 @@ def configure(config: MarimoConfig) -> MarimoConfig:
     _USER_CONFIG = cast(
         MarimoConfig,
         deep_merge(
-            cast(dict[Any, Any], DEFAULT_CONFIG), cast(dict[Any, Any], config)
+            cast(Dict[Any, Any], DEFAULT_CONFIG), cast(Dict[Any, Any], config)
         ),
     )
     return _USER_CONFIG
