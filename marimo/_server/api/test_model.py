@@ -1,10 +1,20 @@
-from dataclasses import dataclass, asdict
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
 import json
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from marimo._server.api.model import parse_raw
 
 
-def serialize(obj: object) -> bytes:
+@dataclass
+class Config:
+    disabled: bool
+    gpu: bool
+
+
+def serialize(obj: Any) -> bytes:
     return bytes(
         json.dumps(asdict(obj) if not isinstance(obj, dict) else obj),
         encoding="utf-8",
@@ -35,11 +45,6 @@ class TestParseRaw:
 
     def test_nested_singleton(self) -> None:
         @dataclass
-        class Config:
-            disabled: bool
-            gpu: bool
-
-        @dataclass
         class Nested:
             config: Config
 
@@ -50,11 +55,6 @@ class TestParseRaw:
 
     def test_nested_list(self) -> None:
         @dataclass
-        class Config:
-            disabled: bool
-            gpu: bool
-
-        @dataclass
         class Nested:
             configs: list[Config]
 
@@ -63,6 +63,53 @@ class TestParseRaw:
                 Config(disabled=True, gpu=False),
                 Config(disabled=False, gpu=True),
             ]
+        )
+
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+    def test_nested_dict(self) -> None:
+        @dataclass
+        class Nested:
+            configs: dict[str, Config]
+
+        nested = Nested(
+            configs={
+                "0": Config(disabled=True, gpu=False),
+                "1": Config(disabled=False, gpu=True),
+            }
+        )
+
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+    def test_nested_tuple_ellipses(self) -> None:
+        @dataclass
+        class Nested:
+            configs: tuple[Config, ...]
+
+        nested = Nested(
+            configs=tuple(
+                [
+                    Config(disabled=True, gpu=False),
+                    Config(disabled=False, gpu=True),
+                ]
+            )
+        )
+
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+    def test_nested_tuple_fixed(self) -> None:
+        @dataclass
+        class Nested:
+            configs: tuple[str, Config]
+
+        nested = Nested(
+            configs=(
+                "0",
+                Config(disabled=True, gpu=False),
+            )
         )
 
         parsed = parse_raw(serialize(nested), Nested)
