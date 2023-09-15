@@ -139,7 +139,7 @@ def generate_filecontents(
 
     for code, cell_config in zip(codes, cell_configs):
         try:
-            cell = parse_cell(code).with_config(cell_config)
+            cell = parse_cell(code).configure(cell_config)
             defs |= cell.defs
             cell_function_data.append(cell)
         except SyntaxError:

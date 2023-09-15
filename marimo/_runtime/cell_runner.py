@@ -148,12 +148,19 @@ class Runner:
         glbls: dict[Any, Any],
     ):
         self.graph = graph
+        # runtime globals
         self.glbls = glbls
+        # cells that the runner will run.
         self.cells_to_run = dataflow.topological_sort(graph, cell_ids)
+        # map from a cell that was cancelled to its descendants that have
+        # not yet run:
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
+        # whether the runner has been interrupted
         self.interrupted = False
+        # mapping from cell_id to exception it raised
         self.exceptions: dict[CellId_t, Exception] = {}
 
+        # each cell's position in the run queue
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
@@ -270,11 +277,13 @@ class Runner:
             return_value = execute_cell(cell, self.glbls)
             run_result = RunResult(output=return_value, exception=None)
         except MarimoInterrupt as e:
+            # User interrupt
             # interrupt the entire runner
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
             self.print_traceback()
         except MarimoStopError as e:
+            # Raised by mo.stop().
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=e.output, exception=e)

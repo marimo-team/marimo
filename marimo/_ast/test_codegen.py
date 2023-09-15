@@ -301,7 +301,7 @@ class TestToFunctionDef:
     def test_with_empty_config(self) -> None:
         code = "x = 0"
         cell = parse_cell(code)
-        cell = cell.with_config(CellConfig())
+        cell = cell.configure(CellConfig())
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             ["@app.cell", "def foo():", "    x = 0", "    return x,"]
@@ -311,7 +311,7 @@ class TestToFunctionDef:
     def test_with_some_config(self) -> None:
         code = "x = 0"
         cell = parse_cell(code)
-        cell = cell.with_config(CellConfig(disabled=True))
+        cell = cell.configure(CellConfig(disabled=True))
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             [

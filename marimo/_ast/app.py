@@ -142,9 +142,7 @@ class App:
                 func: CellFuncTypeBound,
             ) -> CellFunction[CellFuncTypeBound]:
                 cell_function = cell_factory(func)
-                cell_function.cell = cell_function.cell.with_config(
-                    CellConfig(disabled=disabled)
-                )
+                cell_function.cell.configure(CellConfig(disabled=disabled))
                 self._register_cell(cell_function)
                 return cell_function
 
@@ -156,9 +154,7 @@ class App:
             # If the decorator was used without parentheses, func will be the
             # decorated function
             cell_function = cell_factory(func)
-            cell_function.cell = cell_function.cell.with_config(
-                CellConfig(disabled=disabled)
-            )
+            cell_function.cell.configure(CellConfig(disabled=disabled))
             self._register_cell(cell_function)
             return cell_function
 

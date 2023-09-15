@@ -24,6 +24,7 @@ from typing import (
 )
 
 from marimo._ast.visitor import Name, ScopedVisitor, _is_local
+from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
@@ -32,7 +33,7 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class CellConfig:
     # If True, the cell and its descendants cannot be executed,
     # but they can still be added to the graph.
@@ -42,10 +43,28 @@ class CellConfig:
     def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
         return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
 
+    def configure(self, update: dict[str, Any] | CellConfig) -> None:
+        """Update the config in-place.
+
+        `update` can be a partial config or a CellConfig
+        """
+        if isinstance(update, CellConfig):
+            update = dataclasses.asdict(update)
+        new_config = dataclasses.asdict(
+            CellConfig.from_dict(deep_merge(dataclasses.asdict(self), update))
+        )
+        for key, value in new_config.items():
+            self.__setattr__(key, value)
+
 
 CellConfigKeys = frozenset(
     {field.name for field in dataclasses.fields(CellConfig)}
 )
+
+
+@dataclasses.dataclass
+class CellStatus:
+    stale: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -59,20 +78,23 @@ class Cell:
 
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
-    config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
-    def with_config(self, config: CellConfig) -> Cell:
-        return Cell(
-            key=self.key,
-            code=self.code,
-            mod=self.mod,
-            defs=self.defs,
-            refs=self.refs,
-            deleted_refs=self.deleted_refs,
-            body=self.body,
-            last_expr=self.last_expr,
-            config=config,
-        )
+    # Mutable fields
+    # config: explicit configuration of cell
+    config: CellConfig = dataclasses.field(default_factory=CellConfig)
+    # staus: status, inferred at runtime
+    status: CellStatus = dataclasses.field(default_factory=CellStatus)
+
+    def configure(self, update: dict[str, Any] | CellConfig) -> Cell:
+        """Update the cel config.
+
+        `update` can be a partial config.
+        """
+        self.config.configure(update)
+        return self
+
+    def set_status(self, stale: bool) -> None:
+        self.status.stale = stale
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
