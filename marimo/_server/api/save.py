@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import List
 
 import tornado.web
 
@@ -20,11 +21,11 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class Save:
     # code for each cell
-    codes: list[str]
+    codes: List[str]
     # name of each cell
-    names: list[str]
+    names: List[str]
     # config for each cell
-    configs: list[CellConfig]
+    configs: List[CellConfig]
     # path to app
     filename: str
 

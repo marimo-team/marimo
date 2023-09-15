@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 
 import tornado.web
 
@@ -18,7 +18,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class SaveAppConfiguration:
     # partial app config
-    config: dict[str, Any]
+    config: Dict[str, Any]
 
 
 class SaveAppConfigurationHandler(tornado.web.RequestHandler):
