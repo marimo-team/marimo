@@ -18,7 +18,7 @@ from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, parse_cell
+from marimo._ast.cell import CellId_t, parse_cell
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -35,8 +35,8 @@ from marimo._messaging.messages import (
     write_new_run,
     write_output,
     write_queued,
-    write_stale,
     write_remove_ui_elements,
+    write_stale,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
@@ -472,9 +472,11 @@ class Kernel:
         disabled_cells: set[CellId_t] = set()
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
+                self.graph.cells[cid].set_status(stale=True)
                 write_stale(cell_id=cid)
                 disabled_cells.add(cid)
             else:
+                self.graph.cells[cid].set_status(stale=False)
                 write_queued(cell_id=cid)
         cell_ids = cell_ids - disabled_cells
         runner = cell_runner.Runner(
@@ -657,12 +659,22 @@ class Kernel:
         )
 
     def set_cell_config(self, request: SetCellConfigRequest) -> None:
+        """Update cell configs.
+
+        Cells that are enabled (via config) but stale are run as a side-effect.
+        """
+        # Stale cells that are enabled will need to be run.
+        enabled_cells_to_run: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             cell = self.graph.cells.get(cell_id)
             if cell is not None:
-                self.graph.cells[cell_id] = cell.with_config(
-                    CellConfig.from_dict(config)
-                )
+                cell.configure(config)
+                if not cell.config.disabled and cell.status.stale:
+                    enabled_cells_to_run.add(cell_id)
+        if enabled_cells_to_run:
+            self._run_cells(
+                dataflow.transitive_closure(self.graph, enabled_cells_to_run)
+            )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.

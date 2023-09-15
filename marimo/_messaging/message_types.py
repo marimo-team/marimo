@@ -15,7 +15,6 @@ from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._plugins.core.web_component import JSONType
 
-
 """CellStatus
 
 idle: cell has run with latest inputs

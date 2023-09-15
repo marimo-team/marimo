@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Optional, TypeVar, cast
+from typing import Any, Optional, cast
 
 from typing_extensions import Literal
 
@@ -12,6 +12,7 @@ else:
     from typing import TypedDict
 
 from marimo._output.rich_help import mddoc
+from marimo._utils.deep_merge import deep_merge
 
 
 @mddoc
@@ -96,35 +97,6 @@ DEFAULT_CONFIG: MarimoConfig = {
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 
-ConfigType = TypeVar(
-    "ConfigType", MarimoConfig, SaveConfig, CompletionConfig, KeymapConfig
-)
-
-
-# TODO(akshayka): Type-safety, can't index into TypedDict with nonliteral
-def _merge_key(defaults: Any, override: Any, key: str) -> Any:
-    if key not in defaults:
-        # forward compatibility: old versions of marimo won't be aware of new
-        # settings. Config might also have misspelled keys, but shouldn't fail
-        # if that happens.
-        return override[key]
-    elif key not in override:
-        return defaults[key]
-    elif not isinstance(defaults[key], dict):
-        return override[key]
-    else:
-        return _merge_configs(defaults[key], override[key])
-
-
-def _merge_configs(defaults: ConfigType, override: ConfigType) -> ConfigType:
-    return cast(
-        ConfigType,
-        {
-            key: _merge_key(defaults, override, key)
-            for key in set(defaults.keys()).union(set(override.keys()))
-        },
-    )
-
 
 @mddoc
 def configure(config: MarimoConfig) -> MarimoConfig:
@@ -135,8 +107,12 @@ def configure(config: MarimoConfig) -> MarimoConfig:
     - `config`: A configuration object.
     """
     global _USER_CONFIG
-    # Robust merging of configs (want to merge on leaves, not just keys)
-    _USER_CONFIG = cast(MarimoConfig, _merge_configs(DEFAULT_CONFIG, config))
+    _USER_CONFIG = cast(
+        MarimoConfig,
+        deep_merge(
+            cast(dict[Any, Any], DEFAULT_CONFIG), cast(dict[Any, Any], config)
+        ),
+    )
     return _USER_CONFIG
 
 
