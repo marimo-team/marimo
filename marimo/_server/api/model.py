@@ -1,4 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
 import dataclasses
 import json
 from types import EllipsisType
