@@ -436,6 +436,9 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
+        for cid in cells_that_no_longer_have_errors:
+            # clear error outputs before running
+            write_output("output", mimetype="text/plain", data="", cell_id=cid)
 
         # Cells that were successfully registered need to be run
         cells_registered_without_error = (
@@ -722,7 +725,6 @@ class Kernel:
                             elif self.graph.cells[
                                 cid
                             ].status.disabled_transitively:
-                                # TODO: not currently right, clears output ...
                                 write_idle(cid)
                 elif cell.config.disabled:
                     # When a cell is disabled, we need to tell the frontend

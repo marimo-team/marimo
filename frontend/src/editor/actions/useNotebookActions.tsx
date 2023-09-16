@@ -21,14 +21,12 @@ interface Action {
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
 
-  const cells = useCells()
-  const {
-    updateCellConfig
-  } = useCellActions();
+  const cells = useCells();
+  const { updateCellConfig } = useCellActions();
   const setCommandPalletteOpen = useSetAtom(commandPalletteAtom);
   const runCells = useRunCells();
 
-  const disabledCells = cells.present.filter(cell => cell.config.disabled);
+  const disabledCells = cells.present.filter((cell) => cell.config.disabled);
 
   const actions: Action[] = [
     {
@@ -45,12 +43,16 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       label: "Enable cells and run",
       hidden: disabledCells.length === 0,
       handle: async () => {
-        const ids = disabledCells.map(cell => cell.key);
-        const newConfigs = Objects.fromEntries(ids.map(cellId => [cellId, { disabled: null }]));
+        const ids = disabledCells.map((cell) => cell.key);
+        const newConfigs = Objects.fromEntries(
+          ids.map((cellId) => [cellId, { disabled: null }])
+        );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
-        ids.forEach(cellId => updateCellConfig({ cellId, config: { disabled: true } }));
+        ids.forEach((cellId) =>
+          updateCellConfig({ cellId, config: { disabled: true } })
+        );
         // run all cells
         await runCells(disabledCells);
       },
@@ -63,5 +65,5 @@ export function useNotebookActions(opts: { filename?: string | null }) {
     },
   ];
 
-  return actions.filter(a => !a.hidden);
+  return actions.filter((a) => !a.hidden);
 }

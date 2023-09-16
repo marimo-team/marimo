@@ -25,7 +25,7 @@ export function transitionCell(
       nextCell.runStartTimestamp = message.timestamp;
       break;
     case "idle":
-      nextCell.output = message.output;
+      nextCell.output = message.output ?? cell.output;
       if (cell.runStartTimestamp) {
         nextCell.runElapsedTimeMs =
           (message.timestamp - cell.runStartTimestamp) * 1000;

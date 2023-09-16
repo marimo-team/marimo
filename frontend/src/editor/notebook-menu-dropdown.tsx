@@ -16,7 +16,6 @@ interface Props {
 }
 
 export const NotebookMenuDropdown: React.FC<Props> = ({ filename }) => {
-
   const actions = useNotebookActions({ filename });
 
   const button = (
@@ -30,7 +29,6 @@ export const NotebookMenuDropdown: React.FC<Props> = ({ filename }) => {
       <MenuIcon strokeWidth={1.8} />
     </Button>
   );
-
 
   return (
     <DropdownMenu modal={false}>

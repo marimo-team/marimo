@@ -1,6 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import type { Meta, StoryFn } from "@storybook/react";
-import { CellStatusComponent, CellStatusComponentProps } from "@/editor/cell/CellStatus";
+import {
+  CellStatusComponent,
+  CellStatusComponentProps,
+} from "@/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta: Meta<typeof CellStatusComponent> = {
@@ -11,18 +14,18 @@ const meta: Meta<typeof CellStatusComponent> = {
 
 export default meta;
 
-
-const Template: StoryFn<CellStatusComponentProps> = (args) =>
+const Template: StoryFn<CellStatusComponentProps> = (args) => (
   <TooltipProvider>
     <div className="bg-background">
       <CellStatusComponent {...args} />
     </div>
   </TooltipProvider>
+);
 
 export const Idle = Template.bind({});
 Idle.args = {
   editing: true,
-  status: 'idle',
+  status: "idle",
   edited: false,
   interrupted: false,
   disabled: false,
@@ -32,7 +35,7 @@ Idle.args = {
 export const Edited = Template.bind({});
 Edited.args = {
   editing: true,
-  status: 'idle',
+  status: "idle",
   edited: true,
   interrupted: false,
   disabled: false,
@@ -42,7 +45,7 @@ Edited.args = {
 export const Interrupted = Template.bind({});
 Interrupted.args = {
   editing: true,
-  status: 'idle',
+  status: "idle",
   edited: false,
   interrupted: true,
   disabled: false,
@@ -52,7 +55,7 @@ Interrupted.args = {
 export const Running = Template.bind({});
 Running.args = {
   editing: true,
-  status: 'running',
+  status: "running",
   edited: false,
   interrupted: true,
   disabled: false,
@@ -62,18 +65,17 @@ Running.args = {
 export const Queued = Template.bind({});
 Queued.args = {
   editing: true,
-  status: 'queued',
+  status: "queued",
   edited: false,
   interrupted: true,
   disabled: false,
   elapsedTime: 50,
 };
 
-
 export const Disabled = Template.bind({});
 Disabled.args = {
   editing: true,
-  status: 'idle',
+  status: "idle",
   edited: false,
   interrupted: false,
   disabled: true,
@@ -83,7 +85,7 @@ Disabled.args = {
 export const DisabledTransitively = Template.bind({});
 DisabledTransitively.args = {
   editing: true,
-  status: 'disabled-transitively',
+  status: "disabled-transitively",
   edited: false,
   interrupted: false,
   disabled: false,
@@ -93,7 +95,7 @@ DisabledTransitively.args = {
 export const DisabledTransitivelyAndEdited = Template.bind({});
 DisabledTransitivelyAndEdited.args = {
   editing: true,
-  status: 'disabled-transitively',
+  status: "disabled-transitively",
   edited: true,
   interrupted: false,
   disabled: false,
@@ -103,7 +105,7 @@ DisabledTransitivelyAndEdited.args = {
 export const Stale = Template.bind({});
 Stale.args = {
   editing: true,
-  status: 'stale',
+  status: "stale",
   edited: false,
   interrupted: false,
   disabled: false,
@@ -113,18 +115,17 @@ Stale.args = {
 export const StaleAndDisabled = Template.bind({});
 StaleAndDisabled.args = {
   editing: true,
-  status: 'stale',
+  status: "stale",
   edited: false,
   interrupted: false,
   disabled: true,
   elapsedTime: null,
 };
 
-
 export const EditedStaleAndDisabled = Template.bind({});
 EditedStaleAndDisabled.args = {
   editing: true,
-  status: 'stale',
+  status: "stale",
   edited: true,
   interrupted: false,
   disabled: true,
@@ -134,7 +135,7 @@ EditedStaleAndDisabled.args = {
 export const EditedAndStale = Template.bind({});
 EditedAndStale.args = {
   editing: true,
-  status: 'stale',
+  status: "stale",
   edited: true,
   interrupted: false,
   disabled: false,

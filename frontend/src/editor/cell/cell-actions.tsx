@@ -112,9 +112,12 @@ export const CellActionsDropdown = ({
         },
       },
       {
-        icon: config.disabled ? <ZapIcon size={13} strokeWidth={1.5} /> : <ZapOffIcon size={13} strokeWidth={1.5} />,
-        label:
-          config.disabled === true ? "Enable and run cell" : "Disable cell",
+        icon: config.disabled ? (
+          <ZapIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <ZapOffIcon size={13} strokeWidth={1.5} />
+        ),
+        label: config.disabled === true ? "Enable cell" : "Disable cell",
         rightElement: (
           <Switch
             // null implies true
@@ -228,9 +231,7 @@ export const CellActionsDropdown = ({
           </TooltipContent>
         )}
         <TooltipTrigger>
-          <PopoverTrigger
-            className="flex"
-          >{children}</PopoverTrigger>
+          <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>
       <PopoverContent
@@ -260,7 +261,7 @@ export const CellActionsDropdown = ({
                       }}
                       className={cn(
                         action.variant === "danger" &&
-                        "aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]"
+                          "aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]"
                       )}
                     >
                       <div className="flex items-center flex-1">

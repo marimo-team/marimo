@@ -58,28 +58,28 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-    CellState,
-    | "consoleOutputs"
-    | "status"
-    | "output"
-    | "initialContents"
-    | "edited"
-    | "errored"
-    | "interrupted"
-    | "config"
-    | "stopped"
-    | "runElapsedTimeMs"
-  >,
-  Pick<
-    CellActions,
-    | "updateCellCode"
-    | "prepareForRun"
-    | "createNewCell"
-    | "deleteCell"
-    | "focusCell"
-    | "moveCell"
-    | "moveToNextCell"
-  > {
+      CellState,
+      | "consoleOutputs"
+      | "status"
+      | "output"
+      | "initialContents"
+      | "edited"
+      | "errored"
+      | "interrupted"
+      | "config"
+      | "stopped"
+      | "runElapsedTimeMs"
+    >,
+    Pick<
+      CellActions,
+      | "updateCellCode"
+      | "prepareForRun"
+      | "createNewCell"
+      | "deleteCell"
+      | "focusCell"
+      | "moveCell"
+      | "moveToNextCell"
+    > {
   theme: Theme;
   showPlaceholder: boolean;
   cellId: CellId;
@@ -385,7 +385,7 @@ const CellComponent = (
     "has-error": errored,
     stopped: stopped,
     disabled: cellConfig.disabled,
-    stale: status === 'stale' || status === 'disabled-transitively',
+    stale: status === "stale" || status === "disabled-transitively",
   });
 
   const HTMLId = HTMLCellId.create(cellId);

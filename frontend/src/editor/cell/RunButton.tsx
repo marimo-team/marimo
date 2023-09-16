@@ -31,24 +31,26 @@ export const RunButton = (props: {
   const inactive = appClosed || loading;
   const color = computeColor(appClosed, needsRun, loading);
 
-
-  const blockedStatus = status === 'stale' || status === 'disabled-transitively';
+  const blockedStatus =
+    status === "stale" || status === "disabled-transitively";
   if (config.disabled || (blockedStatus && !edited)) {
-    return <Tooltip content="Add code to notebook" usePortal={false}>
-      <Button
-        className={cn(
-          !needsRun && "hover-action",
-          inactive && "inactive-button",
-        )}
-        onClick={onClick}
-        color={color}
-        shape="circle"
-        size="small"
-        data-testid="run-button"
-      >
-        <HardDriveDownloadIcon strokeWidth={1.8} />
-      </Button>
-    </Tooltip>
+    return (
+      <Tooltip content="Add code to notebook" usePortal={false}>
+        <Button
+          className={cn(
+            !needsRun && "hover-action",
+            inactive && "inactive-button"
+          )}
+          onClick={onClick}
+          color={color}
+          shape="circle"
+          size="small"
+          data-testid="run-button"
+        >
+          <HardDriveDownloadIcon strokeWidth={1.8} />
+        </Button>
+      </Tooltip>
+    );
   }
 
   let tooltipMsg: React.ReactNode = "";

@@ -152,7 +152,7 @@ export const Disabled: Story = {
           {...props}
           runElapsedTimeMs={20}
           config={{
-            disabled: true
+            disabled: true,
           }}
           output={{
             channel: "output",
@@ -173,7 +173,7 @@ export const DisabledTransitively: Story = {
         <Cell
           {...props}
           runElapsedTimeMs={20}
-          status='disabled-transitively'
+          status="disabled-transitively"
           output={{
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -206,7 +206,6 @@ export const StaleStatus: Story = {
   ),
 };
 
-
 export const StaleAndEditedStatus: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
@@ -235,7 +234,7 @@ export const DisabledAndStaleStatus: Story = {
           {...props}
           runElapsedTimeMs={20}
           config={{
-            disabled: true
+            disabled: true,
           }}
           status="stale"
           output={{
