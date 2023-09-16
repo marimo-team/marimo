@@ -236,6 +236,7 @@ export const CellActionsDropdown = ({
       <PopoverContent
         className="w-[300px] p-0 pt-1"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <Command>
           <CommandInput

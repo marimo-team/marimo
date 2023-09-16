@@ -31,7 +31,6 @@
 .Cell.disabled.stale .cm {
   background-color: var(--gray-2);
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .Cell.stale .OutputArea,
@@ -39,7 +38,6 @@
 .Cell.stale .cm-gutters {
   background-color: var(--gray-1);
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .Cell.has-error,
