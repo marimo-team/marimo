@@ -607,9 +607,9 @@ describe("cell reducer", () => {
     // Revert
     actions.updateCellConfig({
       cellId: firstCellId,
-      config: { disabled: null },
+      config: { disabled: false },
     });
     cell = state.present[0];
-    expect(cell.config.disabled).toBe(null);
+    expect(cell.config.disabled).toBe(false);
   });
 });

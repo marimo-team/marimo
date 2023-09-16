@@ -110,8 +110,7 @@ export interface CellState {
 
 export interface CellConfig {
   /**
-   * If true, the cell and its descendants will be disabled (unable to run).
-   * Cannot be false, and instead will be set to null.
+   * If true, the cell and its descendants are unable to run.
    */
-  disabled?: true | null;
+  disabled?: boolean;
 }

@@ -82,9 +82,9 @@ export const CellActionsDropdown = ({
     sendToBottom,
   } = useCellActions();
   const toggleDisabled = async () => {
-    if (config.disabled === true) {
-      await saveCellConfig({ configs: { [cellId]: { disabled: null } } });
-      updateCellConfig({ cellId, config: { disabled: null } });
+    if (config.disabled) {
+      await saveCellConfig({ configs: { [cellId]: { disabled: false } } });
+      updateCellConfig({ cellId, config: { disabled: false } });
     } else {
       await saveCellConfig({ configs: { [cellId]: { disabled: true } } });
       updateCellConfig({ cellId, config: { disabled: true } });
@@ -120,8 +120,7 @@ export const CellActionsDropdown = ({
         label: config.disabled === true ? "Enable cell" : "Disable cell",
         rightElement: (
           <Switch
-            // null implies true
-            checked={config.disabled === true ? false : true}
+            checked={!config.disabled}
             size="sm"
             onCheckedChange={toggleDisabled}
           />

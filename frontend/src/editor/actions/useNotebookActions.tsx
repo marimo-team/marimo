@@ -45,7 +45,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.key);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: null }])
+          ids.map((cellId) => [cellId, { disabled: false }])
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
