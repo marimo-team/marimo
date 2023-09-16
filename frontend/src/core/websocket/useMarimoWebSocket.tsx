@@ -11,6 +11,7 @@ import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { saveCellConfig, sendInstantiate } from "../network/requests";
 import { CellId } from "../model/ids";
+import { CellConfig } from "../model/cells";
 import { CellState, createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
@@ -22,8 +23,9 @@ export function useMarimoWebSocket(opts: {
   sessionId: string;
   setCells: (cells: CellState[]) => void;
   setInitialCodes: (codes: string[]) => void;
+  setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {
-  const { sessionId, setCells, setInitialCodes } = opts;
+  const { sessionId, setCells, setInitialCodes, setInitialConfigs } = opts;
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
@@ -67,6 +69,7 @@ export function useMarimoWebSocket(opts: {
           );
           setCells(cells);
           setInitialCodes(codes);
+          setInitialConfigs(configs);
 
           // Auto-instantiate, in future this can be configurable
           // or include initial values

@@ -41,6 +41,7 @@ import { useWindowEventListener } from "./hooks/useEventListener";
 import { toast } from "./components/ui/use-toast";
 import { SortableCellsProvider } from "./components/sort/SortableCellsProvider";
 import { CellId, HTMLCellId } from "./core/model/ids";
+import { CellConfig } from "./core/model/cells";
 import { getFilenameFromDOM } from "./core/dom/htmlUtils";
 import { CellArray } from "./editor/renderers/CellArray";
 import { RuntimeState } from "./core/RuntimeState";
@@ -57,6 +58,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useState(getFilenameFromDOM());
   const [savedCodes, setSavedCodes] = useState<string[]>([""]);
+  const [savedConfigs, setSavedConfigs] = useState<CellConfig[]>([]);
   const { openModal, closeModal, openAlert } = useImperativeModal();
 
   const isEditing = viewState.mode === "edit";
@@ -79,6 +81,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { connStatus } = useMarimoWebSocket({
     setCells,
     setInitialCodes: setSavedCodes,
+    setInitialConfigs: setSavedConfigs,
     sessionId: UUID,
   });
 
@@ -106,7 +109,9 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const configs = cells.present.map((cell) => cell.config);
   const needsSave =
     savedCodes.length !== codes.length ||
-    savedCodes.some((code, index) => codes[index] !== code);
+    savedCodes.some((code, index) => codes[index] !== code) ||
+    savedConfigs.length !== configs.length ||
+    savedConfigs.some((config, index) => configs[index] !== config);
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, showToast: boolean) => {
@@ -133,6 +138,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           toast({ title: "Notebook saved" });
         }
         setSavedCodes(codes);
+        setSavedConfigs(configs);
       })
       .catch((error) => {
         openAlert(error.message);
@@ -164,9 +170,10 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   useAutoSave({
     // Only run autosave if the file is named
     onSave: saveIfNotebookIsNamed,
-    // Reset autosave when needsSave or codes have changed
+    // Reset autosave when needsSave, or codes/configs have changed
     needsSave: needsSave,
     codes: codes,
+    cellConfigs: configs,
     connStatus: connStatus,
     config: userConfig,
   });
