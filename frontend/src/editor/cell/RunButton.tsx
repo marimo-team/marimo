@@ -35,7 +35,8 @@ export const RunButton = (props: {
   const blockedStatus =
     status === "stale" || status === "disabled-transitively";
   const loading = status === "running" || status === "queued";
-  const inactive = appClosed || loading || (!config.disabled && blockedStatus && !edited);
+  const inactive =
+    appClosed || loading || (!config.disabled && blockedStatus && !edited);
   const color = computeColor(appClosed, needsRun, loading, inactive);
 
   if (config.disabled) {

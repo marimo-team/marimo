@@ -9,7 +9,7 @@ import { RuntimeState } from "@/core/RuntimeState";
 import { COMPLETION_REQUESTS } from "@/core/codemirror/completion/CompletionRequests";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
-import { sendInstantiate } from "../network/requests";
+import { saveCellConfig, sendInstantiate } from "../network/requests";
 import { CellId } from "../model/ids";
 import { CellState, createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
@@ -49,7 +49,7 @@ export function useMarimoWebSocket(opts: {
       const msg = JSON.parse(e.data) as OperationMessage;
       switch (msg.op) {
         case "kernel-ready": {
-          const { codes, names } = msg.data;
+          const { codes, names, configs } = msg.data;
 
           // TODO(akshayka): Get rid of this once the kernel sends cell IDs in
           // kernel-ready.
@@ -62,6 +62,7 @@ export function useMarimoWebSocket(opts: {
               code,
               initialContents: code,
               name: names[i],
+              config: configs[i],
             })
           );
           setCells(cells);
@@ -80,6 +81,16 @@ export function useMarimoWebSocket(opts: {
           });
           // Start the run
           RuntimeState.INSTANCE.registerRunStart();
+          // Register the configs
+          saveCellConfig({
+            configs: Object.fromEntries(
+              cells.map((cell) => [cell.key, cell.config])
+            ),
+          }).catch((error) => {
+            showBoundary(
+              new Error("Failed to register configs", { cause: error })
+            );
+          });
           // Send the instantiate message
           sendInstantiate({ objectIds, values }).catch((error) => {
             showBoundary(new Error("Failed to instantiate", { cause: error }));

@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
-import { CellStatus } from "../model/cells";
+import { CellConfig, CellStatus } from "../model/cells";
 import { CellId } from "../model/ids";
 
 export type MarimoError =
@@ -115,6 +115,10 @@ export type OperationMessage =
          * The cell codes. Will be empty in Read mode.
          */
         codes: string[];
+        /**
+         * The cell configs.
+         */
+        configs: CellConfig[];
       };
     }
   | {
