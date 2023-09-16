@@ -80,6 +80,26 @@ Disabled.args = {
   elapsedTime: null,
 };
 
+export const DisabledTransitively = Template.bind({});
+DisabledTransitively.args = {
+  editing: true,
+  status: 'disabled-transitively',
+  edited: false,
+  interrupted: false,
+  disabled: false,
+  elapsedTime: null,
+};
+
+export const DisabledTransitivelyAndEdited = Template.bind({});
+DisabledTransitivelyAndEdited.args = {
+  editing: true,
+  status: 'disabled-transitively',
+  edited: true,
+  interrupted: false,
+  disabled: false,
+  elapsedTime: null,
+};
+
 export const Stale = Template.bind({});
 Stale.args = {
   editing: true,

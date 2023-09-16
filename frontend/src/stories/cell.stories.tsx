@@ -166,6 +166,26 @@ export const Disabled: Story = {
   ),
 };
 
+export const DisabledTransitively: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          status='disabled-transitively'
+          output={{
+            channel: "output",
+            data: "This data is stale because a parent is disabled",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
 export const StaleStatus: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">

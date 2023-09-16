@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { BanIcon, MoreHorizontalIcon, RefreshCwIcon } from "lucide-react";
+import { BanIcon, MoreHorizontalIcon, NetworkIcon, RefreshCwIcon } from "lucide-react";
 import { Tooltip } from "../../components/ui/tooltip";
 import { CellStatus } from "../../core/model/cells";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
@@ -35,157 +35,162 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     return null;
   }
 
-  // Styling: CellStatusIcon visible if queued, running, or needs run.
-  const maybeRenderRunningStatus = () => {
-
-    // don't show previous timer if disabled
-    if (disabled || status === 'stale') {
-      return null;
-    }
-
-    // running & queued icons get priority over edited/interrupted
-    if (status === "running") {
-      return (
-        <Tooltip content={"This cell is running"} usePortal={false}>
-          <div
-            className={"cell-status-icon elapsed-time running"}
-            data-testid="cell-status"
-          >
-            <CellTimer />
-          </div>
-        </Tooltip>
-      );
-    }
-
-    // queued
-    if (status === "queued" && elapsedTime) {
-      // If elapsed time < 16ms (60fps), don't show the elapsed time,
-      // otherwise it will flicker.
-      if (elapsedTime < 16) {
-        return null;
-      }
-      return (
-        <Tooltip content={"This cell is queued to run"} usePortal={false}>
-          <div
-            className="cell-status-icon cell-status-queued"
-            data-testid="cell-status"
-          >
-            <MoreHorizontalIcon
-              className="h-4 w-4"
-              strokeWidth={1.5} />
-          </div>
-        </Tooltip>
-      );
-    }
-
-    // outdated
-    if (edited || interrupted) {
-      const title = interrupted
-        ? "This cell was interrupted when it was last run"
-        : "This cell has been modified since it was last run";
-      return (
-        <Tooltip content={title} usePortal={false}>
-          <div
-            className="cell-status-icon cell-status-stale"
-            data-testid="cell-status"
-          >
-            <RefreshCwIcon
-              className="h-4 w-4"
-              strokeWidth={1.5} />
-          </div>
-        </Tooltip>
-      );
-    }
-
-    // either running or finished
-    if (elapsedTime !== null) {
-      const elapsedTimeStr = formatElapsedTime(elapsedTime);
-      return (
-        <Tooltip
-          content={`This cell took ${elapsedTimeStr} to run`}
-          usePortal={false}
+  // disabled, but not stale
+  if (disabled) {
+    return (
+      <Tooltip content={"This cell is disabled"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-disabled"
+          data-testid="cell-status"
         >
-          <div
-            className={"cell-status-icon elapsed-time hover-action"}
-            data-testid="cell-status"
-          >
-            <span>{elapsedTimeStr}</span>
-          </div>
-        </Tooltip>
-      );
-    }
+          <BanIcon
+            className="h-4 w-4"
+            strokeWidth={1.5} />
+        </div>
+      </Tooltip>
+    );
   }
 
-  const maybeRenderDisabledStatus = () => {
-    // disabled, but not stale
-    if (disabled) {
-      return (
-        <Tooltip content={"This cell is disabled"} usePortal={false}>
-          <div
-            className="cell-status-icon cell-status-disabled"
-            data-testid="cell-status"
-          >
+
+  // stale and disabled from self (not reached, case maybe added later)
+  if (disabled && status === "stale") {
+    return (
+      <Tooltip content={"This cell is disabled and has received new inputs since it's last run"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+        >
+          <MultiIcon>
+            <RefreshCwIcon
+              className="h-4 w-4"
+              stroke="var(--amber-11)"
+              strokeWidth={1.5} />
+            <BanIcon
+              className="h-2 w-2"
+              stroke="var(--amber-11)"
+              strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // disabled from parent
+  if (status === 'disabled-transitively') {
+    return (
+      <Tooltip content={"This cell is disabled since one or more parents are disabled."} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+        >
+          <MultiIcon>
             <BanIcon
               className="h-4 w-4"
               strokeWidth={1.5} />
-          </div>
-        </Tooltip>
-      );
-    }
-
-
-    // stale and disabled from self (not reached, case maybe added later)
-    if (disabled && status === "stale") {
-      return (
-        <Tooltip content={"This cell is disabled and has received new inputs since it's last run"} usePortal={false}>
-          <div
-            className="cell-status-icon cell-status-stale"
-            data-testid="cell-status"
-          >
-            <MultiIcon>
-              <RefreshCwIcon
-                className="h-4 w-4"
-                stroke="var(--amber-11)"
-                strokeWidth={1.5} />
-              <BanIcon
-                className="h-2 w-2"
-                stroke="var(--amber-11)"
-                strokeWidth={2.5} />
-            </MultiIcon>
-          </div>
-        </Tooltip>
-      );
-    }
-
-    // stale from parent being disabled
-    if (status === "stale") {
-      return (
-        <Tooltip content={"This cell is stale. One or more parents are disabled so this has not been run"} usePortal={false}>
-          <div
-            className="cell-status-icon cell-status-stale"
-            data-testid="cell-status"
-          >
-            <MultiIcon>
-              <RefreshCwIcon
-                className="h-4 w-4"
-                strokeWidth={1.5} />
-              <BanIcon
-                className="h-2 w-2"
-                strokeWidth={2.5} />
-            </MultiIcon>
-          </div>
-        </Tooltip>
-      );
-    }
-
-    return null;
+            <NetworkIcon
+              className="h-2 w-2"
+              strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
   }
 
+  // stale from parent being disabled
+  if (status === "stale") {
+    return (
+      <Tooltip content={"This cell is stale. One or more parents are disabled so this has not been run"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+        >
+          <MultiIcon>
+            <RefreshCwIcon
+              className="h-4 w-4"
+              strokeWidth={1.5} />
+            <BanIcon
+              className="h-2 w-2"
+              strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
 
-  return <div className="flex flex-col gap-1">
-    {maybeRenderDisabledStatus()}
-    {maybeRenderRunningStatus()}
-  </div>;
+  // running & queued icons get priority over edited/interrupted
+  if (status === "running") {
+    return (
+      <Tooltip content={"This cell is running"} usePortal={false}>
+        <div
+          className={"cell-status-icon elapsed-time running"}
+          data-testid="cell-status"
+        >
+          <CellTimer />
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // queued
+  if (status === "queued" && elapsedTime) {
+    // If elapsed time < 16ms (60fps), don't show the elapsed time,
+    // otherwise it will flicker.
+    if (elapsedTime < 16) {
+      return null;
+    }
+    return (
+      <Tooltip content={"This cell is queued to run"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-queued"
+          data-testid="cell-status"
+        >
+          <MoreHorizontalIcon
+            className="h-4 w-4"
+            strokeWidth={1.5} />
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // outdated
+  if (edited || interrupted) {
+    const title = interrupted
+      ? "This cell was interrupted when it was last run"
+      : "This cell has been modified since it was last run";
+    return (
+      <Tooltip content={title} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+        >
+          <RefreshCwIcon
+            className="h-4 w-4"
+            strokeWidth={1.5} />
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // either running or finished
+  if (elapsedTime !== null) {
+    const elapsedTimeStr = formatElapsedTime(elapsedTime);
+    return (
+      <Tooltip
+        content={`This cell took ${elapsedTimeStr} to run`}
+        usePortal={false}
+      >
+        <div
+          className={"cell-status-icon elapsed-time hover-action"}
+          data-testid="cell-status"
+        >
+          <span>{elapsedTimeStr}</span>
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // default
+  return null;
 };
 
 function formatElapsedTime(elapsedTime: number | null) {

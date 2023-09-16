@@ -441,6 +441,7 @@ const CellComponent = (
           />
           <div className="flex align-bottom">
             <RunButton
+              edited={edited}
               onClick={appClosed ? Functions.NOOP : onRun}
               appClosed={appClosed}
               status={status}

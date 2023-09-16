@@ -37,6 +37,9 @@ export function transitionCell(
     case "stale":
       // Everything should already be up to date from prepareCellForExecution
       break;
+    case "disabled-transitively":
+      // Everything should already be up to date from prepareCellForExecution
+      break;
     default:
       logNever(message.status);
   }
