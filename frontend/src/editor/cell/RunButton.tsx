@@ -32,7 +32,8 @@ export const RunButton = (props: {
   const color = computeColor(appClosed, needsRun, loading);
 
 
-  if (config.disabled || (status === "stale" && !edited)) {
+  const blockedStatus = status === 'stale' || status === 'disabled-transitively';
+  if (config.disabled || (blockedStatus && !edited)) {
     return <Tooltip content="Add code to notebook" usePortal={false}>
       <Button
         className={cn(

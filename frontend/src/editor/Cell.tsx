@@ -385,7 +385,7 @@ const CellComponent = (
     "has-error": errored,
     stopped: stopped,
     disabled: cellConfig.disabled,
-    stale: status === 'stale',
+    stale: status === 'stale' || status === 'disabled-transitively',
   });
 
   const HTMLId = HTMLCellId.create(cellId);
