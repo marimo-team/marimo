@@ -43,7 +43,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   if (disabled && status === "stale") {
     return (
       <Tooltip
-        content={"This cell is disabled and its output is stale."}
+        content={"This cell is stale, but it's disabled and can't be run"}
         usePortal={false}
       >
         <div
@@ -62,7 +62,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   // disabled, but not stale
   if (disabled) {
     return (
-      <Tooltip content={"This cell is disabled."} usePortal={false}>
+      <Tooltip content={"This cell is disabled"} usePortal={false}>
         <div
           className="cell-status-icon cell-status-disabled"
           data-testid="cell-status"
@@ -77,16 +77,14 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   if (status === "disabled-transitively") {
     return (
       <Tooltip
-        content={
-          "This cell is disabled since one or more parents are disabled."
-        }
+        content={"An ancestor of this cell is disabled, so it can't be run"}
         usePortal={false}
       >
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
         >
-          <MultiIcon>
+          <MultiIcon layerTop={true}>
             <WorkflowIcon className="h-5 w-5" strokeWidth={1.5} />
             <BanIcon className="h-3 w-3" strokeWidth={2.5} />
           </MultiIcon>
@@ -100,7 +98,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     return (
       <Tooltip
         content={
-          "This cell is stale. One or more parents are disabled so this has not been run"
+          "This cell is stale, but an ancestor is disabled so it can't be run"
         }
         usePortal={false}
       >
@@ -109,8 +107,8 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
         >
           <MultiIcon>
-            <RefreshCwIcon className="h-5 w-5" strokeWidth={1.5} />
-            <BanIcon className="h-2 w-2" strokeWidth={2.5} />
+            <RefreshCwIcon className="h-5 w-5" strokeWidth={1} />
+            <BanIcon className="h-3 w-3" strokeWidth={2.5} />
           </MultiIcon>
         </div>
       </Tooltip>

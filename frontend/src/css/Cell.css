@@ -332,7 +332,8 @@
   overflow: auto;
 }
 
-.marimo-output-stale {
+.marimo-output-stale,
+.Cell.stale .OutputArea.marimo-output-stale {
   opacity: 0.2;
   transition: opacity 300ms;
   transition-delay: 200ms;

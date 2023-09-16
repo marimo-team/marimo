@@ -375,7 +375,7 @@ const CellComponent = (
     <OutputArea
       output={output}
       cellId={cellId}
-      stale={(loading || edited) && !interrupted}
+      stale={(loading || edited || status === "stale") && !interrupted}
     />
   );
 
