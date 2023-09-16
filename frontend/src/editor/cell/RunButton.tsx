@@ -6,12 +6,17 @@ import { renderShortcut } from "../../components/shortcuts/renderShortcut";
 import { cn } from "../../lib/utils";
 import { CellConfig, CellStatus } from "../../core/model/cells";
 
-function computeColor(appClosed: boolean, needsRun: boolean, loading: boolean) {
+function computeColor(
+  appClosed: boolean,
+  needsRun: boolean,
+  loading: boolean,
+  inactive: boolean
+) {
   if (appClosed) {
     return "disabled";
   } else if (needsRun && !loading) {
     return "yellow";
-  } else if (loading) {
+  } else if (loading || inactive) {
     return "disabled";
   } else {
     return "hint-green";
@@ -27,13 +32,13 @@ export const RunButton = (props: {
 }): JSX.Element => {
   const { onClick, appClosed, needsRun, status, config, edited } = props;
 
-  const loading = status === "running" || status === "queued";
-  const inactive = appClosed || loading;
-  const color = computeColor(appClosed, needsRun, loading);
-
   const blockedStatus =
     status === "stale" || status === "disabled-transitively";
-  if (config.disabled || (blockedStatus && !edited)) {
+  const loading = status === "running" || status === "queued";
+  const inactive = appClosed || loading || (!config.disabled && blockedStatus && !edited);
+  const color = computeColor(appClosed, needsRun, loading, inactive);
+
+  if (config.disabled) {
     return (
       <Tooltip content="Add code to notebook" usePortal={false}>
         <Button
@@ -48,6 +53,27 @@ export const RunButton = (props: {
           data-testid="run-button"
         >
           <HardDriveDownloadIcon strokeWidth={1.8} />
+        </Button>
+      </Tooltip>
+    );
+  } else if (!config.disabled && blockedStatus && !edited) {
+    return (
+      <Tooltip
+        content="This cell can't be run because it has a disabled ancestor"
+        usePortal={false}
+      >
+        <Button
+          className={cn(
+            !needsRun && "hover-action",
+            inactive && "inactive-button"
+          )}
+          onClick={onClick}
+          color={color}
+          shape="circle"
+          size="small"
+          data-testid="run-button"
+        >
+          <PlayIcon strokeWidth={1.8} />
         </Button>
       </Tooltip>
     );

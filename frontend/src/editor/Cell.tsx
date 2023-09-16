@@ -475,7 +475,9 @@ const CellComponent = (
       <ConsoleOutputArea
         consoleOutputs={consoleOutputs}
         cellId={cellId}
-        stale={(status === "queued" || edited) && !interrupted}
+        stale={
+          (status === "queued" || edited || status === "stale") && !interrupted
+        }
       />
     </SortableCell>
   );
