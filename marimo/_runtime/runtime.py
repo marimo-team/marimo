@@ -30,6 +30,8 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.messages import (
     write_completed_run,
+    write_disabled_transitively,
+    write_idle,
     write_interrupted,
     write_marimo_error,
     write_new_run,
@@ -507,10 +509,10 @@ class Kernel:
         # cells that are disabled (explicity or implicitly).
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
-                self.graph.cells[cid].set_status(stale=True)
+                self.graph.cells[cid].set_status(status="stale")
                 write_stale(cell_id=cid)
             else:
-                self.graph.cells[cid].set_status(stale=False)
+                self.graph.cells[cid].set_status(status=None)
                 write_queued(cell_id=cid)
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
@@ -699,20 +701,51 @@ class Kernel:
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
         # Stale cells that are enabled will need to be run.
-        enabled_cells_to_run: set[CellId_t] = set()
+        cells_to_run: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             cell = self.graph.cells.get(cell_id)
             if cell is not None:
                 cell.configure(config)
-                if not cell.config.disabled and cell.status.stale:
-                    enabled_cells_to_run.add(cell_id)
+                # TODO refactor
+                if not cell.config.disabled:
+                    # When a cell is enabled, previously stale cells will
+                    # need to run
+                    for cid in dataflow.transitive_closure(
+                        self.graph, set([cell_id])
+                    ):
+                        if not self.graph.is_disabled(cid):
+                            LOGGER.debug(self.graph.cells[cid].status)
+                            if self.graph.cells[cid].status.stale:
+                                # cell was previously disabled, is no longer
+                                # disabled, and is stale: needs to run.
+                                cells_to_run.add(cid)
+                            elif self.graph.cells[
+                                cid
+                            ].status.disabled_transitively:
+                                # TODO: not currently right, clears output ...
+                                write_idle(cid)
+                elif cell.config.disabled:
+                    # When a cell is disabled, we need to tell the frontend
+                    # that its children are transitively disabled
+                    for cid in dataflow.transitive_closure(
+                        self.graph, set([cell_id])
+                    ):
+                        if (
+                            not self.graph.cells[cid].status.stale
+                            and cid != cell_id
+                        ):
+                            self.graph.cells[cid].set_status(
+                                status="disabled-transitively"
+                            )
+                            write_disabled_transitively(cid)
+
             # store the config, regardless of whether we've seen the cell yet
             self.cell_metadata[cell_id] = CellMetadata(
                 config=CellConfig.from_dict(config)
             )
-        if enabled_cells_to_run:
+        if cells_to_run:
             self._run_cells(
-                dataflow.transitive_closure(self.graph, enabled_cells_to_run)
+                dataflow.transitive_closure(self.graph, cells_to_run)
             )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:

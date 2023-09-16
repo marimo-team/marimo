@@ -66,6 +66,22 @@ def write_stale(cell_id: CellId_t) -> None:
     )
 
 
+def write_idle(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(CellOp(cell_id=cell_id, status="idle")),
+    )
+
+
+def write_disabled_transitively(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(
+            CellOp(cell_id=cell_id, status="disabled-transitively")
+        ),
+    )
+
+
 def write_queued(cell_id: CellId_t) -> None:
     get_context().stream.write(
         op=CellOp.name,

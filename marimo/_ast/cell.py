@@ -14,6 +14,7 @@ from types import CodeType
 from typing import (
     Any,
     Callable,
+    Literal,
     Optional,
     Protocol,
     Set,
@@ -61,10 +62,29 @@ CellConfigKeys = frozenset(
     {field.name for field in dataclasses.fields(CellConfig)}
 )
 
+"""
+idle: cell has run with latest inputs
+queued: cell is queued to run
+running: cell is running
+stale: cell hasn't run with latest inputs, and can't run (disabled)
+disabled-transitively: cell is disabled because a parent is disabled
+"""
+CellStatusType = Literal[
+    "idle", "queued", "running", "stale", "disabled-transitively"
+]
+
 
 @dataclasses.dataclass
 class CellStatus:
-    stale: bool = False
+    state: Optional[CellStatusType] = None
+
+    @property
+    def stale(self) -> bool:
+        return self.state == "stale"
+
+    @property
+    def disabled_transitively(self) -> bool:
+        return self.state == "disabled-transitively"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -93,8 +113,8 @@ class Cell:
         self.config.configure(update)
         return self
 
-    def set_status(self, stale: bool) -> None:
-        self.status.stale = stale
+    def set_status(self, status: Optional[CellStatusType]) -> None:
+        self.status.state = status
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
