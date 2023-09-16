@@ -34,6 +34,26 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     Logger.error("CellStatusComponent: disabled and running");
     return null;
   }
+  // stale and disabled by self
+  if (disabled && status === "stale") {
+    return (
+      <Tooltip content={"This cell is disabled and has received new inputs since it's last run"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+        >
+          <MultiIcon>
+            <BanIcon
+              className="h-4 w-4"
+              strokeWidth={1.5} />
+            <RefreshCwIcon
+              className="h-2 w-2"
+              strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
 
   // disabled, but not stale
   if (disabled) {
@@ -52,28 +72,6 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
 
-  // stale and disabled from self (not reached, case maybe added later)
-  if (disabled && status === "stale") {
-    return (
-      <Tooltip content={"This cell is disabled and has received new inputs since it's last run"} usePortal={false}>
-        <div
-          className="cell-status-icon cell-status-stale"
-          data-testid="cell-status"
-        >
-          <MultiIcon>
-            <RefreshCwIcon
-              className="h-4 w-4"
-              stroke="var(--amber-11)"
-              strokeWidth={1.5} />
-            <BanIcon
-              className="h-2 w-2"
-              stroke="var(--amber-11)"
-              strokeWidth={2.5} />
-          </MultiIcon>
-        </div>
-      </Tooltip>
-    );
-  }
 
   // disabled from parent
   if (status === 'disabled-transitively') {
