@@ -398,6 +398,19 @@ const CellComponent = (
     );
   }
 
+  // TODO(akshayka): Move to our own Tooltip component once it's easier
+  // to get the tooltip to show next to the cursor ...
+  // https://github.com/radix-ui/primitives/discussions/1090
+  const cellTitle = () => {
+    if (cellConfig.disabled) {
+      return "This cell is disabled";
+    } else if (status === "stale" || status === "disabled-transitively") {
+      return "This cell has a disabled ancestor";
+    } else {
+      return undefined;
+    }
+  };
+
   const editor = <div className="cm" ref={editorViewParentRef} />;
 
   return (
@@ -410,6 +423,7 @@ const CellComponent = (
       onBlur={closeCompletionHandler}
       onKeyDown={resumeCompletionHandler}
       cellId={cellId}
+      title={cellTitle()}
     >
       {outputArea}
       <div className="tray">

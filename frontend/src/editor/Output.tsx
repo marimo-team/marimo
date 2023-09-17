@@ -83,6 +83,10 @@ export const OutputArea = React.memo(
     } else if (props.output.channel === "output" && props.output.data === "") {
       return null;
     } else {
+      // TODO(akshayka): More descriptive title
+      // 1. This output is stale (this cell has been edited but not run)
+      // 2. This output is stale (this cell is queued to run)
+      // 3. This output is stale (its inputs have changed)
       const title = props.stale ? "This output is stale" : undefined;
       return (
         <div
