@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import builtins
 import contextlib
+import dataclasses
 import io
 import itertools
 import multiprocessing as mp
@@ -13,12 +14,11 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
 from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellId_t, parse_cell
+from marimo._ast.cell import CellConfig, CellId_t, parse_cell
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -30,12 +30,15 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.messages import (
     write_completed_run,
+    write_disabled_transitively,
+    write_idle,
     write_interrupted,
     write_marimo_error,
     write_new_run,
     write_output,
     write_queued,
     write_remove_ui_elements,
+    write_stale,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
@@ -57,6 +60,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     Request,
+    SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
 )
@@ -114,10 +118,22 @@ def refs() -> tuple[str, ...]:
     return tuple()
 
 
-@dataclass
+@dataclasses.dataclass
 class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
+
+
+@dataclasses.dataclass
+class CellMetadata:
+    """CellMetadata
+
+    Metadata the kernel needs to persist, even when a cell is removed
+    from the graph or when a cell can't be formed from user code due to syntax
+    errors.
+    """
+
+    config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
 class Kernel:
@@ -127,6 +143,8 @@ class Kernel:
             "__builtins__": globals()["__builtins__"],
         }
         self.graph = dataflow.DirectedGraph()
+        self.cell_metadata: dict[CellId_t, CellMetadata] = {}
+
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
@@ -191,11 +209,21 @@ class Kernel:
                 tmpio.seek(0)
                 error = UnknownError(msg=tmpio.read())
 
+        if cell_id in self.cell_metadata and cell is not None:
+            # If we already have a config for this cell id, restore it
+            # This can happen when a cell was previously deactivated (due to a
+            # syntax error or multiple definition error, for example) and then
+            # re-registered
+            cell.configure(self.cell_metadata[cell_id].config)
+        elif cell_id not in self.cell_metadata:
+            self.cell_metadata[cell_id] = CellMetadata()
+
         if cell is not None:
             self.graph.register_cell(cell_id, cell)
             LOGGER.debug("registered cell %s", cell_id)
             LOGGER.debug("parents: %s", self.graph.parents[cell_id])
             LOGGER.debug("children: %s", self.graph.children[cell_id])
+
         return error
 
     def _maybe_register_cell(
@@ -218,7 +246,7 @@ class Kernel:
         if not self.graph.is_cell_cached(cell_id, code):
             if cell_id in self.graph.cells:
                 LOGGER.debug("Deleting cell %s", cell_id)
-                previous_children = self._delete_cell(cell_id)
+                previous_children = self._deactivate_cell(cell_id)
             error = self._try_registering_cell(cell_id, code)
 
         LOGGER.debug(
@@ -262,13 +290,13 @@ class Kernel:
         )
         write_remove_ui_elements(cell_id)
 
-    def _delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
-        """Delete a cell from the kernel and the graph.
+    def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+        """Deactivate: remove from graph, invalidate state, but keep metadata
 
-        Deletion from the kernel involves removing cell's defs and
-        de-registering its UI Elements.
+        Keeps the cell's config, in case we see the same cell again.
 
-        Deletion from graph is forwarded to graph object.
+        In contrast to deleting a cell, which fully scrubs the cell
+        from the kernel and graph.
         """
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id)
@@ -277,9 +305,21 @@ class Kernel:
             # An errored cell can be thought of as a cell that's in the graph
             # but that has no state in the kernel (because it was never run).
             # Its defs may overlap with defs of a non-errored cell, so we MUST
-            # NOT delete/cleanup its defs from the kernel.
+            # NOT delete/cleanup its defs from the kernel (i.e., an errored
+            # cell shouldn't invalidate state of another cell).
             self.graph.delete_cell(cell_id)
             return set()
+
+    def _delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+        """Delete a cell from the kernel and the graph.
+
+        Deletion from the kernel involves removing cell's defs and
+        de-registering its UI Elements.
+
+        Deletion from graph is forwarded to graph object.
+        """
+        del self.cell_metadata[cell_id]
+        return self._deactivate_cell(cell_id)
 
     def mutate_graph(
         self,
@@ -290,10 +330,10 @@ class Kernel:
 
         This method adds the cells in `execution_requests` to the kernel's
         graph (deleting old versions of these cells, if any), and removes the
-        cells in `execution_requests` from the kernel's graph.
+        cells in `deletion_requests` from the kernel's graph.
 
         The mutations that this method makes to the graph renders the
-        kernel inconsistent.
+        kernel inconsistent (stale).
 
         This method does not register errors for cells that were previously
         valid and are not descendants of any of the newly registered cells.
@@ -396,6 +436,15 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
+        for cid in cells_that_no_longer_have_errors:
+            # clear error outputs before running
+            write_output(
+                "output",
+                mimetype="text/plain",
+                data="",
+                cell_id=cid,
+                status=None,
+            )
 
         # Cells that were successfully registered need to be run
         cells_registered_without_error = (
@@ -442,8 +491,21 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
+            if (
+                # Cells with syntax errors are not in the graph
+                cid in self.graph.cells
+                and not self.graph.cells[cid].config.disabled
+                and self.graph.is_disabled(cid)
+            ):
+                # this may be the first time we're seeing the cell: set its
+                # status
+                self.graph.cells[cid].set_status("disabled-transitively")
+                write_disabled_transitively(cid)
             write_marimo_error(
-                data=self.errors[cid], clear_console=True, cell_id=cid
+                data=self.errors[cid],
+                clear_console=True,
+                cell_id=cid,
+                status=None,
             )
 
         return descendants
@@ -459,11 +521,21 @@ class Kernel:
         write_completed_run()
 
     def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
-        """Run cells, send outputs to frontends"""
-        LOGGER.debug("preparing to evaluate cells %s", cell_ids)
-        for cid in cell_ids:
-            write_queued(cell_id=cid)
+        """Run cells, send outputs to frontends
 
+        Returns set of cells that need to be re-run due to state updates.
+        """
+        LOGGER.debug("preparing to evaluate cells %s", cell_ids)
+
+        # Status updates: cells transition to queued, except for
+        # cells that are disabled (explicity or implicitly).
+        for cid in cell_ids:
+            if self.graph.is_disabled(cid):
+                self.graph.cells[cid].set_status(status="stale")
+                write_stale(cell_id=cid)
+            else:
+                self.graph.cells[cid].set_status(status="queued")
+                write_queued(cell_id=cid)
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
             graph=self.graph,
@@ -485,15 +557,20 @@ class Kernel:
             cell_id = runner.pop_cell()
             if runner.cancelled(cell_id):
                 continue
-
-            LOGGER.debug("running cell %s", cell_id)
-            write_new_run(cell_id)
             # State clean-up: don't leak names, UI elements, ...
             self._invalidate_cell_state(cell_id)
+            cell = self.graph.cells[cell_id]
+            if cell.stale:
+                continue
+
+            LOGGER.debug("running cell %s", cell_id)
+            cell.set_status(status="running")
+            write_new_run(cell_id)
 
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
+            cell.set_status(status="idle")
             if run_result.success():
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
@@ -504,6 +581,7 @@ class Kernel:
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif isinstance(run_result.exception, MarimoStopError):
                 LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
@@ -516,6 +594,7 @@ class Kernel:
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif isinstance(run_result.exception, MarimoInterrupt):
                 LOGGER.debug("Cell %s was interrupted", cell_id)
@@ -525,6 +604,7 @@ class Kernel:
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif run_result.exception is not None:
                 LOGGER.debug(
@@ -551,6 +631,7 @@ class Kernel:
                     ],
                     clear_console=False,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
 
             if get_global_context().mpl_installed:
@@ -561,6 +642,7 @@ class Kernel:
             assert runner.interrupted
             for cid in runner.cells_to_run:
                 # `cid` was not run. Its defs should be deleted.
+                self.graph.cells[cid].set_status("idle")
                 self._invalidate_cell_state(cid)
                 write_marimo_error(
                     data=[MarimoInterruptionError()],
@@ -569,11 +651,13 @@ class Kernel:
                     # reflect a previous run and should be cleared
                     clear_console=True,
                     cell_id=cid,
+                    status="idle",
                 )
 
         for raising_cell in runner.cells_cancelled:
             for cid in runner.cells_cancelled[raising_cell]:
                 # `cid` was not run. Its defs should be deleted.
+                self.graph.cells[cid].set_status("idle")
                 self._invalidate_cell_state(cid)
                 exception = runner.exceptions[raising_cell]
                 data: Error
@@ -604,6 +688,7 @@ class Kernel:
                     # reflect a previous run and should be cleared
                     clear_console=True,
                     cell_id=cid,
+                    status="idle",
                 )
 
         cells_with_stale_state = runner.resolve_state_updates(
@@ -642,6 +727,56 @@ class Kernel:
         self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
+
+    def set_cell_config(self, request: SetCellConfigRequest) -> None:
+        """Update cell configs.
+
+        Cells that are enabled (via config) but stale are run as a side-effect.
+        """
+        # TODO: state transitions to disabled-transitively, stale, idle should
+        # be handled by the graph, not by kernel ...
+        # Stale cells that are enabled will need to be run.
+        cells_to_run: set[CellId_t] = set()
+        for cell_id, config in request.configs.items():
+            cell = self.graph.cells.get(cell_id)
+            if cell is not None:
+                cell.configure(config)
+                if not cell.config.disabled:
+                    # When a cell is enabled, previously stale cells will
+                    # need to run
+                    for cid in dataflow.transitive_closure(
+                        self.graph, set([cell_id])
+                    ):
+                        if not self.graph.is_disabled(cid):
+                            child = self.graph.cells[cid]
+                            if child.stale:
+                                # cell was previously disabled, is no longer
+                                # disabled, and is stale: needs to run.
+                                cells_to_run.add(cid)
+                            elif child.disabled_transitively:
+                                write_idle(cid)
+                            # cell is no longer disabled: status -> idle
+                            child.set_status("idle")
+                elif cell.config.disabled:
+                    # When a cell is disabled, we need to tell the frontend
+                    # that its children are transitively disabled
+                    for cid in dataflow.transitive_closure(
+                        self.graph, set([cell_id])
+                    ):
+                        if not self.graph.cells[cid].stale and cid != cell_id:
+                            self.graph.cells[cid].set_status(
+                                status="disabled-transitively"
+                            )
+                            write_disabled_transitively(cid)
+
+            # store the config, regardless of whether we've seen the cell yet
+            self.cell_metadata[cell_id] = CellMetadata(
+                config=CellConfig.from_dict(config)
+            )
+        if cells_to_run:
+            self._run_cells(
+                dataflow.transitive_closure(self.graph, cells_to_run)
+            )
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.
@@ -843,6 +978,8 @@ def launch_kernel(
             kernel.instantiate(request)
         elif isinstance(request, ExecuteMultipleRequest):
             kernel.run(request.execution_requests)
+        elif isinstance(request, SetCellConfigRequest):
+            kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
         elif isinstance(request, DeleteRequest):

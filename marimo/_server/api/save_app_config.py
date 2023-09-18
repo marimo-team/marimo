@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Dict
 
 import tornado.web
 
@@ -18,7 +18,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class SaveAppConfiguration:
     # partial app config
-    config: dict[str, Any]
+    config: Dict[str, Any]
 
 
 class SaveAppConfigurationHandler(tornado.web.RequestHandler):
@@ -36,10 +36,11 @@ class SaveAppConfigurationHandler(tornado.web.RequestHandler):
         if app is not None and mgr.filename is not None:
             codes = list(app._codes())
             names = list(app._names())
+            configs = list(app._configs())
 
             # Try to save the app under the name `mgr.filename`
             contents = codegen.generate_filecontents(
-                codes, names, config=mgr.app_config
+                codes, names, cell_configs=configs, config=mgr.app_config
             )
             try:
                 with open(mgr.filename, "w", encoding="utf-8") as f:

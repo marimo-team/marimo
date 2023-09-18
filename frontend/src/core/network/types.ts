@@ -2,6 +2,7 @@
 import { AppConfig, UserConfig } from "../config/config";
 import { LayoutType } from "@/editor/renderers/types";
 import { CellId } from "../../core/model/ids";
+import { CellConfig } from "../model/cells";
 
 export interface DeleteRequest {
   cellId: CellId;
@@ -32,11 +33,6 @@ export interface RenameRequest {
 }
 
 export interface RunRequest {
-  cellId: CellId;
-  code: string;
-}
-
-export interface RunMultipleRequest {
   cellIds: CellId[];
   codes: string[];
 }
@@ -51,6 +47,7 @@ export interface SaveKernelRequest {
         data: unknown;
       }
     | undefined;
+  configs: CellConfig[];
 }
 
 export interface SendDirectoryAutocompleteRequest {
@@ -58,7 +55,6 @@ export interface SendDirectoryAutocompleteRequest {
 }
 
 export interface SendDirectoryAutocompleteResponse {
-  status: "ok";
   directories: string[];
   files: string[];
 }
@@ -80,4 +76,8 @@ export interface SaveUserConfigRequest {
 
 export interface SaveAppConfigRequest {
   config: AppConfig;
+}
+
+export interface SaveCellConfigRequest {
+  configs: Record<CellId, CellConfig>;
 }

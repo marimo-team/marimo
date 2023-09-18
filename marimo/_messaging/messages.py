@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from typing import Any, Optional, Sequence
 
-from marimo._ast.cell import CellId_t
+from marimo._ast.cell import CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
 from marimo._messaging.message_types import (
@@ -20,7 +20,11 @@ from marimo._runtime.context import get_context
 
 
 def write_output(
-    channel: str, mimetype: str, data: str, cell_id: CellId_t
+    channel: str,
+    mimetype: str,
+    data: str,
+    cell_id: CellId_t,
+    status: Optional[CellStatusType],
 ) -> None:
     if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
         from marimo._output.md import md
@@ -53,8 +57,31 @@ def write_output(
                     mimetype=mimetype,
                     data=data,
                 ),
-                status="idle",
+                status=status,
             )
+        ),
+    )
+
+
+def write_stale(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(CellOp(cell_id=cell_id, status="stale")),
+    )
+
+
+def write_idle(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(CellOp(cell_id=cell_id, status="idle")),
+    )
+
+
+def write_disabled_transitively(cell_id: CellId_t) -> None:
+    get_context().stream.write(
+        op=CellOp.name,
+        data=serialize(
+            CellOp(cell_id=cell_id, status="disabled-transitively")
         ),
     )
 
@@ -74,7 +101,10 @@ def write_new_run(cell_id: CellId_t) -> None:
 
 
 def write_marimo_error(
-    data: Sequence[Error], clear_console: bool, cell_id: CellId_t
+    data: Sequence[Error],
+    clear_console: bool,
+    cell_id: CellId_t,
+    status: Optional[CellStatusType],
 ) -> None:
     console: Optional[list[CellOutput]] = [] if clear_console else None
     get_context().stream.write(
@@ -88,7 +118,7 @@ def write_marimo_error(
                     data=data,
                 ),
                 console=console,
-                status="idle",
+                status=status,
             )
         ),
     )
@@ -114,7 +144,7 @@ def write_output_to_global_stream(
 ) -> None:
     stream = get_context().stream
     assert stream.cell_id is not None
-    write_output(channel, mimetype, data, stream.cell_id)
+    write_output(channel, mimetype, data, stream.cell_id, status=None)
 
 
 def write_to_global_console_stream(

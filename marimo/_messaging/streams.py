@@ -26,13 +26,14 @@ from marimo._runtime.context import get_context
 #
 # 2. The frontend chokes when we send outputs that are too big, i.e.
 #    it freezes and sometimes even crashes. That can lead to lost work.
+#    It appears this is the bottleneck right now, compared to 1.
 #
 # Usually users only output gigantic things accidentally, so refusing
 # to show large outputs should in most cases not bother the user too much.
 # In any case, it's better than breaking the frontend/kernel.
 #
-# Output not shown if larger than OUTPUT_MAX_BYTES=10MB
-OUTPUT_MAX_BYTES = 10_000_000
+# Output not shown if larger than OUTPUT_MAX_BYTES=5MB
+OUTPUT_MAX_BYTES = 5_000_000
 
 # Standard stream truncated if larger than STD_STREAM_MAX_BYTES=1MB
 STD_STREAM_MAX_BYTES = 1_000_000

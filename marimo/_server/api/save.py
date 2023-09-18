@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import tornado.web
 
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._ast.cell import CellConfig
 from marimo._server import sessions
 from marimo._server.api.model import parse_raw
 from marimo._server.api.status import HTTPStatus
@@ -21,9 +22,11 @@ LOGGER = _loggers.marimo_logger()
 @dataclass
 class Save:
     # code for each cell
-    codes: list[str]
+    codes: List[str]
     # name of each cell
-    names: list[str]
+    names: List[str]
+    # config for each cell
+    configs: List[CellConfig]
     # path to app
     filename: str
     # layout of app
@@ -66,7 +69,7 @@ class SaveHandler(tornado.web.RequestHandler):
 
             # try to save the app under the name `filename`
             contents = codegen.generate_filecontents(
-                codes, names, config=mgr.app_config
+                codes, names, cell_configs=args.configs, config=mgr.app_config
             )
             LOGGER.debug("Saving app to %s", filename)
             try:

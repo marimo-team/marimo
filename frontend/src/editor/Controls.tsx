@@ -20,7 +20,7 @@ import { useCellActions } from "../core/state/cells";
 import { AppConfigButton } from "../components/app-config/app-config-button";
 import { useState, useEffect } from "react";
 import { LayoutSelect } from "./renderers/layout-select";
-import { MenuDropdown } from "@/components/export/menu-dropdown";
+import { NotebookMenuDropdown } from "@/editor/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
 
 interface ControlsProps {
@@ -85,7 +85,7 @@ export const Controls = ({
       {!closed && (
         <div className={styles.topRightControls}>
           {presenting && <LayoutSelect />}
-          <MenuDropdown filename={filename} />
+          <NotebookMenuDropdown filename={filename} />
           <AppConfigButton />
           <ShutdownButton onShutdown={onShutdown} />
         </div>

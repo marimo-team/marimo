@@ -197,6 +197,10 @@ async def start_server(
                 api.SetUIElementValueHandler,
             ),
             (
+                r"/api/kernel/set_cell_config/",
+                api.SetCellConfigHandler,
+            ),
+            (
                 r"/api/kernel/interrupt/",
                 api.InterruptHandler,
             ),

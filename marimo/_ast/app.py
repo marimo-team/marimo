@@ -6,13 +6,15 @@ import itertools
 import textwrap
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Iterable, Literal, Optional
+from typing import Any, Callable, Iterable, Literal, Optional, Union, cast
 
 from marimo._ast.cell import (
+    CellConfig,
     CellFunction,
+    CellFuncType,
+    CellFuncTypeBound,
     CellId_t,
     cell_factory,
-    cell_func_t,
     execute_cell,
 )
 from marimo._ast.errors import (
@@ -57,8 +59,11 @@ class CellData:
     code: str
     # User-provided name for cell (or default)
     name: str
+    # Cell config
+    config: CellConfig
+
     # Callable cell, or None if cell was not parsable
-    cell_function: Optional[CellFunction]
+    cell_function: Optional[CellFunction[CellFuncType]]
 
 
 @mddoc
@@ -88,7 +93,7 @@ class App:
         self._initialized = False
 
     def _create_cell_id(
-        self, cell_function: Optional[CellFunction]
+        self, cell_function: Optional[CellFunction[CellFuncTypeBound]]
     ) -> CellId_t:
         del cell_function
         cell_id = str(self._cell_id_counter)
@@ -96,16 +101,77 @@ class App:
         self._cell_id_counter += 1
         return str(cell_id)
 
-    def cell(self, f: cell_func_t) -> CellFunction:
-        cell_function = cell_factory(f)
+    def cell(
+        self,
+        func: Optional[CellFuncTypeBound] = None,
+        *,
+        disabled: bool = False,
+        **kwargs: Any,
+    ) -> Union[
+        Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
+        CellFunction[CellFuncTypeBound],
+    ]:
+        """A decorator to add a cell to the app
+
+        This decorator can be called with or without parentheses. Each of the
+        following is valid:
+
+        ```
+        @app.cell
+        def __(mo):
+            # ...
+
+        @app.cell()
+        def __(mo):
+            # ...
+
+        @app.cell(disabled=True)
+        def __(mo):
+            # ...
+        ```
+
+        Args:
+        - func: The decorated function
+        - disabled: Whether to disable the cell
+        - kwargs: For forward-compatibility with future arguments
+        """
+        del kwargs
+
+        if func is None:
+            # If the decorator was used with parentheses, func will be None,
+            # and we return a decorator that takes the decorated function as an
+            # argument
+            def decorator(
+                func: CellFuncTypeBound,
+            ) -> CellFunction[CellFuncTypeBound]:
+                cell_function = cell_factory(func)
+                cell_function.cell.configure(CellConfig(disabled=disabled))
+                self._register_cell(cell_function)
+                return cell_function
+
+            return cast(
+                Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
+                decorator,
+            )
+        else:
+            # If the decorator was used without parentheses, func will be the
+            # decorated function
+            cell_function = cell_factory(func)
+            cell_function.cell.configure(CellConfig(disabled=disabled))
+            self._register_cell(cell_function)
+            return cell_function
+
+    def _register_cell(
+        self, cell_function: CellFunction[CellFuncTypeBound]
+    ) -> None:
         cell_id = self._create_cell_id(cell_function)
         self._cell_data[cell_id] = CellData(
             cell_id=cell_id,
             code=cell_function.cell.code,
-            name=f.__name__,
-            cell_function=cell_function,
+            name=cell_function.__name__,
+            config=cell_function.cell.config,
+            cell_function=cast(CellFunction[CellFuncType], cell_function),
         )
-        return cell_function
 
     def _names(self) -> Iterable[str]:
         return (cell_data.name for cell_data in self._cell_data.values())
@@ -113,7 +179,12 @@ class App:
     def _codes(self) -> Iterable[str]:
         return (cell_data.code for cell_data in self._cell_data.values())
 
-    def _cell_functions(self) -> Iterable[Optional[CellFunction]]:
+    def _configs(self) -> Iterable[CellConfig]:
+        return (cell_data.config for cell_data in self._cell_data.values())
+
+    def _cell_functions(
+        self,
+    ) -> Iterable[Optional[CellFunction[CellFuncType]]]:
         return (
             cell_data.cell_function for cell_data in self._cell_data.values()
         )
@@ -151,7 +222,12 @@ class App:
                     f"Fix: Make '{suggested_sig}' this function's signature."
                 )
 
-    def _unparsable_cell(self, code: str, name: Optional[str] = None) -> None:
+    def _unparsable_cell(
+        self,
+        code: str,
+        name: Optional[str] = None,
+        **config: Any,
+    ) -> None:
         cell_id = self._create_cell_id(None)
         name = name if name is not None else "__"
         # - code.split("\n")[1:-1] disregards first and last lines, which are
@@ -163,7 +239,11 @@ class App:
             [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
         )
         self._cell_data[cell_id] = CellData(
-            cell_id=cell_id, code=code, name=name, cell_function=None
+            cell_id=cell_id,
+            code=code,
+            name=name,
+            config=CellConfig.from_dict(config),
+            cell_function=None,
         )
         self._unparsable = True
 

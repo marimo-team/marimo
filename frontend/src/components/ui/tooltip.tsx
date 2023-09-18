@@ -33,7 +33,7 @@ const Tooltip: React.FC<
     children: React.ReactNode;
   } & React.ComponentPropsWithoutRef<typeof TooltipRoot>
 > = ({ content, children, usePortal = true, ...rootProps }) => (
-  <TooltipRoot {...rootProps}>
+  <TooltipRoot disableHoverableContent={true} {...rootProps}>
     <TooltipTrigger asChild={true}>{children}</TooltipTrigger>
     {usePortal ? (
       <TooltipPrimitive.TooltipPortal>

@@ -14,6 +14,8 @@ Edge = Tuple[CellId_t, CellId_t]
 LOGGER = _loggers.marimo_logger()
 
 
+# TODO(akshayka): Add method disable_cell, enable_cell which handle
+# state transitions on cells
 @dataclass(frozen=True)
 class DirectedGraph:
     # Nodes in the graph
@@ -189,6 +191,26 @@ class DirectedGraph:
                     elems.remove(cell_id)
 
             return children
+
+    def is_disabled(self, cell_id: CellId_t) -> bool:
+        if cell_id not in self.cells:
+            raise ValueError(f"Cell {cell_id} not in graph.")
+        cell = self.cells[cell_id]
+        if cell.config.disabled:
+            return True
+        seen: set[CellId_t] = set()
+        queue = [cell_id]
+        while queue:
+            cid = queue.pop()
+            seen.add(cid)
+            for parent_id in self.parents[cid]:
+                if parent_id in seen:
+                    continue
+                elif self.cells[parent_id].config.disabled:
+                    return True
+                else:
+                    queue.append(parent_id)
+        return False
 
 
 def transitive_closure(

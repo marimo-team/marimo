@@ -1,3 +1,4 @@
+
 <p align="center">
   <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-thick.svg">
 </p>
@@ -9,6 +10,11 @@
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
   <a href="https://discord.gg/JE7nhX6mD8" target="_blank"><strong>Discord</strong></a> ·
   <a href="https://github.com/marimo-team/marimo/tree/main/examples" target="_blank"><strong>Examples</strong></a>
+</p>
+
+<p align="center">
+<a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
+<a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
 **marimo** is a Python library for creating **reactive notebooks
@@ -113,6 +119,14 @@ marimo convert your_notebook.ipynb > your_notebook.py
 Because marimo is different from traditional notebooks, your converted
 notebook will likely have errors that you'll need to fix. marimo
 will guide you through fixing them when you open it with `marimo edit`.
+
+### VS Code extension
+
+
+If you prefer VS Code over terminal, try our
+[VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
+Use the extension to edit and run notebooks directly from VS Code, and to list
+all marimo notebooks in your current directory.
 
 ## Concepts
 
