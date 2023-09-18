@@ -25,6 +25,8 @@ dependencies = [
     "tornado>=6.1,<7",
     # python 3.8 compatibility
     "typing_extensions>=4.4.0",
+    # for cell formatting; if user version is not compatible, no-op
+    "black",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
