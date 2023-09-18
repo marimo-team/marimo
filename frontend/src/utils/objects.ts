@@ -27,6 +27,23 @@ export const Objects = {
     return Object.keys(obj) as K[];
   },
   /**
+   * Type-safe keyBy
+   */
+  keyBy<T, K extends string | number>(
+    items: T[],
+    toKey: (item: T) => K | undefined
+  ): Record<K, T> {
+    const result: Record<K, T> = {} as Record<K, T>;
+    for (const item of items) {
+      const key = toKey(item);
+      if (key === undefined) {
+        continue;
+      }
+      result[key] = item;
+    }
+    return result;
+  },
+  /**
    * Type-safe groupBy
    */
   groupBy<T, K extends string | number, V>(

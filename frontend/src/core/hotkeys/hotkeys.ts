@@ -232,6 +232,10 @@ const DEFAULT_HOT_KEY = {
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
 
+export function isHotkeyAction(x: string): x is HotkeyAction {
+  return x in DEFAULT_HOT_KEY;
+}
+
 export interface IHotkeyProvider {
   getHotkey(action: HotkeyAction): ResolvedHotkey;
 }

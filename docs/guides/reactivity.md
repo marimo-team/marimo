@@ -122,9 +122,37 @@ understand, and encourages well-organized notebook code.
 
 ## Local variables
 
-Global variables prefixed with an underscore are "local" to a cell: they can't
-be read by other cells. Multiple cells can reuse the same local variables
-names.
+Global variables prefixed with an underscore (_e.g._, `_x`) are "local" to a
+cell: they can't be read by other cells. Multiple cells can reuse the same
+local variables names.
 
 If you encapsulate your code using functions and classes when needed,
-you likely won't need to use many local variables, if any.
+you won't need to use many local variables, if any.
+
+## Disabling cells
+
+Sometimes, you may want to edit one part of a notebook without triggering
+automatic execution of its dependent cells. For example, the dependent cells
+may take a long time to execute, and you only want to iterate on the first part
+of a multi-cell computation.
+
+For cases like this, marimo lets you **disable** cells: when a cell is
+disabled, it and its dependents are blocked from running.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-disable-cell.gif"/>
+<figcaption>Disabling a cell blocks it from running.</figcaption>
+</figure>
+</div>
+
+When you re-enable a cell, if any of the cell's ancestors ran while it was
+disabled, marimo will automatically run it.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-enable-cell.gif"/>
+<figcaption>Enable a cell through the context menu. Stale cells run
+automatically.</figcaption>
+</figure>
+</div>

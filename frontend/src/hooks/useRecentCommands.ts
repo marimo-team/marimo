@@ -3,16 +3,17 @@ import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { useLocalStorage } from "./useLocalStorage";
 
 const MAX_RECENT_COMMANDS = 3;
+type RecentCommandId = HotkeyAction | string;
 
 export function useRecentCommands() {
-  const [commands, setCommands] = useLocalStorage<HotkeyAction[]>(
+  const [commands, setCommands] = useLocalStorage<RecentCommandId[]>(
     "marimo:commands",
     []
   );
 
   return {
     recentCommands: commands,
-    addRecentCommand: (command: HotkeyAction) => {
+    addRecentCommand: (command: RecentCommandId) => {
       const uniqueCommands = unique([command, ...commands]);
       setCommands(uniqueCommands.slice(0, MAX_RECENT_COMMANDS));
     },

@@ -739,35 +739,16 @@ class Kernel:
         cells_to_run: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             cell = self.graph.cells.get(cell_id)
-            if cell is not None:
-                cell.configure(config)
-                if not cell.config.disabled:
-                    # When a cell is enabled, previously stale cells will
-                    # need to run
-                    for cid in dataflow.transitive_closure(
-                        self.graph, set([cell_id])
-                    ):
-                        if not self.graph.is_disabled(cid):
-                            child = self.graph.cells[cid]
-                            if child.stale:
-                                # cell was previously disabled, is no longer
-                                # disabled, and is stale: needs to run.
-                                cells_to_run.add(cid)
-                            elif child.disabled_transitively:
-                                write_idle(cid)
-                            # cell is no longer disabled: status -> idle
-                            child.set_status("idle")
-                elif cell.config.disabled:
-                    # When a cell is disabled, we need to tell the frontend
-                    # that its children are transitively disabled
-                    for cid in dataflow.transitive_closure(
-                        self.graph, set([cell_id])
-                    ):
-                        if not self.graph.cells[cid].stale and cid != cell_id:
-                            self.graph.cells[cid].set_status(
-                                status="disabled-transitively"
-                            )
-                            write_disabled_transitively(cid)
+            if cell is None:
+                continue
+            cell.configure(config)
+            if not cell.config.disabled:
+                cells_to_run, cells_idle = self.graph.enable_cell(cell_id)
+                for cid in cells_idle:
+                    write_idle(cid)
+            elif cell.config.disabled:
+                for cid in self.graph.disable_cell(cell_id):
+                    write_disabled_transitively(cid)
 
             # store the config, regardless of whether we've seen the cell yet
             self.cell_metadata[cell_id] = CellMetadata(
