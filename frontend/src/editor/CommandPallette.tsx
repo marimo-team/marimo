@@ -14,15 +14,27 @@ import { useRegisteredActions } from "../core/state/actions";
 import { useRecentCommands } from "../hooks/useRecentCommands";
 import { Kbd } from "../components/ui/kbd";
 import { prettyPrintHotkey } from "../components/shortcuts/renderShortcut";
-import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { HOTKEYS, HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom } from "jotai";
+import { useNotebookActions } from "./actions/useNotebookActions";
+import { Objects } from "@/utils/objects";
 
 export const commandPalletteAtom = atom(false);
 
 export const CommandPallette = () => {
   const [open, setOpen] = useAtom(commandPalletteAtom);
   const registeredActions = useRegisteredActions();
+  const notebookActions = useNotebookActions({});
+  const notebookActionsWithoutHotkeys = notebookActions.filter(
+    (action) => !action.hotkey
+  );
+  const keyedNotebookActions = Objects.keyBy(
+    notebookActionsWithoutHotkeys,
+    (action) => action.label
+  );
+
   const { recentCommands, addRecentCommand } = useRecentCommands();
+  const recentCommandsSet = new Set(recentCommands);
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -34,14 +46,6 @@ export const CommandPallette = () => {
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, [setOpen]);
-
-  const renderShortcutCommandItemIfNotRecent = (shortcut: HotkeyAction) => {
-    const isRecent = recentCommands.includes(shortcut);
-    if (isRecent) {
-      return null;
-    }
-    return renderShortcutCommandItem(shortcut);
-  };
 
   const renderShortcutCommandItem = (shortcut: HotkeyAction) => {
     const action = registeredActions[shortcut];
@@ -75,6 +79,24 @@ export const CommandPallette = () => {
     );
   };
 
+  const renderCommandItem = (label: string, handle: () => void) => {
+    return (
+      <CommandItem
+        onSelect={() => {
+          addRecentCommand(label);
+          setOpen(false);
+          requestAnimationFrame(() => {
+            handle();
+          });
+        }}
+        key={label}
+        value={label}
+      >
+        <span>{label}</span>
+      </CommandItem>
+    );
+  };
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Type to search..." />
@@ -83,17 +105,35 @@ export const CommandPallette = () => {
         {recentCommands.length > 0 && (
           <>
             <CommandGroup heading="Recently Used">
-              {recentCommands.map((shortcut) =>
-                renderShortcutCommandItem(shortcut)
-              )}
+              {recentCommands.map((shortcut) => {
+                // Hotkey
+                if (isHotkeyAction(shortcut)) {
+                  return renderShortcutCommandItem(shortcut);
+                }
+                // Other action
+                const action = keyedNotebookActions[shortcut];
+                if (action) {
+                  return renderCommandItem(action.label, action.handle);
+                }
+                return null;
+              })}
             </CommandGroup>
             <CommandSeparator />
           </>
         )}
         <CommandGroup heading="Commands">
-          {HOTKEYS.iterate().map((shortcut) =>
-            renderShortcutCommandItemIfNotRecent(shortcut)
-          )}
+          {HOTKEYS.iterate().map((shortcut) => {
+            if (recentCommandsSet.has(shortcut)) {
+              return null; // Don't show recent commands in the main list
+            }
+            return renderShortcutCommandItem(shortcut);
+          })}
+          {notebookActionsWithoutHotkeys.map((action) => {
+            if (recentCommandsSet.has(action.label)) {
+              return null; // Don't show recent commands in the main list
+            }
+            return renderCommandItem(action.label, action.handle);
+          })}
         </CommandGroup>
       </CommandList>
     </CommandDialog>
