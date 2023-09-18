@@ -78,14 +78,6 @@ CellStatusType = Literal[
 class CellStatus:
     state: Optional[CellStatusType] = None
 
-    @property
-    def stale(self) -> bool:
-        return self.state == "stale"
-
-    @property
-    def disabled_transitively(self) -> bool:
-        return self.state == "disabled-transitively"
-
 
 @dataclasses.dataclass(frozen=True)
 class Cell:
@@ -103,7 +95,7 @@ class Cell:
     # config: explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # staus: status, inferred at runtime
-    status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    _status: CellStatus = dataclasses.field(default_factory=CellStatus)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> Cell:
         """Update the cel config.
@@ -113,8 +105,20 @@ class Cell:
         self.config.configure(update)
         return self
 
+    @property
+    def status(self) -> Optional[CellStatusType]:
+        return self._status.state
+
+    @property
+    def stale(self) -> bool:
+        return self.status == "stale"
+
+    @property
+    def disabled_transitively(self) -> bool:
+        return self.status == "disabled-transitively"
+
     def set_status(self, status: Optional[CellStatusType]) -> None:
-        self.status.state = status
+        self._status.state = status
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]

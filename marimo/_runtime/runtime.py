@@ -438,7 +438,13 @@ class Kernel:
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
-            write_output("output", mimetype="text/plain", data="", cell_id=cid)
+            write_output(
+                "output",
+                mimetype="text/plain",
+                data="",
+                cell_id=cid,
+                status=None,
+            )
 
         # Cells that were successfully registered need to be run
         cells_registered_without_error = (
@@ -485,8 +491,21 @@ class Kernel:
 
         self.errors = all_errors
         for cid in self.errors:
+            if (
+                # Cells with syntax errors are not in the graph
+                cid in self.graph.cells
+                and not self.graph.cells[cid].config.disabled
+                and self.graph.is_disabled(cid)
+            ):
+                # this may be the first time we're seeing the cell: set its
+                # status
+                self.graph.cells[cid].set_status("disabled-transitively")
+                write_disabled_transitively(cid)
             write_marimo_error(
-                data=self.errors[cid], clear_console=True, cell_id=cid
+                data=self.errors[cid],
+                clear_console=True,
+                cell_id=cid,
+                status=None,
             )
 
         return descendants
@@ -515,7 +534,7 @@ class Kernel:
                 self.graph.cells[cid].set_status(status="stale")
                 write_stale(cell_id=cid)
             else:
-                self.graph.cells[cid].set_status(status=None)
+                self.graph.cells[cid].set_status(status="queued")
                 write_queued(cell_id=cid)
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
@@ -540,15 +559,18 @@ class Kernel:
                 continue
             # State clean-up: don't leak names, UI elements, ...
             self._invalidate_cell_state(cell_id)
-            if self.graph.cells[cell_id].status.stale:
+            cell = self.graph.cells[cell_id]
+            if cell.stale:
                 continue
 
             LOGGER.debug("running cell %s", cell_id)
+            cell.set_status(status="running")
             write_new_run(cell_id)
 
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
+            cell.set_status(status="idle")
             if run_result.success():
                 formatted_output = run_result.format_output()
                 if formatted_output.traceback is not None:
@@ -559,6 +581,7 @@ class Kernel:
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif isinstance(run_result.exception, MarimoStopError):
                 LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
@@ -571,6 +594,7 @@ class Kernel:
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif isinstance(run_result.exception, MarimoInterrupt):
                 LOGGER.debug("Cell %s was interrupted", cell_id)
@@ -580,6 +604,7 @@ class Kernel:
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
             elif run_result.exception is not None:
                 LOGGER.debug(
@@ -606,6 +631,7 @@ class Kernel:
                     ],
                     clear_console=False,
                     cell_id=cell_id,
+                    status=cell.status,
                 )
 
             if get_global_context().mpl_installed:
@@ -616,6 +642,7 @@ class Kernel:
             assert runner.interrupted
             for cid in runner.cells_to_run:
                 # `cid` was not run. Its defs should be deleted.
+                self.graph.cells[cid].set_status("idle")
                 self._invalidate_cell_state(cid)
                 write_marimo_error(
                     data=[MarimoInterruptionError()],
@@ -624,11 +651,13 @@ class Kernel:
                     # reflect a previous run and should be cleared
                     clear_console=True,
                     cell_id=cid,
+                    status="idle",
                 )
 
         for raising_cell in runner.cells_cancelled:
             for cid in runner.cells_cancelled[raising_cell]:
                 # `cid` was not run. Its defs should be deleted.
+                self.graph.cells[cid].set_status("idle")
                 self._invalidate_cell_state(cid)
                 exception = runner.exceptions[raising_cell]
                 data: Error
@@ -659,6 +688,7 @@ class Kernel:
                     # reflect a previous run and should be cleared
                     clear_console=True,
                     cell_id=cid,
+                    status="idle",
                 )
 
         cells_with_stale_state = runner.resolve_state_updates(
@@ -703,13 +733,14 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
+        # TODO: state transitions to disabled-transitively, stale, idle should
+        # be handled by the graph, not by kernel ...
         # Stale cells that are enabled will need to be run.
         cells_to_run: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             cell = self.graph.cells.get(cell_id)
             if cell is not None:
                 cell.configure(config)
-                # TODO refactor
                 if not cell.config.disabled:
                     # When a cell is enabled, previously stale cells will
                     # need to run
@@ -718,24 +749,22 @@ class Kernel:
                     ):
                         if not self.graph.is_disabled(cid):
                             LOGGER.debug(self.graph.cells[cid].status)
-                            if self.graph.cells[cid].status.stale:
+                            child = self.graph.cells[cid]
+                            if child.stale:
                                 # cell was previously disabled, is no longer
                                 # disabled, and is stale: needs to run.
                                 cells_to_run.add(cid)
-                            elif self.graph.cells[
-                                cid
-                            ].status.disabled_transitively:
+                            elif child.disabled_transitively:
                                 write_idle(cid)
+                            # cell is no longer disabled: status -> idle
+                            child.set_status("idle")
                 elif cell.config.disabled:
                     # When a cell is disabled, we need to tell the frontend
                     # that its children are transitively disabled
                     for cid in dataflow.transitive_closure(
                         self.graph, set([cell_id])
                     ):
-                        if (
-                            not self.graph.cells[cid].status.stale
-                            and cid != cell_id
-                        ):
+                        if not self.graph.cells[cid].stale and cid != cell_id:
                             self.graph.cells[cid].set_status(
                                 status="disabled-transitively"
                             )

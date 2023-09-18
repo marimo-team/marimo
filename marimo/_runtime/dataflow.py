@@ -14,6 +14,8 @@ Edge = Tuple[CellId_t, CellId_t]
 LOGGER = _loggers.marimo_logger()
 
 
+# TODO(akshayka): Add method disable_cell, enable_cell which handle
+# state transitions on cells
 @dataclass(frozen=True)
 class DirectedGraph:
     # Nodes in the graph

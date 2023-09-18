@@ -25,7 +25,6 @@ export function transitionCell(
       nextCell.runStartTimestamp = message.timestamp;
       break;
     case "idle":
-      nextCell.output = message.output ?? cell.output;
       if (cell.runStartTimestamp) {
         nextCell.runElapsedTimeMs =
           (message.timestamp - cell.runStartTimestamp) * 1000;
@@ -43,6 +42,7 @@ export function transitionCell(
     default:
       logNever(message.status);
   }
+  nextCell.output = message.output ?? cell.output;
   nextCell.status = message.status ?? cell.status;
 
   // Handle errors: marimo includes an error output when a cell is interrupted
