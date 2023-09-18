@@ -46,6 +46,7 @@ import { getFilenameFromDOM } from "./core/dom/htmlUtils";
 import { CellArray } from "./editor/renderers/CellArray";
 import { RuntimeState } from "./core/RuntimeState";
 import { useAtom } from "jotai";
+import { useRunStaleCells } from "./editor/cell/useRunCells";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -205,22 +206,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     });
   };
 
-  const runStaleCells = useEvent(() => {
-    const cellIds: CellId[] = [];
-    const codes: string[] = [];
-    for (const cell of cells.present) {
-      if (cell.edited || cell.interrupted) {
-        cellIds.push(cell.key);
-        codes.push(derefNotNull(cell.ref).editorView.state.doc.toString());
-        derefNotNull(cell.ref).registerRun();
-      }
-    }
-
-    if (cellIds.length > 0) {
-      RuntimeState.INSTANCE.registerRunStart();
-      sendRunMultiple(cellIds, codes);
-    }
-  });
+  const runStaleCells = useRunStaleCells();
 
   // Toggle the array's presenting state, and sets a cell to anchor scrolling to
   const togglePresenting = useCallback(() => {
@@ -257,7 +243,9 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, [setViewState]);
 
   // HOTKEYS
-  useHotkey("global.runStale", runStaleCells);
+  useHotkey("global.runStale", () => {
+    runStaleCells();
+  });
   useHotkey("global.save", saveOrNameNotebook);
   useHotkey("global.interrupt", () => {
     sendInterrupt();

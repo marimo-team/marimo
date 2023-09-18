@@ -49,6 +49,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
+          data-status="stale"
         >
           <MultiIcon>
             <BanIcon className="h-4 w-4" strokeWidth={1.5} />
@@ -66,6 +67,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-disabled"
           data-testid="cell-status"
+          data-status="disabled"
         >
           <BanIcon className="h-4 w-4" strokeWidth={1.5} />
         </div>
@@ -83,6 +85,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
+          data-status="disabled-transitively"
         >
           <MultiIcon layerTop={true}>
             <WorkflowIcon className="h-5 w-5" strokeWidth={1.5} />
@@ -105,6 +108,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
+          data-status="stale"
         >
           <MultiIcon>
             <RefreshCwIcon className="h-5 w-5" strokeWidth={1} />
@@ -122,6 +126,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className={"cell-status-icon elapsed-time running"}
           data-testid="cell-status"
+          data-status="running"
         >
           <CellTimer />
         </div>
@@ -136,6 +141,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-queued"
           data-testid="cell-status"
+          data-status="queued"
         >
           <MoreHorizontalIcon className="h-5 w-5" strokeWidth={1.5} />
         </div>
@@ -153,6 +159,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
+          data-status="outdated"
         >
           <RefreshCwIcon className="h-4 w-4" strokeWidth={1.5} />
         </div>
@@ -171,6 +178,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
         <div
           className={"cell-status-icon elapsed-time hover-action"}
           data-testid="cell-status"
+          data-status="idle"
         >
           <span>{elapsedTimeStr}</span>
         </div>
