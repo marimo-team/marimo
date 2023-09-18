@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
+import { CellConfig, CellStatus } from "../model/cells";
 import { CellId } from "../model/ids";
 
 export type MarimoError =
@@ -70,7 +71,7 @@ export interface CellMessage {
    * Encodes status transitions. Non-null means a transition happened. Null
    * means no transition in status.
    */
-  status: "idle" | "queued" | "running" | "stale" | null;
+  status: CellStatus | null;
   /**
    * Timestamp in seconds since epoch, when the message was sent
    */
@@ -114,6 +115,10 @@ export type OperationMessage =
          * The cell codes. Will be empty in Read mode.
          */
         codes: string[];
+        /**
+         * The cell configs.
+         */
+        configs: CellConfig[];
       };
     }
   | {

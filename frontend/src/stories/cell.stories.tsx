@@ -84,7 +84,7 @@ export const WithOutput: Story = {
   ),
 };
 
-export const StaleOutput: Story = {
+export const UnsavedEditsOutput: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">
       <TooltipProvider>
@@ -92,6 +92,26 @@ export const StaleOutput: Story = {
           {...props}
           runElapsedTimeMs={20}
           edited={true}
+          output={{
+            channel: "output",
+            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const InterruptedOutput: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          interrupted={true}
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -112,6 +132,131 @@ export const WithError: Story = {
           {...props}
           runElapsedTimeMs={20}
           errored={true}
+          output={{
+            channel: "output",
+            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const Disabled: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          config={{
+            disabled: true,
+          }}
+          output={{
+            channel: "output",
+            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const DisabledTransitively: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          status="disabled-transitively"
+          output={{
+            channel: "output",
+            data: "This data is stale because a parent is disabled",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const StaleStatus: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          status="stale"
+          output={{
+            channel: "output",
+            data: "This data is stale because a parent is disabled",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const StaleAndEditedStatus: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          status="stale"
+          output={{
+            channel: "output",
+            data: "This data is stale because a parent is disabled, but this cell has been edited since.",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const DisabledAndStaleStatus: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          config={{
+            disabled: true,
+          }}
+          status="stale"
+          output={{
+            channel: "output",
+            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
+            mimetype: "text/html",
+            timestamp: "1686863788",
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
+export const Running: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          status="running"
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",

@@ -375,7 +375,7 @@ const CellComponent = (
     <OutputArea
       output={output}
       cellId={cellId}
-      stale={(loading || edited) && !interrupted}
+      stale={(loading || edited || status === "stale") && !interrupted}
     />
   );
 
@@ -384,6 +384,8 @@ const CellComponent = (
     "needs-run": needsRun,
     "has-error": errored,
     stopped: stopped,
+    disabled: cellConfig.disabled,
+    stale: status === "stale" || status === "disabled-transitively",
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -396,6 +398,19 @@ const CellComponent = (
     );
   }
 
+  // TODO(akshayka): Move to our own Tooltip component once it's easier
+  // to get the tooltip to show next to the cursor ...
+  // https://github.com/radix-ui/primitives/discussions/1090
+  const cellTitle = () => {
+    if (cellConfig.disabled) {
+      return "This cell is disabled";
+    } else if (status === "stale" || status === "disabled-transitively") {
+      return "This cell has a disabled ancestor";
+    } else {
+      return undefined;
+    }
+  };
+
   const editor = <div className="cm" ref={editorViewParentRef} />;
 
   return (
@@ -404,9 +419,11 @@ const CellComponent = (
       id={HTMLId}
       ref={cellRef}
       className={className}
+      data-status={status}
       onBlur={closeCompletionHandler}
       onKeyDown={resumeCompletionHandler}
       cellId={cellId}
+      title={cellTitle()}
     >
       {outputArea}
       <div className="tray">
@@ -433,13 +450,16 @@ const CellComponent = (
             interrupted={interrupted}
             editing={editing}
             edited={edited}
+            disabled={cellConfig.disabled ?? false}
             elapsedTime={runElapsedTimeMs}
           />
           <div className="flex align-bottom">
             <RunButton
+              edited={edited}
               onClick={appClosed ? Functions.NOOP : onRun}
               appClosed={appClosed}
               status={status}
+              config={cellConfig}
               needsRun={needsRun}
             />
             <CellActionsDropdown
@@ -469,7 +489,9 @@ const CellComponent = (
       <ConsoleOutputArea
         consoleOutputs={consoleOutputs}
         cellId={cellId}
-        stale={(status === "queued" || edited) && !interrupted}
+        stale={
+          (status === "queued" || edited || status === "stale") && !interrupted
+        }
       />
     </SortableCell>
   );

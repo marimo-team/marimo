@@ -2,18 +2,30 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
 import functools
 import inspect
 import io
 import textwrap
 import token as token_types
 from collections.abc import Iterator
-from dataclasses import dataclass
 from tokenize import TokenInfo, tokenize
 from types import CodeType
-from typing import Any, Callable, Optional, Protocol, Set, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 from marimo._ast.visitor import Name, ScopedVisitor, _is_local
+from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
@@ -22,7 +34,52 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass
+class CellConfig:
+    # If True, the cell and its descendants cannot be executed,
+    # but they can still be added to the graph.
+    disabled: bool = False
+
+    @classmethod
+    def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
+        return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
+
+    def configure(self, update: dict[str, Any] | CellConfig) -> None:
+        """Update the config in-place.
+
+        `update` can be a partial config or a CellConfig
+        """
+        if isinstance(update, CellConfig):
+            update = dataclasses.asdict(update)
+        new_config = dataclasses.asdict(
+            CellConfig.from_dict(deep_merge(dataclasses.asdict(self), update))
+        )
+        for key, value in new_config.items():
+            self.__setattr__(key, value)
+
+
+CellConfigKeys = frozenset(
+    {field.name for field in dataclasses.fields(CellConfig)}
+)
+
+"""
+idle: cell has run with latest inputs
+queued: cell is queued to run
+running: cell is running
+stale: cell hasn't run with latest inputs, and can't run (disabled)
+disabled-transitively: cell is disabled because a parent is disabled
+"""
+CellStatusType = Literal[
+    "idle", "queued", "running", "stale", "disabled-transitively"
+]
+
+
+@dataclasses.dataclass
+class CellStatus:
+    state: Optional[CellStatusType] = None
+
+
+@dataclasses.dataclass(frozen=True)
 class Cell:
     key: int
     code: str
@@ -34,11 +91,48 @@ class Cell:
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
 
+    # Mutable fields
+    # config: explicit configuration of cell
+    config: CellConfig = dataclasses.field(default_factory=CellConfig)
+    # staus: status, inferred at runtime
+    _status: CellStatus = dataclasses.field(default_factory=CellStatus)
 
-cell_func_t = Callable[..., Optional[Tuple[Any, ...]]]
+    def configure(self, update: dict[str, Any] | CellConfig) -> Cell:
+        """Update the cel config.
+
+        `update` can be a partial config.
+        """
+        self.config.configure(update)
+        return self
+
+    @property
+    def status(self) -> Optional[CellStatusType]:
+        return self._status.state
+
+    @property
+    def stale(self) -> bool:
+        return self.status == "stale"
+
+    @property
+    def disabled_transitively(self) -> bool:
+        return self.status == "disabled-transitively"
+
+    def set_status(self, status: Optional[CellStatusType]) -> None:
+        self._status.state = status
 
 
-class CellFunction(Protocol):
+CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
+# Cumbersome, but used to ensure function types don't get erased in decorators
+# or creation of CellFunction
+CellFuncTypeBound = TypeVar(
+    "CellFuncTypeBound",
+    bound=Callable[..., Optional[Tuple[Any, ...]]],
+)
+
+
+class CellFunction(Protocol[CellFuncTypeBound]):
+    """Wraps a function from which a Cell object was created."""
+
     cell: Cell
     # function name
     __name__: str
@@ -46,12 +140,12 @@ class CellFunction(Protocol):
     code: str
     # arg names of wrapped function
     args: set[str]
-    __call__: cell_func_t
+    __call__: CellFuncTypeBound
 
 
 def cell_function(
-    cell: Cell, args: set[str], code: str, f: cell_func_t
-) -> CellFunction:
+    cell: Cell, args: set[str], code: str, f: CellFuncTypeBound
+) -> CellFunction[CellFuncTypeBound]:
     signature = inspect.signature(f)
 
     n_args = 0
@@ -104,7 +198,7 @@ def cell_function(
         _ = execute_cell(cell, glbls)
         return tuple(glbls[name] for name in return_names)
 
-    cell_func = cast(CellFunction, func)
+    cell_func = cast(CellFunction[CellFuncTypeBound], func)
     cell_func.cell = cell
     cell_func.args = args
     cell_func.code = code
@@ -157,7 +251,7 @@ def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
 
 
-def cell_factory(f: Callable[..., Any]) -> CellFunction:
+def cell_factory(f: CellFuncTypeBound) -> CellFunction[CellFuncTypeBound]:
     function_code = textwrap.dedent(inspect.getsource(f))
 
     # tokenize to find the start of the function body, including

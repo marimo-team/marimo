@@ -1,0 +1,7 @@
+.multi-icon .second-icon {
+  @apply bg-background;
+}
+
+.menu-item:hover .multi-icon .second-icon {
+  @apply bg-accent;
+}

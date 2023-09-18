@@ -6,6 +6,7 @@ from typing import Any, Generator
 
 import pytest
 
+from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.context import get_context
 from marimo._runtime.requests import ExecutionRequest
@@ -47,6 +48,9 @@ class ExecReqProvider:
         key = str(self.counter)
         self.counter += 1
         return ExecutionRequest(key, textwrap.dedent(code))
+
+    def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:
+        return ExecutionRequest(cell_id, textwrap.dedent(code))
 
 
 # fixture that provides an ExecReqProvider

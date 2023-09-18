@@ -10,11 +10,13 @@ from marimo._messaging.errors import (
     MultipleDefinitionError,
 )
 from marimo._plugins.ui._core.ids import IDProvider
+from marimo._runtime.conftest import ExecReqProvider
 from marimo._runtime.dataflow import Edge
 from marimo._runtime.requests import (
     CreationRequest,
     DeleteRequest,
     ExecutionRequest,
+    SetCellConfigRequest,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
@@ -278,3 +280,296 @@ def test_syntax_error(k: Kernel) -> None:
     assert "0" in k.graph.cells
     assert "1" in k.graph.cells
     assert not k.errors
+
+
+def test_disable_and_reenable_not_stale(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k.run(
+        [
+            (
+                er_1 := exec_req.get(
+                    """
+                class namespace:
+                    ...
+                ns = namespace()
+                ns.count = 0
+                """
+                )
+            ),
+            (er_2 := exec_req.get("ns.count += 1")),
+        ]
+    )
+    assert k.globals["ns"].count == 1
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    # disable and re-enable cell 2: cell 2 should not re-run because it
+    # shouldn't have passed through stale status
+    # disable cell 2
+    k.set_cell_config(SetCellConfigRequest({er_2.cell_id: {"disabled": True}}))
+    assert k.globals["ns"].count == 1
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    # re-enable cell 2
+    k.set_cell_config(
+        SetCellConfigRequest({er_2.cell_id: {"disabled": False}})
+    )
+    # cell 2 should **not** have re-run
+    assert k.globals["ns"].count == 1
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+
+def test_disable_and_reenable_stale(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k.run(
+        [
+            (
+                er_1 := exec_req.get(
+                    """
+                class namespace:
+                    ...
+                ns = namespace()
+                ns.count = 0
+                """
+                )
+            ),
+            (er_2 := exec_req.get("ns.count += 1")),
+        ]
+    )
+    assert k.globals["ns"].count == 1
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    # disable and re-enable cell 2, making it stale in between;
+    # cell 2 should re-run on enable
+    k.set_cell_config(SetCellConfigRequest({er_2.cell_id: {"disabled": True}}))
+    k.run(
+        [
+            exec_req.get_with_id(
+                er_1.cell_id,
+                """
+                class namespace:
+                    ...
+                ns = namespace()
+                ns.count = 10
+                """,
+            )
+        ]
+    )
+
+    assert k.globals["ns"].count == 10
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+
+    # re-enable cell 2
+    k.set_cell_config(
+        SetCellConfigRequest({er_2.cell_id: {"disabled": False}})
+    )
+    # cell 2 should have re-run
+    assert k.globals["ns"].count == 11
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+
+def test_disable_and_reenable_tree(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # x
+    # x --> y
+    # x, y --> z
+    k.run(
+        [
+            (er_1 := exec_req.get("x = 1")),
+            (er_2 := exec_req.get("y = x + 1")),
+            (er_3 := exec_req.get("z = x + y")),
+            (er_4 := exec_req.get("zz = z + 1")),
+            (er_5 := exec_req.get("zzz = x + 1")),
+        ]
+    )
+    assert k.globals["x"] == 1
+    assert k.globals["y"] == 2
+    assert k.globals["z"] == 3
+    assert k.globals["zz"] == 4
+    assert k.globals["zzz"] == 2
+
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert not k.graph.cells[er_4.cell_id].stale
+    assert not k.graph.cells[er_5.cell_id].stale
+
+    # disable cell 2
+    k.set_cell_config(SetCellConfigRequest({er_2.cell_id: {"disabled": True}}))
+
+    k.run([ExecutionRequest(er_1.cell_id, "x = 2")])
+    assert k.globals["x"] == 2
+    assert k.globals["zzz"] == 3
+
+    # stale cells' state is gone
+    assert "y" not in k.globals
+    assert "z" not in k.globals
+    assert "zz" not in k.globals
+
+    # cell 1 is not disabled
+    assert not k.graph.cells[er_1.cell_id].stale
+    # cell 2 stale because disabled and cannot run
+    assert k.graph.cells[er_2.cell_id].stale
+    # cell 3 stale because its parent (cell 2) is disabled
+    assert k.graph.cells[er_3.cell_id].stale
+    # cell 4 stale because cell 2 (an ancestor) is disabled
+    assert k.graph.cells[er_4.cell_id].stale
+    # cell 5 is not disabled
+    assert not k.graph.cells[er_5.cell_id].stale
+
+    # enable cell 2: should run stale cells as a side-effect
+    k.set_cell_config(
+        SetCellConfigRequest({er_2.cell_id: {"disabled": False}})
+    )
+    assert k.globals["x"] == 2
+    assert k.globals["zzz"] == 3
+
+    # stale cells **should have** updated
+    assert k.globals["y"] == 3
+    assert k.globals["z"] == 5
+    assert k.globals["zz"] == 6
+
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert not k.graph.cells[er_4.cell_id].stale
+    assert not k.graph.cells[er_5.cell_id].stale
+
+
+def test_disable_consecutive(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            (er_1 := exec_req.get("x = 1")),
+            (er_2 := exec_req.get("y = x + 1")),
+        ]
+    )
+    assert k.globals["x"] == 1
+    assert k.globals["y"] == 2
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    # disable both cells
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+    k.set_cell_config(SetCellConfigRequest({er_2.cell_id: {"disabled": True}}))
+    # update the code of cell 1 -- both cells stale
+    k.run([exec_req.get_with_id(er_1.cell_id, "x = 2")])
+    assert "x" not in k.globals
+    assert "y" not in k.globals
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+
+    # enable cell 1, but 2 still disabled
+    k.set_cell_config(
+        SetCellConfigRequest({er_1.cell_id: {"disabled": False}})
+    )
+    assert k.globals["x"] == 2
+    assert "y" not in k.globals
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+
+    # enable cell 2
+    k.set_cell_config(
+        SetCellConfigRequest({er_2.cell_id: {"disabled": False}})
+    )
+    assert k.globals["x"] == 2
+    assert k.globals["y"] == 3
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+
+def test_disable_syntax_error(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            (er_1 := exec_req.get("x = 1")),
+        ]
+    )
+    assert k.globals["x"] == 1
+
+    # disable cell
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+
+    # add a syntax error
+    k.run([exec_req.get_with_id(er_1.cell_id, "x 2")])
+    assert "x" not in k.globals
+
+    # repair syntax, cell should still be disabled
+    k.run([exec_req.get_with_id(er_1.cell_id, "x = 2")])
+    assert "x" not in k.globals
+    assert k.graph.cells[er_1.cell_id].stale
+
+    # enable: should run
+    k.set_cell_config(
+        SetCellConfigRequest({er_1.cell_id: {"disabled": False}})
+    )
+    assert k.globals["x"] == 2
+    assert not k.graph.cells[er_1.cell_id].stale
+
+
+def test_disable_cycle(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            (er_1 := exec_req.get("a = b")),
+            (er_2 := exec_req.get("b = a")),
+        ]
+    )
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+    assert k.graph.cells[er_1.cell_id].config.disabled
+    assert k.graph.cells[er_2.cell_id].disabled_transitively
+
+    k.set_cell_config(SetCellConfigRequest({er_2.cell_id: {"disabled": True}}))
+    k.set_cell_config(
+        SetCellConfigRequest({er_1.cell_id: {"disabled": False}})
+    )
+    assert k.graph.cells[er_1.cell_id].disabled_transitively
+    assert k.graph.cells[er_2.cell_id].config.disabled
+
+    # adding a new cell shouldn't toggle disabled states of either
+    k.run([exec_req.get("c = 0")])
+    assert k.graph.cells[er_1.cell_id].disabled_transitively
+    assert k.graph.cells[er_2.cell_id].config.disabled
+
+    # breaking the cycle should re-enable
+    k.run([ExecutionRequest(er_1.cell_id, "a = 0")])
+    assert not k.graph.cells[er_1.cell_id].disabled_transitively
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_1.cell_id].config.disabled
+    assert k.graph.cells[er_2.cell_id].config.disabled
+
+
+def test_disable_cycle_incremental(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k.run([er_1 := exec_req.get("a = b")])
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+    assert k.graph.cells[er_1.cell_id].config.disabled
+
+    k.run([er_2 := exec_req.get("b = a")])
+    assert k.graph.cells[er_2.cell_id].disabled_transitively
+
+
+def test_enable_cycle_incremental(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k.run(
+        [
+            (er_1 := exec_req.get("a = b")),
+            (er_2 := exec_req.get("b = a")),
+        ]
+    )
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+    assert k.graph.cells[er_1.cell_id].config.disabled
+    assert k.graph.cells[er_2.cell_id].disabled_transitively
+
+    k.set_cell_config(
+        SetCellConfigRequest({er_1.cell_id: {"disabled": False}})
+    )
+    assert not k.graph.cells[er_1.cell_id].config.disabled
+    assert k.graph.cells[er_2.cell_id].status == "idle"

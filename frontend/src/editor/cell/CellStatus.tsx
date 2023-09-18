@@ -1,20 +1,31 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { MoreHorizontalIcon, RefreshCwIcon } from "lucide-react";
+import {
+  BanIcon,
+  MoreHorizontalIcon,
+  WorkflowIcon,
+  RefreshCwIcon,
+} from "lucide-react";
 import { Tooltip } from "../../components/ui/tooltip";
 import { CellStatus } from "../../core/model/cells";
 import { useElapsedTime } from "../../hooks/useElapsedTime";
+import { Logger } from "@/utils/Logger";
+import { MultiIcon } from "@/components/icons/multi-icon";
 
-interface Props {
+import "./cell-status.css";
+
+export interface CellStatusComponentProps {
   editing: boolean;
   status: CellStatus;
   edited: boolean;
   interrupted: boolean;
+  disabled: boolean;
   elapsedTime: number | null;
 }
 
-export const CellStatusComponent: React.FC<Props> = ({
+export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   editing,
   status,
+  disabled,
   edited,
   interrupted,
   elapsedTime,
@@ -23,8 +34,91 @@ export const CellStatusComponent: React.FC<Props> = ({
     return null;
   }
 
-  // Styling: CellStatusIcon visible if queued, running, or needs run.
-  //
+  // unexpected states
+  if (disabled && status === "running") {
+    Logger.error("CellStatusComponent: disabled and running");
+    return null;
+  }
+  // stale and disabled by self
+  if (disabled && status === "stale") {
+    return (
+      <Tooltip
+        content={"This cell is stale, but it's disabled and can't be run"}
+        usePortal={false}
+      >
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+          data-status="stale"
+        >
+          <MultiIcon>
+            <BanIcon className="h-4 w-4" strokeWidth={1.5} />
+            <RefreshCwIcon className="h-3 w-3" strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // disabled, but not stale
+  if (disabled) {
+    return (
+      <Tooltip content={"This cell is disabled"} usePortal={false}>
+        <div
+          className="cell-status-icon cell-status-disabled"
+          data-testid="cell-status"
+          data-status="disabled"
+        >
+          <BanIcon className="h-4 w-4" strokeWidth={1.5} />
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // disabled from parent
+  if (status === "disabled-transitively") {
+    return (
+      <Tooltip
+        content={"An ancestor of this cell is disabled, so it can't be run"}
+        usePortal={false}
+      >
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+          data-status="disabled-transitively"
+        >
+          <MultiIcon layerTop={true}>
+            <WorkflowIcon className="h-5 w-5" strokeWidth={1.5} />
+            <BanIcon className="h-3 w-3" strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
+
+  // stale from parent being disabled
+  if (status === "stale") {
+    return (
+      <Tooltip
+        content={
+          "This cell is stale, but an ancestor is disabled so it can't be run"
+        }
+        usePortal={false}
+      >
+        <div
+          className="cell-status-icon cell-status-stale"
+          data-testid="cell-status"
+          data-status="stale"
+        >
+          <MultiIcon>
+            <RefreshCwIcon className="h-5 w-5" strokeWidth={1} />
+            <BanIcon className="h-3 w-3" strokeWidth={2.5} />
+          </MultiIcon>
+        </div>
+      </Tooltip>
+    );
+  }
+
   // running & queued icons get priority over edited/interrupted
   if (status === "running") {
     return (
@@ -32,28 +126,31 @@ export const CellStatusComponent: React.FC<Props> = ({
         <div
           className={"cell-status-icon elapsed-time running"}
           data-testid="cell-status"
+          data-status="running"
         >
           <CellTimer />
         </div>
       </Tooltip>
     );
-  } else if (status === "queued" && elapsedTime) {
-    // If elapsed time < 16ms (60fps), don't show the elapsed time,
-    // otherwise it will flicker.
-    if (elapsedTime < 16) {
-      return null;
-    }
+  }
+
+  // queued
+  if (status === "queued") {
     return (
       <Tooltip content={"This cell is queued to run"} usePortal={false}>
         <div
           className="cell-status-icon cell-status-queued"
           data-testid="cell-status"
+          data-status="queued"
         >
-          <MoreHorizontalIcon strokeWidth={1.5} />
+          <MoreHorizontalIcon className="h-5 w-5" strokeWidth={1.5} />
         </div>
       </Tooltip>
     );
-  } else if (edited || interrupted) {
+  }
+
+  // outdated
+  if (edited || interrupted) {
     const title = interrupted
       ? "This cell was interrupted when it was last run"
       : "This cell has been modified since it was last run";
@@ -62,12 +159,16 @@ export const CellStatusComponent: React.FC<Props> = ({
         <div
           className="cell-status-icon cell-status-stale"
           data-testid="cell-status"
+          data-status="outdated"
         >
-          <RefreshCwIcon strokeWidth={1.5} />
+          <RefreshCwIcon className="h-4 w-4" strokeWidth={1.5} />
         </div>
       </Tooltip>
     );
-  } else if (elapsedTime !== null) {
+  }
+
+  // either running or finished
+  if (elapsedTime !== null) {
     const elapsedTimeStr = formatElapsedTime(elapsedTime);
     return (
       <Tooltip
@@ -77,6 +178,7 @@ export const CellStatusComponent: React.FC<Props> = ({
         <div
           className={"cell-status-icon elapsed-time hover-action"}
           data-testid="cell-status"
+          data-status="idle"
         >
           <span>{elapsedTimeStr}</span>
         </div>
@@ -84,6 +186,7 @@ export const CellStatusComponent: React.FC<Props> = ({
     );
   }
 
+  // default
   return null;
 };
 

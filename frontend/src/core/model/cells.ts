@@ -13,9 +13,15 @@ export const DEFAULT_CELL_NAME = "__";
  * queued: queued by the kernel.
  * running: currently executing.
  * idle: not running.
- * stale: not run because auto-run is disabled.
+ * stale: stale, likely because the cell was disabled or an ancestor was disabled.
+ * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type CellStatus = "queued" | "running" | "idle" | "stale";
+export type CellStatus =
+  | "queued"
+  | "running"
+  | "idle"
+  | "stale"
+  | "disabled-transitively";
 
 /**
  * Create a new cell with default state.
@@ -104,8 +110,7 @@ export interface CellState {
 
 export interface CellConfig {
   /**
-   * If false, the cell will not be run automatically.
-   * Cannot be true, and instead will be set to null.
+   * If true, the cell and its descendants are unable to run.
    */
-  autoRun?: false | null;
+  disabled?: boolean;
 }

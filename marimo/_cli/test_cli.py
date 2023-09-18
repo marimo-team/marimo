@@ -13,6 +13,7 @@ import urllib.request
 from typing import Optional
 
 from marimo._ast import codegen
+from marimo._ast.cell import CellConfig
 
 
 def _try_fetch(port: int) -> Optional[bytes]:
@@ -75,7 +76,7 @@ def test_cli_edit() -> None:
 
 def test_cli_run() -> None:
     filecontents = codegen.generate_filecontents(
-        ["import marimo as mo"], ["one"]
+        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
     )
     d = tempfile.TemporaryDirectory()
     path = os.path.join(d.name, "run.py")

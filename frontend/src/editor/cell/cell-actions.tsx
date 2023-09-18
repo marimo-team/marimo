@@ -33,6 +33,7 @@ import {
   PlusCircleIcon,
   Trash2Icon,
   ZapIcon,
+  ZapOffIcon,
 } from "lucide-react";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { HotkeyAction } from "@/core/hotkeys/hotkeys";
@@ -43,6 +44,7 @@ import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { CellConfig } from "@/core/model/cells";
 import { Switch } from "@/components/ui/switch";
 import React from "react";
+import { saveCellConfig } from "@/core/network/requests";
 
 interface Props {
   editorView: EditorView | null;
@@ -79,11 +81,13 @@ export const CellActionsDropdown = ({
     sendToTop,
     sendToBottom,
   } = useCellActions();
-  const toggleAutoRun = () => {
-    if (config.autoRun === false) {
-      updateCellConfig({ cellId, config: { autoRun: null } });
+  const toggleDisabled = async () => {
+    if (config.disabled) {
+      await saveCellConfig({ configs: { [cellId]: { disabled: false } } });
+      updateCellConfig({ cellId, config: { disabled: false } });
     } else {
-      updateCellConfig({ cellId, config: { autoRun: false } });
+      await saveCellConfig({ configs: { [cellId]: { disabled: true } } });
+      updateCellConfig({ cellId, config: { disabled: true } });
     }
   };
 
@@ -108,20 +112,20 @@ export const CellActionsDropdown = ({
         },
       },
       {
-        icon: <ZapIcon size={13} strokeWidth={1.5} />,
-        // TODO: this feature is still a WIP
-        hidden: true,
-        label:
-          config.autoRun === false ? "Enable auto-run" : "Disable auto-run",
+        icon: config.disabled ? (
+          <ZapIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <ZapOffIcon size={13} strokeWidth={1.5} />
+        ),
+        label: config.disabled === true ? "Enable cell" : "Disable cell",
         rightElement: (
           <Switch
-            // null implies true
-            checked={config.autoRun === false ? false : true}
+            checked={!config.disabled}
             size="sm"
-            onCheckedChange={toggleAutoRun}
+            onCheckedChange={toggleDisabled}
           />
         ),
-        handle: toggleAutoRun,
+        handle: toggleDisabled,
       },
     ],
 
@@ -131,7 +135,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronUpIcon size={12} strokeWidth={1.5} />
+            <ChevronUpIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Create cell above",
@@ -142,7 +146,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronDownIcon size={12} strokeWidth={1.5} />
+            <ChevronDownIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Create cell below",
@@ -165,7 +169,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <FocusIcon size={13} strokeWidth={1.5} />
-            <ChevronUpIcon size={12} strokeWidth={1.5} />
+            <ChevronUpIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Focus cell above",
@@ -176,7 +180,7 @@ export const CellActionsDropdown = ({
         icon: (
           <MultiIcon>
             <FocusIcon size={13} strokeWidth={1.5} />
-            <ChevronDownIcon size={12} strokeWidth={1.5} />
+            <ChevronDownIcon size={8} strokeWidth={2} />
           </MultiIcon>
         ),
         label: "Focus cell below",
@@ -226,12 +230,13 @@ export const CellActionsDropdown = ({
           </TooltipContent>
         )}
         <TooltipTrigger>
-          <PopoverTrigger>{children}</PopoverTrigger>
+          <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>
       <PopoverContent
         className="w-[300px] p-0 pt-1"
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
       >
         <Command>
           <CommandInput
@@ -267,6 +272,7 @@ export const CellActionsDropdown = ({
                         <div className="flex-shrink-0 text-sm">
                           {action.hotkey &&
                             renderMinimalShortcut(action.hotkey)}
+                          {action.rightElement}
                         </div>
                       </div>
                     </CommandItem>

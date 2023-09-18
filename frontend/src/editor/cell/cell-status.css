@@ -1,0 +1,19 @@
+.cell-status-icon {
+  margin-left: 3px;
+}
+
+.elapsed-time {
+  font-family: var(--monospace-font);
+  font-size: 0.8125rem;
+  color: var(--gray-11);
+}
+
+#App.disconnected .elapsed-time {
+  visibility: hidden;
+}
+
+.cell-status-disabled,
+.cell-status-queued,
+.cell-status-stale {
+  color: var(--gray-10);
+}

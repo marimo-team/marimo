@@ -36,10 +36,11 @@ class SaveAppConfigurationHandler(tornado.web.RequestHandler):
         if app is not None and mgr.filename is not None:
             codes = list(app._codes())
             names = list(app._names())
+            configs = list(app._configs())
 
             # Try to save the app under the name `mgr.filename`
             contents = codegen.generate_filecontents(
-                codes, names, config=mgr.app_config
+                codes, names, cell_configs=configs, config=mgr.app_config
             )
             try:
                 with open(mgr.filename, "w", encoding="utf-8") as f:

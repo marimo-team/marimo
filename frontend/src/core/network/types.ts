@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { AppConfig, UserConfig } from "../config/config";
 import { CellId } from "../../core/model/ids";
+import { CellConfig } from "../model/cells";
 
 export interface DeleteRequest {
   cellId: CellId;
@@ -31,11 +32,6 @@ export interface RenameRequest {
 }
 
 export interface RunRequest {
-  cellId: CellId;
-  code: string;
-}
-
-export interface RunMultipleRequest {
   cellIds: CellId[];
   codes: string[];
 }
@@ -44,6 +40,7 @@ export interface SaveKernelRequest {
   filename: string;
   codes: string[];
   names: string[];
+  configs: CellConfig[];
 }
 
 export interface SendDirectoryAutocompleteRequest {
@@ -51,7 +48,6 @@ export interface SendDirectoryAutocompleteRequest {
 }
 
 export interface SendDirectoryAutocompleteResponse {
-  status: "ok";
   directories: string[];
   files: string[];
 }
@@ -73,4 +69,8 @@ export interface SaveUserConfigRequest {
 
 export interface SaveAppConfigRequest {
   config: AppConfig;
+}
+
+export interface SaveCellConfigRequest {
+  configs: Record<CellId, CellConfig>;
 }

@@ -5,10 +5,11 @@ import json
 import os
 import tempfile
 from inspect import cleandoc
+from typing import Optional
 
 from marimo import __version__
 from marimo._ast import codegen
-from marimo._ast.cell import parse_cell
+from marimo._ast.cell import CellConfig, parse_cell
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -36,6 +37,20 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"../_test_utils/codegen_data/{name}.py")
 
 
+def generate_filecontents(
+    codes: list[str],
+    names: list[str],
+    configs: Optional[list[CellConfig]] = None,
+) -> str:
+    if configs is None:
+        resolved_configs = [CellConfig() for _ in range(len(codes))]
+    else:
+        resolved_configs = configs
+    return codegen.generate_filecontents(
+        codes, names, cell_configs=resolved_configs
+    )
+
+
 class TestGeneration:
     @staticmethod
     def test_generate_filecontents() -> None:
@@ -46,7 +61,7 @@ class TestGeneration:
         cell_five = "# just a comment"
         codes = [cell_one, cell_two, cell_three, cell_four, cell_five]
         names = ["one", "two", "three", "four", "five"]
-        contents = codegen.generate_filecontents(codes, names)
+        contents = generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents"
         )
@@ -56,7 +71,7 @@ class TestGeneration:
         cell_one = "import numpy as np"
         codes = [cell_one]
         names = ["one"]
-        contents = codegen.generate_filecontents(codes, names)
+        contents = generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_single_cell"
         )
@@ -69,7 +84,7 @@ class TestGeneration:
         cell_four = '_ another_error\n_ and """another"""\n\n    \\t'
         codes = [cell_one, cell_two, cell_three, cell_four]
         names = ["one", "two", "__", "__"]
-        contents = codegen.generate_filecontents(codes, names)
+        contents = generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_with_syntax_error"
         )
@@ -77,10 +92,8 @@ class TestGeneration:
     @staticmethod
     def test_generate_unparseable_cell() -> None:
         code = "    error\n\\t"
-        raw = codegen.generate_unparseable_cell(code, None)
-        print(raw)
+        raw = codegen.generate_unparseable_cell(code, None, CellConfig())
         stringified = eval("\n".join(raw.split("\n")[1:5])).split("\n")
-        print(stringified)
         # first line empty
         assert not stringified[0]
         # leading 4 spaces followed by source line
@@ -104,9 +117,7 @@ class TestGeneration:
             + "i_am_another_very_long_name + "
             + "yet_another_very_long_name"
         )
-        contents = codegen.generate_filecontents(
-            [cell_one, cell_two], ["one", "two"]
-        )
+        contents = generate_filecontents([cell_one, cell_two], ["one", "two"])
         assert contents == get_expected_filecontents("test_long_line_in_main")
 
     @staticmethod
@@ -114,7 +125,7 @@ class TestGeneration:
         cell_one = "type"
         codes = [cell_one]
         names = ["one"]
-        contents = codegen.generate_filecontents(codes, names)
+        contents = generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_unshadowed_builtin"
         )
@@ -125,7 +136,7 @@ class TestGeneration:
         cell_two = "type"
         codes = [cell_one, cell_two]
         names = ["one", "two"]
-        contents = codegen.generate_filecontents(codes, names)
+        contents = generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_shadowed_builtin"
         )
@@ -287,6 +298,31 @@ class TestToFunctionDef:
         )
         assert fndef == expected
 
+    def test_with_empty_config(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.configure(CellConfig())
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            ["@app.cell", "def foo():", "    x = 0", "    return x,"]
+        )
+        assert fndef == expected
+
+    def test_with_some_config(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.configure(CellConfig(disabled=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(disabled=True)",
+                "def foo():",
+                "    x = 0",
+                "    return x,",
+            ]
+        )
+        assert fndef == expected
+
 
 def test_recover() -> None:
     cells = {
@@ -309,7 +345,7 @@ def test_recover() -> None:
     ]
     names = ["a", "b", "c"]
 
-    expected = codegen.generate_filecontents(codes, names)
+    expected = generate_filecontents(codes, names)
     assert recovered == expected
 
 
