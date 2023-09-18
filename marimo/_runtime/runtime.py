@@ -518,7 +518,6 @@ class Kernel:
                 self.graph, cells_with_stale_state
             )
         LOGGER.debug("Finished run.")
-        write_completed_run()
 
     def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
@@ -889,7 +888,6 @@ class Kernel:
         if self.graph.cells:
             del request
             LOGGER.debug("App already instantiated.")
-            write_completed_run()
         else:
             self.reset_ui_initializers()
             for (
@@ -976,12 +974,15 @@ def launch_kernel(
         LOGGER.debug("received request %s", request)
         if isinstance(request, CreationRequest):
             kernel.instantiate(request)
+            write_completed_run()
         elif isinstance(request, ExecuteMultipleRequest):
             kernel.run(request.execution_requests)
+            write_completed_run()
         elif isinstance(request, SetCellConfigRequest):
             kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
+            write_completed_run()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)
         elif isinstance(request, CompletionRequest):
