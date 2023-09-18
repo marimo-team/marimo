@@ -16,6 +16,7 @@ import { Kbd } from "../components/ui/kbd";
 import { prettyPrintHotkey } from "../components/shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom } from "jotai";
+import { useNotebookActions } from "./actions/useNotebookActions";
 
 export const commandPalletteAtom = atom(false);
 
@@ -75,6 +76,29 @@ export const CommandPallette = () => {
     );
   };
 
+  const renderCommandItem = (label: string, handle: () => void) => {
+    return (
+      <CommandItem
+        onSelect={() => {
+          setOpen(false);
+          requestAnimationFrame(() => {
+            handle();
+          });
+        }}
+        key={label}
+        value={label}
+      >
+        <span>{label}</span>
+      </CommandItem>
+    );
+  };
+
+
+  const notebookActions = useNotebookActions({});
+  const notebookActionsWithoutHotkeys = notebookActions.filter(
+    (action) => !action.hotkey
+  );
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Type to search..." />
@@ -93,6 +117,9 @@ export const CommandPallette = () => {
         <CommandGroup heading="Commands">
           {HOTKEYS.iterate().map((shortcut) =>
             renderShortcutCommandItemIfNotRecent(shortcut)
+          )}
+          {notebookActionsWithoutHotkeys.map((action) =>
+            renderCommandItem(action.label, action.handle)
           )}
         </CommandGroup>
       </CommandList>
