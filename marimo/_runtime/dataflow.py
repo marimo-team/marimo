@@ -142,6 +142,55 @@ class DirectedGraph:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
 
+    def disable_cell(self, cell_id: CellId_t) -> set[CellId_t]:
+        """
+        Disables a cell in the graph.
+
+        Does not mutate the graph (but does mutate cell statuses).
+
+        Returns the ids of descendants that are disabled transitively.
+        """
+        if cell_id not in self.cells:
+            raise ValueError(f"Cell {cell_id} not found")
+
+        disabled_transitively: set[CellId_t] = set()
+        for cid in transitive_closure(self, set([cell_id])) - set([cell_id]):
+            cell = self.cells[cid]
+            if not cell.stale:
+                cell.set_status(status="disabled-transitively")
+                disabled_transitively.add(cid)
+        return disabled_transitively
+
+    def enable_cell(
+        self, cell_id: CellId_t
+    ) -> tuple[set[CellId_t], set[CellId_t]]:
+        """
+        Enables a cell in the graph.
+
+        Does not mutate the graph (but does mutate cell statuses).
+
+        Returns:
+        - set of cells that were stale and should be re-run
+        - set of cells that were disabled transitively and now idle
+        """
+        if cell_id not in self.cells:
+            raise ValueError(f"Cell {cell_id} not found")
+
+        cells_to_run: set[CellId_t] = set()
+        cells_idle: set[CellId_t] = set()
+        for cid in transitive_closure(self, set([cell_id])):
+            if not self.is_disabled(cid):
+                child = self.cells[cid]
+                if child.stale:
+                    # cell was previously disabled, is no longer
+                    # disabled, and is stale: needs to run.
+                    cells_to_run.add(cid)
+                elif child.disabled_transitively:
+                    # cell is no longer disabled: status -> idle
+                    cells_idle.add(cid)
+                    child.set_status("idle")
+        return cells_to_run, cells_idle
+
     def delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """Removes a cell from the graph.
 
