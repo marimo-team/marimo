@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.5"
+__generated_with = "0.1.8"
 app = marimo.App()
 
 
@@ -394,6 +393,15 @@ def __():
             3. _Delete_ a cell by clicking the trash bin icon. Bring it
                 back by clicking the undo button on the bottom right of the
                 screen, or with `Ctrl/Cmd+Shift+z`.
+            """
+        ),
+        "Disabling Cells": (
+            """
+            You can disable a cell via the cell context menu (open it
+            by clicking the icon to the right of a cell). marimo will
+            never run a disabled cell or any cells that depend on it. This
+            can help prevent accidental execution of expensive computations
+            when editing a notebook.
             """
         ),
         "Code Folding": (
