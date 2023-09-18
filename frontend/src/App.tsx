@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   sendInterrupt,
   sendRename,
-  sendRunMultiple,
   sendSave,
   sendShutdown,
 } from "@/core/network/requests";
@@ -21,7 +20,6 @@ import { WebSocketState } from "./core/websocket/types";
 import { useMarimoWebSocket } from "./core/websocket/useMarimoWebSocket";
 import { useCellActions, useCells } from "./core/state/cells";
 import { Disconnected } from "./editor/Disconnected";
-import { derefNotNull } from "./utils/dereference";
 import { AppConfig, UserConfig } from "./core/config/config";
 import { toggleAppMode, viewStateAtom } from "./core/mode";
 import { useHotkey } from "./hooks/useHotkey";
