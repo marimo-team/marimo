@@ -748,7 +748,6 @@ class Kernel:
                         self.graph, set([cell_id])
                     ):
                         if not self.graph.is_disabled(cid):
-                            LOGGER.debug(self.graph.cells[cid].status)
                             child = self.graph.cells[cid]
                             if child.stale:
                                 # cell was previously disabled, is no longer
