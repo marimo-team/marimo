@@ -59,28 +59,28 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-    CellState,
-    | "consoleOutputs"
-    | "status"
-    | "output"
-    | "initialContents"
-    | "edited"
-    | "errored"
-    | "interrupted"
-    | "config"
-    | "stopped"
-    | "runElapsedTimeMs"
-  >,
-  Pick<
-    CellActions,
-    | "updateCellCode"
-    | "prepareForRun"
-    | "createNewCell"
-    | "deleteCell"
-    | "focusCell"
-    | "moveCell"
-    | "moveToNextCell"
-  > {
+      CellState,
+      | "consoleOutputs"
+      | "status"
+      | "output"
+      | "initialContents"
+      | "edited"
+      | "errored"
+      | "interrupted"
+      | "config"
+      | "stopped"
+      | "runElapsedTimeMs"
+    >,
+    Pick<
+      CellActions,
+      | "updateCellCode"
+      | "prepareForRun"
+      | "createNewCell"
+      | "deleteCell"
+      | "focusCell"
+      | "moveCell"
+      | "moveToNextCell"
+    > {
   theme: Theme;
   showPlaceholder: boolean;
   cellId: CellId;

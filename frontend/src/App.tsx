@@ -133,7 +133,13 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     }
 
     Logger.log("saving to ", filename);
-    sendSave({ codes, names: cellNames, filename, configs, layout: getSerializedLayout() })
+    sendSave({
+      codes,
+      names: cellNames,
+      filename,
+      configs,
+      layout: getSerializedLayout(),
+    })
       .then(() => {
         if (showToast) {
           toast({ title: "Notebook saved" });

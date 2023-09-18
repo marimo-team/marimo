@@ -131,7 +131,9 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         self.write_op(
             op=KernelReady.name,
             data=serialize(
-                KernelReady(codes=codes, names=names, configs=configs, layout=layout)
+                KernelReady(
+                    codes=codes, names=names, configs=configs, layout=layout
+                )
             ),
         )
 

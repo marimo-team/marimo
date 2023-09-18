@@ -19,7 +19,7 @@ export const LayoutSelect: React.FC = () => {
   const [layoutType, setLayoutType] = useAtom(layoutViewAtom);
   const layouts: LayoutType[] = ["vertical", "grid"];
 
-  if (!getFeatureFlag('layouts')) {
+  if (!getFeatureFlag("layouts")) {
     return null;
   }
 
