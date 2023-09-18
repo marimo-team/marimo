@@ -246,4 +246,4 @@ class TestApp:
     @staticmethod
     def test_app_config_extra_args_ignored() -> None:
         app = App(width="full", fake_config="foo")
-        assert app._config.asdict() == {"width": "full"}
+        assert app._config.asdict() == {"width": "full", "layout_file": None}
