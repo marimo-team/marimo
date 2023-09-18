@@ -49,7 +49,9 @@ export class RuntimeState {
   }
 
   registerRunEnd(): void {
-    this.runningCount -= 1;
+    // Threshold runningCount to 0 for resiliency. Won't be needed once
+    // we merge UI component updates in Python
+    this.runningCount = Math.max(this.runningCount - 1, 0);
   }
 
   running(): boolean {
