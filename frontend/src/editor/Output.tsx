@@ -13,7 +13,7 @@ import { VideoOutput } from "./output/VideoOutput";
 import { CellId } from "@/core/model/ids";
 import { cn } from "@/lib/utils";
 
-import "./output/outputs.css";
+import "./output/Outputs.css";
 
 /**
  * Renders an output based on an OutputMessage.
