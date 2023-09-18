@@ -110,7 +110,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
             <GridCell
               code={cell.code}
               mode={mode}
-              cellKey={cell.key}
+              cellId={cell.key}
               output={cell.output}
               status={cell.status}
             />
@@ -171,7 +171,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
             <GridCell
               code={cell.code}
               mode={mode}
-              cellKey={cell.key}
+              cellId={cell.key}
               output={cell.output}
               status={cell.status}
             />
@@ -183,12 +183,12 @@ const GridLayoutRenderer: React.FC<Props> = ({
 };
 
 interface GridCellProps extends Pick<CellState, "output" | "status" | "code"> {
-  cellKey: CellId;
+  cellId: CellId;
   mode: AppMode;
 }
 
 const GridCell = memo(
-  ({ output, cellKey, status, mode, code }: GridCellProps) => {
+  ({ output, cellId, status, mode, code }: GridCellProps) => {
     const loading = status === "running" || status === "queued";
 
     const isOutputEmpty = output == null || output.data === "";
@@ -199,7 +199,7 @@ const GridCell = memo(
 
     return (
       <div>
-        <OutputArea output={output} cellId={cellKey} stale={loading} />
+        <OutputArea output={output} cellId={cellId} stale={loading} />
       </div>
     );
   }

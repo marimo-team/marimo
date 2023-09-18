@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { memo, useRef } from "react";
 import { CellState } from "@/core/model/cells";
-import { HTMLCellId } from "@/core/model/ids";
+import { CellId, HTMLCellId } from "@/core/model/ids";
 import { OutputArea } from "@/editor/Output";
 import clsx from "clsx";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -22,6 +22,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       {cells.map((cell) => (
         <VerticalCell
           key={cell.key}
+          cellId={cell.key}
           output={cell.output}
           status={cell.status}
           stopped={cell.stopped}
@@ -33,15 +34,18 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   );
 };
 
-type VerticalCellProps = Pick<
-  CellState,
-  "output" | "key" | "status" | "stopped" | "errored" | "interrupted"
->;
+interface VerticalCellProps
+  extends Pick<
+    CellState,
+    "output" | "key" | "status" | "stopped" | "errored" | "interrupted"
+  > {
+  cellId: CellId;
+}
 
 const VerticalCell = memo(
   ({
     output,
-    key,
+    cellId,
     status,
     stopped,
     errored,
@@ -56,14 +60,14 @@ const VerticalCell = memo(
       stopped: stopped,
     });
 
-    const HTMLId = HTMLCellId.create(key);
+    const HTMLId = HTMLCellId.create(cellId);
     const hidden = errored || interrupted || stopped;
     return hidden ? null : (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         <OutputArea
           output={output}
           className="output-area"
-          cellId={key}
+          cellId={cellId}
           stale={loading && !interrupted}
         />
       </div>
