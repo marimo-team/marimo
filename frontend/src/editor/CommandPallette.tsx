@@ -48,7 +48,7 @@ export const CommandPallette = () => {
   }, [setOpen]);
 
   const renderShortcutCommandItem = (shortcut: HotkeyAction) => {
-    const action = registeredActions[shortcut]
+    const action = registeredActions[shortcut];
     if (!action) {
       return null;
     }
@@ -108,12 +108,12 @@ export const CommandPallette = () => {
               {recentCommands.map((shortcut) => {
                 // Hotkey
                 if (isHotkeyAction(shortcut)) {
-                  return renderShortcutCommandItem(shortcut)
+                  return renderShortcutCommandItem(shortcut);
                 }
                 // Other action
-                const action = keyedNotebookActions[shortcut]
+                const action = keyedNotebookActions[shortcut];
                 if (action) {
-                  return renderCommandItem(action.label, action.handle)
+                  return renderCommandItem(action.label, action.handle);
                 }
                 return null;
               })}
@@ -126,13 +126,13 @@ export const CommandPallette = () => {
             if (recentCommandsSet.has(shortcut)) {
               return null; // Don't show recent commands in the main list
             }
-            return renderShortcutCommandItem(shortcut)
+            return renderShortcutCommandItem(shortcut);
           })}
           {notebookActionsWithoutHotkeys.map((action) => {
             if (recentCommandsSet.has(action.label)) {
               return null; // Don't show recent commands in the main list
             }
-            return renderCommandItem(action.label, action.handle)
+            return renderCommandItem(action.label, action.handle);
           })}
         </CommandGroup>
       </CommandList>
