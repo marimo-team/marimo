@@ -12,34 +12,36 @@ interface Props {
   mode: AppMode;
 }
 
-export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(({ appConfig, mode, children }) => {
-  const cells = useCells();
-  const [layoutData, setLayoutData] = useAtom(layoutDataAtom);
-  const [layoutType] = useAtom(layoutViewAtom);
+export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
+  ({ appConfig, mode, children }) => {
+    const cells = useCells();
+    const [layoutData, setLayoutData] = useAtom(layoutDataAtom);
+    const [layoutType] = useAtom(layoutViewAtom);
 
-  // Just render children if we are in edit mode
-  if (mode === 'edit') {
-    return children;
+    // Just render children if we are in edit mode
+    if (mode === "edit") {
+      return children;
+    }
+
+    const plugin = cellRendererPlugins.find((p) => p.type === layoutType);
+
+    // Just render children if there is no plugin
+    if (!plugin) {
+      return children;
+    }
+
+    const Renderer = plugin.Component;
+    const body = (
+      <Renderer
+        appConfig={appConfig}
+        mode={mode}
+        cells={cells.present}
+        layout={layoutData || plugin.getInitialLayout(cells.present)}
+        setLayout={setLayoutData}
+      />
+    );
+
+    return body;
   }
-
-  const plugin = cellRendererPlugins.find((p) => p.type === layoutType);
-
-  // Just render children if there is no plugin
-  if (!plugin) {
-    return children;
-  }
-
-  const Renderer = plugin.Component;
-  const body = (
-    <Renderer
-      appConfig={appConfig}
-      mode={mode}
-      cells={cells.present}
-      layout={layoutData || plugin.getInitialLayout(cells.present)}
-      setLayout={setLayoutData}
-    />
-  );
-
-  return body;
-});
+);
 CellsRenderer.displayName = "CellsRenderer";
