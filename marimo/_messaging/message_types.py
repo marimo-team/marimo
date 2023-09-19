@@ -86,7 +86,10 @@ class VariableValue:
 
     def __init__(self, name: str, value: object):
         self.name = name
-        self.datatype = str(type(value)) if value is not None else None
+        try:
+            self.datatype = type(value).__name__ if value is not None else None
+        except Exception:
+            self.datatype = None
         try:
             self.value = str(value)[:50]
         except Exception:
