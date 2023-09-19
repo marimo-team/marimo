@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { AppConfig, UserConfig } from "../config/config";
+import { LayoutType } from "@/editor/renderers/types";
 import { CellId } from "../../core/model/ids";
 import { CellConfig } from "../model/cells";
 
@@ -40,6 +41,12 @@ export interface SaveKernelRequest {
   filename: string;
   codes: string[];
   names: string[];
+  layout:
+    | {
+        type: LayoutType;
+        data: unknown;
+      }
+    | undefined;
   configs: CellConfig[];
 }
 

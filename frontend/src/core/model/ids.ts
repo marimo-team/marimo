@@ -1,6 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-redeclare */
 
+import { invariant } from "@/utils/invariant";
+
 export type TypedNumber<T> = number & { __type__: T };
 export type TypedString<T> = string & { __type__: T };
 
@@ -35,6 +37,8 @@ export const HTMLCellId = {
    * Create a new HTMLCellId
    */
   create(cellId: CellId): HTMLCellId {
+    invariant(cellId != null, "cellId is required");
+
     return `cell-${cellId}` as HTMLCellId;
   },
   parse(htmlCellId: HTMLCellId): CellId {

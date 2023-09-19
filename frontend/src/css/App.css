@@ -81,7 +81,8 @@ html {
   opacity: 0.5;
 }
 
-#App.disconnected {
+#App.disconnected,
+#App.disconnected .transparent-when-disconnected {
   background: none;
 }
 

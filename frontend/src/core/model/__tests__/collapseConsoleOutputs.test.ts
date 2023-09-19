@@ -7,8 +7,18 @@ import { OutputMessage } from "@/core/kernel/messages";
 describe("collapseConsoleOutputs", () => {
   it("should collapse last two text/plain outputs on the same channel", () => {
     const consoleOutputs: OutputMessage[] = [
-      { mimetype: "text/plain", channel: "1", data: "Hello ", timestamp: "" },
-      { mimetype: "text/plain", channel: "1", data: "World", timestamp: "" },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello ",
+        timestamp: "",
+      },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "World",
+        timestamp: "",
+      },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
     expect(result[0].data).toMatchInlineSnapshot('"Hello World"');
@@ -16,8 +26,18 @@ describe("collapseConsoleOutputs", () => {
 
   it("should not collapse outputs on different channels", () => {
     const consoleOutputs: OutputMessage[] = [
-      { mimetype: "text/plain", channel: "1", data: "Hello ", timestamp: "" },
-      { mimetype: "text/plain", channel: "2", data: "World", timestamp: "" },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello ",
+        timestamp: "",
+      },
+      {
+        mimetype: "text/plain",
+        channel: "console",
+        data: "World",
+        timestamp: "",
+      },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
     expect(result).toEqual(consoleOutputs);
@@ -25,8 +45,18 @@ describe("collapseConsoleOutputs", () => {
 
   it("should not collapse outputs of different mimetypes", () => {
     const consoleOutputs: OutputMessage[] = [
-      { mimetype: "text/plain", channel: "1", data: "Hello ", timestamp: "" },
-      { mimetype: "text/html", channel: "1", data: "World", timestamp: "" },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello ",
+        timestamp: "",
+      },
+      {
+        mimetype: "text/html",
+        channel: "output",
+        data: "World",
+        timestamp: "",
+      },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
     expect(result).toEqual(consoleOutputs);
@@ -36,7 +66,7 @@ describe("collapseConsoleOutputs", () => {
     const consoleOutputs: OutputMessage[] = [
       {
         mimetype: "text/plain",
-        channel: "1",
+        channel: "output",
         data: "Hello\rWorld",
         timestamp: "",
       },
@@ -49,7 +79,7 @@ describe("collapseConsoleOutputs", () => {
     const consoleOutputs: OutputMessage[] = [
       {
         mimetype: "text/plain",
-        channel: "1",
+        channel: "output",
         data: "Hello\rWorld\r!",
         timestamp: "",
       },
@@ -62,7 +92,7 @@ describe("collapseConsoleOutputs", () => {
     const consoleOutputs: OutputMessage[] = [
       {
         mimetype: "text/plain",
-        channel: "1",
+        channel: "output",
         data: "Hello\nWorld\r!",
         timestamp: "",
       },

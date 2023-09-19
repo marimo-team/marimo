@@ -1,0 +1,16 @@
+.react-grid-item.react-grid-placeholder {
+  background-color: var(--grass-9);
+}
+
+.react-resizable-handle {
+  visibility: hidden;
+}
+
+.react-grid-item:hover .react-resizable-handle {
+  visibility: visible;
+}
+
+.disable-animation .react-grid-item {
+  transition-property: none !important;
+  transition: none !important;
+}

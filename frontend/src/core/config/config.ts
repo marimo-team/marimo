@@ -22,6 +22,7 @@ export const UserConfigSchema = z
     experimental: z
       .object({
         theming: z.boolean().optional(),
+        layouts: z.boolean().optional(),
       })
       // Pass through so that we don't remove any extra keys that the user has added.
       .passthrough()

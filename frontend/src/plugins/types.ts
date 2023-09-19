@@ -56,9 +56,6 @@ export interface IPlugin<S, D = Record<string, never>> {
 
   /**
    * Validate the plugin data. Use [zod](https://zod.dev/) to validate the data.
-   *
-   * The data is input as a map of strings, but you can use
-   * `zod.string().transform` to convert the string to the correct type.
    */
   validator: ZodType<D, ZodTypeDef, unknown>;
 
