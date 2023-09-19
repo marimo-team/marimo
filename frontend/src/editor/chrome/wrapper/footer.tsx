@@ -1,34 +1,18 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
-import {
-  PanelBottomIcon,
-  PanelLeftIcon,
-  VariableIcon,
-  XCircleIcon,
-} from "lucide-react";
-import { useCells } from "@/core/state/cells";
+import { PanelBottomIcon, PanelLeftIcon, VariableIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChromeActions, useChromeState } from "../state";
+import { useVariables } from "@/core/variables/state";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, panelLocation } = useChromeState();
   const { openApplication, changePanelLocation } = useChromeActions();
-
-  const cells = useCells();
-  const errors = cells.present
-    .map((cell) =>
-      cell.output?.mimetype === "application/vnd.marimo+error"
-        ? {
-            output: cell.output,
-            cellId: cell.key,
-          }
-        : null
-    )
-    .filter(Boolean);
+  const variables = useVariables();
 
   return (
     <footer className="h-6 bg-[var(--sage-3)] flex items-center text-muted-foreground text-md px-6 border-t border-border select-none">
-      <FooterItem
+      {/* <FooterItem
         selected={selectedPanel === "errors"}
         onClick={() => openApplication("errors")}
       >
@@ -38,13 +22,13 @@ export const Footer: React.FC = () => {
           })}
         />
         {errors.length}
-      </FooterItem>
+      </FooterItem> */}
       <FooterItem
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
         <VariableIcon className={cn("h-4 w-4 mr-1")} />
-        {errors.length}
+        {Object.keys(variables).length}
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem

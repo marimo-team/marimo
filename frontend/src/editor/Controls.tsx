@@ -13,7 +13,6 @@ import { KeyboardShortcuts } from "editor/KeyboardShortcuts";
 import { ShutdownButton } from "editor/ShutdownButton";
 import { RecoveryButton } from "editor/RecoveryButton";
 
-import * as styles from "./Controls.styles";
 import { Tooltip } from "../components/ui/tooltip";
 import { renderShortcut } from "../components/shortcuts/renderShortcut";
 import { useCellActions } from "../core/state/cells";
@@ -79,11 +78,11 @@ export const Controls = ({
   }
 
   return (
-    <>
+    <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
       {!presenting && <FindReplace />}
 
       {!closed && (
-        <div className={styles.topRightControls}>
+        <div className={topRightControls}>
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown filename={filename} />
           <AppConfigButton />
@@ -91,7 +90,7 @@ export const Controls = ({
         </div>
       )}
 
-      <div className={styles.bottomLeftControls}>
+      <div className={bottomLeftControls}>
         {closed ? (
           <RecoveryButton
             filename={filename}
@@ -129,7 +128,7 @@ export const Controls = ({
         <KeyboardShortcuts />
       </div>
 
-      <div className={styles.bottomRightControls}>
+      <div className={bottomRightControls}>
         {undoControl}
         {!closed && (
           <RunControlButton
@@ -140,7 +139,7 @@ export const Controls = ({
           />
         )}
       </div>
-    </>
+    </div>
   );
 };
 
@@ -205,3 +204,12 @@ const RunControlButton = ({
     </Tooltip>
   );
 };
+
+const topRightControls =
+  "absolute top-3 right-3 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto";
+
+const bottomRightControls =
+  "absolute bottom-4 right-4 flex items-center space-x-3 no-print pointer-events-auto";
+
+const bottomLeftControls =
+  "absolute bottom-4 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto";

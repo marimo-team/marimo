@@ -372,11 +372,32 @@ function updateCell(
 }
 
 const cellsAtom = atom<CellsAndHistory>(initialCellState());
+const cellIdsAtom = atom((get) =>
+  get(cellsAtom).present.map((cell) => cell.key)
+);
+
+const cellErrorsAtom = atom((get) => {
+  const errors = get(cellsAtom)
+    .present.map((cell) =>
+      cell.output?.mimetype === "application/vnd.marimo+error"
+        ? {
+            output: cell.output,
+            cellId: cell.key,
+          }
+        : null
+    )
+    .filter(Boolean);
+  return errors;
+});
 
 /**
  * Get the array of cells.
  */
 export const useCells = () => useAtomValue(cellsAtom);
+
+export const useCellIds = () => useAtomValue(cellIdsAtom);
+
+export const useCellErrors = () => useAtomValue(cellErrorsAtom);
 
 export const getCells = () => store.get(cellsAtom).present;
 

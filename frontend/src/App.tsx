@@ -288,46 +288,54 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     />
   );
 
-  return (
-    <div
-      id="App"
-      className={clsx(
-        connStatus.state === WebSocketState.CLOSED && "disconnected",
-        "bg-background w-full h-full text-textColor",
-        "flex flex-col",
-        appConfig.width === "full" && "config-width-full"
-      )}
-    >
+  const statusOverlay = (
+    <>
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
       {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
       {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
+    </>
+  );
+
+  return (
+    <>
+      {statusOverlay}
       <div
+        id="App"
         className={clsx(
-          (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-          (isPresenting || isReading) && "sm:pt-8"
+          connStatus.state === WebSocketState.CLOSED && "disconnected",
+          "bg-background w-full h-full text-textColor",
+          "flex flex-col overflow-auto",
+          appConfig.width === "full" && "config-width-full"
         )}
       >
-        {isEditing && (
-          <div id="Welcome">
-            <FilenameForm
-              filename={filename}
-              setFilename={handleFilenameChange}
-            />
-          </div>
-        )}
-        {connStatus.state === WebSocketState.CLOSED && (
-          <Disconnected reason={connStatus.reason} />
+        <div
+          className={clsx(
+            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
+            (isPresenting || isReading) && "sm:pt-8"
+          )}
+        >
+          {isEditing && (
+            <div id="Welcome">
+              <FilenameForm
+                filename={filename}
+                setFilename={handleFilenameChange}
+              />
+            </div>
+          )}
+          {connStatus.state === WebSocketState.CLOSED && (
+            <Disconnected reason={connStatus.reason} />
+          )}
+        </div>
+
+        {/* Don't render until we have a single cell */}
+        {cells.present.length > 0 && (
+          <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
+            <SortableCellsProvider disabled={!isEditing}>
+              {editableCellsArray}
+            </SortableCellsProvider>
+          </CellsRenderer>
         )}
       </div>
-
-      {/* Don't render until we have a single cell */}
-      {cells.present.length > 0 && (
-        <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-          <SortableCellsProvider disabled={!isEditing}>
-            {editableCellsArray}
-          </SortableCellsProvider>
-        </CellsRenderer>
-      )}
 
       {(isEditing || isPresenting) && (
         <Controls
@@ -348,7 +356,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           undoAvailable={cells.history.length > 0}
         />
       )}
-    </div>
+    </>
   );
 };
 
