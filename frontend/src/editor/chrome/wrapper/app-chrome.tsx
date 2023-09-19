@@ -78,17 +78,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         direction={panelLocation === "left" ? "horizontal" : "vertical"}
         storage={createStorage(panelLocation)}
       >
-        {/* <Toolbar
-          selected={sidebarSelection}
-          onChange={(nextSidebarSelection) => {
-            // Unset
-            if (nextSidebarSelection === sidebarSelection) {
-              setSidebarSelection(undefined);
-            } else {
-              setSidebarSelection(nextSidebarSelection);
-            }
-          }}
-        /> */}
         {panelLocation === "left" ? helperPane : appBody}
         {resizeHandle}
         {panelLocation === "left" ? appBody : helperPane}

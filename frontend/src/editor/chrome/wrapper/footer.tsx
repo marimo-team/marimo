@@ -19,9 +19,9 @@ export const Footer: React.FC = () => {
     .map((cell) =>
       cell.output?.mimetype === "application/vnd.marimo+error"
         ? {
-          output: cell.output,
-          cellId: cell.key,
-        }
+            output: cell.output,
+            cellId: cell.key,
+          }
         : null
     )
     .filter(Boolean);
