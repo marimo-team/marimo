@@ -78,7 +78,7 @@ export const Controls = ({
   }
 
   return (
-    <div className="absolute top-0 left-0 right-0 bottom-0 z-50 pointer-events-none">
+    <>
       {!presenting && <FindReplace />}
 
       {!closed && (
@@ -139,7 +139,7 @@ export const Controls = ({
           />
         )}
       </div>
-    </div>
+    </>
   );
 };
 
@@ -206,10 +206,10 @@ const RunControlButton = ({
 };
 
 const topRightControls =
-  "absolute top-3 right-3 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto";
+  "absolute top-3 right-3 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50";
 
 const bottomRightControls =
-  "absolute bottom-4 right-4 flex items-center space-x-3 no-print pointer-events-auto";
+  "absolute bottom-4 right-4 flex items-center space-x-3 no-print pointer-events-auto z-50";
 
 const bottomLeftControls =
-  "absolute bottom-4 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto";
+  "absolute bottom-4 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto z-50";

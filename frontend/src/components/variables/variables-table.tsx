@@ -81,7 +81,7 @@ export const VariableTable: React.FC<Props> = memo(
                 </div>
               </TableCell>
               <TableCell className="max-w-[150px]">
-                <div className="text-muted-foreground font-mono text-xs">
+                <div className="text-ellipsis overflow-hidden whitespace-nowrap text-muted-foreground font-mono text-xs">
                   {variable.dataType}
                 </div>
                 <div

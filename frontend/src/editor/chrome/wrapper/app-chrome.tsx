@@ -8,13 +8,14 @@ import {
 } from "react-resizable-panels";
 import { Footer } from "./footer";
 import "./app-chrome.css";
-import { ErrorsPanel } from "../panels/error-panel";
 import { useChromeActions, useChromeState } from "../state";
 import { cn } from "@/lib/utils";
 import { createStorage } from "./storage";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useVariables } from "@/core/variables/state";
 import { useCellIds } from "@/core/state/cells";
+import { Button } from "@/components/ui/button";
+import { XIcon } from "lucide-react";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -68,8 +69,18 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       onCollapse={(collapsed) => setIsOpen(!collapsed)}
     >
       <div className="flex flex-col h-full flex-1">
-        <div className="text-sm font-medium text-[var(--sage-11)] uppercase tracking-wide font-semibold p-3 border-b">
-          Variables
+        <div className="p-3 border-b flex justify-between items-center">
+          <div className="text-sm font-medium text-[var(--sage-11)] uppercase tracking-wide font-semibold flex-1">
+            Variables
+          </div>
+          <Button
+            className="m-0"
+            size="xs"
+            variant="text"
+            onClick={() => setIsOpen(false)}
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
         </div>
         {/* {selectedPanel === "errors" && <ErrorsPanel />} */}
         {selectedPanel === "variables" && (

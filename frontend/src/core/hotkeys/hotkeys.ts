@@ -228,6 +228,11 @@ const DEFAULT_HOT_KEY = {
     group: "Navigation",
     key: "Mod-Shift-g",
   },
+  "global.toggleSidebar": {
+    name: "Toggle helper panel",
+    group: "Navigation",
+    key: "Mod-Shift-s",
+  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
