@@ -321,13 +321,12 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       </div>
 
       {/* Don't render until we have a single cell */}
-      {cells.present.length > 0 && isEditing && (
-        <SortableCellsProvider disabled={!isEditing}>
-          {editableCellsArray}
-        </SortableCellsProvider>
-      )}
-      {cells.present.length > 0 && !isEditing && (
-        <CellsRenderer appConfig={appConfig} mode={viewState.mode} />
+      {cells.present.length > 0 && (
+        <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
+          <SortableCellsProvider disabled={!isEditing}>
+            {editableCellsArray}
+          </SortableCellsProvider>
+        </CellsRenderer>
       )}
 
       {(isEditing || isPresenting) && (

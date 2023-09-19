@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useCells } from "@/core/state/cells";
-import React, { memo } from "react";
+import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import { AppConfig } from "@/core/config/config";
 import { AppMode } from "@/core/mode";
@@ -12,14 +12,21 @@ interface Props {
   mode: AppMode;
 }
 
-export const CellsRenderer: React.FC<Props> = memo(({ appConfig, mode }) => {
+export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(({ appConfig, mode, children }) => {
   const cells = useCells();
   const [layoutData, setLayoutData] = useAtom(layoutDataAtom);
   const [layoutType] = useAtom(layoutViewAtom);
+
+  // Just render children if we are in edit mode
+  if (mode === 'edit') {
+    return children;
+  }
+
   const plugin = cellRendererPlugins.find((p) => p.type === layoutType);
 
+  // Just render children if there is no plugin
   if (!plugin) {
-    throw new Error(`Unknown layout type: ${layoutType}`);
+    return children;
   }
 
   const Renderer = plugin.Component;

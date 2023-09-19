@@ -1,5 +1,4 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
 import { GridLayoutPlugin } from "./grid-layout/grid-layout";
 import { ICellRendererPlugin, LayoutType } from "./types";
 import { CellState } from "@/core/model/cells";
@@ -8,7 +7,6 @@ import { CellState } from "@/core/model/cells";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cellRendererPlugins: Array<ICellRendererPlugin<any, any>> = [
   GridLayoutPlugin,
-  VerticalLayoutPlugin,
 ];
 
 export function deserializeLayout(
