@@ -40,8 +40,8 @@
   box-shadow: var(--medium-shadow);
 }
 
-.Cell.disabled .OutputArea,
-.Cell.disabled.stale .OutputArea,
+.Cell.disabled .output-area,
+.Cell.disabled.stale .output-area,
 .Cell.disabled .cm-gutters,
 .Cell.disabled.stale .cm-gutters,
 .Cell.disabled .cm,
@@ -50,7 +50,7 @@
   opacity: 0.5;
 }
 
-.Cell.stale .OutputArea,
+.Cell.stale .output-area,
 .Cell.stale .cm,
 .Cell.stale .cm-gutters {
   background-color: var(--gray-1);
@@ -378,8 +378,8 @@
 }
 
 .marimo-output-stale,
-.Cell.stale .OutputArea.marimo-output-stale,
-.Cell.stale .ConsoleOutputArea.marimo-output-stale {
+.Cell.stale .output-area.marimo-output-stale,
+.Cell.stale .console-output-area.marimo-output-stale {
   opacity: 0.2;
   transition: opacity 300ms;
   transition-delay: 200ms;
