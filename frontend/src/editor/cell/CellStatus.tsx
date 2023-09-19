@@ -52,7 +52,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-status="stale"
         >
           <MultiIcon>
-            <BanIcon className="h-4 w-4" strokeWidth={1.5} />
+            <BanIcon className="h-5 w-5" strokeWidth={1.5} />
             <RefreshCwIcon className="h-3 w-3" strokeWidth={2.5} />
           </MultiIcon>
         </div>
@@ -69,7 +69,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
           data-status="disabled"
         >
-          <BanIcon className="h-4 w-4" strokeWidth={1.5} />
+          <BanIcon className="h-5 w-5" strokeWidth={1.5} />
         </div>
       </Tooltip>
     );
@@ -161,7 +161,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
           data-status="outdated"
         >
-          <RefreshCwIcon className="h-4 w-4" strokeWidth={1.5} />
+          <RefreshCwIcon className="h-5 w-5" strokeWidth={1.5} />
         </div>
       </Tooltip>
     );
