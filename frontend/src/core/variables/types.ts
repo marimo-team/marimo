@@ -7,8 +7,16 @@ export type VariableName = TypedString<"VariableName">;
 
 export interface Variable {
   name: VariableName;
-  declaredBy: CellId;
+  declaredBy: CellId[];
   usedBy: CellId[];
+  /**
+   * String representation of the value.
+   */
+  value?: string;
+  /**
+   * Type of the value.
+   */
+  dataType?: string;
 }
 
 export type Variables = Record<VariableName, Variable>;

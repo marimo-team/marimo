@@ -16,7 +16,10 @@ export const CellLink = (props: Props): JSX.Element => {
 
   return (
     <div
-      className={cn("inline-block cursor-pointer text-blue-500 hover:underline", className)}
+      className={cn(
+        "inline-block cursor-pointer text-blue-500 hover:underline",
+        className
+      )}
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();

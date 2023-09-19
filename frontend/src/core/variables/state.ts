@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
 import { createReducer } from "@/utils/createReducer";
-import { Variables } from "./types";
+import { Variable, VariableName, Variables } from "./types";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 
@@ -13,8 +13,33 @@ const { reducer, createActions } = createReducer(initialState, {
   setVariables: (_state, variables: Variables) => {
     return variables;
   },
-  addVariables: (state, variables: Variables) => {
-    return { ...state, ...variables };
+  addVariables: (state, variables: Variable[]) => {
+    const newVariables = { ...state };
+    for (const variable of variables) {
+      newVariables[variable.name] = {
+        ...newVariables[variable.name],
+        ...variable,
+      };
+    }
+    return newVariables;
+  },
+  setMetadata: (
+    state,
+    metadata: Array<{ name: VariableName; value?: string; dataType?: string }>
+  ) => {
+    const newVariables = { ...state };
+    for (const { name, value, dataType } of metadata) {
+      if (!newVariables[name]) {
+        continue;
+      }
+
+      newVariables[name] = {
+        ...newVariables[name],
+        value,
+        dataType: dataType,
+      };
+    }
+    return newVariables;
   },
 });
 
@@ -37,3 +62,9 @@ export function useVariablesActions() {
     return actions;
   }, [setState]);
 }
+
+export const exportedForTesting = {
+  reducer,
+  createActions,
+  initialState,
+};
