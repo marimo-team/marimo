@@ -1,5 +1,7 @@
 .cell-status-icon {
+  margin-top: 4px;
   margin-left: 3px;
+  margin-bottom: auto;
 }
 
 .elapsed-time {

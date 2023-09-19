@@ -180,55 +180,6 @@
   z-index: 2; /* lie above editor */
 }
 
-/* --------------------------- Status Indicators ---------------------------- */
-.cell-status-icon {
-  margin-top: 4px;
-  margin-left: 3px;
-  margin-bottom: auto;
-}
-
-@keyframes appear {
-  from {
-    visibility: visible;
-  }
-
-  to {
-    visibility: visible;
-  }
-}
-
-.elapsed-time {
-  font-family: var(--monospace-font);
-  font-size: 0.8125rem;
-  color: var(--gray-11);
-}
-
-.elapsed-time.running {
-  animation: appear 1000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-delay: 50ms;
-}
-
-#App.disconnected .elapsed-time {
-  visibility: hidden;
-}
-
-.cell-status-queued,
-.cell-status-stale {
-  animation: appear 1000ms;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  animation-delay: 100ms;
-}
-
-.cell-status-queued svg,
-.cell-status-stale svg {
-  color: var(--gray-10);
-  width: 16px;
-  height: 16px;
-}
-
 /* ------------------------ CodeMirror Editor ----------------------------- */
 
 .cm {
