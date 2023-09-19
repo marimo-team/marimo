@@ -581,19 +581,20 @@ class Kernel:
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
-            write_variable_values(
-                [
-                    VariableValue(
-                        name=variable,
-                        value=(
-                            self.globals[variable]
-                            if variable in self.globals
-                            else None
-                        ),
-                    )
-                    for variable in self.graph.cells[cell_id].defs
-                ]
-            )
+            values = [
+                VariableValue(
+                    name=variable,
+                    value=(
+                        self.globals[variable]
+                        if variable in self.globals
+                        else None
+                    ),
+                )
+                for variable in self.graph.cells[cell_id].defs
+            ]
+
+            if values:
+                write_variable_values(values)
 
             cell.set_status(status="idle")
             if run_result.success():
