@@ -12,6 +12,9 @@ import { Variables } from "@/core/variables/types";
 import { CellId } from "@/core/model/ids";
 import { CellLink } from "@/editor/links/cell-link";
 import { cn } from "@/lib/utils";
+import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
+import { Badge } from "../ui/badge";
+import { toast } from "../ui/use-toast";
 
 interface Props {
   className?: string;
@@ -40,65 +43,104 @@ export const VariableTable: React.FC<Props> = ({
   });
 
   return (
-    <Table className={cn("w-full overflow-hidden text-sm", className)}>
+    <Table className={cn("w-full overflow-hidden text-sm flex-1", className)}>
       <TableHeader>
-        <TableRow className="whitespace-nowrap">
+        <TableRow className="whitespace-nowrap text-xs">
           <TableHead>Name</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Declared In</TableHead>
-          <TableHead>Used By</TableHead>
-          <TableHead>Value</TableHead>
+          <TableHead>
+            <div className="flex flex-col gap-1">
+              <span>Type</span>
+              <span>Value</span>
+            </div>
+          </TableHead>
+          <TableHead>
+            <div className="flex flex-col gap-1">
+              <span>Declared In</span>
+              <span>Used By</span>
+            </div>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {sortedVariables.map((variable) => (
           <TableRow key={variable.name}>
             <TableCell
-              className="font-medium max-w-[200px] text-ellipsis overflow-hidden"
+              className="font-medium max-w-[130px]"
               title={variable.name}
             >
-              {variable.name}
+              <div>
+                <Badge
+                  variant={variable.declaredBy.length > 1 ? "destructive" : "success"}
+                  className="rounded-sm text-ellipsis block overflow-hidden max-w-fit cursor-pointer"
+                  onClick={() => {
+                    navigator.clipboard.writeText(variable.name);
+                    toast({ title: "Copied to clipboard" })
+                  }}
+                >
+                  {variable.name}
+                </Badge>
+              </div>
             </TableCell>
-            <TableCell className="font-medium max-w-[200px] text-ellipsis overflow-hidden">
-              {variable.dataType}
+            <TableCell className="max-w-[150px]">
+              <div className="text-muted-foreground font-mono text-xs">
+                {variable.dataType}
+              </div>
+              <div className="text-ellipsis overflow-hidden whitespace-nowrap" title={variable.value}>
+                {variable.value}
+              </div>
             </TableCell>
-            <TableCell>
-              {variable.declaredBy.length === 1 ? (
-                <CellLink cellId={variable.declaredBy[0]} />
-              ) : (
-                <div className="text-destructive flex flex-row gap-2">
-                  {variable.declaredBy.slice(0, 3).map((cellId, idx) => (
-                    <span key={cellId}>
+            <TableCell className="py-1">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-row overflow-auto gap-2 items-center">
+                  <span title="Declared by">
+                    <SquareEqualIcon
+                      className="w-3.5 h-3.5 text-muted-foreground"
+                    />
+                  </span>
+
+                  {variable.declaredBy.length === 1 ? (
+                    <CellLink cellId={variable.declaredBy[0]} />
+                  ) : (
+                    <div className="text-destructive flex flex-row gap-2">
+                      {variable.declaredBy.slice(0, 3).map((cellId, idx) => (
+                        <span
+                          className="flex"
+                          key={cellId}>
+                          <CellLink
+                            key={cellId}
+                            cellId={cellId}
+                            className="whitespace-nowrap text-destructive"
+                          />
+                          {idx < variable.declaredBy.length - 1 && ", "}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-row overflow-auto gap-2 items-baseline">
+                  <span title="Used by">
+                    <WorkflowIcon
+                      className="w-3.5 h-3.5 text-muted-foreground"
+                    />
+                  </span>
+
+                  {variable.usedBy.slice(0, 3).map((cellId, idx) => (
+                    <span className="flex" key={cellId}>
                       <CellLink
                         key={cellId}
                         cellId={cellId}
-                        className="whitespace-nowrap text-destructive"
+                        className="whitespace-nowrap"
                       />
-                      {idx < variable.declaredBy.length - 1 && ", "}
+                      {idx < variable.usedBy.length - 1 && ", "}
                     </span>
                   ))}
+                  {variable.usedBy.length > 3 && (
+                    <div className="whitespace-nowrap text-muted-foreground text-xs">
+                      +{variable.usedBy.length - 3} more
+                    </div>
+                  )}
                 </div>
-              )}
-            </TableCell>
-            <TableCell className="flex flex-row overflow-auto gap-2 items-baseline">
-              {variable.usedBy.slice(0, 3).map((cellId, idx) => (
-                <span key={cellId}>
-                  <CellLink
-                    key={cellId}
-                    cellId={cellId}
-                    className="whitespace-nowrap"
-                  />
-                  {idx < variable.usedBy.length - 1 && ", "}
-                </span>
-              ))}
-              {variable.usedBy.length > 3 && (
-                <div className="whitespace-nowrap text-muted-foreground text-xs">
-                  +{variable.usedBy.length - 3} more
-                </div>
-              )}
-            </TableCell>
-            <TableCell className="font-medium max-w-[200px] text-ellipsis overflow-hidden">
-              {variable.value}
+              </div>
             </TableCell>
           </TableRow>
         ))}
