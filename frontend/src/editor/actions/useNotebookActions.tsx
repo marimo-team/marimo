@@ -8,6 +8,7 @@ import {
   ZapIcon,
   ZapOffIcon,
   BookOpenIcon,
+  BookMarkedIcon,
 } from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
 import { useCellActions, useCells } from "@/core/state/cells";
@@ -27,7 +28,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
 
   const actions: ActionButton[] = [
     {
-      icon: <ImageIcon size={13} strokeWidth={1.5} />,
+      icon: <ImageIcon size={14} strokeWidth={1.5} />,
       label: "Export to PNG",
       handle: async () => {
         await runDuringPresentMode(() => {
@@ -36,7 +37,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       },
     },
     {
-      icon: <ZapIcon size={13} strokeWidth={1.5} />,
+      icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
       hidden: disabledCells.length === 0,
       handle: async () => {
@@ -53,7 +54,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       },
     },
     {
-      icon: <ZapOffIcon size={13} strokeWidth={1.5} />,
+      icon: <ZapOffIcon size={14} strokeWidth={1.5} />,
       label: "Disable all cells",
       hidden: enabledCells.length === 0,
       handle: async () => {
@@ -71,14 +72,14 @@ export function useNotebookActions(opts: { filename?: string | null }) {
     },
 
     {
-      icon: <CommandIcon size={13} strokeWidth={1.5} />,
+      icon: <CommandIcon size={14} strokeWidth={1.5} />,
       label: "Command palette",
       hotkey: "global.commandPalette",
       handle: () => setCommandPalletteOpen((open) => !open),
     },
 
     {
-      icon: <BookOpenIcon size={13} strokeWidth={1.5} />,
+      icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
       label: "Open documentation",
       handle: () => {
         window.open("https://docs.marimo.io", "_blank");

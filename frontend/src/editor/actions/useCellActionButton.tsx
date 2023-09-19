@@ -40,7 +40,6 @@ export function useCellActionButtons({
     updateCellConfig,
     updateCellCode,
     deleteCell,
-    focusCell,
     moveCell,
     sendToTop,
     sendToBottom,
