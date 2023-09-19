@@ -573,3 +573,13 @@ def test_enable_cycle_incremental(
     )
     assert not k.graph.cells[er_1.cell_id].config.disabled
     assert k.graph.cells[er_2.cell_id].status == "idle"
+
+
+def test_set_config_before_registering_cell(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    er_1 = exec_req.get("x = 0")
+    k.set_cell_config(SetCellConfigRequest({er_1.cell_id: {"disabled": True}}))
+    k.run([er_1])
+    assert k.graph.cells[er_1.cell_id].config.disabled
+    assert "x" not in k.globals
