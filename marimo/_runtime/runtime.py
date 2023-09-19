@@ -28,6 +28,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.message_types import VariableDeclaration, VariableValue
 from marimo._messaging.messages import (
     write_completed_run,
     write_disabled_transitively,
@@ -39,6 +40,8 @@ from marimo._messaging.messages import (
     write_queued,
     write_remove_ui_elements,
     write_stale,
+    write_variable_values,
+    write_variables,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
@@ -508,6 +511,16 @@ class Kernel:
                 status=None,
             )
 
+        write_variables(
+            [
+                VariableDeclaration(
+                    name=variable,
+                    declared_by=list(declared_by),
+                    used_by=list(self.graph.get_referring_cells(variable)),
+                )
+                for variable, declared_by in self.graph.definitions.items()
+            ]
+        )
         return descendants
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
@@ -568,6 +581,20 @@ class Kernel:
 
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
+
+            write_variable_values(
+                [
+                    VariableValue(
+                        name=variable,
+                        value=(
+                            self.globals[variable]
+                            if variable in self.globals
+                            else None
+                        ),
+                    )
+                    for variable in self.graph.cells[cell_id].defs
+                ]
+            )
 
             cell.set_status(status="idle")
             if run_result.success():
