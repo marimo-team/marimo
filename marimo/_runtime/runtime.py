@@ -14,7 +14,6 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
-from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
