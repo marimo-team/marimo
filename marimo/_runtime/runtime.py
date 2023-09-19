@@ -14,7 +14,6 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
-from queue import Empty as QueueEmpty
 from typing import Any, Iterator, Optional
 
 from marimo import _loggers
@@ -737,6 +736,10 @@ class Kernel:
         # Stale cells that are enabled will need to be run.
         cells_to_run: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
+            # store the config, regardless of whether we've seen the cell yet
+            self.cell_metadata[cell_id] = CellMetadata(
+                config=CellConfig.from_dict(config)
+            )
             cell = self.graph.cells.get(cell_id)
             if cell is None:
                 continue
@@ -749,10 +752,6 @@ class Kernel:
                 for cid in self.graph.disable_cell(cell_id):
                     write_disabled_transitively(cid)
 
-            # store the config, regardless of whether we've seen the cell yet
-            self.cell_metadata[cell_id] = CellMetadata(
-                config=CellConfig.from_dict(config)
-            )
         if cells_to_run:
             self._run_cells(
                 dataflow.transitive_closure(self.graph, cells_to_run)
@@ -925,17 +924,11 @@ def launch_kernel(
         register_formatters()
 
         def interrupt_handler(signum: int, frame: Any) -> None:
-            """Clears the execution queue and tries to interrupt the kernel."""
+            """Tries to interrupt the kernel."""
             del signum
             del frame
 
             LOGGER.debug("interrupt request received")
-            while not execution_queue.empty():
-                try:
-                    execution_queue.get_nowait()
-                except QueueEmpty:
-                    break
-
             # TODO(akshayka): if kernel is in `run` but not executing,
             # it won't be interrupted, which isn't right ... but the
             # probability of that happening is low.
