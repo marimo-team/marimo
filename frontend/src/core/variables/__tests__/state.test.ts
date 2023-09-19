@@ -28,14 +28,15 @@ describe("cell reducer", () => {
   });
 
   it("should set variables", () => {
-    const variables: Variables = {
-      [Names.x]: {
-        name: Names.x,
-        declaredBy: [CellIds.a],
-        usedBy: [CellIds.b],
-      },
+    const x = {
+      name: Names.x,
+      declaredBy: [CellIds.a],
+      usedBy: [CellIds.b],
     };
-    actions.setVariables(variables);
+    const variables: Variables = {
+      [Names.x]: x,
+    };
+    actions.setVariables([x]);
     expect(state).toEqual(variables);
   });
 
@@ -58,14 +59,15 @@ describe("cell reducer", () => {
   });
 
   it("should set metadata", () => {
-    const variables: Variables = {
-      [Names.x]: {
-        name: Names.x,
-        declaredBy: [CellIds.a],
-        usedBy: [CellIds.b],
-      },
+    const x = {
+      name: Names.x,
+      declaredBy: [CellIds.a],
+      usedBy: [CellIds.b],
     };
-    actions.setVariables(variables);
+    const variables: Variables = {
+      [Names.x]: x,
+    };
+    actions.setVariables([x]);
     expect(state).toEqual(variables);
 
     // add metadata

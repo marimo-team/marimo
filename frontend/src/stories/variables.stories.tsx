@@ -15,14 +15,14 @@ const variables = {
     declaredBy: ["1"],
     usedBy: ["2"],
     dataType: "number",
-    value: '1',
+    value: "1",
   },
   b: {
     name: "b",
     declaredBy: ["2"],
     usedBy: ["3"],
     dataType: "dataframe",
-    value: '<dataframe>',
+    value: "<dataframe>",
   },
   my_super_super_long_variable_name: {
     name: "my_super_super_long_variable_name",
@@ -33,7 +33,7 @@ const variables = {
     name: "c",
     declaredBy: ["4"],
     dataType: "number",
-    value: '1',
+    value: "1",
     usedBy: Array.from({ length: 3 }, (_, i) => `${i + 4}`),
   },
   d: {

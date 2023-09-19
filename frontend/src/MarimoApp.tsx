@@ -24,26 +24,25 @@ export const MarimoApp: React.FC = () => {
     initializePlugins();
   }, []);
 
-  const body = initialMode === "read" ? (
-    <>
-      <App userConfig={userConfig} appConfig={appConfig} />
-      <Toaster />
-    </>
-  ) : (
-    <AppChrome>
-      <App userConfig={userConfig} appConfig={appConfig} />
-      <Toaster />
-      <CommandPallette />
-    </AppChrome>
-  );
+  const body =
+    initialMode === "read" ? (
+      <>
+        <App userConfig={userConfig} appConfig={appConfig} />
+        <Toaster />
+      </>
+    ) : (
+      <AppChrome>
+        <App userConfig={userConfig} appConfig={appConfig} />
+        <Toaster />
+        <CommandPallette />
+      </AppChrome>
+    );
 
   return (
     <ErrorBoundary>
       <TooltipProvider>
         <DayPickerProvider initialProps={{}}>
-          <ModalProvider>
-            {body}
-          </ModalProvider>
+          <ModalProvider>{body}</ModalProvider>
         </DayPickerProvider>
       </TooltipProvider>
     </ErrorBoundary>
