@@ -7,7 +7,6 @@ import {
   CommandIcon,
   ZapIcon,
   ZapOffIcon,
-  BookOpenIcon,
   BookMarkedIcon,
 } from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
