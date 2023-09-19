@@ -38,6 +38,7 @@ import { CellDragHandle, SortableCell } from "./SortableCell";
 import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { CellActionsDropdown } from "./cell/cell-actions";
+import { CellActionsContextMenu } from "./cell/cell-context-menu";
 
 /**
  * Imperative interface of the cell.
@@ -416,85 +417,93 @@ const CellComponent = (
   const editor = <div className="cm" ref={editorViewParentRef} />;
 
   return (
-    <SortableCell
-      tabIndex={-1}
-      id={HTMLId}
-      ref={cellRef}
-      className={className}
-      data-status={status}
-      onBlur={closeCompletionHandler}
-      onKeyDown={resumeCompletionHandler}
+    <CellActionsContextMenu
       cellId={cellId}
-      title={cellTitle()}
+      config={cellConfig}
+      editorView={editorView.current}
+      hasOutput={!!output}
     >
-      {outputArea}
-      <div className="tray">
-        <div className="shoulder-left hover-action">
-          <div className="shoulder-elem-top">
-            <CreateCellButton
-              tooltipContent={renderShortcut("cell.createAbove")}
-              appClosed={appClosed}
-              onClick={appClosed ? undefined : createAbove}
-            />
+      <SortableCell
+        tabIndex={-1}
+        id={HTMLId}
+        ref={cellRef}
+        className={className}
+        data-status={status}
+        onBlur={closeCompletionHandler}
+        onKeyDown={resumeCompletionHandler}
+        cellId={cellId}
+        title={cellTitle()}
+      >
+        {outputArea}
+        <div className="tray">
+          <div className="shoulder-left hover-action">
+            <div className="shoulder-elem-top">
+              <CreateCellButton
+                tooltipContent={renderShortcut("cell.createAbove")}
+                appClosed={appClosed}
+                onClick={appClosed ? undefined : createAbove}
+              />
+            </div>
+            <div className="shoulder-elem-bottom">
+              <CreateCellButton
+                tooltipContent={renderShortcut("cell.createBelow")}
+                appClosed={appClosed}
+                onClick={appClosed ? undefined : createBelow}
+              />
+            </div>
           </div>
-          <div className="shoulder-elem-bottom">
-            <CreateCellButton
-              tooltipContent={renderShortcut("cell.createBelow")}
-              appClosed={appClosed}
-              onClick={appClosed ? undefined : createBelow}
-            />
-          </div>
-        </div>
-        {editor}
-        <div className="shoulder-right">
-          <CellStatusComponent
-            status={status}
-            interrupted={interrupted}
-            editing={editing}
-            edited={edited}
-            disabled={cellConfig.disabled ?? false}
-            elapsedTime={runElapsedTimeMs}
-          />
-          <div className="flex align-bottom">
-            <RunButton
+          {editor}
+          <div className="shoulder-right">
+            <CellStatusComponent
+              status={status}
+              interrupted={interrupted}
+              editing={editing}
               edited={edited}
-              onClick={appClosed ? Functions.NOOP : onRun}
-              appClosed={appClosed}
-              status={status}
-              config={cellConfig}
-              needsRun={needsRun}
+              disabled={cellConfig.disabled ?? false}
+              elapsedTime={runElapsedTimeMs}
             />
-            <CellActionsDropdown
-              cellId={cellId}
-              editorView={editorView.current}
-              config={cellConfig}
-              hasOutput={!!output}
-            >
-              <CellDragHandle />
-            </CellActionsDropdown>
+            <div className="flex align-bottom">
+              <RunButton
+                edited={edited}
+                onClick={appClosed ? Functions.NOOP : onRun}
+                appClosed={appClosed}
+                status={status}
+                config={cellConfig}
+                needsRun={needsRun}
+              />
+              <CellActionsDropdown
+                cellId={cellId}
+                editorView={editorView.current}
+                config={cellConfig}
+                hasOutput={!!output}
+              >
+                <CellDragHandle />
+              </CellActionsDropdown>
+            </div>
+          </div>
+          <div className="shoulder-bottom hover-action">
+            {showDeleteButton ? (
+              <DeleteButton
+                appClosed={appClosed}
+                status={status}
+                onClick={() => {
+                  if (!loading && !appClosed) {
+                    deleteCell({ cellId });
+                  }
+                }}
+              />
+            ) : null}
           </div>
         </div>
-        <div className="shoulder-bottom hover-action">
-          {showDeleteButton ? (
-            <DeleteButton
-              appClosed={appClosed}
-              status={status}
-              onClick={() => {
-                if (!loading && !appClosed) {
-                  deleteCell({ cellId });
-                }
-              }}
-            />
-          ) : null}
-        </div>
-      </div>
-      <ConsoleOutput
-        consoleOutputs={consoleOutputs}
-        stale={
-          (status === "queued" || edited || status === "stale") && !interrupted
-        }
-      />
-    </SortableCell>
+        <ConsoleOutput
+          consoleOutputs={consoleOutputs}
+          stale={
+            (status === "queued" || edited || status === "stale") &&
+            !interrupted
+          }
+        />
+      </SortableCell>
+    </CellActionsContextMenu>
   );
 };
 

@@ -6,6 +6,12 @@ import { Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  MenuShortcut,
+  menuItemVariants,
+  menuSeparatorVariants,
+} from "./menu-items";
+import { VariantProps } from "class-variance-authority";
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -111,7 +117,7 @@ const CommandSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 h-px bg-border", className)}
+    className={menuSeparatorVariants({ className })}
     {...props}
   />
 ));
@@ -119,35 +125,19 @@ CommandSeparator.displayName = CommandPrimitive.Separator.displayName;
 
 const CommandItem = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Item> &
+    VariantProps<typeof menuItemVariants>
+>(({ className, variant, inset, ...props }, ref) => (
   <CommandPrimitive.Item
     ref={ref}
-    className={cn(
-      "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    )}
+    className={menuItemVariants({ className, variant, inset })}
     {...props}
   />
 ));
 
 CommandItem.displayName = CommandPrimitive.Item.displayName;
 
-const CommandShortcut = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLSpanElement>) => {
-  return (
-    <span
-      className={cn(
-        "ml-auto text-xs tracking-widest text-muted-foreground",
-        className
-      )}
-      {...props}
-    />
-  );
-};
-CommandShortcut.displayName = "CommandShortcut";
+const CommandShortcut = MenuShortcut;
 
 export {
   Command,
