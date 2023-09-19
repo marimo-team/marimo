@@ -71,6 +71,40 @@ class CompletionResult:
     options: list[CompletionOption]
 
 
+@dataclass
+class VariableDeclaration:
+    name: str
+    declared_by: list[CellId_t]
+    used_by: list[CellId_t]
+
+
+@dataclass
+class VariableValue:
+    name: str
+    datatype: Optional[str]
+    value: Optional[str]
+
+    def __init__(self, name: str, value: object):
+        self.name = name
+        self.datatype = str(type(value)) if value is not None else None
+        try:
+            self.value = str(value)[:50]
+        except Exception:
+            self.value = None
+
+
+@dataclass
+class Variables:
+    name: ClassVar[str] = "variables"
+    variables: list[VariableDeclaration]
+
+
+@dataclass
+class VariableValues:
+    name: ClassVar[str] = "variable-values"
+    variables: list[VariableValue]
+
+
 MessageType = Union[
     CellOp,
     RemoveUIElements,
@@ -78,6 +112,8 @@ MessageType = Union[
     CompletedRun,
     KernelReady,
     CompletionResult,
+    Variables,
+    VariableValues,
 ]
 
 

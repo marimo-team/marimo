@@ -12,6 +12,10 @@ from marimo._messaging.message_types import (
     CompletedRun,
     Interrupted,
     RemoveUIElements,
+    VariableDeclaration,
+    Variables,
+    VariableValue,
+    VariableValues,
     serialize,
 )
 from marimo._messaging.streams import OUTPUT_MAX_BYTES
@@ -121,6 +125,20 @@ def write_marimo_error(
                 status=status,
             )
         ),
+    )
+
+
+def write_variables(data: list[VariableDeclaration]) -> None:
+    get_context().stream.write(
+        op=Variables.name,
+        data=serialize(Variables(variables=data)),
+    )
+
+
+def write_variable_values(data: list[VariableValue]) -> None:
+    get_context().stream.write(
+        op=VariableValues.name,
+        data=serialize(VariableValues(variables=data)),
     )
 
 
