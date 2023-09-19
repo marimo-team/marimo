@@ -843,13 +843,20 @@ class Kernel:
             bound_names = get_context().ui_element_registry.bound_names(
                 object_id
             )
+
+            variable_values: list[VariableValue] = []
             for name in bound_names:
                 # subtracting self.graph.definitions[name]: never rerun the
                 # cell that created the name
+                variable_values.append(
+                    VariableValue(name=name, value=component)
+                )
                 referring_cells.update(
                     self.graph.get_referring_cells(name)
                     - self.graph.definitions[name]
                 )
+            if variable_values:
+                write_variable_values(variable_values)
         self._run_cells(
             dataflow.transitive_closure(self.graph, referring_cells)
         )
