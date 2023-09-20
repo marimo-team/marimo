@@ -48,7 +48,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const resizeHandle = (
     <PanelResizeHandle
       className={cn(
-        "border-border",
+        "border-border no-print",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
         panelLocation === "left" ? "vertical" : "horizontal"
       )}
@@ -62,7 +62,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       key={`helper-${panelLocation}`}
       collapsedSize={0}
       collapsible={true}
-      className="bg-[var(--sage-1)]"
+      className="bg-[var(--sage-1)] no-print"
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
       defaultSize={0}
