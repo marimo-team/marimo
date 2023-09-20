@@ -304,7 +304,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         className={clsx(
           connStatus.state === WebSocketState.CLOSED && "disconnected",
           "bg-background w-full h-full text-textColor",
-          "flex flex-col overflow-auto",
+          "flex flex-col overflow-y-auto overflow-x-hidden",
           appConfig.width === "full" && "config-width-full"
         )}
       >

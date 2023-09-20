@@ -10,12 +10,13 @@ function initialState(): Variables {
 }
 
 const { reducer, createActions } = createReducer(initialState, {
-  setVariables: (_state, variables: Variable[]) => {
+  setVariables: (state, variables: Variable[]) => {
     // start with empty state, but keep the old state's metadata
+    const oldVariables = { ...state };
     const newVariables: Variables = {};
     for (const variable of variables) {
       newVariables[variable.name] = {
-        ...newVariables[variable.name],
+        ...oldVariables[variable.name],
         ...variable,
       };
     }
