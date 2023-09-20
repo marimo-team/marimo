@@ -99,12 +99,16 @@ export const VariableTable: React.FC<Props> = memo(
                     </span>
 
                     {variable.declaredBy.length === 1 ? (
-                      <CellLink cellId={variable.declaredBy[0]} />
+                      <CellLink
+                        variant="focus"
+                        cellId={variable.declaredBy[0]}
+                      />
                     ) : (
                       <div className="text-destructive flex flex-row gap-2">
                         {variable.declaredBy.slice(0, 3).map((cellId, idx) => (
                           <span className="flex" key={cellId}>
                             <CellLink
+                              variant="focus"
                               key={cellId}
                               cellId={cellId}
                               className="whitespace-nowrap text-destructive"
@@ -123,6 +127,7 @@ export const VariableTable: React.FC<Props> = memo(
                     {variable.usedBy.slice(0, 3).map((cellId, idx) => (
                       <span className="flex" key={cellId}>
                         <CellLink
+                          variant="focus"
                           key={cellId}
                           cellId={cellId}
                           className="whitespace-nowrap"

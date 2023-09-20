@@ -77,6 +77,12 @@
   background-color: var(--red-2);
 }
 
+.Cell.focus-outline {
+  border-color: var(--grass-7);
+
+  @apply shadow-md;
+}
+
 .Cell:focus-visible {
   /* focus-visible outlines the entire cell body in black, but the cell's
    * body is an irregular shape because of psuedo-elements that extend

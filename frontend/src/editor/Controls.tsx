@@ -206,10 +206,10 @@ const RunControlButton = ({
 };
 
 const topRightControls =
-  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50";
+  "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
 
 const bottomRightControls =
-  "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-50";
+  "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-30";
 
 const bottomLeftControls =
-  "absolute bottom-5 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto z-50";
+  "absolute bottom-5 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto z-30";

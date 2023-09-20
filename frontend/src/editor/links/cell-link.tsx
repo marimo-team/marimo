@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   cellId: CellId;
   className?: string;
-  variant?: "destructive";
+  variant?: "destructive" | "focus";
 }
 
 /* Component that adds a link to a cell, for use in a MarimoError. */
@@ -35,7 +35,13 @@ export const CellLink = (props: Props): JSX.Element => {
             cell.classList.add("error-outline");
             setTimeout(() => {
               cell.classList.remove("error-outline");
-            }, 1000);
+            }, 1500);
+          }
+          if (variant === "focus") {
+            cell.classList.add("focus-outline");
+            setTimeout(() => {
+              cell.classList.remove("focus-outline");
+            }, 1500);
           }
         }
       }}
