@@ -17,7 +17,6 @@ marimo was built from the ground up to solve many
 <a href="/getting_started/faq.html#faq-jupyter">well-known problems associated with traditional notebooks</a>;
 marimo is _not_ built on Jupyter or any other notebook or app library.
 
-
 > ⚡ marimo notebooks run automatically with interactions and code changes
 
 <div align="center">
@@ -26,7 +25,6 @@ marimo is _not_ built on Jupyter or any other notebook or app library.
 </figure>
 </div>
 
-
 > ✨ express yourself with markdown, LaTeX, tables, accordions, tabs, grids, and more
 
 <div align="center">
@@ -34,7 +32,6 @@ marimo is _not_ built on Jupyter or any other notebook or app library.
 <img src="/_static/outputs.gif"/>
 </figure>
 </div>
-
 
 > 🔬 do reproducible science in an environment that makes your data tangible
 
@@ -63,6 +60,7 @@ marimo is _not_ built on Jupyter or any other notebook or app library.
    api/index
    examples
    faq
+   community
 ```
 
 <h3>Index</h3>
