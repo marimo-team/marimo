@@ -3,6 +3,7 @@
 import { LayoutType } from "@/editor/renderers/types";
 import { CellConfig, CellStatus } from "../model/cells";
 import { CellId } from "../model/ids";
+import { VariableName } from "../variables/types";
 
 export type OutputChannel =
   | "output"
@@ -168,4 +169,24 @@ export type OperationMessage =
   | {
       op: "cell-op";
       data: CellMessage;
+    }
+  | {
+      op: "variables";
+      data: {
+        variables: Array<{
+          name: VariableName;
+          declared_by: CellId[];
+          used_by: CellId[];
+        }>;
+      };
+    }
+  | {
+      op: "variable-values";
+      data: {
+        variables: Array<{
+          name: VariableName;
+          datatype?: string;
+          value?: string;
+        }>;
+      };
     };

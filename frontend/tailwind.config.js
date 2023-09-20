@@ -11,28 +11,28 @@ module.exports = {
         "2xl": "1400px",
       },
     },
-    boxShadow: {
-      none: "none",
-      // fuzzy shadows
-      xxs: "var(--shadow-xxs)",
-      xs: "var(--shadow-xs)",
-      sm: "var(--shadow-sm)",
-      md: "var(--shadow-md)",
-      lg: "var(--shadow-lg)",
-      xl: "var(--shadow-xl)",
-      // solid shadows
-      xsSolid:
-        "1px 1px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
-      smSolid:
-        "2px 2px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
-      mdSolid:
-        "4px 4px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 60% / 5%)",
-      lgSolid:
-        "5px 6px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 75% / 5%)",
-      xlSolid:
-        "8px 9px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 6px 0px hsl(0deg 0% 85% / 5%)",
-    },
     extend: {
+      boxShadow: {
+        none: "none",
+        // fuzzy shadows
+        xxs: "var(--shadow-xxs)",
+        xs: "var(--shadow-xs)",
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
+        // solid shadows
+        xsSolid:
+          "1px 1px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+        smSolid:
+          "2px 2px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0px 0px 2px 0px hsl(0deg 0% 25% / 5%)",
+        mdSolid:
+          "4px 4px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 60% / 5%)",
+        lgSolid:
+          "5px 6px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 75% / 5%)",
+        xlSolid:
+          "8px 9px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 6px 0px hsl(0deg 0% 85% / 5%)",
+      },
       maxWidth: {
         contentWidth: "var(--content-width)",
       },

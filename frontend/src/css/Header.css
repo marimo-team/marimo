@@ -52,12 +52,6 @@
   color: var(--red-11);
 }
 
-.app-status-indicator {
-  position: fixed;
-  left: 20px;
-  top: 12px;
-}
-
 .keyboard-shortcut-group {
   margin-bottom: 40px;
 }

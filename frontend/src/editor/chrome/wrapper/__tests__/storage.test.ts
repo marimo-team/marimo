@@ -1,11 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import Cookies from "js-cookie";
 import { beforeEach, expect, describe, it } from "vitest";
 import { createStorage } from "../storage";
 
 describe("createStorage", () => {
   beforeEach(() => {
-    Cookies.remove("test");
+    createStorage("left").setItem("test", "");
   });
 
   it("should store and retrieve items correctly when location is left", () => {
@@ -13,7 +12,6 @@ describe("createStorage", () => {
     const value = JSON.stringify({ key: [1, 2] });
 
     storage.setItem("test", value);
-    expect(Cookies.get("test")).toEqual(value);
 
     const retrieved = storage.getItem("test");
     expect(retrieved).toEqual(value);
@@ -22,10 +20,8 @@ describe("createStorage", () => {
   it("should store and retrieve items correctly when location is bottom", () => {
     const storage = createStorage("bottom");
     const value = JSON.stringify({ key: [1, 2] });
-    const reversedValue = JSON.stringify({ key: [2, 1] });
 
     storage.setItem("test", value);
-    expect(Cookies.get("test")).toEqual(reversedValue);
 
     const retrieved = storage.getItem("test");
     expect(retrieved).toEqual(value);

@@ -15,6 +15,7 @@ import { formatEditorViews } from "../../core/codemirror/format";
 import { useTheme } from "../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
+import { useChromeActions } from "../chrome/state";
 
 interface CellArrayProps {
   cells: CellsAndHistory;
@@ -51,12 +52,14 @@ export const CellArray: React.FC<CellArrayProps> = ({
     unfoldAll,
   } = useCellActions();
   const { theme } = useTheme();
+  const { togglePanel } = useChromeActions();
 
   const { invisible } = useDelayVisibility(cells.present);
 
   // HOTKEYS
   useHotkey("global.focusTop", focusTopCell);
   useHotkey("global.focusBottom", focusBottomCell);
+  useHotkey("global.toggleSidebar", togglePanel);
   useHotkey("global.foldCode", foldAll);
   useHotkey("global.unfoldCode", unfoldAll);
   useHotkey("global.formatAll", () => {

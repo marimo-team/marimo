@@ -581,19 +581,20 @@ class Kernel:
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
 
-            write_variable_values(
-                [
-                    VariableValue(
-                        name=variable,
-                        value=(
-                            self.globals[variable]
-                            if variable in self.globals
-                            else None
-                        ),
-                    )
-                    for variable in self.graph.cells[cell_id].defs
-                ]
-            )
+            values = [
+                VariableValue(
+                    name=variable,
+                    value=(
+                        self.globals[variable]
+                        if variable in self.globals
+                        else None
+                    ),
+                )
+                for variable in self.graph.cells[cell_id].defs
+            ]
+
+            if values:
+                write_variable_values(values)
 
             cell.set_status(status="idle")
             if run_result.success():
@@ -730,6 +731,8 @@ class Kernel:
         # store the state and the currently executing cell
         assert self.execution_context is not None
         self.state_updates[state] = self.execution_context.cell_id
+        # TODO(akshayka): Send VariableValues message for any globals
+        # bound to this state object (just like UI elements)
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
@@ -842,13 +845,20 @@ class Kernel:
             bound_names = get_context().ui_element_registry.bound_names(
                 object_id
             )
+
+            variable_values: list[VariableValue] = []
             for name in bound_names:
                 # subtracting self.graph.definitions[name]: never rerun the
                 # cell that created the name
+                variable_values.append(
+                    VariableValue(name=name, value=component)
+                )
                 referring_cells.update(
                     self.graph.get_referring_cells(name)
                     - self.graph.definitions[name]
                 )
+            if variable_values:
+                write_variable_values(variable_values)
         self._run_cells(
             dataflow.transitive_closure(self.graph, referring_cells)
         )

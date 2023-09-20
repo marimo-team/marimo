@@ -17,6 +17,7 @@ import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
 import { layoutDataAtom, layoutViewAtom } from "../state/layout";
 import { deserializeLayout } from "@/editor/renderers/plugins";
+import { useVariablesActions } from "../variables/state";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -31,6 +32,7 @@ export function useMarimoWebSocket(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
+  const { setVariables, setMetadata } = useVariablesActions();
   const setLayoutView = useSetAtom(layoutViewAtom);
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
@@ -141,6 +143,24 @@ export function useMarimoWebSocket(opts: {
           handleCellMessage({ cellId: body.cell_id, message: body });
           return;
         }
+        case "variables":
+          setVariables(
+            msg.data.variables.map((v) => ({
+              name: v.name,
+              declaredBy: v.declared_by,
+              usedBy: v.used_by,
+            }))
+          );
+          return;
+        case "variable-values":
+          setMetadata(
+            msg.data.variables.map((v) => ({
+              name: v.name,
+              dataType: v.datatype,
+              value: v.value,
+            }))
+          );
+          return;
         default:
           logNever(msg);
       }

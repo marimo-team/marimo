@@ -11,6 +11,7 @@ import { DayPickerProvider } from "react-day-picker";
 import { CommandPallette } from "./editor/CommandPallette";
 import { useAppConfig, useUserConfig } from "@/core/state/config";
 import { initialMode } from "./core/mode";
+import { AppChrome } from "./editor/chrome/wrapper/app-chrome";
 
 /**
  * The root component of the Marimo app.
@@ -23,15 +24,25 @@ export const MarimoApp: React.FC = () => {
     initializePlugins();
   }, []);
 
+  const body =
+    initialMode === "read" ? (
+      <>
+        <App userConfig={userConfig} appConfig={appConfig} />
+        <Toaster />
+      </>
+    ) : (
+      <AppChrome>
+        <App userConfig={userConfig} appConfig={appConfig} />
+        <Toaster />
+        <CommandPallette />
+      </AppChrome>
+    );
+
   return (
     <ErrorBoundary>
       <TooltipProvider>
         <DayPickerProvider initialProps={{}}>
-          <ModalProvider>
-            <App userConfig={userConfig} appConfig={appConfig} />
-            <Toaster />
-            {initialMode !== "read" && <CommandPallette />}
-          </ModalProvider>
+          <ModalProvider>{body}</ModalProvider>
         </DayPickerProvider>
       </TooltipProvider>
     </ErrorBoundary>

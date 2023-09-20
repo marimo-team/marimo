@@ -13,7 +13,9 @@ from typing import ClassVar, Dict, Optional, Union, cast
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
+from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._server.layout import LayoutConfig
 
 
@@ -91,9 +93,20 @@ class VariableValue:
         except Exception:
             self.datatype = None
         try:
-            self.value = str(value)[:50]
+            self.value = self._format_value(value)
         except Exception:
             self.value = None
+
+    def _stringify(self, value: object) -> str:
+        return str(value)[:50]
+
+    def _format_value(self, value: object) -> str:
+        if isinstance(value, UIElement):
+            return self._stringify(value.value)
+        elif isinstance(value, Html):
+            return self._stringify(value.text)
+        else:
+            return self._stringify(value)
 
 
 @dataclass

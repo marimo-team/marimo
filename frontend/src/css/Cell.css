@@ -77,6 +77,14 @@
   background-color: var(--red-2);
 }
 
+.Cell.focus-outline {
+  border-color: var(--blue-8);
+  /* custom shadow until our theme overrides can support colored shadow */
+  --tw-shadow: 0 4px 0px -1px var(--blue-8), 0 2px 4px -2px var(--blue-8) !important;
+
+  @apply shadow-lg;
+}
+
 .Cell:focus-visible {
   /* focus-visible outlines the entire cell body in black, but the cell's
    * body is an irregular shape because of psuedo-elements that extend

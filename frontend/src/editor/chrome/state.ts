@@ -12,7 +12,7 @@ export interface ChromeState {
 
 function initialState(): ChromeState {
   return {
-    selectedPanel: undefined,
+    selectedPanel: "variables", // initial panel
     isOpen: false,
     panelLocation: "left",
   };
@@ -28,6 +28,7 @@ const { reducer, createActions } = createReducer(initialState, {
   }),
   openPanel: (state) => ({ ...state, isOpen: true }),
   closePanel: (state) => ({ ...state, isOpen: false }),
+  togglePanel: (state) => ({ ...state, isOpen: !state.isOpen }),
   setIsOpen: (state, isOpen: boolean) => ({ ...state, isOpen }),
   changePanelLocation: (state, panelLocation: "left" | "bottom") => ({
     ...state,

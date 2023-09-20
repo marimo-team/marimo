@@ -288,46 +288,54 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     />
   );
 
-  return (
-    <div
-      id="App"
-      className={clsx(
-        connStatus.state === WebSocketState.CLOSED && "disconnected",
-        "bg-background w-full h-full text-textColor",
-        "flex flex-col",
-        appConfig.width === "full" && "config-width-full"
-      )}
-    >
+  const statusOverlay = (
+    <>
       {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
       {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
       {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
+    </>
+  );
+
+  return (
+    <>
+      {statusOverlay}
       <div
+        id="App"
         className={clsx(
-          (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-          (isPresenting || isReading) && "sm:pt-8"
+          connStatus.state === WebSocketState.CLOSED && "disconnected",
+          "bg-background w-full h-full text-textColor",
+          "flex flex-col overflow-y-auto overflow-x-hidden",
+          appConfig.width === "full" && "config-width-full"
         )}
       >
-        {isEditing && (
-          <div id="Welcome">
-            <FilenameForm
-              filename={filename}
-              setFilename={handleFilenameChange}
-            />
-          </div>
-        )}
-        {connStatus.state === WebSocketState.CLOSED && (
-          <Disconnected reason={connStatus.reason} />
+        <div
+          className={clsx(
+            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
+            (isPresenting || isReading) && "sm:pt-8"
+          )}
+        >
+          {isEditing && (
+            <div id="Welcome">
+              <FilenameForm
+                filename={filename}
+                setFilename={handleFilenameChange}
+              />
+            </div>
+          )}
+          {connStatus.state === WebSocketState.CLOSED && (
+            <Disconnected reason={connStatus.reason} />
+          )}
+        </div>
+
+        {/* Don't render until we have a single cell */}
+        {cells.present.length > 0 && (
+          <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
+            <SortableCellsProvider disabled={!isEditing}>
+              {editableCellsArray}
+            </SortableCellsProvider>
+          </CellsRenderer>
         )}
       </div>
-
-      {/* Don't render until we have a single cell */}
-      {cells.present.length > 0 && (
-        <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-          <SortableCellsProvider disabled={!isEditing}>
-            {editableCellsArray}
-          </SortableCellsProvider>
-        </CellsRenderer>
-      )}
 
       {(isEditing || isPresenting) && (
         <Controls
@@ -348,13 +356,15 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           undoAvailable={cells.history.length > 0}
         />
       )}
-    </div>
+    </>
   );
 };
 
+const topLeftStatus =
+  "absolute top-3 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
-    <div className="app-status-indicator">
+    <div className={topLeftStatus}>
       <UnlinkIcon className="closed-app-icon" />
     </div>
   </Tooltip>
@@ -362,7 +372,7 @@ const DisconnectedIcon = () => (
 
 const RunningIcon = () => (
   <div
-    className="app-status-indicator"
+    className={topLeftStatus}
     title={"Marimo is busy computing. Hang tight!"}
   >
     <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />

@@ -1,31 +1,31 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { PanelGroupStorage } from "react-resizable-panels";
 import { z } from "zod";
-import Cookies from "js-cookie";
 import { Objects } from "@/utils/objects";
 
 const schema = z.record(z.tuple([z.number(), z.number()]));
 
+let storedValue: string | null = null;
+
 /**
  * This does 2 things:
- *  - stores the storage in Cookies, so it persists across sessions and ports
+ *  - stores the storage in memory, so it persists across moving the sidebar
  *  - flips the order of the store when the direction is flipped, since the helper sidebar
  *  will either come first or last.
  */
 export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
   return {
     getItem(name) {
-      const item = Cookies.get(name);
-      if (!item) {
-        return item ?? null;
+      if (!storedValue) {
+        return storedValue ?? null;
       }
       if (location === "left") {
-        return item;
+        return storedValue;
       }
 
       // flip
       try {
-        const parsed = schema.parse(JSON.parse(item));
+        const parsed = schema.parse(JSON.parse(storedValue));
         return JSON.stringify(
           Objects.mapValues(parsed, (value) => {
             return value.reverse();
@@ -50,7 +50,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
         }
       }
 
-      return Cookies.set(name, value);
+      storedValue = value || null;
     },
   };
 }
