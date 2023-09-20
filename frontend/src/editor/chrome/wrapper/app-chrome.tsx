@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { PropsWithChildren, useEffect, useRef } from "react";
+import React, { PropsWithChildren, useEffect } from "react";
 import {
   PanelGroup,
   Panel,
