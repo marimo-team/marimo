@@ -79,8 +79,10 @@
 
 .Cell.focus-outline {
   border-color: var(--grass-7);
+  /* custom shadow until our theme overrides can support colored shadow */
+  --tw-shadow: 0 4px 6px -1px var(--grass-7), 0 2px 4px -2px var(--grass-7) !important;
 
-  @apply shadow-md;
+  @apply shadow-lg;
 }
 
 .Cell:focus-visible {
