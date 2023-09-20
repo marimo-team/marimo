@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { PropsWithChildren, useEffect } from "react";
+import React, { PropsWithChildren, useEffect, useRef } from "react";
 import {
   PanelGroup,
   Panel,
@@ -64,8 +64,15 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className="bg-[var(--sage-1)]"
       minSize={10}
-      defaultSize={20}
+      // We can't make the default size greater than 0, otherwise it will start open
+      defaultSize={0}
       maxSize={45}
+      onResize={(size, prevSize) => {
+        // This means it started closed and is opening for the first time
+        if (prevSize === 0 && size === 10) {
+          sidebarRef.current?.resize(20);
+        }
+      }}
       onCollapse={(collapsed) => setIsOpen(!collapsed)}
     >
       <div className="flex flex-col h-full flex-1">
