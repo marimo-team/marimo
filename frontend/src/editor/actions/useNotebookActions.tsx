@@ -31,7 +31,11 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       label: "Export to PNG",
       handle: async () => {
         await runDuringPresentMode(() => {
-          downloadHTMLAsImage(document.body, filename || "screenshot.png");
+          const app = document.getElementById("App");
+          if (!app) {
+            return;
+          }
+          downloadHTMLAsImage(app, filename || "screenshot.png");
         });
       },
     },

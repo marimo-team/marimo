@@ -10,7 +10,7 @@ export const Footer: React.FC = () => {
   const { openApplication, changePanelLocation } = useChromeActions();
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-6 border-t border-border select-none">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-6 border-t border-border select-none no-print">
       {/* <FooterItem
         selected={selectedPanel === "errors"}
         onClick={() => openApplication("errors")}
