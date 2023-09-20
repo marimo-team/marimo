@@ -50,7 +50,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
         }
       }
 
-      storedValue = value;
+      storedValue = value || null;
     },
   };
 }
