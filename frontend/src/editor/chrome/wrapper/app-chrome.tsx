@@ -70,7 +70,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       onResize={(size, prevSize) => {
         // This means it started closed and is opening for the first time
         if (prevSize === 0 && size === 10) {
-          sidebarRef.current?.resize(20);
+          sidebarRef.current?.resize(30);
         }
       }}
       onCollapse={(collapsed) => setIsOpen(!collapsed)}

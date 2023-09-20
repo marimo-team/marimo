@@ -360,9 +360,11 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   );
 };
 
+const topLeftStatus =
+  "absolute top-3 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
-    <div className="app-status-indicator">
+    <div className={topLeftStatus}>
       <UnlinkIcon className="closed-app-icon" />
     </div>
   </Tooltip>
@@ -370,7 +372,7 @@ const DisconnectedIcon = () => (
 
 const RunningIcon = () => (
   <div
-    className="app-status-indicator"
+    className={topLeftStatus}
     title={"Marimo is busy computing. Hang tight!"}
   >
     <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />

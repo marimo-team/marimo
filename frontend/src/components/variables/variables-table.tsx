@@ -68,7 +68,7 @@ export const VariableTable: React.FC<Props> = memo(
                 <div>
                   <Badge
                     variant={
-                      variable.declaredBy.length > 1 ? "destructive" : "success"
+                      variable.declaredBy.length > 1 ? "destructive" : "outline"
                     }
                     className="rounded-sm text-ellipsis block overflow-hidden max-w-fit cursor-pointer"
                     onClick={() => {

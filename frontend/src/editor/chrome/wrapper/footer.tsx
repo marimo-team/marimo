@@ -3,13 +3,11 @@ import React, { PropsWithChildren } from "react";
 import { PanelBottomIcon, PanelLeftIcon, VariableIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChromeActions, useChromeState } from "../state";
-import { useVariables } from "@/core/variables/state";
 import { Tooltip } from "@/components/ui/tooltip";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, panelLocation } = useChromeState();
   const { openApplication, changePanelLocation } = useChromeActions();
-  const variables = useVariables();
 
   return (
     <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-6 border-t border-border select-none">
@@ -29,8 +27,7 @@ export const Footer: React.FC = () => {
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
-        <VariableIcon className={cn("h-4 w-4 mr-1")} />
-        {Object.keys(variables).length}
+        <VariableIcon className={cn("h-4 w-4")} />
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem
