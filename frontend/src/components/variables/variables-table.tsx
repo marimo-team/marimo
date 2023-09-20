@@ -52,7 +52,7 @@ export const VariableTable: React.FC<Props> = memo(
             </TableHead>
             <TableHead>
               <div className="flex flex-col gap-1">
-                <span>Declared In</span>
+                <span>Declared By</span>
                 <span>Used By</span>
               </div>
             </TableHead>
