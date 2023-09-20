@@ -731,6 +731,8 @@ class Kernel:
         # store the state and the currently executing cell
         assert self.execution_context is not None
         self.state_updates[state] = self.execution_context.cell_id
+        # TODO(akshayka): Send VariableValues message for any globals
+        # bound to this state object (just like UI elements)
 
     def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
