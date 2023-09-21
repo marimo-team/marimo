@@ -88,7 +88,7 @@ export const CopilotConfig = memo(() => {
     switch (step) {
       case "signedOut":
         return (
-          <Button onClick={trySignIn} size="xs">
+          <Button onClick={trySignIn} size="xs" variant="link">
             Connect to GitHub Copilot
           </Button>
         );
@@ -146,7 +146,7 @@ export const CopilotConfig = memo(() => {
             {loading ? (
               <Loader2Icon className="h-3 w-3 mr-1 animate-spin" />
             ) : (
-              <Button onClick={trySignIn} size="xs">
+              <Button onClick={trySignIn} size="xs" variant="link">
                 Connect to GitHub Copilot
               </Button>
             )}

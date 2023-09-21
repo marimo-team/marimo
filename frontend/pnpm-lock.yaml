@@ -164,9 +164,6 @@ dependencies:
   codemirror-languageserver:
     specifier: ^1.11.0
     version: 1.11.0(@codemirror/language@6.9.0)(@lezer/common@1.0.4)
-  copilot-node-server:
-    specifier: ^1.10.1
-    version: 1.10.1
   cssnano:
     specifier: ^6.0.1
     version: 6.0.1(postcss@8.4.29)
@@ -7495,11 +7492,6 @@ packages:
     resolution: {integrity: sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw==}
     engines: {node: '>= 0.6'}
     dev: true
-
-  /copilot-node-server@1.10.1:
-    resolution: {integrity: sha512-WpMEcSzL8ftVI74FQZisMzMI6slfmgX/8ByIo2Uvxfy2s1nPoqRBp8q3Y18+QrG6xreh8eRzZx70NcHH3QVAWA==}
-    hasBin: true
-    dev: false
 
   /copy-anything@2.0.6:
     resolution: {integrity: sha512-1j20GZTsvKNkc4BY3NpMOM8tt///wY3FpIzozTOFO2ffuZcV61nojHXVKIy3WM+7ADCy5FVhdZYHYDdgTU0yJw==}
