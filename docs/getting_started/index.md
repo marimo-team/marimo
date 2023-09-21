@@ -1,7 +1,6 @@
 # Getting Started
 
-Installing marimo gets you the `marimo` command-line interface (CLI), the 
-entry point to all things marimo.
+Installing marimo gets you the `marimo` command-line interface (CLI), the entry point to all things marimo.
 
 ## Installation
 
@@ -77,3 +76,7 @@ all marimo notebooks in your current directory.
 <img src="/_static/vscode-marimo.png"/>
 </figure>
 </div>
+
+## Github Copilot
+
+The marimo editor supports [Github Copilot](https://copilot.github.com/), an AI pair programmer, similar to VS Code. You can find out more about Copilot [here](https://copilot.github.com/).
