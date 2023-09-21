@@ -25,9 +25,20 @@ export const copilotBundle = (): Extension => {
 
         // wait 10ms so that the view is updated first
         await new Promise((resolve) => setTimeout(resolve, 10));
+
+        // We need to update the position of the cursor because added newlines
+        // from appending the other code
+        const currentCode = view.doc.toString();
+        const allCode = getCodes(currentCode);
+        const numberOfNewLines =
+          allCode.split("\n").length - currentCode.split("\n").length;
+
+        const position = offsetToPos(view.doc, view.selection.main.head);
+        position.line += numberOfNewLines;
+
         const response = await getCopilotClient().getCompletion({
           doc: {
-            source: getCodes(view.doc.toString()),
+            source: allCode,
             tabSize: view.tabSize,
             indentSize: 1,
             insertSpaces: true,
@@ -36,7 +47,7 @@ export const copilotBundle = (): Extension => {
             uri: `file://${COPILOT_FILENAME}`,
             relativePath: COPILOT_FILENAME,
             languageId: LANGUAGE_ID,
-            position: offsetToPos(view.doc, view.selection.main.head),
+            position: position,
           },
         });
         return response.completions.map((c) => c.displayText)[0] ?? "";

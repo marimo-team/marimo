@@ -25,6 +25,7 @@ import {
   CopilotRejectCompletionParams,
 } from "./types";
 import { isCopilotEnabled } from "./state";
+import { getCodes } from "./getCodes";
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
@@ -81,9 +82,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
     return super.textDocumentDidChange({
       ...params,
-      // TODO: adding the additional code makes the LSP return
-      // {completions: [], cancellationReason: "RequestCancelled"}
-      // contentChanges: [{ text: getCodes(params.contentChanges[0].text) }],
+      contentChanges: [{ text: getCodes(params.contentChanges[0].text) }],
       textDocument: VersionedTextDocumentIdentifier.create(
         params.textDocument.uri,
         ++this.documentVersion
