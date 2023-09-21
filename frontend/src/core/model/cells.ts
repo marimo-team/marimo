@@ -30,7 +30,6 @@ export function createCell({
   key,
   ref = createRef(),
   name = DEFAULT_CELL_NAME,
-  initialContents = "",
   code = "",
   output = null,
   consoleOutputs = [],
@@ -50,7 +49,6 @@ export function createCell({
     ref: ref,
     config: config,
     name: name,
-    initialContents: initialContents,
     output: output,
     code: code,
     status: status,
@@ -71,8 +69,6 @@ export interface CellState {
   key: CellId;
   /** user-given name, or default */
   name: string;
-  /** initial contents of the editor */
-  initialContents: string;
   /** current contents of the editor */
   code: string;
   /** a message encoding the cell's output */

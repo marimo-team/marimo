@@ -198,7 +198,6 @@ const { reducer, createActions } = createReducer(initialCellState, {
       const undoCell = createCell({
         key: CellId.create(),
         name,
-        initialContents: serializedEditorState.doc,
         code: serializedEditorState.doc,
         edited: serializedEditorState.doc.trim().length > 0,
         serializedEditorState,

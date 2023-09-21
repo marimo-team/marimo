@@ -64,7 +64,7 @@ export interface CellProps
       | "consoleOutputs"
       | "status"
       | "output"
-      | "initialContents"
+      | "code"
       | "edited"
       | "errored"
       | "interrupted"
@@ -105,7 +105,7 @@ const CellComponent = (
     showPlaceholder,
     allowFocus,
     cellId,
-    initialContents,
+    code,
     output,
     consoleOutputs,
     status,
@@ -251,7 +251,7 @@ const CellComponent = (
         // Otherwise, create a new editor.
         editorView.current = new EditorView({
           state: EditorState.create({
-            doc: initialContents,
+            doc: code,
             extensions: extensions,
           }),
         });
@@ -267,7 +267,7 @@ const CellComponent = (
         state: EditorState.fromJSON(
           serializedEditorState,
           {
-            doc: initialContents,
+            doc: code,
             extensions: extensions,
           },
           { history: historyField }
@@ -294,7 +294,7 @@ const CellComponent = (
       });
     }
 
-    // We don't want to re-run this effect when `allowFocus` changes.
+    // We don't want to re-run this effect when `allowFocus` or `code` changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cellId,
@@ -302,7 +302,6 @@ const CellComponent = (
     userConfig.keymap,
     theme,
     showPlaceholder,
-    initialContents,
     createAbove,
     createBelow,
     deleteCell,
