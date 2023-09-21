@@ -60,9 +60,19 @@ Automatically translate Jupyter notebooks to marimo notebooks with `marimo conve
 marimo convert your_notebook.ipynb > your_notebook.py
 ```
 
-Because marimo is different from traditional notebooks, your converted
-notebook will likely have errors that you'll need to fix. marimo
-will guide you through fixing them when you open it with `marimo edit`.
+Because marimo is different from traditional notebooks, your converted notebook
+will likely have errors that you'll need to fix. marimo will guide you through
+fixing them when you open it with `marimo edit`.
+
+## Github Copilot
+
+The marimo editor natively supports [Github Copilot](https://copilot.github.com/),
+an AI pair programmer, similar to VS Code.
+
+_Get started with Copilot_:
+
+1. Install [Node.js](https://nodejs.org/en/download).
+2. Enable Copilot via the settings menu in the marimo editor.
 
 ## VS Code extension
 
@@ -76,7 +86,3 @@ all marimo notebooks in your current directory.
 <img src="/_static/vscode-marimo.png"/>
 </figure>
 </div>
-
-## Github Copilot
-
-The marimo editor supports [Github Copilot](https://copilot.github.com/), an AI pair programmer, similar to VS Code. You can find out more about Copilot [here](https://copilot.github.com/).
