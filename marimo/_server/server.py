@@ -308,8 +308,7 @@ async def start_server(
         logger.fatal(type(e).__name__ + ": " + str(e))
         shutdown(with_error=True)
 
-    if get_configuration()["completion"]["copilot"]:
-        logger.debug("in server, starting lsp")
+    if not run and get_configuration()["completion"]["copilot"]:
         session_mgr.start_lsp_server()
 
     url = f"http://localhost:{port}"

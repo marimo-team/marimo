@@ -433,8 +433,11 @@ class SessionManager:
         return False
 
     def start_lsp_server(self) -> None:
-        """Starts the lsp server if it is not already started."""
-        if self.lsp_process is not None:
+        """Starts the lsp server if it is not already started.
+
+        Doesn't start in run mode.
+        """
+        if self.lsp_process is not None or self.mode == SessionMode.RUN:
             return
 
         lsp_bin = os.path.join(
