@@ -445,9 +445,9 @@ class SessionManager:
         try:
             self.lsp_process = subprocess.Popen(
                 cmd.split(),
-                # stdout=subprocess.DEVNULL,
-                # stderr=subprocess.DEVNULL,
-                # stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
             )
             LOGGER.debug("Starting LSP server at port %s", self.lsp_port)
         except Exception as e:
