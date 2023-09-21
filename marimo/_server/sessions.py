@@ -19,12 +19,14 @@ import multiprocessing as mp
 import os
 import queue
 import signal
+import subprocess
 import sys
 import threading
 from enum import Enum
 from multiprocessing import connection
 from typing import Any, Callable, Optional
 
+import importlib_resources
 import tornado.httputil
 import tornado.ioloop
 import tornado.web
@@ -368,11 +370,15 @@ class SessionManager:
         self,
         filename: Optional[str],
         mode: SessionMode,
+        port: int,
         development_mode: bool,
         quiet: bool,
     ) -> None:
         self.filename = filename
         self.mode = mode
+        self.port = port
+        self.lsp_port = int(self.port * 10)
+        self.lsp_process: Optional[subprocess.Popen[bytes]] = None
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
@@ -426,6 +432,29 @@ class SessionManager:
                 return True
         return False
 
+    def start_lsp_server(self) -> None:
+        """Starts the lsp server if it is not already started."""
+        if self.lsp_process is not None:
+            return
+
+        lsp_bin = os.path.join(
+            str(importlib_resources.files("marimo").joinpath("_lsp")),
+            "index.js",
+        )
+        cmd = f"node {lsp_bin} --port {self.lsp_port}"
+        try:
+            self.lsp_process = subprocess.Popen(
+                cmd.split(),
+                # stdout=subprocess.DEVNULL,
+                # stderr=subprocess.DEVNULL,
+                # stdin=subprocess.DEVNULL,
+            )
+            LOGGER.debug("Starting LSP server at port %s", self.lsp_port)
+        except Exception as e:
+            LOGGER.error(
+                "When starting language server (%s), got error: %s", cmd, e
+            )
+
     def close_session(self, session_id: str) -> None:
         LOGGER.debug("closing session %s", session_id)
         session = self.get_session(session_id)
@@ -437,6 +466,9 @@ class SessionManager:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
         for session in self.sessions.values():
             session.close()
+        if self.lsp_process is not None:
+            LOGGER.debug("Terminating LSP process.")
+            self.lsp_process.terminate()
         LOGGER.debug("All sessions closed.")
         self.sessions = {}
 
@@ -462,6 +494,7 @@ def requires_edit(handler: Callable[..., Any]) -> Callable[..., Any]:
 def initialize_manager(
     filename: Optional[str],
     mode: SessionMode,
+    port: int,
     development_mode: bool,
     quiet: bool,
 ) -> SessionManager:
@@ -470,6 +503,7 @@ def initialize_manager(
     SESSION_MANAGER = SessionManager(
         filename=filename,
         mode=mode,
+        port=port,
         development_mode=development_mode,
         quiet=quiet,
     )
