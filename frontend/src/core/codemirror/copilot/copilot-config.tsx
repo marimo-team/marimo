@@ -4,32 +4,38 @@ import { copilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
-import { FormItem } from "@/components/ui/form";
+import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 
+type Step =
+  | "signedIn"
+  | "signingIn"
+  | "signInFailed"
+  | "signedOut"
+  | "notConnected";
+
 export const CopilotConfig = memo(() => {
   const [copilotSignedIn, copilotChangeSignIn] = useAtom(copilotSignedInState);
-  const [step, setStep] = useState<
-    "signedIn" | "signingIn" | "signInFailed" | "signedOut"
-  >(copilotSignedIn ? "signedIn" : "signedOut");
+  const [step, setStep] = useState<Step>();
 
   const [localData, setLocalData] = useState<{ url: string; code: string }>();
   const [loading, setLoading] = useState(false);
 
+  // Check connection on mount
   useEffect(() => {
-    // If null, we haven't checked yet
-    if (copilotSignedIn == null) {
-      const client = getCopilotClient();
-      client.signedIn().then((signedIn) => {
+    const client = getCopilotClient();
+    client
+      .signedIn()
+      .then((signedIn) => {
         copilotChangeSignIn(signedIn);
+        setStep(signedIn ? "signedIn" : "signedOut");
+      })
+      .catch(() => {
+        setStep("notConnected");
       });
-    } else {
-      setStep(copilotSignedIn ? "signedIn" : "signedOut");
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [copilotSignedIn]);
+  }, []);
 
   const trySignIn = async (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -84,12 +90,15 @@ export const CopilotConfig = memo(() => {
   const signOut = async (evt: React.MouseEvent) => {
     evt.preventDefault();
     const client = getCopilotClient();
-    await client.signOut();
     copilotChangeSignIn(false);
+    await client.signOut();
   };
 
   const renderBody = () => {
-    switch (step) {
+    // If we don't have a step set, infer it from the current state
+    const resolvedStep = step ?? (copilotSignedIn ? "signedIn" : "signedOut");
+
+    switch (resolvedStep) {
       case "signedOut":
         return (
           <Button onClick={trySignIn} size="xs" variant="link">
@@ -160,16 +169,22 @@ export const CopilotConfig = memo(() => {
       case "signedIn":
         return (
           <div className="flex items-center justify-between">
-            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-              <Label className="font-normal flex">
-                <CheckIcon className="h-4 w-4 mr-1" />
-                Connected
-              </Label>
-            </FormItem>
+            <Label className="font-normal flex">
+              <CheckIcon className="h-4 w-4 mr-1" />
+              Connected
+            </Label>
             <Button onClick={signOut} size="xs" variant="text">
               Disconnect
             </Button>
           </div>
+        );
+
+      case "notConnected":
+        return (
+          <Label className="font-normal flex">
+            <XIcon className="h-4 w-4 mr-1" />
+            Unable to connect
+          </Label>
         );
     }
   };
