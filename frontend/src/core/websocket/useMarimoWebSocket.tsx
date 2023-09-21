@@ -68,7 +68,6 @@ export function useMarimoWebSocket(opts: {
             createCell({
               key: CellId.create(),
               code,
-              initialContents: code,
               name: names[i],
               config: configs[i],
             })

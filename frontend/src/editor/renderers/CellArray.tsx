@@ -94,7 +94,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           showPlaceholder={cells.present.length === 1}
           allowFocus={!invisible}
           cellId={cell.key}
-          initialContents={cell.initialContents}
+          code={cell.code}
           output={cell.output}
           consoleOutputs={cell.consoleOutputs}
           status={cell.status}

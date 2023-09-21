@@ -17,7 +17,7 @@ const props: CellProps = {
   theme: "light",
   showPlaceholder: false,
   cellId: "1" as CellId,
-  initialContents: "import marimo as mo",
+  code: "import marimo as mo",
   output: null,
   consoleOutputs: [],
   status: "idle",
