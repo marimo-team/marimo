@@ -1,6 +1,6 @@
 import * as http from "http";
 import parseArgs from "minimist";
-import * as ws from "ws";
+import ws, { WebSocketServer } from "ws";
 import * as rpc from "@sourcegraph/vscode-ws-jsonrpc";
 import * as rpcServer from "@sourcegraph/vscode-ws-jsonrpc/lib/server";
 import path from "path";
@@ -20,7 +20,7 @@ let languageServers: Record<string, string[]> = {
   copilot: ["node", path.join(__dirname, "copilot", "dist", "agent.js")],
 };
 
-const wss: ws.Server = new ws.Server(
+const wss = new WebSocketServer(
   {
     port: serverPort,
     perMessageDeflate: false,

@@ -9,6 +9,10 @@ help:
 # install/build frontend
 fe: fe-install fe-build
 
+.PHONY: lsp
+# install/build lsp
+lsp: lsp-install lsp-build
+
 .PHONY: py
 # editable python install; only need to run once
 py:
@@ -66,9 +70,17 @@ fe-build:
 fe-install:
 	cd frontend; pnpm install
 
+.PHONY: lsp-build
+lsp-build:
+	./scripts/buildlsp.sh
+
+.PHONY: lsp-install
+lsp-install:
+	cd lsp; pnpm install
+
 .PHONY: install-all
 # install everything; takes a long time due to editable install
-install-all: fe py
+install-all: fe lsp py
 
 .PHONY: wheel
 # build wheel
