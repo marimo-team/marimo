@@ -306,9 +306,18 @@ async def start_server(
             str(importlib_resources.files("marimo").joinpath("_lsp")),
             "index.js",
         )
-        LSP_PROCESS = subprocess.Popen(
-            ["node", lsp_bin, "--port", str(port * 10)]
-        )
+        cmd = f"node {lsp_bin} --port {str(port * 10)}"
+        try:
+            LSP_PROCESS = subprocess.Popen(
+                cmd.split(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logger.error(
+                "When starting language server (%s), got error: %s", cmd, e
+            )
 
     if not headless:
         if which("xdg-open") is not None:
