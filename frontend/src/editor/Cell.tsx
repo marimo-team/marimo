@@ -39,6 +39,7 @@ import { CellId, HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { CellActionsDropdown } from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
+import { AppMode } from "@/core/mode";
 
 /**
  * Imperative interface of the cell.
@@ -87,7 +88,7 @@ export interface CellProps
   cellId: CellId;
   registerRunStart: () => void;
   serializedEditorState: SerializedEditorState | null;
-  editing: boolean;
+  mode: AppMode;
   appClosed: boolean;
   showDeleteButton: boolean;
   /**
@@ -116,7 +117,7 @@ const CellComponent = (
     stopped,
     registerRunStart,
     serializedEditorState,
-    editing,
+    mode,
     appClosed,
     showDeleteButton,
     updateCellCode,
@@ -142,6 +143,8 @@ const CellComponent = (
 
   const needsRun = edited || interrupted;
   const loading = status === "running" || status === "queued";
+  const editing = mode === "edit";
+  const reading = mode === "read";
   const { sendToTop, sendToBottom } = useCellActions();
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -209,6 +212,10 @@ const CellComponent = (
   );
 
   useEffect(() => {
+    if (reading) {
+      return;
+    }
+
     const deleteCellIfNotRunning = () => {
       // Cannot delete running cells, since we're waiting for their output.
       if (!runningOrQueuedRef.current) {
@@ -297,6 +304,7 @@ const CellComponent = (
     // We don't want to re-run this effect when `allowFocus` changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    reading,
     cellId,
     userConfig.completion.activate_on_typing,
     userConfig.keymap,
