@@ -8,6 +8,7 @@ import {
 } from "./client";
 import { inlineSuggestion } from "codemirror-extension-inline-suggestion";
 import { isCopilotEnabled } from "./state";
+import { getCodes } from "./getCodes";
 
 export const copilotBundle = (): Extension => {
   if (process.env.NODE_ENV === "test") {
@@ -26,7 +27,7 @@ export const copilotBundle = (): Extension => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         const response = await getCopilotClient().getCompletion({
           doc: {
-            source: view.doc.toString(),
+            source: getCodes(view.doc.toString()),
             tabSize: view.tabSize,
             indentSize: 1,
             insertSpaces: true,

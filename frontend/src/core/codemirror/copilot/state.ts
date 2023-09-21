@@ -1,15 +1,18 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { getUserConfig } from "@/core/state/config";
-import { store } from "@/core/state/jotai";
 import { atomWithStorage } from "jotai/utils";
 
-export const copilotSignedInState = atomWithStorage<boolean | null>(
-  "marimo:copilot:signedIn",
-  null
-);
+const KEY = "marimo:copilot:signedIn";
+
+export const copilotSignedInState = atomWithStorage<boolean | null>(KEY, null);
+
+function getIsLastSignedIn() {
+  const lastSignedIn = localStorage.getItem(KEY);
+  return lastSignedIn === "true";
+}
 
 export function isCopilotEnabled() {
-  const copilot = store.get(copilotSignedInState);
+  const copilot = getIsLastSignedIn();
   const userConfig = getUserConfig();
   return copilot && userConfig.completion.copilot;
 }

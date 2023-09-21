@@ -80,7 +80,8 @@ export const CopilotConfig = memo(() => {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
     const client = getCopilotClient();
     await client.signOut();
     copilotChangeSignIn(false);
