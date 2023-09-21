@@ -9,7 +9,6 @@ import { SettingsIcon } from "lucide-react";
 import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
-import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 
 export const AppConfigButton = () => {
   return (
