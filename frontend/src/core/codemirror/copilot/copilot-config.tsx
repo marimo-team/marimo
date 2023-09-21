@@ -32,7 +32,8 @@ export const CopilotConfig = memo(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copilotSignedIn]);
 
-  const trySignIn = async () => {
+  const trySignIn = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
     setLoading(true);
     try {
       const { verificationUri, status, userCode } =
@@ -49,7 +50,8 @@ export const CopilotConfig = memo(() => {
     }
   };
 
-  const tryFinishSignIn = async () => {
+  const tryFinishSignIn = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
     if (!localData) {
       return;
     }
@@ -97,19 +99,8 @@ export const CopilotConfig = memo(() => {
         return (
           <ol className="ml-4 text-sm list-decimal [&>li]:mt-2">
             <li>
-              Please click this link:
-              <a
-                href={localData?.url}
-                target="_blank"
-                rel="noreferrer"
-                className={buttonVariants({ variant: "link", size: "xs" })}
-              >
-                {localData?.url}
-              </a>
-            </li>
-            <li>
               <div className="flex items-center">
-                Enter this code:
+                Copy this code:
                 <strong className="ml-2">{localData?.code}</strong>
                 <CopyIcon
                   className="ml-2 cursor-pointer opacity-60 hover:opacity-100 h-3 w-3"
@@ -124,6 +115,17 @@ export const CopilotConfig = memo(() => {
                   }}
                 />
               </div>
+            </li>
+            <li>
+              Enter the code at this link:
+              <a
+                href={localData?.url}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ variant: "link", size: "xs" })}
+              >
+                {localData?.url}
+              </a>
             </li>
             <li>
               Click here when done:
