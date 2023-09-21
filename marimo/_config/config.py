@@ -33,6 +33,7 @@ class CompletionConfig(TypedDict, total=False):
 
     copilot: bool
 
+
 @mddoc
 class SaveConfig(TypedDict, total=False):
     """Configuration for saving.

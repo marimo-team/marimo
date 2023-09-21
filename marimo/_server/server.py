@@ -38,6 +38,7 @@ from marimo._server.utils import TAB, print_tabbed
 DEFAULT_PORT = 2718
 UTF8_SUPPORTED = False
 ORIGINAL_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
+LSP_PROCESS: Optional[subprocess.Popen[bytes]] = None
 
 try:
     "🌊🍃".encode(sys.stdout.encoding)
@@ -64,6 +65,8 @@ def shutdown(with_error: bool = False) -> None:
         print()
     mgr.close_all_sessions()
     tornado.ioloop.IOLoop.current().stop()
+    if LSP_PROCESS is not None:
+        LSP_PROCESS.terminate()
     if with_error:
         sys.exit(1)
     else:
@@ -170,6 +173,7 @@ async def start_server(
         logger.fatal(type(e).__name__ + ": " + str(e))
         shutdown(with_error=True)
 
+    user_config = get_configuration()
     signal.signal(signal.SIGINT, interrupt_handler)
 
     root = os.path.realpath(
@@ -296,6 +300,15 @@ async def start_server(
         )
 
     url = f"http://localhost:{port}"
+    if user_config["completion"]["copilot"]:
+        global LSP_PROCESS
+        lsp_bin = os.path.join(
+            str(importlib_resources.files("marimo").joinpath("_lsp")),
+            "index.js",
+        )
+        LSP_PROCESS = subprocess.Popen(
+            ["node", lsp_bin, "--port", str(port * 10)]
+        )
 
     if not headless:
         if which("xdg-open") is not None:
