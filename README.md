@@ -1,4 +1,3 @@
-
 <p align="center">
   <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-thick.svg">
 </p>
@@ -44,19 +43,18 @@ Jupyter or any other notebook or app library.
   - [Notebooks](#notebooks)
   - [Apps](#apps)
   - [Convert Jupyter notebooks](#convert-jupyter-notebooks)
+  - [VS Code extension](#vs-code-extension)
 - [Concepts](#concepts)
 - [Examples](#examples)
 - [FAQ](#faq)
 - [Contributing](#contributing)
-- [License](#license)
 - [Community](#community)
 
 <!-- tocstop -->
 
 ## Getting Started
 
-Installing marimo gets you the `marimo` command-line interface (CLI), the 
-entry point to all things marimo.
+Installing marimo gets you the `marimo` command-line interface (CLI), the entry point to all things marimo.
 
 ### Installation
 
@@ -122,7 +120,6 @@ will guide you through fixing them when you open it with `marimo edit`.
 
 ### VS Code extension
 
-
 If you prefer VS Code over terminal, try our
 [VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
 Use the extension to edit and run notebooks directly from VS Code, and to list
@@ -171,7 +168,6 @@ cell's code just once, creating a directed acyclic graph based on the
 global names each cell defines and reads. This is how data flows
 in a marimo notebook.
 
-
 For more on reactive execution, open the dataflow tutorial:
 
 ```bash
@@ -186,7 +182,6 @@ notebooks.
 
 We recommend starting each marimo notebook with a cell containing a single
 line of code,
-
 
 ```python3
 import marimo as mo
@@ -206,8 +201,7 @@ to build rich composite outputs.
 </figure>
 </div>
 
-> Thanks to reactive execution, running a
-cell refreshes all the relevant outputs in your notebook.
+> Thanks to reactive execution, running a cell refreshes all the relevant outputs in your notebook.
 
 For more on outputs, try these tutorials:
 
@@ -216,7 +210,6 @@ marimo tutorial markdown
 marimo tutorial plots
 marimo tutorial layout
 ```
-
 
 ### Interactive elements
 
@@ -242,7 +235,7 @@ attribute.
 to make your data tangible during exploration and to build all kinds of tools
 and apps.
 
- _marimo can only synchronize UI elements that are assigned to
+_marimo can only synchronize UI elements that are assigned to
 global variables._ You can use composite elements like `mo.ui.array` and
 `mo.ui.dictionary` if the set of UI elements is not known until runtime.
 
@@ -265,7 +258,6 @@ collections of elements.
 <img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/readme-ui-form.gif" width="600px"/>
 </figure>
 </div>
-
 
 ### Layout
 
@@ -294,5 +286,11 @@ started.
 
 ## Community
 
-We're building a community [on Discord](https://discord.gg/JE7nhX6mD8). Come
-hang out with us!
+We're building a community. Come hang out with us!
+
+- 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
+- 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
+- 💬 [Join us on Discord](https://discord.gg/JE7nhX6mD8)
+- 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
+- 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
+- ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)

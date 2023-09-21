@@ -6,5 +6,3 @@ Community examples can be found and shared in the
 
 We've deployed many of these examples at our
 [public gallery](https://marimo.io/@public) (try them out!).
-
-
