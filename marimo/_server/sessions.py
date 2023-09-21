@@ -466,11 +466,13 @@ class SessionManager:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
         for session in self.sessions.values():
             session.close()
-        if self.lsp_process is not None:
-            LOGGER.debug("Terminating LSP process.")
-            self.lsp_process.terminate()
         LOGGER.debug("All sessions closed.")
         self.sessions = {}
+
+    def shutdown(self) -> None:
+        self.close_all_sessions()
+        if self.lsp_process is not None:
+            self.lsp_process.terminate()
 
 
 def requires_edit(handler: Callable[..., Any]) -> Callable[..., Any]:

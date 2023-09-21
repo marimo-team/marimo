@@ -62,7 +62,7 @@ def shutdown(with_error: bool = False) -> None:
             "\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃")
         )
         print()
-    mgr.close_all_sessions()
+    mgr.shutdown()
     tornado.ioloop.IOLoop.current().stop()
     if with_error:
         sys.exit(1)
