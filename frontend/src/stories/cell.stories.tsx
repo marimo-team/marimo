@@ -30,7 +30,7 @@ const props: CellProps = {
   registerRunStart: console.log,
   runElapsedTimeMs: 10,
   serializedEditorState: null,
-  editing: true,
+  mode: "edit",
   appClosed: false,
   showDeleteButton: true,
   allowFocus: false,

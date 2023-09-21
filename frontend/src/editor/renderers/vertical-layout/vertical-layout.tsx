@@ -15,8 +15,9 @@ type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
 const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   cells,
   appConfig,
+  mode,
 }) => {
-  const { invisible } = useDelayVisibility(cells);
+  const { invisible } = useDelayVisibility(cells, mode);
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
