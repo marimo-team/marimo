@@ -81,6 +81,9 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
     return super.textDocumentDidChange({
       ...params,
+      // TODO: adding the additional code makes the LSP return
+      // {completions: [], cancellationReason: "RequestCancelled"}
+      // contentChanges: [{ text: getCodes(params.contentChanges[0].text) }],
       textDocument: VersionedTextDocumentIdentifier.create(
         params.textDocument.uri,
         ++this.documentVersion
