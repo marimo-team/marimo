@@ -13,6 +13,10 @@ export async function waitFor<T>(
   atom: Atom<T>,
   predicate: (value: T) => boolean
 ) {
+  if (predicate(store.get(atom))) {
+    return store.get(atom);
+  }
+
   return new Promise<T>((resolve) => {
     const unsubscribe = store.sub(atom, () => {
       const value = store.get(atom);

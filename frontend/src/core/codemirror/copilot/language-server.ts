@@ -131,7 +131,6 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       return { completions: [] };
     }
 
-    await super.initializePromise;
     const version = this.documentVersion;
 
     return this._request("getCompletions", {

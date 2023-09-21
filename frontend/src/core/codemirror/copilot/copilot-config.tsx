@@ -2,7 +2,7 @@
 import { useAtom } from "jotai";
 import { copilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
-import { getReadyCopilotClient } from "./client";
+import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
 import { FormItem } from "@/components/ui/form";
@@ -21,11 +21,10 @@ export const CopilotConfig = memo(() => {
   useEffect(() => {
     // If null, we haven't checked yet
     if (copilotSignedIn == null) {
-      getReadyCopilotClient().then((client) =>
-        client.signedIn().then((signedIn) => {
-          copilotChangeSignIn(signedIn);
-        })
-      );
+      const client = getCopilotClient();
+      client.signedIn().then((signedIn) => {
+        copilotChangeSignIn(signedIn);
+      });
     } else {
       setStep(copilotSignedIn ? "signedIn" : "signedOut");
     }
@@ -36,7 +35,7 @@ export const CopilotConfig = memo(() => {
     evt.preventDefault();
     setLoading(true);
     try {
-      const client = await getReadyCopilotClient();
+      const client = getCopilotClient();
       const { verificationUri, status, userCode } =
         await client.signInInitiate();
 
@@ -56,7 +55,7 @@ export const CopilotConfig = memo(() => {
     if (!localData) {
       return;
     }
-    const client = await getReadyCopilotClient();
+    const client = getCopilotClient();
     try {
       setLoading(true);
       const { status } = await client.signInConfirm({
@@ -84,7 +83,7 @@ export const CopilotConfig = memo(() => {
 
   const signOut = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    const client = await getReadyCopilotClient();
+    const client = getCopilotClient();
     await client.signOut();
     copilotChangeSignIn(false);
   };

@@ -33,12 +33,14 @@ class LazyWebsocketTransport extends Transport {
   override async connect() {
     // Wait for copilot to be enabled
     await waitForEnabledCopilot();
-    // Wait for port
+    // Wait for ws to be available
     await waitForWs(createWsUrl());
 
+    // Create delegate, if it doesn't exist
     if (!this.delegate) {
       this.delegate = new WebSocketTransport(createWsUrl());
     }
+
     // Connect
     return this.delegate.connect();
   }
@@ -65,12 +67,6 @@ export const getCopilotClient = once(
       transport: createWSTransport(),
     })
 );
-
-export const getReadyCopilotClient = async () => {
-  const client = getCopilotClient();
-  await client.initializePromise;
-  return client;
-};
 
 export function copilotServer() {
   return languageServerWithTransport({
