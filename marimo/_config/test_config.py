@@ -14,7 +14,7 @@ def test_configure_partial_keymap() -> None:
 def test_configure_full() -> None:
     assert_config(
         MarimoConfig(
-            completion={"activate_on_typing": False},
+            completion={"activate_on_typing": False, "copilot": False},
             save={"autosave": "after_delay", "autosave_delay": 2},
             keymap={"preset": "vim"},
         )

@@ -5,7 +5,6 @@ import {
   CompletionParams,
   DidChangeTextDocumentParams,
   DidOpenTextDocumentParams,
-  Hover,
   HoverParams,
   VersionedTextDocumentIdentifier,
 } from "vscode-languageserver-protocol";
@@ -35,6 +34,16 @@ export interface LSPRequestMap {
   notifyAccepted: [CopilotAcceptCompletionParams, unknown];
   notifyRejected: [CopilotRejectCompletionParams, unknown];
   getCompletions: [CopilotGetCompletionsParams, CopilotGetCompletionsResult];
+  "textDocument/completion": [
+    CompletionParams,
+    CompletionList | CompletionItem[]
+  ];
+}
+
+export interface LSPNotificationMap {
+  "textDocument/didOpen": [DidOpenTextDocumentParams, void];
+  "textDocument/didChange": [DidChangeTextDocumentParams, void];
+  "textDocument/hover": [HoverParams, void];
 }
 
 /**
@@ -51,42 +60,45 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return (this as any).request(method, params);
   }
 
-  private isEnabled() {
-    return !isCopilotEnabled();
+  private _notify<Method extends keyof LSPNotificationMap>(
+    method: Method,
+    params: LSPNotificationMap[Method][0]
+  ): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this as any).notify(method, params);
   }
 
-  override textDocumentDidOpen(
+  private isEnabled() {
+    return isCopilotEnabled();
+  }
+
+  override async textDocumentDidOpen(
     params: DidOpenTextDocumentParams
   ): Promise<DidOpenTextDocumentParams> {
     if (this.isEnabled()) {
-      return Promise.resolve(params);
+      return params;
     }
-    return super.textDocumentDidOpen(params);
+    await this._notify("textDocument/didOpen", params);
+    return params;
   }
 
-  override textDocumentCompletion(
+  override async textDocumentCompletion(
     params: CompletionParams
   ): Promise<CompletionList | CompletionItem[]> {
     if (this.isEnabled()) {
-      return Promise.resolve({ isIncomplete: false, items: [] });
+      return [];
     }
-    return super.textDocumentCompletion(params);
+    return this._request("textDocument/completion", params);
   }
 
-  override textDocumentDidChange(
+  override async textDocumentDidChange(
     params: DidChangeTextDocumentParams
   ): Promise<DidChangeTextDocumentParams> {
     if (this.isEnabled()) {
-      return Promise.resolve(params);
+      return params;
     }
-    return super.textDocumentDidChange(params);
-  }
-
-  override textDocumentHover(params: HoverParams): Promise<Hover> {
-    if (this.isEnabled()) {
-      return Promise.resolve({ contents: [] });
-    }
-    return super.textDocumentHover(params);
+    await this._notify("textDocument/didChange", params);
+    return params;
   }
 
   // AUTH
@@ -119,14 +131,26 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   async getCompletion(params: CopilotGetCompletionsParams) {
+    await super.initializePromise;
     const version = this.documentVersion++;
-    await this.textDocumentDidChange({
-      textDocument: VersionedTextDocumentIdentifier.create(
-        params.doc.uri,
-        version
-      ),
-      contentChanges: [{ text: params.doc.source }],
-    });
+
+    await (version === 0
+      ? this._notify("textDocument/didOpen", {
+          textDocument: {
+            uri: params.doc.uri,
+            languageId: params.doc.languageId,
+            version: version,
+            text: params.doc.source,
+          },
+        })
+      : this._notify("textDocument/didChange", {
+          textDocument: VersionedTextDocumentIdentifier.create(
+            params.doc.uri,
+            version
+          ),
+          contentChanges: [{ text: params.doc.source }],
+        }));
+
     return this._request("getCompletions", {
       doc: {
         ...params.doc,

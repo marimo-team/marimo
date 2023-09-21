@@ -1,25 +1,18 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useAtom } from "jotai";
-import { copilotState } from "./state";
+import { copilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
 import { getCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { CopyIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
 import { FormItem } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 
 export const CopilotConfig = memo(() => {
-  const [state, dispatch] = useAtom(copilotState);
-  const { copilotSignedIn, copilotEnabled } = state;
   const client = getCopilotClient();
 
-  const copilotChangeSignIn = (signedIn: boolean) =>
-    dispatch({ type: "signedIn", signedIn: signedIn });
-  const enableCopilot = (enabled: boolean) =>
-    dispatch({ type: "copilotEnabled", enabled: enabled });
-
+  const [copilotSignedIn, copilotChangeSignIn] = useAtom(copilotSignedInState);
   const [step, setStep] = useState<
     "signedIn" | "signingIn" | "signInFailed" | "signedOut"
   >(copilotSignedIn ? "signedIn" : "signedOut");
@@ -164,14 +157,12 @@ export const CopilotConfig = memo(() => {
         return (
           <div className="flex items-center justify-between">
             <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-              <Switch
-                checked={copilotEnabled}
-                size="sm"
-                onCheckedChange={(checked) => enableCopilot(checked)}
-              />
-              <Label className="font-normal">Enable</Label>
+              <Label className="font-normal flex">
+                <CheckIcon className="h-4 w-4 mr-1" />
+                Connected
+              </Label>
             </FormItem>
-            <Button onClick={signOut} size="xs" variant="ghost">
+            <Button onClick={signOut} size="xs" variant="text">
               Disconnect
             </Button>
           </div>
@@ -183,11 +174,6 @@ export const CopilotConfig = memo(() => {
     return renderBody();
   }
 
-  return (
-    <div className="flex flex-col space-y-2">
-      <Label className="font-normal">GitHub Copilot</Label>
-      {renderBody()}
-    </div>
-  );
+  return renderBody();
 });
 CopilotConfig.displayName = "CopilotConfig";

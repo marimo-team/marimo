@@ -26,10 +26,12 @@ class CompletionConfig(TypedDict, total=False):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
+    - `copilot`: if `True`, enable the GitHub Copilot language server
     """
 
     activate_on_typing: bool
 
+    copilot: bool
 
 @mddoc
 class SaveConfig(TypedDict, total=False):
@@ -91,7 +93,7 @@ class MarimoConfig(TypedDict, total=False):
 
 
 DEFAULT_CONFIG: MarimoConfig = {
-    "completion": {"activate_on_typing": True},
+    "completion": {"activate_on_typing": True, "copilot": False},
     "save": {"autosave": "after_delay", "autosave_delay": 1000},
     "keymap": {"preset": "default"},
 }

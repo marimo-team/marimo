@@ -31,8 +31,6 @@ export const AppConfigButton = () => {
         <AppConfigForm />
         <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
         <UserConfigForm />
-        <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
-        <CopilotConfig />
       </PopoverContent>
     </Popover>
   );

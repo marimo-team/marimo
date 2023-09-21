@@ -16,6 +16,7 @@ const htmlDevPlugin = (): Plugin => {
           JSON.stringify({
             completion: {
               activate_on_typing: false,
+              copilot: true,
             },
             save: {
               autosave: "off",

@@ -6,6 +6,7 @@ export const UserConfigSchema = z
   .object({
     completion: z.object({
       activate_on_typing: z.boolean(),
+      copilot: z.boolean(),
     }),
     save: z.object({
       autosave: z.enum(["off", "after_delay"]).default("after_delay"),

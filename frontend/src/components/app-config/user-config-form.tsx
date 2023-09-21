@@ -19,6 +19,8 @@ import { useUserConfig } from "../../core/state/config";
 import { ThemeToggle } from "./theme-toggle";
 import { NativeSelect } from "../ui/native-select";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
+import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
+import { Switch } from "../ui/switch";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -131,6 +133,29 @@ export const UserConfigForm: React.FC = () => {
               </FormControl>
               <FormMessage />
             </FormItem>
+          )}
+        />
+        <div className="h-px bg-gray-200 dark:bg-gray-700" />
+        <div className="text-sm font-medium">GitHub Copilot</div>
+        <FormField
+          control={form.control}
+          name="completion.copilot"
+          render={({ field }) => (
+            <div className="flex flex-col gap-2">
+              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                <FormControl>
+                  <Switch
+                    size={"sm"}
+                    checked={field.value}
+                    onCheckedChange={(checked) => {
+                      return field.onChange(Boolean(checked));
+                    }}
+                  />
+                </FormControl>
+                <FormLabel className="font-normal flex">Enable</FormLabel>
+              </FormItem>
+              {field.value && <CopilotConfig />}
+            </div>
           )}
         />
         <ThemeToggle />

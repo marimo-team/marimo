@@ -16,7 +16,7 @@ export const createWSTransport = once(
 export const getCopilotClient = once(
   () =>
     new CopilotLanguageServerClient({
-      rootUri: null,
+      rootUri: FILE_URI,
       documentUri: FILE_URI,
       languageId: LANGUAGE_ID,
       workspaceFolders: null,
@@ -36,8 +36,8 @@ export function copilotServer() {
 }
 
 function createWsUrl(): string {
-  // TODO: should this be configurable or just use the port + 1?
-  const LSP_PORT = Number.parseInt(window.location.port) + 1;
+  // TODO: should this be configurable or just use the port + 1000?
+  const LSP_PORT = Number.parseInt(window.location.port) + 1000;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   return `${protocol}://${window.location.hostname}:${LSP_PORT}/copilot`;
 }

@@ -34,6 +34,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     completionConfig: {
       activate_on_typing: false,
+      copilot: false,
     },
     keymapConfig: {
       preset: "default",
