@@ -2,7 +2,7 @@
 import { useAtom } from "jotai";
 import { copilotSignedInState } from "./state";
 import { memo, useEffect, useState } from "react";
-import { getCopilotClient } from "./client";
+import { getReadyCopilotClient } from "./client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
 import { FormItem } from "@/components/ui/form";
@@ -10,8 +10,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 
 export const CopilotConfig = memo(() => {
-  const client = getCopilotClient();
-
   const [copilotSignedIn, copilotChangeSignIn] = useAtom(copilotSignedInState);
   const [step, setStep] = useState<
     "signedIn" | "signingIn" | "signInFailed" | "signedOut"
@@ -23,9 +21,11 @@ export const CopilotConfig = memo(() => {
   useEffect(() => {
     // If null, we haven't checked yet
     if (copilotSignedIn == null) {
-      client.signedIn().then((signedIn) => {
-        copilotChangeSignIn(signedIn);
-      });
+      getReadyCopilotClient().then((client) =>
+        client.signedIn().then((signedIn) => {
+          copilotChangeSignIn(signedIn);
+        })
+      );
     } else {
       setStep(copilotSignedIn ? "signedIn" : "signedOut");
     }
@@ -36,6 +36,7 @@ export const CopilotConfig = memo(() => {
     evt.preventDefault();
     setLoading(true);
     try {
+      const client = await getReadyCopilotClient();
       const { verificationUri, status, userCode } =
         await client.signInInitiate();
 
@@ -55,6 +56,7 @@ export const CopilotConfig = memo(() => {
     if (!localData) {
       return;
     }
+    const client = await getReadyCopilotClient();
     try {
       setLoading(true);
       const { status } = await client.signInConfirm({
@@ -82,7 +84,7 @@ export const CopilotConfig = memo(() => {
 
   const signOut = async (evt: React.MouseEvent) => {
     evt.preventDefault();
-    const client = getCopilotClient();
+    const client = await getReadyCopilotClient();
     await client.signOut();
     copilotChangeSignIn(false);
   };
@@ -172,10 +174,6 @@ export const CopilotConfig = memo(() => {
         );
     }
   };
-
-  if (step === "signedOut") {
-    return renderBody();
-  }
 
   return renderBody();
 });

@@ -1,7 +1,25 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { createStore } from "jotai";
+import { Atom, createStore } from "jotai";
 
 /**
  * Global store allows getting and setting global state outside of React components.
  */
 export const store = createStore();
+
+/**
+ * Wait for an atom to satisfy a predicate.
+ */
+export async function waitFor<T>(
+  atom: Atom<T>,
+  predicate: (value: T) => boolean
+) {
+  return new Promise<T>((resolve) => {
+    const unsubscribe = store.sub(atom, () => {
+      const value = store.get(atom);
+      if (predicate(value)) {
+        unsubscribe();
+        resolve(value);
+      }
+    });
+  });
+}

@@ -3,6 +3,10 @@ import { once } from "@/utils/once";
 import { languageServerWithTransport } from "codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";
 import { WebSocketTransport } from "@open-rpc/client-js";
+import { Transport } from "@open-rpc/client-js/build/transports/Transport";
+import { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
+import { waitForEnabledCopilot } from "./state";
+import { waitForWs } from "@/utils/waitForWs";
 
 // Dummy file for the copilot language server
 export const COPILOT_FILENAME = "/marimo.py";
@@ -10,8 +14,46 @@ export const LANGUAGE_ID = "copilot";
 const FILE_URI = `file://${COPILOT_FILENAME}`;
 
 export const createWSTransport = once(() => {
-  return new WebSocketTransport(createWsUrl());
+  return new LazyWebsocketTransport();
 });
+
+/**
+ * Custom WSTransport that:
+ *  - waits for copilot to be enabled
+ *  - wait for the websocket to be available
+ */
+class LazyWebsocketTransport extends Transport {
+  private delegate: WebSocketTransport | undefined;
+
+  constructor() {
+    super();
+    this.delegate = undefined;
+  }
+
+  override async connect() {
+    // Wait for copilot to be enabled
+    await waitForEnabledCopilot();
+    // Wait for port
+    await waitForWs(createWsUrl());
+
+    if (!this.delegate) {
+      this.delegate = new WebSocketTransport(createWsUrl());
+    }
+    // Connect
+    return this.delegate.connect();
+  }
+
+  override close() {
+    this.delegate?.close();
+  }
+
+  override async sendData(
+    data: JSONRPCRequestData,
+    timeout?: number | null | undefined
+  ) {
+    return this.delegate?.sendData(data, timeout);
+  }
+}
 
 export const getCopilotClient = once(
   () =>
@@ -23,6 +65,12 @@ export const getCopilotClient = once(
       transport: createWSTransport(),
     })
 );
+
+export const getReadyCopilotClient = async () => {
+  const client = getCopilotClient();
+  await client.initializePromise;
+  return client;
+};
 
 export function copilotServer() {
   return languageServerWithTransport({
