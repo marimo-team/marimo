@@ -7,7 +7,7 @@ help:
 
 .PHONY: fe
 # install/build frontend
-fe: fe-install fe-build
+fe: fe-install fe-build lsp
 
 .PHONY: lsp
 # install/build lsp
@@ -80,7 +80,7 @@ lsp-install:
 
 .PHONY: install-all
 # install everything; takes a long time due to editable install
-install-all: fe lsp py
+install-all: fe py
 
 .PHONY: wheel
 # build wheel

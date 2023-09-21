@@ -9,9 +9,9 @@ export const COPILOT_FILENAME = "/marimo.py";
 export const LANGUAGE_ID = "copilot";
 const FILE_URI = `file://${COPILOT_FILENAME}`;
 
-export const createWSTransport = once(
-  () => new WebSocketTransport(createWsUrl())
-);
+export const createWSTransport = once(() => {
+  return new WebSocketTransport(createWsUrl());
+});
 
 export const getCopilotClient = once(
   () =>
@@ -35,9 +35,9 @@ export function copilotServer() {
   });
 }
 
-function createWsUrl(): string {
-  // TODO: should this be configurable or just use the port + 1000?
-  const LSP_PORT = Number.parseInt(window.location.port) + 1000;
+export function createWsUrl(): string {
+  // TODO: this should be configurable, but instead we add a 0 and hope it is free
+  const LSP_PORT = window.location.port + 0;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   return `${protocol}://${window.location.hostname}:${LSP_PORT}/copilot`;
 }
