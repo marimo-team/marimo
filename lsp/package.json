@@ -1,0 +1,22 @@
+{
+  "scripts": {
+    "build:ts": "tsup index.ts --format cjs --minify",
+    "build:deps": "cp -LR node_modules/copilot-node-server/copilot dist/",
+    "typecheck": "tsc --noEmit",
+    "build": "pnpm run build:ts && pnpm run build:deps"
+  },
+  "dependencies": {
+    "copilot-node-server": "1.10.1"
+  },
+  "devDependencies": {
+    "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
+    "@types/minimist": "^1.2.2",
+    "@types/node": "^20.6.3",
+    "@types/ws": "^8.5.5",
+    "jsonrpc-ws-proxy": "^0.0.5",
+    "minimist": "^1.2.8",
+    "tsup": "^7.2.0",
+    "typescript": "^5.1.6",
+    "ws": "^8.14.2"
+  }
+}

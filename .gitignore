@@ -104,5 +104,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 marimo/_static/
+marimo/_lsp/
 
 .vscode

@@ -11,7 +11,7 @@ import { store } from "./jotai";
 /**
  * Atom for storing the user config.
  */
-const userConfigAtom = atom<UserConfig>(parseUserConfig());
+export const userConfigAtom = atom<UserConfig>(parseUserConfig());
 
 /**
  * Returns the user config.

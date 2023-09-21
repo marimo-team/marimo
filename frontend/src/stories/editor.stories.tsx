@@ -5,6 +5,8 @@ import { EditorState, Extension } from "@codemirror/state";
 import { EditorView, basicSetup } from "codemirror";
 import { basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
+import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
+import { copilotBundle } from "@/core/codemirror/copilot/extension";
 
 const meta: Meta = {
   title: "Editor",
@@ -58,7 +60,7 @@ export const Primary: Story = {
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
         extensions={basicBundle(
-          { activate_on_typing: false },
+          { activate_on_typing: false, copilot: false },
           ctx.globals.theme
         )}
       />
@@ -69,7 +71,8 @@ export const Primary: Story = {
 export const DefaultPython: Story = {
   render: () => (
     <div className="m-20 w-[60%] overflow-hidden">
-      <Editor extensions={[basicSetup, python()]} />
+      <Editor extensions={[basicSetup, python(), copilotBundle()]} />
+      <CopilotConfig />
     </div>
   ),
 };

@@ -62,6 +62,7 @@ import {
   scrollActiveLineIntoView,
   smartPlaceholderExtension,
 } from "./extensions";
+import { copilotBundle } from "./copilot/extension";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -143,6 +144,7 @@ export const basicBundle = (
       closeOnBlur: false,
       override: [completer],
     }),
+    copilotBundle(),
     foldGutter(),
     closeBrackets(),
     keymap.of(closeBracketsKeymap),

@@ -62,7 +62,7 @@ def shutdown(with_error: bool = False) -> None:
             "\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃")
         )
         print()
-    mgr.close_all_sessions()
+    mgr.shutdown()
     tornado.ioloop.IOLoop.current().stop()
     if with_error:
         sys.exit(1)
@@ -133,50 +133,11 @@ class ShutdownHandler(tornado.web.RequestHandler):
         shutdown()
 
 
-async def start_server(
-    port: Optional[int] = None,
-    headless: bool = False,
-    filename: Optional[str] = None,
-    run: bool = False,
-    development_mode: bool = False,
-    quiet: bool = False,
-) -> None:
-    """Start the server.
-
-    Args:
-    ----
-    port: port on which to listen
-    headless: if False, opens a client connection in user's browser
-    filename: path to marimo app to serve; if None, opens a blank app
-    run: if True, starts the server in run (read-only) mode; if False, runs
-        in edit (read-write) mode.
-    development_mode: if True, enables tornado debug logging and autoreloading
-    """
-    # Initialization
-    logger = _loggers.marimo_logger()
-    _loggers.initialize_tornado_loggers(development_mode)
-    session_mgr = sessions.initialize_manager(
-        filename=filename,
-        mode=(
-            sessions.SessionMode.EDIT if not run else sessions.SessionMode.RUN
-        ),
-        development_mode=development_mode,
-        quiet=quiet,
-    )
-    try:
-        load_config()
-    except Exception as e:
-        logger.fatal("Error parsing the marimo configuration file: ")
-        logger.fatal(type(e).__name__ + ": " + str(e))
-        shutdown(with_error=True)
-
-    signal.signal(signal.SIGINT, interrupt_handler)
-
-    root = os.path.realpath(
-        importlib_resources.files("marimo").joinpath("_static")
-    )
+def construct_app(
+    root: str, development_mode: bool
+) -> tornado.web.Application:
     static_dir = os.path.join(root, "assets")
-    app = tornado.web.Application(
+    return tornado.web.Application(
         [
             (r"/", MainHandler),
             (r"/iosocket", sessions.IOSocketHandler),
@@ -268,6 +229,11 @@ async def start_server(
         websocket_ping_timeout=60,
     )
 
+
+def connect_app(app: tornado.web.Application, port: Optional[int]) -> int:
+    from marimo import _loggers
+
+    logger = _loggers.marimo_logger()
     port_requested_by_user = port is not None
     if port is None:
         port = DEFAULT_PORT
@@ -294,9 +260,58 @@ async def start_server(
         raise RuntimeError(
             f"Could not find a free port (tried {max_attempts} ports)."
         )
+    return port
+
+
+async def start_server(
+    port: Optional[int] = None,
+    headless: bool = False,
+    filename: Optional[str] = None,
+    run: bool = False,
+    development_mode: bool = False,
+    quiet: bool = False,
+) -> None:
+    """Start the server.
+
+    Args:
+    ----
+    port: port on which to listen
+    headless: if False, opens a client connection in user's browser
+    filename: path to marimo app to serve; if None, opens a blank app
+    run: if True, starts the server in run (read-only) mode; if False, runs
+        in edit (read-write) mode.
+    development_mode: if True, enables tornado debug logging and autoreloading
+    """
+    logger = _loggers.marimo_logger()
+    _loggers.initialize_tornado_loggers(development_mode)
+    signal.signal(signal.SIGINT, interrupt_handler)
+
+    root = os.path.realpath(
+        importlib_resources.files("marimo").joinpath("_static")
+    )
+    app = construct_app(root=root, development_mode=development_mode)
+    port = connect_app(app, port)
+    session_mgr = sessions.initialize_manager(
+        filename=filename,
+        mode=(
+            sessions.SessionMode.EDIT if not run else sessions.SessionMode.RUN
+        ),
+        port=port,
+        development_mode=development_mode,
+        quiet=quiet,
+    )
+
+    try:
+        load_config()
+    except Exception as e:
+        logger.fatal("Error parsing the marimo configuration file: ")
+        logger.fatal(type(e).__name__ + ": " + str(e))
+        shutdown(with_error=True)
+
+    if not run and get_configuration()["completion"]["copilot"]:
+        session_mgr.start_lsp_server()
 
     url = f"http://localhost:{port}"
-
     if not headless:
         if which("xdg-open") is not None:
             with open(os.devnull, "w") as devnull:

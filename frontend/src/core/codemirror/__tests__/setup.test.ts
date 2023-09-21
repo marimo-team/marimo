@@ -1,10 +1,15 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
 import { EditorState, Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { CellId } from "@/core/model/ids";
 import { Objects } from "@/utils/objects";
+
+vi.mock("@/core/config/config", () => ({
+  parseAppConfig: () => ({}),
+  parseUserConfig: () => ({}),
+}));
 
 function namedFunction(name: string) {
   const fn = () => false;
@@ -34,6 +39,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     completionConfig: {
       activate_on_typing: false,
+      copilot: false,
     },
     keymapConfig: {
       preset: "default",

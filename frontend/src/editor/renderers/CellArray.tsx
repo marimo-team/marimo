@@ -54,7 +54,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
 
-  const { invisible } = useDelayVisibility(cells.present);
+  const { invisible } = useDelayVisibility(cells.present, mode);
 
   // HOTKEYS
   useHotkey("global.focusTop", focusTopCell);
@@ -113,7 +113,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           focusCell={focusCell}
           moveToNextCell={moveToNextCell}
           moveCell={moveCell}
-          editing={mode === "edit"}
+          mode={mode}
           appClosed={connStatus.state !== WebSocketState.OPEN}
           ref={cell.ref}
           userConfig={userConfig}
