@@ -150,6 +150,7 @@ export const UserConfigForm: React.FC = () => {
                     onCheckedChange={(checked) => {
                       return field.onChange(Boolean(checked));
                     }}
+                    onClick={(evt) => evt.stopPropagation()}
                   />
                 </FormControl>
                 <FormLabel className="font-normal flex">Enable</FormLabel>
