@@ -13,6 +13,7 @@ type Step =
   | "signingIn"
   | "signInFailed"
   | "signedOut"
+  | "connecting"
   | "notConnected";
 
 export const CopilotConfig = memo(() => {
@@ -102,13 +103,19 @@ export const CopilotConfig = memo(() => {
 
   const renderBody = () => {
     // If we don't have a step set, infer it from the current state
-    const resolvedStep = step ?? (copilotSignedIn ? "signedIn" : "signedOut");
+    const resolvedStep = step ?? (copilotSignedIn ? "signedIn" : "connecting");
 
     switch (resolvedStep) {
+      case "connecting":
+        return (
+          <Label className="font-normal flex">
+            Connecting...
+          </Label>
+        );
       case "signedOut":
         return (
           <Button onClick={trySignIn} size="xs" variant="link">
-            Connect to GitHub Copilot
+            Sign in to GitHub Copilot
           </Button>
         );
 
