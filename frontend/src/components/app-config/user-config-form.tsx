@@ -141,10 +141,7 @@ export const UserConfigForm: React.FC = () => {
           control={form.control}
           name="completion.copilot"
           render={({ field }) => (
-            <div
-              className="flex flex-col gap-2"
-              onClick={(evt) => evt.stopPropagation()}
-            >
+            <div className="flex flex-col gap-2">
               <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                 <FormControl>
                   <Switch

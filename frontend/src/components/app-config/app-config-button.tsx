@@ -26,7 +26,14 @@ export const AppConfigButton = () => {
           </Tooltip>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end" side="bottom">
+      <PopoverContent
+        className="w-80"
+        align="end"
+        side="bottom"
+        // prevent focus outside to hack around a bug in which
+        // interacting with buttons closes the popover ...
+        onFocusOutside={(evt) => evt.preventDefault()}
+      >
         <AppConfigForm />
         <div className="h-px bg-gray-200 dark:bg-gray-700 my-4" />
         <UserConfigForm />
