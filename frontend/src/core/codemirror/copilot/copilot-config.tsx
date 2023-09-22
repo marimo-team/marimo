@@ -25,6 +25,10 @@ export const CopilotConfig = memo(() => {
   // Check connection on mount
   useEffect(() => {
     const client = getCopilotClient();
+    // If we fail to initialize, show not connected
+    client.initializePromise.catch(() => {
+      setStep("notConnected");
+    });
     client
       .signedIn()
       .then((signedIn) => {
