@@ -441,7 +441,7 @@ class SessionManager:
         if self.lsp_process is not None or self.mode == SessionMode.RUN:
             return
 
-        binpath = shutil.which("nde")
+        binpath = shutil.which("node")
         if binpath is None:
             for _, session in self.sessions.items():
                 session.socket.write_op(
