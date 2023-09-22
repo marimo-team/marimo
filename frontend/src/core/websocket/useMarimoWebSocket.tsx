@@ -18,6 +18,7 @@ import { Logger } from "@/utils/Logger";
 import { layoutDataAtom, layoutViewAtom } from "../state/layout";
 import { deserializeLayout } from "@/editor/renderers/plugins";
 import { useVariablesActions } from "../variables/state";
+import { toast } from "@/components/ui/use-toast";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -159,6 +160,13 @@ export function useMarimoWebSocket(opts: {
               value: v.value,
             }))
           );
+          return;
+        case "alert":
+          toast({
+            title: msg.data.title,
+            description: msg.data.description,
+            variant: msg.data.variant,
+          });
           return;
         default:
           logNever(msg);

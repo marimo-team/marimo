@@ -22,7 +22,7 @@ export async function downloadHTMLAsImage(
     toast({
       title: "Error",
       description: "Failed to export as PNG.",
-      variant: "destructive",
+      variant: "danger",
     });
   } finally {
     // Remove classnames for printing
