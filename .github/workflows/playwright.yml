@@ -39,12 +39,8 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
 
-      - name: 📥 Install pnpm dependencies
-        working-directory: ./frontend
-        run: pnpm install
-
       - name: 📦 Build frontend
-        run: ./scripts/buildfrontend.sh
+        run: make fe
 
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v4

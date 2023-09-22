@@ -38,7 +38,7 @@ __all__ = [
     "ui",
     "vstack",
 ]
-__version__ = "0.1.16"
+__version__ = "0.1.17"
 
 from marimo._ast.app import App
 from marimo._output.doc import doc
