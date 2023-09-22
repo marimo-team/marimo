@@ -18,6 +18,7 @@ import functools
 import multiprocessing as mp
 import os
 import queue
+import shutil
 import signal
 import subprocess
 import sys
@@ -36,7 +37,8 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._messaging.message_types import KernelReady, serialize
+from marimo._messaging.message_types import Alert, KernelReady, serialize
+from marimo._messaging.messages import write_message
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._server.api.status import HTTPStatus
@@ -438,6 +440,17 @@ class SessionManager:
         Doesn't start in run mode.
         """
         if self.lsp_process is not None or self.mode == SessionMode.RUN:
+            return
+
+        binpath = shutil.which("node")
+        if binpath is None:
+            write_message(
+                Alert(
+                    title="Node not installed",
+                    description="Install Node.js to use copilot",
+                    variant="danger",
+                )
+            )
             return
 
         lsp_bin = os.path.join(

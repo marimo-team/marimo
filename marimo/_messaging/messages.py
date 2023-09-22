@@ -11,6 +11,7 @@ from marimo._messaging.message_types import (
     CellOp,
     CompletedRun,
     Interrupted,
+    MessageType,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -155,6 +156,10 @@ def write_remove_ui_elements(cell_id: CellId_t) -> None:
         op=RemoveUIElements.name,
         data=serialize(RemoveUIElements(cell_id=cell_id)),
     )
+
+
+def write_message(op: MessageType) -> None:
+    get_context().stream.write(op=op.name, data=serialize(op))
 
 
 def write_output_to_global_stream(
