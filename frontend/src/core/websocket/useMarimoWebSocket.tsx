@@ -166,7 +166,7 @@ export function useMarimoWebSocket(opts: {
           toast({
             title: msg.data.title,
             description: renderHTML({
-              html: msg.data.description
+              html: msg.data.description,
             }),
             variant: msg.data.variant,
           });

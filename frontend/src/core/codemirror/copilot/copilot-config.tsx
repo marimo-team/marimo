@@ -107,11 +107,7 @@ export const CopilotConfig = memo(() => {
 
     switch (resolvedStep) {
       case "connecting":
-        return (
-          <Label className="font-normal flex">
-            Connecting...
-          </Label>
-        );
+        return <Label className="font-normal flex">Connecting...</Label>;
       case "signedOut":
         return (
           <Button onClick={trySignIn} size="xs" variant="link">
@@ -200,10 +196,16 @@ export const CopilotConfig = memo(() => {
               Unable to connect
             </Label>
             <div className="text-sm">
-              For troubleshooting, see the <a className="hyperlink" href="https://docs.marimo.io/getting_started/index.html#github-copilot"
+              For troubleshooting, see the{" "}
+              <a
+                className="hyperlink"
+                href="https://docs.marimo.io/getting_started/index.html#github-copilot"
                 target="_blank"
                 rel="noreferrer"
-              >docs</a>.
+              >
+                docs
+              </a>
+              .
             </div>
           </div>
         );
