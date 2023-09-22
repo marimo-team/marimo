@@ -50,7 +50,7 @@ re-running cells.
 
 
 <p align="center">
-<img src="docs/_static/faq-marimo-ui.gif" width="600px" />
+<img src="/_static/faq-marimo-ui.gif" width="600px" />
 </p>
 
 ## Using marimo
