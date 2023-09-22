@@ -38,6 +38,9 @@ jobs:
       - name: 📦 Build frontend
         run: ./scripts/buildfrontend.sh
 
+      - name: 📦 Build lsp
+        run: ./scripts/buildlsp.sh
+
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v4
         with:
