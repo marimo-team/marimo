@@ -71,6 +71,28 @@
       0 0px 4px 0px hsl(0deg 0% 75% / 5%);
     --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
       0 0px 6px 0px hsl(0deg 0% 85% / 5%);
+
+    /* Shadow states. */
+    --base-shadow: hsl(0deg 0% 85% / 40%);
+    --stale-color: hsl(42deg 56% 44% / 25%);
+    --light-shadow: 2px 2px 0px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 25% / 50%);
+    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --medium-shadow: 4px 4px 0px 0px var(--base-shadow),
+      0px 0px 4px 0px hsl(0deg 0% 60% / 50%);
+    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --light-shadow-error: 4px 4px 0px 0px var(--red-8),
+      0px 0px 2px 0px var(--red-8);
+    --medium-shadow-error: 6px 6px 0px 0px var(--red-8),
+      0px 0px 2px 0px var(--red-8);
+    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow),
+      0px 0px 4px 0px hsl(0deg 0% 75% / 50%);
+    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --heavy-shadow-error: 7px 8px 0px 0px var(--red-8),
+      0px 0px 2px 0px var(--red-8);
   }
 
   .dark {
