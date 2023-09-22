@@ -73,7 +73,6 @@
       0 0px 6px 0px hsl(0deg 0% 85% / 5%);
 
     /* Shadow states. */
-    --base-shadow: hsl(0deg 0% 85% / 40%);
     --stale-color: hsl(42deg 56% 44% / 25%);
     --light-shadow: 2px 2px 0px 0px var(--base-shadow),
       0px 0px 2px 0px hsl(0deg 0% 25% / 50%);
