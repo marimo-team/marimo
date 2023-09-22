@@ -28,8 +28,8 @@ that double as apps**. marimo is:
 - **performant**: powered by static analysis, zero runtime overhead
 
 marimo was built from the ground up to solve many [well-known problems
-with traditional notebooks](#faq-jupyter). marimo is _not_ built on top of
-Jupyter or any other notebook or app library.
+with traditional notebooks](https://docs.marimo.io/faq.html#faq-jupyter).
+marimo is _not_ built on top of Jupyter or any other notebook or app library.
 
 ![marimo](https://github.com/marimo-team/marimo/blob/main/docs/_static/intro_condensed.gif)
 
@@ -43,6 +43,7 @@ Jupyter or any other notebook or app library.
   - [Notebooks](#notebooks)
   - [Apps](#apps)
   - [Convert Jupyter notebooks](#convert-jupyter-notebooks)
+  - [Github Copilot](#github-copilot)
   - [VS Code extension](#vs-code-extension)
 - [Concepts](#concepts)
 - [Examples](#examples)
@@ -117,6 +118,16 @@ marimo convert your_notebook.ipynb > your_notebook.py
 Because marimo is different from traditional notebooks, your converted
 notebook will likely have errors that you'll need to fix. marimo
 will guide you through fixing them when you open it with `marimo edit`.
+
+### Github Copilot
+
+The marimo editor natively supports [Github Copilot](https://copilot.github.com/),
+an AI pair programmer, similar to VS Code.
+
+_Get started with Copilot_:
+
+1. Install [Node.js](https://nodejs.org/en/download).
+2. Enable Copilot via the settings menu in the marimo editor.
 
 ### VS Code extension
 
