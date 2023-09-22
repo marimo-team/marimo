@@ -189,4 +189,12 @@ export type OperationMessage =
           value?: string;
         }>;
       };
+    }
+  | {
+      op: "alert";
+      data: {
+        title: string;
+        description: string;
+        variant?: "danger";
+      };
     };

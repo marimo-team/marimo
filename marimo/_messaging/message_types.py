@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import asdict, dataclass, field
-from typing import ClassVar, Dict, Optional, Union, cast
+from typing import ClassVar, Dict, Literal, Optional, Union, cast
 
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellOutput
@@ -74,6 +74,14 @@ class CompletionResult:
 
 
 @dataclass
+class Alert:
+    name: ClassVar[str] = "alert"
+    title: str
+    description: str
+    variant: Optional[Literal["danger"]] = None
+
+
+@dataclass
 class VariableDeclaration:
     name: str
     declared_by: list[CellId_t]
@@ -122,6 +130,7 @@ class VariableValues:
 
 
 MessageType = Union[
+    Alert,
     CellOp,
     RemoveUIElements,
     Interrupted,

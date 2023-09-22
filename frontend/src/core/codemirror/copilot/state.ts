@@ -5,7 +5,14 @@ import { atomWithStorage } from "jotai/utils";
 
 const KEY = "marimo:copilot:signedIn";
 
-export const copilotSignedInState = atomWithStorage<boolean | null>(KEY, null);
+export const copilotSignedInState = atomWithStorage<boolean | null>(
+  KEY,
+  null,
+  undefined,
+  {
+    unstable_getOnInit: true,
+  }
+);
 
 function getIsLastSignedIn() {
   const lastSignedIn = localStorage.getItem(KEY);

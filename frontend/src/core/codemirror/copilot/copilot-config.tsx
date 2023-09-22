@@ -13,6 +13,7 @@ type Step =
   | "signingIn"
   | "signInFailed"
   | "signedOut"
+  | "connecting"
   | "notConnected";
 
 export const CopilotConfig = memo(() => {
@@ -25,6 +26,11 @@ export const CopilotConfig = memo(() => {
   // Check connection on mount
   useEffect(() => {
     const client = getCopilotClient();
+    // If we fail to initialize, show not connected
+    client.initializePromise.catch(() => {
+      copilotChangeSignIn(false);
+      setStep("notConnected");
+    });
     client
       .signedIn()
       .then((signedIn) => {
@@ -32,6 +38,7 @@ export const CopilotConfig = memo(() => {
         setStep(signedIn ? "signedIn" : "signedOut");
       })
       .catch(() => {
+        copilotChangeSignIn(false);
         setStep("notConnected");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,13 +103,15 @@ export const CopilotConfig = memo(() => {
 
   const renderBody = () => {
     // If we don't have a step set, infer it from the current state
-    const resolvedStep = step ?? (copilotSignedIn ? "signedIn" : "signedOut");
+    const resolvedStep = step ?? (copilotSignedIn ? "signedIn" : "connecting");
 
     switch (resolvedStep) {
+      case "connecting":
+        return <Label className="font-normal flex">Connecting...</Label>;
       case "signedOut":
         return (
           <Button onClick={trySignIn} size="xs" variant="link">
-            Connect to GitHub Copilot
+            Sign in to GitHub Copilot
           </Button>
         );
 
@@ -181,10 +190,24 @@ export const CopilotConfig = memo(() => {
 
       case "notConnected":
         return (
-          <Label className="font-normal flex">
-            <XIcon className="h-4 w-4 mr-1" />
-            Unable to connect
-          </Label>
+          <div className="flex flex-col gap-1">
+            <Label className="font-normal flex">
+              <XIcon className="h-4 w-4 mr-1" />
+              Unable to connect
+            </Label>
+            <div className="text-sm">
+              For troubleshooting, see the{" "}
+              <a
+                className="hyperlink"
+                href="https://docs.marimo.io/getting_started/index.html#github-copilot"
+                target="_blank"
+                rel="noreferrer"
+              >
+                docs
+              </a>
+              .
+            </div>
+          </div>
         );
     }
   };
