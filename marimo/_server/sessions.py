@@ -448,8 +448,8 @@ class SessionManager:
                     Alert.name,
                     serialize(
                         Alert(
-                            title="Node.js not installed",
-                            description="Install Node.js to use copilot",
+                            title="Github Copilot: Connection Error",
+                            description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
                             variant="danger",
                         )
                     ),
