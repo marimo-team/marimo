@@ -13,6 +13,7 @@ import { toast } from "../ui/use-toast";
 import { useAppConfig } from "@/core/state/config";
 import { Switch } from "@/components/ui/switch";
 import { saveAppConfig } from "@/core/network/requests";
+import { SettingTitle } from "./common";
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
@@ -36,7 +37,11 @@ export const AppConfigForm: React.FC = () => {
 
   return (
     <Form {...form}>
-      <form onChange={form.handleSubmit(onSubmit)}>
+      <form
+        onChange={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
+        <SettingTitle>Application config</SettingTitle>
         <FormField
           control={form.control}
           name="width"

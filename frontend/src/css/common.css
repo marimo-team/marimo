@@ -39,6 +39,7 @@ body.printing #App {
 a.hyperlink {
   @apply text-link;
 }
+
 a.hyperlink:hover {
   text-decoration: underline;
 }

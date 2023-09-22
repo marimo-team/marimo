@@ -12,19 +12,16 @@ export const ThemeToggle: React.FC = () => {
   }
 
   return (
-    <>
-      <div className="h-px bg-gray-200 dark:bg-gray-700" />
-      <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-        <FormControl>
-          <Checkbox
-            checked={theme === "dark"}
-            onCheckedChange={(checked) => {
-              return setTheme(checked === true ? "dark" : "light");
-            }}
-          />
-        </FormControl>
-        <FormLabel className="font-normal">Dark mode</FormLabel>
-      </FormItem>
-    </>
+    <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+      <FormControl>
+        <Checkbox
+          checked={theme === "dark"}
+          onCheckedChange={(checked) => {
+            return setTheme(checked === true ? "dark" : "light");
+          }}
+        />
+      </FormControl>
+      <FormLabel className="font-normal">Dark mode</FormLabel>
+    </FormItem>
   );
 };
