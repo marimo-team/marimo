@@ -141,7 +141,10 @@ export const UserConfigForm: React.FC = () => {
           control={form.control}
           name="completion.copilot"
           render={({ field }) => (
-            <div className="flex flex-col gap-2">
+            <div
+              className="flex flex-col gap-2"
+              onClick={(evt) => evt.stopPropagation()}
+            >
               <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                 <FormControl>
                   <Switch
@@ -150,7 +153,6 @@ export const UserConfigForm: React.FC = () => {
                     onCheckedChange={(checked) => {
                       return field.onChange(Boolean(checked));
                     }}
-                    onClick={(evt) => evt.stopPropagation()}
                   />
                 </FormControl>
                 <FormLabel className="font-normal flex">Enable</FormLabel>
