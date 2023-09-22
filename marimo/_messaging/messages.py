@@ -158,6 +158,8 @@ def write_remove_ui_elements(cell_id: CellId_t) -> None:
     )
 
 
+# TODO: refactor messaging code to use this function instead of
+# write_* for specific ops ...
 def write_message(op: MessageType) -> None:
     get_context().stream.write(op=op.name, data=serialize(op))
 
