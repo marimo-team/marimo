@@ -130,6 +130,7 @@ class VariableValues:
 
 
 MessageType = Union[
+    Alert,
     CellOp,
     RemoveUIElements,
     Interrupted,
