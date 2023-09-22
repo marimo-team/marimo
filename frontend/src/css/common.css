@@ -35,3 +35,10 @@ body.printing #App {
 
   @apply bg-background;
 }
+
+a.hyperlink {
+  @apply text-link;
+}
+a.hyperlink:hover {
+  text-decoration: underline;
+}

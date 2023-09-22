@@ -34,7 +34,7 @@ class LazyWebsocketTransport extends Transport {
     // Wait for copilot to be enabled
     await waitForEnabledCopilot();
     // Wait for ws to be available
-    await waitForWs(createWsUrl());
+    await waitForWs(createWsUrl(), 3);
 
     // Create delegate, if it doesn't exist
     if (!this.delegate) {

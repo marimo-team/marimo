@@ -3,7 +3,7 @@
 /**
  * Wait for a websocket to be available, with linear backoff.
  */
-export async function waitForWs(url: string, tries = 10) {
+export async function waitForWs(url: string, tries = 5) {
   for (let i = 0; i < tries; i++) {
     try {
       return await tryConnection(url);
