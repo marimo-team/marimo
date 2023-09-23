@@ -10,7 +10,7 @@ import jedi.api  # type: ignore # noqa: F401
 
 from marimo import _loggers as loggers
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.message_types import CompletionResult, serialize
+from marimo._messaging.ops import CompletionResult
 from marimo._messaging.streams import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
@@ -155,16 +155,11 @@ def _write_completion_result(
     prefix_length: int,
     options: list[CompletionOption],
 ) -> None:
-    stream.write(
-        op=CompletionResult.name,
-        data=serialize(
-            CompletionResult(
-                completion_id=completion_id,
-                prefix_length=prefix_length,
-                options=options,
-            )
-        ),
-    )
+    CompletionResult(
+        completion_id=completion_id,
+        prefix_length=prefix_length,
+        options=options,
+    ).broadcast(stream=stream)
 
 
 def _write_no_completions(stream: Stream, completion_id: str) -> None:

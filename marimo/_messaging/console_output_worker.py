@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from threading import Condition
 from typing import TYPE_CHECKING, Literal, Optional
 
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellOutput
-from marimo._messaging.message_types import CellOp
 
 if TYPE_CHECKING:
     from marimo._messaging.streams import Stream
@@ -30,19 +29,16 @@ class ConsoleMsg:
 def _write_console_output(
     stream: Stream, stream_type: StreamT, cell_id: CellId_t, data: str
 ) -> None:
-    return stream.write(
-        op=CellOp.name,
-        data=asdict(
-            CellOp(
-                cell_id=cell_id,
-                console=CellOutput(
-                    channel=stream_type,
-                    mimetype="text/plain",
-                    data=data,
-                ),
-            )
+    from marimo._messaging.ops import CellOp
+
+    CellOp(
+        cell_id=cell_id,
+        console=CellOutput(
+            channel=stream_type,
+            mimetype="text/plain",
+            data=data,
         ),
-    )
+    ).broadcast(stream)
 
 
 def _add_output_to_buffer(

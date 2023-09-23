@@ -1,5 +1,5 @@
 # Copyright 2023 Marimo. All rights reserved.
-from marimo._messaging.message_types import VariableValue
+from marimo._messaging.ops import VariableValue
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
 
