@@ -27,20 +27,15 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
-from marimo._messaging.message_types import VariableDeclaration, VariableValue
-from marimo._messaging.messages import (
-    write_completed_run,
-    write_disabled_transitively,
-    write_idle,
-    write_interrupted,
-    write_marimo_error,
-    write_new_run,
-    write_output,
-    write_queued,
-    write_remove_ui_elements,
-    write_stale,
-    write_variable_values,
-    write_variables,
+from marimo._messaging.ops import (
+    CellOp,
+    CompletedRun,
+    Interrupted,
+    RemoveUIElements,
+    VariableDeclaration,
+    Variables,
+    VariableValue,
+    VariableValues,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
@@ -290,7 +285,7 @@ class Kernel:
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
-        write_remove_ui_elements(cell_id)
+        RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """Deactivate: remove from graph, invalidate state, but keep metadata
@@ -440,8 +435,8 @@ class Kernel:
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
-            write_output(
-                "output",
+            CellOp.broadcast_output(
+                channel="output",
                 mimetype="text/plain",
                 data="",
                 cell_id=cid,
@@ -502,16 +497,15 @@ class Kernel:
                 # this may be the first time we're seeing the cell: set its
                 # status
                 self.graph.cells[cid].set_status("disabled-transitively")
-                write_disabled_transitively(cid)
-            write_marimo_error(
+            CellOp.broadcast_error(
                 data=self.errors[cid],
                 clear_console=True,
                 cell_id=cid,
                 status=None,
             )
 
-        write_variables(
-            [
+        Variables(
+            variables=[
                 VariableDeclaration(
                     name=variable,
                     declared_by=list(declared_by),
@@ -519,7 +513,7 @@ class Kernel:
                 )
                 for variable, declared_by in self.graph.definitions.items()
             ]
-        )
+        ).broadcast()
         return descendants
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
@@ -543,10 +537,8 @@ class Kernel:
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
                 self.graph.cells[cid].set_status(status="stale")
-                write_stale(cell_id=cid)
             else:
                 self.graph.cells[cid].set_status(status="queued")
-                write_queued(cell_id=cid)
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
             graph=self.graph,
@@ -576,7 +568,6 @@ class Kernel:
 
             LOGGER.debug("running cell %s", cell_id)
             cell.set_status(status="running")
-            write_new_run(cell_id)
 
             with self._install_execution_context(cell_id):
                 run_result = runner.run(cell_id)
@@ -594,7 +585,7 @@ class Kernel:
             ]
 
             if values:
-                write_variable_values(values)
+                VariableValues(variables=values).broadcast()
 
             cell.set_status(status="idle")
             if run_result.success():
@@ -602,7 +593,7 @@ class Kernel:
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
-                write_output(
+                CellOp.broadcast_output(
                     channel=formatted_output.channel,
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
@@ -615,7 +606,7 @@ class Kernel:
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
-                write_output(
+                CellOp.broadcast_output(
                     channel=formatted_output.channel,
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
@@ -626,7 +617,7 @@ class Kernel:
                 LOGGER.debug("Cell %s was interrupted", cell_id)
                 # don't clear console because this cell was running and
                 # its console outputs are not stale
-                write_marimo_error(
+                CellOp.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=cell_id,
@@ -641,7 +632,7 @@ class Kernel:
                 # don't clear console because this cell was running and
                 # its console outputs are not stale
                 exception_type = type(run_result.exception).__name__
-                write_marimo_error(
+                CellOp.broadcast_error(
                     data=[
                         MarimoExceptionRaisedError(
                             msg="This cell raised an exception: %s%s"
@@ -670,7 +661,7 @@ class Kernel:
                 # `cid` was not run. Its defs should be deleted.
                 self.graph.cells[cid].set_status("idle")
                 self._invalidate_cell_state(cid)
-                write_marimo_error(
+                CellOp.broadcast_error(
                     data=[MarimoInterruptionError()],
                     # these cells are transitioning from queued to stopped
                     # (interrupted); they didn't get to run, so their consoles
@@ -707,7 +698,7 @@ class Kernel:
                         exception_type=exception_type,
                         raising_cell=raising_cell,
                     )
-                write_marimo_error(
+                CellOp.broadcast_error(
                     data=[data],
                     # these cells are transitioning from queued to stopped
                     # (interrupted); they didn't get to run, so their consoles
@@ -775,12 +766,9 @@ class Kernel:
                 continue
             cell.configure(config)
             if not cell.config.disabled:
-                cells_to_run, cells_idle = self.graph.enable_cell(cell_id)
-                for cid in cells_idle:
-                    write_idle(cid)
+                cells_to_run = self.graph.enable_cell(cell_id)
             elif cell.config.disabled:
-                for cid in self.graph.disable_cell(cell_id):
-                    write_disabled_transitively(cid)
+                self.graph.disable_cell(cell_id)
 
         if cells_to_run:
             self._run_cells(
@@ -858,7 +846,7 @@ class Kernel:
                     - self.graph.definitions[name]
                 )
             if variable_values:
-                write_variable_values(variable_values)
+                VariableValues(variables=variable_values).broadcast()
         self._run_cells(
             dataflow.transitive_closure(self.graph, referring_cells)
         )
@@ -970,7 +958,7 @@ def launch_kernel(
             # it won't be interrupted, which isn't right ... but the
             # probability of that happening is low.
             if kernel.execution_context is not None:
-                write_interrupted()
+                Interrupted().broadcast()
                 raise MarimoInterrupt
 
         signal.signal(signal.SIGINT, interrupt_handler)
@@ -985,15 +973,15 @@ def launch_kernel(
         LOGGER.debug("received request %s", request)
         if isinstance(request, CreationRequest):
             kernel.instantiate(request)
-            write_completed_run()
+            CompletedRun().broadcast()
         elif isinstance(request, ExecuteMultipleRequest):
             kernel.run(request.execution_requests)
-            write_completed_run()
+            CompletedRun().broadcast()
         elif isinstance(request, SetCellConfigRequest):
             kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
-            write_completed_run()
+            CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)
         elif isinstance(request, CompletionRequest):

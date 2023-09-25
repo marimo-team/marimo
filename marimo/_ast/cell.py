@@ -81,15 +81,17 @@ class CellStatus:
 
 @dataclasses.dataclass(frozen=True)
 class Cell:
+    # hash of code
     key: int
     code: str
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
     deleted_refs: set[Name]
-
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
+    # unique id
+    cell_id: Optional[CellId_t]
 
     # Mutable fields
     # config: explicit configuration of cell
@@ -117,8 +119,15 @@ class Cell:
     def disabled_transitively(self) -> bool:
         return self.status == "disabled-transitively"
 
-    def set_status(self, status: Optional[CellStatusType]) -> None:
+    def set_status(self, status: CellStatusType) -> None:
+        from marimo._runtime.context import get_context
+
         self._status.state = status
+        if get_context().initialized:
+            from marimo._messaging.ops import CellOp
+
+            assert self.cell_id is not None
+            CellOp.broadcast_status(cell_id=self.cell_id, status=status)
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
@@ -220,6 +229,7 @@ def parse_cell(
             deleted_refs=set(),
             body=None,
             last_expr=None,
+            cell_id=cell_id,
         )
 
     v = ScopedVisitor("cell_" + str(cell_id) if cell_id is not None else None)
@@ -244,6 +254,7 @@ def parse_cell(
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,
+        cell_id=cell_id,
     )
 
 
