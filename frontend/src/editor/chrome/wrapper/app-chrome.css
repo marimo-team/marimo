@@ -1,23 +1,22 @@
 .resize-handle,
 .resize-handle-collapsed {
   transition: 250ms linear background-color;
-  background-color: var(--sage-3);
   outline: none;
 }
 
 .resize-handle.horizontal,
 .resize-handle-collapsed.horizontal {
-  height: 3px;
+  height: 4px;
 }
 
 .resize-handle.vertical,
 .resize-handle-collapsed.vertical {
-  width: 3px;
+  width: 4px;
 }
 
 .resize-handle:hover,
 .resize-handle[data-resize-handle-active],
 .resize-handle-collapsed:hover,
 .resize-handle-collapsed[data-resize-handle-active] {
-  background-color: var(--sage-11);
+  background-color: var(--slate-11);
 }

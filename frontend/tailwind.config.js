@@ -32,6 +32,11 @@ module.exports = {
           "5px 6px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 4px 0px hsl(0deg 0% 75% / 5%)",
         xlSolid:
           "8px 9px 0px 0px var(--tw-shadow-color, var(--base-shadow-darker)), 0 0px 6px 0px hsl(0deg 0% 85% / 5%)",
+        // neutral shadows (used for cells, ...)
+        // TODO(akshayka): clean these up to use tw-shadow-color
+        smNeutral: "var(--light-shadow)",
+        mdNeutral: "var(--medium-shadow)",
+        lgNeutral: "var(--heavy-shadow)",
         // error shadows
         smError: "var(--light-shadow-error)",
       },

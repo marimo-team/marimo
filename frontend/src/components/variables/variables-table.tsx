@@ -42,7 +42,7 @@ export const VariableTable: React.FC<Props> = memo(
     return (
       <Table className={cn("w-full overflow-hidden text-sm flex-1", className)}>
         <TableHeader>
-          <TableRow className="whitespace-nowrap text-xs">
+          <TableRow className="whitespace-nowrap text-xs hover:bg-accent">
             <TableHead>Name</TableHead>
             <TableHead>
               <div className="flex flex-col gap-1">
@@ -60,7 +60,7 @@ export const VariableTable: React.FC<Props> = memo(
         </TableHeader>
         <TableBody>
           {sortedVariables.map((variable) => (
-            <TableRow key={variable.name}>
+            <TableRow key={variable.name} className="hover:bg-accent">
               <TableCell
                 className="font-medium max-w-[130px]"
                 title={variable.name}

@@ -87,6 +87,9 @@ install-all: fe py
 wheel:
 	python -m build
 
+.PHONY: storybook
+storybook:
+	cd frontend; pnpm storybook
 
 .PHONY: docs
 # build docs
