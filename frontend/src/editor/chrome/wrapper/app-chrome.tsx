@@ -89,7 +89,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral editor-panel",
+        "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral",
         isOpen && "m-4",
         isOpen && panelLocation === "bottom" && "mt-2"
       )}
