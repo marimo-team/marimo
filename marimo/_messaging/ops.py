@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 import time
 from dataclasses import asdict, dataclass, field
+from types import ModuleType
 from typing import (
     Any,
     ClassVar,
@@ -235,10 +236,14 @@ class VariableValue:
 
     def __init__(self, name: str, value: object):
         self.name = name
+
+        # Defensively try-catch attribute accesses, which could raise
+        # exceptions
         try:
             self.datatype = type(value).__name__ if value is not None else None
         except Exception:
             self.datatype = None
+
         try:
             self.value = self._format_value(value)
         except Exception:
@@ -248,12 +253,14 @@ class VariableValue:
         return str(value)[:50]
 
     def _format_value(self, value: object) -> str:
+        resolved = value
         if isinstance(value, UIElement):
-            return self._stringify(value.value)
+            resolved = value.value
         elif isinstance(value, Html):
-            return self._stringify(value.text)
-        else:
-            return self._stringify(value)
+            resolved = value.text
+        elif isinstance(value, ModuleType):
+            resolved = value.__name__
+        return self._stringify(resolved)
 
 
 @dataclass
