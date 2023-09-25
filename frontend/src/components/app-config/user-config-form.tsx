@@ -21,7 +21,7 @@ import { NativeSelect } from "../ui/native-select";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { Switch } from "../ui/switch";
-import { SettingTitle } from "./common";
+import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -48,50 +48,60 @@ export const UserConfigForm: React.FC = () => {
         onChange={form.handleSubmit(onSubmit)}
         className="flex flex-col gap-5"
       >
+        <div>
+          <SettingTitle>User Config</SettingTitle>
+          <SettingDescription>
+            Settings applied to all marimo notebooks
+          </SettingDescription>
+        </div>
         <div className="flex flex-col gap-3">
-          <SettingTitle>Editor</SettingTitle>
-          <FormField
-            control={form.control}
-            name="save.autosave"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value === "after_delay"}
-                    onCheckedChange={(checked) => {
-                      return field.onChange(
-                        checked === true ? "after_delay" : "off"
-                      );
-                    }}
-                  />
-                </FormControl>
-                <FormLabel className="font-normal">Auto-save</FormLabel>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="save.autosave_delay"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Auto-save delay (seconds)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    className="m-0"
-                    disabled={form.getValues("save.autosave") !== "after_delay"}
-                    {...field}
-                    value={field.value / 1000}
-                    min={1}
-                    onChange={(e) =>
-                      field.onChange(Number.parseInt(e.target.value) * 1000)
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <SettingSubtitle>Editor</SettingSubtitle>
+          <div>
+            <FormField
+              control={form.control}
+              name="save.autosave"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value === "after_delay"}
+                      onCheckedChange={(checked) => {
+                        return field.onChange(
+                          checked === true ? "after_delay" : "off"
+                        );
+                      }}
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal">Autosave</FormLabel>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="save.autosave_delay"
+              render={({ field }) => (
+                <FormItem className="mt-2 mb-2">
+                  <FormLabel>Autosave delay (seconds)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      className="m-0 w-40"
+                      disabled={
+                        form.getValues("save.autosave") !== "after_delay"
+                      }
+                      {...field}
+                      value={field.value / 1000}
+                      min={1}
+                      onChange={(e) =>
+                        field.onChange(Number.parseInt(e.target.value) * 1000)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="completion.activate_on_typing"
@@ -106,9 +116,7 @@ export const UserConfigForm: React.FC = () => {
                       }}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal">
-                    Trigger autocomplete while typing
-                  </FormLabel>
+                  <FormLabel className="font-normal">Autocomplete</FormLabel>
                 </FormItem>
                 <FormDescription>
                   When unchecked, code completion is still available through a
@@ -139,10 +147,10 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
-          <ThemeToggle />
         </div>
+        <ThemeToggle />
         <div className="flex flex-col gap-3">
-          <SettingTitle>Runtime</SettingTitle>
+          <SettingSubtitle>Runtime</SettingSubtitle>
           <FormField
             control={form.control}
             name="runtime.auto_instantiate"
@@ -155,14 +163,14 @@ export const UserConfigForm: React.FC = () => {
                   />
                 </FormControl>
                 <FormLabel className="font-normal">
-                  Auto-run on startup
+                  Autorun on startup
                 </FormLabel>
               </FormItem>
             )}
           />
         </div>
         <div className="flex flex-col gap-3">
-          <SettingTitle>GitHub Copilot</SettingTitle>
+          <SettingSubtitle>Github Copilot</SettingSubtitle>
           <FormField
             control={form.control}
             name="completion.copilot"
