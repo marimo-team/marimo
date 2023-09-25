@@ -55,6 +55,32 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     />
   );
 
+  const variablePane = (
+    <div className="flex flex-col h-full flex-1 overflow-hidden">
+      <div className="p-3 border-b flex justify-between items-center">
+        <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
+          Variables
+        </div>
+        <Button
+          className="m-0"
+          size="xs"
+          variant="text"
+          onClick={() => setIsOpen(false)}
+        >
+          <XIcon className="w-4 h-4" />
+        </Button>
+      </div>
+      {/* {selectedPanel === "errors" && <ErrorsPanel />} */}
+      {selectedPanel === "variables" && (
+        <VariableTable
+          className="flex-1"
+          cellIds={cellIds}
+          variables={variables}
+        />
+      )}
+    </div>
+  );
+
   const helperPane = (
     <Panel
       ref={sidebarRef}
@@ -62,7 +88,11 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       key={`helper-${panelLocation}`}
       collapsedSize={0}
       collapsible={true}
-      className="bg-[var(--sage-1)] no-print"
+      className={cn(
+        "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral editor-panel",
+        isOpen && "m-4",
+        isOpen && panelLocation === "bottom" && "mt-2"
+      )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
       defaultSize={0}
@@ -75,34 +105,20 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       }}
       onCollapse={(collapsed) => setIsOpen(!collapsed)}
     >
-      <div className="flex flex-col h-full flex-1">
-        <div className="p-3 border-b flex justify-between items-center">
-          <div className="text-sm font-medium text-[var(--sage-11)] uppercase tracking-wide font-semibold flex-1">
-            Variables
-          </div>
-          <Button
-            className="m-0"
-            size="xs"
-            variant="text"
-            onClick={() => setIsOpen(false)}
-          >
-            <XIcon className="w-4 h-4" />
-          </Button>
-        </div>
-        {/* {selectedPanel === "errors" && <ErrorsPanel />} */}
-        {selectedPanel === "variables" && (
-          <VariableTable
-            className="flex-1"
-            cellIds={cellIds}
-            variables={variables}
-          />
-        )}
-      </div>
+      {panelLocation === "left" ? (
+        <span className="flex flex-row h-full">
+          {variablePane} {resizeHandle}
+        </span>
+      ) : (
+        <span>
+          {resizeHandle} {variablePane}
+        </span>
+      )}
     </Panel>
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-[var(--slate-1)]">
       <PanelGroup
         key={panelLocation}
         autoSaveId={`marimo:chrome`}
@@ -110,7 +126,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         storage={createStorage(panelLocation)}
       >
         {panelLocation === "left" ? helperPane : appBody}
-        {resizeHandle}
         {panelLocation === "left" ? appBody : helperPane}
       </PanelGroup>
       <Footer />
