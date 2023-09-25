@@ -7,11 +7,11 @@ help:
 
 .PHONY: fe
 # install/build frontend
-fe: fe-install fe-build lsp
+fe: fe-install fe-build marimo/_lsp/index.js
 
-.PHONY: lsp
-# install/build lsp
-lsp: lsp-install lsp-build
+# install/build lsp, only if outdated
+marimo/_lsp/index.js: $(shell find lsp)
+	cd lsp; pnpm install; cd ..; ./scripts/buildlsp.sh
 
 .PHONY: py
 # editable python install; only need to run once
@@ -69,14 +69,6 @@ fe-build:
 .PHONY: fe-install
 fe-install:
 	cd frontend; pnpm install
-
-.PHONY: lsp-build
-lsp-build:
-	./scripts/buildlsp.sh
-
-.PHONY: lsp-install
-lsp-install:
-	cd lsp; pnpm install
 
 .PHONY: install-all
 # install everything; takes a long time due to editable install
