@@ -170,7 +170,7 @@ export const UserConfigForm: React.FC = () => {
           />
         </div>
         <div className="flex flex-col gap-3">
-          <SettingSubtitle>Github Copilot</SettingSubtitle>
+          <SettingSubtitle>GitHub Copilot</SettingSubtitle>
           <FormField
             control={form.control}
             name="completion.copilot"
