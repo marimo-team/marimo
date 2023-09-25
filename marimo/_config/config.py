@@ -61,6 +61,21 @@ class KeymapConfig(TypedDict, total=False):
 
 
 @mddoc
+class RuntimeConfig(TypedDict, total=False):
+    """Configuration for runtime.
+
+    **Keys.**
+
+    - `auto_instantiate`: if `False`, cells won't automatically
+        run on startup. This only applies when editing a notebook,
+        and not when running as an application.
+        The default is `True`.
+    """
+
+    auto_instantiate: bool
+
+
+@mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
 
@@ -90,6 +105,7 @@ class MarimoConfig(TypedDict, total=False):
     completion: CompletionConfig
     save: SaveConfig
     keymap: KeymapConfig
+    runtime: RuntimeConfig
     experimental: Dict[str, Any]
 
 
@@ -97,6 +113,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
     "save": {"autosave": "after_delay", "autosave_delay": 1000},
     "keymap": {"preset": "default"},
+    "runtime": {"auto_instantiate": True},
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 

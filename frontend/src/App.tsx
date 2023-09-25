@@ -80,6 +80,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, []);
 
   const { connStatus } = useMarimoWebSocket({
+    autoInstantiate:
+      userConfig.runtime.auto_instantiate || viewState.mode === "read",
     setCells,
     setInitialCodes: setSavedCodes,
     setInitialConfigs: setSavedConfigs,

@@ -26,11 +26,18 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
  */
 export function useMarimoWebSocket(opts: {
   sessionId: string;
+  autoInstantiate: boolean;
   setCells: (cells: CellState[]) => void;
   setInitialCodes: (codes: string[]) => void;
   setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {
-  const { sessionId, setCells, setInitialCodes, setInitialConfigs } = opts;
+  const {
+    autoInstantiate,
+    sessionId,
+    setCells,
+    setInitialCodes,
+    setInitialConfigs,
+  } = opts;
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
@@ -70,6 +77,7 @@ export function useMarimoWebSocket(opts: {
             createCell({
               key: CellId.create(),
               code,
+              edited: !autoInstantiate,
               name: names[i],
               config: configs[i],
             })
@@ -106,9 +114,13 @@ export function useMarimoWebSocket(opts: {
             );
           });
           // Send the instantiate message
-          sendInstantiate({ objectIds, values }).catch((error) => {
-            showBoundary(new Error("Failed to instantiate", { cause: error }));
-          });
+          if (autoInstantiate) {
+            sendInstantiate({ objectIds, values }).catch((error) => {
+              showBoundary(
+                new Error("Failed to instantiate", { cause: error })
+              );
+            });
+          }
           return;
         }
         case "completed-run":

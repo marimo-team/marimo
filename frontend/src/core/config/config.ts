@@ -20,6 +20,11 @@ export const UserConfigSchema = z
     keymap: z.object({
       preset: z.enum(["default", "vim"]).default("default"),
     }),
+    runtime: z
+      .object({
+        auto_instantiate: z.boolean(),
+      })
+      .default({ auto_instantiate: true }),
     experimental: z
       .object({
         theming: z.boolean().optional(),
