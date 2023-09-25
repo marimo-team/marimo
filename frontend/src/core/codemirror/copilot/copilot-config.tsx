@@ -77,18 +77,24 @@ export const CopilotConfig = memo(() => {
 
       if (status === "OK" || status === "AlreadySignedIn") {
         copilotChangeSignIn(true);
+        setStep("signedIn");
       } else {
         setStep("signInFailed");
       }
     } catch {
       // If request failed, try seeing if we're already signed in
       // otherwise, show the error
-      const signedIn = await client.signedIn();
-      if (signedIn) {
-        copilotChangeSignIn(true);
-      } else {
-        setStep("signInFailed");
+      // We try 3 times, waiting 1 second between each try
+      for (let i = 0; i < 3; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const signedIn = await client.signedIn();
+        if (signedIn) {
+          copilotChangeSignIn(true);
+          setStep("signedIn");
+          return;
+        }
       }
+      setStep("signInFailed");
     } finally {
       setLoading(false);
     }
@@ -98,6 +104,7 @@ export const CopilotConfig = memo(() => {
     evt.preventDefault();
     const client = getCopilotClient();
     copilotChangeSignIn(false);
+    setStep("signedOut");
     await client.signOut();
   };
 
