@@ -1,4 +1,10 @@
 # Copyright 2023 Marimo. All rights reserved.
+"""
+Interactive matplotlib plots, based on WebAgg.
+
+Adapted from https://matplotlib.org/stable/gallery/user_interfaces/embedding_webagg_sgskip.html
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -21,6 +27,7 @@ import tornado.websocket
 from marimo._ast.cell import CellId_t
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
+from marimo._output.rich_help import mddoc
 from marimo._runtime.context import get_context
 
 # The following is the content of the web page.  You would normally
@@ -153,6 +160,8 @@ class MyApplication(tornado.web.Application):
         supports_binary = True
 
         def open(self, *args: str, **kwargs: str) -> None:
+            del args
+            del kwargs
             # Register the websocket with the FigureManager.
             manager = self.application.manager  # type: ignore[attr-defined]
             manager.add_web_socket(self)
@@ -191,7 +200,7 @@ class MyApplication(tornado.web.Application):
                 self.write_message(data_uri)
 
     def __init__(self, figure: Any) -> None:
-        import matplotlib as mpl  # type: ignore
+        import matplotlib as mpl  # type: ignore[import]
         from matplotlib.backends.backend_webagg import (
             FigureManagerWebAgg,
             new_figure_manager_given_figure,
@@ -228,21 +237,30 @@ class MyApplication(tornado.web.Application):
 
 @dataclass
 class CleanupHandle:
+    """Handle to shutdown a figure server."""
+
     shutdown_event: Optional[asyncio.Event] = None
 
 
 class InteractiveMplRegistry:
+    """Registry of figures created by each cell.
+
+    Allows the kernel to tear down all figures for a given cell.
+    """
+
     _registry: dict[CellId_t, list[CleanupHandle]] = {}
 
     def register(
         self, cell_id: CellId_t, cleanup_handle: CleanupHandle
     ) -> None:
+        """Register a figure's cleanup handle for a cell."""
         if cell_id not in self._registry:
             self._registry[cell_id] = [cleanup_handle]
         else:
             self._registry[cell_id].append(cleanup_handle)
 
     def cleanup(self, cell_id: CellId_t) -> None:
+        """Tear down figures for a cell."""
         if cell_id in self._registry:
             for cleanup_handle in self._registry[cell_id]:
                 if cleanup_handle.shutdown_event is not None:
@@ -250,7 +268,31 @@ class InteractiveMplRegistry:
             del self._registry[cell_id]
 
 
+@mddoc
 def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
+    """Render a matplotlib figure using an interactive viewer.
+
+    The interactive viewer allows you to pan and zoom, and see plot coordinates
+    on mouse hover.
+
+    **Example**:
+
+    ```python
+    fig = plt.figure()
+    plt.plot([1, 2])
+    mo.mpl_interactive(fig)
+    ```
+
+    **Args**:
+
+    - figure: a matplotlib Figure or Axes object
+
+    **Returns**:
+
+    - An interactive matplotlib figure as an `Html` object
+    """
+    # No top-level imports of matplotlib, since it isn't a required
+    # dependency
     from matplotlib.axes import Axes  # type: ignore[import]
 
     if isinstance(figure, Axes):
@@ -263,7 +305,6 @@ def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defin
         )
 
     application = MyApplication(figure)
-
     cleanup_handle = CleanupHandle()
     sockets = tornado.netutil.bind_sockets(0, "")
 
@@ -286,9 +327,6 @@ def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defin
         print(f"Listening on http://{addr}:{port}/")
     if addr is None or port is None:
         raise RuntimeError("Failed to create sockets for mpl interactive.")
-
-    print(f"Addr: {addr}")
-    print(f"Port: {port}")
 
     assert ctx.kernel.execution_context is not None
     ctx.interactive_mpl_registry.register(

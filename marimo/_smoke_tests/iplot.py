@@ -33,7 +33,7 @@ def __(mo, np, plt):
         ax.set_ylabel('Y Label')
         ax.set_zlabel('Z Label')
 
-        return mo.mpl_interactive(fig)
+        return mo.mpl.interactive(fig)
     return interactive_plot,
 
 
