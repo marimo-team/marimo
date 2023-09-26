@@ -7,6 +7,7 @@ import json
 import mimetypes
 import socket
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -225,21 +226,27 @@ class MyApplication(tornado.web.Application):
         )
 
 
+@dataclass
+class CleanupHandle:
+    shutdown_event: Optional[asyncio.Event] = None
+
+
 class InteractiveMplRegistry:
-    _registry: dict[CellId_t, set[asyncio.Event]] = {}
+    _registry: dict[CellId_t, list[CleanupHandle]] = {}
 
     def register(
-        self, cell_id: CellId_t, shutdown_event: asyncio.Event
+        self, cell_id: CellId_t, cleanup_handle: CleanupHandle
     ) -> None:
         if cell_id not in self._registry:
-            self._registry[cell_id] = {shutdown_event}
+            self._registry[cell_id] = [cleanup_handle]
         else:
-            self._registry[cell_id].add(shutdown_event)
+            self._registry[cell_id].append(cleanup_handle)
 
     def cleanup(self, cell_id: CellId_t) -> None:
         if cell_id in self._registry:
-            for shutdown_event in self._registry[cell_id]:
-                shutdown_event.set()
+            for cleanup_handle in self._registry[cell_id]:
+                if cleanup_handle.shutdown_event is not None:
+                    cleanup_handle.shutdown_event.set()
             del self._registry[cell_id]
 
 
@@ -256,13 +263,16 @@ def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defin
         )
 
     application = MyApplication(figure)
-    shutdown_event = asyncio.Event()
+
+    cleanup_handle = CleanupHandle()
     sockets = tornado.netutil.bind_sockets(0, "")
 
     async def main() -> None:
+        # create the shutdown event in the coroutine for py3.8, 3.9 compat
+        cleanup_handle.shutdown_event = asyncio.Event()
         http_server = tornado.httpserver.HTTPServer(application)
         http_server.add_sockets(sockets)
-        await shutdown_event.wait()
+        await cleanup_handle.shutdown_event.wait()
 
     def start_server() -> None:
         asyncio.run(main())
@@ -283,7 +293,7 @@ def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defin
     assert ctx.kernel.execution_context is not None
     ctx.interactive_mpl_registry.register(
         cell_id=ctx.kernel.execution_context.cell_id,
-        shutdown_event=shutdown_event,
+        cleanup_handle=cleanup_handle,
     )
 
     threading.Thread(target=start_server).start()
