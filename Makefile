@@ -5,13 +5,18 @@ help:
 	@# https://stackoverflow.com/a/35730928
 	@awk '/^#/{c=substr($$0,3);next}c&&/^[[:alpha:]][[:alnum:]_-]+:/{print substr($$1,1,index($$1,":")),c}1{c=0}' Makefile | column -s: -t
 
+# package frontend into marimo/
 .PHONY: fe
-# install/build frontend
-fe: fe-install fe-build lsp
+fe: marimo/_static marimo/_lsp
 
-.PHONY: lsp
-# install/build lsp
-lsp: lsp-install lsp-build
+# install/build frontend if anything under frontend/src or (top-level)
+# frontend/ has changed
+marimo/_static: $(shell find frontend/src) $(wildcard frontend/*)
+	cd frontend; pnpm install; cd ..; ./scripts/buildfrontend.sh
+
+# install/build lsp if anything in lsp/ has changed
+marimo/_lsp: $(shell find lsp)
+	cd lsp; pnpm install; cd ..; ./scripts/buildlsp.sh
 
 .PHONY: py
 # editable python install; only need to run once
@@ -61,22 +66,6 @@ py-check:
 # test python
 py-test:
 	pytest
-
-.PHONY: fe-build
-fe-build:
-	./scripts/buildfrontend.sh
-
-.PHONY: fe-install
-fe-install:
-	cd frontend; pnpm install
-
-.PHONY: lsp-build
-lsp-build:
-	./scripts/buildlsp.sh
-
-.PHONY: lsp-install
-lsp-install:
-	cd lsp; pnpm install
 
 .PHONY: install-all
 # install everything; takes a long time due to editable install
