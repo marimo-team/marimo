@@ -118,7 +118,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-[var(--slate-1)]">
+    <div className="flex flex-col flex-1 overflow-hidden">
       <PanelGroup
         key={panelLocation}
         autoSaveId={`marimo:chrome`}
