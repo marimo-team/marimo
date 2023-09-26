@@ -39,6 +39,7 @@ from marimo._messaging.ops import (
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
+from marimo._plugins.stateless.mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
@@ -285,6 +286,7 @@ class Kernel:
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
+        get_context().interactive_mpl_registry.cleanup(cell_id)
         RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -932,10 +934,10 @@ def launch_kernel(
     stderr = Stderr(stream) if is_edit_mode else None
 
     kernel = Kernel()
-    registry = UIElementRegistry()
     initialize_context(
         kernel=kernel,
-        ui_element_registry=registry,
+        ui_element_registry=UIElementRegistry(),
+        interactive_mpl_registry=InteractiveMplRegistry(),
         stream=stream,
         stdout=stdout,
         stderr=stderr,
