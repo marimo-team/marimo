@@ -76,16 +76,18 @@ export const UserConfigForm: React.FC = () => {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="save.autosave_delay"
-              render={({ field }) => (
-                <FormItem className="mt-2 mb-2">
-                  <FormLabel>Autosave delay (seconds)</FormLabel>
-                  <FormControl>
+          </div>
+          <FormField
+            control={form.control}
+            name="save.autosave_delay"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Autosave delay (seconds)</FormLabel>
+                <FormControl>
+                  <span className="inline-flex mx-2">
                     <Input
                       type="number"
-                      className="m-0 w-40"
+                      className="m-0 w-20 inline-flex"
                       disabled={
                         form.getValues("save.autosave") !== "after_delay"
                       }
@@ -96,12 +98,12 @@ export const UserConfigForm: React.FC = () => {
                         field.onChange(Number.parseInt(e.target.value) * 1000)
                       }
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+                  </span>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="completion.activate_on_typing"
@@ -135,6 +137,7 @@ export const UserConfigForm: React.FC = () => {
                   <NativeSelect
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
+                    className="inline-flex mx-2"
                   >
                     {KEYMAP_PRESETS.map((option) => (
                       <option value={option} key={option}>
