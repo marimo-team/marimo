@@ -70,6 +70,10 @@ export const HtmlOutput: React.FC<Props> = memo(
       }
     }, [html, nodeRef]);
 
+    if (!html) {
+      return null;
+    }
+
     return (
       <div
         className={cn(className, {

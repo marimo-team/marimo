@@ -12,6 +12,7 @@ import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
 import { CellId } from "@/core/model/ids";
 import { cn } from "@/lib/utils";
+import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
 import "./output/Outputs.css";
 
@@ -96,17 +97,22 @@ export const OutputArea = React.memo(
       // 3. This output is stale (its inputs have changed)
       const title = props.stale ? "This output is stale" : undefined;
       return (
-        <div
-          title={title}
-          id={`output-${props.cellId}`}
-          className={cn(props.stale && "marimo-output-stale", props.className)}
-        >
-          {formatOutput({
-            message: props.output,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            parsedJsonData: parsedJsonData as Record<string, any>,
-          })}
-        </div>
+        <ErrorBoundary>
+          <div
+            title={title}
+            id={`output-${props.cellId}`}
+            className={cn(
+              props.stale && "marimo-output-stale",
+              props.className
+            )}
+          >
+            {formatOutput({
+              message: props.output,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              parsedJsonData: parsedJsonData as Record<string, any>,
+            })}
+          </div>
+        </ErrorBoundary>
       );
     }
   }
