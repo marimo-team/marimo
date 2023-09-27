@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.15"
+__generated_with = "0.1.18"
 app = marimo.App()
 
 
@@ -13,14 +12,6 @@ def __():
     #import matplotlib
     #matplotlib.use('WebAgg')
     return mo, np, plt
-
-
-app._unparsable_cell(
-    r"""
-    mo.mpl.
-    """,
-    name="__"
-)
 
 
 @app.cell
@@ -61,7 +52,7 @@ def __(interactive_plot):
 @app.cell
 def __(mo, plt):
     plt.plot([1, 2])
-    mo.mpl_interactive(plt.gca())
+    mo.mpl.interactive(plt.gca())
     return
 
 
