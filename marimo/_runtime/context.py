@@ -15,7 +15,7 @@ from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 
 if TYPE_CHECKING:
     from marimo._messaging.streams import Stderr, Stdout, Stream
-    from marimo._plugins.stateless.mpl import InteractiveMplRegistry
+    from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
 

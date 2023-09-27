@@ -7,7 +7,7 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
-from marimo._plugins.stateless.mpl import InteractiveMplRegistry
+from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.context import get_context
 from marimo._runtime.requests import ExecutionRequest

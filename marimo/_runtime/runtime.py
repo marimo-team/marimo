@@ -39,7 +39,7 @@ from marimo._messaging.ops import (
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
 from marimo._output.rich_help import mddoc
-from marimo._plugins.stateless.mpl import InteractiveMplRegistry
+from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow

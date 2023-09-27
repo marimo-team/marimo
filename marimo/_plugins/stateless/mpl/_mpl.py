@@ -269,7 +269,7 @@ class InteractiveMplRegistry:
 
 
 @mddoc
-def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
+def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
     """Render a matplotlib figure using an interactive viewer.
 
     The interactive viewer allows you to pan and zoom, and see plot coordinates
@@ -280,7 +280,7 @@ def mpl_interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defin
     ```python
     fig = plt.figure()
     plt.plot([1, 2])
-    mo.mpl_interactive(fig)
+    mo.mpl.interactive(fig)
     ```
 
     **Args**:

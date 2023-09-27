@@ -15,6 +15,14 @@ def __():
     return mo, np, plt
 
 
+app._unparsable_cell(
+    r"""
+    mo.mpl.
+    """,
+    name="__"
+)
+
+
 @app.cell
 def __(mo, np, plt):
     def interactive_plot(seed = 42, size=100):
