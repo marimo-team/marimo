@@ -32,13 +32,18 @@ from marimo._runtime.context import get_context
 
 
 class MplApplication(tornado.web.Application):
+    # Figure Manager, Any type because matplotlib doesn't have typings
+    manager: Any
+
     class MainPage(tornado.web.RequestHandler):
         """
         Serves the main HTML page.
         """
 
+        application: MplApplication
+
         def get(self) -> None:
-            manager = self.application.manager  # type: ignore[attr-defined]
+            manager = self.application.manager
             ws_uri = f"ws://{self.request.host}/"
             content = html_content % {
                 "ws_uri": ws_uri,
@@ -55,6 +60,8 @@ class MplApplication(tornado.web.Application):
         content.
         """
 
+        application: MplApplication
+
         def get(self) -> None:
             from matplotlib.backends.backend_webagg import (  # type: ignore
                 FigureManagerWebAgg,
@@ -70,8 +77,10 @@ class MplApplication(tornado.web.Application):
         Handles downloading of the figure in various file formats.
         """
 
+        application: MplApplication
+
         def get(self, fmt: str) -> None:
-            manager = self.application.manager  # type: ignore[attr-defined]
+            manager = self.application.manager
             self.set_header(
                 "Content-Type", mimetypes.types_map.get(fmt, "binary")
             )
@@ -97,13 +106,14 @@ class MplApplication(tornado.web.Application):
               to the browser.
         """
 
+        application: MplApplication
         supports_binary = True
 
         def open(self, *args: str, **kwargs: str) -> None:
             del args
             del kwargs
             # Register the websocket with the FigureManager.
-            manager = self.application.manager  # type: ignore[attr-defined]
+            manager = self.application.manager
             manager.add_web_socket(self)
             if hasattr(self, "set_nodelay"):
                 self.set_nodelay(True)
@@ -111,7 +121,7 @@ class MplApplication(tornado.web.Application):
         def on_close(self) -> None:
             # When the socket is closed, deregister the websocket with
             # the FigureManager.
-            manager = self.application.manager  # type: ignore[attr-defined]
+            manager = self.application.manager
             manager.remove_web_socket(self)
 
         def on_message(self, message: Any) -> None:
@@ -124,7 +134,7 @@ class MplApplication(tornado.web.Application):
             if message["type"] == "supports_binary":
                 self.supports_binary = message["value"]
             else:
-                manager = self.application.manager  # type: ignore[attr-defined] # noqa: E501
+                manager = self.application.manager
                 manager.handle_json(message)
 
         def send_json(self, content: str) -> None:
