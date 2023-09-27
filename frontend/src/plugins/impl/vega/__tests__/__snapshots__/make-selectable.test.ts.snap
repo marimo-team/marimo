@@ -1,0 +1,397 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`makeSelectable > should return correctly if existing legend selection 1`] = `
+{
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+    },
+  },
+  "data": {
+    "url": "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/unemployment-across-industries.json",
+  },
+  "encoding": {
+    "color": {
+      "field": "series",
+      "scale": {
+        "scheme": "category20b",
+      },
+      "type": "nominal",
+    },
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "param_1",
+            },
+            {
+              "param": "legend_selection_series",
+            },
+            {
+              "param": "select_point",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "axis": {
+        "domain": false,
+        "format": "%Y",
+        "tickSize": 0,
+      },
+      "field": "date",
+      "timeUnit": "yearmonth",
+      "type": "temporal",
+    },
+    "y": {
+      "aggregate": "sum",
+      "axis": null,
+      "field": "count",
+      "stack": "center",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "area",
+  },
+  "params": [
+    {
+      "bind": "legend",
+      "name": "param_1",
+      "select": {
+        "fields": [
+          "series",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "legend",
+      "name": "legend_selection_series",
+      "select": {
+        "fields": [
+          "series",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "color",
+        ],
+        "type": "point",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return correctly if mark is a string 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "type": "interval",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return correctly if mark is not string 1`] = `
+{
+  "encoding": {
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "type": "interval",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return correctly if overlapping encodings 1`] = `
+{
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+    },
+  },
+  "data": {
+    "url": "data/cars.json",
+  },
+  "encoding": {
+    "color": {
+      "field": "Origin",
+      "type": "nominal",
+    },
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "legend_selection_Origin",
+            },
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "field": "Horsepower",
+      "type": "quantitative",
+    },
+    "y": {
+      "field": "Miles_per_Gallon",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_Origin",
+      "select": {
+        "fields": [
+          "Origin",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "type": "interval",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should return correctly with multiple encodings 1`] = `
+{
+  "encoding": {
+    "color": {
+      "field": "colorField",
+      "type": "nominal",
+    },
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "legend_selection_colorField",
+            },
+            {
+              "param": "legend_selection_sizeField",
+            },
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "size": {
+      "field": "sizeField",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "bind": "legend",
+      "name": "legend_selection_colorField",
+      "select": {
+        "fields": [
+          "colorField",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "bind": "legend",
+      "name": "legend_selection_sizeField",
+      "select": {
+        "fields": [
+          "sizeField",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "type": "interval",
+      },
+    },
+  ],
+}
+`;
+
+exports[`makeSelectable > should skip field selection if empty or false 1`] = `
+{
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+    },
+  },
+  "data": {
+    "url": "data/cars.json",
+  },
+  "encoding": {
+    "color": {
+      "field": "Origin",
+      "type": "nominal",
+    },
+    "opacity": {
+      "condition": {
+        "test": {
+          "and": [
+            {
+              "param": "select_interval",
+            },
+          ],
+        },
+        "value": 1,
+      },
+      "value": 0.2,
+    },
+    "x": {
+      "field": "Horsepower",
+      "type": "quantitative",
+    },
+    "y": {
+      "field": "Miles_per_Gallon",
+      "type": "quantitative",
+    },
+  },
+  "mark": {
+    "cursor": "pointer",
+    "tooltip": true,
+    "type": "point",
+  },
+  "params": [
+    {
+      "name": "select_interval",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "mark": {
+          "fill": "#669EFF",
+          "fillOpacity": 0.07,
+          "stroke": "#669EFF",
+          "strokeOpacity": 0.4,
+        },
+        "type": "interval",
+      },
+    },
+  ],
+}
+`;
