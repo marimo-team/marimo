@@ -95,7 +95,7 @@ html_content = """<!DOCTYPE html>
 """
 
 
-class MyApplication(tornado.web.Application):
+class MplApplication(tornado.web.Application):
     class MainPage(tornado.web.RequestHandler):
         """
         Serves the main HTML page.
@@ -304,7 +304,7 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             "marimo.mpl.interactive can't be used when running as a script."
         )
 
-    application = MyApplication(figure)
+    application = MplApplication(figure)
     cleanup_handle = CleanupHandle()
     sockets = tornado.netutil.bind_sockets(0, "")
 
@@ -324,9 +324,8 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         addr, port = s.getsockname()[:2]
         if s.family is socket.AF_INET6:
             addr = f"[{addr}]"
-        print(f"Listening on http://{addr}:{port}/")
     if addr is None or port is None:
-        raise RuntimeError("Failed to create sockets for mpl interactive.")
+        raise RuntimeError("Failed to create sockets for mpl.interactive.")
 
     assert ctx.kernel.execution_context is not None
     ctx.interactive_mpl_registry.register(
