@@ -335,7 +335,7 @@ html_content = """
     <div id="figure"></div>
   </body>
 </html>
-""".strip()
+""".strip()  # noqa: E501
 
 # Custom CSS to make the mpl toolbar fit the marimo UI
 # We do not support dark mode at the moment as the iframe does not know

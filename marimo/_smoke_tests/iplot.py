@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.18"
@@ -10,8 +9,6 @@ def __():
     import marimo as mo
     import numpy as np
     import matplotlib.pyplot as plt
-    #import matplotlib
-    #matplotlib.use('WebAgg')
     return mo, np, plt
 
 
