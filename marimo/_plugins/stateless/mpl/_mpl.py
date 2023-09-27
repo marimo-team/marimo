@@ -30,70 +30,6 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._runtime.context import get_context
 
-# The following is the content of the web page.  You would normally
-# generate this using some sort of template facility in your web
-# framework, but here we just use Python string formatting.
-html_content = """<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <!-- TODO: There should be a way to include all of the required javascript
-               and CSS so matplotlib can add to the set in the future if it
-               needs to. -->
-    <link rel="stylesheet" href="_static/css/page.css" type="text/css">
-    <link rel="stylesheet" href="_static/css/boilerplate.css" type="text/css">
-    <link rel="stylesheet" href="_static/css/fbm.css" type="text/css">
-    <link rel="stylesheet" href="_static/css/mpl.css" type="text/css">
-    <script src="mpl.js"></script>
-
-    <script>
-      /* This is a callback that is called when the user saves
-         (downloads) a file.  Its purpose is really to map from a
-         figure and file format to a url in the application. */
-      function ondownload(figure, format) {
-        window.open('download.' + format, '_blank');
-      };
-
-      function ready(fn) {
-        if (document.readyState != "loading") {
-          fn();
-        } else {
-          document.addEventListener("DOMContentLoaded", fn);
-        }
-      }
-
-      ready(
-        function() {
-          /* It is up to the application to provide a websocket that the figure
-             will use to communicate to the server.  This websocket object can
-             also be a "fake" websocket that underneath multiplexes messages
-             from multiple figures, if necessary. */
-          var websocket_type = mpl.get_websocket_type();
-          var websocket = new websocket_type("%(ws_uri)sws");
-
-          // mpl.figure creates a new figure on the webpage.
-          var fig = new mpl.figure(
-              // A unique numeric identifier for the figure
-              %(fig_id)s,
-              // A websocket object (or something that behaves like one)
-              websocket,
-              // A function called when a file type is selected for download
-              ondownload,
-              // The HTML element in which to place the figure
-              document.getElementById("figure"));
-        }
-      );
-    </script>
-
-    <title>matplotlib</title>
-  </head>
-
-  <body>
-    <div id="figure">
-    </div>
-  </body>
-</html>
-"""
-
 
 class MplApplication(tornado.web.Application):
     class MainPage(tornado.web.RequestHandler):
@@ -104,7 +40,11 @@ class MplApplication(tornado.web.Application):
         def get(self) -> None:
             manager = self.application.manager  # type: ignore[attr-defined]
             ws_uri = f"ws://{self.request.host}/"
-            content = html_content % {"ws_uri": ws_uri, "fig_id": manager.num}
+            content = html_content % {
+                "ws_uri": ws_uri,
+                "fig_id": manager.num,
+                "custom_css": css_content,
+            }
             self.write(content)
 
     class MplJs(tornado.web.RequestHandler):
@@ -213,7 +153,7 @@ class MplApplication(tornado.web.Application):
             [
                 # Static files for the CSS and JS
                 (
-                    r"/_static/(.*)",
+                    r"/mpl/_static/(.*)",
                     tornado.web.StaticFileHandler,
                     {"path": FigureManagerWebAgg.get_static_file_path()},
                 ),
@@ -225,7 +165,7 @@ class MplApplication(tornado.web.Application):
                 ),
                 # The page that contains all of the pieces
                 ("/", self.MainPage),
-                ("/mpl.js", self.MplJs),
+                ("/mpl/mpl.js", self.MplJs),
                 # Sends images and events to the browser, and receives
                 # events from the browser
                 ("/ws", self.WebSocket),
@@ -341,3 +281,110 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             height="550px",
         )
     )
+
+
+html_content = """
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="mpl/_static/css/page.css" type="text/css" />
+    <link rel="stylesheet" href="mpl/_static/css/boilerplate.css" type="text/css" />
+    <link rel="stylesheet" href="mpl/_static/css/fbm.css" type="text/css" />
+    <link rel="stylesheet" href="mpl/_static/css/mpl.css" type="text/css" />
+    <script src="mpl/mpl.js"></script>
+    <style>
+    %(custom_css)s
+    </style>
+
+    <script>
+      function ondownload(figure, format) {
+        window.open('download.' + format, '_blank');
+      };
+
+      function ready(fn) {
+        if (document.readyState != "loading") {
+          fn();
+        } else {
+          document.addEventListener("DOMContentLoaded", fn);
+        }
+      }
+
+      ready(
+        function() {
+          var websocket_type = mpl.get_websocket_type();
+          var websocket = new websocket_type("%(ws_uri)sws");
+
+          // mpl.figure creates a new figure on the webpage.
+          var fig = new mpl.figure(
+              // A unique numeric identifier for the figure
+              %(fig_id)s,
+              // A websocket object
+              websocket,
+              // A function called when a file type is selected for download
+              ondownload,
+              // The HTML element in which to place the figure
+              document.getElementById("figure"));
+        }
+      );
+    </script>
+
+    <title>marimo</title>
+  </head>
+
+  <body>
+    <div id="figure"></div>
+  </body>
+</html>
+""".strip()
+
+# Custom CSS to make the mpl toolbar fit the marimo UI
+# We do not support dark mode at the moment as the iframe does not know
+# the theme of the parent page.
+css_content = """
+body {
+    background-color: transparent;
+}
+.ui-dialog-titlebar + div {
+    border-radius: 4px;
+}
+.ui-dialog-titlebar {
+    display: none;
+}
+.mpl-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+select.mpl-widget,
+.mpl-button-group {
+    margin: 4px 0;
+    border-radius: 6px;
+    box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+        rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+        rgba(15, 23, 42, 0.1) 1px 1px 0px 0px,
+        rgba(15, 23, 42, 0.1) 0px 0px 2px 0px;
+}
+.mpl-button-group + .mpl-button-group {
+    margin-left: 0;
+}
+.mpl-button-group > .mpl-widget {
+    padding: 4px;
+}
+.mpl-button-group > .mpl-widget > img {
+    height: 16px;
+    width: 16px;
+}
+.mpl-widget:disabled, .mpl-widget[disabled]
+.mpl-widget:disabled, .mpl-widget[disabled]:hover {
+    opacity: 0.5;
+    background-color: #fff;
+    border-color: #ccc !important;
+}
+.mpl-message {
+    color: rgb(139, 141, 152);
+    font-size: 11px;
+}
+.mpl-widget img {
+    filter: invert(0.3);
+}
+""".strip()
