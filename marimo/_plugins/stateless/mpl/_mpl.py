@@ -212,20 +212,20 @@ class InteractiveMplRegistry:
 def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] # noqa:F821,E501
     """Render a matplotlib figure using an interactive viewer.
 
-    The interactive viewer allows you to pan and zoom, and see plot coordinates
+    The interactive viewer allows you to pan, zoom, and see plot coordinates
     on mouse hover.
 
     **Example**:
 
     ```python
-    fig = plt.figure()
     plt.plot([1, 2])
-    mo.mpl.interactive(fig)
+    # plt.gcf() gets the current figure
+    mo.mpl.interactive(plt.gcf())
     ```
 
     **Args**:
 
-    - figure: a matplotlib Figure or Axes object
+    - figure: a matplotlib `Figure` or `Axes` object
 
     **Returns**:
 
@@ -244,6 +244,8 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             "marimo.mpl.interactive can't be used when running as a script."
         )
 
+    # TODO(akshayka): Proxy this server through the marimo server to help with
+    # deployment.
     application = MplApplication(figure)
     cleanup_handle = CleanupHandle()
     sockets = tornado.netutil.bind_sockets(0, "")
