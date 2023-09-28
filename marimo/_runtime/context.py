@@ -15,6 +15,7 @@ from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 
 if TYPE_CHECKING:
     from marimo._messaging.streams import Stderr, Stdout, Stream
+    from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
 
@@ -56,12 +57,14 @@ class RuntimeContext(threading.local):
         self,
         kernel: Kernel,
         ui_element_registry: UIElementRegistry,
+        interactive_mpl_registry: InteractiveMplRegistry,
         stream: Stream,
         stdout: Optional[Stdout],
         stderr: Optional[Stderr],
     ) -> None:
         self._kernel = kernel
         self._ui_element_registry = ui_element_registry
+        self._interactive_mpl_registry = interactive_mpl_registry
         self._stream = stream
         self._stdout = stdout
         self._stderr = stderr
@@ -76,6 +79,11 @@ class RuntimeContext(threading.local):
     def ui_element_registry(self) -> UIElementRegistry:
         assert self._ui_element_registry is not None
         return self._ui_element_registry
+
+    @property
+    def interactive_mpl_registry(self) -> InteractiveMplRegistry:
+        assert self._interactive_mpl_registry
+        return self._interactive_mpl_registry
 
     @property
     def stream(self) -> Stream:
@@ -114,6 +122,7 @@ _RUNTIME_CONTEXT = RuntimeContext()
 def initialize_context(
     kernel: Kernel,
     ui_element_registry: UIElementRegistry,
+    interactive_mpl_registry: InteractiveMplRegistry,
     stream: Stream,
     stdout: Optional[Stdout],
     stderr: Optional[Stderr],
@@ -122,7 +131,12 @@ def initialize_context(
     if _RUNTIME_CONTEXT._initialized:
         raise RuntimeError("RuntimeContext was already initialized.")
     _RUNTIME_CONTEXT.initialize(
-        kernel, ui_element_registry, stream, stdout, stderr
+        kernel=kernel,
+        ui_element_registry=ui_element_registry,
+        interactive_mpl_registry=interactive_mpl_registry,
+        stream=stream,
+        stdout=stdout,
+        stderr=stderr,
     )
 
 

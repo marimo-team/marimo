@@ -28,6 +28,7 @@ __all__ = [
     "image",
     "left",
     "md",
+    "mpl",
     "pdf",
     "refs",
     "right",
@@ -47,6 +48,7 @@ from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._plugins import ui
+from marimo._plugins.stateless import mpl
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout_output import callout
