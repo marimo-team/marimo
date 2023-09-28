@@ -38,6 +38,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
+from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
@@ -120,6 +121,8 @@ def refs() -> tuple[str, ...]:
 class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
+    # output object set imperatively
+    output: object = None
 
 
 @dataclasses.dataclass
@@ -162,7 +165,7 @@ class Kernel:
     @contextlib.contextmanager
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
-    ) -> Iterator[None]:
+    ) -> Iterator[ExecutionContext]:
         self.execution_context = ExecutionContext(
             cell_id, setting_element_value
         )
@@ -170,7 +173,7 @@ class Kernel:
             cell_id
         ):
             try:
-                yield
+                yield self.execution_context
             finally:
                 self.execution_context = None
 
@@ -571,8 +574,15 @@ class Kernel:
             LOGGER.debug("running cell %s", cell_id)
             cell.set_status(status="running")
 
-            with self._install_execution_context(cell_id):
+            with self._install_execution_context(cell_id) as exc_ctx:
                 run_result = runner.run(cell_id)
+                # imperatively written output takes precedence over last
+                # expression when last expression is None
+                run_result.output = (
+                    exc_ctx.output
+                    if run_result.output is None
+                    else run_result.output
+                )
 
             values = [
                 VariableValue(
@@ -591,12 +601,12 @@ class Kernel:
 
             cell.set_status(status="idle")
             if run_result.success():
-                formatted_output = run_result.format_output()
+                formatted_output = formatting.try_format(run_result.output)
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 CellOp.broadcast_output(
-                    channel=formatted_output.channel,
+                    channel="output",
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
@@ -604,12 +614,12 @@ class Kernel:
                 )
             elif isinstance(run_result.exception, MarimoStopError):
                 LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
-                formatted_output = run_result.format_output()
+                formatted_output = formatting.try_format(run_result.output)
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 CellOp.broadcast_output(
-                    channel=formatted_output.channel,
+                    channel="output",
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
