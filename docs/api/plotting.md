@@ -27,7 +27,7 @@ or
 fig, ax = plt.subplots()
 
 ax.plot([1, 2])
-fig
+ax
 ```
 
 If you want to output the plot in the console area, use `plt.show()` or

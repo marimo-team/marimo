@@ -134,12 +134,12 @@ other outputs. If you're using matplotlib, you can display the `Figure` object
 marimo tutorial plots
 ```
 
-Also see the [plotting API reference](/api/plotting.html).
+Also see the <a href="/api/plotting.html">plotting API reference</a>.
 
 <a name="faq-interactive-plots" ></a>
 **How do I display interactive matplotlib plots?**
 
-Use [marimo.mpl.interactive](/api/plotting.html#marimo.mpl.interactive):
+Use <a href="/api/plotting.html#marimo.mpl.interactive">`marimo.mpl.interactive`</a>.
 
 ```bash
 fig, ax = plt.subplots()
