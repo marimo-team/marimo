@@ -8,6 +8,7 @@
   markdown
   inputs/index
   layouts/index
+  plotting
   media/index
   html
   control_flow
@@ -26,6 +27,7 @@ and more.
 | {doc}`markdown`      | Write markdown with `mo.md`                               |
 | {doc}`inputs/index`  | Connect sliders, dropdowns, tables, and more to Python    |
 | {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
+| {doc}`plotting`      | Output interactive plots                                  |
 | {doc}`media/index`   | Output media like images, audio, and PDFs                 |
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`control_flow`  | Control how cells execute                                 |

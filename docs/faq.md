@@ -10,6 +10,7 @@
   - [How do I add a submit button to UI elements?](#faq-form)
   - [How do I write markdown?](#faq-markdown)
   - [How do I display plots?](#faq-plots)
+  - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [What packages can I use?](#faq-packages)
   - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
@@ -131,6 +132,19 @@ other outputs. If you're using matplotlib, you can display the `Figure` object
 
 ```bash
 marimo tutorial plots
+```
+
+Also see the [plotting API reference](/api/plotting.html).
+
+<a name="faq-interactive-plots" ></a>
+**How do I display interactive matplotlib plots?**
+
+Use [marimo.mpl.interactive](/api/plotting.html#marimo.mpl.interactive):
+
+```bash
+fig, ax = plt.subplots()
+ax.plot([1, 2])
+mo.mpl.interactive(ax)
 ```
 
 <a name="faq-rows-columns" ></a>
