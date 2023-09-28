@@ -8,7 +8,7 @@ that double as apps**. marimo is:
 - **reactive**: run a cell and marimo automatically runs cells that depend on it
 - **interactive**: interact with sliders, tables, and more to run cells
 - **reproducible**: no hidden state
-- **simple**: no complicated callbacks, no magical syntax
+- **simple**: no callbacks, no magical syntax
 - **expressive**: parametrize markdown with interactive elements, plots, or anything else
 - **Pythonic**: cells only run Python; notebooks stored as `.py` files (clean git diffs!)
 - **performant**: powered by static analysis, zero runtime overhead
