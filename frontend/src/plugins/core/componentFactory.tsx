@@ -241,6 +241,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 
     disconnectedCallback() {
       this.observer.disconnect();
+      this.root?.unmount();
       if (this.mounted) {
         this.mounted = false;
       }
