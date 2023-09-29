@@ -33,6 +33,7 @@ const appToOptions = {
   "bugs.py": { port: port(), command: "edit" },
   "layout_grid.py//edit": { port: port(), command: "edit" },
   "layout_grid.py//run": { port: port(), command: "run" },
+  "output.py//run": { port: port(), command: "run" },
 } satisfies Record<string, ServerOptions>;
 
 export type ApplicationNames = keyof typeof appToOptions;
