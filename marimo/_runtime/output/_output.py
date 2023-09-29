@@ -1,29 +1,15 @@
 # Copyright 2023 Marimo. All rights reserved.
 import sys
 
+from marimo._ast.cell import CellId_t
 from marimo._messaging.ops import CellOp
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
+from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context import get_context
 
 
-@mddoc
-def write(value: object) -> None:
-    """Make `object` the output of the currently executing cell.
-
-    Call `mo.output.write()` to write to a cell's output area. Subsequent calls
-    to this function replace previously written outputs.
-
-    **Args:**
-
-    - `value`: object to output
-    """
-    ctx = get_context()
-    if ctx.kernel.execution_context is None:
-        return
-    ctx.kernel.execution_context.output = value
-
-    cell_id = ctx.kernel.execution_context.cell_id
+def write_internal(cell_id: CellId_t, value: object) -> None:
     output = formatting.try_format(value)
     if output.traceback is not None:
         sys.stderr.write(output.traceback)
@@ -37,6 +23,24 @@ def write(value: object) -> None:
 
 
 @mddoc
+def replace(value: object) -> None:
+    """Make `object` the output of the currently executing cell.
+
+    Call `mo.output.replace()` to write to a cell's output area, replacing
+    the existing output, if any.
+
+    **Args:**
+
+    - `value`: object to output
+    """
+    ctx = get_context()
+    if ctx.kernel.execution_context is None:
+        return
+    ctx.kernel.execution_context.output = [value]
+    write_internal(cell_id=ctx.kernel.execution_context.cell_id, value=value)
+
+
+@mddoc
 def append(value: object) -> None:
     """Append a new object to the currently executing cell's output.
 
@@ -47,15 +51,21 @@ def append(value: object) -> None:
 
     - `value`: object to output
     """
-    raise NotImplementedError
+    ctx = get_context()
+    if ctx.kernel.execution_context is None:
+        return
+
+    if ctx.kernel.execution_context.output is None:
+        ctx.kernel.execution_context.output = [value]
+    else:
+        ctx.kernel.execution_context.output.append(value)
+    write_internal(
+        cell_id=ctx.kernel.execution_context.cell_id,
+        value=vstack(ctx.kernel.execution_context.output),
+    )
 
 
 @mddoc
 def clear() -> None:
     """Clear the cell's current output."""
-    ctx = get_context()
-    if ctx.kernel.execution_context is None:
-        return
-    CellOp.broadcast_empty_output(
-        cell_id=ctx.kernel.execution_context.cell_id, status=None
-    )
+    return replace(None)

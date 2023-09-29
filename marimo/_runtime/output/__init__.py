@@ -2,7 +2,7 @@
 __all__ = [
     "append",
     "clear",
-    "write",
+    "replace",
 ]
 
-from marimo._runtime.output._output import append, clear, write
+from marimo._runtime.output._output import append, clear, replace

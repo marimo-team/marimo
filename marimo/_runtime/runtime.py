@@ -122,7 +122,7 @@ class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
     # output object set imperatively
-    output: object = None
+    output: Optional[list[object]] = None
 
 
 @dataclasses.dataclass
@@ -576,12 +576,13 @@ class Kernel:
 
             with self._install_execution_context(cell_id) as exc_ctx:
                 run_result = runner.run(cell_id)
-                # imperatively written output takes precedence over last
-                # expression when last expression is None
-                run_result.output = (
-                    exc_ctx.output
-                    if run_result.output is None
-                    else run_result.output
+                # Don't rebroadcast an output that was already sent
+                #
+                # 1. if run_result.output is not None, need to send it
+                # 2. otherwise if exc_ctx.output is None, then need to send
+                #    the (empty) output (to clear it)
+                new_output = (
+                    run_result.output is not None or exc_ctx.output is None
                 )
 
             values = [
@@ -600,20 +601,10 @@ class Kernel:
                 VariableValues(variables=values).broadcast()
 
             cell.set_status(status="idle")
-            if run_result.success():
-                formatted_output = formatting.try_format(run_result.output)
-                if formatted_output.traceback is not None:
-                    with self._install_execution_context(cell_id):
-                        sys.stderr.write(formatted_output.traceback)
-                CellOp.broadcast_output(
-                    channel="output",
-                    mimetype=formatted_output.mimetype,
-                    data=formatted_output.data,
-                    cell_id=cell_id,
-                    status=cell.status,
-                )
-            elif isinstance(run_result.exception, MarimoStopError):
-                LOGGER.debug("Cell %s was stopped via mo.stop()", cell_id)
+            if (
+                run_result.success()
+                or isinstance(run_result.exception, MarimoStopError)
+            ) and new_output:
                 formatted_output = formatting.try_format(run_result.output)
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
