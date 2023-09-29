@@ -147,12 +147,15 @@ const CellComponent = (
   const loading = status === "running" || status === "queued";
   // output may or may not be refreshed while a cell is running, so
   // we need to check if an output was received
-  const outputReceived =
+  const outputReceivedWhileRunning =
+    status === "running" &&
     output !== null &&
     runStartTimestamp !== null &&
     output.timestamp > runStartTimestamp;
   const outputStale =
-    ((loading && !outputReceived) || edited || status === "stale") &&
+    ((loading && !outputReceivedWhileRunning) ||
+      edited ||
+      status === "stale") &&
     !interrupted;
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
