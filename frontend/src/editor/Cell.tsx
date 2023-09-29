@@ -71,6 +71,7 @@ export interface CellProps
       | "interrupted"
       | "config"
       | "stopped"
+      | "runStartTimestamp"
       | "runElapsedTimeMs"
     >,
     Pick<
@@ -110,6 +111,7 @@ const CellComponent = (
     output,
     consoleOutputs,
     status,
+    runStartTimestamp,
     runElapsedTimeMs,
     edited,
     interrupted,
@@ -142,7 +144,18 @@ const CellComponent = (
   const runningOrQueuedRef = useRef<boolean | null>(null);
 
   const needsRun = edited || interrupted;
-  const loading = status === "running" || status === "queued";
+  const outputReceivedWhileRunning =
+    output !== null &&
+    runStartTimestamp !== null &&
+    output.timestamp > runStartTimestamp;
+  console.log("output ts?", output?.timestamp);
+  console.log("runstarttimestamp ?", runStartTimestamp);
+  console.log("output received?", outputReceivedWhileRunning);
+  const loading =
+    (status === "running" && !outputReceivedWhileRunning) ||
+    status === "queued";
+  console.log("status:", status);
+  console.log("loading:", loading);
   const editing = mode === "edit";
   const reading = mode === "read";
   const { sendToTop, sendToBottom } = useCellActions();

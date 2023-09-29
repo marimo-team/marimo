@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.19"
@@ -32,15 +31,14 @@ def __(mo, time):
 
 
 @app.cell
-def __(loop_replace, mo):
-    loop_replace()
-    mo.md("Done!")
+def __(mo):
+    mo.md("### Replace")
     return
 
 
 @app.cell
-def __(loop_append, mo):
-    loop_append()
+def __(loop_replace, mo):
+    loop_replace()
     mo.md("Done!")
     return
 
@@ -53,9 +51,28 @@ def __(loop_replace, mo):
 
 
 @app.cell
+def __(mo):
+    mo.md("### Append")
+    return
+
+
+@app.cell
+def __(loop_append, mo):
+    loop_append()
+    mo.md("Done!")
+    return
+
+
+@app.cell
 def __(loop_append, mo):
     loop_append()
     mo.output.append(mo.md("Done!"))
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("### Clear")
     return
 
 
@@ -72,6 +89,19 @@ def __(loop_append, mo):
     loop_append()
     mo.output.append(mo.md("Done!"))
     mo.output.replace(None)
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("### Sleep (stale)")
+    return
+
+
+@app.cell
+def __(time):
+    time.sleep(2)
+    "hello"
     return
 
 

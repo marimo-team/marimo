@@ -23,7 +23,7 @@ export const MimeCell = ({ value }: MimeCellProps) => {
           channel: "output",
           data: value.data,
           mimetype: value.mimetype,
-          timestamp: "",
+          timestamp: 0,
         } as OutputMessage,
       })}
     </div>

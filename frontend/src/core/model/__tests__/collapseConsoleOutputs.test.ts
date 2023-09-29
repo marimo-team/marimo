@@ -11,13 +11,13 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello ",
-        timestamp: "",
+        timestamp: 0,
       },
       {
         mimetype: "text/plain",
         channel: "output",
         data: "World",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
@@ -30,13 +30,13 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello ",
-        timestamp: "",
+        timestamp: 0,
       },
       {
         mimetype: "text/plain",
         channel: "console",
         data: "World",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
@@ -49,13 +49,13 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello ",
-        timestamp: "",
+        timestamp: 0,
       },
       {
         mimetype: "text/html",
         channel: "output",
         data: "World",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
@@ -68,7 +68,7 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello\rWorld",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
@@ -81,7 +81,7 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello\rWorld\r!",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
@@ -94,7 +94,7 @@ describe("collapseConsoleOutputs", () => {
         mimetype: "text/plain",
         channel: "output",
         data: "Hello\nWorld\r!",
-        timestamp: "",
+        timestamp: 0,
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
