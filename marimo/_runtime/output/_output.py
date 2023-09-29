@@ -24,7 +24,7 @@ def write_internal(cell_id: CellId_t, value: object) -> None:
 
 @mddoc
 def replace(value: object) -> None:
-    """Make `object` the output of the currently executing cell.
+    """Replace a cell's output with a new one.
 
     Call `mo.output.replace()` to write to a cell's output area, replacing
     the existing output, if any.
@@ -42,7 +42,7 @@ def replace(value: object) -> None:
 
 @mddoc
 def append(value: object) -> None:
-    """Append a new object to the currently executing cell's output.
+    """Append a new object to a cell's output.
 
     Call this function to incrementally build a cell's output. Appended
     outputs are stacked vertically.
@@ -67,5 +67,5 @@ def append(value: object) -> None:
 
 @mddoc
 def clear() -> None:
-    """Clear the cell's current output."""
+    """Clear a cell's output."""
     return replace(None)
