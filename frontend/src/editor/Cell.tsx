@@ -144,13 +144,20 @@ const CellComponent = (
   const runningOrQueuedRef = useRef<boolean | null>(null);
 
   const needsRun = edited || interrupted;
-  const outputReceivedWhileRunning =
+  const loading = status === "running" || status === "queued";
+  // output may or may not be refreshed while a cell is running, so
+  // we need to check if an output was received
+  const outputReceived =
     output !== null &&
     runStartTimestamp !== null &&
     output.timestamp > runStartTimestamp;
-  const loading =
-    (status === "running" && !outputReceivedWhileRunning) ||
-    status === "queued";
+  const outputStale =
+    ((loading && !outputReceived) || edited || status === "stale") &&
+    !interrupted;
+  // console output is cleared immediately on run, so check for queued instead
+  // of loading to determine staleness
+  const consoleOutputStale =
+    (status === "queued" || edited || status === "stale") && !interrupted;
   const editing = mode === "edit";
   const reading = mode === "read";
   const { sendToTop, sendToBottom } = useCellActions();
@@ -393,7 +400,7 @@ const CellComponent = (
       output={output}
       className="output-area"
       cellId={cellId}
-      stale={(loading || edited || status === "stale") && !interrupted}
+      stale={outputStale}
     />
   );
 
@@ -512,10 +519,7 @@ const CellComponent = (
         </div>
         <ConsoleOutput
           consoleOutputs={consoleOutputs}
-          stale={
-            (status === "queued" || edited || status === "stale") &&
-            !interrupted
-          }
+          stale={consoleOutputStale}
         />
       </SortableCell>
     </CellActionsContextMenu>
