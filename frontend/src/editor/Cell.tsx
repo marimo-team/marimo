@@ -148,14 +148,9 @@ const CellComponent = (
     output !== null &&
     runStartTimestamp !== null &&
     output.timestamp > runStartTimestamp;
-  console.log("output ts?", output?.timestamp);
-  console.log("runstarttimestamp ?", runStartTimestamp);
-  console.log("output received?", outputReceivedWhileRunning);
   const loading =
     (status === "running" && !outputReceivedWhileRunning) ||
     status === "queued";
-  console.log("status:", status);
-  console.log("loading:", loading);
   const editing = mode === "edit";
   const reading = mode === "read";
   const { sendToTop, sendToBottom } = useCellActions();

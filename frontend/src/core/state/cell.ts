@@ -22,7 +22,6 @@ export function transitionCell(
       // the cell's current code if the user modified it.
       break;
     case "running":
-      console.log("setting runstart ts to", message.timestamp);
       nextCell.runStartTimestamp = message.timestamp;
       break;
     case "idle":
