@@ -88,7 +88,7 @@ class _HTMLBuilder:
         if not params:
             return f"<pre>{child}</pre>"
         else:
-            return f"<pre {_join_params(params)}>{child}</>"
+            return f"<pre {_join_params(params)}>{child}</pre>"
 
 
 def _join_params(params: List[Tuple[str, str]]) -> str:
