@@ -19,6 +19,6 @@ def plain_text(text: str) -> Html:
 
     An `Html` object representing the text.
     """
-    styles = create_style({"font-size": f"12px"})
+    styles = create_style({"font-size": "12px"})
     img = h.pre(child=text, style=styles)
     return Html(img)
