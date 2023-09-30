@@ -41,8 +41,8 @@ def image(
 
     - `src`: the URL of the image or a file-like object
     - `alt`: the alt text of the image
-    - `width`: the width of the image
-    - `height`: the height of the image
+    - `width`: the width of the image in pixels
+    - `height`: the height of the image in pixels
     - `rounded`: whether to round the corners of the image
     - `style`: a dictionary of CSS styles to apply to the image
 
@@ -53,8 +53,8 @@ def image(
     resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
     styles = create_style(
         {
-            "width": width,
-            "height": height,
+            "width": f"{width}px" if width is not None else None,
+            "height": f"{height}px" if height is not None else None,
             "border-radius": "4px" if rounded else None,
             **(style or {}),
         }
