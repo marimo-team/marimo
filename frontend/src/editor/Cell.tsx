@@ -40,6 +40,7 @@ import { Theme } from "../theme/useTheme";
 import { CellActionsDropdown } from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { AppMode } from "@/core/mode";
+import useEvent from "react-use-event-hook";
 
 /**
  * Imperative interface of the cell.
@@ -141,7 +142,6 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
-  const runningOrQueuedRef = useRef<boolean | null>(null);
 
   const needsRun = edited || interrupted;
   const loading = status === "running" || status === "queued";
@@ -191,18 +191,25 @@ const CellComponent = (
     [editorView, prepareToRunEffects]
   );
 
-  // Hack to provide the value of `running` to Code Mirror's EditorView.
-  useEffect(() => {
-    runningOrQueuedRef.current = loading;
-  }, [loading]);
-
-  const onRun = useCallback(() => {
-    if (!runningOrQueuedRef.current) {
-      const code = prepareToRunEffects();
-      registerRunStart();
-      sendRun(cellId, code);
+  const handleRun = useEvent(() => {
+    if (loading) {
+      return;
     }
-  }, [cellId, registerRunStart, prepareToRunEffects]);
+
+    const code = prepareToRunEffects();
+    registerRunStart();
+    sendRun(cellId, code);
+  });
+
+  const handleDelete = useEvent(() => {
+    // Cannot delete running cells, since we're waiting for their output.
+    if (loading) {
+      return false;
+    }
+
+    deleteCell({ cellId });
+    return true;
+  });
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
@@ -234,15 +241,6 @@ const CellComponent = (
       return;
     }
 
-    const deleteCellIfNotRunning = () => {
-      // Cannot delete running cells, since we're waiting for their output.
-      if (!runningOrQueuedRef.current) {
-        deleteCell({ cellId });
-        return true;
-      }
-      return false;
-    };
-
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
@@ -250,8 +248,8 @@ const CellComponent = (
         updateCellCode,
       },
       cellMovementCallbacks: {
-        onRun,
-        deleteCell: deleteCellIfNotRunning,
+        onRun: handleRun,
+        deleteCell: handleDelete,
         createAbove,
         createBelow,
         moveUp,
@@ -330,14 +328,14 @@ const CellComponent = (
     showPlaceholder,
     createAbove,
     createBelow,
-    deleteCell,
     focusUp,
     focusDown,
     moveUp,
     moveDown,
     moveToNextCell,
     updateCellCode,
-    onRun,
+    handleDelete,
+    handleRun,
     serializedEditorState,
   ]);
 
@@ -490,7 +488,7 @@ const CellComponent = (
             <div className="flex align-bottom">
               <RunButton
                 edited={edited}
-                onClick={appClosed ? Functions.NOOP : onRun}
+                onClick={appClosed ? Functions.NOOP : handleRun}
                 appClosed={appClosed}
                 status={status}
                 config={cellConfig}
