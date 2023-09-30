@@ -19,6 +19,8 @@ __all__ = [
     "as_html",
     "audio",
     "callout",
+    "capture_stdout",
+    "capture_stderr",
     "center",
     "defs",
     "doc",
@@ -62,6 +64,7 @@ from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime import output
+from marimo._runtime.capture import capture_stderr, capture_stdout
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import defs, refs
 from marimo._runtime.state import state
