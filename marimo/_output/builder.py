@@ -79,6 +79,17 @@ class _HTMLBuilder:
         else:
             return f"<iframe {_join_params(params)} />"
 
+    @staticmethod
+    def pre(child: str, style: Optional[str] = None) -> str:
+        params: List[Tuple[str, str]] = []
+        if style is not None:
+            params.append(("style", style))
+
+        if not params:
+            return f"<pre>{child}</pre>"
+        else:
+            return f"<pre {_join_params(params)}>{child}</>"
+
 
 def _join_params(params: List[Tuple[str, str]]) -> str:
     return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])

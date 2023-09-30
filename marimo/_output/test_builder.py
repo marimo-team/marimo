@@ -31,6 +31,11 @@ def test_iframe() -> None:
     )
 
 
+def test_pre() -> None:
+    assert h.pre("Hello") == "<pre>Hello</pre>"
+    assert h.pre("Hello", "color:red") == "<pre style='color:red'>Hello</pre>"
+
+
 def test_join_params() -> None:
     assert (
         _join_params([("style", "color:red"), ("class", "myClass")])
