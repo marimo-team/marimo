@@ -9,9 +9,10 @@
   audio
   pdf
   download
+  plain_text
 ```
 
-Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
+Use these functions to embed media in your outputs.
 
 ```{eval-rst}
 .. autosummary::
@@ -21,4 +22,5 @@ Use `mo.image`, `mo.audio`, and `mo.pdf` to embed media in your outputs.
   marimo.audio
   marimo.pdf
   marimo.download
+  marimo.plain_text
 ```
