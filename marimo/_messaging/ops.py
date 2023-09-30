@@ -119,6 +119,25 @@ class CellOp(Op):
         ).broadcast()
 
     @staticmethod
+    def broadcast_empty_output(
+        cell_id: Optional[CellId_t],
+        status: Optional[CellStatusType],
+    ) -> None:
+        cell_id = (
+            cell_id if cell_id is not None else get_context().stream.cell_id
+        )
+        assert cell_id is not None
+        CellOp(
+            cell_id=cell_id,
+            output=CellOutput(
+                channel="output",
+                mimetype="text/plain",
+                data="",
+            ),
+            status=status,
+        ).broadcast()
+
+    @staticmethod
     def broadcast_console_output(
         channel: str,
         mimetype: str,

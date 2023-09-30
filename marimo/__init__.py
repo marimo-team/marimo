@@ -29,6 +29,7 @@ __all__ = [
     "left",
     "md",
     "mpl",
+    "output",
     "pdf",
     "refs",
     "right",
@@ -58,6 +59,7 @@ from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
+from marimo._runtime import output
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import defs, refs
 from marimo._runtime.state import state

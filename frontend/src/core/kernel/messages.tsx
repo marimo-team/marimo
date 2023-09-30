@@ -33,7 +33,7 @@ export type OutputMessage =
       channel: OutputChannel;
       mimetype: "application/vnd.marimo+error";
       data: MarimoError[];
-      timestamp: string;
+      timestamp: number;
     }
   | {
       channel: OutputChannel;
@@ -51,13 +51,13 @@ export type OutputMessage =
         | "video/mp4"
         | "video/mpeg";
       data: string;
-      timestamp: string;
+      timestamp: number;
     }
   | {
       channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
-      timestamp: string;
+      timestamp: number;
     };
 
 /**

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.19"
 app = marimo.App()
 
 
@@ -65,12 +65,6 @@ def __(mo):
 
 @app.cell
 def __(params):
-    params.value
-    return
-
-
-@app.cell
-def __(params):
     if params.value is not None:
         embedding_dimension, constraint_type = (
             params.value["embedding_dimension"],
@@ -108,13 +102,12 @@ def __(
         plt.tight_layout()
         return plt.gca()
 
-
     show_embedding() if embedding_dimension is not None else None
     return show_embedding,
 
 
 @app.cell
-def __(mnist, pymde, torch):
+def __(mnist, mo, pymde, torch):
     embedding_cache = {}
 
 
@@ -122,6 +115,9 @@ def __(mnist, pymde, torch):
         key = (embedding_dim, constraint)
         if key in embedding_cache:
             return embedding_cache[key]
+        mo.output.append(
+            mo.md("Your embedding is being computed ... hang tight!").callout(kind="warn")
+        )
 
         mde = pymde.preserve_neighbors(
             mnist.data,

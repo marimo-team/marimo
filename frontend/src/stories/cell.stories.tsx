@@ -28,6 +28,7 @@ const props: CellProps = {
   updateCellCode: console.log,
   prepareForRun: console.log,
   registerRunStart: console.log,
+  runStartTimestamp: 0,
   runElapsedTimeMs: 10,
   serializedEditorState: null,
   mode: "edit",
@@ -80,7 +81,7 @@ export const WithOutput: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -100,7 +101,7 @@ export const UnsavedEditsOutput: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -120,7 +121,7 @@ export const InterruptedOutput: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -140,7 +141,7 @@ export const WithError: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -162,7 +163,7 @@ export const Disabled: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -182,7 +183,7 @@ export const DisabledTransitively: Story = {
             channel: "output",
             data: "This data is stale because a parent is disabled",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -202,7 +203,7 @@ export const StaleStatus: Story = {
             channel: "output",
             data: "This data is stale because a parent is disabled",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -222,7 +223,7 @@ export const StaleAndEditedStatus: Story = {
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -245,7 +246,7 @@ export const DisabledAndStaleStatus: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>
@@ -265,7 +266,7 @@ export const Running: Story = {
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
             mimetype: "text/html",
-            timestamp: "1686863788",
+            timestamp: 1_686_863_688,
           }}
         />
       </TooltipProvider>

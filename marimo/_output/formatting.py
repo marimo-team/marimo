@@ -18,8 +18,12 @@ taking precedence over the MIME protocol.
 from __future__ import annotations
 
 import inspect
+import io
 import json
+import pprint
+import traceback
 import types
+from dataclasses import dataclass
 from html import escape
 from typing import Any, Callable, Optional, Tuple, Type, TypeVar
 
@@ -100,13 +104,42 @@ def get_formatter(obj: T) -> Optional[Formatter[T]]:
     return None
 
 
-def get_mimetype_and_data(obj: Any) -> tuple[str, str]:
-    f = get_formatter(obj)
-    if f is None:
-        LOGGER.error("Failed to retrieve formatter for %s", obj)
-        return "text/plain", f"Failed to retrieve formatter for {obj}"
+@dataclass
+class FormattedOutput:
+    mimetype: str
+    data: str
+    traceback: Optional[str] = None
+
+
+def try_format(obj: Any) -> FormattedOutput:
+    obj = "" if obj is None else obj
+    if (formatter := get_formatter(obj)) is not None:
+        try:
+            mimetype, data = formatter(obj)
+            return FormattedOutput(mimetype=mimetype, data=data)
+        except Exception:  # noqa: E722
+            return FormattedOutput(
+                mimetype="text/plain",
+                data="",
+                traceback=traceback.format_exc(),
+            )
     else:
-        return f(obj)
+        tmpio = io.StringIO()
+        tb = None
+        if isinstance(obj, str):
+            tmpio.write(obj)
+        else:
+            try:
+                pprint.pprint(obj, stream=tmpio)
+            except Exception:  # noqa: E722
+                tmpio.write("")
+                tb = traceback.format_exc()
+        tmpio.seek(0)
+        return FormattedOutput(
+            mimetype="text/plain",
+            data=tmpio.read(),
+            traceback=tb,
+        )
 
 
 @mddoc

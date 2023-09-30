@@ -1,8 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import io
-import pprint
 import re
 import sys
 import traceback
@@ -11,7 +9,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell
-from marimo._output import formatting
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 
@@ -81,17 +78,6 @@ def format_traceback(graph: dataflow.DirectedGraph) -> str:
 
 
 @dataclass
-class FormattedOutput:
-    """Cell output transformed to wire format."""
-
-    channel: str
-    mimetype: str
-    data: str
-    # non-None if there was an error in formatting the cell output.
-    traceback: Optional[str] = None
-
-
-@dataclass
 class RunResult:
     # Raw output of cell
     output: Any
@@ -101,41 +87,6 @@ class RunResult:
     def success(self) -> bool:
         """Whether the cell exected successfully"""
         return self.exception is None
-
-    def format_output(self) -> FormattedOutput:
-        """Formats raw output to wire format."""
-        return_value = "" if self.output is None else self.output
-        if (formatter := formatting.get_formatter(return_value)) is not None:
-            try:
-                mimetype, data = formatter(return_value)
-                return FormattedOutput(
-                    channel="output", mimetype=mimetype, data=data
-                )
-            except Exception:  # noqa: E722
-                return FormattedOutput(
-                    channel="output",
-                    mimetype="text/plain",
-                    data="",
-                    traceback=traceback.format_exc(),
-                )
-        else:
-            tmpio = io.StringIO()
-            tb = None
-            if isinstance(return_value, str):
-                tmpio.write(return_value)
-            else:
-                try:
-                    pprint.pprint(return_value, stream=tmpio)
-                except Exception:  # noqa: E722
-                    tmpio.write("")
-                    tb = traceback.format_exc()
-            tmpio.seek(0)
-            return FormattedOutput(
-                channel="output",
-                mimetype="text/plain",
-                data=tmpio.read(),
-                traceback=tb,
-            )
 
 
 class Runner:
