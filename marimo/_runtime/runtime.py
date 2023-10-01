@@ -37,7 +37,7 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
-from marimo._messaging.streams import Stderr, Stdout, Stream, redirect_streams
+from marimo._messaging.streams import Stderr, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
@@ -51,6 +51,7 @@ from marimo._runtime.context import (
     initialize_context,
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     CompletionRequest,
     ConfigurationRequest,
