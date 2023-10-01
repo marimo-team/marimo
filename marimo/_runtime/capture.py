@@ -5,6 +5,7 @@ import sys
 from typing import Iterator
 
 from marimo._runtime.output import _output
+from marimo._plugins.stateless.plain_text import plain_text
 
 
 @contextlib.contextmanager
@@ -22,7 +23,7 @@ def capture_stderr() -> Iterator[io.StringIO]:
 @contextlib.contextmanager
 def redirect_stdout() -> Iterator[None]:
     old_stdout_write = sys.stdout.write
-    sys.stdout.write = lambda msg: _output.append(msg)  # type: ignore
+    sys.stdout.write = lambda msg: _output.append(plain_text(msg))  # type: ignore
     try:
         yield
     finally:
@@ -32,7 +33,7 @@ def redirect_stdout() -> Iterator[None]:
 @contextlib.contextmanager
 def redirect_stderr() -> Iterator[None]:
     old_stderr_write = sys.stderr.write
-    sys.stderr.write = lambda msg: _output.append(msg)  # type: ignore
+    sys.stderr.write = lambda msg: _output.append(plain_text(msg))  # type: ignore
     try:
         yield
     finally:
