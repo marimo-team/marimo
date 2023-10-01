@@ -28,7 +28,7 @@ and more.
 | {doc}`inputs/index`  | Connect sliders, dropdowns, tables, and more to Python    |
 | {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
 | {doc}`plotting`      | Output interactive plots                                  |
-| {doc}`media/index`   | Output media like images, audio, and PDFs                 |
+| {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`state`         | Make stateful apps with `mo.state`                        |
