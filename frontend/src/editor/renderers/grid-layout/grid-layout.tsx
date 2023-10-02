@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { memo } from "react";
+import React, { memo, useMemo, useState } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import {
@@ -20,17 +20,15 @@ import { AppMode } from "@/core/mode";
 import { TinyCode } from "@/editor/cell/TinyCode";
 import { cn } from "@/lib/utils";
 import { XIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import useEvent from "react-use-event-hook";
 
 type Props = ICellRendererProps<GridLayout>;
 
 const ReactGridLayout = WidthProvider(Responsive);
 
-const cols = {
-  // we only allow 1 responsive breakpoint
-  // we can change this later if we want to support more,
-  // but this increases complexity to the user
-  lg: 12,
-};
+const MARGIN: [number, number] = [0, 0];
 
 const GridLayoutRenderer: React.FC<Props> = ({
   layout,
@@ -39,13 +37,26 @@ const GridLayoutRenderer: React.FC<Props> = ({
   mode,
 }) => {
   const isReading = mode === "read";
-  const [isDragging, setIsDragging] = React.useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const inGridIds = new Set(layout.cells.map((cell) => cell.i));
-  const [droppingItem, setDroppingItem] = React.useState<{
+  const [droppingItem, setDroppingItem] = useState<{
     i: string;
     w?: number;
     h?: number;
   } | null>(null);
+
+  const cols = useMemo(
+    () => ({
+      // we only allow 1 responsive breakpoint
+      // we can change this later if we want to support more,
+      // but this increases complexity to the user
+      lg: layout.columns,
+    }),
+    [layout.columns]
+  );
+
+  const handleDraggingTrue = useEvent(() => setIsDragging(true));
+  const handleDraggingFalse = useEvent(() => setIsDragging(false));
 
   const grid = (
     <ReactGridLayout
@@ -56,11 +67,13 @@ const GridLayoutRenderer: React.FC<Props> = ({
       cols={cols}
       isBounded={true}
       allowOverlap={false}
-      autoSize={true}
       className={cn(
-        !isReading && "min-w-[800px] min-h-[600px]",
+        !isReading && "min-w-[800px] min-h-full",
         isReading && "disable-animation"
       )}
+      margin={MARGIN}
+      compactType={null}
+      preventCollision={true}
       rowHeight={layout.rowHeight}
       onLayoutChange={(cellLayouts) =>
         setLayout({
@@ -87,8 +100,8 @@ const GridLayoutRenderer: React.FC<Props> = ({
           cells: [...cellLayouts, dropped],
         });
       }}
-      onDragStart={() => setIsDragging(true)}
-      onDragStop={() => setIsDragging(false)}
+      onDragStart={handleDraggingTrue}
+      onDragStop={handleDraggingFalse}
       // When in read mode, disable dragging and resizing
       isDraggable={!isReading}
       isDroppable={!isReading}
@@ -102,9 +115,9 @@ const GridLayoutRenderer: React.FC<Props> = ({
             className={cn(
               "relative transparent-when-disconnected",
               !isReading &&
-                "hover:bg-[var(--sage-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
-              isDragging && "bg-[var(--sage-2)] border-border rounded",
-              "overflow-hidden p-2"
+                "bg-background hover:bg-[var(--slate-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
+              isDragging && "bg-[var(--slate-2)] border-border rounded",
+              "overflow-auto p-2"
             )}
           >
             <GridCell
@@ -139,46 +152,91 @@ const GridLayoutRenderer: React.FC<Props> = ({
   const notInGrid = cells.filter((cell) => !inGridIds.has(cell.key));
 
   return (
-    <div className={cn("flex h-full overflow-hidden gap-2 px-2 pb-2")}>
-      <div className="flex-grow overflow-auto border rounded bg-[var(--sage-1)] shadow-sm transparent-when-disconnected">
-        {grid}
-      </div>
-      <div className="flex-none flex flex-col w-[400px] p-3 gap-3 overflow-auto h-full bg-[var(--sage-3)] border rounded shadow-sm transparent-when-disconnected">
-        <div className="text font-bold text-[var(--sage-10)] overflow-auto flex-shrink-0">
-          Outputs
-        </div>
-        {notInGrid.map((cell) => (
-          <div
-            key={cell.key}
-            draggable={true}
-            unselectable="on"
-            data-cell-id={cell.key}
-            // Firefox requires some kind of initialization which we can do by adding this attribute
-            // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
-            onDragStart={(e) => {
-              // get height of self
-              const height = e.currentTarget.offsetHeight;
-
-              setDroppingItem({
-                i: cell.key,
-                w: 3,
-                h: Math.ceil(height / layout.rowHeight) || 1,
+    <>
+      <div className="flex flex-row absolute left-5 top-4 gap-4">
+        <div className="flex flex-row items-center gap-2">
+          <Label>Columns</Label>
+          <Input
+            type="number"
+            value={layout.columns}
+            className="w-[50px]"
+            placeholder="# of Columns"
+            min={1}
+            onChange={(e) => {
+              setLayout({
+                ...layout,
+                columns: Number.parseInt(e.target.value) || 1,
               });
-              e.dataTransfer.setData("text/plain", "");
             }}
-            className="droppable-element bg-[var(--sage-2)] border-border border overflow-hidden p-2 rounded flex-shrink-0"
-          >
-            <GridCell
-              code={cell.code}
-              mode={mode}
-              cellId={cell.key}
-              output={cell.output}
-              status={cell.status}
-            />
-          </div>
-        ))}
+          />
+        </div>
+        <div className="flex flex-row items-center gap-2">
+          <Label>Row Height (px)</Label>
+          <Input
+            type="number"
+            value={layout.rowHeight}
+            className="w-[50px]"
+            placeholder="Row Height (px)"
+            min={1}
+            onChange={(e) => {
+              setLayout({
+                ...layout,
+                rowHeight: Number.parseInt(e.target.value) || 1,
+              });
+            }}
+          />
+        </div>
       </div>
-    </div>
+      <div
+        className={cn("relative flex h-full overflow-hidden gap-2 px-2 pb-2")}
+      >
+        <div
+          className="flex-grow overflow-auto border rounded bg-[var(--slate-2)] shadow-sm transparent-when-disconnected"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)",
+            backgroundSize: `calc((100% / ${layout.columns})) ${layout.rowHeight}px`,
+          }}
+        >
+          {grid}
+        </div>
+        <div className="flex-none flex flex-col w-[400px] p-3 gap-3 overflow-auto h-full bg-[var(--slate-2)] border rounded shadow-sm transparent-when-disconnected">
+          <div className="text font-bold text-[var(--slate-20)] overflow-auto flex-shrink-0">
+            Outputs
+          </div>
+          {notInGrid.map((cell) => (
+            <div
+              key={cell.key}
+              draggable={true}
+              unselectable="on"
+              data-cell-id={cell.key}
+              // Firefox requires some kind of initialization which we can do by adding this attribute
+              // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
+              onDragStart={(e) => {
+                // get height of self
+                const height = e.currentTarget.offsetHeight;
+
+                setDroppingItem({
+                  i: cell.key,
+                  w: layout.columns / 4,
+                  h: Math.ceil(height / layout.rowHeight) || 1,
+                });
+                e.dataTransfer.setData("text/plain", "");
+              }}
+              className="droppable-element bg-[var(--slate-2)] border-border border overflow-hidden p-2 rounded flex-shrink-0"
+            >
+              <GridCell
+                code={cell.code}
+                mode={mode}
+                cellId={cell.key}
+                output={cell.output}
+                status={cell.status}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -217,7 +275,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
   name: "Grid",
 
   validator: z.object({
-    columns: z.number().min(1).max(12),
+    columns: z.number().min(1),
     rowHeight: z.number().min(1),
     cells: z.array(
       z.object({
@@ -290,8 +348,8 @@ export const GridLayoutPlugin: ICellRendererPlugin<
   Component: GridLayoutRenderer,
 
   getInitialLayout: () => ({
-    columns: 12,
-    rowHeight: 40,
+    columns: 24,
+    rowHeight: 20,
     cells: [],
   }),
 };

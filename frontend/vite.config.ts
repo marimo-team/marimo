@@ -28,6 +28,7 @@ const htmlDevPlugin = (): Plugin => {
             },
             experimental: {
               theming: true,
+              layouts: true,
             },
           })
         )
@@ -66,6 +67,7 @@ export default defineConfig({
     htmlDevPlugin(),
     react({
       tsDecorators: true,
+      plugins: [["@swc-jotai/react-refresh", {}]],
     }),
     tsconfigPaths(),
   ],
