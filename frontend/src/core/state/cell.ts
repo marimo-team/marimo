@@ -14,7 +14,6 @@ export function transitionCell(
   // implies a status transition
   switch (message.status) {
     case "queued":
-      nextCell.stopped = false;
       nextCell.interrupted = false;
       nextCell.errored = false;
       // We intentionally don't update lastCodeRun, since the kernel queues
@@ -22,6 +21,11 @@ export function transitionCell(
       // the cell's current code if the user modified it.
       break;
     case "running":
+      // If was previously stopped, clear the outputs
+      if (cell.stopped) {
+        nextCell.output = null;
+      }
+      nextCell.stopped = false;
       nextCell.runStartTimestamp = message.timestamp;
       break;
     case "idle":
@@ -42,8 +46,8 @@ export function transitionCell(
     default:
       logNever(message.status);
   }
-  nextCell.output = message.output ?? cell.output;
-  nextCell.status = message.status ?? cell.status;
+  nextCell.output = message.output ?? nextCell.output;
+  nextCell.status = message.status ?? nextCell.status;
 
   // Handle errors: marimo includes an error output when a cell is interrupted
   // or errored
