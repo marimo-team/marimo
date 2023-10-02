@@ -67,14 +67,14 @@ def test_capture_both(
 ) -> None:
     mocked_kernel.k.run(
         [
+            # in python < 3.9, parenthesizing multiple context managers is
+            # not allowed, hence the line continuation
             exec_req.get(
                 """
                 import marimo as mo
                 import sys
-                with (
-                    mo.capture_stderr() as stderr,
-                    mo.capture_stdout() as stdout
-                ):
+                with mo.capture_stderr() as stderr, \
+                     mo.capture_stdout() as stdout:
                     sys.stdout.write('hello')
                     sys.stderr.write('bye')
                 """
