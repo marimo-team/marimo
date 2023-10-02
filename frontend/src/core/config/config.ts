@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { z } from "zod";
 import { assertExists } from "../../utils/assertExists";
+import { Logger } from "@/utils/Logger";
 
 export const UserConfigSchema = z
   .object({
@@ -58,7 +59,13 @@ export function parseAppConfig() {
 
 export function parseUserConfig() {
   try {
-    return UserConfigSchema.parse(JSON.parse(getConfig("user")));
+    const parsed = UserConfigSchema.parse(JSON.parse(getConfig("user")));
+    for (const [key, value] of Object.entries(parsed.experimental)) {
+      if (value === true) {
+        Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
+      }
+    }
+    return parsed;
   } catch (error) {
     throw new Error(
       `Marimo got an unexpected value in the configuration file: ${error}`

@@ -128,6 +128,7 @@
     "@storybook/react": "^7.4.5",
     "@storybook/react-vite": "^7.4.5",
     "@storybook/testing-library": "^0.2.1",
+    "@swc-jotai/react-refresh": "^0.1.0",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.5.1",
