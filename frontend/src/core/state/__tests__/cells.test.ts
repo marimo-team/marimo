@@ -472,7 +472,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
 
-  it("can run cell a stale cell", () => {
+  it("can run a stale cell", () => {
     // Update code of first cell
     actions.updateCellCode({
       cellId: firstCellId,
@@ -611,5 +611,118 @@ describe("cell reducer", () => {
     });
     cell = state.present[0];
     expect(cell.config.disabled).toBe(false);
+  });
+
+  it("can run a stopped cell", () => {
+    // Update code of first cell
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: "mo.md('This has an ancestor that was stopped')",
+      formattingChange: false,
+    });
+
+    // Prepare for run
+    actions.prepareForRun({
+      cellId: firstCellId,
+    });
+
+    // Receive queued messages
+    actions.handleCellMessage({
+      cellId: firstCellId,
+      message: {
+        cell_id: firstCellId,
+        output: null,
+        console: null,
+        status: "queued",
+        timestamp: new Date(10).getTime(),
+      },
+    });
+    let cell = state.present[0];
+    expect(cell.status).toBe("queued");
+    expect(cell.lastCodeRun).toBe(
+      "mo.md('This has an ancestor that was stopped')"
+    );
+    expect(cell.edited).toBe(false);
+    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runStartTimestamp).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive idle message
+    actions.handleCellMessage({
+      cellId: firstCellId,
+      message: {
+        cell_id: firstCellId,
+        output: null,
+        console: null,
+        status: "idle",
+        timestamp: new Date(20).getTime(),
+      },
+    });
+    cell = state.present[0];
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive stop output
+    actions.handleCellMessage({
+      cellId: firstCellId,
+      message: {
+        cell_id: firstCellId,
+        output: {
+          channel: "marimo-error",
+          mimetype: "application/vnd.marimo+error",
+          data: [
+            {
+              msg: "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+              raising_cell: "2" as CellId,
+              type: "ancestor-stopped",
+            },
+          ],
+          timestamp: new Date(20).getTime(),
+        },
+        console: null,
+        status: "idle",
+        timestamp: new Date(20).getTime(),
+      },
+    });
+    cell = state.present[0];
+    expect(cell.status).toBe("idle");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((cell.output?.data as any)[0].msg).toBe(
+      "This cell wasn't run because an ancestor was stopped with `mo.stop`: "
+    );
+    expect(cell.stopped).toBe(true);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive queued message
+    actions.handleCellMessage({
+      cellId: firstCellId,
+      message: {
+        cell_id: firstCellId,
+        output: null,
+        console: null,
+        status: "queued",
+        timestamp: new Date(30).getTime(),
+      },
+    });
+    cell = state.present[0];
+    expect(cell.status).toBe("queued");
+    expect(cell.stopped).toBe(true);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+
+    // Receive running message
+    actions.handleCellMessage({
+      cellId: firstCellId,
+      message: {
+        cell_id: firstCellId,
+        output: null,
+        console: null,
+        status: "running",
+        timestamp: new Date(40).getTime(),
+      },
+    });
+    cell = state.present[0];
+    expect(cell.status).toBe("running");
+    expect(cell.stopped).toBe(false);
+    expect(cell.output).toBe(null);
+    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
 });
