@@ -116,8 +116,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
               "relative transparent-when-disconnected",
               !isReading &&
                 "bg-background hover:bg-[var(--slate-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
-              isDragging && "bg-[var(--slate-2)] border-border rounded",
-              "overflow-auto p-2"
+              isDragging && "bg-[var(--slate-2)] border-border rounded"
             )}
           >
             <GridCell
@@ -159,7 +158,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
           <Input
             type="number"
             value={layout.columns}
-            className="w-[50px]"
+            className="w-[60px]"
             placeholder="# of Columns"
             min={1}
             onChange={(e) => {
@@ -175,7 +174,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
           <Input
             type="number"
             value={layout.rowHeight}
-            className="w-[50px]"
+            className="w-[60px]"
             placeholder="Row Height (px)"
             min={1}
             onChange={(e) => {
@@ -256,7 +255,7 @@ const GridCell = memo(
     }
 
     return (
-      <div>
+      <div className="h-full w-full overflow-auto p-2">
         <OutputArea output={output} cellId={cellId} stale={loading} />
       </div>
     );
