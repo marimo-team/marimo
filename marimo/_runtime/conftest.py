@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import textwrap
 from typing import Any, Generator
 
@@ -14,26 +15,59 @@ from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
 
+@dataclasses.dataclass
 class _MockStream:
+    messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
+        default_factory=list
+    )
+
     def write(self, op: str, data: dict[Any, Any]) -> None:
-        del op
-        del data
-        pass
+        self.messages.append((op, data))
+
+
+@dataclasses.dataclass
+class _MockStdStream:
+    messages: list[str] = dataclasses.field(default_factory=list)
+
+    def write(self, msg: str) -> None:
+        self.messages.append(msg)
+
+
+@dataclasses.dataclass
+class MockedKernel:
+    k: Kernel = dataclasses.field(default_factory=Kernel)
+    stream: _MockStream = dataclasses.field(default_factory=_MockStream)
+    stdout: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
+    stderr: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
+
+    def __post_init__(self) -> None:
+        get_context().initialize(
+            kernel=self.k,
+            ui_element_registry=UIElementRegistry(),
+            interactive_mpl_registry=InteractiveMplRegistry(),
+            stream=self.stream,  # type: ignore
+            stdout=self.stdout,  # type: ignore
+            stderr=self.stderr,  # type: ignore
+        )
 
 
 # fixture that provides a kernel (and tears it down)
 @pytest.fixture
 def k() -> Generator[Kernel, None, None]:
-    k = Kernel()
-    get_context().initialize(
-        kernel=k,
-        ui_element_registry=UIElementRegistry(),
-        interactive_mpl_registry=InteractiveMplRegistry(),
-        stream=_MockStream(),  # type: ignore
-        stdout=None,
-        stderr=None,
-    )
-    yield k
+    mocked = MockedKernel()
+    yield mocked.k
+    # have to teardown the runtime context because it's a global
+    get_context()._kernel = None
+    get_context()._ui_element_registry = None
+    get_context()._stream = None
+    get_context()._initialized = False
+
+
+# fixture that wraps a kernel and other mocked objects
+@pytest.fixture
+def mocked_kernel() -> Generator[MockedKernel, None, None]:
+    mocked = MockedKernel()
+    yield mocked
     # have to teardown the runtime context because it's a global
     get_context()._kernel = None
     get_context()._ui_element_registry = None
