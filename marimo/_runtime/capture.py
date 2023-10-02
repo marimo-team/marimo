@@ -70,13 +70,13 @@ def redirect_stdout() -> Iterator[None]:
 
 @contextlib.contextmanager
 def redirect_stderr() -> Iterator[None]:
-    """Redirect stderr to a cell's output area.
+    """Redirect `stderr` to a cell's output area.
 
     ```python
     with mo.redirect_stdout():
         # These messages will show up in the cell's output area
-        sys.stderr.write("Hello!\n")
-        sys.stderr.write("World!\n")
+        sys.stderr.write("Hello!")
+        sys.stderr.write("World!")
     ```
     """
     old_stderr_write = sys.stderr.write
