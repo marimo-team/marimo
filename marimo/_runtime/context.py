@@ -12,12 +12,14 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Iterator, Optional
 
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
+from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 
 if TYPE_CHECKING:
+    from marimo._ast.cell import CellId_t
     from marimo._messaging.streams import Stderr, Stdout, Stream
-    from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
+    from marimo._runtime.virtual_file import VirtualFileRegistry
 
 
 class GlobalContext:
@@ -47,6 +49,8 @@ class RuntimeContext(threading.local):
     def __init__(self) -> None:
         self._kernel: Optional[Kernel] = None
         self._ui_element_registry: Optional[UIElementRegistry] = None
+        self._cell_lifecycle_items: Optional[CellLifecycleRegistry] = None
+        self._virtual_file_registry: Optional[VirtualFileRegistry] = None
         self._stream: Optional[Stream] = None
         self._stdout: Optional[Stdout] = None
         self._stderr: Optional[Stderr] = None
@@ -57,14 +61,16 @@ class RuntimeContext(threading.local):
         self,
         kernel: Kernel,
         ui_element_registry: UIElementRegistry,
-        interactive_mpl_registry: InteractiveMplRegistry,
+        cell_lifecycle_registry: CellLifecycleRegistry,
+        virtual_file_registry: VirtualFileRegistry,
         stream: Stream,
         stdout: Optional[Stdout],
         stderr: Optional[Stderr],
     ) -> None:
         self._kernel = kernel
         self._ui_element_registry = ui_element_registry
-        self._interactive_mpl_registry = interactive_mpl_registry
+        self._cell_lifecycle_registry = cell_lifecycle_registry
+        self._virtual_file_registry = virtual_file_registry
         self._stream = stream
         self._stdout = stdout
         self._stderr = stderr
@@ -76,14 +82,29 @@ class RuntimeContext(threading.local):
         return self._kernel
 
     @property
+    def cell_id(self) -> Optional[CellId_t]:
+        """Get the cell id of the currently executing cell, if any."""
+        if (
+            self._kernel is not None
+            and self._kernel.execution_context is not None
+        ):
+            return self._kernel.execution_context.cell_id
+        return None
+
+    @property
+    def cell_lifecycle_registry(self) -> CellLifecycleRegistry:
+        assert self._cell_lifecycle_registry is not None
+        return self._cell_lifecycle_registry
+
+    @property
     def ui_element_registry(self) -> UIElementRegistry:
         assert self._ui_element_registry is not None
         return self._ui_element_registry
 
     @property
-    def interactive_mpl_registry(self) -> InteractiveMplRegistry:
-        assert self._interactive_mpl_registry
-        return self._interactive_mpl_registry
+    def virtual_file_registry(self) -> VirtualFileRegistry:
+        assert self._virtual_file_registry is not None
+        return self._virtual_file_registry
 
     @property
     def stream(self) -> Stream:
@@ -122,7 +143,8 @@ _RUNTIME_CONTEXT = RuntimeContext()
 def initialize_context(
     kernel: Kernel,
     ui_element_registry: UIElementRegistry,
-    interactive_mpl_registry: InteractiveMplRegistry,
+    cell_lifecycle_registry: CellLifecycleRegistry,
+    virtual_file_registry: VirtualFileRegistry,
     stream: Stream,
     stdout: Optional[Stdout],
     stderr: Optional[Stderr],
@@ -133,7 +155,8 @@ def initialize_context(
     _RUNTIME_CONTEXT.initialize(
         kernel=kernel,
         ui_element_registry=ui_element_registry,
-        interactive_mpl_registry=interactive_mpl_registry,
+        cell_lifecycle_registry=cell_lifecycle_registry,
+        virtual_file_registry=virtual_file_registry,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
