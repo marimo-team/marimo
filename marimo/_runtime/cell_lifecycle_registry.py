@@ -1,4 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
 import dataclasses
 
 from marimo._ast.cell import CellId_t
