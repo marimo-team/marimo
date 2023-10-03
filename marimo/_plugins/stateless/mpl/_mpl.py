@@ -192,6 +192,7 @@ class CleanupHandle:
     shutdown_event: Optional[asyncio.Event] = None
 
 
+# TODO(akshayka): Port to CellLifecycleItem
 class InteractiveMplRegistry:
     """Registry of figures created by each cell.
 

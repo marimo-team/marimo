@@ -10,9 +10,11 @@ import pytest
 from marimo._ast.cell import CellId_t
 from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
+from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context import get_context
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.virtual_file import VirtualFileRegistry
 
 
 @dataclasses.dataclass
@@ -45,6 +47,8 @@ class MockedKernel:
             kernel=self.k,
             ui_element_registry=UIElementRegistry(),
             interactive_mpl_registry=InteractiveMplRegistry(),
+            cell_lifecycle_registry=CellLifecycleRegistry(),
+            virtual_file_registry=VirtualFileRegistry(),
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore

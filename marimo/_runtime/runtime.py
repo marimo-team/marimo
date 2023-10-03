@@ -44,6 +44,7 @@ from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
+from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
     get_context,
@@ -66,6 +67,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
+from marimo._runtime.virtual_file import VirtualFileRegistry
 
 LOGGER = _loggers.marimo_logger()
 
@@ -291,6 +293,7 @@ class Kernel:
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
         get_context().interactive_mpl_registry.cleanup(cell_id)
+        get_context().cell_lifecycle_registry.dispose(cell_id)
         RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -940,6 +943,8 @@ def launch_kernel(
         kernel=kernel,
         ui_element_registry=UIElementRegistry(),
         interactive_mpl_registry=InteractiveMplRegistry(),
+        cell_lifecycle_registry=CellLifecycleRegistry(),
+        virtual_file_registry=VirtualFileRegistry(),
         stream=stream,
         stdout=stdout,
         stderr=stderr,
