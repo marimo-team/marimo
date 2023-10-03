@@ -8,7 +8,6 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
-from marimo._plugins.stateless.mpl._mpl import InteractiveMplRegistry
 from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context import get_context
@@ -46,7 +45,6 @@ class MockedKernel:
         get_context().initialize(
             kernel=self.k,
             ui_element_registry=UIElementRegistry(),
-            interactive_mpl_registry=InteractiveMplRegistry(),
             cell_lifecycle_registry=CellLifecycleRegistry(),
             virtual_file_registry=VirtualFileRegistry(),
             stream=self.stream,  # type: ignore

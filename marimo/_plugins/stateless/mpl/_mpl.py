@@ -13,7 +13,6 @@ import json
 import mimetypes
 import socket
 import threading
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -24,11 +23,11 @@ import tornado.netutil
 import tornado.web
 import tornado.websocket
 
-from marimo._ast.cell import CellId_t
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
-from marimo._runtime.context import get_context
+from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._runtime.context import RuntimeContext, get_context
 
 
 class MplApplication(tornado.web.Application):
@@ -185,38 +184,19 @@ class MplApplication(tornado.web.Application):
         )
 
 
-@dataclass
-class CleanupHandle:
+class CleanupHandle(CellLifecycleItem):
     """Handle to shutdown a figure server."""
 
     shutdown_event: Optional[asyncio.Event] = None
 
+    def create(self, context: RuntimeContext) -> None:
+        del context
+        pass
 
-# TODO(akshayka): Port to CellLifecycleItem
-class InteractiveMplRegistry:
-    """Registry of figures created by each cell.
-
-    Allows the kernel to tear down all figures for a given cell.
-    """
-
-    _registry: dict[CellId_t, list[CleanupHandle]] = {}
-
-    def register(
-        self, cell_id: CellId_t, cleanup_handle: CleanupHandle
-    ) -> None:
-        """Register a figure's cleanup handle for a cell."""
-        if cell_id not in self._registry:
-            self._registry[cell_id] = [cleanup_handle]
-        else:
-            self._registry[cell_id].append(cleanup_handle)
-
-    def cleanup(self, cell_id: CellId_t) -> None:
-        """Tear down figures for a cell."""
-        if cell_id in self._registry:
-            for cleanup_handle in self._registry[cell_id]:
-                if cleanup_handle.shutdown_event is not None:
-                    cleanup_handle.shutdown_event.set()
-            del self._registry[cell_id]
+    def dispose(self, context: RuntimeContext) -> None:
+        del context
+        if self.shutdown_event is not None:
+            self.shutdown_event.set()
 
 
 @mddoc
@@ -281,11 +261,7 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         raise RuntimeError("Failed to create sockets for mpl.interactive.")
 
     assert ctx.kernel.execution_context is not None
-    ctx.interactive_mpl_registry.register(
-        cell_id=ctx.kernel.execution_context.cell_id,
-        cleanup_handle=cleanup_handle,
-    )
-
+    ctx.cell_lifecycle_registry.add(cleanup_handle)
     threading.Thread(target=start_server).start()
     return Html(
         h.iframe(
