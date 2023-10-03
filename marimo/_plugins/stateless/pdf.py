@@ -1,10 +1,10 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import io
 from typing import Any, Optional, Union
 
+import marimo._output.data.data as mo_data
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -51,7 +51,7 @@ def pdf(
 
     `Html` object
     """
-    resolved_src = src if isinstance(src, str) else _io_to_data_url(src)
+    resolved_src = src if isinstance(src, str) else mo_data.pdf(src).url
     if initial_page is not None and isinstance(src, str):
         # FitV is "fit to vertical"
         resolved_src += f"#page={initial_page}&view=FitV"
@@ -69,8 +69,3 @@ def pdf(
             style=styles,
         )
     )
-
-
-def _io_to_data_url(readable: io.IOBase) -> str:
-    base64_string = base64.b64encode(readable.read()).decode("utf-8")
-    return f"data:application/pdf;base64,{base64_string}"

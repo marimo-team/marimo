@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import dataclasses
-import io
 from multiprocessing import shared_memory
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
@@ -18,21 +17,21 @@ LOGGER = _loggers.marimo_logger()
 @dataclasses.dataclass
 class VirtualFile:
     url: str
+    filename: str
+    buffer: bytes
 
-    def __init__(self, filename: str) -> None:
-        raise NotImplementedError
-
-    def to_stream(self) -> io.BytesIO:
-        raise NotImplementedError
-
-
-class VirutalFileLifeCycleItem(CellLifecycleItem):
-    def __init__(
-        self, filename: str, to_stream: Callable[[], io.BytesIO]
-    ) -> None:
+    def __init__(self, filename: str, buffer: bytes) -> None:
         self.filename = filename
-        self.virtual_file = VirtualFile(self.filename)
-        self.to_stream = to_stream
+        # TODO: pass session_id as query param
+        self.url = f"/@file/{filename}"
+        self.buffer = buffer
+
+
+class VirtualFileLifecycleItem(CellLifecycleItem):
+    def __init__(self, filename: str, mimetype: str, buffer: bytes) -> None:
+        self.filename = filename
+        self.mimetype = mimetype
+        self.virtual_file = VirtualFile(self.filename, buffer)
 
     def create(self, context: "RuntimeContext") -> None:
         context.virtual_file_registry.add(
@@ -56,7 +55,7 @@ class VirtualFileRegistry:
             )
             return
 
-        buffer = virtual_file.to_stream().getbuffer()
+        buffer = virtual_file.buffer
         # Immediately writes the contents of the file to an in-memory
         # buffer; not lazy.
         #
@@ -71,7 +70,7 @@ class VirtualFileRegistry:
         shm = shared_memory.SharedMemory(
             name=url,
             create=True,
-            size=buffer.nbytes,
+            size=len(buffer),
         )
         shm.buf[:] = buffer
         self.registry[url] = shm

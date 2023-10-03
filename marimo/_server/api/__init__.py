@@ -13,6 +13,7 @@ __all__ = [
     "SaveUserConfigurationHandler",
     "SetCellConfigHandler",
     "SetUIElementValueHandler",
+    "VirtualFileHandler",
 ]
 
 from marimo._server.api.code_complete import CodeCompleteHandler
@@ -30,3 +31,4 @@ from marimo._server.api.save_app_config import SaveAppConfigurationHandler
 from marimo._server.api.save_user_config import SaveUserConfigurationHandler
 from marimo._server.api.set_cell_config import SetCellConfigHandler
 from marimo._server.api.set_ui_element_value import SetUIElementValueHandler
+from marimo._server.api.virtual_file import VirtualFileHandler

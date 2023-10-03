@@ -198,6 +198,10 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
+                r"/api/kernel/@file/(.*)",
+                api.VirtualFileHandler,
+            ),
+            (
                 r"/(favicon\.ico)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
