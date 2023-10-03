@@ -19,3 +19,6 @@
 /playwright-report/
 /playwright/.cache/
 e2e-tests/screenshots
+
+# storybook
+/storybook-static

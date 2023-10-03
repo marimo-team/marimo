@@ -39,6 +39,7 @@ const htmlDevPlugin = (): Plugin => {
 };
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
+const isDev = process.env.NODE_ENV === "development";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -67,7 +68,7 @@ export default defineConfig({
     htmlDevPlugin(),
     react({
       tsDecorators: true,
-      plugins: [["@swc-jotai/react-refresh", {}]],
+      plugins: isDev ? [["@swc-jotai/react-refresh", {}]] : undefined,
     }),
     tsconfigPaths(),
   ],
