@@ -29,7 +29,7 @@ programmatically, using `mo.output.replace()` and `mo.output.append()`.
 :class: warning
 
 Ending a cell with a non-`None` expression is the same as calling
-`mo.replace()` on it: the last expression replaces any output you may have
+`mo.output.replace()` on it: the last expression replaces any output you may have
 already written. Wrap the last expression in `mo.output.append` if you want
 to add to an existing output instead of replacing it.
 ```
