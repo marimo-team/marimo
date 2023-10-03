@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  Next-generation Python notebooks and apps.
+  A next-generation Python notebook: <em>explore data, build tools, deploy apps!</em>
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
@@ -16,14 +16,19 @@
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
-**marimo** is a Python library for creating **reactive notebooks
-that double as apps**. marimo is:
+**marimo** is a next-generation Python notebook where every notebook is
+also shareable as an interactive web app: _explore data, run
+experiments, build tools, and deploy apps, all from one seamless
+environment_.
 
-- **reactive**: run a cell and marimo automatically runs cells that depend on it
-- **interactive**: interact with sliders, dropdowns, tables, and more to
-  automatically run dependent cells
-- **expressive**: parametrize markdown with interactive elements, plots, or anything else
-- **simple**: no callbacks, no magical syntax
+
+**Highlights.** marimo is purpose-built for working with data in Python. Some key features:
+
+- **reactive**: run a cell, and marimo automatically runs cells that depend on it
+- **interactive**: connect inputs like sliders, dropdowns, tables, and
+  more to Python
+- **expressive**: create dynamic makdown parametrized by interactive elements, plots, or anything else
+- **simple**: no callbacks, no magical syntax — just Python
 - **Pythonic**: cells only run Python; notebooks stored as `.py` files (clean git diffs!)
 - **performant**: powered by static analysis, zero runtime overhead
 
