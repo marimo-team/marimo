@@ -6,10 +6,13 @@ import io
 from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Callable
 
+from marimo import _loggers
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 
 if TYPE_CHECKING:
     from marimo._runtime.context import RuntimeContext
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclasses.dataclass
@@ -47,6 +50,12 @@ class VirtualFileRegistry:
     )
 
     def add(self, url: str, virtual_file: VirtualFile) -> None:
+        if url in self.registry:
+            LOGGER.debug(
+                "Virtual file (url=%s) already registered", virtual_file
+            )
+            return
+
         buffer = virtual_file.to_stream().getbuffer()
         # Immediately writes the contents of the file to an in-memory
         # buffer; not lazy.
@@ -54,7 +63,10 @@ class VirtualFileRegistry:
         # To retrieve the buffer from another proces, use:
         #
         # ```
-        # buffer_contents = bytes(shared_memory.SharedMemory(name=url).buf)
+        # try:
+        #   buffer_contents = bytes(shared_memory.SharedMemory(name=url).buf)
+        # except FileNotFoundError:
+        #   # virtual file was removed
         # ```
         shm = shared_memory.SharedMemory(
             name=url,
@@ -66,5 +78,6 @@ class VirtualFileRegistry:
 
     def remove(self, url: str) -> None:
         if url in self.registry:
+            # destroy the shared memory
             self.registry[url].unlink()
             del self.registry[url]
