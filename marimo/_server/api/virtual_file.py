@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from multiprocessing import shared_memory
 from typing import Any, Dict
 
 import tornado.web
@@ -39,14 +40,16 @@ class VirtualFileHandler(tornado.web.RequestHandler):
                 reason="Session not found",
             )
 
-        # get virtual file
-        # TODO: get virtual file from session
-        virtual_file = session.get_virtual_file(filename)
-        if virtual_file is None:
+        try:
+            buffer_contents = bytes(
+                shared_memory.SharedMemory(name=self.request.path).buf
+            )
+        except FileNotFoundError:
             raise tornado.web.HTTPError(
                 HTTPStatus.NOT_FOUND,
                 reason="File not found",
             )
 
-        self.set_header("Content-Type", virtual_file.mimetype)
-        self.write(virtual_file.to_stream())
+        # TODO(akshayka): can we encode mime-type in the path?
+        # self.set_header("Content-Type", virtual_file.mimetype)
+        self.write(buffer_contents)
