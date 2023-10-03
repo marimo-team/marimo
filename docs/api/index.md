@@ -11,7 +11,7 @@
   plotting
   media/index
   html
-  console
+  outputs
   control_flow
   state
   debugging
@@ -33,7 +33,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`plotting`      | Output interactive plots                                  |
 | {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
 | {doc}`html`          | Manipulate HTML objects                                   |
-| {doc}`console`       | Redirect print statements and other console output        |
+| {doc}`outputs`       | Modify cell outputs, redirect console output              |
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`state`         | Make stateful apps with `mo.state`                        |
 | {doc}`debugging`     | Debugging utilities                                       |
