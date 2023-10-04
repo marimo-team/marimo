@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Dict, Final, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Literal, Optional, Union
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
@@ -10,20 +10,23 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
 
+if TYPE_CHECKING:
+    import altair
+
 # Selection is a dictionary of the form:
 # {
 #   "signal_channel": {
 #     "field": ["value1", "value2", ...]
 #   }
 # }
-VegaSelection = Dict[str, Dict[str, Union[List[int], List[float], List[str]]]]
+ChartSelection = Dict[str, Dict[str, Union[List[int], List[float], List[str]]]]
 
 
 @mddoc
-class vega(UIElement[VegaSelection, list]):
-    """Render a Vega-Lite chart.
+class chart(UIElement[ChartSelection, list]):
+    """Render a Vega-Lite spec or Altair chart
 
-    Use `mo.ui.vega` to render a Vega-Lite chart.
+    Use `mo.ui.chart` to render an interactive chart.
 
     **Example.**
 
@@ -38,7 +41,7 @@ class vega(UIElement[VegaSelection, list]):
         color='Origin',
     )
 
-    mo.ui.vega(chart.to_json())
+    mo.ui.chart(chart)
     ```
 
     **Attributes.**
@@ -67,7 +70,7 @@ class vega(UIElement[VegaSelection, list]):
 
     def __init__(
         self,
-        spec: str,
+        spec: Union[str, altair.Chart, dict],
         selection_chart: Union[
             Literal["point"], Literal["interval"], bool
         ] = True,
@@ -76,14 +79,19 @@ class vega(UIElement[VegaSelection, list]):
         label: str = "",
         on_change: Optional[Callable[[list], None]] = None,
     ) -> None:
-        self.dataframe = _to_dataframe(_to_vega_spec(spec))
+        vega_spec = _parse_spec(spec)
+        self.dataframe = _to_dataframe(vega_spec)
 
-        vega_spec: dict = json.loads(spec)
         if label:
             vega_spec["title"] = label
 
+        # Automatically add full width
         if not "width" in vega_spec:
             vega_spec["width"] = "container"
+        if "vconcat" in vega_spec:
+            for chart in vega_spec["vconcat"]:
+                if not "width" in chart:
+                    chart["width"] = "container"
 
         super().__init__(
             component_name="marimo-vega",
@@ -97,23 +105,14 @@ class vega(UIElement[VegaSelection, list]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: VegaSelection) -> Any:
+    def _convert_value(self, value: ChartSelection) -> Any:
         if value is None:
             return []
         return _filter_dataframe(self.dataframe, value)
 
-    def selections(self) -> VegaSelection:
+    def selections(self) -> ChartSelection:
         return self.value
 
-
-def _to_vega_spec(spec: str) -> dict:
-    if spec is None or spec == "":
-        return {}
-
-    try:
-        return json.loads(spec)
-    except json.JSONDecodeError:
-        raise ValueError(f"Invalid Vega-Lite spec: {spec}")
 
 
 def _to_dataframe(vega_spec: dict) -> list:
@@ -150,7 +149,7 @@ def _to_dataframe(vega_spec: dict) -> list:
     return df
 
 
-def _filter_dataframe(df: list, selection: VegaSelection) -> list:
+def _filter_dataframe(df: list, selection: ChartSelection) -> list:
     # Try to import pandas
     try:
         import pandas as pd
@@ -171,3 +170,25 @@ def _filter_dataframe(df: list, selection: VegaSelection) -> list:
             else:
                 df = df[(df[field] >= values[0]) & (df[field] <= values[1])]
     return df
+
+def _parse_spec(spec: Union[str, altair.Chart, dict]) -> dict:
+    if spec is None or spec == "":
+        return {}
+
+    # Parse Altair chart, str, or dict
+    try:
+        try:
+            import altair
+            if isinstance(spec, altair.Chart):
+                return json.loads(spec.to_json())
+        except:
+            pass
+
+        if isinstance(spec, dict):
+            return spec
+        elif isinstance(spec, str):
+            return json.loads(spec)
+    except json.JSONDecodeError:
+        raise ValueError(f"Invalid Vega-Lite spec: {spec}")
+
+    raise ValueError("Invalid Vega-Lite spec")

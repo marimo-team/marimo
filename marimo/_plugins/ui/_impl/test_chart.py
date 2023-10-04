@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from marimo._plugins.ui._impl.vega import _filter_dataframe, _to_dataframe
+from marimo._plugins.ui._impl.chart import _filter_dataframe, _to_dataframe
 
 
 def test_to_data_frame() -> None:

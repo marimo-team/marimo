@@ -1,5 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import type { TopLevelUnitSpec } from "vega-lite/build/src/spec/unit";
+import type {
+  TopLevelUnitSpec,
+  GenericUnitSpec,
+} from "vega-lite/build/src/spec/unit";
 import type { Encoding } from "vega-lite/build/src/encoding";
 import type { Field } from "vega-lite/build/src/channeldef";
 
@@ -14,6 +17,8 @@ export type {
   SelectionType,
 } from "vega-lite/build/src/selection";
 
-export type VegaLiteUnitedSpec = TopLevelUnitSpec<Field>;
+export type VegaLiteUnitSpec = TopLevelUnitSpec<Field>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type GenericVegaSpec = GenericUnitSpec<any, any, any>;
 export type EncodingType = keyof Encoding<Field>;
 export type Encodings = Encoding<Field>;

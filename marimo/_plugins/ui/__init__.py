@@ -8,6 +8,7 @@ __all__ = [
     "array",
     "batch",
     "button",
+    "chart",
     "checkbox",
     "date",
     "dictionary",
@@ -24,7 +25,6 @@ __all__ = [
     "table",
     "text_area",
     "text",
-    "vega",
 ]
 
 
@@ -49,4 +49,4 @@ from marimo._plugins.ui._impl.input import (
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.switch import switch
-from marimo._plugins.ui._impl.vega import vega
+from marimo._plugins.ui._impl.chart import chart

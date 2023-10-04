@@ -1,20 +1,22 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { Mark, SelectionType, VegaLiteSpec, VegaLiteUnitedSpec } from "./types";
+import {
+  GenericVegaSpec,
+  Mark,
+  SelectionType,
+  VegaLiteSpec,
+  VegaLiteUnitSpec,
+} from "./types";
 import { findEncodedFields, makeEncodingInteractive } from "./encodings";
 import { Params } from "./params";
 import { Marks } from "./marks";
 
-export function makeSelectable(
-  spec: VegaLiteSpec,
+export function makeSelectable<T extends VegaLiteSpec>(
+  spec: T,
   opts: {
     chartSelection?: boolean | "interval" | "point";
     fieldSelection?: boolean | string[];
   }
-): VegaLiteSpec {
-  if (!("mark" in spec)) {
-    return spec;
-  }
-
+): T {
   // Both default to true
   const { chartSelection = true, fieldSelection = true } = opts;
 
@@ -23,21 +25,39 @@ export function makeSelectable(
     return spec;
   }
 
-  let resolvedSpec = spec;
+  if ("vconcat" in spec) {
+    const subSpecs = spec.vconcat.map((subSpec) =>
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+    );
+    return { ...spec, vconcat: subSpecs };
+  }
+
+  if ("hconcat" in spec) {
+    const subSpecs = spec.hconcat.map((subSpec) =>
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+    );
+    return { ...spec, hconcat: subSpecs };
+  }
+
+  if (!("mark" in spec)) {
+    return spec;
+  }
+
+  let resolvedSpec: VegaLiteUnitSpec = spec;
   resolvedSpec = makeLegendSelectable(resolvedSpec, fieldSelection);
   resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection);
   resolvedSpec = makeChartInteractive(resolvedSpec);
 
-  return resolvedSpec;
+  return resolvedSpec as T;
 }
 
 /**
  * Given a spec, add the necessary parameters to make the legend selectable.
  */
 function makeLegendSelectable(
-  spec: VegaLiteUnitedSpec,
+  spec: VegaLiteUnitSpec,
   fieldSelection: boolean | string[]
-): VegaLiteUnitedSpec {
+): VegaLiteUnitSpec {
   // If fieldSelection is false, we don't do anything
   if (fieldSelection === false) {
     return spec;
@@ -57,16 +77,16 @@ function makeLegendSelectable(
   return {
     ...spec,
     params: nextParams,
-  } as VegaLiteUnitedSpec;
+  } as VegaLiteUnitSpec;
 }
 
 /**
  * Given a spec, add the necessary parameters to make the chart selectable.
  */
 function makeChartSelectable(
-  spec: VegaLiteUnitedSpec,
+  spec: VegaLiteUnitSpec,
   chartSelection: boolean | "interval" | "point"
-): VegaLiteUnitedSpec {
+): VegaLiteUnitSpec {
   // If chartSelection is false, we don't do anything
   if (chartSelection === false) {
     return spec;
@@ -90,10 +110,10 @@ function makeChartSelectable(
   return {
     ...spec,
     params: nextParams,
-  } as VegaLiteUnitedSpec;
+  } as VegaLiteUnitSpec;
 }
 
-function makeChartInteractive(spec: VegaLiteUnitedSpec): VegaLiteUnitedSpec {
+function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const prevEncodings = "encoding" in spec ? spec.encoding : undefined;
   const params = spec.params || [];
   const paramNames = params.map((param) => param.name);
@@ -106,7 +126,7 @@ function makeChartInteractive(spec: VegaLiteUnitedSpec): VegaLiteUnitedSpec {
     ...spec,
     mark: Marks.makeClickable(spec.mark),
     encoding: makeEncodingInteractive("color", prevEncodings || {}, paramNames),
-  } as VegaLiteUnitedSpec;
+  };
 }
 
 function getBestSelectionForMark(mark: Mark): SelectionType | undefined {
