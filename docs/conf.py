@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx_copybutton",
     "sphinx_new_tab_link",
+    "sphinx_sitemap",
     # To generate tables of inherited members
     "autoclasstoc",
 ]
@@ -65,6 +66,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "furo"
 html_static_path = ["_static"]
 html_favicon = "_static/favicon-32x32.png"
+html_baseurl = "https://docs.marimo.io/"
 html_css_files = [
     # Font Awesome
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/fontawesome.min.css",
