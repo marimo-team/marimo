@@ -7,6 +7,7 @@
 
 /* This may have bad performance, but it's the only way I can get the vega chart to fill the space. */
 div:has(> marimo-ui-element > marimo-vega) {
+  display: block !important;
   flex: 1;
   overflow: hidden;
 }

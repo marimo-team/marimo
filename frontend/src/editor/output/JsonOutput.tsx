@@ -77,7 +77,7 @@ function inferBestFormat(data: unknown): "tree" | "raw" {
 const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
-  "text/html": (value: string) => <HtmlOutput html={value} />,
+  "text/html": (value: string) => <HtmlOutput html={value} inline={true} />,
   "text/plain": (value: string) => <TextOutput text={value} />,
 };
 
