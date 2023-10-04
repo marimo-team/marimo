@@ -18,8 +18,8 @@ import "./vega.css";
 
 interface Data {
   spec: VegaLiteSpec;
-  selectionChart: boolean | "point" | "interval";
-  selectionFields: boolean | string[];
+  chartSelection: boolean | "point" | "interval";
+  fieldSelection: boolean | string[];
 }
 
 interface T {
@@ -44,10 +44,10 @@ export class VegaPlugin implements IPlugin<T, Data> {
       .object({})
       .passthrough()
       .transform((spec) => spec as unknown as VegaLiteSpec),
-    selectionChart: z
+    chartSelection: z
       .union([z.boolean(), z.literal("point"), z.literal("interval")])
       .default(true),
-    selectionFields: z.union([z.boolean(), z.array(z.string())]).default(true),
+    fieldSelection: z.union([z.boolean(), z.array(z.string())]).default(true),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -69,8 +69,8 @@ interface VegaComponentProps<T> extends Data {
 export const VegaComponent = ({
   value,
   setValue,
-  selectionChart,
-  selectionFields,
+  chartSelection,
+  fieldSelection,
   spec,
 }: VegaComponentProps<T>): JSX.Element => {
   const vegaView = useRef<View>();
@@ -81,19 +81,16 @@ export const VegaComponent = ({
   usePropsDidChange("VegaComponent", {
     value,
     setValue,
-    selectionChart,
-    selectionFields,
+    chartSelection,
+    fieldSelection,
     spec,
   });
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
   const selectableSpec = useMemo(() => {
-    return makeSelectable(spec, {
-      chartSelection: selectionChart,
-      fieldSelection: selectionFields,
-    });
+    return makeSelectable(spec, { chartSelection, fieldSelection });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useDeepCompareMemoize(spec), selectionChart, selectionFields]);
+  }, [useDeepCompareMemoize(spec), chartSelection, fieldSelection]);
   const names = useMemo(
     () => getSelectionParamNames(selectableSpec),
     [selectableSpec]

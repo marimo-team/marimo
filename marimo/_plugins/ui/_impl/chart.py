@@ -56,11 +56,11 @@ class chart(UIElement[ChartSelection, list]):
 
     - `spec`: the Vega-Lite chart specification
     - `label`: optional text label for the element
-    - `selection_chart`: optional selection type,
+    - `chart_selection`: optional selection type,
         either `point` or `interval` or boolean.
         defaults to `True` which will automatically detect
         the best selection type.
-    - `selection_fields`: optional list of fields to select,
+    - `field_selection`: optional list of fields to select,
         either list of strings or boolean.
         defaults to `True` which will automatically selects all fields used in the chart
     - `on_change`: optional callback to run when this element's value changes
@@ -71,10 +71,10 @@ class chart(UIElement[ChartSelection, list]):
     def __init__(
         self,
         spec: Union[str, altair.Chart, dict],
-        selection_chart: Union[
+        chart_selection: Union[
             Literal["point"], Literal["interval"], bool
         ] = True,
-        selection_fields: Union[List[str], bool] = True,
+        field_selection: Union[List[str], bool] = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[list], None]] = None,
@@ -99,8 +99,8 @@ class chart(UIElement[ChartSelection, list]):
             label=label,
             args={
                 "spec": vega_spec,
-                "selection-chart": selection_chart,
-                "selection-fields": selection_fields,
+                "chart-selection": chart_selection,
+                "field-selection": field_selection,
             },
             on_change=on_change,
         )

@@ -34,9 +34,8 @@ const chartWithData = (spec: VegaLiteSpec) => (
         setValue={console.log}
         value={{}}
         spec={spec}
-        label={`Chart Selection: ${selection} /// Legend Selection: true`}
-        selectionChart={selection}
-        selectionFields={true}
+        chartSelection={selection}
+        fieldSelection={true}
       />
     ))}
   </div>
