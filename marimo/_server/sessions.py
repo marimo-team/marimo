@@ -254,6 +254,7 @@ class Session:
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(self.queue, listener.address, is_edit_mode),
+                daemon=True,
             )
         else:
             # We use threads in run mode to minimize memory consumption;
