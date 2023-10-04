@@ -62,6 +62,7 @@ def shutdown(with_error: bool = False) -> None:
             "\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃")
         )
         print()
+    # TODO(akshayka): need to close shared memory vfiles ...
     mgr.shutdown()
     tornado.ioloop.IOLoop.current().stop()
     if with_error:
@@ -198,7 +199,7 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
-                r"/api/kernel/@file/(.*)",
+                r"/@file/(.*)",
                 api.VirtualFileHandler,
             ),
             (

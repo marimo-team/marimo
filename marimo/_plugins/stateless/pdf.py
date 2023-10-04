@@ -51,7 +51,7 @@ def pdf(
 
     `Html` object
     """
-    resolved_src = src if isinstance(src, str) else mo_data.pdf(src).url
+    resolved_src = src if isinstance(src, str) else mo_data.pdf(src.read()).url
     if initial_page is not None and isinstance(src, str):
         # FitV is "fit to vertical"
         resolved_src += f"#page={initial_page}&view=FitV"

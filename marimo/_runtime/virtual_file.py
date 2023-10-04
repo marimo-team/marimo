@@ -48,10 +48,14 @@ class VirtualFileRegistry:
         default_factory=dict
     )
 
+    def _key(self, url: str) -> str:
+        return url.replace("/", "_")
+
     def add(self, url: str, virtual_file: VirtualFile) -> None:
-        if url in self.registry:
+        key = self._key(url)
+        if key in self.registry:
             LOGGER.debug(
-                "Virtual file (url=%s) already registered", virtual_file
+                "Virtual file (key=%s) already registered", virtual_file
             )
             return
 
@@ -63,20 +67,22 @@ class VirtualFileRegistry:
         #
         # ```
         # try:
-        #   buffer_contents = bytes(shared_memory.SharedMemory(name=url).buf)
+        #   shm = shared_memory.SharedMemory(name=key)
+        #   buffer_contents = bytes(shm.buf)
         # except FileNotFoundError:
         #   # virtual file was removed
         # ```
         shm = shared_memory.SharedMemory(
-            name=url,
+            name=key,
             create=True,
             size=len(buffer),
         )
         shm.buf[:] = buffer
-        self.registry[url] = shm
+        self.registry[key] = shm
 
     def remove(self, url: str) -> None:
-        if url in self.registry:
+        key = self._key(url)
+        if key in self.registry:
             # destroy the shared memory
-            self.registry[url].unlink()
-            del self.registry[url]
+            self.registry[key].unlink()
+            del self.registry[key]

@@ -42,5 +42,6 @@ def image(
 
 
 def _random_filename(ext: str) -> str:
+    # TODO use uuid ...
     basename = "".join(random.choices(string.ascii_letters, k=8))
     return f"{basename}.{ext}"
