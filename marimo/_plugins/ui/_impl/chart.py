@@ -35,7 +35,7 @@ VegaSpec = Dict[str, Any]
 
 
 @mddoc
-class chart(UIElement[ChartSelection, pd.DataFrame]):
+class chart(UIElement[ChartSelection, "pd.DataFrame"]):
     """Render a Vega-Lite spec or Altair chart
 
     Use `mo.ui.chart` to render an interactive chart.
@@ -105,6 +105,9 @@ class chart(UIElement[ChartSelection, pd.DataFrame]):
             for chart in vega_spec["vconcat"]:
                 if "width" not in chart:
                     chart["width"] = "container"
+            # without autosize, vconcat will overflow
+            if "autosize" not in vega_spec:
+                vega_spec["autosize"] = "fit-x"
 
         super().__init__(
             component_name="marimo-vega",
