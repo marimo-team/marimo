@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import pandas as pd
 
-from marimo._plugins.ui._impl.chart import _filter_dataframe, _to_dataframe
+from marimo._plugins.ui._impl.chart import (
+    ChartSelection,
+    VegaSpec,
+    _filter_dataframe,
+    _to_dataframe,
+)
 
 
 def test_to_data_frame() -> None:
     # Test with URL data source
-    vega_spec_url = {
+    vega_spec_url: VegaSpec = {
         "data": {
             "url": "https://raw.githubusercontent.com/vega/vega/main/docs/data/cars.json"
         }
@@ -18,7 +23,7 @@ def test_to_data_frame() -> None:
     assert not df_url.empty
 
     # Test with inline list data source
-    vega_spec_values = {
+    vega_spec_values: VegaSpec = {
         "data": {
             "values": [
                 {"column1": "value1", "column2": "value2"},
@@ -68,28 +73,30 @@ def test_filter_dataframe() -> None:
     )
 
     # Define a point selection
-    point_selection = {
-        "signal_channel_1": {"vlPoint": True, "field": ["value1", "value2"]}
+    point_selection: ChartSelection = {
+        "signal_channel_1": {"vlPoint": [1], "field": ["value1", "value2"]}
     }
     # Filter the DataFrame with the point selection
     assert len(_filter_dataframe(df, point_selection)) == 2
 
     # Define an interval selection
-    interval_selection = {"signal_channel_2": {"field_2": [1, 3]}}
+    interval_selection: ChartSelection = {
+        "signal_channel_2": {"field_2": [1, 3]}
+    }
     # Filter the DataFrame with the interval selection
     assert len(_filter_dataframe(df, interval_selection)) == 3
 
     # Define an interval selection with multiple fields
-    multi_field_selection = {
+    multi_field_selection: ChartSelection = {
         "signal_channel_1": {"field_2": [1, 3], "field_3": [30, 40]}
     }
     # Filter the DataFrame with the multi-field selection
     assert len(_filter_dataframe(df, multi_field_selection)) == 1
 
     # Define an interval selection with multiple fields
-    interval_and_point_selection = {
+    interval_and_point_selection: ChartSelection = {
         "signal_channel_1": {"field_2": [1, 3], "field_3": [20, 40]},
-        "signal_channel_2": {"vlPoint": True, "color": ["red"]},
+        "signal_channel_2": {"vlPoint": [1], "color": ["red"]},
     }
     # Filter the DataFrame with the multi-field selection
     assert len(_filter_dataframe(df, interval_and_point_selection)) == 1

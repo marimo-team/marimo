@@ -30,6 +30,7 @@ __all__ = [
 
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
+from marimo._plugins.ui._impl.chart import chart
 from marimo._plugins.ui._impl.dictionary import dictionary
 from marimo._plugins.ui._impl.input import (
     button,
@@ -49,4 +50,3 @@ from marimo._plugins.ui._impl.input import (
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.switch import switch
-from marimo._plugins.ui._impl.chart import chart
