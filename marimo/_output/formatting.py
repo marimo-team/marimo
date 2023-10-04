@@ -64,14 +64,19 @@ def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
 
 
 def get_formatter(obj: T) -> Optional[Formatter[T]]:
-    from marimo._runtime.context import get_context
+    from marimo._runtime.context import ContextNotInitializedError, get_context
 
-    if not get_context().initialized and not FORMATTERS:
-        from marimo._output.formatters.formatters import register_formatters
+    try:
+        get_context()
+    except ContextNotInitializedError:
+        if not FORMATTERS:
+            from marimo._output.formatters.formatters import (
+                register_formatters,
+            )
 
-        # Install formatters when marimo is being used without
-        # a kernel (eg, in a unit test or when run as a Python script)
-        register_formatters()
+            # Install formatters when marimo is being used without
+            # a kernel (eg, in a unit test or when run as a Python script)
+            register_formatters()
 
     if type(obj) in FORMATTERS:
         return FORMATTERS[type(obj)]

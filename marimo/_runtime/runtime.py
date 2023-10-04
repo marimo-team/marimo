@@ -41,12 +41,11 @@ from marimo._messaging.ops import (
 from marimo._messaging.streams import Stderr, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
-from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
-from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
+    ContextNotInitializedError,
     get_context,
     get_global_context,
     initialize_context,
@@ -67,7 +66,6 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
-from marimo._runtime.virtual_file import VirtualFileRegistry
 
 LOGGER = _loggers.marimo_logger()
 
@@ -80,8 +78,12 @@ def defs() -> tuple[str, ...]:
 
     - tuple of the currently executing cell's defs.
     """
-    ctx = get_context()
-    if ctx.initialized and ctx.kernel.execution_context is not None:
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return tuple()
+
+    if ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
@@ -101,12 +103,17 @@ def refs() -> tuple[str, ...]:
 
     - tuple of the currently executing cell's refs.
     """
-    ctx = get_context()
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return tuple()
+
     # builtins that have not been shadowed by the user
     unshadowed_builtins = set(builtins.__dict__.keys()).difference(
         set(ctx.kernel.graph.definitions.keys())
     )
-    if ctx.initialized and ctx.kernel.execution_context is not None:
+
+    if ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
                 defn
@@ -940,9 +947,6 @@ def launch_kernel(
     kernel = Kernel()
     initialize_context(
         kernel=kernel,
-        ui_element_registry=UIElementRegistry(),
-        cell_lifecycle_registry=CellLifecycleRegistry(),
-        virtual_file_registry=VirtualFileRegistry(),
         stream=stream,
         stdout=stdout,
         stderr=stderr,

@@ -120,14 +120,20 @@ class Cell:
         return self.status == "disabled-transitively"
 
     def set_status(self, status: CellStatusType) -> None:
-        from marimo._runtime.context import get_context
+        from marimo._messaging.ops import CellOp
+        from marimo._runtime.context import (
+            ContextNotInitializedError,
+            get_context,
+        )
 
         self._status.state = status
-        if get_context().initialized:
-            from marimo._messaging.ops import CellOp
+        try:
+            get_context()
+        except ContextNotInitializedError:
+            return
 
-            assert self.cell_id is not None
-            CellOp.broadcast_status(cell_id=self.cell_id, status=status)
+        assert self.cell_id is not None
+        CellOp.broadcast_status(cell_id=self.cell_id, status=status)
 
 
 CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
