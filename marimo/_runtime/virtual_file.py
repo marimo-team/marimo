@@ -48,6 +48,9 @@ class VirtualFileRegistry:
         default_factory=dict
     )
 
+    def __del__(self) -> None:
+        self.shutdown()
+
     def _key(self, url: str) -> str:
         return url.replace("/", "_")
 
@@ -78,6 +81,7 @@ class VirtualFileRegistry:
             size=len(buffer),
         )
         shm.buf[:] = buffer
+        shm.close()
         self.registry[key] = shm
 
     def remove(self, url: str) -> None:
@@ -86,3 +90,8 @@ class VirtualFileRegistry:
             # destroy the shared memory
             self.registry[key].unlink()
             del self.registry[key]
+
+    def shutdown(self) -> None:
+        for _, shm in self.registry.items():
+            shm.unlink()
+        self.registry.clear()

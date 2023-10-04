@@ -1014,3 +1014,4 @@ def launch_kernel(
             break
         else:
             raise ValueError(f"Unknown request {request}")
+    get_context().virtual_file_registry.shutdown()

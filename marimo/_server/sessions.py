@@ -331,6 +331,7 @@ class Session:
             # this, because mp.Queue appears to be a function
             self.queue.close()  # type: ignore
             if self.kernel_task.is_alive():
+                # TODO: gracefully unlink shm/vfiles
                 self.kernel_task.terminate()
             tornado.ioloop.IOLoop.current().remove_handler(
                 self.read_conn.fileno()
