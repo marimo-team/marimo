@@ -979,7 +979,21 @@ def launch_kernel(
                 Interrupted().broadcast()
                 raise MarimoInterrupt
 
+        def sigterm_handler(signum: int, frame: Any) -> None:
+            """Cleans up the kernel ends exit."""
+            del signum
+            del frame
+
+            get_context().virtual_file_registry.shutdown()
+            sys.exit(0)
+
         signal.signal(signal.SIGINT, interrupt_handler)
+
+        if os.name == "nt":
+            # windows doesn't handle SIGTERM
+            signal.signal(signal.SIGBREAK, sigterm_handler)
+        else:
+            signal.signal(signal.SIGTERM, sigterm_handler)
 
     while True:
         try:

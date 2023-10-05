@@ -80,7 +80,10 @@ class VirtualFileRegistry:
             create=True,
             size=len(buffer),
         )
-        shm.buf[:] = buffer
+        print("buffer: ", buffer)
+        print(len(buffer))
+        print(len(shm.buf))
+        shm.buf[: len(buffer)] = buffer
         shm.close()
         self.registry[key] = shm
 

@@ -1,6 +1,7 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.21"
+__generated_with = "0.1.18"
 app = marimo.App(width="full")
 
 
@@ -31,7 +32,7 @@ def __(mo, page):
         src="https://arxiv.org/pdf/2104.00282.pdf",
         initial_page=page.value,
         width="100%",
-        height="60vh"
+        height="60vh",
     )
     return
 
@@ -45,10 +46,20 @@ def __(io, mo, page, requests):
         src=io.BytesIO(downloaded.content),
         initial_page=page.value,
         width="100%",
-        height="60vh"
+        height="60vh",
     )
     pdf
     return downloaded, pdf
+
+
+@app.cell
+def __(pdf):
+    pdf
+    import time
+    while True:
+        time.sleep(1)
+        print('hi')
+    return time,
 
 
 @app.cell
