@@ -20,10 +20,10 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, buffer: bytes) -> None:
+    def __init__(self, filename: str, mimetype: str, buffer: bytes) -> None:
         self.filename = filename
-        # TODO: pass session_id as query param
-        self.url = f"/@file/{filename}"
+        self.mimetype = mimetype
+        self.url = f"/@file/{filename}/{mimetype}"
         self.buffer = buffer
 
 
@@ -31,15 +31,13 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
     def __init__(self, filename: str, mimetype: str, buffer: bytes) -> None:
         self.filename = filename
         self.mimetype = mimetype
-        self.virtual_file = VirtualFile(self.filename, buffer)
+        self.virtual_file = VirtualFile(self.filename, mimetype, buffer)
 
     def create(self, context: "RuntimeContext") -> None:
-        context.virtual_file_registry.add(
-            self.virtual_file.url, self.virtual_file
-        )
+        context.virtual_file_registry.add(self.virtual_file)
 
     def dispose(self, context: "RuntimeContext") -> None:
-        context.virtual_file_registry.remove(self.virtual_file.url)
+        context.virtual_file_registry.remove(self.virtual_file)
 
 
 @dataclasses.dataclass
@@ -51,11 +49,11 @@ class VirtualFileRegistry:
     def __del__(self) -> None:
         self.shutdown()
 
-    def _key(self, url: str) -> str:
-        return url.replace("/", "_")
+    def _key(self, vfile: VirtualFile) -> str:
+        return vfile.filename
 
-    def add(self, url: str, virtual_file: VirtualFile) -> None:
-        key = self._key(url)
+    def add(self, virtual_file: VirtualFile) -> None:
+        key = self._key(virtual_file)
         if key in self.registry:
             LOGGER.debug(
                 "Virtual file (key=%s) already registered", virtual_file
@@ -80,15 +78,12 @@ class VirtualFileRegistry:
             create=True,
             size=len(buffer),
         )
-        print("buffer: ", buffer)
-        print(len(buffer))
-        print(len(shm.buf))
         shm.buf[: len(buffer)] = buffer
         shm.close()
         self.registry[key] = shm
 
-    def remove(self, url: str) -> None:
-        key = self._key(url)
+    def remove(self, virtual_file: VirtualFile) -> None:
+        key = self._key(virtual_file)
         if key in self.registry:
             # destroy the shared memory
             self.registry[key].unlink()

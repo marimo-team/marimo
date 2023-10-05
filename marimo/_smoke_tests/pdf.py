@@ -55,16 +55,6 @@ def __(io, mo, page, requests):
 @app.cell
 def __(pdf):
     pdf
-    import time
-    while True:
-        time.sleep(1)
-        print('hi')
-    return time,
-
-
-@app.cell
-def __(pdf):
-    pdf
     return
 
 

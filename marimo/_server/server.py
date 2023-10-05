@@ -198,7 +198,8 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
-                r"/@file/(.*)",
+                # filename/mimetype
+                r"/@file/(.*?)/(.*)",
                 api.VirtualFileHandler,
             ),
             (

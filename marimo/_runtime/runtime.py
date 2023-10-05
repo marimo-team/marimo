@@ -989,7 +989,7 @@ def launch_kernel(
 
         signal.signal(signal.SIGINT, interrupt_handler)
 
-        if os.name == "nt":
+        if sys.platform == "win32" or sys.platform == "cygwin":
             # windows doesn't handle SIGTERM
             signal.signal(signal.SIGBREAK, sigterm_handler)
         else:
