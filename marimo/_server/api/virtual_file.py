@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import mimetypes
 from multiprocessing import shared_memory
 
 import tornado.web
@@ -14,7 +15,7 @@ LOGGER = _loggers.marimo_logger()
 class VirtualFileHandler(tornado.web.RequestHandler):
     """Handler for virtual files."""
 
-    def get(self, filename: str, mimetype: str) -> None:
+    def get(self, filename: str) -> None:
         key = filename
         try:
             # NB: this can't be collapsed into a one-liner!
@@ -27,5 +28,7 @@ class VirtualFileHandler(tornado.web.RequestHandler):
                 HTTPStatus.NOT_FOUND,
                 reason="File not found",
             ) from err
-        self.set_header("Content-Type", mimetype)
+        mimetype, _ = mimetypes.guess_type(filename)
+        if mimetype is not None:
+            self.set_header("Content-Type", mimetype)
         self.write(buffer_contents)

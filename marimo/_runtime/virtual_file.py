@@ -20,18 +20,16 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, mimetype: str, buffer: bytes) -> None:
+    def __init__(self, filename: str, buffer: bytes) -> None:
         self.filename = filename
-        self.mimetype = mimetype
-        self.url = f"/@file/{filename}/{mimetype}"
+        self.url = f"/@file/{filename}"
         self.buffer = buffer
 
 
 class VirtualFileLifecycleItem(CellLifecycleItem):
-    def __init__(self, filename: str, mimetype: str, buffer: bytes) -> None:
+    def __init__(self, filename: str, buffer: bytes) -> None:
         self.filename = filename
-        self.mimetype = mimetype
-        self.virtual_file = VirtualFile(self.filename, mimetype, buffer)
+        self.virtual_file = VirtualFile(self.filename, buffer)
 
     def create(self, context: "RuntimeContext") -> None:
         context.virtual_file_registry.add(self.virtual_file)
