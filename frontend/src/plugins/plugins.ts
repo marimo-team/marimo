@@ -27,6 +27,7 @@ import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { DownloadPlugin } from "./layout/DownloadPlugin";
+import { ProgressPlugin } from "./layout/ProgressPlugin";
 
 // List of UI plugins
 const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -56,6 +57,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new DownloadPlugin(),
   new JsonOutputPlugin(),
   new TabsPlugin(),
+  new ProgressPlugin(),
   new TexPlugin(),
 ];
 
