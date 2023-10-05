@@ -29,6 +29,7 @@ __all__ = [
     "Html",
     "image",
     "left",
+    "loading",
     "md",
     "mpl",
     "output",
@@ -66,6 +67,7 @@ from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime import output
+from marimo._runtime import loading
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,

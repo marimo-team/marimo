@@ -24,7 +24,7 @@ interface Data {
   /**
    * The total value of the progress bar.
    */
-  total?: number;
+  total?: number | null;
 }
 
 export class ProgressPlugin implements IStatelessPlugin<Data> {
@@ -34,7 +34,7 @@ export class ProgressPlugin implements IStatelessPlugin<Data> {
     title: z.string().optional(),
     subtitle: z.string().optional(),
     progress: z.union([z.number(), z.boolean()]),
-    total: z.number().optional(),
+    total: z.number().nullish(),
   });
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {

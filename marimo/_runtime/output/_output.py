@@ -69,3 +69,15 @@ def append(value: object) -> None:
 def clear() -> None:
     """Clear a cell's output."""
     return replace(None)
+
+
+def flush() -> None:
+    """Internal function to re-render the cells output."""
+    ctx = get_context()
+    if ctx.kernel.execution_context is None:
+        return
+
+    write_internal(
+        cell_id=ctx.kernel.execution_context.cell_id,
+        value=vstack(ctx.kernel.execution_context.output),
+    )
