@@ -1,32 +1,33 @@
 # Copyright 2023 Marimo. All rights reserved.
-import sys
-
 from typing import Optional
 
-from marimo._output.rich_help import mddoc
 import marimo._runtime.output._output as output
-from marimo._runtime.context import get_context
 from marimo._output.hypertext import Html
+from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 
+
 class Progress(Html):
-    def __init__(self,
+    def __init__(
+        self,
         title: Optional[str],
         subtitle: Optional[str],
         total: Optional[int],
-        ) -> None:
+    ) -> None:
         self.title = title
         self.subtitle = subtitle
         self.total = total
         self.current = 0
+        # We show a loading spinner if total not known
         self.loading_spinner = total is None
         self._text = self._get_text()
 
-    def update(self,
-               increment: int = 1,
-               title: Optional[str] = None,
-               subtitle: Optional[str] = None,
-        ) -> None:
+    def update(
+        self,
+        increment: int = 1,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+    ) -> None:
         self.current += increment
         if title is not None:
             self.title = title
@@ -47,14 +48,17 @@ class Progress(Html):
     def _get_text(self) -> str:
         return build_stateless_plugin(
             component_name="marimo-progress",
-            args={
-                "title": self.title,
-                "subtitle": self.subtitle,
-                "total": self.total,
-                "progress": True if self.loading_spinner else self.current,
-            },
+            args=_remove_none_values(
+                {
+                    "title": self.title,
+                    "subtitle": self.subtitle,
+                    "total": self.total,
+                    # 'progress' is True is we don't know the total,
+                    # which shows a loading spinner
+                    "progress": True if self.loading_spinner else self.current,
+                }
+            ),
         )
-
 
 
 @mddoc
@@ -65,18 +69,23 @@ def start(
 ) -> Progress:
     """Create a new progress indicator.
 
-    Call `mo.loading.progress()` to create a progress indicator.
+    Call `mo.loading.start()` to create a progress indicator.
 
-    You can optionally pass a title, subtitle, and total number of steps to completion.
+    You can optionally pass a title, subtitle,
+    and total number of steps to completion.
 
     **Example.**
 
     ```python
-    progress = mo.loading.progress(
+    progress = mo.loading.start(
         title="Loading",
         subtitle="This may take a while...",
         total=100
     )
+
+    for i in range(100):
+        expensive_function()
+        progress.update()
     ```
 
     **Args:**
@@ -89,3 +98,6 @@ def start(
     output.append(progress)
     return progress
 
+
+def _remove_none_values(d: dict) -> dict:
+    return {k: v for k, v in d.items() if v is not None}

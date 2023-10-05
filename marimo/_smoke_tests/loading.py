@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.21"
@@ -33,6 +34,13 @@ def __(mo, time):
     time.sleep(1)
     progress2.clear()
     return progress2,
+
+
+@app.cell
+def __(mo):
+    # just spin
+    mo.loading.start()
+    return
 
 
 if __name__ == "__main__":
