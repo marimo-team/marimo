@@ -31,4 +31,5 @@ class VirtualFileHandler(tornado.web.RequestHandler):
         mimetype, _ = mimetypes.guess_type(filename)
         if mimetype is not None:
             self.set_header("Content-Type", mimetype)
+        self.set_header("Cache-Control", "max-age=86400")
         self.write(buffer_contents)
