@@ -48,10 +48,11 @@ jobs:
         run: pnpm run build
 
   test_python:
-    name: Tests on Ubuntu, Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.8", "3.9", "3.10"]
 
     steps:
