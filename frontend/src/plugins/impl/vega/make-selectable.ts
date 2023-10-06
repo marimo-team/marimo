@@ -94,16 +94,17 @@ function makeChartSelectable(
 
   const mark = Marks.getMarkType(spec.mark);
   const resolvedChartSelection =
-    chartSelection === true ? getBestSelectionForMark(mark) : chartSelection;
+    chartSelection === true ? getBestSelectionForMark(mark) : [chartSelection];
 
   if (!resolvedChartSelection) {
     return spec;
   }
 
-  const params =
-    resolvedChartSelection === "interval"
-      ? [Params.interval(mark)]
-      : [Params.point(mark)];
+  const params = resolvedChartSelection.map((selectionType) =>
+    selectionType === "interval"
+      ? Params.interval(mark)
+      : Params.point(mark)
+  );
 
   const nextParams = [...(spec.params || []), ...params];
 
@@ -129,16 +130,16 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   };
 }
 
-function getBestSelectionForMark(mark: Mark): SelectionType | undefined {
+function getBestSelectionForMark(mark: Mark): SelectionType[] | undefined {
   switch (mark) {
     case "text":
     case "arc":
     case "area":
-      return "point";
+      return ["point"];
     // there is no best selection for line
     case "line":
       return undefined;
     default:
-      return "interval";
+      return ["point", "interval"];
   }
 }

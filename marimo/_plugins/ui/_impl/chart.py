@@ -17,6 +17,7 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._utils import flatten
 
 LOGGER = _loggers.marimo_logger()
 
@@ -126,7 +127,8 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def _convert_value(self, value: ChartSelection) -> Any:
         self._chart_selection = value
-        if not value:
+        flat, _ = flatten.flatten(value)
+        if not value or not flat:
             import pandas as pd
 
             return pd.DataFrame()

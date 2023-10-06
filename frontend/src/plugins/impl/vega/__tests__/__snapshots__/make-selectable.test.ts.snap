@@ -102,6 +102,9 @@ exports[`makeSelectable > should return correctly if mark is a string 1`] = `
         "test": {
           "and": [
             {
+              "param": "select_point",
+            },
+            {
               "param": "select_interval",
             },
           ],
@@ -117,6 +120,16 @@ exports[`makeSelectable > should return correctly if mark is a string 1`] = `
     "type": "point",
   },
   "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "type": "point",
+      },
+    },
     {
       "name": "select_interval",
       "select": {
@@ -145,6 +158,9 @@ exports[`makeSelectable > should return correctly if mark is not string 1`] = `
         "test": {
           "and": [
             {
+              "param": "select_point",
+            },
+            {
               "param": "select_interval",
             },
           ],
@@ -160,6 +176,16 @@ exports[`makeSelectable > should return correctly if mark is not string 1`] = `
     "type": "point",
   },
   "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "type": "point",
+      },
+    },
     {
       "name": "select_interval",
       "select": {
@@ -203,6 +229,9 @@ exports[`makeSelectable > should return correctly if overlapping encodings 1`] =
               "param": "legend_selection_Origin",
             },
             {
+              "param": "select_point",
+            },
+            {
               "param": "select_interval",
             },
           ],
@@ -232,6 +261,16 @@ exports[`makeSelectable > should return correctly if overlapping encodings 1`] =
       "select": {
         "fields": [
           "Origin",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
         ],
         "type": "point",
       },
@@ -274,6 +313,9 @@ exports[`makeSelectable > should return correctly with multiple encodings 1`] = 
               "param": "legend_selection_sizeField",
             },
             {
+              "param": "select_point",
+            },
+            {
               "param": "select_interval",
             },
           ],
@@ -309,6 +351,16 @@ exports[`makeSelectable > should return correctly with multiple encodings 1`] = 
       "select": {
         "fields": [
           "sizeField",
+        ],
+        "type": "point",
+      },
+    },
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
         ],
         "type": "point",
       },
@@ -353,6 +405,9 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
         "test": {
           "and": [
             {
+              "param": "select_point",
+            },
+            {
               "param": "select_interval",
             },
           ],
@@ -376,6 +431,16 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
     "type": "point",
   },
   "params": [
+    {
+      "name": "select_point",
+      "select": {
+        "encodings": [
+          "x",
+          "y",
+        ],
+        "type": "point",
+      },
+    },
     {
       "name": "select_interval",
       "select": {
