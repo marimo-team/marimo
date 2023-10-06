@@ -30,6 +30,6 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
 
     A `VirtualFile` object.
     """
-    item = VirtualFileLifecycleItem(ext="pdf", buffer=data)
+    item = VirtualFileLifecycleItem(ext=ext, buffer=data)
     get_context().cell_lifecycle_registry.add(item)
     return item.virtual_file
