@@ -442,6 +442,7 @@ class dropdown(UIElement[List[str], Any]):
 
     - `value`: the selected value, or `None` if no selection
     - `options`: a dict mapping option name to option value
+    - `selected_key`: the selected option's key, or `None` if no selection
 
     **Initialization Args.**
 
