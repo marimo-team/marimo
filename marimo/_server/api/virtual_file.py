@@ -17,6 +17,7 @@ class VirtualFileHandler(tornado.web.RequestHandler):
 
     def get(self, filename: str) -> None:
         key = filename
+        shm = None
         try:
             # NB: this can't be collapsed into a one-liner!
             # doing it in one line yields a 'released memoryview ...'
@@ -28,6 +29,9 @@ class VirtualFileHandler(tornado.web.RequestHandler):
                 HTTPStatus.NOT_FOUND,
                 reason="File not found",
             ) from err
+        finally:
+            if shm is not None:
+                shm.close()
         mimetype, _ = mimetypes.guess_type(filename)
         if mimetype is not None:
             self.set_header("Content-Type", mimetype)

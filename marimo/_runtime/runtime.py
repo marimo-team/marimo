@@ -980,7 +980,7 @@ def launch_kernel(
                 raise MarimoInterrupt
 
         def sigterm_handler(signum: int, frame: Any) -> None:
-            """Cleans up the kernel ends exit."""
+            """Cleans up the kernel ands exit."""
             del signum
             del frame
 

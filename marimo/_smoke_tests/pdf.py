@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.18"
+__generated_with = "0.1.21"
 app = marimo.App(width="full")
 
 
@@ -50,6 +49,12 @@ def __(io, mo, page, requests):
     )
     pdf
     return downloaded, pdf
+
+
+@app.cell
+def __(pdf):
+    pdf
+    return
 
 
 @app.cell
