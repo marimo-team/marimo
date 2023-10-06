@@ -104,6 +104,25 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
+          <div>
+            <FormField
+              control={form.control}
+              name="save.format_on_save"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        return field.onChange(checked);
+                      }}
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal">Format on save</FormLabel>
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="completion.activate_on_typing"

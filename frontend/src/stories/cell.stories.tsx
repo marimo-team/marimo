@@ -49,6 +49,7 @@ const props: CellProps = {
     save: {
       autosave: "off",
       autosave_delay: 1000,
+      format_on_save: false,
     },
     runtime: {
       auto_instantiate: true,
