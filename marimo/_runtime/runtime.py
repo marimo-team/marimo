@@ -952,15 +952,12 @@ def launch_kernel(
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
-        try:
+        # TODO: windows workaround
+        if sys.platform != "win32":
             # Make this process group leader to prevent it from receiving
             # signals intended for the parent (server) process,
             # Ctrl+C in particular.
             os.setsid()
-        except Exception:
-            # Not supported on Windows.
-            # TODO(akshayka): Test/fix on Windows.
-            ...
 
         # kernels are processes in edit mode, and each process needs to
         # install the formatter import hooks

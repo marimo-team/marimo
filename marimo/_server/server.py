@@ -322,7 +322,8 @@ async def start_server(
                 subprocess.Popen(
                     ["xdg-open", url],
                     # don't forward signals: ctrl-c shouldn't kill the browser
-                    preexec_fn=os.setpgrp,
+                    # TODO: test/workaround on windows
+                    preexec_fn=os.setpgrp if sys.platform != "win32" else None,
                     stdout=devnull,
                     stderr=subprocess.STDOUT,
                 )
