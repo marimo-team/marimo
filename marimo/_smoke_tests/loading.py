@@ -18,7 +18,7 @@ def __(mo, time):
     )
 
     for i in range(10):
-        time.sleep(1)
+        time.sleep(.1)
         progress.update()
     return i, progress
 
@@ -53,7 +53,7 @@ def __(mo):
 
 @app.cell
 def __(mo, time):
-    mo.loading.start(title="Loading...")
+    mo.loading.spinner(title="Loading...")
     time.sleep(1)
     mo.ui.table([1, 2, 3])
     return
