@@ -36,9 +36,10 @@ VegaSpec = Dict[str, Any]
 
 @mddoc
 class chart(UIElement[ChartSelection, "pd.DataFrame"]):
-    """Render a Vega-Lite spec or Altair chart
+    """Make reactive charts with Altair
 
-    Use `mo.ui.chart` to render an interactive chart.
+    Use `mo.ui.chart` to make Altair charts reactive: select chart data points
+    with your cursor on the frontend, get it as a Pandas dataframe in Python!
 
     **Example.**
 
@@ -53,29 +54,31 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
         color='Origin',
     )
 
-    mo.ui.chart(chart)
+    chart = mo.ui.chart(chart)
+    ```
+
+    ```
+    # View the chart and selected data as a dataframe
+    mo.hstack([chart, chart.value])
     ```
 
     **Attributes.**
 
     - `value`: the data if the chart has any selections
-    - `selections`: the selection of the chart
-        this could be an interval along the name of an axis
-        or a selection of points
-    - `dataframe`: the data used to render the chart as a pandas DataFrame
+    - `selections`: the selection of the chart; this may be an interval along
+        the name of an axis or a selection of points
+    - `dataframe`: a Pandas dataframe of the unfiltered chart data
 
     **Initialization Args.**
 
-    - `spec`: the Vega-Lite chart specification
-    - `label`: optional text label for the element
+    - `chart`: An `altair.Chart` or a Vega-lite spec
     - `chart_selection`: optional selection type,
-        either `point` or `interval` or boolean.
-        defaults to `True` which will automatically detect
-        the best selection type.
-    - `field_selection`: optional list of fields to select,
-        either list of strings or boolean.
-        defaults to `True` which will automatically selects
-        all fields used in the chart
+        `"point"`, `"interval"`, or a bool; defaults to `True` which will
+        automatically detect the best selection type
+    - `field_selection`: optional list of fields (columns) for which to
+        enable selecton, `True` to enable selection for all legend items, or
+        `False` to disable selection entirely
+    - `label`: optional text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -83,7 +86,7 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def __init__(
         self,
-        spec: Union[str, altair.Chart, VegaSpec],
+        figure: Union[str, altair.Chart, VegaSpec],
         chart_selection: Union[
             Literal["point"], Literal["interval"], bool
         ] = True,
@@ -92,7 +95,7 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
-        vega_spec = _parse_spec(spec)
+        vega_spec = _parse_spec(figure)
         self.dataframe = _to_dataframe(vega_spec)
 
         if label:
@@ -123,7 +126,9 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def _convert_value(self, value: ChartSelection) -> Any:
         self._chart_selection = value
-        if value is None:
+        if not value:
+            import pandas as pd
+
             return pd.DataFrame()
         return _filter_dataframe(self.dataframe, value)
 

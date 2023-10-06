@@ -65,7 +65,7 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
             color="Origin",
         )
     )
-    chart1 = mo.ui.chart(
+    chart1 = mo.ui.plot(
         _chart.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -101,7 +101,7 @@ def __(alt, chart_selection_value, employment, field_selection_value, mo):
         )
     )
     # ).add_params(_selection)
-    chart2 = mo.ui.chart(
+    chart2 = mo.ui.plot(
         _chart,
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -141,7 +141,7 @@ def __(alt, chart_selection_value, field_selection_value, iris, mo):
         # .add_params(_color_sel, _size_sel)
     )
 
-    chart3 = mo.ui.chart(
+    chart3 = mo.ui.plot(
         _chart.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -205,7 +205,7 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
         .transform_filter(brush)
     )
     plot = points & bars
-    chart4 = mo.ui.chart(
+    chart4 = mo.ui.plot(
         plot.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
