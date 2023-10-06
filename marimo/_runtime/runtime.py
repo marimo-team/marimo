@@ -952,15 +952,12 @@ def launch_kernel(
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
-        try:
+        # TODO: windows workaround
+        if sys.platform != "win32":
             # Make this process group leader to prevent it from receiving
             # signals intended for the parent (server) process,
             # Ctrl+C in particular.
             os.setsid()
-        except Exception:
-            # Not supported on Windows.
-            # TODO(akshayka): Test/fix on Windows.
-            ...
 
         # kernels are processes in edit mode, and each process needs to
         # install the formatter import hooks
@@ -979,7 +976,21 @@ def launch_kernel(
                 Interrupted().broadcast()
                 raise MarimoInterrupt
 
+        def sigterm_handler(signum: int, frame: Any) -> None:
+            """Cleans up the kernel ands exit."""
+            del signum
+            del frame
+
+            get_context().virtual_file_registry.shutdown()
+            sys.exit(0)
+
         signal.signal(signal.SIGINT, interrupt_handler)
+
+        if sys.platform == "win32" or sys.platform == "cygwin":
+            # windows doesn't handle SIGTERM
+            signal.signal(signal.SIGBREAK, sigterm_handler)
+        else:
+            signal.signal(signal.SIGTERM, sigterm_handler)
 
     while True:
         try:
@@ -1014,3 +1025,4 @@ def launch_kernel(
             break
         else:
             raise ValueError(f"Unknown request {request}")
+    get_context().virtual_file_registry.shutdown()
