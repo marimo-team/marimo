@@ -4,6 +4,7 @@
 
 __all__ = [
     "start",
+    "spinner",
 ]
 
-from marimo._runtime.loading._loading import start
+from marimo._runtime.loading._loading import spinner, start

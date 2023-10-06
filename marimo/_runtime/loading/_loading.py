@@ -8,6 +8,8 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 
 
 class Progress(Html):
+    """A mutable class to represent a progress indicator in the UI."""
+
     def __init__(
         self,
         title: Optional[str],
@@ -28,6 +30,25 @@ class Progress(Html):
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
     ) -> None:
+        """Update the progress indicator.
+
+        **Example.**
+
+        ```python
+        # Increment by 1
+        mo.loading.update()
+
+        # Increment by 10 and update title and subtitle
+        mo.loading.update(10, title="Loading", subtitle="Still going...")
+
+        ```
+
+        **Args**
+
+        increment: amount to increment by. Defaults to 1.
+        title: new title. Defaults to None.
+        subtitle: new subtitle. Defaults to None.
+        """
         self.current += increment
         if title is not None:
             self.title = title
@@ -73,6 +94,8 @@ def start(
 
     You can optionally pass a title, subtitle,
     and total number of steps to completion.
+    Omitting the total number of steps will
+    show a loading spinner.
 
     **Example.**
 
@@ -93,10 +116,57 @@ def start(
     - `title`: optional title
     - `subtitle`: optional subtitle
     - `total`: optional total number of steps to completion
+        If omitted, a loading spinner will be shown.
     """
     progress = Progress(title=title, subtitle=subtitle, total=total)
     output.append(progress)
     return progress
+
+
+@mddoc
+def spinner(
+    title: Optional[str] = None, subtitle: Optional[str] = None
+) -> None:
+    """Show a loading spinner.
+
+    Call `mo.loading.spinner()` to show a loading spinner.
+    This is different than other UI elements in that it is immediately
+    shown in the UI and does not disappear until:
+    - It is replaced with `mo.output.replace()`
+    - It is cleared with `mo.output.clear()`
+    - A new element is returned in the final expression
+        of a cell automatically replacing it.
+
+    You can optionally pass a title.
+
+    **Example.**
+
+    ```python
+    mo.loading.spinner(subtitle="Loading data from the server...")
+
+    data = expensive_function()
+
+    mo.ui.table(data)
+    ```
+
+    **Args:**
+
+    - `title`: optional title
+    - `subtitle`: optional subtitle
+    """
+    element = Html(
+        build_stateless_plugin(
+            component_name="marimo-progress",
+            args=_remove_none_values(
+                {
+                    "title": title,
+                    "subtitle": subtitle,
+                    "progress": True,
+                }
+            ),
+        )
+    )
+    output.append(element)
 
 
 def _remove_none_values(d: dict) -> dict:
