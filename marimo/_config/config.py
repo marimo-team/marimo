@@ -113,7 +113,11 @@ class MarimoConfig(TypedDict, total=False):
 
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
-    "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": False},
+    "save": {
+        "autosave": "after_delay",
+        "autosave_delay": 1000,
+        "format_on_save": False,
+    },
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},
 }

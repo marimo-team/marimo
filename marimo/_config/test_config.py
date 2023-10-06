@@ -15,7 +15,11 @@ def test_configure_full() -> None:
     assert_config(
         MarimoConfig(
             completion={"activate_on_typing": False, "copilot": False},
-            save={"autosave": "after_delay", "autosave_delay": 2, "format_on_save": False},
+            save={
+                "autosave": "after_delay",
+                "autosave_delay": 2,
+                "format_on_save": False,
+            },
             keymap={"preset": "vim"},
         )
     )
