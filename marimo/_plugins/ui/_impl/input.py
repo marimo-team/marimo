@@ -456,6 +456,7 @@ class dropdown(UIElement[List[str], Any]):
     """
 
     _name: Final[str] = "marimo-dropdown"
+    _selected_key: Optional[str] = None
 
     def __init__(
         self,
@@ -476,7 +477,6 @@ class dropdown(UIElement[List[str], Any]):
             )
 
         self.options = options
-        self._selected_key = None
         initial_value = [value] if value is not None else []
         if allow_select_none is None:
             allow_select_none = value is None
