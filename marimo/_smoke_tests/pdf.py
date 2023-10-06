@@ -58,11 +58,5 @@ def __(pdf):
     return
 
 
-@app.cell
-def __(pdf):
-    pdf
-    return
-
-
 if __name__ == "__main__":
     app.run()

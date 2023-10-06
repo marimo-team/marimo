@@ -67,10 +67,9 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
                 "This is a bug in marimo. Please file an issue."
             )
         self._virtual_file = VirtualFile(filename, self.buffer)
-        context.virtual_file_registry.add(filename, self.virtual_file)
+        context.virtual_file_registry.add(self._virtual_file)
 
     def dispose(self, context: "RuntimeContext") -> None:
-        assert self.virtual_file is None
         context.virtual_file_registry.remove(self.virtual_file)
 
 
@@ -86,8 +85,8 @@ class VirtualFileRegistry:
     def has(self, filename: str) -> bool:
         return filename in self.registry
 
-    def add(self, filename: str, virtual_file: VirtualFile) -> None:
-        key = filename
+    def add(self, virtual_file: VirtualFile) -> None:
+        key = virtual_file.filename
         if key in self.registry:
             LOGGER.debug(
                 "Virtual file (key=%s) already registered", virtual_file
@@ -113,11 +112,13 @@ class VirtualFileRegistry:
             size=len(buffer),
         )
         shm.buf[: len(buffer)] = buffer
+        # we can safely close this shm, since we don't need to access its
+        # buffer; we do need to keep it around so we can unlink it later
         shm.close()
         self.registry[key] = shm
 
-    def remove(self, filename: str) -> None:
-        key = filename
+    def remove(self, virtual_file: VirtualFile) -> None:
+        key = virtual_file.filename
         if key in self.registry:
             # destroy the shared memory
             self.registry[key].unlink()
