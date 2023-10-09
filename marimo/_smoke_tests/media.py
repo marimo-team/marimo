@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.4"
+__generated_with = "0.1.22"
 app = marimo.App()
 
 
@@ -23,7 +23,7 @@ def __(mo):
 @app.cell
 def __(mic, mo):
     mo.hstack(
-        [mo.audio(mic.value), mo.download(data=mic.value, mimetype="audio/wav")]
+        [mo.audio(mic.value), mo.download(data=mic.value, mimetype="audio/x-wav")]
     )
     return
 

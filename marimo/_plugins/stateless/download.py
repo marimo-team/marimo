@@ -4,12 +4,13 @@ from __future__ import annotations
 import io
 from typing import Optional, Union
 
+import marimo._output.data.data as mo_data
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.media import (
     guess_mime_type,
-    io_to_data_url,
     is_data_empty,
+    mime_type_to_ext,
 )
 from marimo._plugins.core.web_component import build_stateless_plugin
 
@@ -59,20 +60,16 @@ def download(
     resolved_mimetype = (
         mimetype or guess_mime_type(name_for_mime) or "text/plain"
     )
+    ext = mime_type_to_ext(resolved_mimetype) or "txt"
     disabled = disabled or is_data_empty(data)
-
-    # TODO: for large files or external URLs, we should create a
-    # temporary file URL at /api/kernel/download/<resource_id> that
-    # the frontend can use to download the file. This will
-    # lazily read the file and avoid loading it into memory.
+    # create a virtual file to avoid loading the data in the browser
+    file = mo_data.any(data, ext=ext)
 
     return Html(
         build_stateless_plugin(
             component_name="marimo-download",
             args={
-                "data": io_to_data_url(
-                    data, fallback_mime_type=resolved_mimetype
-                ),
+                "data": file.url,
                 "filename": filename,
                 "disabled": disabled,
                 "label": label,

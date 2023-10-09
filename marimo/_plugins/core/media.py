@@ -22,6 +22,10 @@ def guess_mime_type(src: Union[str, bytes, io.BytesIO, None]) -> Optional[str]:
     return None
 
 
+def mime_type_to_ext(mime_type: str) -> Optional[str]:
+    return mimetypes.guess_extension(mime_type, strict=False)
+
+
 def io_to_data_url(
     src: Union[str, bytes, io.BytesIO, None], fallback_mime_type: str
 ) -> Optional[str]:
