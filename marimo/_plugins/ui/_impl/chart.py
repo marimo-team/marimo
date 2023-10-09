@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -113,6 +114,14 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
             if "autosize" not in vega_spec:
                 vega_spec["autosize"] = "fit-x"
 
+        # If is bin, show a warning
+        if _has_binning(vega_spec):
+            sys.stderr.write(
+                "Binning + selection is not yet supported marimo.ui.chart.\n"
+                "Please file an issue: https://github.com/marimo-team/marimo/issues\n"
+                "In the meantime, use `pd.cut` to bin data in Python.\n"
+            )
+
         super().__init__(
             component_name="marimo-vega",
             initial_value={},
@@ -134,6 +143,7 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
             return pd.DataFrame()
         return _filter_dataframe(self.dataframe, value)
 
+    @property
     def selections(self) -> ChartSelection:
         return self._chart_selection
 
@@ -187,13 +197,25 @@ def _filter_dataframe(
         # otherwise, it is an interval selection
         is_point_selection = "vlPoint" in fields
         for field, values in fields.items():
-            # Skip vlPoint field
-            if field == "vlPoint":
+            # Skip vlPoint and _vgsid_ field
+            if field == "vlPoint" or field == "_vgsid_":
                 continue
             if is_point_selection:
                 df = df[df[field].isin(values)]
-            else:
+            elif len(values) == 1:
+                df = df[df[field] == values[0]]
+            # Range selection
+            elif len(values) == 2 and isinstance(values[0], (int, float)):
                 df = df[(df[field] >= values[0]) & (df[field] <= values[1])]
+            # Multi-selection via range
+            # This can happen when you use an interval selection
+            # on categorical data
+            elif len(values) > 1:
+                df = df[df[field].isin(values)]
+            else:
+                raise ValueError(
+                    f"Invalid selection: {field}={values}"
+                ) from None
     return df
 
 
@@ -219,3 +241,12 @@ def _parse_spec(spec: Union[str, altair.Chart, VegaSpec]) -> VegaSpec:
         raise ValueError(f"Invalid Vega-Lite spec: {spec}") from err
 
     raise ValueError("Invalid Vega-Lite spec") from None
+
+def _has_binning(spec: VegaSpec) -> bool:
+    """Return True if the spec has binning."""
+    if "encoding" not in spec:
+        return False
+    for encoding in spec["encoding"].values():
+        if "bin" in encoding:
+            return True
+    return False

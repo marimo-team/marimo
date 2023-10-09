@@ -1,9 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { Marks } from "./marks";
 import {
   Mark,
   SelectionParameter,
   SingleDefUnitChannel,
   VegaLiteSpec,
+  VegaLiteUnitSpec,
 } from "./types";
 
 const ParamNames = {
@@ -19,12 +21,12 @@ export const Params = {
       select: { type: "point", on: "mouseover" },
     };
   },
-  interval(mark: Mark): SelectionParameter<"interval"> {
+  interval(spec: VegaLiteUnitSpec): SelectionParameter<"interval"> {
     return {
       name: `${ParamNames.SELECT}_interval`,
       select: {
         type: "interval",
-        encodings: ENCODING_AXIS_FOR_MARK[mark],
+        encodings: getEncodingAxisForMark(spec),
         mark: {
           fill: "#669EFF",
           fillOpacity: 0.07,
@@ -34,12 +36,12 @@ export const Params = {
       },
     };
   },
-  point(mark: Mark): SelectionParameter<"point"> {
+  point(spec: VegaLiteUnitSpec): SelectionParameter<"point"> {
     return {
       name: `${ParamNames.SELECT}_point`,
       select: {
         type: "point",
-        encodings: ENCODING_AXIS_FOR_MARK[mark],
+        encodings: getEncodingAxisForMark(spec),
       },
     };
   },
@@ -55,23 +57,37 @@ export const Params = {
   },
 };
 
-const ENCODING_AXIS_FOR_MARK: Record<Mark, SingleDefUnitChannel[] | undefined> =
-  {
-    arc: ["color"],
-    image: undefined,
-    trail: undefined,
-    area: ["color"],
-    bar: ["x"],
-    circle: ["x", "y"],
-    geoshape: ["x", "y"],
-    line: ["x", "y"],
-    point: ["x", "y"],
-    rect: ["x", "y"],
-    rule: ["x", "y"],
-    square: ["x", "y"],
-    text: ["x", "y"],
-    tick: ["x", "y"],
-  };
+export function getEncodingAxisForMark(
+  spec: VegaLiteUnitSpec
+): SingleDefUnitChannel[] | undefined {
+  const mark = Marks.getMarkType(spec.mark);
+  switch (mark) {
+    case Mark.image:
+    case Mark.trail:
+      return undefined;
+    case Mark.area:
+    case Mark.arc:
+      return ["color"];
+    case Mark.bar: {
+      const direction = getDirectionOfBar(spec);
+      return direction === "horizontal"
+        ? ["y"]
+        : direction === "vertical"
+        ? ["x"]
+        : undefined;
+    }
+    case Mark.circle:
+    case Mark.geoshape:
+    case Mark.line:
+    case Mark.point:
+    case Mark.rect:
+    case Mark.rule:
+    case Mark.square:
+    case Mark.text:
+    case Mark.tick:
+      return ["x", "y"];
+  }
+}
 
 export function getSelectionParamNames(spec: VegaLiteSpec): string[] {
   const params = spec.params;
@@ -85,4 +101,36 @@ export function getSelectionParamNames(spec: VegaLiteSpec): string[] {
       });
   }
   return [];
+}
+
+/**
+ * Returns the direction of the bar chart.
+ */
+export function getDirectionOfBar(
+  spec: VegaLiteUnitSpec
+): "horizontal" | "vertical" | undefined {
+  if (!spec || !("mark" in spec)) {
+    return undefined;
+  }
+
+  const xEncoding = spec.encoding?.x;
+  const yEncoding = spec.encoding?.y;
+
+  if (xEncoding && "type" in xEncoding && xEncoding.type === "nominal") {
+    return "vertical";
+  }
+
+  if (yEncoding && "type" in yEncoding && yEncoding.type === "nominal") {
+    return "horizontal";
+  }
+
+  if (xEncoding && "aggregate" in xEncoding) {
+    return "horizontal";
+  }
+
+  if (yEncoding && "aggregate" in yEncoding) {
+    return "vertical";
+  }
+
+  return undefined;
 }

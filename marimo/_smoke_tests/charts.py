@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.21"
+__generated_with = "0.1.22"
 app = marimo.App(width="full")
 
 
@@ -65,7 +64,7 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
             color="Origin",
         )
     )
-    chart1 = mo.ui.plot(
+    chart1 = mo.ui.chart(
         _chart.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -101,7 +100,7 @@ def __(alt, chart_selection_value, employment, field_selection_value, mo):
         )
     )
     # ).add_params(_selection)
-    chart2 = mo.ui.plot(
+    chart2 = mo.ui.chart(
         _chart,
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -141,7 +140,7 @@ def __(alt, chart_selection_value, field_selection_value, iris, mo):
         # .add_params(_color_sel, _size_sel)
     )
 
-    chart3 = mo.ui.plot(
+    chart3 = mo.ui.chart(
         _chart.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -205,7 +204,7 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
         .transform_filter(brush)
     )
     plot = points & bars
-    chart4 = mo.ui.plot(
+    chart4 = mo.ui.chart(
         plot.to_json(),
         chart_selection=chart_selection_value,
         field_selection=field_selection_value,
@@ -222,6 +221,126 @@ def __(mo):
 @app.cell
 def __(chart4, mo):
     mo.vstack([chart4, chart4.value.head(10)])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Bar chart")
+    return
+
+
+@app.cell
+def __(alt, data, mo):
+    binned = mo.ui.chart(alt.Chart(data.cars()).mark_bar().encode(
+        x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()"
+    ))
+    return binned,
+
+
+@app.cell
+def __(alt, cars, mo):
+    mean = mo.ui.chart(alt.Chart(cars).mark_bar().encode(
+        x='Cylinders:O',
+        y='mean(Acceleration):Q',
+    ))
+    return mean,
+
+
+@app.cell
+def __(mean, mo):
+    mo.vstack([mean, mean.value])
+    return
+
+
+@app.cell
+def __(alt, data, mo):
+    hist = alt.Chart(data.cars()).mark_bar().encode(
+        x=alt.X("Miles_per_Gallon:Q"), y="count()"
+    )
+    hist = mo.ui.chart(hist)
+    return hist,
+
+
+@app.cell
+def __(hist, mo):
+    mo.vstack([hist, hist.value])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Pivot and horizontal bar chart")
+    return
+
+
+@app.cell
+def __(alt, mo, pd):
+    df = pd.DataFrame.from_records([
+        {"country": "Norway", "type": "gold", "count": 14},
+        {"country": "Norway", "type": "silver", "count": 14},
+        {"country": "Norway", "type": "bronze", "count": 11},
+        {"country": "Germany", "type": "gold", "count": 14},
+        {"country": "Germany", "type": "silver", "count": 10},
+        {"country": "Germany", "type": "bronze", "count": 7},
+        {"country": "Canada", "type": "gold", "count": 11},
+        {"country": "Canada", "type": "silver", "count": 8},
+        {"country": "Canada", "type": "bronze", "count": 10}
+    ])
+
+    pivot = mo.ui.chart(alt.Chart(df).transform_pivot(
+        'type',
+        groupby=['country'],
+        value='count'
+    ).mark_bar().encode(
+        x='gold:Q',
+        y='country:N',
+    ))
+    return df, pivot
+
+
+@app.cell
+def __(mo, pivot):
+    mo.vstack([pivot, pivot.value.head()])
+    return
+
+
+@app.cell
+def __(alt, data, mo):
+    _source = data.population.url
+
+    horizontal_bar = mo.ui.chart(alt.Chart(_source).mark_bar().encode(
+        alt.X("sum(people):Q").title("Population"),
+        alt.Y("age:O"),
+    ).transform_filter(
+        alt.datum.year == 2000
+    ).properties(height=alt.Step(20)))
+    return horizontal_bar,
+
+
+@app.cell
+def __(horizontal_bar, mo):
+    mo.vstack([horizontal_bar, horizontal_bar.value.head()])
+    return
+
+
+@app.cell
+def __(alt, mo, pd):
+    _source = pd.DataFrame({
+        "category": [1, 2, 3, 4, 5, 6],
+        "value": [4, 6, 10, 3, 7, 8]
+    })
+
+    pie = mo.ui.chart(alt.Chart(_source).mark_arc(innerRadius=50).encode(
+        theta="value",
+        color="category:N",
+    ))
+    return pie,
+
+
+@app.cell
+def __(mo, pie):
+    mo.vstack([pie, pie.value])
     return
 
 

@@ -7,7 +7,7 @@ import type { Encoding } from "vega-lite/build/src/encoding";
 import type { Field } from "vega-lite/build/src/channeldef";
 
 export type { SharedCompositeEncoding } from "vega-lite/build/src/compositemark";
-export type { AnyMark } from "vega-lite/build/src/mark";
+export type { AnyMark, MarkDef } from "vega-lite/build/src/mark";
 export { Mark } from "vega-lite/build/src/mark";
 export type { TopLevelSpec as VegaLiteSpec } from "vega-lite";
 export { type Field } from "vega-lite/build/src/channeldef";

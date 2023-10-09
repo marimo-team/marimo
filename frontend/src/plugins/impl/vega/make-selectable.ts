@@ -101,9 +101,7 @@ function makeChartSelectable(
   }
 
   const params = resolvedChartSelection.map((selectionType) =>
-    selectionType === "interval"
-      ? Params.interval(mark)
-      : Params.point(mark)
+    selectionType === "interval" ? Params.interval(spec) : Params.point(spec)
   );
 
   const nextParams = [...(spec.params || []), ...params];
@@ -126,7 +124,11 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   return {
     ...spec,
     mark: Marks.makeClickable(spec.mark),
-    encoding: makeEncodingInteractive("color", prevEncodings || {}, paramNames),
+    encoding: makeEncodingInteractive(
+      "opacity",
+      prevEncodings || {},
+      paramNames
+    ),
   };
 }
 
