@@ -432,7 +432,7 @@ class dropdown(UIElement[List[str], Any]):
 
     ```python
     dropdown = mo.ui.dropdown(
-      options={'one': 1, 'two': 2, 'three': 3],
+      options={'one': 1, 'two': 2, 'three': 3},
       value='one',
       label='pick a number'
     )
@@ -442,6 +442,7 @@ class dropdown(UIElement[List[str], Any]):
 
     - `value`: the selected value, or `None` if no selection
     - `options`: a dict mapping option name to option value
+    - `selected_key`: the selected option's key, or `None` if no selection
 
     **Initialization Args.**
 
@@ -456,6 +457,7 @@ class dropdown(UIElement[List[str], Any]):
     """
 
     _name: Final[str] = "marimo-dropdown"
+    _selected_key: Optional[str] = None
 
     def __init__(
         self,
@@ -499,9 +501,16 @@ class dropdown(UIElement[List[str], Any]):
     def _convert_value(self, value: list[str]) -> Any:
         if value:
             assert len(value) == 1
+            self._selected_key = value[0]
             return self.options[value[0]]
         else:
+            self._selected_key = None
             return None
+
+    @property
+    def selected_key(self) -> Optional[str]:
+        """The selected option's key, or `None` if no selection."""
+        return self._selected_key
 
 
 @mddoc

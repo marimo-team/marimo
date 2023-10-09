@@ -104,6 +104,8 @@ select = [
     "A001",
     # flake8 builtin-argument-shadowing
     "A002",
+    # flake8-unused-arguments
+    "ARG",
     # flake8-bugbear
     "B",
     # future annotations
