@@ -117,9 +117,12 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
         # If is bin, show a warning
         if _has_binning(vega_spec):
             sys.stderr.write(
-                "Binning + selection is not yet supported marimo.ui.chart.\n"
-                "Please file an issue: https://github.com/marimo-team/marimo/issues\n"
-                "In the meantime, use `pd.cut` to bin data in Python.\n"
+                "Binning + selection is not yet supported in "
+                "marimo.ui.chart.\n"
+                "Please file an issue: "
+                "https://github.com/marimo-team/marimo/issues\n"
+                "In the meantime, use `pd.cut` to bin data in Python "
+                "before creating the chart.\n"
             )
 
         super().__init__(
@@ -241,6 +244,7 @@ def _parse_spec(spec: Union[str, altair.Chart, VegaSpec]) -> VegaSpec:
         raise ValueError(f"Invalid Vega-Lite spec: {spec}") from err
 
     raise ValueError("Invalid Vega-Lite spec") from None
+
 
 def _has_binning(spec: VegaSpec) -> bool:
     """Return True if the spec has binning."""
