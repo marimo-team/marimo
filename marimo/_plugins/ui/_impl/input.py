@@ -57,9 +57,9 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `debounce`: whether to debounce (rate-limit) value
         updates from the frontend
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-number"
@@ -73,8 +73,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         debounce: bool = False,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
+        full_width: bool = False,
     ) -> None:
         value = start if value is None else value
         if stop < start:
@@ -333,9 +333,9 @@ class text(UIElement[str, str]):
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-text"
@@ -349,8 +349,8 @@ class text(UIElement[str, str]):
         disabled: bool = False,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[str], None]] = None,
+        full_width: bool = False,
     ) -> None:
         super().__init__(
             component_name=text._name,
@@ -392,9 +392,9 @@ class text_area(UIElement[str, str]):
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-text-area"
@@ -407,8 +407,8 @@ class text_area(UIElement[str, str]):
         disabled: bool = False,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[str], None]] = None,
+        full_width: bool = False,
     ) -> None:
         super().__init__(
             component_name=text_area._name,
@@ -456,8 +456,6 @@ class dropdown(UIElement[List[str], Any]):
     - `options`: a dict mapping option name to option value
     - `selected_key`: the selected option's key, or `None` if no selection
 
-    - `full_width`: whether the input should take up the full width of its
-        container
     **Initialization Args.**
 
     - `options`: sequence of text options, or dict mapping option name
@@ -468,6 +466,8 @@ class dropdown(UIElement[List[str], Any]):
                            `value` is `None`
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
+    - `full_width`: whether the input should take up the full width of its
+        container
     """
 
     _name: Final[str] = "marimo-dropdown"
@@ -480,8 +480,8 @@ class dropdown(UIElement[List[str], Any]):
         allow_select_none: Optional[bool] = None,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[Any], None]] = None,
+        full_width: bool = False,
     ) -> None:
         if not isinstance(options, dict):
             options = {option: option for option in options}
@@ -548,8 +548,6 @@ class multiselect(UIElement[List[str], List[object]]):
     - `value`: the selected values, or `None` if no selection
     - `options`: a dict mapping option name to option value
 
-    - `full_width`: whether the input should take up the full width of its
-        container
     **Initialization Args.**
 
     - `options`: sequence of text options, or dict mapping option name
@@ -557,6 +555,8 @@ class multiselect(UIElement[List[str], List[object]]):
     - `value`: a list of initially selected options
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
+    - `full_width`: whether the input should take up the full width of its
+        container
     """
 
     _name: Final[str] = "marimo-multiselect"
@@ -567,8 +567,8 @@ class multiselect(UIElement[List[str], List[object]]):
         value: Optional[Sequence[str]] = None,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[List[object]], None]] = None,
+        full_width: bool = False,
     ) -> None:
         if not isinstance(options, dict):
             options = {option: option for option in options}
@@ -732,9 +732,9 @@ class button(UIElement[Any, Any]):
     - `kind`: 'neutral', 'success', 'warn', or 'danger'
     - `disabled`: whether the button is disabled
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-button"
@@ -747,8 +747,8 @@ class button(UIElement[Any, Any]):
         disabled: bool = False,
         *,
         label: str = "click here",
-        full_width: bool = False,
         on_change: Optional[Callable[[Any], None]] = None,
+        full_width: bool = False,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
@@ -952,9 +952,9 @@ class date(UIElement[str, dt.date]):
         - else if `None` and `start` is not `None`, defaults to `start`;
         - else if `None` and `stop` is not `None`, defaults to `stop`
     - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
-    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-date-picker"
@@ -968,8 +968,8 @@ class date(UIElement[str, dt.date]):
         value: Optional[dt.date | str] = None,
         *,
         label: str = "",
-        full_width: bool = False,
         on_change: Optional[Callable[[dt.date], None]] = None,
+        full_width: bool = False,
     ) -> None:
         if isinstance(start, str):
             start = self._convert_value(start)
