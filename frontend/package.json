@@ -75,7 +75,7 @@
     "js-cookie": "^3.0.5",
     "katex": "^0.16.9",
     "lucide-react": "^0.284.0",
-    "partysocket": "0.0.8",
+    "partysocket": "0.0.9",
     "react-day-picker": "^8.8.2",
     "react-dropzone": "^14.2.3",
     "react-error-boundary": "^4.0.11",
