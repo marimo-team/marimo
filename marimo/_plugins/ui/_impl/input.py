@@ -328,6 +328,8 @@ class text(UIElement[str, str]):
         defaults to `"text"`
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `full_width`: whether the input should take up the full width of its
+        container
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -341,6 +343,7 @@ class text(UIElement[str, str]):
         kind: Literal["text", "password", "email", "url"] = "text",
         max_length: Optional[int] = None,
         disabled: bool = False,
+        full_width: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[str], None]] = None,
@@ -353,6 +356,7 @@ class text(UIElement[str, str]):
                 "placeholder": placeholder,
                 "kind": kind,
                 "max-length": max_length,
+                "full-width": full_width,
                 "disabled": disabled,
             },
             on_change=on_change,
