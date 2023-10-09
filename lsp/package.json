@@ -11,7 +11,7 @@
   "devDependencies": {
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
     "@types/minimist": "^1.2.3",
-    "@types/node": "^20.8.0",
+    "@types/node": "^20.8.3",
     "@types/ws": "^8.5.6",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
