@@ -19,14 +19,9 @@ export const ErrorsPanel: React.FC = () => {
           <div className="text-sm font-semibold bg-muted border-y px-2 py-1">
             Cell {error.cellId}
           </div>
-          {errors.map((error) => (
-            <div key={error.cellId} className="px-2">
-              <MarimoErrorOutput
-                key={error.cellId}
-                errors={error.output.data}
-              />
-            </div>
-          ))}
+          <div key={error.cellId} className="px-2">
+            <MarimoErrorOutput key={error.cellId} errors={error.output.data} />
+          </div>
         </div>
       ))}
     </div>
