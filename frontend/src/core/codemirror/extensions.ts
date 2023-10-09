@@ -88,7 +88,7 @@ export function scrollActiveLineIntoView() {
         const activeLine = activeLines[0] as HTMLElement;
         smartScrollIntoView(activeLine, {
           top: 30,
-          bottom: 90,
+          bottom: 120,
         });
       }
     }

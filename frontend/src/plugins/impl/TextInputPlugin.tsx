@@ -19,6 +19,7 @@ interface Data {
   maxLength?: number;
   minLength?: number;
   disabled?: boolean;
+  fullWidth: boolean;
 }
 
 export class TextInputPlugin implements IPlugin<T, Data> {
@@ -31,6 +32,7 @@ export class TextInputPlugin implements IPlugin<T, Data> {
     kind: z.enum(["text", "password", "email", "url"]).default("text"),
     maxLength: z.number().optional(),
     minLength: z.number().optional(),
+    fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
   });
 
@@ -70,7 +72,7 @@ const TextComponent = (props: TextComponentProps) => {
   ) : null;
 
   return (
-    <Labeled label={props.label}>
+    <Labeled label={props.label} fullWidth={props.fullWidth}>
       <Input
         type={props.kind}
         icon={icon[props.kind]}
@@ -81,6 +83,7 @@ const TextComponent = (props: TextComponentProps) => {
         disabled={props.disabled}
         className={cn({
           "border-destructive": !isValid,
+          "w-full": props.fullWidth,
         })}
         endAdornment={endAdornment}
         value={props.value}

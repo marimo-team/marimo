@@ -9,6 +9,7 @@ interface Props {
   className?: string;
   labelClassName?: string;
   id?: string;
+  fullWidth?: boolean;
   /**
    * Align the label to the top, left, or right of the component.
    * @default "left"
@@ -25,8 +26,13 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
   align = "left",
   className,
   labelClassName,
+  fullWidth,
   id,
 }) => {
+  // If fullWidth is true, force align to be "top"
+  if (fullWidth) {
+    align = "top";
+  }
   if (!label) {
     // If its a top label, just return the children
     if (align === "top") {
@@ -47,9 +53,10 @@ export const Labeled: React.FC<PropsWithChildren<Props>> = ({
       className={cn(
         "mo-label inline-flex",
         "pt-0 pb-0 pl-0",
-        align === "top" && "flex-col items-start gap-y-3",
+        align === "top" && "flex-col items-start gap-y-2",
         align === "left" && "flex-row items-center gap-x-1.5 pr-2",
         align === "right" && "flex-row-reverse items-center gap-x-1.5 pr-2",
+        fullWidth && "block space-y-2",
         className
       )}
     >
