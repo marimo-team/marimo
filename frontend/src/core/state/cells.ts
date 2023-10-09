@@ -410,6 +410,22 @@ export const getAllEditorViews = () => {
     .flatMap((x) => (x ? [x] : []));
 };
 
+export const cellErrors = atom((get) => {
+  const errors = get(cellsAtom)
+    .present.map((cell) =>
+      cell.output?.mimetype === "application/vnd.marimo+error"
+        ? {
+            output: cell.output,
+            cellId: cell.key,
+          }
+        : null
+    )
+    .filter(Boolean);
+  return errors;
+});
+
+export const cellErrorCount = atom((get) => get(cellErrors).length);
+
 /**
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.

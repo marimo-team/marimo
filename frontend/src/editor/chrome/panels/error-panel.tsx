@@ -1,25 +1,32 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React from "react";
-import { useCells } from "../../../core/state/cells";
+import { cellErrors } from "../../../core/state/cells";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
+import { useAtomValue } from "jotai";
 
-export const ErrorsPanel: React.FC = (props) => {
-  const cells = useCells();
-  const errors = cells.present
-    .map((cell) =>
-      cell.output?.mimetype === "application/vnd.marimo+error"
-        ? {
-            output: cell.output,
-            cellId: cell.key,
-          }
-        : null
-    )
-    .filter(Boolean);
+export const ErrorsPanel: React.FC = () => {
+  const errors = useAtomValue(cellErrors);
+
+  if (errors.length === 0) {
+    // TODO: show an empty state
+    return null;
+  }
+
   return (
-    <div className="flex flex-col gap-3 px-2">
+    <div className="flex flex-col overflow-auto">
       {errors.map((error) => (
         <div key={error.cellId}>
-          <MarimoErrorOutput key={error.cellId} errors={error.output.data} />
+          <div className="text-sm font-semibold bg-muted border-y px-2 py-1">
+            Cell {error.cellId}
+          </div>
+          {errors.map((error) => (
+            <div key={error.cellId} className="px-2">
+              <MarimoErrorOutput
+                key={error.cellId}
+                errors={error.output.data}
+              />
+            </div>
+          ))}
         </div>
       ))}
     </div>
