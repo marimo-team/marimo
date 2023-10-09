@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.22"
@@ -14,7 +13,7 @@ def __():
 @app.cell
 def __(mo):
     checkbox = mo.ui.checkbox(label="Full width")
-    checkbox
+    checkbox.callout()
     return checkbox,
 
 
@@ -64,6 +63,15 @@ def __(checkbox, mo):
 def __(checkbox, mo):
     # Is this the behavior we want?
     mo.hstack([
+        mo.ui.text(label="Input A", full_width=checkbox.value),
+        mo.ui.text(label="Input B", full_width=checkbox.value)
+    ])
+    return
+
+
+@app.cell
+def __(checkbox, mo):
+    mo.vstack([
         mo.ui.text(label="Input A", full_width=checkbox.value),
         mo.ui.text(label="Input B", full_width=checkbox.value)
     ])
