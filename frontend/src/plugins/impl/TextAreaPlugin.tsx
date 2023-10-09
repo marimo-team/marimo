@@ -4,6 +4,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Textarea } from "../../components/ui/textarea";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/lib/utils";
 
 type T = string;
 
@@ -13,6 +14,7 @@ interface Data {
   maxLength?: number;
   minLength?: number;
   disabled?: boolean;
+  fullWidth: boolean;
 }
 
 export class TextAreaPlugin implements IPlugin<T, Data> {
@@ -25,6 +27,7 @@ export class TextAreaPlugin implements IPlugin<T, Data> {
     maxLength: z.number().optional(),
     minLength: z.number().optional(),
     disabled: z.boolean().optional(),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -51,9 +54,11 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
   ) : null;
 
   return (
-    <Labeled label={props.label} align="top">
+    <Labeled label={props.label} align="top" fullWidth={props.fullWidth}>
       <Textarea
-        className="font-code"
+        className={cn("font-code", {
+          "w-full": props.fullWidth,
+        })}
         rows={5}
         cols={33}
         maxLength={props.maxLength}

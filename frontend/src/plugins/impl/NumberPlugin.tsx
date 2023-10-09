@@ -6,6 +6,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 import { Input } from "../../components/ui/input";
 import { Labeled } from "./common/labeled";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
+import { cn } from "@/lib/utils";
 
 type T = number;
 
@@ -15,6 +16,7 @@ interface Data {
   step?: T;
   label: string | null;
   debounce: boolean;
+  fullWidth: boolean;
 }
 
 export class NumberPlugin implements IPlugin<T, Data> {
@@ -27,6 +29,7 @@ export class NumberPlugin implements IPlugin<T, Data> {
     stop: z.number(),
     step: z.number().optional(),
     debounce: z.boolean().default(false),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -58,9 +61,9 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
   });
 
   return (
-    <Labeled label={props.label} id={id}>
+    <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Input
-        className="min-w-[3em]"
+        className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         ref={inputRef}
         type="number"
         min={props.start}

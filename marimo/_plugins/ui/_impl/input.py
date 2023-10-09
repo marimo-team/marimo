@@ -57,6 +57,8 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
     - `debounce`: whether to debounce (rate-limit) value
         updates from the frontend
     - `label`: text label for the element
+    - `full_width`: whether the input should take up the full width of its
+        container
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -71,6 +73,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
         debounce: bool = False,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
     ) -> None:
         value = start if value is None else value
@@ -100,6 +103,7 @@ class number(UIElement[Optional[Numeric], Optional[Numeric]]):
                 "stop": stop,
                 "step": step if step is not None else None,
                 "debounce": debounce,
+                "full-width": full_width,
             },
             on_change=on_change,
         )
@@ -328,9 +332,9 @@ class text(UIElement[str, str]):
         defaults to `"text"`
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
+    - `label`: text label for the element
     - `full_width`: whether the input should take up the full width of its
         container
-    - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -343,9 +347,9 @@ class text(UIElement[str, str]):
         kind: Literal["text", "password", "email", "url"] = "text",
         max_length: Optional[int] = None,
         disabled: bool = False,
-        full_width: bool = False,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(
@@ -388,6 +392,8 @@ class text_area(UIElement[str, str]):
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
     - `label`: text label for the element
+    - `full_width`: whether the input should take up the full width of its
+        container
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -401,6 +407,7 @@ class text_area(UIElement[str, str]):
         disabled: bool = False,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(
@@ -411,6 +418,7 @@ class text_area(UIElement[str, str]):
                 "placeholder": placeholder,
                 "max-length": max_length,
                 "disabled": disabled,
+                "full-width": full_width,
             },
             on_change=on_change,
         )
@@ -448,6 +456,8 @@ class dropdown(UIElement[List[str], Any]):
     - `options`: a dict mapping option name to option value
     - `selected_key`: the selected option's key, or `None` if no selection
 
+    - `full_width`: whether the input should take up the full width of its
+        container
     **Initialization Args.**
 
     - `options`: sequence of text options, or dict mapping option name
@@ -470,6 +480,7 @@ class dropdown(UIElement[List[str], Any]):
         allow_select_none: Optional[bool] = None,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[Any], None]] = None,
     ) -> None:
         if not isinstance(options, dict):
@@ -498,6 +509,7 @@ class dropdown(UIElement[List[str], Any]):
             args={
                 "options": list(self.options.keys()),
                 "allow-select-none": allow_select_none,
+                "full-width": full_width,
             },
             on_change=on_change,
         )
@@ -536,6 +548,8 @@ class multiselect(UIElement[List[str], List[object]]):
     - `value`: the selected values, or `None` if no selection
     - `options`: a dict mapping option name to option value
 
+    - `full_width`: whether the input should take up the full width of its
+        container
     **Initialization Args.**
 
     - `options`: sequence of text options, or dict mapping option name
@@ -553,6 +567,7 @@ class multiselect(UIElement[List[str], List[object]]):
         value: Optional[Sequence[str]] = None,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[List[object]], None]] = None,
     ) -> None:
         if not isinstance(options, dict):
@@ -567,6 +582,7 @@ class multiselect(UIElement[List[str], List[object]]):
             label=label,
             args={
                 "options": list(self.options.keys()),
+                "full-width": full_width,
             },
             on_change=on_change,
         )
@@ -716,6 +732,8 @@ class button(UIElement[Any, Any]):
     - `kind`: 'neutral', 'success', 'warn', or 'danger'
     - `disabled`: whether the button is disabled
     - `label`: text label for the element
+    - `full_width`: whether the input should take up the full width of its
+        container
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -729,6 +747,7 @@ class button(UIElement[Any, Any]):
         disabled: bool = False,
         *,
         label: str = "click here",
+        full_width: bool = False,
         on_change: Optional[Callable[[Any], None]] = None,
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
@@ -741,6 +760,7 @@ class button(UIElement[Any, Any]):
             args={
                 "kind": kind,
                 "disabled": disabled,
+                "full-width": full_width,
             },
             on_change=on_change,
         )
@@ -932,6 +952,8 @@ class date(UIElement[str, dt.date]):
         - else if `None` and `start` is not `None`, defaults to `start`;
         - else if `None` and `stop` is not `None`, defaults to `stop`
     - `label`: text label for the element
+    - `full_width`: whether the input should take up the full width of its
+        container
     - `on_change`: optional callback to run when this element's value changes
     """
 
@@ -946,6 +968,7 @@ class date(UIElement[str, dt.date]):
         value: Optional[dt.date | str] = None,
         *,
         label: str = "",
+        full_width: bool = False,
         on_change: Optional[Callable[[dt.date], None]] = None,
     ) -> None:
         if isinstance(start, str):
@@ -986,6 +1009,7 @@ class date(UIElement[str, dt.date]):
             args={
                 "start": self._start.isoformat(),
                 "stop": self._stop.isoformat(),
+                "full-width": full_width,
             },
             on_change=on_change,
         )

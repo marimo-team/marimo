@@ -72,12 +72,7 @@ const TextComponent = (props: TextComponentProps) => {
   ) : null;
 
   return (
-    <Labeled
-      label={props.label}
-      className={cn({
-        block: props.fullWidth,
-      })}
-    >
+    <Labeled label={props.label} fullWidth={props.fullWidth}>
       <Input
         type={props.kind}
         icon={icon[props.kind]}
