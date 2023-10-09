@@ -63,7 +63,7 @@ def download(
     ext = mime_type_to_ext(resolved_mimetype) or "txt"
     disabled = disabled or is_data_empty(data)
     # create a virtual file to avoid loading the data in the browser
-    file = mo_data.any(data, ext=ext)
+    file = mo_data.any_data(data, ext=ext)
 
     return Html(
         build_stateless_plugin(

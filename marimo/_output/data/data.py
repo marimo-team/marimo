@@ -45,7 +45,7 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     return item.virtual_file
 
 
-def any(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
+def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     """Create a virtual file from any data.
     It can be a string, bytes, or a file-like object.
     For external URLs, these are passed through as-is.
