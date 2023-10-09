@@ -125,6 +125,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
               cellId={cell.key}
               output={cell.output}
               status={cell.status}
+              hidden={cell.errored || cell.interrupted || cell.stopped}
             />
             {!isReading && (
               <div className="absolute top-0 right-0 p-1 hover-action">
@@ -222,7 +223,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
                 });
                 e.dataTransfer.setData("text/plain", "");
               }}
-              className="droppable-element bg-[var(--slate-2)] border-border border overflow-hidden p-2 rounded flex-shrink-0"
+              className="droppable-element bg-white border-border border overflow-hidden p-2 rounded flex-shrink-0"
             >
               <GridCell
                 code={cell.code}
@@ -230,6 +231,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.key}
                 output={cell.output}
                 status={cell.status}
+                hidden={false}
               />
             </div>
           ))}
@@ -242,10 +244,11 @@ const GridLayoutRenderer: React.FC<Props> = ({
 interface GridCellProps extends Pick<CellState, "output" | "status" | "code"> {
   cellId: CellId;
   mode: AppMode;
+  hidden: boolean;
 }
 
 const GridCell = memo(
-  ({ output, cellId, status, mode, code }: GridCellProps) => {
+  ({ output, cellId, status, mode, code, hidden }: GridCellProps) => {
     const loading = status === "running" || status === "queued";
 
     const isOutputEmpty = output == null || output.data === "";
@@ -255,7 +258,9 @@ const GridCell = memo(
     }
 
     return (
-      <div className="h-full w-full overflow-auto p-2">
+      <div
+        className={cn("h-full w-full overflow-auto p-2", hidden && "invisible")}
+      >
         <OutputArea output={output} cellId={cellId} stale={loading} />
       </div>
     );
