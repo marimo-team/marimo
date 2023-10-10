@@ -11,9 +11,9 @@ export const ErrorsPanel: React.FC = () => {
 
   if (errors.length === 0) {
     return (
-      <div className="mx-6 my-6 py-4 px-4 flex flex-row gap-2 items-center bg-accent rounded-lg">
+      <div className="mx-6 my-6 flex flex-row gap-2 items-center rounded-lg">
         <PartyPopperIcon className="text-accent-foreground" />
-        <span className="mt-[0.25rem] text-accent-foreground font-semibold">
+        <span className="mt-[0.25rem] text-accent-foreground">
           {" "}
           No errors!{" "}
         </span>
