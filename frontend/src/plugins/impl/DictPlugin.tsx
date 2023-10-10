@@ -13,7 +13,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 type T = Record<string, unknown> | null;
 
 interface Data {
-  label: string | null;
+  label?: string | null;
   // mapping from elementId to key
   elementIds: Record<string, string>;
 }
@@ -22,7 +22,7 @@ export class DictPlugin implements IPlugin<T, Data> {
   tagName = "marimo-dict";
 
   validator = z.object({
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     elementIds: z.record(z.string(), z.string()),
   });
 

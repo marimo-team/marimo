@@ -33,6 +33,10 @@ export type OutputMessage =
       channel: OutputChannel;
       mimetype: "application/vnd.marimo+error";
       data: MarimoError[];
+      /**
+       * key/values for data that is included in the messages HTML data-* attributes.
+       */
+      data_store: Record<string, unknown> | undefined;
       timestamp: number;
     }
   | {
@@ -51,12 +55,20 @@ export type OutputMessage =
         | "video/mp4"
         | "video/mpeg";
       data: string;
+      /**
+       * key/values for data that is included in the messages HTML data-* attributes.
+       */
+      data_store: Record<string, unknown> | undefined;
       timestamp: number;
     }
   | {
       channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
+      /**
+       * key/values for data that is included in the messages HTML data-* attributes.
+       */
+      data_store: Record<string, unknown> | undefined;
       timestamp: number;
     };
 

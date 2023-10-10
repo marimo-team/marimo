@@ -12,7 +12,7 @@ interface Data {
   start: T;
   stop: T;
   step?: T;
-  label: string | null;
+  label?: string | null;
   debounce: boolean;
 }
 
@@ -21,7 +21,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.number(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     start: z.number(),
     stop: z.number(),
     step: z.number().optional(),

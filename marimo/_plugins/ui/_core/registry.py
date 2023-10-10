@@ -21,6 +21,8 @@ class UIElementRegistry:
         self._bindings: dict[UIElementId, set[str]] = {}
         # mapping from object id to cell that created it
         self._constructing_cells: dict[UIElementId, CellId_t] = {}
+        # mapping from object id to data
+        self._data_stores: dict[str, dict[str, Any]] = {}
 
     def register(
         self,
@@ -41,6 +43,15 @@ class UIElementRegistry:
         if object_id not in self._bindings:
             self._register_bindings(object_id)
         return self._bindings[object_id]
+
+    def add_data_store(
+        self, store_id: str, data_store: dict[str, Any]
+    ) -> None:
+        self._data_stores[store_id] = data_store
+
+    def remove_data_store(self, store_id: str) -> None:
+        if store_id in self._data_stores:
+            del self._data_stores[store_id]
 
     def _register_bindings(self, object_id: UIElementId) -> None:
         kernel = get_context().kernel
@@ -73,6 +84,8 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
+        if object_id in self._data_stores:
+            del self._data_stores[object_id]
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:

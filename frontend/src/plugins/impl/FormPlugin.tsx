@@ -16,7 +16,7 @@ import { renderHTML } from "../core/RenderHTML";
 type T = unknown;
 
 interface Data {
-  label: string | null;
+  label?: string | null;
   elementId: string;
 }
 
@@ -30,7 +30,7 @@ export class FormPlugin implements IPlugin<T, Data> {
   tagName = "marimo-form";
 
   validator = z.object({
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     elementId: z.string(),
   });
 
@@ -48,7 +48,7 @@ interface SubmitBoxProps<T> {
   currentValue: T;
   newValue: T;
   setValue: Setter<T>;
-  label: string | null;
+  label?: string | null;
 }
 
 const SubmitBox = <T,>({

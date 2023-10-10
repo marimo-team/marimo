@@ -22,7 +22,7 @@ interface Data {
   filetypes: string[];
   multiple: boolean;
   kind: FileUploadType;
-  label: string | null;
+  label?: string | null;
 }
 
 type T = Array<[string, string]>;
@@ -34,7 +34,7 @@ export class FileUploadPlugin implements IPlugin<T, Data> {
     filetypes: z.array(z.string()),
     multiple: z.boolean(),
     kind: z.enum(["button", "area"]),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {

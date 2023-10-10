@@ -1,16 +1,13 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
-import re
-from html import escape, unescape
-from typing import Mapping, Optional, Sequence, TypeVar, Union, cast
+import uuid
+from typing import Mapping, Optional, Sequence, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
 from marimo._output.md import md
 from marimo._output.mime import MIME
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 
 JSONType: TypeAlias = Union[
     Mapping[str, "JSONType"],
@@ -27,16 +24,19 @@ JSONType: TypeAlias = Union[
 S = TypeVar("S", bound=JSONType)
 
 
-def _build_attr(name: str, value: JSONType) -> str:
-    processed = escape(json.dumps(value, cls=WebComponentEncoder))
-    # manual escapes for things html.escape doesn't escape
-    #
-    # - backslashes, when unescaped can lead to problems
-    # when embedding in markdown
-    # - dollar sign, when unescaped can incorrectly be recognized as
-    # latex delimiter when embedding into markdown
-    processed = processed.replace("\\", "&#92;").replace("$", "&#36;")
-    return f"data-{name}='{processed}'"
+class _AttributeBuilder:
+    def __init__(self) -> None:
+        self._attrs: list[str] = []
+        self.data_store: dict[str, JSONType] = {}
+
+    def add(self, name: str, value: Optional[S]) -> None:
+        short_uuid = uuid.uuid4().hex[:6]
+        if value is not None:
+            self.data_store[short_uuid] = value
+            self._attrs.append(f"data-{name}='{short_uuid}'")
+
+    def build(self) -> str:
+        return " ".join(self._attrs)
 
 
 def build_ui_plugin(
@@ -45,7 +45,7 @@ def build_ui_plugin(
     label: Optional[str],
     args: dict[str, JSONType],
     slotted_html: str = "",
-) -> str:
+) -> (str, dict[str, JSONType]):
     """
     Build HTML for a UI (stateful) plugin.
 
@@ -59,27 +59,27 @@ def build_ui_plugin(
 
     Returns:
     -------
-    HTML text for the component
+    HTML text for the component and a dictionary
+    of data locator IDs to their values
     """
     if "initial-value" in args:
         raise ValueError("initial-value is a reserved argument.")
     if "label" in args:
         raise ValueError("label is a reserved argument.")
 
-    attrs: list[str] = [_build_attr("initial-value", initial_value)]
-    if label is not None and label:
-        attrs.append(_build_attr("label", md(label).text))
-    else:
-        attrs.append(_build_attr("label", None))
+    attrs = _AttributeBuilder()
+    attrs.add("initial-value", initial_value)
+    if label:
+        attrs.add("label", md(label).text)
 
     for name, value in args.items():
-        if value is not None:
-            attrs.append(_build_attr(name, value))
+        attrs.add(name, value)
 
     return (
-        f"<{component_name} {' '.join(attrs)}>"
+        f"<{component_name} {attrs.build()}>"
         f"{slotted_html}"
-        f"</{component_name}>"
+        f"</{component_name}>",
+        attrs.data_store,
     )
 
 
@@ -87,7 +87,7 @@ def build_stateless_plugin(
     component_name: str,
     args: dict[str, JSONType],
     slotted_html: str = "",
-) -> str:
+) -> (str, dict[str, JSONType]):
     """
     Build HTML for a stateless plugin.
 
@@ -99,19 +99,15 @@ def build_stateless_plugin(
 
     Returns:
     -------
-    HTML text for the component
+    HTML text for the component and a dictionary
+    of data locator IDs to their values
     """
-    attrs = [_build_attr(name, value) for name, value in args.items()]
+    attrs = _AttributeBuilder()
+    for name, value in args.items():
+        attrs.add(name, value)
     return (
-        f"<{component_name} {' '.join(attrs)}>"
+        f"<{component_name} {attrs.build()}>"
         f"{slotted_html}"
-        f"</{component_name}>"
+        f"</{component_name}>",
+        attrs.data_store,
     )
-
-
-def parse_initial_value(text: str) -> JSONType:
-    """Get initial value from HTML for a UI element."""
-    match = re.search("data-initial-value='(.*?)'", text)
-    if match is None:
-        raise ValueError("Invalid component HTML: ", text)
-    return cast(JSONType, json.loads(unescape(match.groups()[0])))

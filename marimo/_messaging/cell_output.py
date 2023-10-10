@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 from marimo._messaging.errors import Error
 
@@ -18,4 +18,5 @@ class CellOutput:
     channel: str
     mimetype: str
     data: Union[str, Sequence[Error]]
+    data_store: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=lambda: time.time())

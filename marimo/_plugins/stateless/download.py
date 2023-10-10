@@ -12,6 +12,8 @@ from marimo._plugins.core.media import (
     is_data_empty,
 )
 from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._runtime.context import get_context
+from marimo._runtime.data_store import UIDataLifecycleItem
 
 
 @mddoc
@@ -66,16 +68,15 @@ def download(
     # the frontend can use to download the file. This will
     # lazily read the file and avoid loading it into memory.
 
-    return Html(
-        build_stateless_plugin(
-            component_name="marimo-download",
-            args={
-                "data": io_to_data_url(
-                    data, fallback_mime_type=resolved_mimetype
-                ),
-                "filename": filename,
-                "disabled": disabled,
-                "label": label,
-            },
-        )
+    text, data_store = build_stateless_plugin(
+        component_name="marimo-download",
+        args={
+            "data": io_to_data_url(data, fallback_mime_type=resolved_mimetype),
+            "filename": filename,
+            "disabled": disabled,
+            "label": label,
+        },
     )
+    # TODO: probably not the right place to set this
+    get_context().cell_lifecycle_registry.add(UIDataLifecycleItem(data_store))
+    return Html(text)

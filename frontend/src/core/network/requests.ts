@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { UIElementDataRegistry } from "../kernel/ui-data-registry";
 import { CellId } from "../model/ids";
 import { API } from "./api";
 import {
@@ -97,6 +98,7 @@ export function sendRunMultiple(cellIds: CellId[], codes: string[]) {
 }
 
 export function sendDeleteCell(cellId: CellId) {
+  UIElementDataRegistry.INSTANCE.removeDataStore(cellId);
   return API.post<DeleteRequest>("/kernel/delete/", {
     cellId: cellId,
   });

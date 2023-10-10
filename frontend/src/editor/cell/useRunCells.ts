@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { RuntimeState } from "@/core/RuntimeState";
+import { RuntimeState } from "@/core/kernel/runtime-state";
 import { CellState } from "@/core/model/cells";
 import { CellId } from "@/core/model/ids";
 import { sendRunMultiple } from "@/core/network/requests";

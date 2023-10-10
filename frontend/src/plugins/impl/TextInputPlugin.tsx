@@ -14,7 +14,7 @@ type InputType = "text" | "password" | "email" | "url";
 
 interface Data {
   placeholder: string;
-  label: string | null;
+  label?: string | null;
   kind: InputType;
   maxLength?: number;
   minLength?: number;
@@ -28,7 +28,7 @@ export class TextInputPlugin implements IPlugin<T, Data> {
   validator = z.object({
     initialValue: z.string(),
     placeholder: z.string(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     kind: z.enum(["text", "password", "email", "url"]).default("text"),
     maxLength: z.number().optional(),
     minLength: z.number().optional(),

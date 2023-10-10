@@ -8,7 +8,7 @@ import { Labeled } from "./common/labeled";
 import { cn } from "@/lib/utils";
 
 interface Data {
-  label: string | null;
+  label?: string | null;
   options: string[];
   allowSelectNone: boolean;
   fullWidth: boolean;
@@ -19,7 +19,7 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
 
   validator = z.object({
     initialValue: z.array(z.string()),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     options: z.array(z.string()),
     allowSelectNone: z.boolean(),
     fullWidth: z.boolean().default(false),

@@ -10,7 +10,7 @@ type T = string;
 
 interface Data {
   placeholder: string;
-  label: string | null;
+  label?: string | null;
   maxLength?: number;
   minLength?: number;
   disabled?: boolean;
@@ -23,7 +23,7 @@ export class TextAreaPlugin implements IPlugin<T, Data> {
   validator = z.object({
     initialValue: z.string(),
     placeholder: z.string(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     maxLength: z.number().optional(),
     minLength: z.number().optional(),
     disabled: z.boolean().optional(),

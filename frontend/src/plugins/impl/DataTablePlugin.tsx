@@ -14,7 +14,7 @@ import { Labeled } from "./common/labeled";
  * @param data - the data to display
  */
 interface Data<T> {
-  label: string | null;
+  label?: string | null;
   data: T[];
   pagination: boolean;
   selection: "single" | "multi" | null;
@@ -28,7 +28,7 @@ export class DataTablePlugin implements IPlugin<S, Data<unknown>> {
 
   validator = z.object({
     initialValue: z.array(z.number()),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     data: z.array(z.object({}).passthrough()),
     pagination: z.boolean().default(false),
     selection: z.enum(["single", "multi"]).nullable().default(null),

@@ -100,6 +100,7 @@ class CellOp(Op):
         channel: str,
         mimetype: str,
         data: str,
+        data_store: dict[str, Any],
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
     ) -> None:
@@ -114,6 +115,7 @@ class CellOp(Op):
                 channel=channel,
                 mimetype=mimetype,
                 data=data,
+                data_store=data_store,
             ),
             status=status,
         ).broadcast()

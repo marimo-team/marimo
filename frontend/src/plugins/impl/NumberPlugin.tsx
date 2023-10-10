@@ -14,7 +14,7 @@ interface Data {
   start: T;
   stop: T;
   step?: T;
-  label: string | null;
+  label?: string | null;
   debounce: boolean;
   fullWidth: boolean;
 }
@@ -24,7 +24,7 @@ export class NumberPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.number(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     start: z.number(),
     stop: z.number(),
     step: z.number().optional(),

@@ -1,7 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { sendComponentValues } from "@/core/network/requests";
-import { marimoValueReadyEvent, MarimoValueReadyEventType } from "./dom/events";
-import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "./dom/uiregistry";
+import {
+  marimoValueReadyEvent,
+  MarimoValueReadyEventType,
+} from "../dom/events";
+import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "../dom/uiregistry";
 
 /**
  * Manager to track running cells.

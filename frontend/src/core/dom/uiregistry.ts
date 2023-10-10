@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { repl } from "../../utils/repl";
+import { CellId } from "../model/ids";
 import {
   ValueType,
   marimoValueUpdateEvent,
@@ -27,8 +28,14 @@ export class UIElementRegistry {
   // maps UIElement objectIds to entries.
   entries: Map<string, UIElementEntry>;
 
-  constructor() {
+  /**
+   * Shared singleton instance.
+   */
+  static readonly INSTANCE = new UIElementRegistry();
+
+  private constructor() {
     this.entries = new Map();
+    repl(this, "UI_ELEMENT_REGISTRY");
   }
 
   has(objectId: string): boolean {
@@ -84,7 +91,7 @@ export class UIElementRegistry {
    *
    * @param cellId - stringified cellId
    */
-  removeElementsByCell(cellId: string) {
+  removeElementsByCell(cellId: CellId) {
     const objectIds = [...this.entries.keys()].filter((objectId) =>
       objectId.startsWith(`${cellId}-`)
     );
@@ -148,5 +155,4 @@ export class UIElementRegistry {
   }
 }
 
-export const UI_ELEMENT_REGISTRY = new UIElementRegistry();
-repl(UI_ELEMENT_REGISTRY, "UI_ELEMENT_REGISTRY");
+export const UI_ELEMENT_REGISTRY = UIElementRegistry.INSTANCE;

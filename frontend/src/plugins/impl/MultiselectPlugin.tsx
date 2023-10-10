@@ -8,7 +8,7 @@ import { Labeled } from "./common/labeled";
 import { cn } from "@/lib/utils";
 
 interface Data {
-  label: string | null;
+  label?: string | null;
   options: string[];
   fullWidth: boolean;
 }
@@ -20,7 +20,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.array(z.string()),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     options: z.array(z.string()),
     fullWidth: z.boolean().default(false),
   });

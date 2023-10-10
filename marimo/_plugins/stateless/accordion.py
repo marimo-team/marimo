@@ -6,6 +6,8 @@ from marimo._output.hypertext import Html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._runtime.context import get_context
+from marimo._runtime.data_store import UIDataLifecycleItem
 
 
 @mddoc
@@ -40,10 +42,11 @@ def accordion(items: dict[str, object], multiple: bool = False) -> Html:
             for item in items.values()
         ]
     )
-    return Html(
-        build_stateless_plugin(
-            component_name="marimo-accordion",
-            args={"labels": item_labels, "multiple": multiple},
-            slotted_html=item_content,
-        )
+    text, data_store = build_stateless_plugin(
+        component_name="marimo-accordion",
+        args={"labels": item_labels, "multiple": multiple},
+        slotted_html=item_content,
     )
+    # TODO: probably not the right place to set this
+    get_context().cell_lifecycle_registry.add(UIDataLifecycleItem(data_store))
+    return Html(text)

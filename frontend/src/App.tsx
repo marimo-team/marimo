@@ -42,7 +42,7 @@ import { CellId, HTMLCellId } from "./core/model/ids";
 import { CellConfig } from "./core/model/cells";
 import { getFilenameFromDOM } from "./core/dom/htmlUtils";
 import { CellArray } from "./editor/renderers/CellArray";
-import { RuntimeState } from "./core/RuntimeState";
+import { RuntimeState } from "./core/kernel/runtime-state";
 import { CellsRenderer } from "./editor/renderers/cells-renderer";
 import { getSerializedLayout } from "./core/state/layout";
 import { useAtom } from "jotai";

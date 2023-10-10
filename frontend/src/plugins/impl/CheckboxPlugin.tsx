@@ -8,16 +8,16 @@ import { CheckedState } from "@radix-ui/react-checkbox";
 import { Labeled } from "./common/labeled";
 
 export class CheckboxPlugin
-  implements IPlugin<boolean, { label: string | null }>
+  implements IPlugin<boolean, { label?: string | null }>
 {
   tagName = "marimo-checkbox";
 
   validator = z.object({
     initialValue: z.boolean(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
   });
 
-  render(props: IPluginProps<boolean, { label: string | null }>): JSX.Element {
+  render(props: IPluginProps<boolean, { label?: string | null }>): JSX.Element {
     return <CheckboxComponent {...props} />;
   }
 }
@@ -26,7 +26,7 @@ const CheckboxComponent = ({
   value,
   setValue,
   data,
-}: IPluginProps<boolean, { label: string | null }>): JSX.Element => {
+}: IPluginProps<boolean, { label?: string | null }>): JSX.Element => {
   const onClick = (newValue: CheckedState) => {
     // unsupported state
     if (newValue === "indeterminate") {

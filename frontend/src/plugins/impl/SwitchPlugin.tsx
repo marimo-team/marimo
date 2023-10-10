@@ -7,16 +7,16 @@ import { IPlugin, IPluginProps } from "@/plugins/types";
 import { Labeled } from "./common/labeled";
 
 export class SwitchPlugin
-  implements IPlugin<boolean, { label: string | null }>
+  implements IPlugin<boolean, { label?: string | null }>
 {
   tagName = "marimo-switch";
 
   validator = z.object({
     initialValue: z.boolean(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
   });
 
-  render(props: IPluginProps<boolean, { label: string | null }>): JSX.Element {
+  render(props: IPluginProps<boolean, { label?: string | null }>): JSX.Element {
     return <SwitchComponent {...props} />;
   }
 }
@@ -25,7 +25,7 @@ const SwitchComponent = ({
   value,
   setValue,
   data,
-}: IPluginProps<boolean, { label: string | null }>): JSX.Element => {
+}: IPluginProps<boolean, { label?: string | null }>): JSX.Element => {
   const id = useId();
 
   return (

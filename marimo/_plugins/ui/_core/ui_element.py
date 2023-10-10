@@ -12,6 +12,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
 from marimo._runtime.context import get_context
+from marimo._runtime.data_store import UIDataLifecycleItem
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -159,13 +160,16 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
 
-        self._inner_text = build_ui_plugin(
+        inner_text, data_store = build_ui_plugin(
             component_name,
             initial_value,
             label,
             args,
             slotted_html,
         )
+        self._inner_text = inner_text
+        self._data_store = data_store
+        ctx.cell_lifecycle_registry.add(UIDataLifecycleItem(data_store))
         self._text = (
             f"<marimo-ui-element object-id='{self._id}' "
             + f"random-id='{self._random_id}'>"

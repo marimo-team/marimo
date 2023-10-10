@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 type T = string;
 
 interface Data {
-  label: string | null;
+  label?: string | null;
   start: string;
   stop: string;
   step?: string;
@@ -22,7 +22,7 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.string(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     start: z.string(),
     stop: z.string(),
     step: z.string().optional(),

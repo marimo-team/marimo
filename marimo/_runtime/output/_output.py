@@ -17,6 +17,7 @@ def write_internal(cell_id: CellId_t, value: object) -> None:
         channel="output",
         mimetype=output.mimetype,
         data=output.data,
+        data_store={},
         cell_id=cell_id,
         status=None,
     )

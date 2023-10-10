@@ -24,9 +24,8 @@ import {
   MarimoValueUpdateEventType,
 } from "@/core/dom/events";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
-import { parseAttrValue, parseInitialValue } from "../../core/dom/htmlUtils";
+import { parseHTMLDataset, parseInitialValue } from "../../core/dom/htmlUtils";
 import { IPlugin } from "../types";
-import { Objects } from "../../utils/objects";
 import { renderError } from "./BadPlugin";
 import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
@@ -62,25 +61,13 @@ function PluginSlotInternal<T>(
   const [value, setValue] = useState<T>(getInitialValue());
 
   const [parseResult, setParseResult] = useState(() => {
-    return plugin.validator.safeParse({
-      // For any string values, unescape/parse them
-      ...Objects.mapValues(hostElement.dataset, (value) =>
-        typeof value === "string" ? parseAttrValue(value) : value
-      ),
-    });
+    return plugin.validator.safeParse(parseHTMLDataset(hostElement));
   });
 
   useImperativeHandle(ref, () => ({
     reset: () => {
       setValue(getInitialValue());
-      setParseResult(
-        plugin.validator.safeParse({
-          // For any string values, unescape/parse them
-          ...Objects.mapValues(hostElement.dataset, (value) =>
-            typeof value === "string" ? parseAttrValue(value) : value
-          ),
-        })
-      );
+      setParseResult(plugin.validator.safeParse(parseHTMLDataset(hostElement)));
     },
     setChildren: (children) => {
       setChildNodes(children);
@@ -115,12 +102,7 @@ function PluginSlotInternal<T>(
       );
       if (hasAttributeMutation) {
         setParseResult(
-          plugin.validator.safeParse({
-            // For any string values, unescape/parse them
-            ...Objects.mapValues(hostElement.dataset, (value) =>
-              typeof value === "string" ? parseAttrValue(value) : value
-            ),
-          })
+          plugin.validator.safeParse(parseHTMLDataset(hostElement))
         );
       }
     });

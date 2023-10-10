@@ -5,7 +5,7 @@ import { connectionAtom } from "../state/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/state/cells";
-import { RuntimeState } from "@/core/RuntimeState";
+import { RuntimeState } from "@/core/kernel/runtime-state";
 import { COMPLETION_REQUESTS } from "@/core/codemirror/completion/CompletionRequests";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
@@ -20,6 +20,7 @@ import { deserializeLayout } from "@/editor/renderers/plugins";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { UIElementDataRegistry } from "../kernel/ui-data-registry";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -139,6 +140,7 @@ export function useMarimoWebSocket(opts: {
           // if the same cell-id is later reused for another element.
           const { cell_id } = msg.data;
           UI_ELEMENT_REGISTRY.removeElementsByCell(cell_id);
+          UIElementDataRegistry.INSTANCE.removeDataStore(cell_id);
           return;
         }
         case "completion-result":
@@ -153,6 +155,10 @@ export function useMarimoWebSocket(opts: {
            * affects how the cell should be rendered.
            */
           const body = msg.data;
+          UIElementDataRegistry.INSTANCE.setValue(
+            body.cell_id,
+            body.output?.data_store
+          );
           handleCellMessage({ cellId: body.cell_id, message: body });
           return;
         }

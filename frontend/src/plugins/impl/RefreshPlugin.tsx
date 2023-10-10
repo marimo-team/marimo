@@ -54,7 +54,7 @@ export class RefreshPlugin implements IPlugin<Value, Data> {
   validator = z.object({
     options: z.array(z.union([zodTimestring, z.number().min(1)])).default([]),
     defaultInterval: z.union([zodTimestring, z.number().min(1)]).optional(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
   });
 
   render(props: IPluginProps<Value, Data>): JSX.Element {

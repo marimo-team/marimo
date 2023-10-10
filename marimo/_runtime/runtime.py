@@ -447,6 +447,7 @@ class Kernel:
                 channel="output",
                 mimetype="text/plain",
                 data="",
+                data_store={},
                 cell_id=cid,
                 status=None,
             )
@@ -612,12 +613,17 @@ class Kernel:
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
+                data_stores = get_context().ui_element_registry._data_stores
+                flat_data_store = {
+                    k: v for data_store in data_stores.values() for k, v in data_store.items()
+                }
                 CellOp.broadcast_output(
                     channel="output",
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
                     status=cell.status,
+                    data_store=flat_data_store,
                 )
             elif isinstance(run_result.exception, MarimoInterrupt):
                 LOGGER.debug("Cell %s was interrupted", cell_id)

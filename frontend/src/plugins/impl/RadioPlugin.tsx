@@ -15,7 +15,7 @@ import { Labeled } from "./common/labeled";
  * @param options - text labels for each radio option
  */
 interface Data {
-  label: string | null;
+  label?: string | null;
   options: string[];
 }
 
@@ -27,7 +27,7 @@ export class RadioPlugin implements IPlugin<S, Data> {
 
   validator = z.object({
     initialValue: z.string().nullable(),
-    label: z.string().nullable(),
+    label: z.string().nullish(),
     options: z.array(z.string()),
   });
 
