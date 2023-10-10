@@ -7,6 +7,9 @@ from multiprocessing import shared_memory
 import tornado.web
 
 from marimo import _loggers
+from marimo._runtime.virtual_file import (
+    EMPTY_VIRTUAL_FILE,
+)
 from marimo._server.api.status import HTTPStatus
 
 LOGGER = _loggers.marimo_logger()
@@ -16,6 +19,10 @@ class VirtualFileHandler(tornado.web.RequestHandler):
     """Handler for virtual files."""
 
     def get(self, filename: str) -> None:
+        if filename == EMPTY_VIRTUAL_FILE.filename:
+            self.write(b"")
+            return
+
         key = filename
         shm = None
         try:
