@@ -47,6 +47,7 @@ import { CellsRenderer } from "./editor/renderers/cells-renderer";
 import { getSerializedLayout } from "./core/state/layout";
 import { useAtom } from "jotai";
 import { useRunStaleCells } from "./editor/cell/useRunCells";
+import { formatAll } from "./core/codemirror/format";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -55,7 +56,7 @@ interface AppProps {
 
 export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const cells = useCells();
-  const { setCells } = useCellActions();
+  const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useState(getFilenameFromDOM());
   const [savedCodes, setSavedCodes] = useState<string[]>([""]);
@@ -117,7 +118,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     savedConfigs.some((config, index) => configs[index] !== config);
 
   // Save the notebook with the given filename
-  const saveNotebook = useEvent((filename: string, showToast: boolean) => {
+  const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
     // Don't save if there are no cells
     if (codes.length === 0) {
       return;
@@ -143,8 +144,11 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       layout: getSerializedLayout(),
     })
       .then(() => {
-        if (showToast) {
+        if (userInitiated) {
           toast({ title: "Notebook saved" });
+          if (userConfig.save.format_on_save) {
+            formatAll(updateCellCode);
+          }
         }
         setSavedCodes(codes);
         setSavedConfigs(configs);
@@ -155,9 +159,9 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   });
 
   // Save the notebook with the current filename, only if the filename exists
-  const saveIfNotebookIsNamed = useEvent((showToast = false) => {
+  const saveIfNotebookIsNamed = useEvent((userInitiated = false) => {
     if (filename !== null && connStatus.state === WebSocketState.OPEN) {
-      saveNotebook(filename, showToast);
+      saveNotebook(filename, userInitiated);
     }
   });
 

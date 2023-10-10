@@ -17,6 +17,7 @@ export const UserConfigSchema = z
         // Ensure that the delay is at least 1 second
         .transform((millis) => Math.max(millis, 1000))
         .default(1000),
+      format_on_save: z.boolean().default(false),
     }),
     keymap: z.object({
       preset: z.enum(["default", "vim"]).default("default"),
