@@ -6,6 +6,16 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 
+from typing import TypeVar
+
+
+S = TypeVar("S")
+T = TypeVar("T")
+
+
+def _remove_none_values(d: dict[S, T]) -> dict[S, T]:
+    return {k: v for k, v in d.items() if v is not None}
+
 
 class Progress(Html):
     """A mutable class to represent a progress indicator in the UI."""
@@ -167,7 +177,3 @@ def spinner(
         )
     )
     output.append(element)
-
-
-def _remove_none_values(d: dict) -> dict:
-    return {k: v for k, v in d.items() if v is not None}
