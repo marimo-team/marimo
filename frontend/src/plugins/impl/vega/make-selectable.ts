@@ -138,10 +138,12 @@ function getBestSelectionForMark(mark: Mark): SelectionType[] | undefined {
     case "arc":
     case "area":
       return ["point"];
+    case "bar":
+      return ["point"];
     // there is no best selection for line
     case "line":
       return undefined;
     default:
-      return ["point", "interval"];
+      return ["interval"];
   }
 }
