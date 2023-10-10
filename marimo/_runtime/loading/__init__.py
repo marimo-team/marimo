@@ -1,5 +1,5 @@
 # Copyright 2023 Marimo. All rights reserved.
-"""Create updating loading indicators."""
+"""Create loading indicators."""
 
 
 __all__ = ["progress_bar", "spinner"]
