@@ -9,7 +9,7 @@ interface Props {
   variant?: "destructive" | "focus";
 }
 
-/* Component that adds a link to a cell, for use in a MarimoError. */
+/* Component that adds a link to a cell, with styling. */
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant } = props;
   const cellName = HTMLCellId.create(cellId);
@@ -48,5 +48,15 @@ export const CellLink = (props: Props): JSX.Element => {
     >
       {cellName}
     </div>
+  );
+};
+
+/* Component that adds a link to a cell, for use in a MarimoError. */
+export const CellLinkError = (
+  props: Pick<Props, "className" | "cellId">
+): JSX.Element => {
+  const { className, cellId } = props;
+  return (
+    <CellLink className={className} cellId={cellId} variant={"destructive"} />
   );
 };
