@@ -146,7 +146,9 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       .then(() => {
         if (userInitiated) {
           toast({ title: "Notebook saved" });
-          formatAll(updateCellCode);
+          if (userConfig.save.format_on_save) {
+            formatAll(updateCellCode);
+          }
         }
         setSavedCodes(codes);
         setSavedConfigs(configs);
