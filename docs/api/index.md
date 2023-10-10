@@ -35,7 +35,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`outputs`       | Modify cell outputs, redirect console output              |
-| {doc}`loading`       | Display progress indicators while loading data            |
+| {doc}`loading`       | Display progress indicators                               |
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`state`         | Make stateful apps with `mo.state`                        |
 | {doc}`debugging`     | Debugging utilities                                       |
