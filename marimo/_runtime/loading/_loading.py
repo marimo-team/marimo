@@ -230,5 +230,7 @@ def progress_bar(
     for item in collection:
         yield item
         progress.update(increment=step)
-    progress.update(title=completion_title, subtitle=completion_subtitle)
+    progress.update(
+        increment=0, title=completion_title, subtitle=completion_subtitle
+    )
     progress.close()
