@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.1.0"
-app = marimo.App()
+__generated_with = "0.1.21"
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -11,13 +11,13 @@ def __(mo):
 
 
 @app.cell
-def __(mo, pokemon_types):
+def __(clear_selection, mo, pokemon_types):
     mo.md(
         f"""
         Compare Pokémon by primary type, or drill down into
         statistics of individual Pokémon.
 
-        Start by choosing one or more types: {pokemon_types}
+        Start by choosing one or more types: {pokemon_types} {clear_selection}
         """
     )
     return
@@ -62,13 +62,8 @@ def __(mo):
 
 
 @app.cell
-def __(clear_selection, mo, pokemon_types):
-    mo.hstack(
-        [mo.as_html(pokemon_types.value), clear_selection],
-        justify="start",
-        align="start",
-        gap=2,
-    ).center() if pokemon_types.value else None
+def __(mo, pokemon_types):
+    mo.md("`selected types: " + ", ".join(pokemon_types.value) + "`") if pokemon_types.value else None
     return
 
 
@@ -79,7 +74,7 @@ def __(mo, pokemon_types):
         **Compare distributions** by type or **drill down**
         into specific Pokémon's statistics 👇
         """
-    ).callout(kind="alert") if pokemon_types.value else None
+    ).callout(kind="info") if pokemon_types.value else None
     return
 
 
@@ -109,13 +104,6 @@ def __(distribution_plot, drilldown, mo, pokemon_types):
 
 
 @app.cell
-def __(plot_pokemon, table):
-    _names = [v["Name"] for v in table.value] if table is not None else []
-    plot_pokemon(_names) if _names else None
-    return
-
-
-@app.cell
 def __(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
     def plot():
         plt.figure(figsize=(6.5, 4))
@@ -129,7 +117,7 @@ def __(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
                     kde=True,
                 )
             plt.legend()
-            
+
         return mo.md(
             f"""
             Visualized below is the distribution of {attribute}.
@@ -157,15 +145,23 @@ def __(filtered_pokemons, mo, pokemon_types):
 
 
     table = make_table() if pokemon_types.value else None
+    return make_table, table
+
+
+@app.cell
+def __(mo, plot_pokemon, table):
+    _names = [v["Name"] for v in table.value] if table is not None else []
+    stat_plot = plot_pokemon(_names)
+
     drilldown = mo.md(
         f"""
         Select one or more Pokémon using the checkboxes. Then scroll down for
         a plot.
 
-        {table}
+        {mo.hstack([table, stat_plot], justify="start")}
         """
     )
-    return drilldown, make_table, table
+    return drilldown, stat_plot
 
 
 @app.cell
@@ -199,9 +195,12 @@ def __(np, plot_single_pokemon, plt):
         angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
         ax.set_xticks(angles)
         ax.set_xticklabels(labels)
+        if not names:
+            ax.set_yticklabels([])
         for name in names:
             plot_single_pokemon(ax, angles, labels, name)
-        plt.legend(loc="upper left")
+        if names:
+            plt.legend(loc="upper left")
         return ax
     return plot_pokemon,
 
@@ -214,14 +213,14 @@ def __():
     import matplotlib.pyplot as plt
     import seaborn as sns
 
+    import io
     import os
+    import requests
 
-    print(os.listdir("./input"))
-
-    pokemon = pd.read_csv("./input/Pokemon.csv")
-    pokemon["Attack / Defense"] = pokemon["Attack"] / pokemon["Defense"]
-    pokemon["Sp. Atk / Sp. Def"] = pokemon["Sp. Atk"] / pokemon["Sp. Def"]
-    return mo, np, os, pd, plt, pokemon, sns
+    _downloaded = requests.get("https://gist.githubusercontent.com/armgilles/194bcff35001e7eb53a2a8b441e8b2c6/raw/92200bc0a673d5ce2110aaad4544ed6c4010f687/pokemon.csv").content
+    pokemon = pd.read_csv(io.BytesIO(_downloaded), encoding="utf8")
+    pokemon = pokemon.drop(["Legendary", "Generation"], axis=1)
+    return io, mo, np, os, pd, plt, pokemon, requests, sns
 
 
 @app.cell
