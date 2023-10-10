@@ -34,15 +34,22 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, buffer: bytes) -> None:
+    def __init__(self, filename: str, url: str, buffer: bytes) -> None:
         self.filename = filename
-        self.url = f"/@file/{filename}"
+        self.url = url
         self.buffer = buffer
+
+
+EMPTY_VIRTUAL_FILE = VirtualFile(
+    filename="empty.txt",
+    url="/@file/empty.txt",
+    buffer=b"",
+)
 
 
 class VirtualFileLifecycleItem(CellLifecycleItem):
     def __init__(self, ext: str, buffer: bytes) -> None:
-        self.ext = ext
+        self.ext = _without_leading_dot(ext)
         self.buffer = buffer
         # Not resolved until added to registry
         self._virtual_file: Optional[VirtualFile] = None
@@ -66,7 +73,9 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
                 "Failed to add virtual file to registry. "
                 "This is a bug in marimo. Please file an issue."
             )
-        self._virtual_file = VirtualFile(filename, self.buffer)
+        self._virtual_file = VirtualFile(
+            filename, f"/@file/{filename}", self.buffer
+        )
         context.virtual_file_registry.add(self._virtual_file)
 
     def dispose(self, context: "RuntimeContext") -> None:
@@ -128,3 +137,7 @@ class VirtualFileRegistry:
         for _, shm in self.registry.items():
             shm.unlink()
         self.registry.clear()
+
+
+def _without_leading_dot(ext: str) -> str:
+    return ext[1:] if ext.startswith(".") else ext
