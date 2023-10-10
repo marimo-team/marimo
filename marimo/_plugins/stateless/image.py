@@ -13,7 +13,7 @@ from marimo._plugins.core.media import io_to_data_url
 
 @mddoc
 def image(
-    src: Union[str, io.BytesIO],
+    src: Union[str, bytes, io.BytesIO, io.BufferedReader],
     alt: Optional[str] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
@@ -50,6 +50,11 @@ def image(
 
     `Html` object
     """
+    # Convert to bytes right away since can only be read once
+    if isinstance(src, io.BufferedReader):
+        src.seek(0)
+        src = src.read()
+
     resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
     styles = create_style(
         {

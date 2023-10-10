@@ -78,8 +78,14 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     if isinstance(data, str):
         return VirtualFile(url=data, filename=data, buffer=b"")
 
-    # Local file
-    if isinstance(data, io.FileIO) or isinstance(data, io.BytesIO):
+    # Bytes
+    if isinstance(data, bytes):
+        item = VirtualFileLifecycleItem(ext=ext, buffer=data)
+        get_context().cell_lifecycle_registry.add(item)
+        return item.virtual_file
+
+    # BytesIO
+    if isinstance(data, io.BytesIO):
         # clone before reading, so we don't consume the stream
         buffer = io.BytesIO(data.getvalue()).read()
         item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)

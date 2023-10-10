@@ -75,5 +75,20 @@ def __(BytesIO, base64, mo, requests):
     return base64str, image_data
 
 
+@app.cell
+def __(mo):
+    import os
+
+    with open(os.path.realpath("docs/_static/array.png"), "rb") as f:
+        _image = mo.image(src=f)
+        _download = mo.download(
+            data=f,
+            label="Download local file",
+        )
+
+    mo.hstack([_image, _download])
+    return f, os
+
+
 if __name__ == "__main__":
     app.run()
