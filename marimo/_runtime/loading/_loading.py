@@ -1,8 +1,9 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Collection
-from typing import Iterable, Optional, TypeVar
+from typing import Iterable, Iterator, Optional, TypeVar
 
 import marimo._runtime.output._output as output
 from marimo._output.hypertext import Html
@@ -17,7 +18,7 @@ def _remove_none_values(d: dict[S, T]) -> dict[S, T]:
     return {k: v for k, v in d.items() if v is not None}
 
 
-class Progress(Html):
+class _Progress(Html):
     """A mutable class to represent a progress indicator in the UI."""
 
     def __init__(
@@ -30,11 +31,12 @@ class Progress(Html):
         self.subtitle = subtitle
         self.total = total
         self.current = 0
+        self.closed = False
         # We show a loading spinner if total not known
         self.loading_spinner = total is None
         self._text = self._get_text()
 
-    def update(
+    def update_progress(
         self,
         increment: int = 1,
         title: Optional[str] = None,
@@ -46,19 +48,24 @@ class Progress(Html):
 
         ```python
         # Increment by 1
-        mo.loading.update()
+        progress.update()
 
         # Increment by 10 and update title and subtitle
-        mo.loading.update(10, title="Loading", subtitle="Still going...")
+        progress.update(10, title="Loading", subtitle="Still going...")
 
         ```
 
-        **Args**
+        **Args.**
 
-        increment: amount to increment by. Defaults to 1.
-        title: new title. Defaults to None.
-        subtitle: new subtitle. Defaults to None.
+        - increment: amount to increment by. Defaults to 1.
+        - title: new title. Defaults to None.
+        - subtitle: new subtitle. Defaults to None.
         """
+        if self.closed:
+            raise RuntimeError(
+                "Progress indicators cannot be updated after exiting "
+                "the context manager that created them. "
+            )
         self.current += increment
         if title is not None:
             self.title = title
@@ -69,12 +76,15 @@ class Progress(Html):
         output.flush()
 
     def clear(self) -> None:
-        self.title = None
-        self.subtitle = None
-        self.total = None
-        self.current = 0
-        self._text = ""
-        output.flush()
+        if self.closed:
+            raise RuntimeError(
+                "Progress indicators cannot be updated after exiting "
+                "the context manager that created them. "
+            )
+        output.remove(self)
+
+    def close(self) -> None:
+        self.closed = True
 
     def _get_text(self) -> str:
         return build_stateless_plugin(
@@ -92,28 +102,70 @@ class Progress(Html):
         )
 
 
+class ProgressBar(_Progress):
+    def __init__(
+        self, title: str | None, subtitle: str | None, total: int
+    ) -> None:
+        super().__init__(title=title, subtitle=subtitle, total=total)
+
+    def update(
+        self,
+        increment: int = 1,
+        title: str | None = None,
+        subtitle: str | None = None,
+    ) -> None:
+        super().update_progress(
+            increment=increment, title=title, subtitle=subtitle
+        )
+
+
+# TODO(akshayka): Add a `done()` method that turns the spinner into a checkmark
+class Spinner(_Progress):
+    """A spinner output representing a loading state"""
+
+    def __init__(self, title: str | None, subtitle: str | None) -> None:
+        super().__init__(title=title, subtitle=subtitle, total=None)
+
+    def update(
+        self, title: str | None = None, subtitle: str | None = None
+    ) -> None:
+        """Update the title and subtitle of the spinner
+
+        This method updates a spinner output in-place. Must be used
+        in the cell the spinner was created.
+
+        **Example.**
+
+        ```python
+        with mo.loading.spinner("Hang tight!") as _spinner:
+            ...
+            _spinner.update(title="Almost done!")
+        # Optionally, remove the spinner from the output
+        # _spinner.clear()
+        ```
+        """
+        super().update_progress(increment=1, title=title, subtitle=subtitle)
+
+
 @mddoc
+@contextlib.contextmanager
 def spinner(
-    title: Optional[str] = None, subtitle: Optional[str] = None
-) -> None:
-    """Show a loading spinner.
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    clear_on_exit: bool = False,
+) -> Iterator[Spinner]:
+    """Show a loading spinner
 
-    Call `mo.loading.spinner()` to show a loading spinner.
-    This is different than other UI elements in that it is immediately
-    shown in the UI and does not disappear until:
-    - It is replaced with `mo.output.replace()`
-    - It is cleared with `mo.output.clear()`
-    - A new element is returned in the final expression
-        of a cell automatically replacing it.
-
-    You can optionally pass a title.
+    Use `mo.loading.spinner()` as a context manager to show a loading spinner.
+    You can optionally pass a title and subtitle.
 
     **Example.**
 
     ```python
-    mo.loading.spinner(subtitle="Loading data from the server...")
-
-    data = expensive_function()
+    with mo.loading.spinner(subtitle="Loading data ...") as _spinner:
+        data = expensive_function()
+        _spinner.update(subtitle="Crunching numbers ...")
+        ...
 
     mo.ui.table(data)
     ```
@@ -122,20 +174,17 @@ def spinner(
 
     - `title`: optional title
     - `subtitle`: optional subtitle
+    - `clear_on_exit`: if True, the spinner is cleared from output on exit
     """
-    element = Html(
-        build_stateless_plugin(
-            component_name="marimo-progress",
-            args=_remove_none_values(
-                {
-                    "title": title,
-                    "subtitle": subtitle,
-                    "progress": True,
-                }
-            ),
-        )
-    )
-    output.append(element)
+    spinner = Spinner(title=title, subtitle=subtitle)
+    output.append(spinner)
+    try:
+        yield spinner
+    finally:
+        if clear_on_exit:
+            spinner.clear()
+        # TODO(akshayka): else consider transitioning to a done state
+        spinner.close()
 
 
 def progress_bar(
@@ -176,9 +225,10 @@ def progress_bar(
     else:
         total = len(collection)
         step = 1
-    progress = Progress(title=title, subtitle=subtitle, total=total)
+    progress = ProgressBar(title=title, subtitle=subtitle, total=total)
     output.append(progress)
     for item in collection:
         yield item
         progress.update(increment=step)
     progress.update(title=completion_title, subtitle=completion_subtitle)
+    progress.close()

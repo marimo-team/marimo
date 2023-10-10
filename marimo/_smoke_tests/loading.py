@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.21"
+__generated_with = "0.1.24"
 app = marimo.App()
 
 
@@ -23,8 +23,19 @@ def __(mo, time):
 
 @app.cell
 def __(mo, time):
-    mo.loading.spinner(title="Loading...")
-    time.sleep(1)
+    with mo.loading.spinner(title="Loading...", clear_on_exit=True) as _spinner:
+        time.sleep(1)
+        _spinner.update("Almost done")
+        time.sleep(1)
+    return
+
+
+@app.cell
+def __(mo, time):
+    with mo.loading.spinner(title="Loading...", clear_on_exit=True) as _spinner:
+        time.sleep(1)
+        _spinner.update("Almost done")
+        time.sleep(1)
     mo.ui.table([1, 2, 3])
     return
 
