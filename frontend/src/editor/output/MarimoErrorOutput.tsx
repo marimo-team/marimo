@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Fragment } from "react";
-import { CellLink } from "../links/cell-link";
+import { CellLinkError } from "../links/cell-link";
 
 const Tip = (props: {
   className?: string;
@@ -65,9 +65,9 @@ export const MarimoErrorOutput = ({
             <ul className="list-disc">
               {error.edges.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
-                  <CellLink cellId={edge[0]} />
+                  <CellLinkError cellId={edge[0]} />
                   {" -> "}
-                  <CellLink cellId={edge[1]} />
+                  <CellLinkError cellId={edge[1]} />
                 </li>
               ))}
             </ul>
@@ -84,7 +84,7 @@ export const MarimoErrorOutput = ({
             <ul className="list-disc">
               {error.cells.map((cid) => (
                 <li className={liStyle} key={cid}>
-                  <CellLink cellId={cid} />
+                  <CellLinkError cellId={cid} />
                 </li>
               ))}
             </ul>
@@ -102,7 +102,7 @@ export const MarimoErrorOutput = ({
             <p className="mt-4">
               {`The variable '${error.name}' can't be deleted because it was defined by another cell ` +
                 `(`}
-              <CellLink cellId={error.cells[0]} />
+              <CellLinkError cellId={error.cells[0]} />
               {")"}
             </p>
             <Tip>
@@ -128,9 +128,9 @@ export const MarimoErrorOutput = ({
         ) : (
           <p key={idx}>
             {error.msg}
-            <CellLink cellId={error.raising_cell} />
+            <CellLinkError cellId={error.raising_cell} />
             <Tip>
-              Fix the error in <CellLink cellId={error.raising_cell} />, or
+              Fix the error in <CellLinkError cellId={error.raising_cell} />, or
               handle the exception in with a try/except block.
             </Tip>
           </p>
@@ -142,7 +142,7 @@ export const MarimoErrorOutput = ({
         return (
           <p key={idx}>
             {error.msg}
-            <CellLink cellId={error.raising_cell} />
+            <CellLinkError cellId={error.raising_cell} />
           </p>
         );
 

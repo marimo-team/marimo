@@ -3,7 +3,7 @@ import React, { PropsWithChildren } from "react";
 import {
   PanelBottomIcon,
   PanelLeftIcon,
-  VariableIcon,
+  CircleEqualIcon,
   XCircleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,14 +29,14 @@ export const Footer: React.FC = () => {
             "text-destructive": errorCount > 0,
           })}
         />
-        {errorCount}
+        <span className="font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
       <FooterItem
         tooltip="Explore variables"
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
-        <VariableIcon className={cn("h-4 w-4")} />
+        <CircleEqualIcon className={cn("h-4 w-4")} />
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem
