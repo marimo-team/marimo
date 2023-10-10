@@ -5,6 +5,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Input } from "../../components/ui/input";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/lib/utils";
 
 type T = string;
 
@@ -13,6 +14,7 @@ interface Data {
   start: string;
   stop: string;
   step?: string;
+  fullWidth: boolean;
 }
 
 export class DatePickerPlugin implements IPlugin<T, Data> {
@@ -24,6 +26,7 @@ export class DatePickerPlugin implements IPlugin<T, Data> {
     start: z.string(),
     stop: z.string(),
     step: z.string().optional(),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -63,10 +66,13 @@ const DatePicker = (props: DatePickerProps): JSX.Element => {
   const id = useId();
 
   return (
-    <Labeled label={props.label} id={id}>
+    <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Input
         ref={inputRef}
         type="date"
+        className={cn({
+          "w-full": props.fullWidth,
+        })}
         min={props.start}
         max={props.stop}
         value={props.value}

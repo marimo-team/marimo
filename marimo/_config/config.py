@@ -42,10 +42,12 @@ class SaveConfig(TypedDict, total=False):
 
     - `autosave`: one of `"off"` or `"after_delay"`
     - `delay`: number of milliseconds to wait before autosaving
+    - `format_on_save`: if `True`, format the code on save
     """
 
     autosave: Literal["off", "after_delay"]
     autosave_delay: int
+    format_on_save: bool
 
 
 @mddoc
@@ -111,7 +113,11 @@ class MarimoConfig(TypedDict, total=False):
 
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
-    "save": {"autosave": "after_delay", "autosave_delay": 1000},
+    "save": {
+        "autosave": "after_delay",
+        "autosave_delay": 1000,
+        "format_on_save": False,
+    },
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},
 }

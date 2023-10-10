@@ -17,12 +17,21 @@ def get_codes(ipynb_name: str) -> tuple[Sequence[str], Sequence[str]]:
         DIR_PATH + f"/../_test_utils/ipynb_data/{ipynb_name}.ipynb.txt"
     )
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py") as f:
-        f.write(contents)
-        f.seek(0)
+    tempfile_name = ""
+    try:
+        # in windows, can't re-open an open named temporary file, hence
+        # delete=False and manual clean up
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False
+        ) as f:
+            tempfile_name = f.name
+            f.write(contents)
+            f.seek(0)
         app = codegen.get_app(f.name)
         assert app is not None
         return list(app._codes()), list(app._names())
+    finally:
+        os.remove(tempfile_name)
 
 
 def test_markdown() -> None:

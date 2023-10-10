@@ -333,10 +333,18 @@ def test_recover() -> None:
         ]
     }
     filecontents = json.dumps(cells)
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py") as f:
+    # keep open for windows compat
+    tempfile_name = ""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False
+    ) as f:
         f.write(filecontents)
         f.seek(0)
-        recovered = codegen.recover(f.name)
+        tempfile_name = f.name
+    try:
+        recovered = codegen.recover(tempfile_name)
+    finally:
+        os.remove(tempfile_name)
 
     codes = [
         "\n".join(['"santa"', "", '"claus"', "", "", ""]),

@@ -21,6 +21,9 @@ const htmlDevPlugin = (): Plugin => {
             save: {
               autosave: "off",
               autosave_delay: 0,
+              format_on_save: false,
+            },
+            runtime: {
               auto_instantiate: true,
             },
             keymap: {

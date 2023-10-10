@@ -3,7 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { CellId } from "../model/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
-import { CellActions } from "../state/cells";
+import { CellActions, getCells } from "../state/cells";
 
 /**
  * Format the code in the editor views via the marimo server,
@@ -42,4 +42,19 @@ export async function formatEditorViews(
       },
     });
   }
+}
+
+/**
+ * Format all cells in the notebook.
+ */
+export function formatAll(updateCellCode: CellActions["updateCellCode"]) {
+  const cells = getCells();
+  const views: Record<CellId, EditorView> = {};
+  cells.forEach((cell) => {
+    const editorView = cell.ref.current?.editorView;
+    if (editorView) {
+      views[cell.key] = editorView;
+    }
+  });
+  return formatEditorViews(views, updateCellCode);
 }

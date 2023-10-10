@@ -5,10 +5,12 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/lib/utils";
 
 interface Data {
   label: string | null;
   options: string[];
+  fullWidth: boolean;
 }
 
 type T = string[];
@@ -20,6 +22,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     initialValue: z.array(z.string()),
     label: z.string().nullable(),
     options: z.array(z.string()),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
@@ -50,11 +53,14 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
 
   return (
-    <Labeled label={props.label} id={id}>
+    <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Combobox<string>
         displayValue={(option) => option}
         placeholder="Select..."
         multiple={true}
+        className={cn({
+          "w-full": props.fullWidth,
+        })}
         value={props.value}
         onValueChange={(newValues) => props.setValue(newValues || [])}
       >

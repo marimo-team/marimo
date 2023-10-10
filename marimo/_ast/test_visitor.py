@@ -511,3 +511,39 @@ def test_matchmapping() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "b"])
     assert v.refs == set(["value"])
+
+
+def test_import_nested() -> None:
+    expr = "import a.b.c"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["a"])
+    assert v.refs == set()
+
+
+def test_import_as() -> None:
+    expr = "import a.b.c as d"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["d"])
+    assert v.refs == set()
+
+
+def test_import_multiple() -> None:
+    expr = "import a.b.c, d"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["a", "d"])
+    assert v.refs == set()
+
+
+def test_from_import() -> None:
+    expr = "from a.b.c import d"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["d"])
+    assert v.refs == set()

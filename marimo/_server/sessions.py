@@ -331,7 +331,14 @@ class Session:
             # this, because mp.Queue appears to be a function
             self.queue.close()  # type: ignore
             if self.kernel_task.is_alive():
-                self.kernel_task.terminate()
+                if (
+                    sys.platform == "win32" or sys.platform == "cygwin"
+                ) and self.kernel_task.pid is not None:
+                    # send a CTRL_BREAK_EVENT to gracefully shutdown
+                    # since SIGTERM isn't handled on windows
+                    os.kill(self.kernel_task.pid, signal.CTRL_BREAK_EVENT)
+                else:
+                    self.kernel_task.terminate()
             tornado.ioloop.IOLoop.current().remove_handler(
                 self.read_conn.fileno()
             )

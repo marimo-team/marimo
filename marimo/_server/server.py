@@ -198,6 +198,10 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
+                r"/@file/(.*)",
+                api.VirtualFileHandler,
+            ),
+            (
                 r"/(favicon\.ico)",
                 tornado.web.StaticFileHandler,
                 {"path": root},
@@ -315,10 +319,15 @@ async def start_server(
     if not headless:
         if which("xdg-open") is not None:
             with open(os.devnull, "w") as devnull:
+                if sys.platform == "win32" or sys.platform == "cygwin":
+                    preexec_fn = None
+                else:
+                    preexec_fn = os.setpgrp
                 subprocess.Popen(
                     ["xdg-open", url],
                     # don't forward signals: ctrl-c shouldn't kill the browser
-                    preexec_fn=os.setpgrp,
+                    # TODO: test/workaround on windows
+                    preexec_fn=preexec_fn,
                     stdout=devnull,
                     stderr=subprocess.STDOUT,
                 )

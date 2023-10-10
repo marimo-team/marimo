@@ -294,8 +294,10 @@ class ScopedVisitor(ast.NodeVisitor):
     # Import and ImportFrom statements have symbol names in alias nodes
     def visit_alias(self, node: ast.alias) -> None:
         if node.asname is None:
-            node.name = self._if_local_then_mangle(node.name)
-            self._define(node.name)
+            # (1) Don't mangle - user has no control over package name
+            # (2) for "a.b.c", register "a" as the def
+            basename = node.name.split(".")[0]
+            self._define(basename)
         else:
             node.asname = self._if_local_then_mangle(node.asname)
             self._define(node.asname)

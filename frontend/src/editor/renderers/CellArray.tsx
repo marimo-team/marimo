@@ -1,6 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useEffect } from "react";
-import { EditorView } from "@codemirror/view";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
@@ -10,8 +9,7 @@ import { AppConfig, UserConfig } from "../../core/config/config";
 import { AppMode } from "../../core/mode";
 import { useHotkey } from "../../hooks/useHotkey";
 import { useEvent } from "../../hooks/useEvent";
-import { CellId } from "../../core/model/ids";
-import { formatEditorViews } from "../../core/codemirror/format";
+import { formatAll } from "../../core/codemirror/format";
 import { useTheme } from "../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
@@ -63,14 +61,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   useHotkey("global.foldCode", foldAll);
   useHotkey("global.unfoldCode", unfoldAll);
   useHotkey("global.formatAll", () => {
-    const views: Record<CellId, EditorView> = {};
-    cells.present.forEach((cell) => {
-      const editorView = cell.ref.current?.editorView;
-      if (editorView) {
-        views[cell.key] = editorView;
-      }
-    });
-    formatEditorViews(views, updateCellCode);
+    formatAll(updateCellCode);
   });
 
   const onDeleteCell: typeof deleteCell = useEvent((payload) => {
