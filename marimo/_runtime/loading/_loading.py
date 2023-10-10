@@ -93,47 +93,6 @@ class Progress(Html):
 
 
 @mddoc
-def start(
-    title: Optional[str] = None,
-    subtitle: Optional[str] = None,
-    total: Optional[int] = None,
-) -> Progress:
-    """Create a new progress indicator.
-
-    Call `mo.loading.start()` to create a progress indicator.
-
-    You can optionally pass a title, subtitle,
-    and total number of steps to completion.
-    Omitting the total number of steps will
-    show a loading spinner.
-
-    **Example.**
-
-    ```python
-    progress = mo.loading.start(
-        title="Loading",
-        subtitle="This may take a while...",
-        total=100
-    )
-
-    for i in range(100):
-        expensive_function()
-        progress.update()
-    ```
-
-    **Args:**
-
-    - `title`: optional title
-    - `subtitle`: optional subtitle
-    - `total`: optional total number of steps to completion
-        If omitted, a loading spinner will be shown.
-    """
-    progress = Progress(title=title, subtitle=subtitle, total=total)
-    output.append(progress)
-    return progress
-
-
-@mddoc
 def spinner(
     title: Optional[str] = None, subtitle: Optional[str] = None
 ) -> None:
@@ -196,7 +155,7 @@ def progress_bar(
         ...
     ```
 
-    Optionally provide a title and subtitle to show
+    You can optionally provide a title and subtitle to show
     during iteration, and a title/subtitle to show upon completion.
 
     **Args.**
