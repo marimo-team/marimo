@@ -43,8 +43,8 @@ def download(
 
     **Args.**
 
-    - `data`: The data to download. Can be a string, bytes,
-        or a file-like object.
+    - `data`: The data to download. Can be a string (interpreted as
+        a URL), bytes, or a file opened in binary mode.
     - `filename`: The name of the file to download.
         If not provided, the name will be guessed from the data.
     - `mimetype`: The mimetype of the file to download, for example,
