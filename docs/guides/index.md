@@ -9,6 +9,7 @@
   reactivity
   interactivity
   outputs
+  charts
   state
   apps
   scripts
@@ -23,6 +24,7 @@ These guides cover marimo's core concepts.
 | {doc}`reactivity`     | How reactive execution works              |
 | {doc}`interactivity`  | Using interactive UI elements             |
 | {doc}`outputs`        | Markdown, plots, and other visual outputs |
+| {doc}`charts`         | Interactive and reactive plots            |
 | {doc}`state`          | Reacting to interactions with state       |
 | {doc}`apps`           | Running notebooks as apps                 |
 | {doc}`scripts`        | Running notebooks as scripts              |

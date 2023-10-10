@@ -114,16 +114,18 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
             if "autosize" not in vega_spec:
                 vega_spec["autosize"] = "fit-x"
 
-        # If is bin, show a warning
+        # Selection for binned charts is not yet implemented
         if _has_binning(vega_spec):
             sys.stderr.write(
                 "Binning + selection is not yet supported in "
                 "marimo.ui.chart.\n"
-                "Please file an issue: "
+                "If you'd this feature, please file an issue: "
                 "https://github.com/marimo-team/marimo/issues\n"
                 "In the meantime, use `pd.cut` to bin data in Python "
                 "before creating the chart.\n"
             )
+            chart_selection = False
+            field_selection = False
 
         super().__init__(
             component_name="marimo-vega",
