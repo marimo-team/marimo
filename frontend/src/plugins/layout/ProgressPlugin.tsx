@@ -64,7 +64,9 @@ export const ProgressComponent = ({
         {typeof progress === "number" && total != null && total > 0 ? (
           <div className="flex gap-3 text-sm text-muted-foreground items-baseline">
             <Progress value={clampProgress((progress / total) * 100)} />
-            <span className="flex-shrink-0">{progress} / {total}</span>
+            <span className="flex-shrink-0">
+              {progress} / {total}
+            </span>
           </div>
         ) : (
           <Loader2Icon className="w-12 h-12 animate-spin text-primary mx-auto" />
