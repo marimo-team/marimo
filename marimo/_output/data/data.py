@@ -1,4 +1,5 @@
 # Copyright 2023 Marimo. All rights reserved.
+import base64
 import io
 from typing import Union
 
@@ -67,7 +68,8 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
 
     # Base64 encoded data
     if isinstance(data, str) and data.startswith("data:"):
-        buffer = data.split(",")[1]
+        base64str = data.split(",")[1]
+        buffer = base64.b64decode(base64str)
         item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)
         get_context().cell_lifecycle_registry.add(item)
         return item.virtual_file

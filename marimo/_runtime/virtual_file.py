@@ -34,7 +34,7 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, url: string, buffer: bytes) -> None:
+    def __init__(self, filename: str, url: str, buffer: bytes) -> None:
         self.filename = filename
         self.url = url
         self.buffer = buffer

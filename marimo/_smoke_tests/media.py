@@ -10,7 +10,8 @@ def __():
     import marimo as mo
     import requests
     from io import BytesIO
-    return BytesIO, mo, requests
+    import base64
+    return BytesIO, base64, mo, requests
 
 
 @app.cell
@@ -42,26 +43,36 @@ def __(mo):
 
 
 @app.cell
-def __(BytesIO, mo, requests):
+def __(BytesIO, base64, mo, requests):
     _src = (
         "https://images.pexels.com/photos/86596/owl-bird-eyes-eagle-owl-86596.jpeg"
     )
     _response = requests.get(_src)
     image_data = BytesIO(_response.content)
+    base64str = (
+        f"data:image/jpeg;base64,{base64.b64encode(_response.content).decode()}"
+    )
 
     mo.vstack(
         [
-            mo.image(src=_src, rounded=True, height="300px"),
+            mo.image(src=_src, rounded=True, height=100),
             # Note, chrome does not support cross-origin download, so this wont auto download until we proxy the download through the backend
             mo.download(data=_src, label="Download via URL"),
+            mo.image(src=image_data, rounded=True, height=100),
             mo.download(
                 data=image_data,
                 label="Download via BytesIO",
                 mimetype="image/jpeg",
             ),
+            mo.image(src=base64str, rounded=True, height=100),
+            mo.download(
+                data=base64str,
+                label="Download via bytes",
+                mimetype="image/jpeg",
+            ),
         ]
     )
-    return image_data,
+    return base64str, image_data
 
 
 if __name__ == "__main__":
