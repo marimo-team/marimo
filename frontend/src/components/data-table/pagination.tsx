@@ -16,8 +16,48 @@ interface DataTablePaginationProps<TData> {
 export const DataTablePagination = <TData,>({
   table,
 }: DataTablePaginationProps<TData>) => {
+  const renderTotal = () => {
+    const selected = table.getSelectedRowModel().rows.length;
+    const isAllSelected = table.getIsAllRowsSelected();
+    const isAllPageSelected = table.getIsAllPageRowsSelected();
+    const count = table.getFilteredRowModel().rows.length;
+
+    if (isAllPageSelected && !isAllSelected) {
+      return (
+        <span>
+          {selected} selected
+          <Button
+            size="xs"
+            variant="link"
+            onClick={() => table.toggleAllRowsSelected(true)}
+          >
+            Select all {count}
+          </Button>
+        </span>
+      );
+    }
+
+    if (selected) {
+      return (
+        <span>
+          {selected} selected
+          <Button
+            size="xs"
+            variant="link"
+            onClick={() => table.toggleAllRowsSelected(false)}
+          >
+            Clear selection
+          </Button>
+        </span>
+      );
+    }
+
+    return `${count} items`;
+  };
+
   return (
-    <div className="flex items-center justify-end px-2">
+    <div className="flex items-center justify-between px-2">
+      <div className="text-sm text-muted-foreground">{renderTotal()}</div>
       <div className="flex items-center space-x-2">
         <Button
           size="xs"
