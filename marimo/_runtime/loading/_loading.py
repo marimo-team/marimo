@@ -1,13 +1,13 @@
 # Copyright 2023 Marimo. All rights reserved.
-from typing import Optional
+from __future__ import annotations
+
+from collections.abc import Collection
+from typing import Iterable, Optional, TypeVar
 
 import marimo._runtime.output._output as output
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
-
-from typing import TypeVar
-
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -177,3 +177,49 @@ def spinner(
         )
     )
     output.append(element)
+
+
+def progress_bar(
+    collection: Collection[S | int],
+    *,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    completion_title: Optional[str] = None,
+    completion_subtitle: Optional[str] = None,
+) -> Iterable[S | int]:
+    """Iterate over a collection and show a progress bar
+
+    **Example.**
+
+    ```python
+    for i in mo.loading.progress_bar(range(10)):
+        ...
+    ```
+
+    Optionally provide a title and subtitle to show
+    during iteration, and a title/subtitle to show upon completion.
+
+    **Args.**
+
+    - `collection`: a collection to iterate over
+    - `title`: optional title
+    - `subtitle`: optional subtitle
+    - `completion_title`: optional title to show during completion
+    - `completion_subtitle`: optional subtitle to show during completion
+
+    **Returns.**
+
+    An iterable object that wraps `collection`
+    """
+    if isinstance(collection, range):
+        total = collection.stop - collection.start
+        step = collection.step
+    else:
+        total = len(collection)
+        step = 1
+    progress = Progress(title=title, subtitle=subtitle, total=total)
+    output.append(progress)
+    for item in collection:
+        yield item
+        progress.update(increment=step)
+    progress.update(title=completion_title, subtitle=completion_subtitle)

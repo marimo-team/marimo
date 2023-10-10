@@ -2,9 +2,6 @@
 """Create updating loading indicators."""
 
 
-__all__ = [
-    "start",
-    "spinner",
-]
+__all__ = ["progress_bar", "start", "spinner"]
 
-from marimo._runtime.loading._loading import spinner, start
+from marimo._runtime.loading._loading import progress_bar, spinner, start
