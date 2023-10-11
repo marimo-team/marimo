@@ -1,8 +1,9 @@
 # Copyright 2023 Marimo. All rights reserved.
 import base64
 import io
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.media import (
     is_data_empty,
 )
@@ -12,6 +13,9 @@ from marimo._runtime.virtual_file import (
     VirtualFile,
     VirtualFileLifecycleItem,
 )
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def pdf(data: bytes) -> VirtualFile:
@@ -44,6 +48,54 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     item = VirtualFileLifecycleItem(ext=ext, buffer=data)
     get_context().cell_lifecycle_registry.add(item)
     return item.virtual_file
+
+
+def csv(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
+    """Create a virtual file for CSV data.
+
+    **Args.**
+
+    - data: CSV data in bytes, or string representing a data URL, external URL
+        or a Pandas DataFrame
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    # Pandas DataFrame
+    if DependencyManager.has_pandas:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            buffer = data.to_csv(
+                index=False,
+            ).encode("utf-8")
+            return any_data(buffer, ext="csv")
+
+    return any_data(data, ext="csv")  # type: ignore
+
+
+def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
+    """Create a virtual file for JSON data.
+
+    **Args.**
+
+    - data: JSON data in bytes, or string representing a data URL, external URL
+        or a Pandas DataFrame
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    # Pandas DataFrame
+    if DependencyManager.has_pandas:
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            buffer = data.to_json(orient="records").encode("utf-8")
+            return any_data(buffer, ext="json")
+
+    return any_data(data, ext="json")  # type: ignore
 
 
 def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
