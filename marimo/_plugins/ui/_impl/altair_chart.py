@@ -146,8 +146,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
     """Make reactive charts with Altair
 
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
-    points with your cursor on the frontend, get it as a Pandas dataframe in
-    Python!
+    with your cursor on the frontend, get them as a Pandas dataframe in Python!
 
     **Example.**
 

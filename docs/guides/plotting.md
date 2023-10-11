@@ -4,37 +4,38 @@ marimo supports most major plotting libraries, including Matplotlib, Seaborn,
 Plotly, and Altair. Just import your plotting library of choice and use it
 as you normally would.
 
-For Altair plots, marimo does something special: use `mo.ui.chart` to connect
-frontend selections to Python!
+For Altair plots, marimo does something special: use [`mo.ui.altair_chart`](#reactive-plots)
+to connect frontend selections to Python!
 
 
-```{admonition} Reactive charts: mo.ui.chart!
+```{admonition} Reactive plots!
 :class: important
 
-marimo supports reactive charts! Select and filter with your
-mouse, and marimo _automatically makes the selected data available in Python
-as a Pandas dataframe_!
+marimo supports reactive plots via
+[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)! Select and
+filter with your mouse, and marimo _automatically makes the selected data
+available in Python as a Pandas dataframe_!
 ```
 
 
-## Reactive charts! ⚡
+## Reactive plots! ⚡
 
 <!-- <iframe class="demo" src="https://components.marimo.io/?component=slider" frameborder="no"></iframe> -->
 
-Use [mo.ui.chart](../api/plotting.md#marimo.ui.chart) to easily create interactive, selectable
-plots: _selections you make on the frontend are automatically made available as
-Pandas dataframes in Python._
-
-Reactive charts are just one way that marimo **makes your data tangible**.
+Use [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) to easily
+create interactive, selectable plots: _selections you make on the frontend are
+automatically made available as Pandas dataframes in Python._
 
 ```{admonition} Requirements
 :class: warning
-Reactive charts depend on Altair and Pandas. Install them with `pip install altair pandas`
+Reactive plots currently require Altair. Install it with `pip install altair`
+In the future, we may make other plotting libraries reactive.
 ```
-Wrap an Altair chart with [mo.ui.chart](../api/plotting.md#marimo.ui.chart) to
-make it **reactive**: data you select in the frontend is automatically made
-available as a filtered dataframe via the chart's `value` attribute
-(`chart.value`).
+Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
+to make it **reactive**: select data on the frontend, access it via the chart's
+`value` attribute (`chart.value`).
+
+_Reactive plots are just one way that marimo **makes your data tangible**._
 
 ### Example
 
@@ -55,7 +56,7 @@ chart = alt.Chart(cars)
 )
 
 # Make it reactive ⚡
-chart = mo.ui.chart(chart)
+chart = mo.ui.altair_chart(chart)
 ```
 
 ```python
@@ -83,9 +84,9 @@ This section summarizes the main concepts used by Altair (and Vega-Lite).
 Feel free to skip this section and return later.
 ```
 
-Our choice to use Vega-Lite specification was driven by its robust data model,
-which is well-suited for data analysis. We summarize some key concepts below.
-(For a more detailed explanation, with examples, we recommend the
+Our choice to use the Vega-Lite specification was driven by its robust data
+model, which is well-suited for data analysis. Some key concepts are summarized
+below. (For a more detailed explanation, with examples, we recommend the
 [Basic Statistical Visualization](https://altair-viz.github.io/getting_started/starting.html)
 tutorial from Altair.)
 
@@ -108,6 +109,7 @@ tutorial from Altair.)
   before it is visualized, for example, filtering and aggregation. These
   transformations allow for more complex and nuanced visualizations.
 
+**Automatically interactive.**
 marimo adds interactivity automatically, based on the mark used and the
 encodings. For example, if you use a `mark_point` and an `x` encoding, marimo
 will automatically add a brush selection to the chart. If you add a `color`
@@ -115,14 +117,16 @@ encoding, marimo will add a legend and a click selection.
 
 ### Automatic Selections
 
-By default [mo.ui.chart](../api/plotting.md#marimo.ui.chart) will make the
-chart and legend selectable. Depending on the mark type, the chart will either
-have a `point` or `interval` (brush) selection. When using non-positional
-encodings (color, size, etc), [mo.ui.chart](../api/plotting.md#marimo.ui.chart)
-will also make the legend selectable.
+By default [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
+will make the chart and legend selectable. Depending on the mark type, the
+chart will either have a `point` or `interval` ("brush") selection. When using
+non-positional encodings (color, size, etc),
+[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) will also
+make the legend selectable.
 
-This is all configurable through `selection_*` params in `mo.ui.chart`. See
-the [API docs](../api/plotting.md#marimo.ui.chart) for details.
+Selection configurable through `*_selection` params in
+[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart). See the [API
+docs](../api/plotting.md#marimo.ui.altair_chart) for details.
 
 ```{admonition} Note
 You may still add your own selection parameters via Altair or Vega-Lite.
