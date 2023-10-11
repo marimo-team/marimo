@@ -359,7 +359,7 @@ const CellComponent = (
       !cellRef.current.contains(e.relatedTarget) &&
       editorView.current !== null
     ) {
-      closeCompletion(editorView.current);
+      //closeCompletion(editorView.current);
     }
   }, []);
 
