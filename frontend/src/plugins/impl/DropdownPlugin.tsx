@@ -5,11 +5,13 @@ import { z } from "zod";
 import { IPlugin, IPluginProps } from "../types";
 import { NativeSelect } from "../../components/ui/native-select";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/lib/utils";
 
 interface Data {
   label: string | null;
   options: string[];
   allowSelectNone: boolean;
+  fullWidth: boolean;
 }
 
 export class DropdownPlugin implements IPlugin<string[], Data> {
@@ -20,6 +22,7 @@ export class DropdownPlugin implements IPlugin<string[], Data> {
     label: z.string().nullable(),
     options: z.array(z.string()),
     allowSelectNone: z.boolean(),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
@@ -48,7 +51,7 @@ interface DropdownProps extends Data {
 const EMPTY_VALUE = "--";
 
 const Dropdown = (props: DropdownProps): JSX.Element => {
-  const { label, options, value, setValue, allowSelectNone } = props;
+  const { label, options, value, setValue, allowSelectNone, fullWidth } = props;
 
   const id = useId();
 
@@ -56,7 +59,7 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
   const singleValue = value.length === 0 ? defaultValue : value[0];
 
   return (
-    <Labeled label={label} id={id}>
+    <Labeled label={label} id={id} fullWidth={fullWidth}>
       <NativeSelect
         onChange={(e) => {
           const newValue = e.target.value;
@@ -66,6 +69,9 @@ const Dropdown = (props: DropdownProps): JSX.Element => {
             setValue([newValue]);
           }
         }}
+        className={cn({
+          "w-full": fullWidth,
+        })}
         value={singleValue}
         id={id}
       >

@@ -1,33 +1,42 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
-import { PanelBottomIcon, PanelLeftIcon, VariableIcon } from "lucide-react";
+import {
+  PanelBottomIcon,
+  PanelLeftIcon,
+  CircleEqualIcon,
+  XCircleIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useAtomValue } from "jotai";
+import { cellErrorCount } from "@/core/state/cells";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, panelLocation } = useChromeState();
   const { openApplication, changePanelLocation } = useChromeActions();
+  const errorCount = useAtomValue(cellErrorCount);
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-6 border-t border-border select-none no-print">
-      {/* <FooterItem
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-6 border-t border-border select-none no-print text-sm">
+      <FooterItem
+        tooltip="View errors"
         selected={selectedPanel === "errors"}
         onClick={() => openApplication("errors")}
       >
         <XCircleIcon
           className={cn("h-4 w-4 mr-1", {
-            "text-destructive": errors.length > 0,
+            "text-destructive": errorCount > 0,
           })}
         />
-        {errors.length}
-      </FooterItem> */}
+        <span className="font-mono mt-[0.125rem]">{errorCount}</span>
+      </FooterItem>
       <FooterItem
         tooltip="Explore variables"
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
-        <VariableIcon className={cn("h-4 w-4")} />
+        <CircleEqualIcon className={cn("h-4 w-4")} />
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem

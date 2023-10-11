@@ -73,7 +73,7 @@ def redirect_stderr() -> Iterator[None]:
     """Redirect `stderr` to a cell's output area.
 
     ```python
-    with mo.redirect_stdout():
+    with mo.redirect_stderr():
         # These messages will show up in the cell's output area
         sys.stderr.write("Hello!")
         sys.stderr.write("World!")

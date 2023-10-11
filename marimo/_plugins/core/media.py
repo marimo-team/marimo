@@ -5,7 +5,9 @@ import mimetypes
 from typing import Optional, Union
 
 
-def guess_mime_type(src: Union[str, bytes, io.BytesIO, None]) -> Optional[str]:
+def guess_mime_type(
+    src: Union[str, bytes, io.BytesIO, io.BufferedReader, None]
+) -> Optional[str]:
     """Guess the MIME type of a file."""
     if src is None:
         return None
@@ -19,11 +21,19 @@ def guess_mime_type(src: Union[str, bytes, io.BytesIO, None]) -> Optional[str]:
     if isinstance(src, io.FileIO):
         return mimetypes.guess_type(src.name)[0]
 
+    if isinstance(src, io.BufferedReader):
+        return mimetypes.guess_type(src.name)[0]
+
     return None
 
 
+def mime_type_to_ext(mime_type: str) -> Optional[str]:
+    return mimetypes.guess_extension(mime_type, strict=False)
+
+
 def io_to_data_url(
-    src: Union[str, bytes, io.BytesIO, None], fallback_mime_type: str
+    src: Union[str, bytes, io.BytesIO, None],
+    fallback_mime_type: str,
 ) -> Optional[str]:
     """Convert a file-like object to a data URL."""
     if src is None:
