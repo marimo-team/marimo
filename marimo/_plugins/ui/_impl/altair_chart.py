@@ -142,11 +142,12 @@ def _parse_spec(spec: Union[str, altair.Chart, VegaSpec]) -> VegaSpec:
 
 
 @mddoc
-class chart(UIElement[ChartSelection, "pd.DataFrame"]):
+class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
     """Make reactive charts with Altair
 
-    Use `mo.ui.chart` to make Altair charts reactive: select chart data points
-    with your cursor on the frontend, get it as a Pandas dataframe in Python!
+    Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
+    points with your cursor on the frontend, get it as a Pandas dataframe in
+    Python!
 
     **Example.**
 
@@ -161,7 +162,7 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
         color='Origin',
     )
 
-    chart = mo.ui.chart(chart)
+    chart = mo.ui.altair_chart(chart)
     ```
 
     ```
@@ -178,7 +179,7 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     **Initialization Args.**
 
-    - `chart`: An `altair.Chart` or a Vega-lite spec
+    - `chart`: An `altair.Chart`
     - `chart_selection`: optional selection type,
         `"point"`, `"interval"`, or a bool; defaults to `True` which will
         automatically detect the best selection type
@@ -193,11 +194,9 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def __init__(
         self,
-        figure: Union[str, altair.Chart, VegaSpec],
-        chart_selection: Union[
-            Literal["point"], Literal["interval"], bool
-        ] = True,
-        legend_selection: Union[List[str], bool] = True,
+        figure: altair.Chart,
+        chart_selection: Literal["point"] | Literal["interval"] | bool = True,
+        legend_selection: list[str] | bool = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,

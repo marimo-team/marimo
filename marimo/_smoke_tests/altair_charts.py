@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.22"
+__generated_with = "0.1.24"
 app = marimo.App(width="full")
 
 
@@ -11,6 +10,7 @@ def __():
     from vega_datasets import data
     import json
     import pandas as pd
+
     return data, json, mo, pd
 
 
@@ -26,21 +26,23 @@ def __(data):
 @app.cell
 def __(mo):
     chart_selection_type = mo.ui.radio(
-        ["default", "point", "interval"], label="Selection Type", value="default"
+        ["default", "point", "interval"],
+        label="Selection Type",
+        value="default",
     )
     theme = mo.ui.radio(
         ["default", "dark", "latimes"], label="Theme", value="default"
     )
-    field_selection_type = mo.ui.radio(
+    legend_selection_type = mo.ui.radio(
         ["all", "none"], label="Legend Selection Type", value="all"
     )
 
-    mo.hstack([chart_selection_type, field_selection_type, theme]).callout()
-    return chart_selection_type, field_selection_type, theme
+    mo.hstack([chart_selection_type, legend_selection_type, theme]).callout()
+    return chart_selection_type, legend_selection_type, theme
 
 
 @app.cell
-def __(chart_selection_type, field_selection_type, theme):
+def __(chart_selection_type, legend_selection_type, theme):
     import altair as alt
 
     alt.themes.enable(theme.value)
@@ -49,13 +51,13 @@ def __(chart_selection_type, field_selection_type, theme):
         if chart_selection_type.value == "default"
         else chart_selection_type.value
     )
-    field_selection_value = field_selection_type.value == "all"
+    legend_selection_value = legend_selection_type.value == "all"
     None
-    return alt, chart_selection_value, field_selection_value
+    return alt, chart_selection_value, legend_selection_value
 
 
 @app.cell
-def __(alt, cars, chart_selection_value, field_selection_value, mo):
+def __(alt, cars, chart_selection_value, legend_selection_value, mo):
     _chart = (
         alt.Chart(cars)
         .mark_point()
@@ -65,10 +67,10 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
             color="Origin",
         )
     )
-    chart1 = mo.ui.chart(
+    chart1 = mo.ui.altair_chart(
         _chart.to_json(),
         chart_selection=chart_selection_value,
-        field_selection=field_selection_value,
+        legend_selection=legend_selection_value,
         label="Cars",
     )
     return chart1,
@@ -87,24 +89,26 @@ def __(chart1, mo):
 
 
 @app.cell
-def __(alt, chart_selection_value, employment, field_selection_value, mo):
+def __(alt, chart_selection_value, employment, legend_selection_value, mo):
     # _selection = alt.selection_point(fields=["series"], bind="legend")
 
     _chart = (
         alt.Chart(employment)
         .mark_area()
         .encode(
-            alt.X("yearmonth(date):T").axis(domain=False, format="%Y", tickSize=0),
+            alt.X("yearmonth(date):T").axis(
+                domain=False, format="%Y", tickSize=0
+            ),
             alt.Y("sum(count):Q").stack("center").axis(None),
             alt.Color("series:N").scale(scheme="category20b"),
             # opacity=alt.condition(_selection, alt.value(1), alt.value(0.9)),
         )
     )
     # ).add_params(_selection)
-    chart2 = mo.ui.chart(
+    chart2 = mo.ui.altair_chart(
         _chart,
         chart_selection=chart_selection_value,
-        field_selection=field_selection_value,
+        legend_selection=legend_selection_value,
     )
     return chart2,
 
@@ -122,7 +126,7 @@ def __(chart2, mo):
 
 
 @app.cell
-def __(alt, chart_selection_value, field_selection_value, iris, mo):
+def __(alt, chart_selection_value, iris, legend_selection_value, mo):
     # _color_sel = alt.selection_point(fields=["species"], bind="legend")
     # _size_sel = alt.selection_point(fields=["petalWidth"], bind="legend")
 
@@ -141,10 +145,10 @@ def __(alt, chart_selection_value, field_selection_value, iris, mo):
         # .add_params(_color_sel, _size_sel)
     )
 
-    chart3 = mo.ui.chart(
+    chart3 = mo.ui.altair_chart(
         _chart.to_json(),
         chart_selection=chart_selection_value,
-        field_selection=field_selection_value,
+        legend_selection=legend_selection_value,
     )
     return chart3,
 
@@ -186,7 +190,7 @@ def __(chart3):
 
 
 @app.cell
-def __(alt, cars, chart_selection_value, field_selection_value, mo):
+def __(alt, cars, chart_selection_value, legend_selection_value, mo):
     brush = alt.selection_interval()
     points = (
         alt.Chart(cars)
@@ -205,10 +209,10 @@ def __(alt, cars, chart_selection_value, field_selection_value, mo):
         .transform_filter(brush)
     )
     plot = points & bars
-    chart4 = mo.ui.chart(
+    chart4 = mo.ui.altair_chart(
         plot.to_json(),
         chart_selection=chart_selection_value,
-        field_selection=field_selection_value,
+        legend_selection=legend_selection_value,
     )
     return bars, brush, chart4, plot, points
 
@@ -233,18 +237,24 @@ def __(mo):
 
 @app.cell
 def __(alt, data, mo):
-    binned = mo.ui.chart(alt.Chart(data.cars()).mark_bar().encode(
-        x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()"
-    ))
+    binned = mo.ui.altair_chart(
+        alt.Chart(data.cars())
+        .mark_bar()
+        .encode(x=alt.X("Miles_per_Gallon:Q", bin=True), y="count()")
+    )
     return binned,
 
 
 @app.cell
 def __(alt, cars, mo):
-    mean = mo.ui.chart(alt.Chart(cars).mark_bar().encode(
-        x='Cylinders:O',
-        y='mean(Acceleration):Q',
-    ))
+    mean = mo.ui.altair_chart(
+        alt.Chart(cars)
+        .mark_bar()
+        .encode(
+            x="Cylinders:O",
+            y="mean(Acceleration):Q",
+        )
+    )
     return mean,
 
 
@@ -256,10 +266,12 @@ def __(mean, mo):
 
 @app.cell
 def __(alt, data, mo):
-    hist = alt.Chart(data.cars()).mark_bar().encode(
-        x=alt.X("Miles_per_Gallon:Q"), y="count()"
+    hist = (
+        alt.Chart(data.cars())
+        .mark_bar()
+        .encode(x=alt.X("Miles_per_Gallon:Q"), y="count()")
     )
-    hist = mo.ui.chart(hist)
+    hist = mo.ui.altair_chart(hist)
     return hist,
 
 
@@ -277,26 +289,29 @@ def __(mo):
 
 @app.cell
 def __(alt, mo, pd):
-    df = pd.DataFrame.from_records([
-        {"country": "Norway", "type": "gold", "count": 14},
-        {"country": "Norway", "type": "silver", "count": 14},
-        {"country": "Norway", "type": "bronze", "count": 11},
-        {"country": "Germany", "type": "gold", "count": 14},
-        {"country": "Germany", "type": "silver", "count": 10},
-        {"country": "Germany", "type": "bronze", "count": 7},
-        {"country": "Canada", "type": "gold", "count": 11},
-        {"country": "Canada", "type": "silver", "count": 8},
-        {"country": "Canada", "type": "bronze", "count": 10}
-    ])
+    df = pd.DataFrame.from_records(
+        [
+            {"country": "Norway", "type": "gold", "count": 14},
+            {"country": "Norway", "type": "silver", "count": 14},
+            {"country": "Norway", "type": "bronze", "count": 11},
+            {"country": "Germany", "type": "gold", "count": 14},
+            {"country": "Germany", "type": "silver", "count": 10},
+            {"country": "Germany", "type": "bronze", "count": 7},
+            {"country": "Canada", "type": "gold", "count": 11},
+            {"country": "Canada", "type": "silver", "count": 8},
+            {"country": "Canada", "type": "bronze", "count": 10},
+        ]
+    )
 
-    pivot = mo.ui.chart(alt.Chart(df).transform_pivot(
-        'type',
-        groupby=['country'],
-        value='count'
-    ).mark_bar().encode(
-        x='gold:Q',
-        y='country:N',
-    ))
+    pivot = mo.ui.altair_chart(
+        alt.Chart(df)
+        .transform_pivot("type", groupby=["country"], value="count")
+        .mark_bar()
+        .encode(
+            x="gold:Q",
+            y="country:N",
+        )
+    )
     return df, pivot
 
 
@@ -310,12 +325,16 @@ def __(mo, pivot):
 def __(alt, data, mo):
     _source = data.population.url
 
-    horizontal_bar = mo.ui.chart(alt.Chart(_source).mark_bar().encode(
-        alt.X("sum(people):Q").title("Population"),
-        alt.Y("age:O"),
-    ).transform_filter(
-        alt.datum.year == 2000
-    ).properties(height=alt.Step(20)))
+    horizontal_bar = mo.ui.altair_chart(
+        alt.Chart(_source)
+        .mark_bar()
+        .encode(
+            alt.X("sum(people):Q").title("Population"),
+            alt.Y("age:O"),
+        )
+        .transform_filter(alt.datum.year == 2000)
+        .properties(height=alt.Step(20))
+    )
     return horizontal_bar,
 
 
@@ -327,15 +346,18 @@ def __(horizontal_bar, mo):
 
 @app.cell
 def __(alt, mo, pd):
-    _source = pd.DataFrame({
-        "category": [1, 2, 3, 4, 5, 6],
-        "value": [4, 6, 10, 3, 7, 8]
-    })
+    _source = pd.DataFrame(
+        {"category": [1, 2, 3, 4, 5, 6], "value": [4, 6, 10, 3, 7, 8]}
+    )
 
-    pie = mo.ui.chart(alt.Chart(_source).mark_arc(innerRadius=50).encode(
-        theta="value",
-        color="category:N",
-    ))
+    pie = mo.ui.altair_chart(
+        alt.Chart(_source)
+        .mark_arc(innerRadius=50)
+        .encode(
+            theta="value",
+            color="category:N",
+        )
+    )
     return pie,
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from marimo._plugins.ui._impl.chart import (
+from marimo._plugins.ui._impl.altair_chart import (
     ChartSelection,
     VegaSpec,
     _filter_dataframe,
