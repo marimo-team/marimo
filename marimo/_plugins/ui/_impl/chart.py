@@ -173,6 +173,8 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     - `value`: a Pandas dataframe of the plot data filtered by the selections
     - `dataframe`: a Pandas dataframe of the unfiltered chart data
+    - `selections`: the selection of the chart; this may be an interval along
+       the name of an axis or a selection of points
 
     **Initialization Args.**
 
@@ -239,6 +241,10 @@ class chart(UIElement[ChartSelection, "pd.DataFrame"]):
             },
             on_change=on_change,
         )
+
+    @property
+    def selections(self) -> ChartSelection:
+        return self._chart_selection
 
     def _convert_value(self, value: ChartSelection) -> Any:
         self._chart_selection = value
