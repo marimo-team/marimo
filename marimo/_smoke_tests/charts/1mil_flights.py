@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.24"
@@ -102,7 +101,6 @@ def __(alt, flight_histogram, mo):
 @app.cell
 def __(airports, alt, data, flight_histogram, mo):
     flights_airport = flight_histogram.value
-    # flights_airport = flights[0:1000]
     # flights_airport = data.flights_airport.url
 
     states = alt.topo_feature(data.us_10m.url, feature="states")
@@ -177,9 +175,9 @@ def __(flight_histogram, mo):
     mo.hstack(
         [
             mo.md(
-                f"Highest airport: **{flight_histogram.value['origin'].value_counts().index[0]}**"
+                f"Top airport: **{flight_histogram.value['origin'].value_counts().index[0]}**"
             ),
-            flight_histogram.value.head(),
+            flight_histogram.value.describe(),
             # mo.ui.table(
             #     flight_histogram.value.to_dict(orient="records"), pagination=False
             # ),
