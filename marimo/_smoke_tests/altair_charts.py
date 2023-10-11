@@ -10,7 +10,6 @@ def __():
     from vega_datasets import data
     import json
     import pandas as pd
-
     return data, json, mo, pd
 
 
@@ -68,7 +67,7 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
         )
     )
     chart1 = mo.ui.altair_chart(
-        _chart.to_json(),
+        _chart,
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
         label="Cars",
@@ -83,8 +82,26 @@ def __(mo):
 
 
 @app.cell
-def __(chart1, mo):
-    mo.vstack([chart1, chart1.value.head(10)])
+def __(alt, chart1, chart_selection_value, legend_selection_value, mo):
+    mo.vstack(
+        [
+            chart1,
+            mo.ui.altair_chart(
+                alt.Chart(chart1.value)
+                .mark_bar()
+                .encode(
+                    x="Origin",
+                    y="count()",
+                    color="Origin",
+                ),
+                chart_selection=chart_selection_value,
+                legend_selection=legend_selection_value,
+            )
+            if not chart1.value.empty
+            else mo.md("No selection"),
+            chart1.value.head(),
+        ]
+    )
     return
 
 
@@ -96,9 +113,7 @@ def __(alt, chart_selection_value, employment, legend_selection_value, mo):
         alt.Chart(employment)
         .mark_area()
         .encode(
-            alt.X("yearmonth(date):T").axis(
-                domain=False, format="%Y", tickSize=0
-            ),
+            alt.X("yearmonth(date):T").axis(domain=False, format="%Y", tickSize=0),
             alt.Y("sum(count):Q").stack("center").axis(None),
             alt.Color("series:N").scale(scheme="category20b"),
             # opacity=alt.condition(_selection, alt.value(1), alt.value(0.9)),
@@ -146,7 +161,7 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
     )
 
     chart3 = mo.ui.altair_chart(
-        _chart.to_json(),
+        _chart,
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
     )
@@ -210,7 +225,7 @@ def __(alt, cars, chart_selection_value, legend_selection_value, mo):
     )
     plot = points & bars
     chart4 = mo.ui.altair_chart(
-        plot.to_json(),
+        plot,
         chart_selection=chart_selection_value,
         legend_selection=legend_selection_value,
     )
