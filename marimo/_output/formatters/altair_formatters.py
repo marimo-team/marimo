@@ -24,6 +24,7 @@ class AltairFormatter(FormatterFactory):
             # `__resizeIframe` is a script defined in the frontend that sets
             # the height of the iframe to the height of the contained document
             import altair as alt
+
             # It is required to set this back to the default,
             # since mo.ui.altair_chart sets it to 'marimo'
             # We also change the max_rows to 10000 (default is 5000)

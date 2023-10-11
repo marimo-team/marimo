@@ -28,6 +28,7 @@ class _ToCsvReturnUrlDict(TypedDict):
     url: str
     format: _CsvFormatDict
 
+
 def _to_marimo_json(data: Data) -> _ToJsonReturnUrlDict:
     """
     Custom implementation of altair.utils.data.to_json that
@@ -84,6 +85,7 @@ def _data_to_csv_string(data: _DataType) -> str:
             "to_marimo_csv only works with data expressed as a DataFrame or as a dict"
         )
 
+
 def register_transformers() -> None:
     """
     Register custom data transformers for Altair.
@@ -103,4 +105,7 @@ def register_transformers() -> None:
     alt.data_transformers.enable("marimo")
 
     alt.data_transformers.register("marimo_json", _to_marimo_json)
-    alt.data_transformers.register("marimo_csv",_to_marimo_csv,)
+    alt.data_transformers.register(
+        "marimo_csv",
+        _to_marimo_csv,
+    )

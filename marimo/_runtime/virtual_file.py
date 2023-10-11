@@ -34,15 +34,28 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, url: str, buffer: bytes) -> None:
+    def __init__(
+        self, filename: str, buffer: bytes, url: Optional[str] = None
+    ) -> None:
         self.filename = filename
-        self.url = url
         self.buffer = buffer
+        # Create a file URL with the buffer size
+        # This is a hack so when we pull from shared memory we know how
+        # many bytes to read.
+        self.url = url or f"/@file/{len(buffer)}-{filename}"
+
+    @staticmethod
+    def from_external_url(url: str) -> VirtualFile:
+        return VirtualFile(
+            filename=url,
+            buffer=b"",
+            url=url,
+        )
 
 
 EMPTY_VIRTUAL_FILE = VirtualFile(
     filename="empty.txt",
-    url="/@file/empty.txt",
+    url="/@file/0-empty.txt",
     buffer=b"",
 )
 
@@ -73,9 +86,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
                 "Failed to add virtual file to registry. "
                 "This is a bug in marimo. Please file an issue."
             )
-        self._virtual_file = VirtualFile(
-            filename, f"/@file/{filename}", self.buffer
-        )
+        self._virtual_file = VirtualFile(filename, self.buffer)
         context.virtual_file_registry.add(self._virtual_file)
 
     def dispose(self, context: "RuntimeContext") -> None:

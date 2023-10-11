@@ -129,7 +129,7 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
 
     # URL
     if isinstance(data, str):
-        return VirtualFile(url=data, filename=data, buffer=b"")
+        return VirtualFile.from_external_url(data)
 
     # Bytes
     if isinstance(data, bytes):

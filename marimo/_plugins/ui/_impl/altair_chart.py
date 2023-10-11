@@ -84,18 +84,11 @@ def _filter_dataframe(
 def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     import altair
 
-    # Parse Altair chart
-
-    if isinstance(
-        spec, (altair.Chart, altair.VConcatChart, altair.HConcatChart)
-    ):
-        # vegafusion requires creating a vega spec,
-        # instead of using a vega-lite spec
-        if altair.data_transformers.active == "vegafusion":
-            return spec.to_dict(format="vega")
-        return spec.to_dict()  # type: ignore
-
-    raise ValueError(f"Invalid type for spec: {type(spec)}")
+    # vegafusion requires creating a vega spec,
+    # instead of using a vega-lite spec
+    if altair.data_transformers.active == "vegafusion":
+        return spec.to_dict(format="vega")
+    return spec.to_dict()  # type: ignore
 
 
 @mddoc
@@ -157,17 +150,18 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
-        import altair
+        import altair as alt
+
         # TODO: is this the right place to register the transformers?
         register_transformers()
 
-        if not isinstance(figure, altair.TopLevelSpec):
+        if not isinstance(figure, (alt.TopLevelMixin)):
             raise ValueError(
                 "Invalid type for figure: "
                 f"{type(figure)}; expected altair.Chart"
             )
 
-        if isinstance(figure, altair.Chart):
+        if isinstance(figure, (alt.Chart, alt.LayerChart)):
             figure = figure.properties(width="container")
 
         vega_spec = _parse_spec(figure)

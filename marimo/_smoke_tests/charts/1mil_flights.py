@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.24"
@@ -99,7 +100,7 @@ def __(alt, flight_histogram, mo):
 
 
 @app.cell
-def __(airports, alt, data, flight_histogram):
+def __(airports, alt, data, flight_histogram, mo):
     flights_airport = flight_histogram.value
     # flights_airport = flights[0:1000]
     # flights_airport = data.flights_airport.url
@@ -155,8 +156,9 @@ def __(airports, alt, data, flight_histogram):
         .add_params(select_city)
     )
 
-    # mo.vstack([(background + connections + points).configure_view(stroke=None)])
-    (background + connections + points).configure_view(stroke=None)
+    mo.ui.altair_chart(
+        (background + connections + points).configure_view(stroke=None)
+    )
     return (
         background,
         connections,

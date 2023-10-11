@@ -18,11 +18,12 @@ LOGGER = _loggers.marimo_logger()
 class VirtualFileHandler(tornado.web.RequestHandler):
     """Handler for virtual files."""
 
-    def get(self, filename: str) -> None:
-        if filename == EMPTY_VIRTUAL_FILE.filename:
+    def get(self, filename_and_length: str) -> None:
+        if filename_and_length == EMPTY_VIRTUAL_FILE.filename:
             self.write(b"")
             return
 
+        byte_length, filename = filename_and_length.split("-", 1)
         key = filename
         shm = None
         try:
@@ -30,7 +31,7 @@ class VirtualFileHandler(tornado.web.RequestHandler):
             # doing it in one line yields a 'released memoryview ...'
             # because shared_memory has built in ref-tracking + GC
             shm = shared_memory.SharedMemory(name=key)
-            buffer_contents = bytes(shm.buf)
+            buffer_contents = bytes(shm.buf)[: int(byte_length)]
         except FileNotFoundError as err:
             raise tornado.web.HTTPError(
                 HTTPStatus.NOT_FOUND,
