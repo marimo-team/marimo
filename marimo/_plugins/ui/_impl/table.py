@@ -36,7 +36,7 @@ TableData = Union[
 
 
 @mddoc
-class table(UIElement[List[str], List[object]]):
+class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
     """
     A table component.
 
@@ -96,7 +96,9 @@ class table(UIElement[List[str], List[object]]):
         selection: Optional[Literal["single", "multi"]] = "multi",
         *,
         label: str = "",
-        on_change: Optional[Callable[[List[object]], None]] = None,
+        on_change: Optional[
+            Callable[[Union[List[object], "pd.DataFrame"]], None]
+        ] = None,
     ) -> None:
         self._data = data
         normalized_data = _normalize_data(data)
@@ -123,7 +125,9 @@ class table(UIElement[List[str], List[object]]):
     ) -> TableData:
         return self._data
 
-    def _convert_value(self, value: list[str]) -> list[object]:
+    def _convert_value(
+        self, value: list[str]
+    ) -> Union[List[object], "pd.DataFrame"]:
         if DependencyManager.has_pandas():
             import pandas as pd
 
