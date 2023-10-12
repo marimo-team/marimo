@@ -191,9 +191,9 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
         # Fix the sizing for vconcat charts
         if "vconcat" in vega_spec:
-            for chart in vega_spec["vconcat"]:
-                if "width" not in chart:
-                    chart["width"] = "container"
+            for subchart in vega_spec["vconcat"]:
+                if "width" not in subchart:
+                    subchart["width"] = "container"
             # without autosize, vconcat will overflow
             if "autosize" not in vega_spec:
                 vega_spec["autosize"] = "fit-x"
