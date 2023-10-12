@@ -15,6 +15,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.charts.altair_transformer import (
@@ -143,28 +144,30 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def __init__(
         self,
-        figure: altair.Chart,
+        chart: altair.Chart,
         chart_selection: Literal["point"] | Literal["interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
+        DependencyManager.require_altair(why="to use `mo.ui.altair_chart`")
+
         import altair as alt
 
         # TODO: is this the right place to register the transformers?
         register_transformers()
 
-        if not isinstance(figure, (alt.TopLevelMixin)):
+        if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(
-                "Invalid type for figure: "
-                f"{type(figure)}; expected altair.Chart"
+                "Invalid type for chart: "
+                f"{type(chart)}; expected altair.Chart"
             )
 
-        if isinstance(figure, (alt.Chart, alt.LayerChart)):
-            figure = figure.properties(width="container")
+        if isinstance(chart, (alt.Chart, alt.LayerChart)):
+            chart = chart.properties(width="container")
 
-        vega_spec = _parse_spec(figure)
+        vega_spec = _parse_spec(chart)
 
         if label:
             vega_spec["title"] = label
@@ -189,7 +192,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             chart_selection = False
             legend_selection = False
 
-        self.dataframe = figure.data
+        self.dataframe = chart.data
 
         super().__init__(
             component_name="marimo-vega",

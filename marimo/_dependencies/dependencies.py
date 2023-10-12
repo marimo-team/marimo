@@ -10,14 +10,14 @@ class DependencyManager:
     @staticmethod
     def require_pandas(why: str) -> None:
         """
-        Raise an ImportError if pandas is not installed.
+        Raise an ModuleNotFoundError if pandas is not installed.
 
         Args:
             why: A string of the form "for <reason>" that will be appended
 
         """
         if not DependencyManager.has_pandas():
-            raise ImportError(
+            raise ModuleNotFoundError(
                 f"pandas is required {why}. "
                 + "You can install it with 'pip install pandas'"
             ) from None
@@ -25,14 +25,14 @@ class DependencyManager:
     @staticmethod
     def require_altair(why: str) -> None:
         """
-        Raise an ImportError if altair is not installed.
+        Raise an ModuleNotFoundError if altair is not installed.
 
         Args:
             why: A string of the form "for <reason>" that will be appended
 
         """
         if not DependencyManager.has_altair():
-            raise ImportError(
+            raise ModuleNotFoundError(
                 f"altair is required {why}. "
                 + "You can install it with 'pip install altair'"
             ) from None

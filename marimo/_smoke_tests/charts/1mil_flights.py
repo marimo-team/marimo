@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.24"
@@ -76,18 +75,18 @@ def __(flight_histogram, mo):
 def __(alt, flight_histogram, mo):
     mo.stop(len(flight_histogram.value) == 0, None)
 
-    _origin_chart = mo.ui.altair_chart(
+    origin_chart = mo.ui.altair_chart(
         alt.Chart(flight_histogram.value)
         .mark_bar()
         .encode(alt.X("origin:O"), alt.Y("count()"))
     )
-    _destination_chart = mo.ui.altair_chart(
+    destination_chart = mo.ui.altair_chart(
         alt.Chart(flight_histogram.value)
         .mark_bar()
         .encode(alt.X("destination:O"), alt.Y("count()"))
     )
-    mo.hstack([_origin_chart, _destination_chart])
-    return
+    mo.hstack([origin_chart, destination_chart])
+    return destination_chart, origin_chart
 
 
 @app.cell
