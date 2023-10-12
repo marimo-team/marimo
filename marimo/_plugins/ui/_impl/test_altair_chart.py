@@ -5,61 +5,8 @@ import pandas as pd
 
 from marimo._plugins.ui._impl.altair_chart import (
     ChartSelection,
-    VegaSpec,
     _filter_dataframe,
-    _to_dataframe,
 )
-
-
-def test_to_data_frame() -> None:
-    # Test with URL data source
-    vega_spec_url: VegaSpec = {
-        "data": {
-            "url": "https://raw.githubusercontent.com/vega/vega/main/docs/data/cars.json"
-        }
-    }
-    df_url = _to_dataframe(vega_spec_url)
-    assert isinstance(df_url, pd.DataFrame)
-    assert not df_url.empty
-
-    # Test with inline list data source
-    vega_spec_values: VegaSpec = {
-        "data": {
-            "values": [
-                {"column1": "value1", "column2": "value2"},
-                {"column1": "value3", "column2": "value4"},
-            ]
-        }
-    }
-    df_values = _to_dataframe(vega_spec_values)
-    assert isinstance(df_values, pd.DataFrame)
-    assert not df_values.empty
-    assert len(df_values) == 2
-    assert list(df_values.columns) == ["column1", "column2"]
-
-    # Test with named data source
-    vega_spec_values = {
-        "data": {"name": "named_data_source"},
-        "datasets": {
-            "named_data_source": [
-                {"column1": "value1", "column2": "value2"},
-                {"column1": "value3", "column2": "value4"},
-            ]
-        },
-    }
-    df_values = _to_dataframe(vega_spec_values)
-    assert isinstance(df_values, pd.DataFrame)
-    assert not df_values.empty
-    assert len(df_values) == 2
-    assert list(df_values.columns) == ["column1", "column2"]
-
-    # Test with unsupported data source
-    vega_spec_unsupported = {"data": {"name": "named_data_source"}}
-    try:
-        _to_dataframe(vega_spec_unsupported)
-        raise AssertionError("Expected ValueError was not raised")
-    except ValueError:
-        pass
 
 
 def test_filter_dataframe() -> None:

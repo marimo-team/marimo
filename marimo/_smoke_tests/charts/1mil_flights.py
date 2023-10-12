@@ -1,20 +1,8 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.24"
 app = marimo.App(width="full")
-
-
-@app.cell
-def __():
-    import marimo as mo
-    import pandas as pd
-    import altair as alt
-    from vega_datasets import data
-
-    airports = data.airports.url
-
-    None
-    return airports, alt, data, mo, pd
 
 
 @app.cell
@@ -53,12 +41,16 @@ def __(flights):
 def __(alt, mo, pd):
     # List available data transformers
     mo.ui.altair_chart(alt.Chart(pd.DataFrame({"a": [1]})).mark_point())
-    mo.md(
-        f"""
+    mo.accordion(
+        {
+            "Debug": mo.md(
+                f"""
     Available data transformers: **{", ".join(alt.data_transformers.names())}**
 
     Current data transformer: **{alt.data_transformers.active}**
     """
+            )
+        }
     )
     return
 
@@ -198,6 +190,19 @@ def __(alt, brush, flights, mo):
         )
         mo.output.append(mo.ui.altair_chart(million_histogram))
     return million_histogram,
+
+
+@app.cell
+def __():
+    import marimo as mo
+    import pandas as pd
+    import altair as alt
+    from vega_datasets import data
+
+    airports = data.airports.url
+
+    None
+    return airports, alt, data, mo, pd
 
 
 if __name__ == "__main__":

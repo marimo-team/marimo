@@ -56,15 +56,18 @@ def _data_to_json_string(data: _DataType) -> str:
     import pandas as pd
 
     if isinstance(data, pd.DataFrame):
-        data = alt.utils.sanitize_dataframe(data)
-        return data.to_json(orient="records", double_precision=15)
+        sanitized = alt.utils.sanitize_dataframe(data)
+        as_str = sanitized.to_json(orient="records", double_precision=15)
+        assert isinstance(as_str, str)
+        return as_str
     elif isinstance(data, dict):
         if "values" not in data:
             raise KeyError("values expected in data dict, but not present.")
         return json.dumps(data["values"], sort_keys=True)
     else:
         raise NotImplementedError(
-            "to_marimo_json only works with data expressed as a DataFrame or as a dict"
+            "to_marimo_json only works with data expressed as a DataFrame "
+            + " or as a dict"
         )
 
 
@@ -74,15 +77,18 @@ def _data_to_csv_string(data: _DataType) -> str:
     import pandas as pd
 
     if isinstance(data, pd.DataFrame):
-        data = alt.utils.sanitize_dataframe(data)
-        return data.to_csv(index=False)
+        sanitized = alt.utils.sanitize_dataframe(data)
+        as_str = sanitized.to_csv(index=False)
+        assert isinstance(as_str, str)
+        return as_str
     elif isinstance(data, dict):
         if "values" not in data:
             raise KeyError("values expected in data dict, but not present")
         return pd.DataFrame.from_dict(data["values"]).to_csv(index=False)
     else:
         raise NotImplementedError(
-            "to_marimo_csv only works with data expressed as a DataFrame or as a dict"
+            "to_marimo_csv only works with data expressed as a DataFrame"
+            + " or as a dict"
         )
 
 

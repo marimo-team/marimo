@@ -4,9 +4,7 @@ import io
 from typing import TYPE_CHECKING, Union
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.core.media import (
-    is_data_empty,
-)
+from marimo._plugins.core.media import is_data_empty
 from marimo._runtime.context import get_context
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -63,7 +61,7 @@ def csv(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
     A `VirtualFile` object.
     """
     # Pandas DataFrame
-    if DependencyManager.has_pandas:
+    if DependencyManager.has_pandas():
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
@@ -88,7 +86,7 @@ def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
     A `VirtualFile` object.
     """
     # Pandas DataFrame
-    if DependencyManager.has_pandas:
+    if DependencyManager.has_pandas():
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):

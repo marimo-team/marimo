@@ -87,7 +87,7 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     # vegafusion requires creating a vega spec,
     # instead of using a vega-lite spec
     if altair.data_transformers.active == "vegafusion":
-        return spec.to_dict(format="vega")
+        return spec.to_dict(format="vega")  # type: ignore
     return spec.to_dict()  # type: ignore
 
 
