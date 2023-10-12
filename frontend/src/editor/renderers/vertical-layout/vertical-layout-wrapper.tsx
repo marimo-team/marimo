@@ -14,7 +14,7 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   children,
 }) => {
   return (
-    <div className="px-18">
+    <div className="px-24">
       <div
         className={cn(
           "m-auto pb-12",
