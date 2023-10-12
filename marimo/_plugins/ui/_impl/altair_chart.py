@@ -52,8 +52,11 @@ def _has_binning(spec: VegaSpec) -> bool:
 def _filter_dataframe(
     df_prev: pd.DataFrame, selection: ChartSelection
 ) -> pd.DataFrame:
+    import numpy as np
+
     # Make a copy of the DataFrame
     df = df_prev.copy()
+
     for _channel, fields in selection.items():
         # If vlPoint is in the selection,
         # then the selection is a point selection
@@ -63,21 +66,35 @@ def _filter_dataframe(
             # Skip vlPoint and _vgsid_ field
             if field == "vlPoint" or field == "_vgsid_":
                 continue
+
+            # values may come back as strings if using the CSV transformer;
+            # convert back to original datatype
+            dtype = df[field].dtype
+            try:
+                resolved_values = [dtype.type(v) for v in values]
+            except Exception:
+                resolved_values = values  # type: ignore[assignment]
+            del values
             if is_point_selection:
-                df = df[df[field].isin(values)]
-            elif len(values) == 1:
-                df = df[df[field] == values[0]]
+                df = df[df[field].isin(resolved_values)]
+            elif len(resolved_values) == 1:
+                df = df[df[field] == resolved_values[0]]
             # Range selection
-            elif len(values) == 2 and isinstance(values[0], (int, float)):
-                df = df[(df[field] >= values[0]) & (df[field] <= values[1])]
+            elif len(resolved_values) == 2 and isinstance(
+                resolved_values[0], (int, float, np.number)
+            ):
+                df = df[
+                    (df[field] >= resolved_values[0])
+                    & (df[field] <= resolved_values[1])
+                ]
             # Multi-selection via range
             # This can happen when you use an interval selection
             # on categorical data
-            elif len(values) > 1:
-                df = df[df[field].isin(values)]
+            elif len(resolved_values) > 1:
+                df = df[df[field].isin(resolved_values)]
             else:
                 raise ValueError(
-                    f"Invalid selection: {field}={values}"
+                    f"Invalid selection: {field}={resolved_values}"
                 ) from None
     return df
 
