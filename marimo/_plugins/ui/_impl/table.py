@@ -15,6 +15,7 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -128,13 +129,11 @@ class table(UIElement[List[str], List[object]]):
 
 def _normalize_data(data: TableData) -> JSONType:
     # Handle pandas
-    try:
+    if DependencyManager.has_pandas():
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
             return data.to_dict("records")  # type: ignore
-    except ImportError:
-        pass
 
     # Assert that data is a list
     if not isinstance(data, (list, tuple)):

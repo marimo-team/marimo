@@ -2,21 +2,7 @@
 from json import JSONEncoder
 from typing import Any
 
-_is_numpy_installed = False
-try:
-    import numpy  # noqa: F401
-
-    _is_numpy_installed = True
-except ImportError:
-    pass
-
-_is_pandas_installed = False
-try:
-    import pandas  # noqa: F401
-
-    _is_pandas_installed = True
-except ImportError:
-    pass
+from marimo._dependencies.dependencies import DependencyManager
 
 
 class WebComponentEncoder(JSONEncoder):
@@ -24,7 +10,7 @@ class WebComponentEncoder(JSONEncoder):
 
     def default(self, obj: Any) -> Any:
         # Handle numpy objects
-        if _is_numpy_installed:
+        if DependencyManager.has_numpy():
             import numpy as np
 
             dtypes = (np.datetime64, np.complexfloating)
@@ -40,7 +26,7 @@ class WebComponentEncoder(JSONEncoder):
                 return obj.tolist()
 
         # Handle pandas objects
-        if _is_pandas_installed:
+        if DependencyManager.has_pandas():
             import pandas as pd
 
             if isinstance(obj, pd.DataFrame):
@@ -54,5 +40,6 @@ class WebComponentEncoder(JSONEncoder):
         if hasattr(obj, "_mime_"):
             (mimetype, data) = obj._mime_()
             return {"mimetype": mimetype, "data": data}
+
         # Fallthrough to default encoder
         return JSONEncoder.default(self, obj)
