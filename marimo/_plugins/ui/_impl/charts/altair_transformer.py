@@ -78,7 +78,7 @@ def _data_to_csv_string(data: _DataType) -> str:
 
     if isinstance(data, pd.DataFrame):
         sanitized = alt.utils.sanitize_dataframe(data)
-        as_str = sanitized.to_csv(index=False)
+        as_str = sanitized.to_csv(index=False, na_rep="null")
         assert isinstance(as_str, str)
         return as_str
     elif isinstance(data, dict):
