@@ -21,6 +21,9 @@ also shareable as an interactive web app: _explore data, run
 experiments, build tools, and deploy apps, all from one seamless
 environment_.
 
+```python
+pip install marimo && marimo tutorial intro
+```
 
 **Highlights.** marimo is purpose-built for working with data in Python. Some key features:
 
