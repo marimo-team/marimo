@@ -5,7 +5,9 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Tuple
 
+from marimo._server import api
 from marimo._server.api.model import parse_raw
+from marimo._server.api.set_cell_config import SetCellConfig
 
 
 @dataclass
@@ -114,3 +116,13 @@ class TestParseRaw:
 
         parsed = parse_raw(serialize(nested), Nested)
         assert parsed == nested
+
+    def test_set_cell_config(self) -> None:
+        config = SetCellConfig(
+            {"0": {"disabled": True}, "1": {"disabled": False}}
+        )
+        parsed = parse_raw(
+            serialize(config), api.set_cell_config.SetCellConfig
+        )
+        print(parsed)
+        assert parsed == config
