@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Dict
 
 import tornado.web
 
@@ -14,7 +15,7 @@ from marimo._server.api.model import parse_raw
 @dataclass
 class SetCellConfig:
     # Map from Cell ID to (possibily partial) CellConfig
-    configs: dict[CellId_t, dict[str, object]]
+    configs: Dict[CellId_t, Dict[str, object]]
 
 
 class SetCellConfigHandler(tornado.web.RequestHandler):
