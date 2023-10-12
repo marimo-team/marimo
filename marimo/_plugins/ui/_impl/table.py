@@ -124,6 +124,11 @@ class table(UIElement[List[str], List[object]]):
         return self._data
 
     def _convert_value(self, value: list[str]) -> list[object]:
+        if DependencyManager.has_pandas():
+            import pandas as pd
+
+            if isinstance(self._data, pd.DataFrame):
+                return self._data.iloc[[int(v) for v in value]]
         return [self._data[int(v)] for v in value]
 
 
