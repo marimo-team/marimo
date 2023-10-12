@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import {
-  AppWindowIcon,
+  LayoutTemplateIcon,
   SaveIcon,
   EditIcon,
   PlayIcon,
@@ -120,7 +120,7 @@ export const Controls = ({
             {presenting ? (
               <EditIcon strokeWidth={1.5} />
             ) : (
-              <AppWindowIcon strokeWidth={1.5} />
+              <LayoutTemplateIcon strokeWidth={1.5} />
             )}
           </Button>
         </Tooltip>
@@ -212,4 +212,4 @@ const bottomRightControls =
   "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-30";
 
 const bottomLeftControls =
-  "absolute bottom-5 left-4 m-0 flex items-center space-x-3 no-print pointer-events-auto z-30";
+  "absolute bottom-5 left-4 m-0 flex flex-col-reverse xl:flex-row gap-2 items-center no-print pointer-events-auto z-30";
