@@ -1,7 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import sys
 from typing import (
     TYPE_CHECKING,
@@ -16,8 +15,12 @@ from typing import (
 )
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.altair_transformer import (
+    register_transformers,
+)
 from marimo._utils import flatten
 
 LOGGER = _loggers.marimo_logger()
@@ -46,49 +49,11 @@ def _has_binning(spec: VegaSpec) -> bool:
     return False
 
 
-def _to_dataframe(vega_spec: VegaSpec) -> pd.DataFrame:
-    # Try to import pandas
-    try:
-        import pandas as pd
-    except ImportError:
-        LOGGER.error("Pandas is required to render Vega-Lite charts")
-        raise ImportError(
-            "Pandas is required to render Vega-Lite charts"
-        ) from None
-
-    data = vega_spec.get("data", {})
-    if "url" in data:
-        # If the data is defined as a URL,
-        # use pandas to read the data from the URL
-        if data["url"].endswith(".csv"):
-            df = pd.read_csv(data["url"])
-        elif data["url"].endswith(".json"):
-            df = pd.read_json(data["url"])
-        else:
-            raise ValueError(
-                f'Unsupported data format: {data["url"]}'
-            ) from None
-    elif "values" in data:
-        # If the data is defined as an inline list,
-        # convert the list to a DataFrame
-        df = pd.DataFrame(data["values"])
-    elif "name" in data:
-        # If the data is defined as a named data source,
-        # try to find the data source in the Vega-Lite spec
-        name = data["name"]
-        datasets = vega_spec.get("datasets", {})
-        if name in datasets:
-            df = pd.DataFrame(datasets[name])
-        else:
-            raise ValueError(f"Could not find data source {name}") from None
-    else:
-        raise ValueError("Data source not supported") from None
-    return df
-
-
 def _filter_dataframe(
-    df: pd.DataFrame, selection: ChartSelection
+    df_prev: pd.DataFrame, selection: ChartSelection
 ) -> pd.DataFrame:
+    # Make a copy of the DataFrame
+    df = df_prev.copy()
     for _channel, fields in selection.items():
         # If vlPoint is in the selection,
         # then the selection is a point selection
@@ -117,28 +82,14 @@ def _filter_dataframe(
     return df
 
 
-def _parse_spec(spec: Union[str, altair.Chart, VegaSpec]) -> VegaSpec:
-    if spec is None or spec == "":
-        return {}
+def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
+    import altair
 
-    # Parse Altair chart, str, or dict
-    try:
-        try:
-            import altair
-
-            if isinstance(spec, altair.Chart):
-                return json.loads(spec.to_json())  # type: ignore
-        except ImportError:
-            pass
-
-        if isinstance(spec, dict):
-            return spec
-        elif isinstance(spec, str):
-            return json.loads(spec)  # type: ignore
-    except json.JSONDecodeError as err:
-        raise ValueError(f"Invalid Vega-Lite spec: {spec}") from err
-
-    raise ValueError("Invalid Vega-Lite spec") from None
+    # vegafusion requires creating a vega spec,
+    # instead of using a vega-lite spec
+    if altair.data_transformers.active == "vegafusion":
+        return spec.to_dict(format="vega")  # type: ignore
+    return spec.to_dict()  # type: ignore
 
 
 @mddoc
@@ -193,22 +144,35 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     def __init__(
         self,
-        figure: altair.Chart,
+        chart: altair.Chart,
         chart_selection: Literal["point"] | Literal["interval"] | bool = True,
         legend_selection: list[str] | bool = True,
         *,
         label: str = "",
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
-        vega_spec = _parse_spec(figure)
-        self.dataframe = _to_dataframe(vega_spec)
+        DependencyManager.require_altair(why="to use `mo.ui.altair_chart`")
+
+        import altair as alt
+
+        # TODO: is this the right place to register the transformers?
+        register_transformers()
+
+        if not isinstance(chart, (alt.TopLevelMixin)):
+            raise ValueError(
+                "Invalid type for chart: "
+                f"{type(chart)}; expected altair.Chart"
+            )
+
+        if isinstance(chart, (alt.Chart, alt.LayerChart)):
+            chart = chart.properties(width="container")
+
+        vega_spec = _parse_spec(chart)
 
         if label:
             vega_spec["title"] = label
 
-        # Automatically add full width
-        if "width" not in vega_spec:
-            vega_spec["width"] = "container"
+        # Fix the sizing for vconcat charts
         if "vconcat" in vega_spec:
             for chart in vega_spec["vconcat"]:
                 if "width" not in chart:
@@ -227,6 +191,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             )
             chart_selection = False
             legend_selection = False
+
+        self.dataframe = chart.data
 
         super().__init__(
             component_name="marimo-vega",

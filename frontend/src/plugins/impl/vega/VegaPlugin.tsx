@@ -13,6 +13,7 @@ import { useDebugMounting, usePropsDidChange } from "@/hooks/debug";
 import { debounce } from "lodash-es";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
+import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
 
@@ -88,7 +89,10 @@ export const VegaComponent = ({
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
   const selectableSpec = useMemo(() => {
-    return makeSelectable(spec, { chartSelection, fieldSelection });
+    return makeSelectable(fixRelativeUrl(spec), {
+      chartSelection,
+      fieldSelection,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useDeepCompareMemoize(spec), chartSelection, fieldSelection]);
   const names = useMemo(
