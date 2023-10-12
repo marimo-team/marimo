@@ -30,7 +30,7 @@ def test_normalize_data() -> None:
         {"key1": "value1"},
         {"key2": "value2"},
         {"key3": "value3"},
-    ]
+    ]  # type: ignore
     result = _normalize_data(data)
     assert result == [
         {"key1": "value1"},

@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.24"
@@ -10,7 +11,7 @@ def __(pd):
     all_flights = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_1m.parquet"
     )
-    return all_flights,
+    return (all_flights,)
 
 
 @app.cell
@@ -21,13 +22,13 @@ def __(mo):
         value="100000",
     )
     size
-    return size,
+    return (size,)
 
 
 @app.cell
 def __(all_flights, size):
     flights = all_flights.sample(int(size.value))
-    return flights,
+    return (flights,)
 
 
 @app.cell
@@ -60,7 +61,7 @@ def __(alt, flights, mo):
         alt.Chart(flights).mark_bar().encode(alt.X("delay"), alt.Y("count()"))
     )
     flight_histogram
-    return flight_histogram,
+    return (flight_histogram,)
 
 
 @app.cell
@@ -124,7 +125,9 @@ def __(airports, alt, data, flight_histogram, mo):
         )
         .transform_lookup(lookup="origin", from_=lookup_data)
         .transform_lookup(
-            lookup="destination", from_=lookup_data, as_=["state", "lat2", "lon2"]
+            lookup="destination",
+            from_=lookup_data,
+            as_=["state", "lat2", "lon2"],
         )
         .transform_filter(select_city)
     )
@@ -141,7 +144,9 @@ def __(airports, alt, data, flight_histogram, mo):
         )
         .transform_aggregate(routes="count()", groupby=["origin"])
         .transform_lookup(lookup="origin", from_=lookup_data)
-        .transform_filter((alt.datum.state != "PR") & (alt.datum.state != "VI"))
+        .transform_filter(
+            (alt.datum.state != "PR") & (alt.datum.state != "VI")
+        )
         .add_params(select_city)
     )
 
@@ -169,9 +174,7 @@ def __(flight_histogram, mo):
                 f"Top airport: **{flight_histogram.value['origin'].value_counts().index[0]}**"
             ),
             flight_histogram.value.describe(),
-            # mo.ui.table(
-            #     flight_histogram.value.to_dict(orient="records"), pagination=False
-            # ),
+            mo.ui.table(flight_histogram.value),
         ]
     )
     return
@@ -188,15 +191,16 @@ def __(alt, brush, flights, mo):
             .add_params(brush)
         )
         mo.output.append(mo.ui.altair_chart(million_histogram))
-    return million_histogram,
+    return (million_histogram,)
 
 
 @app.cell
 def __():
-    import marimo as mo
-    import pandas as pd
     import altair as alt
+    import pandas as pd
     from vega_datasets import data
+
+    import marimo as mo
 
     airports = data.airports.url
 

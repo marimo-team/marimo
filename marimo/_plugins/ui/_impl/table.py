@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Callable,
+    Dict,
     Final,
     List,
     Literal,
@@ -16,6 +17,7 @@ from typing import (
 from marimo import _loggers
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
@@ -26,9 +28,8 @@ if TYPE_CHECKING:
     import pandas as pd
 
 TableData = Union[
-    list[dict[str, str]],
-    Sequence[str | int | float | bool | MIME | None],
-    Sequence[dict[str, str | int | float | bool | MIME | None]],
+    Sequence[Union[str, int, float, bool, MIME, None]],
+    Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
     "pd.DataFrame",
 ]
 
@@ -53,7 +54,7 @@ class table(UIElement[List[str], List[object]]):
     ```python
     # df is a Pandas dataframe
     table = mo.ui.table(
-        data=df.to_dict('records'),
+        data=df,
         # use pagination when your table has many rows
         pagination=True,
         label='Dataset'
@@ -85,7 +86,11 @@ class table(UIElement[List[str], List[object]]):
 
     def __init__(
         self,
-        data: TableData,
+        data: Union[
+            Sequence[Union[str, int, float, bool, MIME, None]],
+            Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
+            "pd.DataFrame",
+        ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         *,
@@ -121,13 +126,13 @@ class table(UIElement[List[str], List[object]]):
         return [self._data[int(v)] for v in value]
 
 
-def _normalize_data(data: TableData) -> list[dict[str, object]]:
+def _normalize_data(data: TableData) -> JSONType:
     # Handle pandas
     try:
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
-            return data.to_dict("records")
+            return data.to_dict("records")  # type: ignore
     except ImportError:
         pass
 
