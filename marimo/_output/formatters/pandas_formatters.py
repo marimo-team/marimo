@@ -1,6 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any
+
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 
@@ -11,7 +13,7 @@ class PandasFormatter(FormatterFactory):
         return "pandas"
 
     def register(self) -> None:
-        import pandas as pd  # type:ignore[import]
+        import pandas as pd
 
         from marimo._output import formatting
 
@@ -25,7 +27,7 @@ class PandasFormatter(FormatterFactory):
             )
 
         @formatting.formatter(pd.Series)
-        def _show_series(series: pd.Series) -> tuple[str, str]:
+        def _show_series(series: pd.Series[Any]) -> tuple[str, str]:
             return (
                 "text/html",
                 flatten_string(series.to_frame().to_html()),

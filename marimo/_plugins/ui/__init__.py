@@ -5,6 +5,7 @@ This module contains a library of interactive UI elements.
 """
 
 __all__ = [
+    "altair_chart",
     "array",
     "batch",
     "button",
@@ -27,6 +28,7 @@ __all__ = [
 ]
 
 
+from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.dictionary import dictionary
