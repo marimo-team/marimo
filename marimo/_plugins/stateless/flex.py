@@ -118,7 +118,7 @@ def hstack(
     align: Optional[Literal["start", "end", "center", "stretch"]] = None,
     wrap: bool = False,
     gap: float = 0.5,
-    widths: Optional[Sequence[float]] = None,
+    widths: Optional[Literal["equal"] | Sequence[float]] = None,
 ) -> Html:
     """Stack items horizontally, in a row.
 
@@ -147,6 +147,9 @@ def hstack(
     - `align`: Align items vertically: start, end, center, or stretch.
     - `wrap`: Wrap items or not.
     - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
+    - `widths`: "equal" to give items equal width; or a list of relative widths
+      with same length as `items`, eg, [1, 2] means the second item is twice as
+      wide as the first; or `None` for a sensible default
 
     **Returns.**
 
@@ -159,7 +162,7 @@ def hstack(
         align=align,
         wrap=wrap,
         gap=gap,
-        widths=widths,
+        widths=[1 for _ in range(len(items))] if widths == "equal" else widths,
     )
 
 
