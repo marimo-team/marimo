@@ -43,10 +43,10 @@ from marimo._plugins.ui._impl.input import (
     number,
     radio,
     slider,
-    table,
     text,
     text_area,
 )
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.switch import switch
+from marimo._plugins.ui._impl.table import table
