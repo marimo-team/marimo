@@ -20,6 +20,7 @@ def _flex(
     align: Optional[Literal["start", "end", "center", "stretch"]],
     wrap: bool,
     gap: float,
+    widths: Optional[Sequence[float]],
 ) -> Html:
     justify_content_map = {
         "start": "flex-start",
@@ -46,7 +47,19 @@ def _flex(
             "gap": f"{gap}rem",
         }
     )
-    grid_items = [h.div(as_html(item).text) for item in items]
+
+    def create_style_for_item(idx: int) -> str:
+        if widths is None:
+            return ""
+        width = widths[idx]
+        if width is None:
+            return ""
+        return create_style({"flex": f"{width}"})
+
+    grid_items = [
+        h.div(as_html(item).text, style=create_style_for_item(i))
+        for i, item in enumerate(items)
+    ]
     return Html(h.div(grid_items, style=style))
 
 
@@ -92,6 +105,7 @@ def vstack(
         align=align,
         wrap=False,
         gap=gap,
+        widths=None,
     )
 
 
@@ -104,6 +118,7 @@ def hstack(
     align: Optional[Literal["start", "end", "center", "stretch"]] = None,
     wrap: bool = False,
     gap: float = 0.5,
+    widths: Optional[Literal["equal"] | Sequence[float]] = None,
 ) -> Html:
     """Stack items horizontally, in a row.
 
@@ -132,6 +147,9 @@ def hstack(
     - `align`: Align items vertically: start, end, center, or stretch.
     - `wrap`: Wrap items or not.
     - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
+    - `widths`: "equal" to give items equal width; or a list of relative widths
+      with same length as `items`, eg, [1, 2] means the second item is twice as
+      wide as the first; or `None` for a sensible default
 
     **Returns.**
 
@@ -144,6 +162,7 @@ def hstack(
         align=align,
         wrap=wrap,
         gap=gap,
+        widths=[1 for _ in range(len(items))] if widths == "equal" else widths,
     )
 
 
