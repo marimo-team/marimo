@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.24"
+__generated_with = "0.1.25"
 app = marimo.App(width="full")
 
 
@@ -11,24 +11,24 @@ def __(pd):
     all_flights = pd.read_parquet(
         "https://vegafusion-datasets.s3.amazonaws.com/vega/flights_1m.parquet"
     )
-    return (all_flights,)
+    return all_flights,
 
 
 @app.cell
 def __(mo):
-    size = mo.ui.radio(
+    size = mo.ui.dropdown(
         label="Size",
         options=["100", "1000", "10000", "100000", "1000000"],
         value="100000",
     )
     size
-    return (size,)
+    return size,
 
 
 @app.cell
 def __(all_flights, size):
     flights = all_flights.sample(int(size.value))
-    return (flights,)
+    return flights,
 
 
 @app.cell
@@ -61,7 +61,7 @@ def __(alt, flights, mo):
         alt.Chart(flights).mark_bar().encode(alt.X("delay"), alt.Y("count()"))
     )
     flight_histogram
-    return (flight_histogram,)
+    return flight_histogram,
 
 
 @app.cell
@@ -191,7 +191,7 @@ def __(alt, brush, flights, mo):
             .add_params(brush)
         )
         mo.output.append(mo.ui.altair_chart(million_histogram))
-    return (million_histogram,)
+    return million_histogram,
 
 
 @app.cell
