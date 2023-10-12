@@ -68,8 +68,8 @@ class table(UIElement[List[str], List[object]]):
 
     **Initialization Args.**
 
-    - `data`:  a list of values representing a column, or a list of dicts
-        where each dict represents a row in the table
+    - `data`: A pandas dataframe, or a list of values representing a column,
+        or a list of dicts where each dict represents a row in the table
         (mapping column names to values). values can be
         primitives (`str`, `int`, `float`, `bool`, or `None`)
         or Marimo elements: e.g.
