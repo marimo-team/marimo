@@ -25,6 +25,8 @@ environment_.
 pip install marimo && marimo tutorial intro
 ```
 
+![marimo](docs/_static/docs-intro.gif)
+
 **Highlights.** marimo is purpose-built for working with data in Python. Some key features:
 
 - **reactive**: run a cell, and marimo automatically runs cells that depend on it
@@ -39,7 +41,6 @@ marimo was built from the ground up to solve many [well-known problems
 with traditional notebooks](https://docs.marimo.io/faq.html#faq-jupyter).
 marimo is _not_ built on top of Jupyter or any other notebook or app library.
 
-![marimo](https://github.com/marimo-team/marimo/blob/main/docs/_static/intro_condensed.gif)
 
 **Contents.**
 
