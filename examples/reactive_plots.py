@@ -1,45 +1,20 @@
 import marimo
 
-__generated_with = "0.1.28"
+__generated_with = "0.1.29"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __():
-    import marimo as mo
-    return mo,
-
-
-@app.cell
 def __(mo):
-    mo.md("# Reactive plots! 🚗 ⚡")
+    mo.md("# Welcome to marimo!")
     return
 
 
 @app.cell
-def __(alt, data, mo):
-    cars = data.cars()
-
-    brush = alt.selection_interval()
-    scatter = (
-        alt.Chart(cars)
-        .mark_point()
-        .encode(
-            x="Horsepower",
-            y="Miles_per_Gallon",
-            color="Origin",
-        )
-        .add_params(brush)
-    )
-    bars = (
-        alt.Chart(cars)
-        .mark_bar()
-        .encode(y="Origin:N", color="Origin:N", x="count(Origin):Q")
-        .transform_filter(brush)
-    )
+def __(bars, mo, scatter):
     chart = mo.ui.altair_chart(scatter & bars)
     chart
-    return bars, brush, cars, chart, scatter
+    return chart,
 
 
 @app.cell
@@ -66,10 +41,39 @@ def __(alt, filtered_data, mo):
 
 
 @app.cell
+def __(alt, data):
+    cars = data.cars()
+    brush = alt.selection_interval()
+    scatter = (
+        alt.Chart(cars)
+        .mark_point()
+        .encode(
+            x="Horsepower",
+            y="Miles_per_Gallon",
+            color="Origin",
+        )
+        .add_params(brush)
+    )
+    bars = (
+        alt.Chart(cars)
+        .mark_bar()
+        .encode(y="Origin:N", color="Origin:N", x="count(Origin):Q")
+        .transform_filter(brush)
+    )
+    return bars, brush, cars, scatter
+
+
+@app.cell
 def __():
     import altair as alt
     from vega_datasets import data
     return alt, data
+
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
 
 
 if __name__ == "__main__":
