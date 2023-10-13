@@ -14,12 +14,12 @@ def __():
 @app.cell
 def __(mo):
     _stats = [
-        mo.stat("$100", label="Revenue", subtitle="+ 10%", direction="increase"),
+        mo.stat("$100", label="Revenue", caption="+ 10%", direction="increase"),
         mo.stat(
-            "$20", label="Marketing spend", subtitle="+ 10%", direction="increase"
+            "$20", label="Marketing spend", caption="+ 10%", direction="increase"
         ),
-        mo.stat("$80", label="Profit", subtitle="+ 10%", direction="increase"),
-        mo.stat("2%", label="Churn", subtitle="- 2%", direction="decrease"),
+        mo.stat("$80", label="Profit", caption="+ 10%", direction="increase"),
+        mo.stat("2%", label="Churn", caption="- 2%", direction="decrease"),
     ]
     mo.hstack(_stats)
     return
@@ -31,28 +31,28 @@ def __(mo):
         mo.stat(
             "$100",
             label="Revenue",
-            subtitle="+ 10%",
+            caption="+ 10%",
             direction="increase",
             bordered=True,
         ),
         mo.stat(
             "$20",
             label="Marketing spend",
-            subtitle="+ 10%",
+            caption="+ 10%",
             direction="increase",
             bordered=True,
         ),
         mo.stat(
             "$80",
             label="Profit",
-            subtitle="+ 10%",
+            caption="+ 10%",
             direction="increase",
             bordered=True,
         ),
         mo.stat(
             "2%",
             label="Churn",
-            subtitle="- 2%",
+            caption="- 2%",
             direction="decrease",
             bordered=True,
         ),

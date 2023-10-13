@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface Data {
   value: string;
   label?: string;
-  subtitle?: string;
+  caption?: string;
   bordered?: boolean;
   direction?: "increase" | "decrease";
 }
@@ -19,7 +19,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
   validator = z.object({
     value: z.string(),
     label: z.string().optional(),
-    subtitle: z.string().optional(),
+    caption: z.string().optional(),
     bordered: z.boolean().default(false),
     direction: z.enum(["increase", "decrease"]).optional(),
   });
@@ -32,7 +32,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
 export const StatComponent: React.FC<Data> = ({
   value,
   label,
-  subtitle,
+  caption,
   bordered,
   direction,
 }) => {
@@ -50,7 +50,7 @@ export const StatComponent: React.FC<Data> = ({
       )}
       <div className="p-6 pt-0">
         <div className="text-2xl font-bold">{value}</div>
-        {subtitle && (
+        {caption && (
           <p className="pt-1 text-xs text-muted-foreground flex align-center">
             {direction === "increase" && (
               <TriangleIcon
@@ -66,7 +66,7 @@ export const StatComponent: React.FC<Data> = ({
                 stroke="var(--red-9)"
               />
             )}
-            {subtitle}
+            {caption}
           </p>
         )}
       </div>

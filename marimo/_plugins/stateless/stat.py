@@ -13,21 +13,22 @@ from marimo._plugins.utils import remove_none_values
 def stat(
     value: Union[str, int, float],
     label: Optional[str] = None,
-    subtitle: Optional[str] = None,
+    caption: Optional[str] = None,
     direction: Optional[Literal["increase", "decrease"]] = None,
-    bordered: Optional[bool] = None,
+    bordered: bool = False,
 ) -> Html:
     """Display a statistic.
 
-    Optionally include a label, subtitle, and direction.
+    Optionally include a label, caption, and direction.
 
     **Args.**
 
     - `value`: the value to display
     - `label`: the label to display
-    - `subtitle`: the subtitle to display
+    - `caption`: the caption to display
     - `direction`: the direction of the statistic,
         either `increase` or `decrease`
+    - `bordered`: whether to display a border around the statistic
 
     **Returns.**
 
@@ -40,7 +41,7 @@ def stat(
                 {
                     "value": value,
                     "label": label,
-                    "subtitle": subtitle,
+                    "caption": caption,
                     "direction": direction,
                     "bordered": bordered,
                 }

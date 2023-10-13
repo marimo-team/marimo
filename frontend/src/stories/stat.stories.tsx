@@ -20,14 +20,14 @@ export const Full = Template.bind({});
 Full.args = {
   label: "Revenue",
   value: "$80,000",
-  subtitle: "Last 30 days",
+  caption: "Last 30 days",
 };
 
 export const Increase = Template.bind({});
 Increase.args = {
   label: "Revenue",
   value: "$80,000",
-  subtitle: "+42%",
+  caption: "+42%",
   direction: "increase",
 };
 
@@ -35,7 +35,7 @@ export const Decrease = Template.bind({});
 Decrease.args = {
   label: "Churn",
   value: "6.4%",
-  subtitle: "-4%",
+  caption: "-4%",
   direction: "decrease",
 };
 
@@ -43,7 +43,7 @@ export const Bordered = Template.bind({});
 Bordered.args = {
   label: "Revenue",
   value: "$80,000",
-  subtitle: "Last 30 days",
+  caption: "Last 30 days",
   bordered: true,
 };
 
@@ -53,26 +53,26 @@ export const Grid = () => {
       <StatComponent
         label="Revenue"
         value="$80,000"
-        subtitle="Last 30 days"
+        caption="Last 30 days"
         bordered={true}
       />
       <StatComponent
         label="Profit"
         value="$30,000"
-        subtitle="Last 30 days"
+        caption="Last 30 days"
         bordered={true}
       />
       <StatComponent
         label="Marketing Spend"
         value="$10,000"
-        subtitle="+42%"
+        caption="+42%"
         direction="increase"
         bordered={true}
       />
       <StatComponent
         label="Churn"
         value="6.4%"
-        subtitle="-4%"
+        caption="-4%"
         direction="decrease"
         bordered={true}
       />
@@ -87,7 +87,7 @@ export const Flex = () => {
         <StatComponent
           label="Revenue"
           value="$80,000"
-          subtitle="Last 30 days"
+          caption="Last 30 days"
           bordered={true}
         />
       </div>
@@ -95,7 +95,7 @@ export const Flex = () => {
         <StatComponent
           label="Profit"
           value="$30,000"
-          subtitle="Last 30 days"
+          caption="Last 30 days"
           bordered={true}
         />
       </div>
@@ -103,7 +103,7 @@ export const Flex = () => {
         <StatComponent
           label="Marketing Spend"
           value="$10,000"
-          subtitle="+42%"
+          caption="+42%"
           direction="increase"
           bordered={true}
         />
@@ -112,7 +112,7 @@ export const Flex = () => {
         <StatComponent
           label="Churn"
           value="6.4%"
-          subtitle="-4%"
+          caption="-4%"
           direction="decrease"
           bordered={true}
         />
