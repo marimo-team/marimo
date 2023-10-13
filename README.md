@@ -30,7 +30,7 @@ pip install marimo && marimo tutorial intro
 When you run a cell, marimo _automatically_ runs all other cells that depend on
 it (like a spreadsheet!). This **reactivity**, along with marimo's built-in
 **interactive** UI elements, lets you make powerful notebooks and apps that _make
-your data tangible_ . 
+your data tangible_. 
 
 **Highlights.**
 
