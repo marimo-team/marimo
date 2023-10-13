@@ -37,7 +37,7 @@ your data tangible_ .
 - **reactive**: run a cell, and marimo automatically runs cells that depend on it
 - **interactive**: connect inputs like sliders, dropdowns, plots, and
   more to Python
-- **expressive**: dynamic makdown parametrized by UI elements, plots, or anything else
+- **expressive**: write dynamic makdown parametrized by UI elements, plots, or anything else
 - **Pythonic**: no callbacks, no magical syntax — just Python
 - **git-friendly**: notebooks stored as `.py` files
 
@@ -66,19 +66,18 @@ or create/edit a notebook with a given name with
 marimo edit your_notebook.py
 ```
 
-marimo **reacts** to your code changes, like a spreadsheet! This rapid feedback
+- marimo **reacts** to your code changes, like a spreadsheet! This rapid feedback
 ensures your code and outputs are always in sync.
 
 <img src="docs/_static/reactive.gif" width="700px" />
 
-Import the marimo library in your marimo notebooks to use
-**interactive** elements, like sliders!
+- Import `marimo` in your notebooks to use
+**interactive** elements, like sliders, dropdowns, tables, and more.
 
 <img src="docs/_static/readme-ui.gif" width="700px" />
 
-_See our [docs](https://docs.marimo.io/api/index.html) to learn about other
-elements, including reactive charts, tables, dropdowns, and more._
-
+_See our [docs](https://docs.marimo.io/api/index.html) to learn more, including
+how to layout outputs in tabs, rows, columns, and more._
 
 **Run apps.** Run your notebook as a web app, with Python
 code hidden and
@@ -87,6 +86,12 @@ uneditable:
 ```bash
 marimo run your_notebook.py
 ```
+
+<img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
+
+_This app is deployed on [marimo cloud](https://marimo.io/cloud), our
+unified platform for deploying and sharing notebooks and apps._
+
 
 **Automatically convert Jupyter notebooks.** Automatically translate Jupyter notebooks to marimo notebooks:
 
@@ -118,11 +123,56 @@ code.
 Examples are available in the `examples/` directory.
 We've deployed many of these examples at our [public
 gallery](https://marimo.io/@public); try them out!
-Community examples can be found and shared in the [marimo
-cookbook](https://github.com/marimo-team/cookbook).
+
 
 Ready to learn more? Check out our [docs](https://docs.marimo.io/guides/overview.html)!
 
+<table border="0">
+  <tr>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+        <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height:150px; width:auto; display:block;">
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
+        <img src="docs/_static/readme-ui.gif" style="max-height:150px; width:auto; display:block;">
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
+        <img src="docs/_static/docs-intro.gif" style="max-height:150px; width:auto; display:block;">
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
+        <img src="docs/_static/outputs.gif" style="max-height:150px; width:auto; display:block;">
+      </a>
+    </td>
+    </tr>
+  <tr>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+	  Tutorial
+	  </a>
+	</td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+	  Inputs
+	  </a>
+	</td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+	  Plots
+	  </a>
+	</td>
+    <td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+	  Layout
+	  </a>
+	</td>
+  </tr>
+</table>
 
 ## FAQ
 
@@ -145,4 +195,4 @@ We're building a community. Come hang out with us!
 - 💬 [Join us on Discord](https://discord.gg/JE7nhX6mD8)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
-- ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
+- ✏️  [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
