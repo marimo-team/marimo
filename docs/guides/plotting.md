@@ -28,7 +28,7 @@ automatically made available as Pandas dataframes in Python._
 
 <div align="center">
 <figure>
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/docs-intro.gif" width="600px"/>
+<img src="/_static/docs-intro.gif" width="600px"/>
 </figure>
 </div>
 
