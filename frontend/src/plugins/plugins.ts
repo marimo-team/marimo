@@ -28,6 +28,7 @@ import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { DownloadPlugin } from "./layout/DownloadPlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
+import { VegaPlugin } from "./impl/vega/VegaPlugin";
 
 // List of UI plugins
 const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -48,6 +49,7 @@ const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new SwitchPlugin(),
   new TextAreaPlugin(),
   new TextInputPlugin(),
+  new VegaPlugin(),
 ];
 
 // List of output / layout plugins

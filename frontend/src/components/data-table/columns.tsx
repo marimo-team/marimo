@@ -100,6 +100,7 @@ export function generateColumns<T>(
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
+          className="ml-1"
         />
       ),
       enableSorting: false,

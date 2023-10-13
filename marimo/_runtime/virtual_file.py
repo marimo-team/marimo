@@ -34,15 +34,35 @@ class VirtualFile:
     filename: str
     buffer: bytes
 
-    def __init__(self, filename: str, buffer: bytes) -> None:
+    def __init__(
+        self, filename: str, buffer: bytes, url: Optional[str] = None
+    ) -> None:
         self.filename = filename
-        self.url = f"/@file/{filename}"
         self.buffer = buffer
+        # Create a file URL with the buffer size
+        # This is a hack so when we pull from shared memory we know how
+        # many bytes to read.
+        self.url = url or f"/@file/{len(buffer)}-{filename}"
+
+    @staticmethod
+    def from_external_url(url: str) -> VirtualFile:
+        return VirtualFile(
+            filename=url,
+            buffer=b"",
+            url=url,
+        )
+
+
+EMPTY_VIRTUAL_FILE = VirtualFile(
+    filename="empty.txt",
+    url="/@file/0-empty.txt",
+    buffer=b"",
+)
 
 
 class VirtualFileLifecycleItem(CellLifecycleItem):
     def __init__(self, ext: str, buffer: bytes) -> None:
-        self.ext = ext
+        self.ext = _without_leading_dot(ext)
         self.buffer = buffer
         # Not resolved until added to registry
         self._virtual_file: Optional[VirtualFile] = None
@@ -128,3 +148,7 @@ class VirtualFileRegistry:
         for _, shm in self.registry.items():
             shm.unlink()
         self.registry.clear()
+
+
+def _without_leading_dot(ext: str) -> str:
+    return ext[1:] if ext.startswith(".") else ext

@@ -13,7 +13,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 class microphone(UIElement[str, io.BytesIO]):
     """An audio recorder element.
 
-    Use `mo.microphone` to record audio via the user's browser. The
+    Use `mo.ui.microphone` to record audio via the user's browser. The
     user must grant permission to use the microphone.
 
     **Example.**

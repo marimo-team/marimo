@@ -166,7 +166,7 @@ const DEFAULT_HOT_KEY = {
 
   // Global Actions
   "global.hideCode": {
-    name: "Show/Hide code",
+    name: "Toggle app view",
     group: "Other",
     key: "Mod-.",
   },

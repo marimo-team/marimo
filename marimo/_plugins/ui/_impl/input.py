@@ -20,7 +20,6 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -589,107 +588,6 @@ class multiselect(UIElement[List[str], List[object]]):
 
     def _convert_value(self, value: list[str]) -> list[object]:
         return [self.options[v] for v in value]
-
-
-@mddoc
-class table(UIElement[List[str], List[object]]):
-    """
-    A table component.
-
-    **Example.**
-
-    ```python
-    table = mo.ui.table(
-      data=[
-        {'first_name': 'Michael', 'last_name': 'Scott'},
-        {'first_name': 'Dwight', 'last_name': 'Schrute'}
-      ],
-      label='Users'
-    )
-    ```
-
-    ```python
-    # df is a Pandas dataframe
-    table = mo.ui.table(
-        data=df.to_dict('records'),
-        # use pagination when your table has many rows
-        pagination=True,
-        label='Dataset'
-    )
-    ```
-
-    **Attributes.**
-
-    - `value`: the selected values, or `None` if no selection.
-    - `data`: the table data
-
-    **Initialization Args.**
-
-    - `data`:  a list of values representing a column, or a list of dicts
-        where each dict represents a row in the table
-        (mapping column names to values). values can be
-        primitives (`str`, `int`, `float`, `bool`, or `None`)
-        or Marimo elements: e.g.
-        `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc.
-    - `pagination`: whether to paginate; if `False`, all rows will be shown
-    - `selection`: 'single' or 'multi' to enable row selection, or `None` to
-        disable
-    - `label`: text label for the element
-    - `on_change`: optional callback to run when this element's value changes
-    """
-
-    _name: Final[str] = "marimo-table"
-
-    def __init__(
-        self,
-        data: Sequence[str | int | float | bool | MIME | None]
-        | Sequence[dict[str, str | int | float | bool | MIME | None]],
-        pagination: bool = False,
-        selection: Optional[Literal["single", "multi"]] = "multi",
-        *,
-        label: str = "",
-        on_change: Optional[Callable[[List[object]], None]] = None,
-    ) -> None:
-        if not isinstance(data, (list, tuple)):
-            raise ValueError("data must be a list or tuple.")
-
-        self._data = data
-        if not isinstance(data[0], dict) and isinstance(
-            data[0], (str, int, float, bool, type(None))
-        ):
-            # we're going to assume that data has the right shape, after
-            # having checked just the first entry
-            data = cast(List[Union[str, int, float, bool, MIME, None]], data)
-            data = [{"value": datum} for datum in data]
-        elif not isinstance(data[0], dict):
-            raise ValueError(
-                "data must be a sequence of JSON-serializable types, or a "
-                "sequence of dicts."
-            )
-
-        super().__init__(
-            component_name=table._name,
-            label=label,
-            initial_value=[],
-            args={
-                "data": data,
-                "pagination": pagination,
-                "selection": selection,
-            },
-            on_change=on_change,
-        )
-
-    @property
-    def data(
-        self,
-    ) -> Union[
-        Sequence[str | int | float | bool | None],
-        Sequence[dict[str, str | int | float | bool | None]],
-    ]:
-        return self._data
-
-    def _convert_value(self, value: list[str]) -> list[object]:
-        return [self._data[int(v)] for v in value]
 
 
 @mddoc

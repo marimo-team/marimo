@@ -14,11 +14,11 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   children,
 }) => {
   return (
-    <div className="px-18">
+    <div className="px-32 xl:px-60">
       <div
         className={cn(
           "m-auto pb-12",
-          appConfig.width !== "full" && "max-w-contentWidth",
+          appConfig.width !== "full" && "max-w-contentWidth min-w-[400px]",
           // Hide the cells for a fake loading effect, to avoid flickering
           invisible && "invisible"
         )}

@@ -56,6 +56,11 @@ dt em.sig-param:last-of-type::after {
   white-space: pre;
 }
 
+.sig-param,
+.sig-return-typehint {
+  font-size: 0.875rem;
+}
+
 .sidebar-logo-container {
   height: 150px;
 }

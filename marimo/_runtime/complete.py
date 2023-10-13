@@ -1,7 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import html
 import queue
 from typing import cast
 
@@ -77,7 +76,9 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         ).text
 
     if body:
-        body = "<pre>" + html.escape(body) + "</pre>"
+        # aggressively treat docstrings as markdown. this does mostly okay for
+        # most docstrings, and makes marimo docstrings much easier to read.
+        body = _md(body, apply_markdown_class=False).text
 
     if signature_text and body:
         docstring = signature_text + "\n\n" + body
@@ -98,7 +99,10 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
                     init_docstring = subname.docstring(raw=True)
                     if init_docstring:
                         init_docstring = (
-                            "__init__ docstring:\n\n" + init_docstring
+                            "__init__ docstring:\n\n"
+                            + _md(
+                                init_docstring, apply_markdown_class=False
+                            ).text
                         )
                     if docstring and init_docstring:
                         docstring += "\n\n" + init_docstring

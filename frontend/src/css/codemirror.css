@@ -8,3 +8,118 @@
 .dark .cm-selectionBackground {
   background-color: #4d4d4d !important;
 }
+
+.cm .cm-gutters {
+  @apply bg-background;
+
+  /* Style line numbers. */
+  font-size: 0.75rem;
+  color: var(--gray-10);
+}
+
+.dark .cm .cm-gutters {
+  background-color: transparent;
+}
+
+.cm-scroller {
+  overflow: auto;
+}
+
+/* Code completion pop-up. */
+.cm .cm-tooltip {
+  font-family: var(--monospace-font);
+  font-size: 0.875rem;
+  border: none;
+  box-shadow: var(--light-shadow);
+  border-radius: 4px 0 4px 4px;
+
+  @apply bg-popover;
+}
+
+.cm .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: #1177ccb0;
+}
+
+.dark .cm .cm-tooltip-autocomplete ul li[aria-selected] {
+  background: #1177cc80;
+}
+
+/* Code completion pop-up for docstrings, type-hints and completion info. */
+.cm .cm-tooltip.cm-completionInfo {
+  max-height: 800px;
+  overflow: auto;
+
+  /* Respect newlines. */
+  white-space: pre-wrap;
+
+  /* Codemirror generates an inline style for these properties,
+   * so we have to override them with !important. */
+  top: 0 !important;
+
+  /* Completion Info shows up to the right of another menu item. */
+  border-radius: 0 4px 4px;
+  padding: 0.625rem 0.875rem;
+}
+
+.cm .cm-tooltip.cm-completionInfo ul {
+  white-space: normal;
+  display: block;
+  list-style-type: disc;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  padding-inline-start: 40px;
+}
+
+.cm .cm-tooltip.cm-completionInfo ol {
+  /* provide by the browser, but removed from 'reset' */
+  white-space: normal;
+  display: block;
+  list-style-type: decimal;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  padding-inline-start: 40px;
+}
+
+.cm .cm-tooltip.cm-completionInfo li {
+  /* provided by the browser, but removed from 'reset' */
+  white-space: normal;
+  display: list-item;
+  text-align: -webkit-match-parent;
+}
+
+.cm .cm-tooltip.cm-completionInfo blockquote {
+  display: contents;
+  margin-block-start: 0;
+  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+}
+
+.cm .cm-tooltip.cm-completionInfo pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.cm .cm-completionIcon-function::after {
+  content: "λ";
+}
+
+.cm .cm-completionIcon-class::after {
+  content: "τ";
+}
+
+.cm .cm-completionIcon-module::after {
+  content: "μ";
+}
+
+.cm .cm-completionIcon-statement::after {
+  content: "χ";
+}
+
+.cm .cm-completionIcon-keyword::after {
+  content: "κ";
+}

@@ -5,6 +5,7 @@ This module contains a library of interactive UI elements.
 """
 
 __all__ = [
+    "altair_chart",
     "array",
     "batch",
     "button",
@@ -27,6 +28,7 @@ __all__ = [
 ]
 
 
+from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.dictionary import dictionary
@@ -41,10 +43,10 @@ from marimo._plugins.ui._impl.input import (
     number,
     radio,
     slider,
-    table,
     text,
     text_area,
 )
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.switch import switch
+from marimo._plugins.ui._impl.table import table

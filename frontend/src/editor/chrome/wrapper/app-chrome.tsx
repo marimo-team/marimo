@@ -16,6 +16,7 @@ import { useVariables } from "@/core/variables/state";
 import { useCellIds } from "@/core/state/cells";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
+import { ErrorsPanel } from "../panels/error-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -55,11 +56,11 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     />
   );
 
-  const variablePane = (
-    <div className="flex flex-col h-full flex-1 overflow-hidden">
+  const helpPaneBody = (
+    <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
       <div className="p-3 border-b flex justify-between items-center">
         <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
-          Variables
+          {selectedPanel}
         </div>
         <Button
           className="m-0"
@@ -70,7 +71,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <XIcon className="w-4 h-4" />
         </Button>
       </div>
-      {/* {selectedPanel === "errors" && <ErrorsPanel />} */}
+      {selectedPanel === "errors" && <ErrorsPanel />}
       {selectedPanel === "variables" && (
         <VariableTable
           className="flex-1"
@@ -107,11 +108,11 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     >
       {panelLocation === "left" ? (
         <span className="flex flex-row h-full">
-          {variablePane} {resizeHandle}
+          {helpPaneBody} {resizeHandle}
         </span>
       ) : (
         <span>
-          {resizeHandle} {variablePane}
+          {resizeHandle} {helpPaneBody}
         </span>
       )}
     </Panel>

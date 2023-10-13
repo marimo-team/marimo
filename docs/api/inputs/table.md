@@ -6,5 +6,5 @@
 .. autoclass:: marimo.ui.table
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.input.table
+  .. autoclasstoc:: marimo._plugins.ui._impl.table.table
 ```

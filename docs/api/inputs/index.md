@@ -9,6 +9,7 @@
   batch
   button
   checkbox
+  chart
   date
   dictionary
   dropdown
@@ -37,6 +38,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.batch
   marimo.ui.button
   marimo.ui.checkbox
+  marimo.ui.chart
   marimo.ui.date
   marimo.ui.dictionary
   marimo.ui.dropdown
