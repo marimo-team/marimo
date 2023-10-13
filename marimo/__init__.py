@@ -38,6 +38,7 @@ __all__ = [
     "redirect_stdout",
     "refs",
     "right",
+    "stat",
     "state",
     "stop",
     "tabs",
@@ -63,6 +64,7 @@ from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
+from marimo._plugins.stateless.stat import stat
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime import output

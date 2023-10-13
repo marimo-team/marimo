@@ -10,6 +10,7 @@
   image
   justify
   stacks
+  stat
   tabs
   tree
 ```
@@ -28,7 +29,8 @@ certain way.
   marimo.hstack
   marimo.left
   marimo.right
-  marimo.vstack
+  marimo.stat
   marimo.tabs
   marimo.tree
+  marimo.vstack
 ```
