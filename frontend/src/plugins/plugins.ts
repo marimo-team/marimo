@@ -28,6 +28,7 @@ import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { DownloadPlugin } from "./layout/DownloadPlugin";
 import { VegaPlugin } from "./impl/vega/VegaPlugin";
+import { StatPlugin } from "./layout/StatPlugin";
 
 // List of UI plugins
 const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -57,6 +58,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CalloutPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
+  new StatPlugin(),
   new TabsPlugin(),
   new TexPlugin(),
 ];
