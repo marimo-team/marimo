@@ -152,7 +152,7 @@ class Spinner(_Progress):
 def spinner(
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
-    clear_on_exit: bool = False,
+    remove_on_exit: bool = True,
 ) -> Iterator[Spinner]:
     """Show a loading spinner
 
@@ -174,14 +174,14 @@ def spinner(
 
     - `title`: optional title
     - `subtitle`: optional subtitle
-    - `clear_on_exit`: if True, the spinner is cleared from output on exit
+    - `remove_on_exit`: if True, the spinner is removed from output on exit
     """
     spinner = Spinner(title=title, subtitle=subtitle)
     output.append(spinner)
     try:
         yield spinner
     finally:
-        if clear_on_exit:
+        if remove_on_exit:
             spinner.clear()
         # TODO(akshayka): else consider transitioning to a done state
         spinner.close()

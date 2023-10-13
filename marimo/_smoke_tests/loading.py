@@ -23,7 +23,7 @@ def __(mo, time):
 
 @app.cell
 def __(mo, time):
-    with mo.loading.spinner(title="Loading...", clear_on_exit=True) as _spinner:
+    with mo.loading.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(1)
         _spinner.update("Almost done")
         time.sleep(1)
@@ -32,7 +32,7 @@ def __(mo, time):
 
 @app.cell
 def __(mo, time):
-    with mo.loading.spinner(title="Loading...", clear_on_exit=True) as _spinner:
+    with mo.loading.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(1)
         _spinner.update("Almost done")
         time.sleep(1)
