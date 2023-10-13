@@ -16,7 +16,7 @@ consistent.
 
 <div align="center">
 <figure>
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/reactive.gif" width="600px"/>
+<img src="/_static/reactive.gif" width="600px"/>
 </figure>
 </div>
 
@@ -70,7 +70,7 @@ to build rich composite outputs.
 
 <div align="center">
 <figure>
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/outputs.gif" width="600px"/>
+<img src="/_static/outputs.gif" width="600px"/>
 </figure>
 </div>
 
@@ -93,7 +93,7 @@ that can wrap other UI elements.
 
 <div align="center">
 <figure>
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/readme-ui.gif" width="600px"/>
+<img src="/_static/readme-ui.gif" width="600px"/>
 </figure>
 </div>
 
@@ -128,7 +128,7 @@ collections of elements.
 
 <div align="center">
 <figure>
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/readme-ui-form.gif" width="600px"/>
+<img src="/_static/readme-ui-form.gif" width="600px"/>
 </figure>
 </div>
 
