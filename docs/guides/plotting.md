@@ -26,6 +26,13 @@ Use [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) to easily
 create interactive, selectable plots: _selections you make on the frontend are
 automatically made available as Pandas dataframes in Python._
 
+<div align="center">
+<figure>
+<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/docs-intro.gif" width="600px"/>
+</figure>
+</div>
+
+
 ```{admonition} Requirements
 :class: warning
 Reactive plots currently require Altair. Install it with `pip install altair`
