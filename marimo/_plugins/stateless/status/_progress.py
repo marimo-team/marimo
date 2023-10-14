@@ -137,7 +137,7 @@ class Spinner(_Progress):
         **Example.**
 
         ```python
-        with mo.loading.spinner("Hang tight!") as _spinner:
+        with mo.status.spinner("Hang tight!") as _spinner:
             ...
             _spinner.update(title="Almost done!")
         # Optionally, remove the spinner from the output
@@ -156,13 +156,13 @@ def spinner(
 ) -> Iterator[Spinner]:
     """Show a loading spinner
 
-    Use `mo.loading.spinner()` as a context manager to show a loading spinner.
+    Use `mo.status.spinner()` as a context manager to show a loading spinner.
     You can optionally pass a title and subtitle.
 
     **Example.**
 
     ```python
-    with mo.loading.spinner(subtitle="Loading data ...") as _spinner:
+    with mo.status.spinner(subtitle="Loading data ...") as _spinner:
         data = expensive_function()
         _spinner.update(subtitle="Crunching numbers ...")
         ...
@@ -200,7 +200,7 @@ def progress_bar(
     **Example.**
 
     ```python
-    for i in mo.loading.progress_bar(range(10)):
+    for i in mo.status.progress_bar(range(10)):
         ...
     ```
 

@@ -29,7 +29,6 @@ __all__ = [
     "Html",
     "image",
     "left",
-    "loading",
     "md",
     "mpl",
     "output",
@@ -40,6 +39,7 @@ __all__ = [
     "refs",
     "right",
     "state",
+    "status",
     "stop",
     "tabs",
     "tree",
@@ -55,7 +55,7 @@ from marimo._output.hypertext import Html
 from marimo._output.justify import center, left, right
 from marimo._output.md import md
 from marimo._plugins import ui
-from marimo._plugins.stateless import mpl
+from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout_output import callout
@@ -66,7 +66,7 @@ from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
-from marimo._runtime import loading, output
+from marimo._runtime import output
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,
