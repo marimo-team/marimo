@@ -10,9 +10,10 @@
   layouts/index
   plotting
   media/index
-  html
+  status
   outputs
   control_flow
+  html
   state
   debugging
 ```
@@ -32,8 +33,9 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
 | {doc}`plotting`      | Output interactive plots                                  |
 | {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
-| {doc}`html`          | Manipulate HTML objects                                   |
+| {doc}`status`        | Display progress indicators                               |
 | {doc}`outputs`       | Modify cell outputs, redirect console output              |
 | {doc}`control_flow`  | Control how cells execute                                 |
+| {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`state`         | Make stateful apps with `mo.state`                        |
 | {doc}`debugging`     | Debugging utilities                                       |

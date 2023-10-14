@@ -27,6 +27,7 @@ import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
 import { DownloadPlugin } from "./layout/DownloadPlugin";
+import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { VegaPlugin } from "./impl/vega/VegaPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
 
@@ -60,6 +61,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new JsonOutputPlugin(),
   new StatPlugin(),
   new TabsPlugin(),
+  new ProgressPlugin(),
   new TexPlugin(),
 ];
 
