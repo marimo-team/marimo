@@ -48,10 +48,12 @@ export const ProgressComponent = ({
   progress,
   total,
 }: PropsWithChildren<Data>): JSX.Element => {
+  const alignment =
+    typeof progress === "number" ? "items-start" : "items-center";
   return (
-    <div className="flex flex-col items-center max-w-sm p-6 mx-auto space-y-4">
+    <div className={`flex flex-col ${alignment} max-w-sm p-6 mx-auto`}>
       {title && (
-        <div className="text-2xl font-bold text-foreground/60">
+        <div className="text-lg font-bold text-foreground/60">
           {renderHTML({ html: title })}
         </div>
       )}
