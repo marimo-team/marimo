@@ -14,7 +14,7 @@ def __():
 
 @app.cell
 def __(mo, time):
-    for _ in mo.loading.progress_bar(
+    for _ in mo.status.progress_bar(
         range(10), title="Loading", subtitle="Please wait"
     ):
         time.sleep(0.1)
@@ -23,7 +23,7 @@ def __(mo, time):
 
 @app.cell
 def __(mo, time):
-    with mo.loading.spinner(title="Loading...", remove_on_exit=True) as _spinner:
+    with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(1)
         _spinner.update("Almost done")
         time.sleep(1)
@@ -32,7 +32,7 @@ def __(mo, time):
 
 @app.cell
 def __(mo, time):
-    with mo.loading.spinner(title="Loading...", remove_on_exit=True) as _spinner:
+    with mo.status.spinner(title="Loading...", remove_on_exit=True) as _spinner:
         time.sleep(1)
         _spinner.update("Almost done")
         time.sleep(1)

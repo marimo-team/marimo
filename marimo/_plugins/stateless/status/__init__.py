@@ -4,4 +4,4 @@
 
 __all__ = ["progress_bar", "spinner"]
 
-from marimo._runtime.loading._loading import progress_bar, spinner
+from marimo._plugins.stateless.status._progress import progress_bar, spinner
