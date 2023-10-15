@@ -8,7 +8,7 @@ For more information about plotting, see the [plotting guide](../guides/plotting
 
 ## Reactive charts
 
-<!-- <iframe class="demo" src="https://components.marimo.io/?component=altair-chart" frameborder="no"></iframe> -->
+<!-- <iframe class="demo large" src="https://components.marimo.io/?component=altair-chart" frameborder="no"></iframe> -->
 
 ```{eval-rst}
 .. autofunction:: marimo.ui.altair_chart
