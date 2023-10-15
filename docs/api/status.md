@@ -9,7 +9,7 @@ databases, or APIs.
 You can display a progress bar while iterating over a collection, similar
 to `tqdm`.
 
-<!-- <iframe class="demo medium" src="https://components.marimo.io/?component=progress-bar" frameborder="no"></iframe> -->
+<iframe class="demo medium" src="https://components.marimo.io/?component=progress-bar" frameborder="no"></iframe>
 
 ```{eval-rst}
 .. autofunction:: marimo.status.progress_bar
@@ -17,7 +17,7 @@ to `tqdm`.
 
 ## Spinner
 
-<!-- <iframe class="demo medium" src="https://components.marimo.io/?component=spinner" frameborder="no"></iframe> -->
+<iframe class="demo medium" src="https://components.marimo.io/?component=spinner" frameborder="no"></iframe>
 
 ```{eval-rst}
 .. autofunction:: marimo.status.spinner
