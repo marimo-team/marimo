@@ -50,7 +50,7 @@ def test_normalize_data() -> None:
 
         data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
         result = _normalize_data(data)
-        assert type(result) == str
+        assert isinstance(result, str)
         assert result.endswith(".csv")
     except ImportError:
         pass
