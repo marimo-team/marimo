@@ -204,8 +204,8 @@ dependencies:
     specifier: ^0.284.0
     version: 0.284.0(react@18.2.0)
   partysocket:
-    specifier: 0.0.9
-    version: 0.0.9
+    specifier: 0.0.11
+    version: 0.0.11
   react-day-picker:
     specifier: ^8.8.2
     version: 8.8.2(date-fns@2.30.0)(react@18.2.0)
@@ -11296,10 +11296,8 @@ packages:
     engines: {node: '>= 0.8'}
     dev: true
 
-  /partysocket@0.0.9:
-    resolution: {integrity: sha512-SVFtPseMU9DC7fd7MdMx/y9MgWFMteWBgL0wVDQ90nCRBzt/pD1x8ovIqsCFK7uo1KXOXvqJuf9vjTIGPw77Wg==}
-    dependencies:
-      react: 18.2.0
+  /partysocket@0.0.11:
+    resolution: {integrity: sha512-/HBIvbmLK4UPu3Grht3gnvYZ9AOhQD0IpGvfERooyfPZSR1YLu2eM5gDOwwWS48Rqm7Dchszw02tIZWfq4R32w==}
     dev: false
 
   /path-exists@3.0.0:
