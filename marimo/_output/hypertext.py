@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, final
+from typing import TYPE_CHECKING, Any, Literal, final
 
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
@@ -180,18 +180,18 @@ class Html(MIME):
         return _callout(self, kind=kind)
 
     @mddoc
-    def style(self, style: str) -> Html:
+    def style(self, style: dict[str, Any]) -> Html:
         """Wrap an object in a styled container.
 
         **Example.**
 
         ```python
-        mo.md("...").style(style="max-height: 300px; overflow: auto")
+        mo.md("...").style({'max-height': '300px', 'overflow': 'auto'})
         ```
 
         **Args.**
 
-        - `style`: a string of inline styles for `item`'s container
+        - `styles`: a dict of CSS styles, keyed by property name
         """
         from marimo._plugins.stateless import style as _style
 

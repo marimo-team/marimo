@@ -1,4 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+
+from typing import Any
+
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -6,18 +10,19 @@ from marimo._output.rich_help import mddoc
 
 
 @mddoc
-def style(item: object, style: str) -> Html:
+def style(item: object, styles: dict[str, Any]) -> Html:
     """Wrap an object in a styled container.
 
     **Example.**
 
     ```python
-    mo.style(item, style="max-height: 300px; overflow: auto")
+    mo.style(item, styles={'max-height': '300px', 'overflow': 'auto'})
     ```
 
     **Args.**
 
     - `item`: an object to render as HTML
-    - `style`: a string of inline styles for `item`'s container
+    - `styles`: a dict of CSS styles, keyed by property name
     """
-    return Html(h.div(children=as_html(item).text, style=style))
+    style_str = ";".join([f"{key}:{value}" for key, value in styles.items()])
+    return Html(h.div(children=as_html(item).text, style=style_str))
