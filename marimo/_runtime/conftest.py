@@ -52,17 +52,19 @@ class MockedKernel:
             stderr=self.stderr,  # type: ignore
         )
 
+    def __del__(self) -> None:
+        # have to teardown the runtime context because it's a global
+        get_context()._kernel = None
+        get_context()._ui_element_registry = None
+        get_context()._stream = None
+        get_context()._initialized = False
+
 
 # fixture that provides a kernel (and tears it down)
 @pytest.fixture
 def k() -> Generator[Kernel, None, None]:
     mocked = MockedKernel()
     yield mocked.k
-    # have to teardown the runtime context because it's a global
-    get_context()._kernel = None
-    get_context()._ui_element_registry = None
-    get_context()._stream = None
-    get_context()._initialized = False
 
 
 # fixture that wraps a kernel and other mocked objects
@@ -70,11 +72,6 @@ def k() -> Generator[Kernel, None, None]:
 def mocked_kernel() -> Generator[MockedKernel, None, None]:
     mocked = MockedKernel()
     yield mocked
-    # have to teardown the runtime context because it's a global
-    get_context()._kernel = None
-    get_context()._ui_element_registry = None
-    get_context()._stream = None
-    get_context()._initialized = False
 
 
 # Factory to create ExecutionRequests and abstract away cell ID
