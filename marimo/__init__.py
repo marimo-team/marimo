@@ -29,8 +29,6 @@ __all__ = [
     "Html",
     "image",
     "left",
-    "max_height",
-    "max_width",
     "md",
     "mpl",
     "output",
@@ -44,6 +42,7 @@ __all__ = [
     "state",
     "status",
     "stop",
+    "style",
     "tabs",
     "tree",
     "ui",
@@ -67,8 +66,8 @@ from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
-from marimo._plugins.stateless.size import max_height, max_width
 from marimo._plugins.stateless.stat import stat
+from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._runtime import output

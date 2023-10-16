@@ -152,30 +152,6 @@ class Html(MIME):
         return flex.hstack([self], justify="start")
 
     @mddoc
-    def max_height(self, height: float) -> Html:
-        """Impose a max height
-
-        **Args.**
-
-        - `height`: height in pixels
-        """
-        from marimo._plugins.stateless import size
-
-        return size.max_height(self, height)
-
-    @mddoc
-    def max_width(self, width: float) -> Html:
-        """Impose a max width
-
-        **Args.**
-
-        - `width`: width in pixels
-        """
-        from marimo._plugins.stateless import size
-
-        return size.max_width(self, width)
-
-    @mddoc
     def callout(
         self,
         kind: Literal[
@@ -202,6 +178,24 @@ class Html(MIME):
         from marimo._plugins.stateless.callout import callout as _callout
 
         return _callout(self, kind=kind)
+
+    @mddoc
+    def style(self, style: str) -> Html:
+        """Wrap an object in a styled container.
+
+        **Example.**
+
+        ```python
+        mo.md("...").style(style="max-height: 300px; overflow: auto")
+        ```
+
+        **Args.**
+
+        - `style`: a string of inline styles for `item`'s container
+        """
+        from marimo._plugins.stateless import style as _style
+
+        return _style.style(self, style)
 
 
 def _js(text: str) -> Html:
