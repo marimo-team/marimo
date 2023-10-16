@@ -90,6 +90,7 @@
     "tailwindcss-animate": "^1.0.7",
     "timestring": "^7.0.0",
     "vega-lite": "^5.15.0",
+    "vega-loader": "^4.5.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "web-vitals": "^3.5.0",
     "zod": "^3.22.2"

@@ -2,9 +2,15 @@
 from typing import Any
 
 from marimo._plugins.ui._impl.table import TableData, _normalize_data
+from marimo._runtime.conftest import MockedKernel
+from marimo._runtime.runtime import ExecutionContext
 
 
 def test_normalize_data() -> None:
+    # Create kernel and give the execution context an existing cell
+    mocked = MockedKernel()
+    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
+
     data: TableData
 
     # Test with list of integers
@@ -44,11 +50,8 @@ def test_normalize_data() -> None:
 
         data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
         result = _normalize_data(data)
-        assert result == [
-            {"column1": 1, "column2": "a"},
-            {"column1": 2, "column2": "b"},
-            {"column1": 3, "column2": "c"},
-        ]
+        assert isinstance(result, str)
+        assert result.endswith(".csv")
     except ImportError:
         pass
 

@@ -242,6 +242,9 @@ dependencies:
   vega-lite:
     specifier: ^5.15.0
     version: 5.15.0(vega@5.25.0)
+  vega-loader:
+    specifier: ^4.5.1
+    version: 4.5.1
   vscode-languageserver-protocol:
     specifier: ^3.17.5
     version: 3.17.5
