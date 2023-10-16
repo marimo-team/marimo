@@ -29,6 +29,8 @@ __all__ = [
     "Html",
     "image",
     "left",
+    "max_height",
+    "max_width",
     "md",
     "mpl",
     "output",
@@ -59,12 +61,13 @@ from marimo._plugins import ui
 from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
-from marimo._plugins.stateless.callout_output import callout
+from marimo._plugins.stateless.callout import callout
 from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
+from marimo._plugins.stateless.size import max_height, max_width
 from marimo._plugins.stateless.stat import stat
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree

@@ -75,7 +75,7 @@ class CellOp(Op):
     def maybe_truncate_output(mimetype: str, data: str) -> tuple[str, str]:
         if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
             from marimo._output.md import md
-            from marimo._plugins.stateless.callout_output import callout
+            from marimo._plugins.stateless.callout import callout
 
             text = f"""
                 <span class="text-error">**Your output is too large**</span>
