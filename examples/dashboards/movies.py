@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.29"
+__generated_with = "0.1.30"
 app = marimo.App(width="full")
 
 
@@ -85,7 +84,7 @@ def __(get_end_date, get_start_date, mo, pd, set_end_date, set_start_date):
 
 @app.cell
 def __(
-    filted_movies,
+    filtered_movies,
     get_average_budget,
     get_average_gross,
     get_average_rating,
@@ -93,11 +92,11 @@ def __(
     mo,
     previous_movies,
 ):
-    mo.stop(len(filted_movies) == 0, "")
+    mo.stop(len(filtered_movies) == 0, "")
 
     previous_total_movies_count = len(previous_movies)
     previous_total_movies_change_rate = (
-        (len(filted_movies) - previous_total_movies_count)
+        (len(filtered_movies) - previous_total_movies_count)
         / previous_total_movies_count
         if previous_total_movies_count > 0
         else 0
@@ -109,11 +108,11 @@ def __(
         direction="increase"
         if previous_total_movies_change_rate > 0
         else "decrease",
-        value=f"{len(filted_movies):,.0f}",
+        value=f"{len(filtered_movies):,.0f}",
     )
 
     gross_current, gross_previous, gross_rate = get_average_gross(
-        filted_movies, previous_movies
+        filtered_movies, previous_movies
     )
     gross_stat = mo.stat(
         label="Average Gross",
@@ -124,7 +123,7 @@ def __(
     )
 
     budget_current, budget_previous, budget_rate = get_average_budget(
-        filted_movies, previous_movies
+        filtered_movies, previous_movies
     )
     budget_stat = mo.stat(
         label="Average Budget",
@@ -135,7 +134,7 @@ def __(
     )
 
     runtime_current, runtime_previous, runtime_rate = get_average_runtime(
-        filted_movies, previous_movies
+        filtered_movies, previous_movies
     )
     runtime_stat = mo.stat(
         label="Average Runtime",
@@ -146,7 +145,7 @@ def __(
     )
 
     rating_current, rating_previous, rating_rate = get_average_rating(
-        filted_movies, previous_movies
+        filtered_movies, previous_movies
     )
     average_rating = mo.stat(
         label="Average Rating",
@@ -185,22 +184,16 @@ def __(
 
 
 @app.cell
-def __():
-    # filted_movies.head()
+def __(filtered_movies, mo):
+    mo.ui.table(filtered_movies, selection=None)
     return
 
 
 @app.cell
-def __(filted_movies, mo):
-    mo.ui.table(filted_movies, selection=None)
-    return
-
-
-@app.cell
-def __(alt, filted_movies, mo):
+def __(alt, filtered_movies, mo):
     # chart of rating by budget
     _chart = (
-        alt.Chart(filted_movies)
+        alt.Chart(filtered_movies)
         .mark_circle()
         .encode(
             x="Production_Budget",
@@ -269,11 +262,11 @@ def __(
 
 
 @app.cell
-def __(alt, filted_movies, mo):
+def __(alt, filtered_movies, mo):
     # chart of ratings by genre
     # colored by decade
     _bar_chart = (
-        alt.Chart(filted_movies)
+        alt.Chart(filtered_movies)
         .mark_bar()
         .encode(
             x=alt.X("Major_Genre", sort="-y"),
@@ -379,7 +372,7 @@ def __(mo, pd):
 def __(end_date, get_previous_date_range, movies, pd, start_date):
     start = pd.to_datetime(start_date.value)
     end = pd.to_datetime(end_date.value)
-    filted_movies = movies[
+    filtered_movies = movies[
         (movies["Release_Date"] >= start) & (movies["Release_Date"] <= end)
     ]
     try:
@@ -393,10 +386,10 @@ def __(end_date, get_previous_date_range, movies, pd, start_date):
     except:
         previous_start_date = start
         previous_end_date = end
-        previous_movies = filted_movies
+        previous_movies = filtered_movies
     return (
         end,
-        filted_movies,
+        filtered_movies,
         previous_end_date,
         previous_movies,
         previous_start_date,
