@@ -14,6 +14,7 @@ from typing import (
     cast,
 )
 
+import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
@@ -142,7 +143,8 @@ def _normalize_data(data: TableData) -> JSONType:
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
-            return data.to_dict("records")  # type: ignore
+            vf = mo_data.csv(data)
+            return vf.url
 
     # Assert that data is a list
     if not isinstance(data, (list, tuple)):
