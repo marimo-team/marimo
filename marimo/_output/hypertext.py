@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, final
+from typing import TYPE_CHECKING, Any, Literal, final
 
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
@@ -175,11 +175,27 @@ class Html(MIME):
         ```
         """
 
-        from marimo._plugins.stateless.callout_output import (
-            callout as _callout,
-        )
+        from marimo._plugins.stateless.callout import callout as _callout
 
         return _callout(self, kind=kind)
+
+    @mddoc
+    def style(self, style: dict[str, Any]) -> Html:
+        """Wrap an object in a styled container.
+
+        **Example.**
+
+        ```python
+        mo.md("...").style({'max-height': '300px', 'overflow': 'auto'})
+        ```
+
+        **Args.**
+
+        - `styles`: a dict of CSS styles, keyed by property name
+        """
+        from marimo._plugins.stateless import style as _style
+
+        return _style.style(self, style)
 
 
 def _js(text: str) -> Html:
