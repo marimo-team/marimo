@@ -1,10 +1,29 @@
 # Copyright 2023 Marimo. All rights reserved.
-from typing import Any
+from typing import Any, Generator
+
+import pytest
 
 from marimo._plugins.ui._impl.table import TableData, _normalize_data
+from marimo._runtime.conftest import MockedKernel
+from marimo._runtime.context import get_context
+from marimo._runtime.runtime import ExecutionContext, Kernel
 
 
-def test_normalize_data() -> None:
+# fixture that wraps a kernel and other mocked objects
+@pytest.fixture
+def k() -> Generator[MockedKernel, None, None]:
+    mocked = MockedKernel()
+    # Give the execution context an existing cell
+    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
+    yield mocked
+    # have to teardown the runtime context because it's a global
+    get_context()._kernel = None
+    get_context()._ui_element_registry = None
+    get_context()._stream = None
+    get_context()._initialized = False
+
+
+def test_normalize_data(k: Kernel) -> None:
     data: TableData
 
     # Test with list of integers
@@ -44,11 +63,8 @@ def test_normalize_data() -> None:
 
         data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
         result = _normalize_data(data)
-        assert result == [
-            {"column1": 1, "column2": "a"},
-            {"column1": 2, "column2": "b"},
-            {"column1": 3, "column2": "c"},
-        ]
+        assert type(result) == str
+        assert result.endswith(".csv")
     except ImportError:
         pass
 
