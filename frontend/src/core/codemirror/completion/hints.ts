@@ -3,6 +3,7 @@ import { HTMLCellId } from "@/core/model/ids";
 import {
   EditorView,
   Tooltip,
+  hasHoverTooltips,
   hoverTooltip,
   showTooltip,
 } from "@codemirror/view";
@@ -72,6 +73,11 @@ const cursorTooltipField = StateField.define<Tooltip[]>({
       if (effect.is(TooltipFromCompletionApi)) {
         return [effect.value];
       }
+    }
+
+    // Hide if hover tooltips are enabled
+    if (hasHoverTooltips(tr.state)) {
+      return [];
     }
 
     // Otherwise, return the current tooltips
