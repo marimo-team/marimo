@@ -15,7 +15,7 @@ const htmlDevPlugin = (): Plugin => {
           `{{ user_config }}`,
           JSON.stringify({
             completion: {
-              activate_on_typing: false,
+              activate_on_typing: true,
               copilot: true,
             },
             save: {

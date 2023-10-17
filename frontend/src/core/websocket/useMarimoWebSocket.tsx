@@ -6,7 +6,7 @@ import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/state/cells";
 import { RuntimeState } from "@/core/RuntimeState";
-import { COMPLETION_REQUESTS } from "@/core/codemirror/completion/CompletionRequests";
+import { Autocompleter } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { saveCellConfig, sendInstantiate } from "../network/requests";
@@ -142,7 +142,7 @@ export function useMarimoWebSocket(opts: {
           return;
         }
         case "completion-result":
-          COMPLETION_REQUESTS.resolve(msg.data);
+          Autocompleter.INSTANCE.resolve(msg.data);
           return;
         case "cell-op": {
           /* Register a state transition for a cell.

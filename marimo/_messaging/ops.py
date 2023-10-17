@@ -21,6 +21,7 @@ from typing import (
     cast,
 )
 
+from marimo import _loggers as loggers
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
@@ -31,6 +32,8 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 from marimo._server.layout import LayoutConfig
+
+LOGGER = loggers.marimo_logger()
 
 
 def serialize(datacls: Any) -> dict[str, JSONType]:
@@ -44,6 +47,7 @@ class Op:
     # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
         stream = stream if stream is not None else get_context().stream
+        LOGGER.debug("Broadcasting op: %s", self)
         stream.write(op=self.name, data=serialize(self))
 
 
