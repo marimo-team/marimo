@@ -58,7 +58,7 @@ export function hintTooltip() {
 
         const fullWord = view.state.doc.slice(startToken, endToken).toString();
         const tooltip = Autocompleter.asHoverTooltip({
-          position: pos,
+          position: endToken,
           message: result,
           exactName: fullWord,
         });
