@@ -63,6 +63,7 @@ import {
   smartPlaceholderExtension,
 } from "./extensions";
 import { copilotBundle } from "./copilot/extension";
+import { hintTooltip } from "./completion/hints";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -144,6 +145,7 @@ export const basicBundle = (
       closeOnBlur: false,
       override: [completer],
     }),
+    hintTooltip(),
     copilotBundle(),
     foldGutter(),
     closeBrackets(),
