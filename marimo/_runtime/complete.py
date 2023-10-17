@@ -225,7 +225,7 @@ def complete(
                         prefix_length=0,
                         options=[
                             CompletionOption(
-                                name="",
+                                name=signatures[0].name,
                                 type="tooltip",
                                 completion_info=_get_completion_info(
                                     signatures[0]
