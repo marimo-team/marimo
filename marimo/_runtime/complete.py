@@ -211,9 +211,28 @@ def complete(
             ):
                 completions = []
 
-            # If there are still no completions, then bail.
             if not completions:
-                _write_no_completions(stream, request.completion_id)
+                # If no completions, we might be getting a signature ...
+                # for example, if the document is "mo.ui.slider(start=1,
+                signatures = script.get_signatures()
+                if signatures:
+                    # TODO(akshayka): formatting
+                    _write_completion_result(
+                        stream=stream,
+                        completion_id=request.completion_id,
+                        prefix_length=0,
+                        options=[
+                            CompletionOption(
+                                name="",
+                                type="function",
+                                completion_info=signatures[0].to_string(),
+                            )
+                        ],
+                    )
+
+                else:
+                    # If there are still no completions, then bail.
+                    _write_no_completions(stream, request.completion_id)
                 continue
 
             prefix = request.document[-prefix_length:]
