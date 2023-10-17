@@ -226,7 +226,7 @@ def complete(
                         options=[
                             CompletionOption(
                                 name="",
-                                type="function",
+                                type="tooltip",
                                 completion_info=_get_completion_info(
                                     signatures[0]
                                 ),
