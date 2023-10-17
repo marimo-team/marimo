@@ -32,7 +32,11 @@ export async function completer(
   });
 
   // If it is a tooltip, show it as a Tooltip instead of a completion
-  const tooltip = Autocompleter.asHoverTooltip(context.pos, result, "tooltip");
+  const tooltip = Autocompleter.asHoverTooltip({
+    position: context.pos,
+    message: result,
+    limitToType: "tooltip",
+  });
   if (tooltip) {
     // Find EditorView for the cell
     const editorView = getCells().find((cell) => cell.key === cellId)?.ref

@@ -2,7 +2,10 @@
 import { CompletionResult } from "@codemirror/autocomplete";
 
 import { Deferred } from "../../../utils/Deferred";
-import { CompletionResultMessage } from "../../kernel/messages";
+import {
+  CompletionOption,
+  CompletionResultMessage,
+} from "../../kernel/messages";
 import { generateUUID } from "@/utils/uuid";
 import { CellId } from "@/core/model/ids";
 import { sendCodeCompletionRequest } from "@/core/network/requests";
@@ -92,30 +95,48 @@ export class Autocompleter {
   /**
    * Convert a CompletionResultMessage to a Tooltip
    */
-  static asHoverTooltip(
-    position: number,
-    message: CompletionResultMessage,
-    limitToType?: "tooltip"
-  ): Tooltip | undefined {
-    // Only show tooltips if there is exactly one option
-    if (message.options.length !== 1) {
-      return;
+  static asHoverTooltip({
+    position,
+    message,
+    limitToType,
+    exactName,
+  }: {
+    position: number;
+    message: CompletionResultMessage;
+    limitToType?: "tooltip";
+    exactName?: string;
+  }): Tooltip | undefined {
+    const options = [...message.options];
+
+    let firstOption: CompletionOption | undefined;
+    // If there are no options, don't show a tooltip
+    if (options.length === 0) {
+      return undefined;
+    } else if (options.length === 1) {
+      // One option
+      firstOption = options[0];
+    } else if (exactName) {
+      // Tie break to a matching name
+      firstOption = options.find((option) => option.name === exactName);
     }
 
-    const first = message.options[0];
+    if (!firstOption) {
+      return undefined;
+    }
+
     const from = position - message.prefix_length;
-    const dom = constructCompletionInfoNode(first.completion_info);
+    const dom = constructCompletionInfoNode(firstOption.completion_info);
     if (!dom) {
       return;
     }
 
-    if (limitToType && first.type !== limitToType) {
+    if (limitToType && firstOption.type !== limitToType) {
       return;
     }
 
     return {
       pos: from,
-      end: from + first.name.length,
+      end: from + firstOption.name.length,
       above: true,
       create: () => ({ dom, resize: false }),
     };

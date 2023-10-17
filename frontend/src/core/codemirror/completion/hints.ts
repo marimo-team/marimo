@@ -24,13 +24,44 @@ export function hintTooltip() {
 
         const cellId = HTMLCellId.parse(cellContainer.id);
 
+        let startToken = pos;
+        let endToken = pos;
+
+        // Start of word
+        while (startToken > 0) {
+          const prevChar = view.state.doc.sliceString(
+            startToken - 1,
+            startToken
+          );
+          // Anything but a letter or number
+          if (!/[\dA-Za-z]/.test(prevChar)) {
+            break;
+          }
+          startToken--;
+        }
+
+        // End of word
+        while (endToken < view.state.doc.length) {
+          const nextChar = view.state.doc.sliceString(endToken, endToken + 1);
+          // Anything but a letter or number
+          if (!/[\dA-Za-z]/.test(nextChar)) {
+            break;
+          }
+          endToken++;
+        }
+
         const result = await Autocompleter.INSTANCE.request({
-          pos: pos,
-          query: view.state.doc.sliceString(0, pos),
+          pos: endToken, // Send up to the end of the word, so the results are more accurate
+          query: view.state.doc.slice(0, endToken).toString(), // convert Text to string
           cellId: cellId,
         });
 
-        const tooltip = Autocompleter.asHoverTooltip(pos, result);
+        const fullWord = view.state.doc.slice(startToken, endToken).toString();
+        const tooltip = Autocompleter.asHoverTooltip({
+          position: pos,
+          message: result,
+          exactName: fullWord,
+        });
         // Close the completion tooltips
         if (tooltip) {
           closeCompletion(view);
