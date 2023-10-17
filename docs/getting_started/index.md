@@ -14,7 +14,7 @@ marimo tutorial intro
 You should see a tutorial notebook in your browser:
 
 <div align="center">
-<img src="https://github.com/marimo-team/marimo/blob/main/docs/_static/intro_tutorial.gif" width="400px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/intro_tutorial.gif" width="600px"/>
 </div>
 
 If that doesn't work, please [open a Github issue](https://github.com/marimo-team/marimo/issues).
