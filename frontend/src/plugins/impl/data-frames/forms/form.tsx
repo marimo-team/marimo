@@ -146,7 +146,11 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} type="number" />
+              <Input
+                type="number"
+                value={field.value}
+                onChange={(value) => field.onChange(value.target.valueAsNumber)}
+              />
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
@@ -255,8 +259,7 @@ function renderZodSchema<T extends FieldValues, S>(
       />
     );
   } else if (schema instanceof z.ZodArray) {
-    const subschema = schema._def.type;
-    if (subschema instanceof z.ZodString) {
+    if (special === "text_area_multiline") {
       // new-line separated
       const delimiter = "\n";
       return (
@@ -521,31 +524,43 @@ const FilterForm = ({
     const dtype = columns[columnId];
     const operators = getOperatorForDtype(dtype);
 
-    children.push(
-      <FormField
-        key={`operator`}
-        control={form.control}
-        name={`${path}.operator`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="whitespace-pre"> </FormLabel>
-            <FormControl>
-              <NativeSelect {...field}>
-                {operators.map((value: string) => {
-                  return (
-                    <option key={value} value={value}>
-                      {Strings.startCase(value)}
-                    </option>
-                  );
-                })}
-              </NativeSelect>
-            </FormControl>
-            <FormDescription>{description}</FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    );
+    if (operators.length === 0) {
+      children.push(
+        <div
+          key={`no_operator`}
+          className="text-muted-foreground text-xs font-semibold"
+        >
+          <FormLabel className="whitespace-pre"> </FormLabel>
+          <div>This column type does not support filtering.</div>
+        </div>
+      );
+    } else {
+      children.push(
+        <FormField
+          key={`operator`}
+          control={form.control}
+          name={`${path}.operator`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="whitespace-pre"> </FormLabel>
+              <FormControl>
+                <NativeSelect {...field}>
+                  {operators.map((value: string) => {
+                    return (
+                      <option key={value} value={value}>
+                        {Strings.startCase(value)}
+                      </option>
+                    );
+                  })}
+                </NativeSelect>
+              </FormControl>
+              <FormDescription>{description}</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      );
+    }
   }
 
   if (operator) {

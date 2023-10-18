@@ -84,7 +84,7 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-  Omit<VariantProps<typeof buttonVariants>, "disabled"> {
+    Omit<VariantProps<typeof buttonVariants>, "disabled"> {
   asChild?: boolean;
 }
 

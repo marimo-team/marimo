@@ -32,6 +32,9 @@ function handleTransform(
       next[transform.column_id] = transform.data_type;
       return next;
     case "rename_column":
+      if (!transform.new_column_id) {
+        return next;
+      }
       return Objects.fromEntries(
         Objects.entries(next).map(([k, v]) => {
           if (k === transform.column_id) {
@@ -41,8 +44,9 @@ function handleTransform(
         })
       );
     case "group_by":
-      return Objects.filter(next, (_v, k) =>
-        transform.column_ids.includes(k as string)
+      return Objects.filter(
+        next,
+        (_v, k) => !transform.column_ids.includes(k as string)
       );
     case "aggregate":
       return Objects.filter(next, (_v, k) =>

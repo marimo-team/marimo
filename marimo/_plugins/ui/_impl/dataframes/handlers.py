@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, Any, NoReturn
+# Copyright 2023 Marimo. All rights reserved.
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 from .transforms import (
     AggregateTransform,
     ColumnConversionTransform,
     FilterRowsTransform,
     GroupByTransform,
-    RenameColumnsTransform,
+    RenameColumnTransform,
     SortColumnTransform,
     Transform,
     Transformations,
@@ -13,7 +14,6 @@ from .transforms import (
 )
 
 if TYPE_CHECKING:
-    import numpy as np
     import pandas as pd
 
 
@@ -22,18 +22,30 @@ class TransformHandlers:
     def handle(df: "pd.DataFrame", transform: Transform) -> "pd.DataFrame":
         transform_type: TransformType = transform.type
 
-        if transform_type == TransformType.COLUMN_CONVERSION.value:
-            return TransformHandlers.handle_column_conversion(df, transform)
-        elif transform_type == TransformType.RENAME_COLUMN.value:
-            return TransformHandlers.handle_rename_column(df, transform)
-        elif transform_type == TransformType.SORT_COLUMN.value:
-            return TransformHandlers.handle_sort_column(df, transform)
-        elif transform_type == TransformType.FILTER_ROWS.value:
-            return TransformHandlers.handle_filter_rows(df, transform)
-        elif transform_type == TransformType.GROUP_BY.value:
-            return TransformHandlers.handle_group_by(df, transform)
-        elif transform_type == TransformType.AGGREGATE.value:
-            return TransformHandlers.handle_aggregate(df, transform)
+        if transform_type == TransformType.COLUMN_CONVERSION:
+            return TransformHandlers.handle_column_conversion(
+                df, cast(ColumnConversionTransform, transform)
+            )
+        elif transform_type == TransformType.RENAME_COLUMN:
+            return TransformHandlers.handle_rename_column(
+                df, cast(RenameColumnTransform, transform)
+            )
+        elif transform_type == TransformType.SORT_COLUMN:
+            return TransformHandlers.handle_sort_column(
+                df, cast(SortColumnTransform, transform)
+            )
+        elif transform_type == TransformType.FILTER_ROWS:
+            return TransformHandlers.handle_filter_rows(
+                df, cast(FilterRowsTransform, transform)
+            )
+        elif transform_type == TransformType.GROUP_BY:
+            return TransformHandlers.handle_group_by(
+                df, cast(GroupByTransform, transform)
+            )
+        elif transform_type == TransformType.AGGREGATE:
+            return TransformHandlers.handle_aggregate(
+                df, cast(AggregateTransform, transform)
+            )
 
         else:
             _assert_never(transform_type)
@@ -50,7 +62,7 @@ class TransformHandlers:
 
     @staticmethod
     def handle_rename_column(
-        df: "pd.DataFrame", transform: RenameColumnsTransform
+        df: "pd.DataFrame", transform: RenameColumnTransform
     ) -> "pd.DataFrame":
         return df.rename(
             columns={transform.column_id: transform.new_column_id}
@@ -96,8 +108,6 @@ class TransformHandlers:
                 df_filter = df[condition.column_id].notna()
             elif condition.operator == "equals":
                 df_filter = df[condition.column_id].eq(value)
-            elif condition.operator == "does_not_equal":
-                df_filter = df[condition.column_id].ne(value)
             elif condition.operator == "contains":
                 df_filter = df[condition.column_id].str.contains(
                     value, regex=False
@@ -170,7 +180,7 @@ def _assert_never(value: NoReturn) -> NoReturn:
     raise AssertionError(f"Unhandled value: {value} ({type(value).__name__})")
 
 
-def _coerce_value(dtype: "np.dtype", value: Any) -> Any:
+def _coerce_value(dtype: Any, value: Any) -> Any:
     import numpy as np
 
     return np.array([value]).astype(dtype)[0]

@@ -29,7 +29,7 @@ const Transforms = {
   } satisfies TransformType,
   GROUP_BY_CHAINED: {
     type: "group_by",
-    column_ids: ["newCol2", "col3"],
+    column_ids: ["newCol2"],
     aggregation: "max",
     drop_na: true,
   } satisfies TransformType,
@@ -40,7 +40,7 @@ const Transforms = {
   } satisfies TransformType,
   AGGREGATE_CHAINED: {
     type: "aggregate",
-    column_ids: ["newCol2"],
+    column_ids: ["col1", "col3"],
     aggregations: ["max"],
   } satisfies TransformType,
 };
@@ -81,8 +81,7 @@ describe("getUpdatedColumnTypes", () => {
     );
     expect(result).toMatchInlineSnapshot(`
       {
-        "col1": "str",
-        "col3": "int",
+        "col2": "bool",
       }
     `);
   });
@@ -111,7 +110,8 @@ describe("getUpdatedColumnTypes", () => {
     );
     expect(result).toMatchInlineSnapshot(`
       {
-        "newCol2": "bool",
+        "col1": "bool",
+        "col3": "int",
       }
     `);
   });

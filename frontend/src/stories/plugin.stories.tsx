@@ -17,7 +17,7 @@ export const Plugin: StoryObj = {
   render: () => {
     const [value, setValue] = useState(undefined);
     const selectedPlugin = plugins.find(
-      (p) => p.tagName === "marimo-transform"
+      (p) => p.tagName === "marimo-dataframe"
     );
 
     if (!selectedPlugin) {

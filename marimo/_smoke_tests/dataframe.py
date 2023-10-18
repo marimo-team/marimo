@@ -1,37 +1,38 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.30"
+__generated_with = "0.1.31"
 app = marimo.App(width="full")
 
 
 @app.cell
 def __(cars, mo):
-    df = mo.ui.dataframe(cars)
-    df
-    return df,
+    dataframe = mo.ui.dataframe(cars)
+    dataframe
+    return dataframe,
 
 
 @app.cell
-def __(df, mo):
-    mo.ui.table(df.value, selection=None)
+def __(dataframe, mo):
+    mo.ui.table(dataframe.value, selection=None)
     return
 
 
 @app.cell
-def __(df):
-    df.value
+def __(dataframe):
+    dataframe.value
     return
 
 
 @app.cell
-def __(df):
-    df.value["Cylinders"]
+def __(dataframe):
+    dataframe.value["Cylinders"]
     return
 
 
 @app.cell
-def __(df, mo):
-    mo.hstack([df.value.to_dict("records"), df.value.to_dict()])
+def __(dataframe, mo):
+    mo.hstack([dataframe.value.to_dict("records"), dataframe.value.to_dict()])
     return
 
 

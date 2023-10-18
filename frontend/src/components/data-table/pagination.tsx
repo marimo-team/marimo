@@ -80,8 +80,12 @@ export const DataTablePagination = <TData,>({
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex w-[100px] items-center justify-center text-xs font-medium">
-          Page {Math.min(table.getState().pagination.pageIndex + 1, table.getPageCount())} of{" "}
-          {table.getPageCount()}
+          Page{" "}
+          {Math.min(
+            table.getState().pagination.pageIndex + 1,
+            table.getPageCount()
+          )}{" "}
+          of {table.getPageCount()}
         </div>
         <Button
           size="xs"

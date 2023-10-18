@@ -5,7 +5,7 @@ import { IPlugin, IPluginProps } from "@/plugins/types";
 import { Transformations } from "./schema";
 import { TransformPanel } from "./panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
+import { Code2Icon, FunctionSquareIcon } from "lucide-react";
 import { CodePanel } from "./python/code-panel";
 import { ColumnDataTypes } from "./types";
 
@@ -18,16 +18,18 @@ import { ColumnDataTypes } from "./types";
 interface Data {
   label?: string | null;
   columns: ColumnDataTypes;
+  name: string;
 }
 
 // Value is selection, but it is not currently exposed to the user
 type S = Transformations | undefined;
 
-export class TransformsPlugin implements IPlugin<S, Data> {
-  tagName = "marimo-transform";
+export class DataFramePlugin implements IPlugin<S, Data> {
+  tagName = "marimo-dataframe";
 
   validator = z.object({
     label: z.string().nullish(),
+    name: z.string(),
     columns: z
       .object({})
       .passthrough()
@@ -36,7 +38,7 @@ export class TransformsPlugin implements IPlugin<S, Data> {
 
   render(props: IPluginProps<S, Data>): JSX.Element {
     return (
-      <TransformsComponent
+      <DataFrameComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
@@ -50,8 +52,9 @@ interface DataTableProps extends Data {
   setValue: (value: S) => void;
 }
 
-const TransformsComponent = ({
+const DataFrameComponent = ({
   columns,
+  name,
   value,
   setValue,
 }: DataTableProps): JSX.Element => {
@@ -79,10 +82,10 @@ const TransformsComponent = ({
             <FunctionSquareIcon className="w-3 h-3 mr-2" />
             Transform
           </TabsTrigger>
-          <TabsTrigger value="preview">
+          {/* <TabsTrigger value="preview">
             <DatabaseIcon className="w-3 h-3 mr-2" />
             Preview
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="code">
             <Code2Icon className="w-3 h-3 mr-2" />
             Code
@@ -101,7 +104,7 @@ const TransformsComponent = ({
           {/* <DataTablePanel data={[]} /> */}
         </TabsContent>
         <TabsContent value="code">
-          <CodePanel transforms={value} />
+          <CodePanel dataframeName={name} transforms={value} />
         </TabsContent>
       </Tabs>
     </div>

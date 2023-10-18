@@ -30,7 +30,7 @@ import { DownloadPlugin } from "./layout/DownloadPlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { VegaPlugin } from "./impl/vega/VegaPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
-import { TransformsPlugin } from "./impl/data-frames/DataFramePlugin";
+import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -52,7 +52,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
-  new TransformsPlugin(),
+  new DataFramePlugin(),
 ];
 
 // List of output / layout plugins

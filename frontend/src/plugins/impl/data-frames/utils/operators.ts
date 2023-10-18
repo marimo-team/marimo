@@ -13,7 +13,11 @@ const Schema = {
     .array(z.string())
     .min(1)
     .describe(
-      FieldOptions.of({ label: "Values", description: "New-line separated" })
+      FieldOptions.of({
+        label: "Values",
+        description: "New-line separated",
+        special: "text_area_multiline",
+      })
     ),
 };
 

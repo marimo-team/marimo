@@ -122,9 +122,7 @@ describe("pythonPrint: filter", () => {
         },
       ],
     });
-    expect(result).toMatchInlineSnapshot(
-      '"df[df[\\"my_column\\"] == 42]"'
-    );
+    expect(result).toMatchInlineSnapshot('"df[df[\\"my_column\\"] == 42]"');
 
     const result2 = pythonPrint("df", {
       type: "filter_rows",

@@ -6,7 +6,12 @@ export interface FieldOptions {
   disabled?: boolean;
   hidden?: boolean;
   direction?: "row" | "column";
-  special?: "column_id" | "column_type" | "radio_group" | "column_filter";
+  special?:
+    | "column_id"
+    | "column_type"
+    | "radio_group"
+    | "column_filter"
+    | "text_area_multiline";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Union
 
 ColumnId = str
 ColumnIds = List[ColumnId]
@@ -55,22 +55,22 @@ class Condition:
 
 @dataclass
 class ColumnConversionTransform:
-    type: TransformType.COLUMN_CONVERSION
+    type: Literal[TransformType.COLUMN_CONVERSION]
     column_id: ColumnId
     data_type: NumpyDataType
-    errors: Literal["ignore" "raise"]
+    errors: Literal["ignore", "raise"]
 
 
 @dataclass
-class RenameColumnsTransform:
-    type: TransformType.RENAME_COLUMN
+class RenameColumnTransform:
+    type: Literal[TransformType.RENAME_COLUMN]
     column_id: ColumnId
     new_column_id: ColumnId
 
 
 @dataclass
 class SortColumnTransform:
-    type: TransformType.SORT_COLUMN
+    type: Literal[TransformType.SORT_COLUMN]
     column_id: ColumnId
     ascending: bool
     na_position: Literal["first", "last"]
@@ -78,14 +78,14 @@ class SortColumnTransform:
 
 @dataclass
 class FilterRowsTransform:
-    type: TransformType.FILTER_ROWS
+    type: Literal[TransformType.FILTER_ROWS]
     operation: Literal["keep_rows", "remove_rows"]
     where: List[Condition]
 
 
 @dataclass
 class GroupByTransform:
-    type: TransformType.GROUP_BY
+    type: Literal[TransformType.GROUP_BY]
     column_ids: ColumnIds
     drop_na: bool
     aggregation: Aggregation
@@ -93,14 +93,14 @@ class GroupByTransform:
 
 @dataclass
 class AggregateTransform:
-    type: TransformType.AGGREGATE
+    type: Literal[TransformType.AGGREGATE]
     column_ids: ColumnIds
     aggregations: List[Aggregation]
 
 
 Transform = Union[
     ColumnConversionTransform,
-    RenameColumnsTransform,
+    RenameColumnTransform,
     SortColumnTransform,
     FilterRowsTransform,
     GroupByTransform,

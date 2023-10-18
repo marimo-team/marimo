@@ -21,7 +21,16 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 import { ZodForm } from "./forms/form";
 import { getDefaults, getUnionLiteral } from "./forms/form-utils";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  ArrowUpDownIcon,
+  ColumnsIcon,
+  FilterIcon,
+  FunctionSquareIcon,
+  GroupIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { Strings } from "@/utils/strings";
 import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
@@ -61,7 +70,7 @@ export const TransformPanel: React.FC<Props> = ({
 
   const [selectedTransform, setSelectedTransform] = React.useState<
     number | undefined
-  >(undefined);
+  >(initialValue.transforms.length > 0 ? 0 : undefined);
 
   const transformsField = useFieldArray({
     control: control,
@@ -185,6 +194,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <DropdownMenuGroup>
               {Object.values(TransformTypeSchema._def.options).map((type) => {
                 const literal = getUnionLiteral(type);
+                const Icon = ICONS[literal._def.value as TransformType["type"]];
                 return (
                   <DropdownMenuItem
                     key={literal._def.value}
@@ -193,14 +203,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onAdd(type);
                     }}
                   >
+                    <Icon className="w-3.5 h-3.5 mr-2" />
                     <span>{Strings.startCase(literal._def.value)}</span>
                   </DropdownMenuItem>
                 );
               })}
+              <DropdownMenuItem
+                key="_request_"
+                onSelect={(evt) => {
+                  evt.stopPropagation();
+                  window.open(
+                    "https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml",
+                    "_blank"
+                  );
+                }}
+              >
+                <span className="underline text-primary text-xs cursor-pointer">
+                  Request a transform
+                </span>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </div>
   );
+};
+
+const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
+  aggregate: FunctionSquareIcon,
+  column_conversion: ColumnsIcon,
+  filter_rows: FilterIcon,
+  group_by: GroupIcon,
+  rename_column: PencilIcon,
+  sort_column: ArrowUpDownIcon,
 };

@@ -49,7 +49,7 @@ def _build_value(value: Any, cls: Type[T]) -> T:
         arg_types = get_args(cls)
         for arg_type in arg_types:
             try:
-                return _build_value(value, arg_type)
+                return _build_value(value, arg_type)  # type: ignore # noqa: E501
             except Exception:
                 continue
         raise ValueError(f"Value '{value}' does not fit any type of the union")
@@ -68,7 +68,7 @@ def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
     return cls(**transformed)
 
 
-def parse_raw(message: Union[bytes, dict], cls: Type[T]) -> T:
+def parse_raw(message: Union[bytes, dict[Any, Any]], cls: Type[T]) -> T:
     """Utility to parse a message as JSON, and instantiate into supplied type.
 
     `cls` must be a dataclass.

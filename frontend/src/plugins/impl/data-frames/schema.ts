@@ -13,13 +13,13 @@ import {
 
 const column_id = z
   .string()
-  .min(1)
+  .min(1, "Required")
   .describe(FieldOptions.of({ label: "Column", special: "column_id" }));
 
 const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
-  .min(1)
-  .default([])
+  .min(1, "At least one column is required")
+  .default([""])
   .describe(FieldOptions.of({ label: "Columns" }));
 
 const ColumnConversionTransformSchema = z.object({
@@ -28,7 +28,7 @@ const ColumnConversionTransformSchema = z.object({
   data_type: z
     .enum(NUMPY_DTYPES)
     .describe(FieldOptions.of({ label: "Data type (numpy)" }))
-    .default("string_"),
+    .default("bool"),
   errors: z
     .enum(["ignore", "raise"])
     .default("ignore")
@@ -42,7 +42,7 @@ const RenameColumnTransformSchema = z.object({
   column_id: column_id,
   new_column_id: z
     .string()
-    .min(1)
+    .min(1, "Required")
     .describe(FieldOptions.of({ label: "New column" })),
 });
 
