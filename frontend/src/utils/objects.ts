@@ -66,4 +66,16 @@ export const Objects = {
     }
     return result;
   },
+  filter<K extends string | number, V>(
+    obj: Record<K, V>,
+    predicate: (value: V, key: K) => boolean
+  ): Record<K, V> {
+    const result: Record<K, V> = {} as Record<K, V>;
+    for (const [key, value] of Objects.entries(obj)) {
+      if (predicate(value, key)) {
+        result[key] = obj[key];
+      }
+    }
+    return result;
+  },
 };

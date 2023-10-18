@@ -1,0 +1,54 @@
+---
+"$schema": http://json-schema.org/draft-06/schema#
+definitions:
+  ColumnConversionTransform:
+    type: object
+    additionalProperties: false
+    properties:
+      type:
+        const: column_conversion
+      columnId:
+        type: string
+      dataType:
+        type: string
+      errors:
+        enum:
+          - ignore
+          - raise
+    required:
+      - type
+      - columnId
+      - dataType
+  RenameColumnTransformSchema:
+    type: object
+    additionalProperties: false
+    properties:
+      type:
+        const: rename_column
+      columnId:
+        type: string
+      newColumnId:
+        type: string
+    required:
+      - type
+      - columnId
+      - newColumnId
+  SortColumnTransformSchema:
+    type: object
+    additionalProperties: false
+    properties:
+      type:
+        const: sort_column
+      columnId:
+        type: string
+      ascending:
+        type: boolean
+      naPosition:
+        enum:
+          - first
+          - last
+    required:
+      - type
+      - columnId
+      - ascending
+      - naPosition

@@ -98,6 +98,7 @@ export function generateColumns<T>(
               table.toggleAllPageRowsSelected(!!value)
             }
             aria-label="Select all"
+            className="mx-2"
           />
         ) : null,
       cell: ({ row }) => (
@@ -105,7 +106,7 @@ export function generateColumns<T>(
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
-          className="ml-1"
+          className="mx-2"
         />
       ),
       enableSorting: false,

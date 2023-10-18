@@ -1,0 +1,206 @@
+/* Copyright 2023 Marimo. All rights reserved. */
+import React, { useEffect, useMemo } from "react";
+import {
+  TransformType,
+  TransformTypeSchema,
+  Transformations,
+  TransformationsSchema,
+} from "./schema";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
+import { Button } from "../../../components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useFieldArray, useForm } from "react-hook-form";
+import { z } from "zod";
+import { ZodForm } from "./forms/form";
+import { getDefaults, getUnionLiteral } from "./forms/form-utils";
+import { PlusIcon, Trash2Icon } from "lucide-react";
+import { cn } from "../../../lib/utils";
+import { Strings } from "@/utils/strings";
+import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
+import useEvent from "react-use-event-hook";
+import { ColumnDataTypes } from "./types";
+import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
+
+interface Props {
+  columns: ColumnDataTypes;
+  initialValue: Transformations;
+  onChange: (value: Transformations) => void;
+}
+
+export const TransformPanel: React.FC<Props> = ({
+  initialValue,
+  columns,
+  onChange,
+}) => {
+  const form = useForm<z.infer<typeof TransformationsSchema>>({
+    resolver: zodResolver(TransformationsSchema),
+    defaultValues: initialValue,
+    mode: "onChange",
+    reValidateMode: "onChange",
+  });
+  const { handleSubmit, watch, control } = form;
+
+  const onSubmit = useEvent((values: z.infer<typeof TransformationsSchema>) => {
+    onChange(values);
+  });
+
+  useEffect(() => {
+    const subscription = watch(() => {
+      handleSubmit(onSubmit)();
+    });
+    return () => subscription.unsubscribe();
+  }, [handleSubmit, watch, onSubmit]);
+
+  const [selectedTransform, setSelectedTransform] = React.useState<
+    number | undefined
+  >(undefined);
+
+  const transformsField = useFieldArray({
+    control: control,
+    name: "transforms",
+  });
+
+  const transforms = form.watch("transforms");
+  const selectedTransformType =
+    selectedTransform === undefined
+      ? undefined
+      : transforms[selectedTransform]?.type;
+  const selectedTransformSchema = TransformTypeSchema._def.options.find(
+    (option) => {
+      return getUnionLiteral(option)._def.value === selectedTransformType;
+    }
+  );
+
+  const effectiveColumns = useMemo(() => {
+    const transformsBeforeSelected = transforms.slice(0, selectedTransform);
+    return getUpdatedColumnTypes(transformsBeforeSelected, columns);
+  }, [columns, transforms, selectedTransform]);
+
+  return (
+    <ColumnContext.Provider value={effectiveColumns}>
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border rounded"
+      >
+        <Sidebar
+          items={form.watch("transforms")}
+          selected={selectedTransform}
+          onSelect={(index) => {
+            setSelectedTransform(index);
+          }}
+          onDelete={(index) => {
+            transformsField.remove(index);
+          }}
+          onAdd={(transform) => {
+            const next = getDefaults(transform) as TransformType;
+            const nextIdx = transformsField.fields.length;
+            transformsField.append(next);
+            setSelectedTransform(nextIdx);
+          }}
+        />
+        <div className="flex flex-col flex-1 p-2 overflow-auto min-h-[200px] border-l">
+          {selectedTransform !== undefined && selectedTransformSchema && (
+            <ZodForm
+              key={`transforms.${selectedTransform}`}
+              form={form}
+              schema={selectedTransformSchema}
+              path={`transforms.${selectedTransform}`}
+            />
+          )}
+        </div>
+      </form>
+    </ColumnContext.Provider>
+  );
+};
+
+interface SidebarProps {
+  items: TransformType[];
+  selected: number | undefined;
+  onSelect: (index: number) => void;
+  onDelete: (index: number) => void;
+  onAdd: (transform: z.ZodType) => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  items,
+  selected,
+  onAdd,
+  onSelect,
+  onDelete,
+}) => {
+  return (
+    <div className="flex flex-col overflow-y-hidden w-[150px] shadow-xs h-full">
+      <div className="flex flex-col overflow-y-auto flex-grow">
+        {items.map((item, idx) => {
+          return (
+            <div
+              key={`${JSON.stringify(item)}-${idx}`}
+              onClick={() => {
+                onSelect(idx);
+              }}
+              className={cn(
+                "flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-[var(--slate-3)] text-sm overflow-hidden hover-actions-parent border-l-2 border-transparent",
+                {
+                  "bg-[var(--slate-3)] border-primary": selected === idx,
+                }
+              )}
+            >
+              <div className="flex-grow text-ellipsis">
+                {Strings.startCase(item.type)}
+              </div>
+              <Trash2Icon
+                className="w-3 h-3 hover-action text-muted-foreground hover:text-destructive"
+                onClick={(e) => {
+                  onDelete(idx);
+                  e.stopPropagation();
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-row flex-shrink-0 border-t">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild={true}>
+            <Button
+              variant="text"
+              className="w-full rounded-none m-0"
+              size="xs"
+            >
+              <PlusIcon className="w-3 h-3 mr-1" />
+              Add
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuLabel>Add Transform</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {Object.values(TransformTypeSchema._def.options).map((type) => {
+                const literal = getUnionLiteral(type);
+                return (
+                  <DropdownMenuItem
+                    key={literal._def.value}
+                    onSelect={(evt) => {
+                      evt.stopPropagation();
+                      onAdd(type);
+                    }}
+                  >
+                    <span>{Strings.startCase(literal._def.value)}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+};

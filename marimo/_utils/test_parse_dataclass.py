@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 from marimo._server import api
 from marimo._server.api.set_cell_config import SetCellConfig
@@ -126,3 +126,21 @@ class TestParseRaw:
         )
         print(parsed)
         assert parsed == config
+
+    def test_unions(self) -> None:
+        @dataclass
+        class ConfigOne:
+            disabled: bool
+
+        @dataclass
+        class ConfigTwo:
+            gpu: bool
+
+        @dataclass
+        class Nested:
+            config: Union[ConfigOne, ConfigTwo]
+
+        nested = Nested(config=ConfigOne(disabled=True))
+
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested

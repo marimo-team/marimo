@@ -3,7 +3,15 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from typing import Any, Type, TypeVar, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 T = TypeVar("T")
 
@@ -37,6 +45,14 @@ def _build_value(value: Any, cls: Type[T]) -> T:
                 for k, v in value.items()
             }
         )
+    elif origin_cls == Union:
+        arg_types = get_args(cls)
+        for arg_type in arg_types:
+            try:
+                return _build_value(value, arg_type)
+            except Exception:
+                continue
+        raise ValueError(f"Value '{value}' does not fit any type of the union")
     elif dataclasses.is_dataclass(cls):
         return build_dataclass(value, cls)  # type: ignore[return-value]
     else:
@@ -52,7 +68,7 @@ def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
     return cls(**transformed)
 
 
-def parse_raw(message: bytes, cls: Type[T]) -> T:
+def parse_raw(message: Union[bytes, dict], cls: Type[T]) -> T:
     """Utility to parse a message as JSON, and instantiate into supplied type.
 
     `cls` must be a dataclass.
@@ -69,5 +85,9 @@ def parse_raw(message: bytes, cls: Type[T]) -> T:
     message: the message to parse
     cls: the type to instantiate
     """
+    # If it is a dict, it is already parsed and we can just build the
+    # dataclass.
+    if isinstance(message, dict):
+        return _build_dataclass(message, cls)
     parsed = json.loads(message)
     return build_dataclass(parsed, cls)

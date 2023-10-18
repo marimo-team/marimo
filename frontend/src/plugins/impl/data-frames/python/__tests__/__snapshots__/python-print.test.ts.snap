@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pythonPrint > generates correct Python code for aggregate 1`] = `"df.agg({\\"my_column\\": [\\"mean\\"]})"`;
+
+exports[`pythonPrint > generates correct Python code for aggregate 2`] = `"df.agg([\\"mean\\"])"`;
+
+exports[`pythonPrint > generates correct Python code for aggregate 3`] = `"df.agg({\\"my_column\\": [\\"mean\\", \\"sum\\"]})"`;
+
+exports[`pythonPrint > generates correct Python code for column_conversion 1`] = `"df[\\"my_column\\"].astype(\\"int8\\")"`;
+
+exports[`pythonPrint > generates correct Python code for filter_rows 1`] = `"df[\`\`my_column > 10\`\`]"`;
+
+exports[`pythonPrint > generates correct Python code for filter_rows 2`] = `"df[~\`\`my_column > 10\`\` and \`\`my_column2 == hello\`\`]"`;
+
+exports[`pythonPrint > generates correct Python code for group_by 1`] = `"df.groupby([\\"my_column\\"], dropna=True).sum()"`;
+
+exports[`pythonPrint > generates correct Python code for group_by 2`] = `"df.groupby([\\"my_column\\", \\"my_column2\\"]).sum()"`;
+
+exports[`pythonPrint > generates correct Python code for rename_column 1`] = `"df.rename(columns={\\"old_name\\": \\"new_name\\"})"`;
+
+exports[`pythonPrint > generates correct Python code for sort_column 1`] = `"df.sort_values(by=\\"my_column\\", ascending=False, na_position=\\"first\\")"`;

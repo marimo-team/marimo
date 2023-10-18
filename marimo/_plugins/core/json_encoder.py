@@ -24,6 +24,8 @@ class WebComponentEncoder(JSONEncoder):
                 if any([np.issubdtype(obj.dtype, i) for i in dtypes]):
                     return obj.astype(str).tolist()
                 return obj.tolist()
+            elif isinstance(obj, np.dtype):
+                return str(obj)
 
         # Handle pandas objects
         if DependencyManager.has_pandas():
@@ -40,6 +42,10 @@ class WebComponentEncoder(JSONEncoder):
         if hasattr(obj, "_mime_"):
             (mimetype, data) = obj._mime_()
             return {"mimetype": mimetype, "data": data}
+
+        # Handle bytes objects
+        if isinstance(obj, bytes):
+            return obj.decode("utf-8")
 
         # Fallthrough to default encoder
         return JSONEncoder.default(self, obj)
