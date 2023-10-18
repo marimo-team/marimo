@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from enum import Enum
 from typing import (
     Any,
+    Literal,
     Type,
     TypeVar,
     Union,
@@ -53,6 +55,23 @@ def _build_value(value: Any, cls: Type[T]) -> T:
             except Exception:
                 continue
         raise ValueError(f"Value '{value}' does not fit any type of the union")
+    elif origin_cls is Literal:
+        # if its a single Literal of an enum, we can just return the enum
+        arg_types = get_args(cls)
+        first_arg_type = arg_types[0]
+        if (
+            len(arg_types) == 1
+            and isinstance(first_arg_type, Enum)
+            and first_arg_type.value == value
+        ):
+            return first_arg_type
+        if value not in arg_types:
+            raise ValueError(
+                f"Value '{value}' does not fit any type of the literal"
+            )
+        return value
+    elif type(cls) == type(Enum):
+        return cls(value)
     elif dataclasses.is_dataclass(cls):
         return build_dataclass(value, cls)  # type: ignore[return-value]
     else:

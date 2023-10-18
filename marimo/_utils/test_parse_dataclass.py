@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Tuple, Union
+from enum import Enum
+from typing import Any, Dict, List, Literal, Tuple, Union
+
+import pytest
 
 from marimo._server import api
 from marimo._server.api.set_cell_config import SetCellConfig
@@ -14,6 +17,33 @@ from marimo._utils.parse_dataclass import parse_raw
 class Config:
     disabled: bool
     gpu: bool
+
+
+@dataclass
+class ConfigOne:
+    disabled: bool
+
+
+@dataclass
+class ConfigTwo:
+    gpu: bool
+
+
+class AnimalType(Enum):
+    DOG = "dog"
+    CAT = "cat"
+
+
+@dataclass
+class Dog:
+    type: Literal[AnimalType.DOG]
+    bark: bool
+
+
+@dataclass
+class Cat:
+    type: Literal[AnimalType.CAT]
+    meow: bool
 
 
 def serialize(obj: Any) -> bytes:
@@ -129,18 +159,59 @@ class TestParseRaw:
 
     def test_unions(self) -> None:
         @dataclass
-        class ConfigOne:
-            disabled: bool
-
-        @dataclass
-        class ConfigTwo:
-            gpu: bool
-
-        @dataclass
         class Nested:
             config: Union[ConfigOne, ConfigTwo]
 
+        # first
         nested = Nested(config=ConfigOne(disabled=True))
-
         parsed = parse_raw(serialize(nested), Nested)
         assert parsed == nested
+
+        # other
+        nested = Nested(config=ConfigTwo(gpu=True))
+        parsed = parse_raw(serialize(nested), Nested)
+        assert parsed == nested
+
+        # handle error
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw(serialize({"config": "invalid"}), Nested)
+            assert "invalid" in str(e.value)
+
+    def test_enums(self) -> None:
+        @dataclass
+        class Nested:
+            config: AnimalType
+
+        parsed = parse_raw(serialize({"config": AnimalType.CAT.value}), Nested)
+        assert parsed.config == AnimalType.CAT
+
+        parsed = parse_raw(serialize({"config": AnimalType.DOG.value}), Nested)
+        assert parsed.config == AnimalType.DOG
+
+        # handle error
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw(serialize({"config": "invalid"}), Nested)
+            assert "invalid" in str(e.value)
+
+    def test_descriminated_union(self) -> None:
+        @dataclass
+        class Nested:
+            config: Union[Dog, Cat]
+
+        parsed = parse_raw(
+            serialize({"config": {"type": "dog", "bark": True}}),
+            Nested,
+        )
+        assert parsed.config == Dog(type=AnimalType.DOG, bark=True)
+
+        parsed = parse_raw(
+            serialize({"config": {"type": "cat", "meow": True}}), Nested
+        )
+        assert parsed.config == Cat(type=AnimalType.CAT, meow=True)
+
+        # handle error
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw(
+                serialize({"config": {"invalid": True}}), Nested
+            )
+            assert "invalid" in str(e.value)
