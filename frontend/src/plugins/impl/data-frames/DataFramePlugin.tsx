@@ -60,32 +60,12 @@ const DataFrameComponent = ({
 }: DataTableProps): JSX.Element => {
   return (
     <div>
-      {/* <div className="flex flex-row border-b border-gray-200 mb-2">
-        {Object.entries(metadata).map(([key, value]) => {
-          return (
-            <div className="flex flex-row" key={key}>
-              <div className="flex flex-col">
-                <Label>{key}</Label>
-                {typeof value === "string" ? (
-                  <Label>{value}</Label>
-                ) : (
-                  Array.isArray(value) && <Label>{value.join(", ")}</Label>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div> */}
       <Tabs defaultValue="transform">
         <TabsList>
           <TabsTrigger value="transform">
             <FunctionSquareIcon className="w-3 h-3 mr-2" />
             Transform
           </TabsTrigger>
-          {/* <TabsTrigger value="preview">
-            <DatabaseIcon className="w-3 h-3 mr-2" />
-            Preview
-          </TabsTrigger> */}
           <TabsTrigger value="code">
             <Code2Icon className="w-3 h-3 mr-2" />
             Code
@@ -99,9 +79,6 @@ const DataFrameComponent = ({
             columns={columns}
             onChange={setValue}
           />
-        </TabsContent>
-        <TabsContent value="preview">
-          {/* <DataTablePanel data={[]} /> */}
         </TabsContent>
         <TabsContent value="code">
           <CodePanel dataframeName={name} transforms={value} />
