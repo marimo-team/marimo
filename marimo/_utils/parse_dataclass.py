@@ -64,14 +64,14 @@ def _build_value(value: Any, cls: Type[T]) -> T:
             and isinstance(first_arg_type, Enum)
             and first_arg_type.value == value
         ):
-            return first_arg_type
+            return first_arg_type  # type: ignore[return-value]
         if value not in arg_types:
             raise ValueError(
                 f"Value '{value}' does not fit any type of the literal"
             )
-        return value
-    elif type(cls) == type(Enum):
-        return cls(value)
+        return value  # type: ignore[no-any-return]
+    elif type(cls) == type(Enum) and issubclass(cls, Enum):
+        return cls(value)  # type: ignore[return-value]
     elif dataclasses.is_dataclass(cls):
         return build_dataclass(value, cls)  # type: ignore[return-value]
     else:
