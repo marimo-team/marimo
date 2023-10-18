@@ -67,7 +67,7 @@ class dataframe(UIElement[Dict[str, Any], pd.DataFrame]):
         super().__init__(
             component_name=dataframe._name,
             initial_value={
-                "transformations": [],
+                "transforms": [],
             },
             on_change=on_change,
             label="",
