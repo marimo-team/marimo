@@ -4,14 +4,22 @@ from typing import Optional
 from marimo._output.rich_help import mddoc
 
 
-class MarimoInterrupt(Exception):
-    """User stops execution of entire program with interrupt."""
+class MarimoInterrupt(BaseException):
+    """Raised when user stops execution of entire program with interrupt.
+
+    Inherits from `BaseException` to prevent accidental capture with
+    `except Exception` (similar to `KeyboardInterrupt`)
+    """
 
     pass
 
 
-class MarimoStopError(Exception):
-    """Raised by `marimo.stop` to stop execution of a cell and descendants."""
+class MarimoStopError(BaseException):
+    """Raised by `marimo.stop` to stop execution of a cell and descendants.
+
+    Inherits from `BaseException` to prevent accidental capture with
+    `except Exception` (similar to `KeyboardInterrupt`)
+    """
 
     def __init__(self, output: Optional[object]) -> None:
         self.output = output

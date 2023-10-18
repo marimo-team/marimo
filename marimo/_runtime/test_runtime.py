@@ -583,3 +583,45 @@ def test_set_config_before_registering_cell(
     k.run([er_1])
     assert k.graph.cells[er_1.cell_id].config.disabled
     assert "x" not in k.globals
+
+
+def test_interrupt(k: Kernel, exec_req: ExecReqProvider) -> None:
+    er = exec_req.get(
+        """
+        from marimo._runtime.control_flow import MarimoInterrupt
+
+        tries = 0
+        while tries < 5:
+            try:
+                raise MarimoInterrupt
+            except Exception:
+                ...
+            tries += 1
+        """
+    )
+    k.run([er])
+
+    # make sure the interrupt wasn't caught by the try/except
+    assert k.globals["tries"] == 0
+
+
+def test_keyboard_interrupt_doesnt_crash_marimo(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    er = exec_req.get(
+        """
+        from marimo._runtime.control_flow import MarimoInterrupt
+
+        tries = 0
+        while tries < 5:
+            try:
+                raise KeyboardInterrupt
+            except Exception:
+                ...
+            tries += 1
+        """
+    )
+    k.run([er])
+
+    # make sure the kernel didn't crash ...
+    assert k.globals["tries"] == 0
