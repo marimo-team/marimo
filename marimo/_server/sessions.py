@@ -447,10 +447,12 @@ class SessionManager:
         Doesn't start in run mode.
         """
         if self.lsp_process is not None or self.mode == SessionMode.RUN:
+            LOGGER.debug("LSP server already started")
             return
 
         binpath = shutil.which("node")
         if binpath is None:
+            LOGGER.error("Node.js not found; cannot start LSP server.")
             for _, session in self.sessions.items():
                 session.socket.write_op(
                     Alert.name,
@@ -464,19 +466,20 @@ class SessionManager:
                 )
             return
 
-        lsp_bin = os.path.join(
-            str(importlib_resources.files("marimo").joinpath("_lsp")),
-            "index.js",
-        )
-        cmd = f"node {lsp_bin} --port {self.lsp_port}"
         try:
+            LOGGER.debug("Starting LSP server at port %s...", self.lsp_port)
+            lsp_bin = os.path.join(
+                str(importlib_resources.files("marimo").joinpath("_lsp")),
+                "index.js",
+            )
+            cmd = f"node {lsp_bin} --port {self.lsp_port}"
             self.lsp_process = subprocess.Popen(
                 cmd.split(),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
             )
-            LOGGER.debug("Starting LSP server at port %s", self.lsp_port)
+            LOGGER.debug("Started LSP server at port %s", self.lsp_port)
         except Exception as e:
             LOGGER.error(
                 "When starting language server (%s), got error: %s", cmd, e

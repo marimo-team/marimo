@@ -313,6 +313,7 @@ async def start_server(
         shutdown(with_error=True)
 
     if not run and get_configuration()["completion"]["copilot"]:
+        logger.debug("GitHub Copilot is enabled")
         session_mgr.start_lsp_server()
 
     url = f"http://localhost:{port}"
