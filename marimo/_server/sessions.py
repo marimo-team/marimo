@@ -480,6 +480,10 @@ class SessionManager:
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
             )
+            LOGGER.debug(
+                "... node process return code (`None` means success): %s",
+                self.lsp_process.returncode,
+            )
             LOGGER.debug("Started LSP server at port %s", self.lsp_port)
         except Exception as e:
             LOGGER.error(
