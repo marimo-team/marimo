@@ -22,27 +22,45 @@ class TransformHandlers:
     def handle(df: "pd.DataFrame", transform: Transform) -> "pd.DataFrame":
         transform_type: TransformType = transform.type
 
-        if transform_type == TransformType.COLUMN_CONVERSION:
+        if (
+            transform_type == TransformType.COLUMN_CONVERSION.value
+            or transform_type is TransformType.COLUMN_CONVERSION
+        ):
             return TransformHandlers.handle_column_conversion(
                 df, cast(ColumnConversionTransform, transform)
             )
-        elif transform_type == TransformType.RENAME_COLUMN:
+        elif (
+            transform_type == TransformType.RENAME_COLUMN.value
+            or transform_type is TransformType.RENAME_COLUMN
+        ):
             return TransformHandlers.handle_rename_column(
                 df, cast(RenameColumnTransform, transform)
             )
-        elif transform_type == TransformType.SORT_COLUMN:
+        elif (
+            transform_type == TransformType.SORT_COLUMN.value
+            or transform_type is TransformType.SORT_COLUMN
+        ):
             return TransformHandlers.handle_sort_column(
                 df, cast(SortColumnTransform, transform)
             )
-        elif transform_type == TransformType.FILTER_ROWS:
+        elif (
+            transform_type == TransformType.FILTER_ROWS.value
+            or transform_type is TransformType.FILTER_ROWS
+        ):
             return TransformHandlers.handle_filter_rows(
                 df, cast(FilterRowsTransform, transform)
             )
-        elif transform_type == TransformType.GROUP_BY:
+        elif (
+            transform_type == TransformType.GROUP_BY.value
+            or transform_type is TransformType.GROUP_BY
+        ):
             return TransformHandlers.handle_group_by(
                 df, cast(GroupByTransform, transform)
             )
-        elif transform_type == TransformType.AGGREGATE:
+        elif (
+            transform_type == TransformType.AGGREGATE.value
+            or transform_type is TransformType.AGGREGATE
+        ):
             return TransformHandlers.handle_aggregate(
                 df, cast(AggregateTransform, transform)
             )
