@@ -82,7 +82,7 @@ class RunResult:
     # Raw output of cell
     output: Any
     # Exception raised by cell, if any
-    exception: Optional[Exception]
+    exception: Optional[BaseException]
 
     def success(self) -> bool:
         """Whether the cell exected successfully"""
@@ -109,7 +109,7 @@ class Runner:
         # whether the runner has been interrupted
         self.interrupted = False
         # mapping from cell_id to exception it raised
-        self.exceptions: dict[CellId_t, Exception] = {}
+        self.exceptions: dict[CellId_t, BaseException] = {}
 
         # each cell's position in the run queue
         self._run_position = {
@@ -240,7 +240,9 @@ class Runner:
             run_result = RunResult(output=e.output, exception=e)
             # don't print a traceback, since quitting is the intended
             # behavior (like sys.exit())
-        except Exception as e:  # noqa: E722
+        except BaseException as e:  # noqa: E722
+            # except BaseException to catch everything, including
+            # KeyboardInterrupt: nothing should go uncaught
             # cancel only the descendants of this cell
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
