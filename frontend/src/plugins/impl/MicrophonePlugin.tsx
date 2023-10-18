@@ -32,7 +32,7 @@ const Microphone = ({ setValue, data }: IPluginProps<Value, Data>) => {
   const { start, stop, pauseResume, recordingStatus, recordingTime, allowed } =
     useAudioRecorder({
       onDone: async (file) => {
-        const [, base64] = await blobToBase64(file);
+        const base64 = await blobToBase64(file);
         setValue(base64);
       },
     });
