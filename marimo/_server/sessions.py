@@ -473,6 +473,7 @@ class SessionManager:
                 "index.js",
             )
             cmd = f"node {lsp_bin} --port {self.lsp_port}"
+            LOGGER.debug("... running command: %s", cmd)
             self.lsp_process = subprocess.Popen(
                 cmd.split(),
                 stdout=subprocess.DEVNULL,
