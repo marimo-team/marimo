@@ -1,21 +1,51 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`pythonPrint > generates correct Python code for aggregate 1`] = `"df.agg({\\"my_column\\": [\\"mean\\"]})"`;
+exports[`pythonPrint: filter > filter_rows > date > != 1`] = `"df[df[\\"my_column\\"].ne(1000)]"`;
 
-exports[`pythonPrint > generates correct Python code for aggregate 2`] = `"df.agg([\\"mean\\"])"`;
+exports[`pythonPrint: filter > filter_rows > date > < 1`] = `"df[df[\\"my_column\\"] < 1000]"`;
 
-exports[`pythonPrint > generates correct Python code for aggregate 3`] = `"df.agg({\\"my_column\\": [\\"mean\\", \\"sum\\"]})"`;
+exports[`pythonPrint: filter > filter_rows > date > <= 1`] = `"df[df[\\"my_column\\"] <= 1000]"`;
 
-exports[`pythonPrint > generates correct Python code for column_conversion 1`] = `"df[\\"my_column\\"].astype(\\"int8\\")"`;
+exports[`pythonPrint: filter > filter_rows > date > == 1`] = `"df[df[\\"my_column\\"] == 1000]"`;
 
-exports[`pythonPrint > generates correct Python code for filter_rows 1`] = `"df[\`\`my_column > 10\`\`]"`;
+exports[`pythonPrint: filter > filter_rows > date > > 1`] = `"df[df[\\"my_column\\"] > 1000]"`;
 
-exports[`pythonPrint > generates correct Python code for filter_rows 2`] = `"df[~\`\`my_column > 10\`\` and \`\`my_column2 == hello\`\`]"`;
+exports[`pythonPrint: filter > filter_rows > date > >= 1`] = `"df[df[\\"my_column\\"] >= 1000]"`;
 
-exports[`pythonPrint > generates correct Python code for group_by 1`] = `"df.groupby([\\"my_column\\"], dropna=True).sum()"`;
+exports[`pythonPrint: filter > filter_rows > date > is_false 1`] = `"df[df[\\"my_column\\"] == False]"`;
 
-exports[`pythonPrint > generates correct Python code for group_by 2`] = `"df.groupby([\\"my_column\\", \\"my_column2\\"]).sum()"`;
+exports[`pythonPrint: filter > filter_rows > date > is_nan 1`] = `"df[df[\\"my_column\\"].isna()]"`;
 
-exports[`pythonPrint > generates correct Python code for rename_column 1`] = `"df.rename(columns={\\"old_name\\": \\"new_name\\"})"`;
+exports[`pythonPrint: filter > filter_rows > date > is_not_nan 1`] = `"df[df[\\"my_column\\"].notna()]"`;
 
-exports[`pythonPrint > generates correct Python code for sort_column 1`] = `"df.sort_values(by=\\"my_column\\", ascending=False, na_position=\\"first\\")"`;
+exports[`pythonPrint: filter > filter_rows > date > is_true 1`] = `"df[df[\\"my_column\\"] == True]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > != 1`] = `"df[df[\\"my_column\\"].ne(42)]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > < 1`] = `"df[df[\\"my_column\\"] < 42]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > <= 1`] = `"df[df[\\"my_column\\"] <= 42]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > == 1`] = `"df[df[\\"my_column\\"] == 42]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > > 1`] = `"df[df[\\"my_column\\"] > 42]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > >= 1`] = `"df[df[\\"my_column\\"] >= 42]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > is_nan 1`] = `"df[df[\\"my_column\\"].isna()]"`;
+
+exports[`pythonPrint: filter > filter_rows > number > is_not_nan 1`] = `"df[df[\\"my_column\\"].notna()]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > contains 1`] = `"df[df[\\"my_column\\"].str.contains(\\"val\\")]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > does_not_equal 1`] = `"df[df[\\"my_column\\"].ne(\\"val\\")]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > ends_with 1`] = `"df[df[\\"my_column\\"].str.endswith(\\"val\\")]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > equals 1`] = `"df[df[\\"my_column\\"].eq(\\"val\\")]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > in 1`] = `"df[df[\\"my_column\\"].isin(\\"val\\")]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > regex 1`] = `"df[df[\\"my_column\\"].str.contains(\\"val\\", regex=True)]"`;
+
+exports[`pythonPrint: filter > filter_rows > string > starts_with 1`] = `"df[df[\\"my_column\\"].str.startswith(\\"val\\")]"`;

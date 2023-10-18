@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { TransformType } from "@/plugins/impl/data-frames/schema";
 import { logNever } from "@/utils/assertNever";
+import { OperatorType } from "../utils/operators";
 
 export function pythonPrintTransforms(
   dfName: string,
@@ -35,14 +36,24 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
     }
     case "filter_rows": {
       const { operation, where } = transform;
-      const whereClause = where
-        .map((condition) =>
-          `${dfName}["${condition.column_id}"] ${condition.operator} ${condition.value}`.trim()
-        )
-        .join(" and ");
+      if (where.length === 0) {
+        return dfName;
+      }
+
+      const whereClauses = where.map((condition) =>
+        generateWhereClause(dfName, condition)
+      );
+      if (operation === "keep_rows" && whereClauses.length === 1) {
+        return `${dfName}[${whereClauses[0]}]`;
+      }
+
+      const expression = whereClauses
+        .map((clause) => `(${clause})`)
+        .join(" & ");
+
       return operation === "keep_rows"
-        ? `${dfName}[${whereClause}]`
-        : `${dfName}[~${whereClause}]`;
+        ? `${dfName}[${expression}]`
+        : `${dfName}[~(${expression})]`;
     }
     case "aggregate": {
       const { column_ids, aggregations } = transform;
@@ -65,6 +76,58 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
     default:
       logNever(transform);
       return "";
+  }
+}
+
+function generateWhereClause(
+  dfName: string,
+  where: {
+    column_id: string;
+    operator: OperatorType;
+    value?: unknown;
+  }
+): string {
+  const { column_id, operator, value } = where;
+  switch (operator) {
+    case "==":
+      return `${dfName}["${column_id}"] == ${asString(value)}`;
+    case "equals":
+      return `${dfName}["${column_id}"].eq(${asString(value)})`;
+    case "does_not_equal":
+      return `${dfName}["${column_id}"].ne(${asString(value)})`;
+    case "contains":
+      return `${dfName}["${column_id}"].str.contains(${asString(value)})`;
+    case "regex":
+      return `${dfName}["${column_id}"].str.contains(${asString(
+        value
+      )}, regex=True)`;
+    case "starts_with":
+      return `${dfName}["${column_id}"].str.startswith(${asString(value)})`;
+    case "ends_with":
+      return `${dfName}["${column_id}"].str.endswith(${asString(value)})`;
+    case "in":
+      return `${dfName}["${column_id}"].isin(${listOfStrings(value)})`;
+    case "!=":
+      return `${dfName}["${column_id}"].ne(${asString(value)})`;
+    case ">":
+      return `${dfName}["${column_id}"] > ${asString(value)}`;
+    case ">=":
+      return `${dfName}["${column_id}"] >= ${asString(value)}`;
+    case "<":
+      return `${dfName}["${column_id}"] < ${asString(value)}`;
+    case "<=":
+      return `${dfName}["${column_id}"] <= ${asString(value)}`;
+    case "is_nan":
+      return `${dfName}["${column_id}"].isna()`;
+    case "is_not_nan":
+      return `${dfName}["${column_id}"].notna()`;
+    case "is_true":
+      return `${dfName}["${column_id}"] == True`;
+    case "is_false":
+      return `${dfName}["${column_id}"] == False`;
+    default:
+      logNever(operator);
+      return "df";
   }
 }
 

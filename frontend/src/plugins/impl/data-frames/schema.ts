@@ -5,7 +5,11 @@ import {
 } from "@/plugins/impl/data-frames/types";
 import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
 import { z } from "zod";
-import { ALL_OPERATORS, isConditionValueValid } from "./utils/operators";
+import {
+  ALL_OPERATORS,
+  OperatorType,
+  isConditionValueValid,
+} from "./utils/operators";
 
 const column_id = z
   .string()
@@ -61,7 +65,7 @@ export const ConditionSchema = z
   .object({
     column_id: column_id,
     operator: z
-      .enum(Object.keys(ALL_OPERATORS) as [string, ...string[]])
+      .enum(Object.keys(ALL_OPERATORS) as [OperatorType, ...OperatorType[]])
       .describe(FieldOptions.of({ label: " " })),
     value: z.any().describe(FieldOptions.of({ label: "Value" })),
   })

@@ -2,6 +2,13 @@
 import { pythonPrint } from "@/plugins/impl/data-frames/python/python-print";
 import { TransformType } from "@/plugins/impl/data-frames/schema";
 import { expect, describe, it } from "vitest";
+import {
+  BOOLEAN_OPERATORS,
+  DATE_OPERATORS,
+  NUMERIC_OPERATORS,
+  STRING_OPERATORS,
+} from "../../utils/operators";
+import { Objects } from "@/utils/objects";
 
 describe("pythonPrint", () => {
   // Test for column_conversion
@@ -42,44 +49,6 @@ describe("pythonPrint", () => {
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
       '"df.sort_values(by=\\"my_column\\", ascending=False, na_position=\\"first\\")"'
-    );
-  });
-
-  // Test for filter_rows
-  it("generates correct Python code for filter_rows", () => {
-    const transform: TransformType = {
-      type: "filter_rows",
-      operation: "keep_rows",
-      where: [
-        {
-          column_id: "my_column",
-          operator: ">",
-          value: 10,
-        },
-      ],
-    };
-    const result = pythonPrint("df", transform);
-    expect(result).toMatchInlineSnapshot('"df[df[\\"my_column\\"] > 10]"');
-
-    const transform2: TransformType = {
-      type: "filter_rows",
-      operation: "remove_rows",
-      where: [
-        {
-          column_id: "my_column",
-          operator: ">",
-          value: 10,
-        },
-        {
-          column_id: "my_column2",
-          operator: "==",
-          value: "hello",
-        },
-      ],
-    };
-    const result2 = pythonPrint("df", transform2);
-    expect(result2).toMatchInlineSnapshot(
-      '"df[~df[\\"my_column\\"] > 10 and df[\\"my_column2\\"] == hello]"'
     );
   });
 
@@ -138,4 +107,140 @@ describe("pythonPrint", () => {
       '"df.groupby([\\"my_column\\", \\"my_column2\\"]).sum()"'
     );
   });
+});
+
+describe("pythonPrint: filter", () => {
+  it("handles filter vs keep", () => {
+    const result = pythonPrint("df", {
+      type: "filter_rows",
+      operation: "keep_rows",
+      where: [
+        {
+          column_id: "my_column",
+          operator: "==",
+          value: 42,
+        },
+      ],
+    });
+    expect(result).toMatchInlineSnapshot(
+      '"df[df[\\"my_column\\"] == 42]"'
+    );
+
+    const result2 = pythonPrint("df", {
+      type: "filter_rows",
+      operation: "remove_rows",
+      where: [
+        {
+          column_id: "my_column",
+          operator: "==",
+          value: 42,
+        },
+      ],
+    });
+    expect(result2).toMatchInlineSnapshot(
+      '"df[~((df[\\"my_column\\"] == 42))]"'
+    );
+  });
+
+  it("handle multiple where clauses", () => {
+    const result = pythonPrint("df", {
+      type: "filter_rows",
+      operation: "keep_rows",
+      where: [
+        {
+          column_id: "my_column",
+          operator: "==",
+          value: 42,
+        },
+        {
+          column_id: "my_column2",
+          operator: "==",
+          value: 43,
+        },
+      ],
+    });
+    expect(result).toMatchInlineSnapshot(
+      '"df[(df[\\"my_column\\"] == 42) & (df[\\"my_column2\\"] == 43)]"'
+    );
+  });
+
+  // Test for filter_rows for strings
+  it.each(Objects.entries(STRING_OPERATORS))(
+    "filter_rows > string > %s",
+    (operator) => {
+      const transform: TransformType = {
+        type: "filter_rows",
+        operation: "keep_rows",
+        where: [
+          {
+            column_id: "my_column",
+            operator: operator,
+            value: "val",
+          },
+        ],
+      };
+      const result = pythonPrint("df", transform);
+      expect(result).toMatchSnapshot();
+    }
+  );
+
+  // Test for filter_rows for booleans
+  it.each(Objects.entries(BOOLEAN_OPERATORS))(
+    "filter_rows > date > %s",
+    (operator) => {
+      const transform: TransformType = {
+        type: "filter_rows",
+        operation: "keep_rows",
+        where: [
+          {
+            column_id: "my_column",
+            operator: operator,
+            value: true,
+          },
+        ],
+      };
+      const result = pythonPrint("df", transform);
+      expect(result).toMatchSnapshot();
+    }
+  );
+
+  // Test for filter_rows for dates
+  it.each(Objects.entries(DATE_OPERATORS))(
+    "filter_rows > date > %s",
+    (operator) => {
+      const transform: TransformType = {
+        type: "filter_rows",
+        operation: "keep_rows",
+        where: [
+          {
+            column_id: "my_column",
+            operator: operator,
+            value: 1000,
+          },
+        ],
+      };
+      const result = pythonPrint("df", transform);
+      expect(result).toMatchSnapshot();
+    }
+  );
+
+  // Test for filter_rows for numbers
+  it.each(Objects.entries(NUMERIC_OPERATORS))(
+    "filter_rows > number > %s",
+    (operator) => {
+      const transform: TransformType = {
+        type: "filter_rows",
+        operation: "keep_rows",
+        where: [
+          {
+            column_id: "my_column",
+            operator: operator,
+            value: 42,
+          },
+        ],
+      };
+      const result = pythonPrint("df", transform);
+      expect(result).toMatchSnapshot();
+    }
+  );
 });

@@ -61,6 +61,8 @@ export const ALL_OPERATORS = {
   ...STRING_OPERATORS,
 };
 
+export type OperatorType = keyof typeof ALL_OPERATORS;
+
 export function getOperatorForDtype(dtype: string): readonly string[] {
   if (!dtype) {
     return [];
