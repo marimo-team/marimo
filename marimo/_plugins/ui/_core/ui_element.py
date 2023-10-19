@@ -4,7 +4,15 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
-from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Generic,
+    Optional,
+    Sequence,
+    TypeVar,
+    cast,
+)
 
 from marimo import _loggers
 from marimo._output.hypertext import Html
@@ -12,6 +20,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
 from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -70,6 +79,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str = "",
+        functions: tuple[Function, ...] = (),
     ) -> None:
         """Initialize a UIElement
 
@@ -78,9 +88,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: tag name of the custom element
         initial_value: initial value of the element in the frontend
         label: markdown string, label of element
+        on_change: callback, called with element's new value on change
         args: arguments that the element takes
         slotted_html: any html to slot in the custom element
-        on_change: callback, called with element's new value on change
+        functions: any functions to register with the graph
         """
         # arguments stored in signature order for cloning
         self._args = (
@@ -90,6 +101,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             on_change,
             args,
             slotted_html,
+            functions,
         )
         self._initialized = False
         self._initialize(*self._args)
@@ -103,6 +115,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str,
+        functions: tuple[Function, ...] = (),
     ) -> None:
         """Initialize the UIElement
 
@@ -176,6 +189,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             + self._inner_text
             + "</marimo-ui-element>"
         )
+
+        for function in functions:
+            # TODO
+            ...
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
