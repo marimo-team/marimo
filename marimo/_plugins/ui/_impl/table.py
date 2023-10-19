@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -21,6 +22,7 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
@@ -34,6 +36,11 @@ TableData = Union[
     Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
     "pd.DataFrame",
 ]
+
+
+@dataclass
+class DownloadAsArgs:
+    ext: Literal["csv", "json", "xls"]
 
 
 @mddoc
@@ -119,6 +126,13 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 "show-download": DependencyManager.has_pandas(),
             },
             on_change=on_change,
+            functions=(
+                Function(
+                    name=self.download_as.__name__,
+                    arg_cls=DownloadAsArgs,
+                    function=self.download_as,
+                ),
+            ),
         )
 
     @property
@@ -137,12 +151,13 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 return self._data.iloc[[int(v) for v in value]]
         return [self._data[int(v)] for v in value]
 
-    def download_as(self, ext: Literal["csv", "json", "xls"]) -> str:
+    def download_as(self, args: DownloadAsArgs) -> str:
         if not DependencyManager.has_pandas():
             raise RuntimeError("Pandas must be installed to download tables.")
 
         import pandas as pd
 
+        ext = args.ext
         if isinstance(self._data, pd.DataFrame):
             if ext == "csv":
                 return mo_data.csv(self._data).url
@@ -152,6 +167,8 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 return mo_data.xls(self._data).url
             else:
                 raise ValueError("ext must be one of 'csv' or 'json'.")
+        # TODO
+        raise ValueError("Unable to download data.")
 
 
 def _normalize_data(data: TableData) -> JSONType:

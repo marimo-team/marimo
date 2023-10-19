@@ -193,6 +193,15 @@ class CellOp(Op):
 
 
 @dataclass
+class HumanReadableStatus(Op):
+    """Human-readable status."""
+
+    code: Literal["ok", "error"]
+    title: str | None = None
+    message: str | None = None
+
+
+@dataclass
 class FunctionCallResult(Op):
     """Result of calling a function."""
 
@@ -200,8 +209,7 @@ class FunctionCallResult(Op):
 
     function_call_id: str
     return_value: JSONType
-    # True if the function call succeeded, False if it was aborted
-    success: bool
+    status: HumanReadableStatus
 
 
 @dataclass

@@ -32,6 +32,7 @@ from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
     FunctionCallResult,
+    HumanReadableStatus,
     Interrupted,
     RemoveUIElements,
     VariableDeclaration,
@@ -891,33 +892,54 @@ class Kernel:
 
     def function_call_request(
         self, request: FunctionCallRequest
-    ) -> tuple[bool, JSONType]:
+    ) -> tuple[HumanReadableStatus, JSONType]:
         function = get_context().function_registry.get_function(
             request.namespace, request.function_name
         )
+        error_title, error_message = "", ""
+
+        def debug(title: str, message: str) -> None:
+            return LOGGER.debug("%s: %s", title, message)
+
         if function is None:
-            LOGGER.debug("Could not find function given request: %s", request)
-        elif function.cell_id is None:
-            LOGGER.debug(
-                "Attempted to call a function without a cell id: %s", request
+            error_title = "Function not found"
+            error_message = (
+                "Could not find function given request: %s" % request
             )
+            debug(error_title, error_message)
+        elif function.cell_id is None:
+            error_title = "Function not associated with cell"
+            error_message = (
+                "Attempted to call a function without a cell id: %s" % request
+            )
+            debug(error_title, error_message)
         else:
             with self._install_execution_context(cell_id=function.cell_id):
                 try:
-                    return True, function(request.args)
+                    return HumanReadableStatus(code="ok"), function(
+                        request.args
+                    )
                 except MarimoInterrupt:
-                    LOGGER.debug(
-                        "Function call (%s) was interrupted by the user",
-                        request,
+                    error_title = "Interrupted"
+                    error_message = (
+                        "Function call (%s) was interrupted by the user"
+                        % request.function_name
                     )
+                    debug(error_title, error_message)
                 except Exception as e:
-                    LOGGER.debug(
-                        "Function call (%s) failed with exception %s",
-                        request,
-                        str(e),
+                    error_title = "Exception"
+                    error_message = (
+                        "Function call (name: %s, args: %s) failed with exception %s"  # noqa: E501
+                        % (request.function_name, request.args, str(e))
                     )
+                    debug(error_title, error_message)
         # Couldn't call function, or function call failed
-        return False, None
+        return (
+            HumanReadableStatus(
+                code="error", title=error_title, message=error_message
+            ),
+            None,
+        )
 
     def complete(self, request: CompletionRequest) -> None:
         """Code completion"""
@@ -1049,11 +1071,11 @@ def launch_kernel(
             kernel.set_ui_element_value(request)
             CompletedRun().broadcast()
         elif isinstance(request, FunctionCallRequest):
-            success, ret = kernel.function_call_request(request)
+            status, ret = kernel.function_call_request(request)
             FunctionCallResult(
                 function_call_id=request.function_call_id,
                 return_value=ret,
-                success=success,
+                status=status,
             ).broadcast()
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):

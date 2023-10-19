@@ -175,7 +175,8 @@ function PluginSlotInternal<T>(
           functionId: key,
           namespace: objectId,
         });
-        if (!response.success) {
+        if (response.status.code !== "ok") {
+          // TODO: Propagate status.title/status.message
           throw new Error(`Failed to call function ${key}`);
         }
         return output.parse(response.return_value);

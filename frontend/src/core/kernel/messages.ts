@@ -112,6 +112,15 @@ export interface CompletionResultMessage {
 }
 
 /**
+ * Status code, and human readable explanation.
+ */
+export interface HumanReadableStatus {
+  code: "ok" | "error";
+  title?: string;
+  message?: string;
+}
+
+/**
  * Message for function call results
  */
 export interface FunctionCallResultMessage {
@@ -123,8 +132,10 @@ export interface FunctionCallResultMessage {
    * The result of the function call
    */
   return_value: unknown;
-
-  success: boolean;
+  /**
+   * Status code and human readable info.
+   */
+  status: HumanReadableStatus;
 }
 
 /**
