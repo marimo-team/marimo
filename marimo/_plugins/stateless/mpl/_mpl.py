@@ -27,11 +27,7 @@ from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
-from marimo._runtime.context import (
-    ContextNotInitializedError,
-    RuntimeContext,
-    get_context,
-)
+from marimo._runtime.context import RuntimeContext, get_context
 
 
 class MplApplication(tornado.web.Application):
@@ -233,12 +229,11 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     if isinstance(figure, Axes):
         figure = figure.get_figure()
 
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError as err:
+    ctx = get_context()
+    if not ctx.initialized:
         raise RuntimeError(
             "marimo.mpl.interactive can't be used when running as a script."
-        ) from err
+        )
 
     # TODO(akshayka): Proxy this server through the marimo server to help with
     # deployment.

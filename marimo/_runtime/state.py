@@ -5,7 +5,7 @@ import types
 from typing import Callable, Generic, TypeVar
 
 from marimo._output.rich_help import mddoc
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import get_context
 
 T = TypeVar("T")
 
@@ -26,9 +26,8 @@ class State(Generic[T]):
             if isinstance(update, (types.MethodType, types.FunctionType))
             else update
         )
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
+        ctx = get_context()
+        if not ctx.initialized:
             return
         kernel = ctx.kernel
         assert kernel is not None

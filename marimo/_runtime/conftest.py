@@ -8,12 +8,12 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
-from marimo._runtime.context import (
-    initialize_context,
-    teardown_context,
-)
+from marimo._plugins.ui._core.registry import UIElementRegistry
+from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
+from marimo._runtime.context import get_context
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.virtual_file import VirtualFileRegistry
 
 
 @dataclasses.dataclass
@@ -42,8 +42,11 @@ class MockedKernel:
     stderr: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
 
     def __post_init__(self) -> None:
-        initialize_context(
+        get_context().initialize(
             kernel=self.k,
+            ui_element_registry=UIElementRegistry(),
+            cell_lifecycle_registry=CellLifecycleRegistry(),
+            virtual_file_registry=VirtualFileRegistry(),
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
@@ -51,7 +54,10 @@ class MockedKernel:
 
     def __del__(self) -> None:
         # have to teardown the runtime context because it's a global
-        teardown_context()
+        get_context()._kernel = None
+        get_context()._ui_element_registry = None
+        get_context()._stream = None
+        get_context()._initialized = False
 
 
 # fixture that provides a kernel (and tears it down)

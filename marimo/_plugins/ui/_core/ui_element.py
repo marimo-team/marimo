@@ -11,7 +11,7 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import get_context
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -129,19 +129,15 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         # optionally override the element's initial value.
         try:
             self._id = get_context().take_id()
-        except (ids.NoIDProviderException, ContextNotInitializedError):
+        except ids.NoIDProviderException:
             self._id = self._random_id
 
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            ctx = None
-
-        if ctx is not None:
+        ctx = get_context()
+        if ctx.initialized:
             ctx.ui_element_registry.register(self._id, self)
 
         # an Instantiate request may want us to override the initial value
-        if ctx is not None:
+        if ctx.initialized:
             try:
                 # NB: If a cell produces a non-deterministic set of
                 # UI elements, a UI element may be matched with an initial
@@ -189,13 +185,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     @property
     def value(self) -> T:
         """The element's current value."""
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            return self._value
-
+        ctx = get_context()
         if (
-            ctx.kernel.execution_context is not None
+            ctx.initialized
+            and ctx.kernel.execution_context is not None
             and not ctx.kernel.execution_context.setting_element_value
             and (
                 ctx.kernel.execution_context.cell_id
@@ -270,11 +263,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             self._on_change(self._value)
 
     def __del__(self) -> None:
-        try:
-            ctx = get_context()
+        ctx = get_context()
+        if ctx.initialized:
             ctx.ui_element_registry.delete(self._id, id(self))
-        except ContextNotInitializedError:
-            pass
 
     def _clone(self) -> UIElement[S, T]:
         """Clone a UIElement, returning one with a different id
