@@ -6,11 +6,11 @@ import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { SendFunctionRequest } from "../network/types";
 
 export const FUNCTIONS_REGISTRY = new DeferredRequestRegistry<
-  Omit<SendFunctionRequest, "id">,
+  Omit<SendFunctionRequest, "functionCallId">,
   FunctionCallResultMessage
 >("function-call-result", async (requestId, req) => {
   await sendFunctionRequest({
-    id: requestId,
+    functionCallId: requestId,
     ...req,
   });
 });

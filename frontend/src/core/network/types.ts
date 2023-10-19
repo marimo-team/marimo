@@ -84,8 +84,8 @@ export interface SaveCellConfigRequest {
 }
 
 export interface SendFunctionRequest {
-  id: RequestId;
+  functionCallId: RequestId;
   args: unknown;
   namespace: string;
-  functionId: string;
+  functionName: string;
 }

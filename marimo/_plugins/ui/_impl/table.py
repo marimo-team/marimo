@@ -40,7 +40,7 @@ TableData = Union[
 
 @dataclass
 class DownloadAsArgs:
-    ext: Literal["csv", "json", "xls"]
+    format: Literal["csv", "json"]
 
 
 @mddoc
@@ -110,6 +110,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
     ) -> None:
         self._data = data
         normalized_data = _normalize_data(data)
+        self._normalized_data = normalized_data
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
@@ -157,18 +158,23 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
 
         import pandas as pd
 
-        ext = args.ext
-        if isinstance(self._data, pd.DataFrame):
-            if ext == "csv":
-                return mo_data.csv(self._data).url
-            elif ext == "json":
-                return mo_data.json(self._data).url
-            elif ext == "xls":
-                return mo_data.xls(self._data).url
-            else:
-                raise ValueError("ext must be one of 'csv' or 'json'.")
-        # TODO
-        raise ValueError("Unable to download data.")
+        # download selected rows if there are any, otherwise use all rows
+        # TODO: selection does not actually work
+        data = self._value if len(self._value) > 0 else self._data
+
+        as_dataframe = (
+            data
+            if isinstance(data, pd.DataFrame)
+            else pd.DataFrame(self._normalized_data)
+        )
+
+        ext = args.format
+        if ext == "csv":
+            return mo_data.csv(as_dataframe).url
+        elif ext == "json":
+            return mo_data.json(as_dataframe).url
+        else:
+            raise ValueError("format must be one of 'csv' or 'json'.")
 
 
 def _normalize_data(data: TableData) -> JSONType:

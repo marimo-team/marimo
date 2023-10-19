@@ -28,7 +28,7 @@ interface Data<T> {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type Functions = {
-  downloadAs: (type: "csv" | "json" | "xls") => Promise<string>;
+  download_as: (req: { format: "csv" | "json" }) => Promise<string>;
 };
 
 type S = Array<string | number>;
@@ -47,7 +47,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
     })
   )
   .withFunctions<Functions>({
-    downloadAs: rpc.input(z.enum(["csv", "json", "xls"])).output(z.string()),
+    download_as: rpc
+      .input(z.object({ format: z.enum(["csv", "json"]) }))
+      .output(z.string()),
   })
   .renderer((props) => {
     if (typeof props.data.data === "string") {
@@ -112,7 +114,7 @@ const DataTableComponent = ({
   selection,
   value,
   showDownload,
-  downloadAs,
+  download_as: downloadAs,
   setValue,
 }: DataTableProps & {
   data: unknown[];

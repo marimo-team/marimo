@@ -8,15 +8,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { toast } from "../ui/use-toast";
 
 export interface DownloadActionProps {
-  downloadAs: (format: "csv" | "json" | "xls") => Promise<string>;
+  downloadAs: (req: { format: "csv" | "json" }) => Promise<string>;
 }
 
-const formats = [
+const options = [
   { label: "CSV", format: "csv" },
   { label: "JSON", format: "json" },
-  { label: "Excel", format: "xls" },
 ] as const;
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
@@ -30,11 +30,24 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
       <DropdownMenuContent side="bottom" className="no-print">
-        {formats.map((format) => (
+        {options.map((option) => (
           <DropdownMenuItem
-            key={format.label}
+            key={option.label}
             onSelect={async () => {
-              const downloadUrl = await props.downloadAs(format.format);
+              const downloadUrl = await props
+                .downloadAs({
+                  format: option.format,
+                })
+                .catch((error) => {
+                  toast({
+                    title: "Failed to download",
+                    description:
+                      "message" in error ? error.message : String(error),
+                  });
+                });
+              if (!downloadUrl) {
+                return;
+              }
               const link = document.createElement("a");
               link.href = downloadUrl;
               link.setAttribute("download", "download");
@@ -43,7 +56,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
               link.remove();
             }}
           >
-            {format.label}
+            {option.label}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

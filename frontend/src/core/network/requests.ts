@@ -131,5 +131,5 @@ export function saveCellConfig(request: SaveCellConfigRequest) {
 }
 
 export function sendFunctionRequest(request: SendFunctionRequest) {
-  return API.post<SendFunctionRequest>("/kernel/function/", request);
+  return API.post<SendFunctionRequest>("/kernel/function_call/", request);
 }

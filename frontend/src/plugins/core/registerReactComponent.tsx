@@ -172,12 +172,11 @@ function PluginSlotInternal<T>(
         invariant(objectId, "Object ID should exist");
         const response = await FUNCTIONS_REGISTRY.request({
           args: input.parse(args[0]),
-          functionId: key,
+          functionName: key,
           namespace: objectId,
         });
         if (response.status.code !== "ok") {
-          // TODO: Propagate status.title/status.message
-          throw new Error(`Failed to call function ${key}`);
+          throw new Error(response.status.message);
         }
         return output.parse(response.return_value);
       };
