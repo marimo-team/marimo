@@ -70,8 +70,8 @@ class SaveUserConfigurationHandler(tornado.web.RequestHandler):
 
         # Update the server's view of the config
         config = configure(args.config)
-        LOGGER.debug("Starting copilot server")
         if config["completion"]["copilot"]:
+            LOGGER.debug("Starting copilot server")
             sessions.get_manager().start_lsp_server()
         # Update the kernel's view of the config
         session.queue.put(requests.ConfigurationRequest(str(args.config)))

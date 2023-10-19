@@ -473,11 +473,16 @@ class SessionManager:
                 "index.js",
             )
             cmd = f"node {lsp_bin} --port {self.lsp_port}"
+            LOGGER.debug("... running command: %s", cmd)
             self.lsp_process = subprocess.Popen(
                 cmd.split(),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
+            )
+            LOGGER.debug(
+                "... node process return code (`None` means success): %s",
+                self.lsp_process.returncode,
             )
             LOGGER.debug("Started LSP server at port %s", self.lsp_port)
         except Exception as e:
