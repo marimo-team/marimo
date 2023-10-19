@@ -3,7 +3,7 @@ from marimo._runtime.conftest import ExecReqProvider
 from marimo._runtime.runtime import Kernel
 
 
-def test_set_and_state(k: Kernel, exec_req: ExecReqProvider) -> None:
+def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
     k.run(
         [
             exec_req.get("import marimo as mo"),
