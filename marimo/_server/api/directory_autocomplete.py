@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import tornado.web
 
-from marimo._server.api.model import parse_raw
+from marimo._utils.parse_dataclass import parse_raw
 
 
 @dataclass

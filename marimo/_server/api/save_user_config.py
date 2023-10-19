@@ -13,8 +13,8 @@ from marimo._config.config import MarimoConfig, configure
 from marimo._config.utils import get_config_path
 from marimo._runtime import requests
 from marimo._server import sessions
-from marimo._server.api.model import parse_raw
 from marimo._server.api.status import HTTPStatus
+from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 

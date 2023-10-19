@@ -26,6 +26,14 @@ class SetUIElementValueRequest:
 
 
 @dataclass
+class FunctionCallRequest:
+    function_call_id: str
+    namespace: str
+    function_name: str
+    args: dict[str, Any]
+
+
+@dataclass
 class SetCellConfigRequest:
     configs: dict[CellId_t, dict[str, object]]
 
@@ -64,6 +72,7 @@ Request = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
+    FunctionCallRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
