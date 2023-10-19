@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Dict,
     Final,
@@ -214,7 +215,9 @@ def _normalize_data(data: TableData) -> JSONType:
     return data
 
 
-def _get_row_headers(data: TableData) -> List[tuple[str, List[str]]]:
+def _get_row_headers(
+    data: TableData,
+) -> List[tuple[str, List[str | int | float]]]:
     if DependencyManager.has_pandas():
         import pandas as pd
 
@@ -223,7 +226,9 @@ def _get_row_headers(data: TableData) -> List[tuple[str, List[str]]]:
     return []
 
 
-def _get_row_headers_for_index(index: pd.Index) -> List[tuple[str, List[str]]]:
+def _get_row_headers_for_index(
+    index: pd.Index[Any],
+) -> List[tuple[str, List[str | int | float]]]:
     import pandas as pd
 
     if isinstance(index, pd.RangeIndex):
@@ -249,6 +254,7 @@ def _get_row_headers_for_index(index: pd.Index) -> List[tuple[str, List[str]]]:
             or dtype == "string"
             or dtype == "category"
         ):
-            return [[index.name or "", index.tolist()]]
+            name = str(index.name) if index.name else ""
+            return [(name, index.tolist())]  # type: ignore[list-item]
 
     return []

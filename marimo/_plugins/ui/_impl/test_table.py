@@ -1,5 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
-from typing import Any
+from __future__ import annotations
+
+from typing import Any, List
 
 from marimo._plugins.ui._impl.table import (
     TableData,
@@ -78,9 +80,11 @@ def test_normalize_data() -> None:
         )
 
 
-def test_get_row_headers():
+def test_get_row_headers() -> None:
     try:
         import pandas as pd
+
+        expected: List[tuple[str, List[str]]]
 
         # Test with pandas DataFrame
         df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
@@ -96,10 +100,11 @@ def test_get_row_headers():
             ["one", "two", "three"],
         ]
         df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
-        assert _get_row_headers(df_multi) == [
-            ["", ["foo", "bar", "baz"]],
-            ["", ["one", "two", "three"]],
+        expected = [
+            ("", ["foo", "bar", "baz"]),
+            ("", ["one", "two", "three"]),
         ]
+        assert _get_row_headers(df_multi) == expected
 
         # Test with RangeIndex
         df_range = pd.DataFrame({"A": range(3)})
@@ -108,11 +113,13 @@ def test_get_row_headers():
         # Test with categorical Index
         df_cat = pd.DataFrame({"A": range(3)})
         df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
-        assert _get_row_headers(df_cat) == [["", ["a", "b", "c"]]]
+        expected = [("", ["a", "b", "c"])]
+        assert _get_row_headers(df_cat) == expected
 
         # Test with named categorical Index
         df_cat = pd.DataFrame({"A": range(3)})
         df_cat.index = pd.CategoricalIndex(["a", "b", "c"], name="Colors")
-        assert _get_row_headers(df_cat) == [["Colors", ["a", "b", "c"]]]
+        expected = [("Colors", ["a", "b", "c"])]
+        assert _get_row_headers(df_cat) == expected
     except ImportError:
         pass
