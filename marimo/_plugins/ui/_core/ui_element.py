@@ -6,10 +6,10 @@ import copy
 import uuid
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Generic,
     Optional,
-    Sequence,
     TypeVar,
     cast,
 )
@@ -79,7 +79,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str = "",
-        functions: tuple[Function, ...] = (),
+        functions: tuple[Function[Any, Any], ...] = (),
     ) -> None:
         """Initialize a UIElement
 
@@ -115,7 +115,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str,
-        functions: tuple[Function, ...] = (),
+        functions: tuple[Function[Any, Any], ...] = (),
     ) -> None:
         """Initialize the UIElement
 
@@ -152,9 +152,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         if ctx is not None:
             ctx.ui_element_registry.register(self._id, self)
-
-        # an Instantiate request may want us to override the initial value
-        if ctx is not None:
+            # an Instantiate request may want us to override the initial value
             try:
                 # NB: If a cell produces a non-deterministic set of
                 # UI elements, a UI element may be matched with an initial
@@ -172,6 +170,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             except KeyError:
                 # we weren't asked to override the UI element's value
                 pass
+            for function in functions:
+                ctx.function_registry.register(
+                    namespace=self._id, function=function
+                )
         self._initial_value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
@@ -189,10 +191,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             + self._inner_text
             + "</marimo-ui-element>"
         )
-
-        for function in functions:
-            # TODO
-            ...
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
@@ -290,6 +288,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         try:
             ctx = get_context()
             ctx.ui_element_registry.delete(self._id, id(self))
+            ctx.function_registry.delete(namespace=self._id)
         except ContextNotInitializedError:
             pass
 

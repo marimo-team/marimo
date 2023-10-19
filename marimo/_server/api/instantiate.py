@@ -9,7 +9,7 @@ import tornado.web
 from marimo._ast.app import App
 from marimo._runtime import requests
 from marimo._server import sessions
-from marimo._server.api.model import parse_raw
+from marimo._utils.parse_dataclass import parse_raw
 
 
 @dataclass

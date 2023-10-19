@@ -193,6 +193,16 @@ class CellOp(Op):
 
 
 @dataclass
+class FunctionCallResult(Op):
+    """Result of calling a function."""
+
+    function_call_id: str
+    return_value: JSONType
+    # True if the function call succeeded, False if it was aborted
+    success: bool
+
+
+@dataclass
 class RemoveUIElements(Op):
     """Invalidate UI elements for a given cell."""
 

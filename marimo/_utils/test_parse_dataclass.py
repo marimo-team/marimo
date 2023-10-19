@@ -6,8 +6,8 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Tuple
 
 from marimo._server import api
-from marimo._server.api.model import parse_raw
 from marimo._server.api.set_cell_config import SetCellConfig
+from marimo._utils.parse_dataclass import parse_raw
 
 
 @dataclass

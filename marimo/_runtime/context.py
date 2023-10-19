@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Iterator, Optional
 
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
+from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
@@ -50,6 +51,7 @@ class RuntimeContext(threading.local):
 
     kernel: Kernel
     ui_element_registry: UIElementRegistry
+    function_registry: FunctionRegistry
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
     stream: Stream
@@ -103,6 +105,7 @@ def initialize_context(
         _RUNTIME_CONTEXT = RuntimeContext(
             kernel=kernel,
             ui_element_registry=UIElementRegistry(),
+            function_registry=FunctionRegistry(),
             cell_lifecycle_registry=CellLifecycleRegistry(),
             virtual_file_registry=VirtualFileRegistry(),
             stream=stream,

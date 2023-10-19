@@ -31,6 +31,7 @@ from marimo._messaging.errors import (
 from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
+    FunctionCallResult,
     Interrupted,
     RemoveUIElements,
     VariableDeclaration,
@@ -41,6 +42,7 @@ from marimo._messaging.ops import (
 from marimo._messaging.streams import Stderr, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
 from marimo._runtime.complete import complete
@@ -59,6 +61,7 @@ from marimo._runtime.requests import (
     DeleteRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
+    FunctionCallRequest,
     Request,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -886,6 +889,36 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
+    def function_call_request(
+        self, request: FunctionCallRequest
+    ) -> tuple[bool, JSONType]:
+        function = get_context().function_registry.get_function(
+            request.namespace, request.function_name
+        )
+        if function is None:
+            LOGGER.debug("Could not find function given request: %s", request)
+        elif function.cell_id is None:
+            LOGGER.debug(
+                "Attempted to call a function without a cell id: %s", request
+            )
+        else:
+            with self._install_execution_context(cell_id=function.cell_id):
+                try:
+                    return True, function(request.args)
+                except MarimoInterrupt:
+                    LOGGER.debug(
+                        "Function call (%s) was interrupted by the user",
+                        request,
+                    )
+                except Exception as e:
+                    LOGGER.debug(
+                        "Function call (%s) failed with exception %s",
+                        request,
+                        str(e),
+                    )
+        # Couldn't call function, or function call failed
+        return False, None
+
     def complete(self, request: CompletionRequest) -> None:
         """Code completion"""
         if self.completion_thread is None:
@@ -1014,6 +1047,14 @@ def launch_kernel(
             kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
+            CompletedRun().broadcast()
+        elif isinstance(request, FunctionCallRequest):
+            success, ret = kernel.function_call_request(request)
+            FunctionCallResult(
+                function_call_id=request.function_call_id,
+                return_value=ret,
+                success=success,
+            ).broadcast()
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)

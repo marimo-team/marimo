@@ -38,12 +38,12 @@ def _build_value(value: Any, cls: Type[T]) -> T:
             }
         )
     elif dataclasses.is_dataclass(cls):
-        return _build_dataclass(value, cls)  # type: ignore[return-value]
+        return build_dataclass(value, cls)  # type: ignore[return-value]
     else:
         return value  # type: ignore[no-any-return]
 
 
-def _build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
+def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
     types = get_type_hints(cls)
     transformed = {
         to_snake(k): _build_value(v, types[to_snake(k)])
@@ -70,4 +70,4 @@ def parse_raw(message: bytes, cls: Type[T]) -> T:
     cls: the type to instantiate
     """
     parsed = json.loads(message)
-    return _build_dataclass(parsed, cls)
+    return build_dataclass(parsed, cls)
