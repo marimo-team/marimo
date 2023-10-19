@@ -1,20 +1,14 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { CompletionResult } from "@codemirror/autocomplete";
 
-import { Deferred } from "../../../utils/Deferred";
 import {
   CompletionOption,
   CompletionResultMessage,
 } from "../../kernel/messages";
-import { generateUUID } from "@/utils/uuid";
-import { CellId } from "@/core/model/ids";
 import { sendCodeCompletionRequest } from "@/core/network/requests";
 import { Tooltip } from "@codemirror/view";
-
-interface Entry {
-  deferred: Deferred<CompletionResultMessage>;
-  pos: number;
-}
+import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
+import { CodeCompletionRequest } from "@/core/network/types";
 
 function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   if (!innerHtml) {
@@ -29,53 +23,21 @@ function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   return container;
 }
 
-export class Autocompleter {
-  public static INSTANCE = new Autocompleter();
+export const AUTOCOMPLETER = new DeferredRequestRegistry<
+  Omit<CodeCompletionRequest, "id">,
+  CompletionResultMessage
+>("function-call-result", async (requestId, req) => {
+  await sendCodeCompletionRequest({
+    id: requestId,
+    ...req,
+  });
+});
 
-  // TODO: maybe we store at most one request, evicting old ones
-  private requests = new Map<string, Entry>();
-
-  private constructor() {
-    // Singleton
-  }
-
-  /**
-   * Request completions for the given query
-   */
-  async request(opts: {
-    pos: number;
-    query: string;
-    cellId: CellId;
-  }): Promise<CompletionResultMessage> {
-    const completionId = generateUUID();
-    const deferred = new Deferred<CompletionResultMessage>();
-
-    this.requests.set(completionId, { deferred: deferred, pos: opts.pos });
-
-    // On failures, remove the request and rethrow the error
-    deferred.promise.catch((error) => {
-      this.requests.delete(completionId);
-      throw error;
-    });
-
-    await sendCodeCompletionRequest(completionId, opts.query, opts.cellId);
-    return deferred.promise;
-  }
-
-  resolve(msg: CompletionResultMessage) {
-    const entry = this.requests.get(msg.completion_id);
-    if (entry === undefined) {
-      return;
-    }
-
-    entry.deferred.resolve(msg);
-    this.requests.delete(msg.completion_id);
-  }
-
+export const Autocompleter = {
   /**
    * Convert a CompletionResultMessage to a CompletionResult
    */
-  static asCompletionResult(
+  asCompletionResult(
     position: number,
     message: CompletionResultMessage
   ): CompletionResult {
@@ -90,12 +52,12 @@ export class Autocompleter {
       }),
       validFor: /^\w*$/,
     };
-  }
+  },
 
   /**
    * Convert a CompletionResultMessage to a Tooltip
    */
-  static asHoverTooltip({
+  asHoverTooltip({
     position,
     message,
     limitToType,
@@ -140,5 +102,5 @@ export class Autocompleter {
       above: true,
       create: () => ({ dom, resize: false }),
     };
-  }
-}
+  },
+};

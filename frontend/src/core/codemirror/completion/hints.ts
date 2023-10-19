@@ -7,7 +7,7 @@ import {
   hoverTooltip,
   showTooltip,
 } from "@codemirror/view";
-import { Autocompleter } from "./Autocompleter";
+import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
 import { closeCompletion } from "@codemirror/autocomplete";
 import { StateField, StateEffect } from "@codemirror/state";
@@ -50,9 +50,8 @@ export function hintTooltip() {
           endToken++;
         }
 
-        const result = await Autocompleter.INSTANCE.request({
-          pos: endToken, // Send up to the end of the word, so the results are more accurate
-          query: view.state.doc.slice(0, endToken).toString(), // convert Text to string
+        const result = await AUTOCOMPLETER.request({
+          document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
           cellId: cellId,
         });
 

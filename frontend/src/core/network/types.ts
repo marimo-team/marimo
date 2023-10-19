@@ -3,6 +3,7 @@ import { AppConfig, UserConfig } from "../config/config";
 import { LayoutType } from "@/editor/renderers/types";
 import { CellId } from "../../core/model/ids";
 import { CellConfig } from "../model/cells";
+import { RequestId } from "./DeferredRequestRegistry";
 
 export interface DeleteRequest {
   cellId: CellId;
@@ -65,7 +66,7 @@ export interface SetComponentValuesRequest {
 }
 
 export interface CodeCompletionRequest {
-  id: string;
+  id: RequestId;
   document: string;
   cellId: CellId;
 }
@@ -80,4 +81,11 @@ export interface SaveAppConfigRequest {
 
 export interface SaveCellConfigRequest {
   configs: Record<CellId, CellConfig>;
+}
+
+export interface SendFunctionRequest {
+  id: RequestId;
+  args: unknown;
+  namespace: string;
+  functionId: string;
 }

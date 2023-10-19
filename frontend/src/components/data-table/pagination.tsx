@@ -56,7 +56,7 @@ export const DataTablePagination = <TData,>({
   };
 
   return (
-    <div className="flex items-center justify-between px-2">
+    <div className="flex flex-1 items-center justify-between px-2">
       <div className="text-sm text-muted-foreground">{renderTotal()}</div>
       <div className="flex items-center space-x-2">
         <Button

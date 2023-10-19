@@ -6,7 +6,7 @@ import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/state/cells";
 import { RuntimeState } from "@/core/RuntimeState";
-import { Autocompleter } from "@/core/codemirror/completion/Autocompleter";
+import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { saveCellConfig, sendInstantiate } from "../network/requests";
@@ -20,6 +20,7 @@ import { deserializeLayout } from "@/editor/renderers/plugins";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -142,7 +143,10 @@ export function useMarimoWebSocket(opts: {
           return;
         }
         case "completion-result":
-          Autocompleter.INSTANCE.resolve(msg.data);
+          AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
+          return;
+        case "function-call-result":
+          FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
           return;
         case "cell-op": {
           /* Register a state transition for a cell.

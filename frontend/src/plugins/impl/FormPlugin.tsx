@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { UI_ELEMENT_TAG_NAME } from "../../core/dom/UIElement";
+import { getUIElementObjectId } from "../../core/dom/UIElement";
 import {
   marimoValueInputEvent,
   MarimoValueInputEventType,
@@ -123,15 +123,8 @@ const Form = ({ elementId, value, setValue, children, label }: SubmitProps) => {
       if (target === null || !(target instanceof Node)) {
         return;
       }
-      const node = target.parentNode;
-
-      // If something other than a UI element triggered an event, ignore it
-      if (node === null || node.nodeName !== UI_ELEMENT_TAG_NAME) {
-        return;
-      }
-
-      const id = (node as Element).getAttribute("object-id") as string;
-      if (id === elementId) {
+      const objectId = getUIElementObjectId(target);
+      if (objectId === elementId) {
         setInternalValue(e.detail.value);
       }
     };

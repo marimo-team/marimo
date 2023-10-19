@@ -16,6 +16,7 @@ import {
   SaveUserConfigRequest,
   SaveAppConfigRequest,
   SaveCellConfigRequest,
+  SendFunctionRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -112,15 +113,9 @@ export async function sendDirectoryAutocompleteRequest(prefix: string) {
 }
 
 export async function sendCodeCompletionRequest(
-  id: string,
-  document: string,
-  cellId: CellId
+  request: CodeCompletionRequest
 ) {
-  return API.post<CodeCompletionRequest>("/kernel/code_autocomplete/", {
-    id: id,
-    document: document,
-    cellId: cellId,
-  });
+  return API.post<CodeCompletionRequest>("/kernel/code_autocomplete/", request);
 }
 
 export function saveUserConfig(request: SaveUserConfigRequest) {
@@ -133,4 +128,8 @@ export function saveAppConfig(request: SaveAppConfigRequest) {
 
 export function saveCellConfig(request: SaveCellConfigRequest) {
   return API.post<SaveCellConfigRequest>("/kernel/set_cell_config/", request);
+}
+
+export function sendFunctionRequest(request: SendFunctionRequest) {
+  return API.post<SendFunctionRequest>("/kernel/function/", request);
 }

@@ -116,6 +116,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 "data": normalized_data,
                 "pagination": pagination,
                 "selection": selection,
+                "show-download": DependencyManager.has_pandas(),
             },
             on_change=on_change,
         )
@@ -135,6 +136,22 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
             if isinstance(self._data, pd.DataFrame):
                 return self._data.iloc[[int(v) for v in value]]
         return [self._data[int(v)] for v in value]
+
+    def download_as(self, ext: Literal["csv", "json", "xls"]) -> str:
+        if not DependencyManager.has_pandas():
+            raise RuntimeError("Pandas must be installed to download tables.")
+
+        import pandas as pd
+
+        if isinstance(self._data, pd.DataFrame):
+            if ext == "csv":
+                return mo_data.csv(self._data).url
+            elif ext == "json":
+                return mo_data.json(self._data).url
+            elif ext == "xls":
+                return mo_data.xls(self._data).url
+            else:
+                raise ValueError("ext must be one of 'csv' or 'json'.")
 
 
 def _normalize_data(data: TableData) -> JSONType:
