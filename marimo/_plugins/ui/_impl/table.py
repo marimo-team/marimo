@@ -159,7 +159,6 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         import pandas as pd
 
         # download selected rows if there are any, otherwise use all rows
-        # TODO: selection does not actually work
         data = self._value if len(self._value) > 0 else self._data
 
         as_dataframe = (
