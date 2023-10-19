@@ -360,6 +360,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
             (cell) => cell.edited || cell.interrupted
           )}
           undoAvailable={cells.history.length > 0}
+          appWidth={appConfig.width}
         />
       )}
     </>

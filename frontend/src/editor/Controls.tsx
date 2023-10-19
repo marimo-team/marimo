@@ -8,6 +8,7 @@ import {
   SquareIcon,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/editor/inputs/Inputs";
 import { KeyboardShortcuts } from "editor/KeyboardShortcuts";
 import { ShutdownButton } from "editor/ShutdownButton";
@@ -21,6 +22,7 @@ import { useState, useEffect } from "react";
 import { LayoutSelect } from "./renderers/layout-select";
 import { NotebookMenuDropdown } from "@/editor/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
+import { AppConfig } from "@/core/config/config";
 
 interface ControlsProps {
   filename: string | null;
@@ -36,6 +38,7 @@ interface ControlsProps {
   running: boolean;
   needsRun: boolean;
   undoAvailable: boolean;
+  appWidth: AppConfig["width"];
 }
 
 export const Controls = ({
@@ -52,6 +55,7 @@ export const Controls = ({
   running,
   needsRun,
   undoAvailable,
+  appWidth,
 }: ControlsProps): JSX.Element => {
   const { undoDeleteCell } = useCellActions();
 
@@ -90,7 +94,12 @@ export const Controls = ({
         </div>
       )}
 
-      <div className={bottomLeftControls}>
+      <div
+        className={cn(
+          bottomLeftControls,
+          appWidth === "normal" && "xl:flex-row"
+        )}
+      >
         {closed ? (
           <RecoveryButton
             filename={filename}
@@ -212,4 +221,4 @@ const bottomRightControls =
   "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-30";
 
 const bottomLeftControls =
-  "absolute bottom-5 left-4 m-0 flex flex-col-reverse xl:flex-row gap-2 items-center no-print pointer-events-auto z-30";
+  "absolute bottom-5 left-4 m-0 flex flex-col-reverse gap-2 items-center no-print pointer-events-auto z-30";
