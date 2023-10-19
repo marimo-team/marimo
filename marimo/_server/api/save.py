@@ -11,10 +11,10 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._server import sessions
-from marimo._server.api.model import parse_raw
 from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, save_layout_config
 from marimo._server.utils import canonicalize_filename
+from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 

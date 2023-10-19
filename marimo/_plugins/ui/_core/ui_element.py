@@ -4,7 +4,15 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
-from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    TypeVar,
+    cast,
+)
 
 from marimo import _loggers
 from marimo._output.hypertext import Html
@@ -12,6 +20,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
 from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.functions import Function
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -70,6 +79,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str = "",
+        functions: tuple[Function[Any, Any], ...] = (),
     ) -> None:
         """Initialize a UIElement
 
@@ -78,9 +88,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         component_name: tag name of the custom element
         initial_value: initial value of the element in the frontend
         label: markdown string, label of element
+        on_change: callback, called with element's new value on change
         args: arguments that the element takes
         slotted_html: any html to slot in the custom element
-        on_change: callback, called with element's new value on change
+        functions: any functions to register with the graph
         """
         # arguments stored in signature order for cloning
         self._args = (
@@ -90,6 +101,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             on_change,
             args,
             slotted_html,
+            functions,
         )
         self._initialized = False
         self._initialize(*self._args)
@@ -103,6 +115,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         on_change: Optional[Callable[[T], None]],
         args: dict[str, JSONType],
         slotted_html: str,
+        functions: tuple[Function[Any, Any], ...] = (),
     ) -> None:
         """Initialize the UIElement
 
@@ -139,9 +152,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         if ctx is not None:
             ctx.ui_element_registry.register(self._id, self)
-
-        # an Instantiate request may want us to override the initial value
-        if ctx is not None:
+            # an Instantiate request may want us to override the initial value
             try:
                 # NB: If a cell produces a non-deterministic set of
                 # UI elements, a UI element may be matched with an initial
@@ -159,6 +170,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             except KeyError:
                 # we weren't asked to override the UI element's value
                 pass
+            for function in functions:
+                ctx.function_registry.register(
+                    namespace=self._id, function=function
+                )
         self._initial_value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
@@ -273,6 +288,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         try:
             ctx = get_context()
             ctx.ui_element_registry.delete(self._id, id(self))
+            ctx.function_registry.delete(namespace=self._id)
         except ContextNotInitializedError:
             pass
 

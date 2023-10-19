@@ -31,6 +31,8 @@ from marimo._messaging.errors import (
 from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
+    FunctionCallResult,
+    HumanReadableStatus,
     Interrupted,
     RemoveUIElements,
     VariableDeclaration,
@@ -41,6 +43,7 @@ from marimo._messaging.ops import (
 from marimo._messaging.streams import Stderr, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import cell_runner, dataflow
 from marimo._runtime.complete import complete
@@ -59,6 +62,7 @@ from marimo._runtime.requests import (
     DeleteRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
+    FunctionCallRequest,
     Request,
     SetCellConfigRequest,
     SetUIElementValueRequest,
@@ -886,6 +890,57 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
+    def function_call_request(
+        self, request: FunctionCallRequest
+    ) -> tuple[HumanReadableStatus, JSONType]:
+        function = get_context().function_registry.get_function(
+            request.namespace, request.function_name
+        )
+        error_title, error_message = "", ""
+
+        def debug(title: str, message: str) -> None:
+            return LOGGER.debug("%s: %s", title, message)
+
+        if function is None:
+            error_title = "Function not found"
+            error_message = (
+                "Could not find function given request: %s" % request
+            )
+            debug(error_title, error_message)
+        elif function.cell_id is None:
+            error_title = "Function not associated with cell"
+            error_message = (
+                "Attempted to call a function without a cell id: %s" % request
+            )
+            debug(error_title, error_message)
+        else:
+            with self._install_execution_context(cell_id=function.cell_id):
+                try:
+                    return HumanReadableStatus(code="ok"), function(
+                        request.args
+                    )
+                except MarimoInterrupt:
+                    error_title = "Interrupted"
+                    error_message = (
+                        "Function call (%s) was interrupted by the user"
+                        % request.function_name
+                    )
+                    debug(error_title, error_message)
+                except Exception as e:
+                    error_title = "Exception"
+                    error_message = (
+                        "Function call (name: %s, args: %s) failed with exception %s"  # noqa: E501
+                        % (request.function_name, request.args, str(e))
+                    )
+                    debug(error_title, error_message)
+        # Couldn't call function, or function call failed
+        return (
+            HumanReadableStatus(
+                code="error", title=error_title, message=error_message
+            ),
+            None,
+        )
+
     def complete(self, request: CompletionRequest) -> None:
         """Code completion"""
         if self.completion_thread is None:
@@ -1014,6 +1069,14 @@ def launch_kernel(
             kernel.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
+            CompletedRun().broadcast()
+        elif isinstance(request, FunctionCallRequest):
+            status, ret = kernel.function_call_request(request)
+            FunctionCallResult(
+                function_call_id=request.function_call_id,
+                return_value=ret,
+                status=status,
+            ).broadcast()
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)

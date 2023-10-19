@@ -4,6 +4,7 @@ import { LayoutType } from "@/editor/renderers/types";
 import { CellConfig, CellStatus } from "../model/cells";
 import { CellId } from "../model/ids";
 import { VariableName } from "../variables/types";
+import { RequestId } from "../network/DeferredRequestRegistry";
 
 export type OutputChannel =
   | "output"
@@ -102,12 +103,39 @@ export interface CompletionResultMessage {
   /**
    * The ID of the completion request
    */
-  completion_id: string;
+  completion_id: RequestId;
   prefix_length: number;
   /**
    * The options for completion
    */
   options: CompletionOption[];
+}
+
+/**
+ * Status code, and human readable explanation.
+ */
+export interface HumanReadableStatus {
+  code: "ok" | "error";
+  title?: string;
+  message?: string;
+}
+
+/**
+ * Message for function call results
+ */
+export interface FunctionCallResultMessage {
+  /**
+   * The ID of the function call
+   */
+  function_call_id: RequestId;
+  /**
+   * The result of the function call
+   */
+  return_value: unknown;
+  /**
+   * Status code and human readable info.
+   */
+  status: HumanReadableStatus;
 }
 
 /**
@@ -165,6 +193,10 @@ export type OperationMessage =
   | {
       op: "completion-result";
       data: CompletionResultMessage;
+    }
+  | {
+      op: "function-call-result";
+      data: FunctionCallResultMessage;
     }
   | {
       op: "cell-op";

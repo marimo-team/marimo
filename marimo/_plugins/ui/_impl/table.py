@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Callable,
@@ -21,6 +22,7 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
@@ -34,6 +36,11 @@ TableData = Union[
     Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
     "pd.DataFrame",
 ]
+
+
+@dataclass
+class DownloadAsArgs:
+    format: Literal["csv", "json"]
 
 
 @mddoc
@@ -103,6 +110,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
     ) -> None:
         self._data = data
         normalized_data = _normalize_data(data)
+        self._normalized_data = normalized_data
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
@@ -116,8 +124,16 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 "data": normalized_data,
                 "pagination": pagination,
                 "selection": selection,
+                "show-download": DependencyManager.has_pandas(),
             },
             on_change=on_change,
+            functions=(
+                Function(
+                    name=self.download_as.__name__,
+                    arg_cls=DownloadAsArgs,
+                    function=self.download_as,
+                ),
+            ),
         )
 
     @property
@@ -136,7 +152,32 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 return self._data.iloc[[int(v) for v in value]]
         return [self._data[int(v)] for v in value]
 
+    def download_as(self, args: DownloadAsArgs) -> str:
+        if not DependencyManager.has_pandas():
+            raise RuntimeError("Pandas must be installed to download tables.")
 
+        import pandas as pd
+
+        # download selected rows if there are any, otherwise use all rows
+        data = self._value if len(self._value) > 0 else self._data
+
+        as_dataframe = (
+            data
+            if isinstance(data, pd.DataFrame)
+            # TODO: fix types to remove type ignore
+            else pd.DataFrame(self._normalized_data)  # type:ignore[arg-type]
+        )
+
+        ext = args.format
+        if ext == "csv":
+            return mo_data.csv(as_dataframe).url
+        elif ext == "json":
+            return mo_data.json(as_dataframe).url
+        else:
+            raise ValueError("format must be one of 'csv' or 'json'.")
+
+
+# TODO: more narrow return type
 def _normalize_data(data: TableData) -> JSONType:
     # Handle pandas
     if DependencyManager.has_pandas():

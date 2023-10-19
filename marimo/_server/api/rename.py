@@ -9,8 +9,8 @@ import tornado.web
 from marimo import _loggers
 from marimo._server import sessions
 from marimo._server.api import status
-from marimo._server.api.model import parse_raw
 from marimo._server.utils import canonicalize_filename
+from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
 

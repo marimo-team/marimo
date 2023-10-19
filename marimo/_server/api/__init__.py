@@ -4,6 +4,7 @@ __all__ = [
     "DeleteHandler",
     "DirectoryAutocompleteHandler",
     "FormatHandler",
+    "FunctionHandler",
     "InstantiateHandler",
     "InterruptHandler",
     "RenameHandler",
@@ -22,6 +23,7 @@ from marimo._server.api.directory_autocomplete import (
     DirectoryAutocompleteHandler,
 )
 from marimo._server.api.format import FormatHandler
+from marimo._server.api.function_call import FunctionHandler
 from marimo._server.api.instantiate import InstantiateHandler
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.rename import RenameHandler

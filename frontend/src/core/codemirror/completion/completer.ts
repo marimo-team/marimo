@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 
-import { Autocompleter } from "./Autocompleter";
+import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "../../../utils/Logger";
 import { CellId, HTMLCellId } from "@/core/model/ids";
 import { getCells } from "@/core/state/cells";
@@ -25,9 +25,8 @@ export async function completer(
     return null;
   }
 
-  const result = await Autocompleter.INSTANCE.request({
-    pos: context.pos,
-    query: query,
+  const result = await AUTOCOMPLETER.request({
+    document: query,
     cellId: cellId,
   });
 

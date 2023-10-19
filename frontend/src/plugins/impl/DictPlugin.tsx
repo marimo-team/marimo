@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { z } from "zod";
 
-import { UI_ELEMENT_TAG_NAME } from "../../core/dom/UIElement";
+import { getUIElementObjectId } from "../../core/dom/UIElement";
 import {
   marimoValueInputEvent,
   MarimoValueInputEventType,
@@ -55,13 +55,11 @@ const Dict = ({
       if (target === null || !(target instanceof Node)) {
         return;
       }
-      const node = target.parentNode;
-      if (node === null || node.nodeName !== UI_ELEMENT_TAG_NAME) {
-        // If something other than a UI element triggered an event, ignore it
+      const objectId = getUIElementObjectId(target);
+      if (objectId === null) {
         return;
       }
-      const id = (node as Element).getAttribute("object-id") as string;
-      const key = elementIds[id];
+      const key = elementIds[objectId];
       if (key === undefined) {
         // If the UI element firing the event is not in the dict, ignore it
         return;

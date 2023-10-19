@@ -193,6 +193,26 @@ class CellOp(Op):
 
 
 @dataclass
+class HumanReadableStatus(Op):
+    """Human-readable status."""
+
+    code: Literal["ok", "error"]
+    title: str | None = None
+    message: str | None = None
+
+
+@dataclass
+class FunctionCallResult(Op):
+    """Result of calling a function."""
+
+    name: ClassVar[str] = "function-call-result"
+
+    function_call_id: str
+    return_value: JSONType
+    status: HumanReadableStatus
+
+
+@dataclass
 class RemoveUIElements(Op):
     """Invalidate UI elements for a given cell."""
 

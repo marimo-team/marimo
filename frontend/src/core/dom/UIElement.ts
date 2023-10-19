@@ -5,7 +5,7 @@ import { defineCustomElement } from "./defineCustomElement";
 import { MarimoValueInputEventType, marimoValueInputEvent } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 
-export const UI_ELEMENT_TAG_NAME = "MARIMO-UI-ELEMENT";
+const UI_ELEMENT_TAG_NAME = "MARIMO-UI-ELEMENT";
 
 /**
  * Lazily initialize the UIElement component.
@@ -181,4 +181,25 @@ export function initializeUIElement() {
   }
 
   defineCustomElement(UI_ELEMENT_TAG_NAME.toLowerCase(), UIElement);
+}
+
+/**
+ * Given a node, check if its parent or itself is a UIElement,
+ * and return its objectId if so.
+ */
+export function getUIElementObjectId(target: HTMLElement): string | null {
+  if (!target) {
+    return null;
+  }
+
+  if (target.nodeName === UI_ELEMENT_TAG_NAME) {
+    return target.getAttribute("object-id");
+  }
+
+  const node = target.parentElement;
+  if (node?.nodeName === UI_ELEMENT_TAG_NAME) {
+    return node.getAttribute("object-id");
+  }
+
+  return null;
 }

@@ -18,7 +18,8 @@ export interface IStatelessPluginProps<D> {
   children?: React.ReactNode | undefined;
 }
 
-export interface IStatelessPlugin<D> extends Omit<IPlugin<never, D>, "render"> {
+export interface IStatelessPlugin<D>
+  extends Omit<IPlugin<never, D>, "render" | "functions"> {
   /**
    * Render the plugin.
    */
