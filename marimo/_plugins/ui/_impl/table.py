@@ -164,7 +164,8 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         as_dataframe = (
             data
             if isinstance(data, pd.DataFrame)
-            else pd.DataFrame(self._normalized_data)
+            # TODO: fix types to remove type ignore
+            else pd.DataFrame(self._normalized_data)  # type:ignore[arg-type]
         )
 
         ext = args.format
@@ -176,6 +177,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
             raise ValueError("format must be one of 'csv' or 'json'.")
 
 
+# TODO: more narrow return type
 def _normalize_data(data: TableData) -> JSONType:
     # Handle pandas
     if DependencyManager.has_pandas():
