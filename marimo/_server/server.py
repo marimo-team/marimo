@@ -158,6 +158,10 @@ def construct_app(
                 api.SetUIElementValueHandler,
             ),
             (
+                r"/api/kernel/function_call/",
+                api.FunctionHandler,
+            ),
+            (
                 r"/api/kernel/set_cell_config/",
                 api.SetCellConfigHandler,
             ),

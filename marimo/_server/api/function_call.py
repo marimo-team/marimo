@@ -23,11 +23,8 @@ class FunctionCall:
     args: Dict[str, Any]
 
 
-class RunHandler(tornado.web.RequestHandler):
-    """Run multiple cells (and their descendants).
-
-    Only allowed in edit mode.
-    """
+class FunctionHandler(tornado.web.RequestHandler):
+    """Invoke an RPC"""
 
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
