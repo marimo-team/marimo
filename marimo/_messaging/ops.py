@@ -196,6 +196,8 @@ class CellOp(Op):
 class FunctionCallResult(Op):
     """Result of calling a function."""
 
+    name: ClassVar[str] = "function-call-result"
+
     function_call_id: str
     return_value: JSONType
     # True if the function call succeeded, False if it was aborted

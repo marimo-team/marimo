@@ -96,6 +96,32 @@ def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
     return any_data(data, ext="json")  # type: ignore
 
 
+def xls(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
+    """Create a virtual file for XLS data.
+
+    **Args.**
+
+    - data: XLS data in bytes, or string representing a data URL, external URL
+        or a Pandas DataFrame
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    # Pandas DataFrame
+    if DependencyManager.has_pandas():
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            output = io.BytesIO()
+            writer = pd.ExcelWriter(output, engine="xlsxwriter")
+            data.to_excel(writer, index=False)
+            output.seek(0)
+            return any_data(output, ext="xls")
+
+    return any_data(data, ext="xls")  # type: ignore
+
+
 def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     """Create a virtual file from any data.
 

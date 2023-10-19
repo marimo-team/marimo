@@ -21,8 +21,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
+import { DownloadActionProps } from "./download-actions";
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   columns: Array<ColumnDef<TData, TValue>>;
   data: TData[];
   pagination?: boolean;

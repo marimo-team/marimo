@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { initializeUIElement } from "../core/dom/UIElement";
-import { registerReactComponent } from "./core/componentFactory";
+import { registerReactComponent } from "./core/registerReactComponent";
 import { ButtonPlugin } from "./impl/ButtonPlugin";
 import { CheckboxPlugin } from "./impl/CheckboxPlugin";
 import { DatePickerPlugin } from "./impl/DatePickerPlugin";
@@ -35,7 +35,7 @@ import { StatPlugin } from "./layout/StatPlugin";
 const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new ButtonPlugin(),
   new CheckboxPlugin(),
-  new DataTablePlugin(),
+  DataTablePlugin,
   new DatePickerPlugin(),
   new DictPlugin(),
   new DropdownPlugin(),

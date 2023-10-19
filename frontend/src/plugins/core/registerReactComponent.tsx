@@ -13,6 +13,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -32,6 +33,9 @@ import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
 import { getTheme } from "@/theme/useTheme";
+import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
+import { getUIElementObjectId } from "@/core/dom/UIElement";
+import { PluginFunctions } from "./rpc";
 
 export interface PluginSlotHandle {
   /**
@@ -146,6 +150,33 @@ function PluginSlotInternal<T>(
     [setValue, shouldDispatchInput]
   );
 
+  // Create a map of functions that can be called by the plugin
+  const functionMethods = useMemo<PluginFunctions>(() => {
+    if (!plugin.functions) {
+      return {};
+    }
+
+    const keys = Object.keys(plugin.functions);
+    const methods: PluginFunctions = {};
+    for (const key of keys) {
+      methods[key] = (...args: unknown[]) => {
+        invariant(
+          args.length <= 1,
+          `Plugin functions only supports a single argument. Called ${key}`
+        );
+        const objectId = getUIElementObjectId(hostElement);
+        invariant(objectId, "Object ID should exist");
+        return FUNCTIONS_REGISTRY.request({
+          args,
+          functionId: key,
+          namespace: objectId,
+        });
+      };
+    }
+
+    return methods;
+  }, [plugin.functions, hostElement]);
+
   // If we failed to parse the initial value, render an error
   if (!parseResult.success) {
     return renderError(parseResult.error);
@@ -161,6 +192,7 @@ function PluginSlotInternal<T>(
         data: parseResult.data,
         children: childNodes,
         host: hostElement,
+        functions: functionMethods,
       })}
     </div>
   );
