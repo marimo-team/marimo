@@ -27,6 +27,7 @@ interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   columns: Array<ColumnDef<TData, TValue>>;
   data: TData[];
   pagination?: boolean;
+  pageSize?: number;
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
@@ -36,6 +37,7 @@ export const DataTable = <TData, TValue>({
   columns,
   data,
   rowSelection,
+  pageSize,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
@@ -50,6 +52,11 @@ export const DataTable = <TData, TValue>({
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onRowSelectionChange: onRowSelectionChange,
+    initialState: {
+      pagination: {
+        pageSize: pageSize || 10,
+      },
+    },
     state: {
       sorting,
       rowSelection,

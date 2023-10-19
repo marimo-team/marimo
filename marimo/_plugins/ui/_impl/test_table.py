@@ -1,7 +1,11 @@
 # Copyright 2023 Marimo. All rights reserved.
 from typing import Any
 
-from marimo._plugins.ui._impl.table import TableData, _normalize_data
+from marimo._plugins.ui._impl.table import (
+    TableData,
+    _get_row_headers,
+    _normalize_data,
+)
 from marimo._runtime.conftest import MockedKernel
 from marimo._runtime.runtime import ExecutionContext
 
@@ -72,3 +76,43 @@ def test_normalize_data() -> None:
             == "data must be a sequence of JSON-serializable types, or a "
             + "sequence of dicts."
         )
+
+
+def test_get_row_headers():
+    try:
+        import pandas as pd
+
+        # Test with pandas DataFrame
+        df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+        df.index.name = "Index"
+        assert _get_row_headers(df) == []
+
+        # Test with non-DataFrame input
+        assert _get_row_headers([1, 2, 3]) == []
+
+        # Test with MultiIndex
+        arrays = [
+            ["foo", "bar", "baz"],
+            ["one", "two", "three"],
+        ]
+        df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
+        assert _get_row_headers(df_multi) == [
+            ["", ["foo", "bar", "baz"]],
+            ["", ["one", "two", "three"]],
+        ]
+
+        # Test with RangeIndex
+        df_range = pd.DataFrame({"A": range(3)})
+        assert _get_row_headers(df_range) == []
+
+        # Test with categorical Index
+        df_cat = pd.DataFrame({"A": range(3)})
+        df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
+        assert _get_row_headers(df_cat) == [["", ["a", "b", "c"]]]
+
+        # Test with named categorical Index
+        df_cat = pd.DataFrame({"A": range(3)})
+        df_cat.index = pd.CategoricalIndex(["a", "b", "c"], name="Colors")
+        assert _get_row_headers(df_cat) == [["Colors", ["a", "b", "c"]]]
+    except ImportError:
+        pass

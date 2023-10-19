@@ -5,7 +5,10 @@ import { z } from "zod";
 import { loader as createLoader, read } from "vega-loader";
 
 import { DataTable } from "../../components/data-table/data-table";
-import { generateColumns } from "../../components/data-table/columns";
+import {
+  generateColumns,
+  generateIndexColumns,
+} from "../../components/data-table/columns";
 import { Labeled } from "./common/labeled";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -22,8 +25,10 @@ interface Data<T> {
   label: string | null;
   data: T[] | string;
   pagination: boolean;
+  pageSize: number;
   selection: "single" | "multi" | null;
   showDownload: boolean;
+  rowHeaders: Array<[string, string[]]>;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -42,8 +47,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       pagination: z.boolean().default(false),
+      pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
+      rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
     })
   )
   .withFunctions<Functions>({
@@ -111,17 +118,19 @@ const DataTableComponent = ({
   label,
   data,
   pagination,
+  pageSize,
   selection,
   value,
   showDownload,
+  rowHeaders,
   download_as: downloadAs,
   setValue,
 }: DataTableProps & {
   data: unknown[];
 }): JSX.Element => {
   const columns = useMemo(
-    () => generateColumns(data, selection),
-    [data, selection]
+    () => generateColumns(data, generateIndexColumns(rowHeaders), selection),
+    [data, selection, rowHeaders]
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
@@ -132,6 +141,7 @@ const DataTableComponent = ({
         data={data}
         columns={columns}
         pagination={pagination}
+        pageSize={pageSize}
         rowSelection={rowSelection}
         downloadAs={showDownload ? downloadAs : undefined}
         onRowSelectionChange={(updater) => {
