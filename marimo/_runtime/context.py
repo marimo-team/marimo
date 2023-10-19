@@ -45,8 +45,8 @@ def get_global_context() -> GlobalContext:
 
 
 @dataclass
-class RuntimeContext(threading.local):
-    """Encapsulates runtime state for a session; thread-local."""
+class RuntimeContext:
+    """Encapsulates runtime state for a session."""
 
     kernel: Kernel
     ui_element_registry: UIElementRegistry
@@ -78,11 +78,24 @@ class RuntimeContext(threading.local):
         return self._id_provider.take_id()
 
 
+class _ThreadLocalContext(threading.local):
+    """Thread-local container that holds thread/session-specific state."""
+
+    def __init__(self) -> None:
+        self.runtime_context: Optional[RuntimeContext] = None
+
+    def initialize(self, runtime_context: RuntimeContext) -> None:
+        self.runtime_context = runtime_context
+
+
 class ContextNotInitializedError(Exception):
     pass
 
 
-_RUNTIME_CONTEXT: Optional[RuntimeContext] = None
+# Stores session-specific state, which is thread-local (relevant for run
+# mode, in which every session runs in its own thread). Each thread
+# must explicitly initialize this object.
+_THREAD_LOCAL_CONTEXT = _ThreadLocalContext()
 
 
 def initialize_context(
@@ -91,7 +104,10 @@ def initialize_context(
     stdout: Optional[Stdout],
     stderr: Optional[Stderr],
 ) -> None:
-    """Must be called exactly once for each client thread."""
+    """Initializes thread-local/session-specific context.
+
+    Must be called exactly once for each client thread.
+    """
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
@@ -99,8 +115,8 @@ def initialize_context(
         get_context()
         raise RuntimeError("RuntimeContext was already initialized.")
     except ContextNotInitializedError:
-        global _RUNTIME_CONTEXT
-        _RUNTIME_CONTEXT = RuntimeContext(
+        global _THREAD_LOCAL_CONTEXT
+        runtime_context = RuntimeContext(
             kernel=kernel,
             ui_element_registry=UIElementRegistry(),
             cell_lifecycle_registry=CellLifecycleRegistry(),
@@ -109,12 +125,13 @@ def initialize_context(
             stdout=stdout,
             stderr=stderr,
         )
+        _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 
 
 def teardown_context() -> None:
     """Unset the context, for testing."""
-    global _RUNTIME_CONTEXT
-    _RUNTIME_CONTEXT = None
+    global _THREAD_LOCAL_CONTEXT
+    _THREAD_LOCAL_CONTEXT.runtime_context = None
 
 
 def get_context() -> RuntimeContext:
@@ -123,6 +140,6 @@ def get_context() -> RuntimeContext:
     Throws a ContextNotInitializedError if the context has not been
     created (which happens when running as a script).
     """
-    if _RUNTIME_CONTEXT is None:
+    if _THREAD_LOCAL_CONTEXT.runtime_context is None:
         raise ContextNotInitializedError
-    return _RUNTIME_CONTEXT
+    return _THREAD_LOCAL_CONTEXT.runtime_context
