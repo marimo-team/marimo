@@ -123,8 +123,8 @@ export function generateIndexColumns<T>(
   rowHeaders: Array<[string, string[]]>
 ): Array<ColumnDef<T>> {
   return rowHeaders.map(
-    ([title, keys]): ColumnDef<T> => ({
-      id: title,
+    ([title, keys], idx): ColumnDef<T> => ({
+      id: `_row_header_${idx}`,
       accessorFn: (_row, idx) => {
         return keys[idx];
       },
