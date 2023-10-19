@@ -36,6 +36,7 @@ import { getTheme } from "@/theme/useTheme";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { getUIElementObjectId } from "@/core/dom/UIElement";
 import { PluginFunctions } from "./rpc";
+import { ZodSchema } from "zod";
 
 export interface PluginSlotHandle {
   /**
@@ -156,21 +157,28 @@ function PluginSlotInternal<T>(
       return {};
     }
 
-    const keys = Object.keys(plugin.functions);
     const methods: PluginFunctions = {};
-    for (const key of keys) {
-      methods[key] = (...args: unknown[]) => {
+    for (const [key, schemas] of Objects.entries(plugin.functions)) {
+      const { input, output } = schemas as {
+        input: ZodSchema<unknown>;
+        output: ZodSchema<unknown>;
+      };
+      methods[key] = async (...args: unknown[]) => {
         invariant(
           args.length <= 1,
           `Plugin functions only supports a single argument. Called ${key}`
         );
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
-        return FUNCTIONS_REGISTRY.request({
-          args,
+        const response = await FUNCTIONS_REGISTRY.request({
+          args: input.parse(args[0]),
           functionId: key,
           namespace: objectId,
         });
+        if (!response.success) {
+          throw new Error(`Failed to call function ${key}`);
+        }
+        return output.parse(response.return_value);
       };
     }
 

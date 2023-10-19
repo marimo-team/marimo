@@ -116,6 +116,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 "data": normalized_data,
                 "pagination": pagination,
                 "selection": selection,
+                "show-download": DependencyManager.has_pandas(),
             },
             on_change=on_change,
         )

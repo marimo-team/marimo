@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
-import { DownloadActionProps } from "./download-actions";
+import { DownloadActionProps, DownloadAs } from "./download-actions";
 
 interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   columns: Array<ColumnDef<TData, TValue>>;
@@ -36,6 +36,7 @@ export const DataTable = <TData, TValue>({
   columns,
   data,
   rowSelection,
+  downloadAs,
   pagination = false,
   onRowSelectionChange,
 }: DataTableProps<TData, TValue>) => {
@@ -107,7 +108,10 @@ export const DataTable = <TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      {pagination && <DataTablePagination table={table} />}
+      <div className="flex align-items justify-between">
+        {pagination ? <DataTablePagination table={table} /> : <div />}
+        {downloadAs && <DownloadAs downloadAs={downloadAs} />}
+      </div>
     </div>
   );
 };

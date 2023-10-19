@@ -1,13 +1,13 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@radix-ui/react-dropdown-menu";
 import React from "react";
 import { Button } from "../ui/button";
 import { CaretDownIcon } from "@radix-ui/react-icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
 export interface DownloadActionProps {
   downloadAs: (format: "csv" | "json" | "xls") => Promise<string>;
