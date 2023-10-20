@@ -1,7 +1,13 @@
 # Copyright 2023 Marimo. All rights reserved.
-from typing import Any
+from __future__ import annotations
 
-from marimo._plugins.ui._impl.table import TableData, _normalize_data
+from typing import Any, List
+
+from marimo._plugins.ui._impl.table import (
+    TableData,
+    _get_row_headers,
+    _normalize_data,
+)
 from marimo._runtime.conftest import MockedKernel
 from marimo._runtime.runtime import ExecutionContext
 
@@ -72,3 +78,48 @@ def test_normalize_data() -> None:
             == "data must be a sequence of JSON-serializable types, or a "
             + "sequence of dicts."
         )
+
+
+def test_get_row_headers() -> None:
+    try:
+        import pandas as pd
+
+        expected: List[tuple[str, List[str]]]
+
+        # Test with pandas DataFrame
+        df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+        df.index.name = "Index"
+        assert _get_row_headers(df) == []
+
+        # Test with non-DataFrame input
+        assert _get_row_headers([1, 2, 3]) == []
+
+        # Test with MultiIndex
+        arrays = [
+            ["foo", "bar", "baz"],
+            ["one", "two", "three"],
+        ]
+        df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
+        expected = [
+            ("", ["foo", "bar", "baz"]),
+            ("", ["one", "two", "three"]),
+        ]
+        assert _get_row_headers(df_multi) == expected
+
+        # Test with RangeIndex
+        df_range = pd.DataFrame({"A": range(3)})
+        assert _get_row_headers(df_range) == []
+
+        # Test with categorical Index
+        df_cat = pd.DataFrame({"A": range(3)})
+        df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
+        expected = [("", ["a", "b", "c"])]
+        assert _get_row_headers(df_cat) == expected
+
+        # Test with named categorical Index
+        df_cat = pd.DataFrame({"A": range(3)})
+        df_cat.index = pd.CategoricalIndex(["a", "b", "c"], name="Colors")
+        expected = [("Colors", ["a", "b", "c"])]
+        assert _get_row_headers(df_cat) == expected
+    except ImportError:
+        pass

@@ -13,20 +13,28 @@ import { generateColumns } from "@/components/data-table/columns";
       { first_name: "Michael", last_name: "Scott" },
       { first_name: "Dwight", last_name: "Schrute" },
     ]}
-    columns={generateColumns([
-      { first_name: "Michael", last_name: "Scott" },
-      { first_name: "Dwight", last_name: "Schrute" },
-    ])}
+    columns={generateColumns(
+      [
+        { first_name: "Michael", last_name: "Scott" },
+        { first_name: "Dwight", last_name: "Schrute" },
+      ],
+      [],
+      null
+    )}
   />
 </Story>
 
 <Story name="Empty 1">
   <DataTable
     data={[]}
-    columns={generateColumns([
-      { first_name: "Michael", last_name: "Scott" },
-      { first_name: "Dwight", last_name: "Schrute" },
-    ])}
+    columns={generateColumns(
+      [
+        { first_name: "Michael", last_name: "Scott" },
+        { first_name: "Dwight", last_name: "Schrute" },
+      ],
+      [],
+      null
+    )}
   />
 </Story>
 
@@ -40,10 +48,14 @@ import { generateColumns } from "@/components/data-table/columns";
       { first_name: "Michael", last_name: "Scott" },
       { first_name: "Dwight", last_name: "Schrute" },
     ]}
-    columns={generateColumns([
-      { first_name: "Michael", last_name: "Scott" },
-      { first_name: "Dwight", last_name: "Schrute" },
-    ])}
+    columns={generateColumns(
+      [
+        { first_name: "Michael", last_name: "Scott" },
+        { first_name: "Dwight", last_name: "Schrute" },
+      ],
+      [],
+      null
+    )}
     pagination={true}
   />
 </Story>

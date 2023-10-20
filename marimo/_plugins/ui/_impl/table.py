@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Dict,
     Final,
@@ -85,6 +86,8 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc.
     - `pagination`: whether to paginate; if `False`, all rows will be shown
       defaults to `True` when above 10 rows, `False` otherwise
+    - `page_size`: the number of rows to show per page.
+      defaults to 10
     - `selection`: 'single' or 'multi' to enable row selection, or `None` to
         disable
     - `label`: text label for the element
@@ -102,6 +105,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
+        page_size: int = 10,
         *,
         label: str = "",
         on_change: Optional[
@@ -123,8 +127,10 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
             args={
                 "data": normalized_data,
                 "pagination": pagination,
+                "page-size": page_size,
                 "selection": selection,
                 "show-download": DependencyManager.has_pandas(),
+                "row-headers": _get_row_headers(data),
             },
             on_change=on_change,
             functions=(
@@ -207,3 +213,48 @@ def _normalize_data(data: TableData) -> JSONType:
 
     # Sequence of dicts
     return data
+
+
+def _get_row_headers(
+    data: TableData,
+) -> List[tuple[str, List[str | int | float]]]:
+    if DependencyManager.has_pandas():
+        import pandas as pd
+
+        if isinstance(data, pd.DataFrame):
+            return _get_row_headers_for_index(data.index)
+    return []
+
+
+def _get_row_headers_for_index(
+    index: pd.Index[Any],
+) -> List[tuple[str, List[str | int | float]]]:
+    import pandas as pd
+
+    if isinstance(index, pd.RangeIndex):
+        return []
+
+    if isinstance(index, pd.MultiIndex):
+        # recurse
+        headers = []
+        for i in range(index.nlevels):
+            headers.extend(
+                _get_row_headers_for_index(index.get_level_values(i))
+            )
+        return headers
+
+    # we only care about the index if it has a name
+    # or if it is type 'object'
+    # otherwise, it may look like meaningless number
+    if isinstance(index, pd.Index):
+        dtype = str(index.dtype)
+        if (
+            index.name
+            or dtype == "object"
+            or dtype == "string"
+            or dtype == "category"
+        ):
+            name = str(index.name) if index.name else ""
+            return [(name, index.tolist())]  # type: ignore[list-item]
+
+    return []

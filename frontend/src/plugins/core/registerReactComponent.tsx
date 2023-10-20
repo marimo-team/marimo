@@ -187,7 +187,13 @@ function PluginSlotInternal<T>(
 
   // If we failed to parse the initial value, render an error
   if (!parseResult.success) {
-    return renderError(parseResult.error);
+    return renderError(
+      parseResult.error,
+      Objects.mapValues(hostElement.dataset, (value) =>
+        typeof value === "string" ? parseAttrValue(value) : value
+      ),
+      hostElement.shadowRoot
+    );
   }
 
   // Render the plugin

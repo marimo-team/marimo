@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.30"
+__generated_with = "0.1.33"
 app = marimo.App(width="full")
 
 
@@ -185,7 +185,12 @@ def __(
 
 @app.cell
 def __(filtered_movies, mo):
-    mo.ui.table(filtered_movies, selection=None)
+    mo.tabs(
+        {
+            "📑 Data": mo.ui.table(filtered_movies, selection=None, page_size=5),
+            "📊 Summary": mo.ui.table(filtered_movies.describe(), selection=None),
+        }
+    )
     return
 
 

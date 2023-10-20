@@ -55,6 +55,7 @@ export function getColumnInfo<T>(items: T[]): ColumnInfo[] {
 
 export function generateColumns<T>(
   items: T[],
+  rowHeaders: Array<ColumnDef<T>>,
   selection: "single" | "multi" | null
 ): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
@@ -81,6 +82,10 @@ export function generateColumns<T>(
       enableSorting: info.type === "primitive",
     })
   );
+
+  if (rowHeaders.length > 0) {
+    columns.unshift(...rowHeaders);
+  }
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
@@ -109,6 +114,29 @@ export function generateColumns<T>(
   }
 
   return columns;
+}
+
+/**
+ * Turn rowHeaders into a list of columns
+ */
+export function generateIndexColumns<T>(
+  rowHeaders: Array<[string, string[]]>
+): Array<ColumnDef<T>> {
+  return rowHeaders.map(
+    ([title, keys], idx): ColumnDef<T> => ({
+      id: `_row_header_${idx}`,
+      accessorFn: (_row, idx) => {
+        return keys[idx];
+      },
+      header: ({ column }) => {
+        return <DataTableColumnHeader title={title} column={column} />;
+      },
+      cell: ({ renderValue }) => {
+        return <b>{String(renderValue())}</b>;
+      },
+      enableSorting: false,
+    })
+  );
 }
 
 function isPrimitiveOrNullish(value: unknown): boolean {

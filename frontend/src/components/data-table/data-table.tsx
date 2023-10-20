@@ -3,6 +3,7 @@ import React from "react";
 import {
   ColumnDef,
   OnChangeFn,
+  PaginationState,
   RowSelectionState,
   SortingState,
   flexRender,
@@ -27,6 +28,7 @@ interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   columns: Array<ColumnDef<TData, TValue>>;
   data: TData[];
   pagination?: boolean;
+  pageSize?: number;
   selection?: "single" | "multi" | null;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
@@ -36,22 +38,33 @@ export const DataTable = <TData, TValue>({
   columns,
   data,
   rowSelection,
+  pageSize = 10,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [paginationState, setPaginationState] = React.useState<PaginationState>(
+    { pageSize: pageSize, pageIndex: 0 }
+  );
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    // pagination
+    onPaginationChange: setPaginationState,
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
+    // sorting
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    // selection
     onRowSelectionChange: onRowSelectionChange,
     state: {
       sorting,
+      pagination: pagination
+        ? { ...paginationState, pageSize: pageSize }
+        : { pageIndex: 0, pageSize: data.length },
       rowSelection,
     },
   });
