@@ -16,6 +16,13 @@ def test_img() -> None:
     )
 
 
+def test_video() -> None:
+    assert h.video() == "<video controls />"
+    assert (
+        h.video(src="video.mp4", controls=False) == "<video src='video.mp4' />"
+    )
+
+
 def test_audio() -> None:
     assert h.audio() == "<audio controls />"
     assert (

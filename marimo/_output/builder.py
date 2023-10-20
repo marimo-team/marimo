@@ -42,6 +42,34 @@ class _HTMLBuilder:
             return f"<img {_join_params(params)} />"
 
     @staticmethod
+    def video(
+        src: Optional[str] = None,
+        controls: bool = True,
+        muted: bool = False,
+        autoplay: bool = False,
+        loop: bool = False,
+        style: Optional[str] = None,
+    ) -> str:
+        params: List[Tuple[str, str]] = []
+        if src:
+            params.append(("src", src))
+        if controls:
+            params.append(("controls", ""))
+        if style:
+            params.append(("style", style))
+        if muted:
+            params.append(("muted", ""))
+        if autoplay:
+            params.append(("autoplay", ""))
+        if loop:
+            params.append(("loop", ""))
+
+        if len(params) == 0:
+            return "<video />"
+        else:
+            return f"<video {_join_params(params)} />"
+
+    @staticmethod
     def audio(
         src: Optional[str] = None,
         controls: bool = True,
