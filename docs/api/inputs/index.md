@@ -10,6 +10,7 @@
   button
   checkbox
   chart
+  dataframe
   date
   dictionary
   dropdown
@@ -39,6 +40,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.button
   marimo.ui.checkbox
   marimo.ui.chart
+  marimo.ui.dataframe
   marimo.ui.date
   marimo.ui.dictionary
   marimo.ui.dropdown
