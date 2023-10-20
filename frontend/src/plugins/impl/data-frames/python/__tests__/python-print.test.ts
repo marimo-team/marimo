@@ -21,7 +21,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      '"df[\\"my_column\\"].astype(\\"int8\\")"'
+      '"df[\\"my_column\\"].astype(\\"int8\\", errors=\\"ignore\\")"'
     );
   });
 

@@ -24,7 +24,7 @@ export const CodePanel: React.FC<Props> = ({ transforms, dataframeName }) => {
 
 const PythonCode = (props: { code: string }) => {
   return (
-    <div className="border rounded-t overflow-hidden">
+    <div className="border-t border-x rounded-t overflow-hidden">
       <CodeMirror
         minHeight="100px"
         height="100%"

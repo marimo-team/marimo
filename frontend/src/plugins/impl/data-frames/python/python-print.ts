@@ -18,8 +18,8 @@ export function pythonPrintTransforms(
 export function pythonPrint(dfName: string, transform: TransformType): string {
   switch (transform.type) {
     case "column_conversion": {
-      const { column_id, data_type } = transform;
-      return `${dfName}["${column_id}"].astype("${data_type}")`;
+      const { column_id, data_type, errors } = transform;
+      return `${dfName}["${column_id}"].astype("${data_type}", errors="${errors}")`;
     }
     case "rename_column": {
       const { column_id, new_column_id } = transform;
