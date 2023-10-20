@@ -169,8 +169,8 @@ def apply_transforms(
 ) -> "pd.DataFrame":
     if transforms.transforms is None or len(transforms.transforms) == 0:
         return df_prev
-    # defensive copy
-    df = df_prev.copy()
+    # make a new reference
+    df = df_prev
     for transform in transforms.transforms:
         df = TransformHandlers.handle(df, transform)
     return df

@@ -12,7 +12,7 @@ export function pythonPrintTransforms(
     (transform, idx) => `${dfNextName} = ${pythonPrint(dfNextName, transform)}`
   );
 
-  return [`${dfNextName} = ${dfName}.copy()`, ...transformStrs].join("\n");
+  return [`${dfNextName} = ${dfName}`, ...transformStrs].join("\n");
 }
 
 export function pythonPrint(dfName: string, transform: TransformType): string {

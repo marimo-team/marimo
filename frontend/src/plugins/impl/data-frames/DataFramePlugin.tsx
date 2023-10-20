@@ -28,7 +28,10 @@ interface Data {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  get_dataframe: (req: {}) => Promise<string>;
+  get_dataframe: (req: {}) => Promise<{
+    url: string;
+    row_headers: Array<[string, string[]]>;
+  }>;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -47,7 +50,12 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
   )
   .withFunctions<PluginFunctions>({
     // Get the data as a URL
-    get_dataframe: rpc.input(z.object({})).output(z.string()),
+    get_dataframe: rpc.input(z.object({})).output(
+      z.object({
+        url: z.string(),
+        row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
+      })
+    ),
   })
   .renderer((props) => (
     <DataFrameComponent
@@ -74,10 +82,8 @@ const DataFrameComponent = ({
   setValue,
   get_dataframe,
 }: DataTableProps): JSX.Element => {
-  const { data: dataframUrl } = useAsyncData(
-    () => get_dataframe({}),
-    [value?.transforms]
-  );
+  const { data } = useAsyncData(() => get_dataframe({}), [value?.transforms]);
+  const { url, row_headers } = data || {};
 
   return (
     <div>
@@ -106,10 +112,10 @@ const DataFrameComponent = ({
       <LoadingDataTableComponent
         label={null}
         className="rounded-b border"
-        data={dataframUrl || ""}
+        data={url || ""}
         pageSize={5}
         pagination={true}
-        rowHeaders={Arrays.EMPTY}
+        rowHeaders={row_headers || Arrays.EMPTY}
         showDownload={false}
         download_as={Functions.THROW}
         value={Arrays.EMPTY}

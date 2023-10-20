@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.utils.dataframe import get_row_headers
 from marimo._runtime.functions import Function
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -21,8 +22,14 @@ from .transforms import Transformations
 
 
 @dataclass
-class GetDataFrameArgs:
-    unused: Optional[bool] = None
+class EmptyArgs:
+    ...
+
+
+@dataclass
+class GetDataFrameResponse:
+    url: str
+    row_headers: List[tuple[str, List[str | int | float]]]
 
 
 @mddoc
@@ -33,7 +40,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     **Example.**
 
     ```python
-    transformed = mo.ui.transforms(data)
+    dataframe = mo.ui.dataframe(data)
     ```
 
     **Attributes.**
@@ -84,14 +91,18 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             functions=(
                 Function(
                     name=self.get_dataframe.__name__,
-                    arg_cls=GetDataFrameArgs,
+                    arg_cls=EmptyArgs,
                     function=self.get_dataframe,
                 ),
             ),
         )
 
-    def get_dataframe(self, _args: GetDataFrameArgs) -> str:
-        return mo_data.csv(self._value).url
+    def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+        url = mo_data.csv(self._value).url
+        return GetDataFrameResponse(
+            url=url,
+            row_headers=get_row_headers(self._value),
+        )
 
     def _convert_value(self, value: Dict[str, Any]) -> pd.DataFrame:
         if value is None:

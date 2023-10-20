@@ -54,8 +54,8 @@ def _filter_dataframe(
 ) -> pd.DataFrame:
     import numpy as np
 
-    # Make a copy of the DataFrame
-    df = df_prev.copy()
+    # Make a new reference
+    df = df_prev
 
     for _channel, fields in selection.items():
         # If vlPoint is in the selection,
