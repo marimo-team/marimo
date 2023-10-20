@@ -15,6 +15,8 @@ from marimo._plugins.core.media import io_to_data_url
 def video(
     src: Union[str, bytes, io.BytesIO, io.BufferedReader],
     controls: bool = True,
+    muted: bool = False,
+    autoplay: bool = False,
     width: Optional[int] = None,
     height: Optional[int] = None,
     rounded: bool = False,
@@ -35,6 +37,13 @@ def video(
 
     - `src`: the URL of the video or a file-like object
     - `controls`: whether to show the controls
+    - `muted`: whether to mute the video
+    - `autoplay`: whether to autoplay the video.
+        the video will only autoplay if `muted` is `True`
+    - `width`: the width of the video
+    - `height`: the height of the video
+    - `rounded`: whether to round the corners of the video
+    - `style`: a dictionary of CSS styles to apply to the video
 
     **Returns.**
 
@@ -54,4 +63,12 @@ def video(
             **(style or {}),
         }
     )
-    return Html(h.video(src=resolved_src, controls=controls, style=styles))
+    return Html(
+        h.video(
+            src=resolved_src,
+            controls=controls,
+            style=styles,
+            muted=muted,
+            autoplay=autoplay,
+        )
+    )

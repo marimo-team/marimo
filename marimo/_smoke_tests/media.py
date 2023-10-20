@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.33"
@@ -93,7 +94,20 @@ def __(mo):
 def __(mo):
     mo.video(
         src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
-        rounded=True
+        rounded=True,
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.video(
+        src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
+        rounded=True,
+        autoplay=True,
+        muted=True,
+        controls=False,
+        width=300,
     )
     return
 
