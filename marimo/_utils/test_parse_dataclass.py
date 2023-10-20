@@ -10,7 +10,7 @@ import pytest
 
 from marimo._server import api
 from marimo._server.api.set_cell_config import SetCellConfig
-from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.parse_dataclass import build_dataclass, parse_raw
 
 
 @dataclass
@@ -154,7 +154,6 @@ class TestParseRaw:
         parsed = parse_raw(
             serialize(config), api.set_cell_config.SetCellConfig
         )
-        print(parsed)
         assert parsed == config
 
     def test_unions(self) -> None:
@@ -215,3 +214,12 @@ class TestParseRaw:
                 serialize({"config": {"invalid": True}}), Nested
             )
             assert "invalid" in str(e.value)
+
+
+def test_build_empty_dataclass() -> None:
+    @dataclass
+    class Empty:
+        ...
+
+    parsed = build_dataclass({}, Empty)
+    assert parsed == Empty()

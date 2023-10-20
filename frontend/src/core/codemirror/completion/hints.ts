@@ -72,6 +72,13 @@ export function hintTooltip() {
       }
     ),
     cursorTooltipField,
+    // Clear tooltips on blur
+    EditorView.domEventObservers({
+      blur: (event, view) => {
+        closeCompletion(view);
+        clearTooltips(view);
+      },
+    }),
   ];
 }
 
@@ -80,12 +87,18 @@ export function hintTooltip() {
  */
 export function dispatchShowTooltip(view: EditorView, tooltip: Tooltip): void {
   view.dispatch({
-    effects: TooltipFromCompletionApi.of(tooltip),
+    effects: TooltipFromCompletionApi.of([tooltip]),
+  });
+}
+
+function clearTooltips(view: EditorView): void {
+  view.dispatch({
+    effects: TooltipFromCompletionApi.of([]),
   });
 }
 
 // Effect that dispatches a tooltip
-const TooltipFromCompletionApi = StateEffect.define<Tooltip>();
+const TooltipFromCompletionApi = StateEffect.define<Tooltip[]>();
 
 // Field that stores the current tooltips
 const cursorTooltipField = StateField.define<Tooltip[]>({
@@ -101,7 +114,7 @@ const cursorTooltipField = StateField.define<Tooltip[]>({
     // If the effect is a tooltip, return it
     for (const effect of tr.effects) {
       if (effect.is(TooltipFromCompletionApi)) {
-        return [effect.value];
+        return effect.value;
       }
     }
 
