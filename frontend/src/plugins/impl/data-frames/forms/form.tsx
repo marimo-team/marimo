@@ -97,13 +97,20 @@ function renderZodSchema<T extends FieldValues, S>(
       >
         <FormLabel>{label}</FormLabel>
         {Objects.entries(schema._def.shape()).map(([key, value]) => {
+          const isLiteral = value instanceof z.ZodLiteral;
+          const childForm = renderZodSchema(
+            value as z.ZodType<unknown>,
+            form,
+            `${path}.${key}` as Path<T>
+          );
+
+          if (isLiteral) {
+            return <React.Fragment key={key}>{childForm}</React.Fragment>;
+          }
+
           return (
             <div className="flex flex-row align-start" key={key}>
-              {renderZodSchema(
-                value as z.ZodType<unknown>,
-                form,
-                `${path}.${key}` as Path<T>
-              )}
+              {childForm}
             </div>
           );
         })}

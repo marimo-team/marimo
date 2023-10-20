@@ -12,6 +12,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, endAdornment, ...props }, ref) => {
     const icon = props.icon;
 
+    if (type === "hidden") {
+      return <input type="hidden" ref={ref} {...props} />;
+    }
+
     return (
       <div className="relative">
         {icon && (

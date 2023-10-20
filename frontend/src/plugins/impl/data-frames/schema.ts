@@ -22,20 +22,22 @@ const column_id_array = z
   .default([""])
   .describe(FieldOptions.of({ label: "Columns" }));
 
-const ColumnConversionTransformSchema = z.object({
-  type: z.literal("column_conversion"),
-  column_id: column_id,
-  data_type: z
-    .enum(NUMPY_DTYPES)
-    .describe(FieldOptions.of({ label: "Data type (numpy)" }))
-    .default("bool"),
-  errors: z
-    .enum(["ignore", "raise"])
-    .default("ignore")
-    .describe(
-      FieldOptions.of({ label: "Handle errors", special: "radio_group" })
-    ),
-});
+const ColumnConversionTransformSchema = z
+  .object({
+    type: z.literal("column_conversion"),
+    column_id: column_id,
+    data_type: z
+      .enum(NUMPY_DTYPES)
+      .describe(FieldOptions.of({ label: "Data type (numpy)" }))
+      .default("bool"),
+    errors: z
+      .enum(["ignore", "raise"])
+      .default("ignore")
+      .describe(
+        FieldOptions.of({ label: "Handle errors", special: "radio_group" })
+      ),
+  })
+  .describe(FieldOptions.of({ direction: "row" }));
 
 const RenameColumnTransformSchema = z.object({
   type: z.literal("rename_column"),
@@ -87,27 +89,31 @@ const FilterRowsTransformSchema = z.object({
     .default([{ column_id: "", operator: "==", value: "" }]),
 });
 
-const GroupByTransformSchema = z.object({
-  type: z.literal("group_by"),
-  column_ids: column_id_array,
-  drop_na: z
-    .boolean()
-    .default(false)
-    .describe(FieldOptions.of({ label: "Drop N/A" })),
-  aggregation: z
-    .enum(AGGREGATION_FNS)
-    .default("count")
-    .describe(FieldOptions.of({ label: "Aggregation" })),
-});
+const GroupByTransformSchema = z
+  .object({
+    type: z.literal("group_by"),
+    column_ids: column_id_array,
+    drop_na: z
+      .boolean()
+      .default(false)
+      .describe(FieldOptions.of({ label: "Drop N/A" })),
+    aggregation: z
+      .enum(AGGREGATION_FNS)
+      .default("count")
+      .describe(FieldOptions.of({ label: "Aggregation" })),
+  })
+  .describe(FieldOptions.of({ direction: "row" }));
 
-const AggregateTransformSchema = z.object({
-  type: z.literal("aggregate"),
-  column_ids: column_id_array,
-  aggregations: z
-    .array(z.enum(AGGREGATION_FNS))
-    .default(["count"])
-    .describe(FieldOptions.of({ label: "Aggregations" })),
-});
+const AggregateTransformSchema = z
+  .object({
+    type: z.literal("aggregate"),
+    column_ids: column_id_array,
+    aggregations: z
+      .array(z.enum(AGGREGATION_FNS))
+      .default(["count"])
+      .describe(FieldOptions.of({ label: "Aggregations" })),
+  })
+  .describe(FieldOptions.of({ direction: "row" }));
 
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,

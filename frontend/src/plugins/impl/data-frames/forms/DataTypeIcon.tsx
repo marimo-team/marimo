@@ -35,7 +35,7 @@ export const DataTypeIcon: React.FC<Props> = ({ type }) => {
   };
 
   return (
-    <div className="border border-border bg-[var(--slate-2)] flex items-center justify-center rounded">
+    <div className="border p-[1px] border-border bg-[var(--slate-2)] flex items-center justify-center rounded">
       {renderIcon()}
     </div>
   );

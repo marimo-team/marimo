@@ -117,7 +117,7 @@ export const TransformPanel: React.FC<Props> = ({
             setSelectedTransform(nextIdx);
           }}
         />
-        <div className="flex flex-col flex-1 p-2 overflow-auto min-h-[200px] border-l">
+        <div className="flex flex-col flex-1 p-4 overflow-auto min-h-[200px] border-l">
           {selectedTransform !== undefined && selectedTransformSchema && (
             <ZodForm
               key={`transforms.${selectedTransform}`}
