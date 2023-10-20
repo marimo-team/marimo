@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTypeIcon } from "./DatatypeIcon";
+import { DataTypeIcon } from "./DataTypeIcon";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -92,7 +92,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-3 items-start" : "flex-col gap-4"
+          direction === "row" ? "flex-row gap-4 items-start" : "flex-col gap-4"
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -258,7 +258,7 @@ function renderZodSchema<T extends FieldValues, S>(
             <FormLabel className="whitespace-pre">{label}</FormLabel>
             <FormControl>
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="min-w-[210px]">
                   <SelectValue placeholder="--" />
                 </SelectTrigger>
                 <SelectContent>
@@ -428,7 +428,7 @@ const FormArray = ({
   });
 
   return (
-    <div className="flex flex-col gap-2 pt-2">
+    <div className="flex flex-col gap-2 pt-2 min-w-[220px]">
       <FormLabel>{label}</FormLabel>
       <FormDescription>{description}</FormDescription>
       {fields.map((field, index) => {
@@ -484,7 +484,7 @@ const ColumnSelector = ({
           <FormLabel>{label}</FormLabel>
           <FormControl>
             <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="min-w-[210px]">
                 <SelectValue placeholder="--" />
               </SelectTrigger>
               <SelectContent>
@@ -583,7 +583,7 @@ const FilterForm = ({
               <FormLabel className="whitespace-pre"> </FormLabel>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="min-w-[210px]">
                     <SelectValue placeholder="Select a fruit" />
                   </SelectTrigger>
                   <SelectContent>
