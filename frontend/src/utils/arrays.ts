@@ -8,5 +8,6 @@ export function arrayInsert<T>(array: T[], index: number, value: T): T[] {
 }
 
 export const Arrays = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   EMPTY: [] as any[],
 };

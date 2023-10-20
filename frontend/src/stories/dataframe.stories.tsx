@@ -3,6 +3,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { DataFrameComponent } from "@/plugins/impl/data-frames/DataFramePlugin";
+import { Transformations } from "@/plugins/impl/data-frames/schema";
 
 const meta: Meta = {
   title: "DataFrame",
@@ -13,7 +14,7 @@ export default meta;
 
 export const DataFrame: StoryObj = {
   render: () => {
-    const [value, setValue] = useState<any>(undefined);
+    const [value, setValue] = useState<Transformations>();
     return (
       <DataFrameComponent
         columns={{
