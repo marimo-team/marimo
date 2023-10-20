@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { useEffect } from "react";
+import React from "react";
 import {
   ColumnDef,
   OnChangeFn,
@@ -38,14 +38,14 @@ export const DataTable = <TData, TValue>({
   columns,
   data,
   rowSelection,
-  pageSize,
+  pageSize = 10,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize || 10, pageIndex: 0 }
+    { pageSize: pageSize, pageIndex: 0 }
   );
 
   const table = useReactTable({
@@ -63,7 +63,7 @@ export const DataTable = <TData, TValue>({
     state: {
       sorting,
       pagination: pagination
-        ? { ...paginationState, pageSize: pageSize || 10 }
+        ? { ...paginationState, pageSize: pageSize }
         : { pageIndex: 0, pageSize: data.length },
       rowSelection,
     },
