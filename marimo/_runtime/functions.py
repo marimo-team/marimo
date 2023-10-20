@@ -14,6 +14,12 @@ T = TypeVar("T")
 
 
 @dataclasses.dataclass
+class EmptyArgs:
+    """Utility type for functions that take no arguments."""
+    ...
+
+
+@dataclasses.dataclass
 class Function(Generic[S, T]):
     name: str
     arg_cls: Type[S]
