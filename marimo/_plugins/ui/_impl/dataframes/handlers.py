@@ -57,7 +57,7 @@ class TransformHandlers:
         df[transform.column_id] = df[transform.column_id].astype(
             transform.data_type,
             errors=transform.errors,
-        )
+        )  # type: ignore[call-overload]
         return df
 
     @staticmethod
@@ -161,7 +161,7 @@ class TransformHandlers:
             column_id: transform.aggregations
             for column_id in transform.column_ids
         }
-        return df.agg(dict_of_aggs)
+        return df.agg(dict_of_aggs)  # type: ignore[arg-type]
 
 
 def apply_transforms(

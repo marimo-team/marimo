@@ -82,14 +82,19 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   });
 
 interface DataTableProps extends Data<unknown>, Functions {
+  className?: string;
   value: S;
   setValue: (value: S) => void;
 }
 
-const LoadingDataTableComponent = (
+export const LoadingDataTableComponent = (
   props: DataTableProps & { data: string }
 ) => {
   const { data, loading, error } = useAsyncData<unknown[]>(() => {
+    if (!props.data) {
+      return Promise.resolve([]);
+    }
+
     return loader.load(props.data).then((csvData: string) => {
       // csv -> json
       return read(csvData, { type: "csv", parse: "auto" });
@@ -124,6 +129,7 @@ const DataTableComponent = ({
   showDownload,
   rowHeaders,
   download_as: downloadAs,
+  className,
   setValue,
 }: DataTableProps & {
   data: unknown[];
@@ -140,6 +146,7 @@ const DataTableComponent = ({
       <DataTable
         data={data}
         columns={columns}
+        className={className}
         pagination={pagination}
         pageSize={pageSize}
         rowSelection={rowSelection}

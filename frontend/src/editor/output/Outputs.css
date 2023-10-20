@@ -9,8 +9,8 @@
 
 /* Just applied to vertical layout */
 .output-area .output {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .marimo-error a {

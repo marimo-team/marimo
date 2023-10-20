@@ -32,11 +32,11 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { Strings } from "@/utils/strings";
 import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
 import useEvent from "react-use-event-hook";
 import { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
+import { Strings } from "@/utils/strings";
 
 interface Props {
   columns: ColumnDataTypes;
@@ -97,7 +97,7 @@ export const TransformPanel: React.FC<Props> = ({
     <ColumnContext.Provider value={effectiveColumns}>
       <form
         onSubmit={(e) => e.preventDefault()}
-        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border rounded"
+        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border rounded-t"
       >
         <Sidebar
           items={form.watch("transforms")}

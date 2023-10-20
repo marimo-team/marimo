@@ -2,26 +2,31 @@
 from __future__ import annotations
 
 import inspect
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Final,
-    Optional,
-)
+import sys
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
+from dataclasses import dataclass
+
+import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._server.api.model import parse_raw
+from marimo._runtime.functions import Function
+from marimo._utils.parse_dataclass import parse_raw
 
 from .handlers import apply_transforms
 from .transforms import Transformations
 
 
+@dataclass
+class GetDataFrameArgs:
+    unused: Optional[bool] = None
+
+
 @mddoc
-class dataframe(UIElement[Dict[str, Any], pd.DataFrame]):
+class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     """
     Run transformations on a DataFrame or series.
 
@@ -63,7 +68,7 @@ class dataframe(UIElement[Dict[str, Any], pd.DataFrame]):
             pass
 
         self._data = df
-        # described = df.describe(include="all")
+
         super().__init__(
             component_name=dataframe._name,
             initial_value={
@@ -73,16 +78,30 @@ class dataframe(UIElement[Dict[str, Any], pd.DataFrame]):
             label="",
             args={
                 "columns": df.dtypes.to_dict(),
-                "name": dataframe_name,
-                # "info": df.info(),
-                # "describe-data": described.to_dict("records"),
-                # "describe-row-headers": described.index.to_list(),
+                "dataframe-name": dataframe_name,
                 "total": len(df),
             },
+            functions=(
+                Function(
+                    name=self.get_dataframe.__name__,
+                    arg_cls=GetDataFrameArgs,
+                    function=self.get_dataframe,
+                ),
+            ),
         )
+
+    def get_dataframe(self, _args: GetDataFrameArgs) -> str:
+        return mo_data.csv(self._value).url
 
     def _convert_value(self, value: Dict[str, Any]) -> pd.DataFrame:
         if value is None:
             return self._data
-        transformations = parse_raw(value, Transformations)
-        return apply_transforms(self._data, transformations)
+
+        try:
+            transformations = parse_raw(value, Transformations)
+            return apply_transforms(self._data, transformations)
+        except Exception as e:
+            sys.stderr.write(
+                "Error applying dataframe transform: %s\n\n" % str(e)
+            )
+            return self._data

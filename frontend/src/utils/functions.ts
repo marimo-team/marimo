@@ -3,4 +3,7 @@ export const Functions = {
   NOOP: () => {
     return;
   },
+  THROW: () => {
+    throw new Error("Should not be called");
+  },
 };

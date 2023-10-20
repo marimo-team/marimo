@@ -26,12 +26,12 @@ import { getDefaults, getUnionLiteral } from "./form-utils";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
 import { cn } from "@/lib/utils";
-import { Strings } from "@/utils/strings";
 import React, { useContext, useEffect } from "react";
 import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import { Textarea } from "@/components/ui/textarea";
+import { Strings } from "@/utils/strings";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -129,7 +129,10 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Checkbox value={field.value} onCheckedChange={field.onChange} />
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />

@@ -52,7 +52,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
-  new DataFramePlugin(),
+  DataFramePlugin,
 ];
 
 // List of output / layout plugins

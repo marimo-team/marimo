@@ -30,6 +30,7 @@ export const Plugin: StoryObj = {
         label: "Transforms",
         initialValue: {},
       },
+      functions: {},
       value: value,
       setValue: setValue,
     });

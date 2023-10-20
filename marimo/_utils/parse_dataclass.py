@@ -107,6 +107,6 @@ def parse_raw(message: Union[bytes, dict[Any, Any]], cls: Type[T]) -> T:
     # If it is a dict, it is already parsed and we can just build the
     # dataclass.
     if isinstance(message, dict):
-        return _build_dataclass(message, cls)
+        return build_dataclass(message, cls)
     parsed = json.loads(message)
     return build_dataclass(parsed, cls)
