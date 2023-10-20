@@ -97,7 +97,7 @@ export const TransformPanel: React.FC<Props> = ({
     <ColumnContext.Provider value={effectiveColumns}>
       <form
         onSubmit={(e) => e.preventDefault()}
-        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border rounded-t"
+        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border-x border-t rounded-t"
       >
         <Sidebar
           items={form.watch("transforms")}
@@ -107,6 +107,8 @@ export const TransformPanel: React.FC<Props> = ({
           }}
           onDelete={(index) => {
             transformsField.remove(index);
+            const indexBefore = index - 1;
+            setSelectedTransform(Math.max(indexBefore, 0));
           }}
           onAdd={(transform) => {
             const next = getDefaults(transform) as TransformType;

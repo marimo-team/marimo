@@ -450,7 +450,7 @@ const FormArray = ({
       <div>
         <Button
           size="xs"
-          variant="ghost"
+          variant="text"
           onClick={() => {
             append(getDefaults(schema));
           }}

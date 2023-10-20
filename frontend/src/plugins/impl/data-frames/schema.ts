@@ -43,7 +43,7 @@ const RenameColumnTransformSchema = z.object({
   new_column_id: z
     .string()
     .min(1, "Required")
-    .describe(FieldOptions.of({ label: "New column" })),
+    .describe(FieldOptions.of({ label: "New column name" })),
 });
 
 const SortColumnTransformSchema = z.object({
@@ -110,9 +110,9 @@ const AggregateTransformSchema = z.object({
 });
 
 export const TransformTypeSchema = z.union([
-  ColumnConversionTransformSchema,
   FilterRowsTransformSchema,
   RenameColumnTransformSchema,
+  ColumnConversionTransformSchema,
   SortColumnTransformSchema,
   GroupByTransformSchema,
   AggregateTransformSchema,
