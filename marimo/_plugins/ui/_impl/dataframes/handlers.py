@@ -1,5 +1,5 @@
 # Copyright 2023 Marimo. All rights reserved.
-from typing import TYPE_CHECKING, Any, NoReturn, cast
+from typing import TYPE_CHECKING, Any, List, NoReturn, cast
 
 from .transforms import (
     AggregateTransform,
@@ -184,3 +184,78 @@ def _coerce_value(dtype: Any, value: Any) -> Any:
     import numpy as np
 
     return np.array([value]).astype(dtype)[0]
+
+
+class TransformsContainer:
+    """
+    Keeps internal state of the last transformation applied to the dataframe.
+    So that we can incrementally apply transformations.
+    """
+
+    def __init__(self, df: "pd.DataFrame") -> None:
+        self._original_df = df
+        # The dataframe for the given transform.
+        self._snapshot_df = df
+        self._transforms: List[Transform] = []
+
+    def apply(
+        self, df: "pd.DataFrame", transform: Transformations
+    ) -> "pd.DataFrame":
+        """
+        Applies the given transformations to the dataframe.
+        """
+        # If differs from the original dataframe, then we need to start from
+        # the original dataframe.
+        if df is not self._original_df:
+            self._original_df = df
+            self._snapshot_df = apply_transforms(df, transform)
+            self._transforms = transform.transforms
+            return self._snapshot_df
+
+        # If the new transformations are a superset of the existing ones,
+        # then we can just apply the new ones to the snapshot dataframe.
+        if self._is_superset(transform):
+            transforms_to_apply = self._get_next_transformations(transform)
+            self._snapshot_df = apply_transforms(
+                self._snapshot_df, transforms_to_apply
+            )
+            self._transforms = transform.transforms
+            return self._snapshot_df
+
+        # If the new transformations are not a superset of the existing ones,
+        # then we need to start from the original dataframe.
+        else:
+            self._snapshot_df = apply_transforms(self._original_df, transform)
+            self._transforms = transform.transforms
+            return self._snapshot_df
+
+    def _is_superset(self, transforms: Transformations) -> bool:
+        """
+        Checks if the new transformations are a superset of the existing ones.
+        """
+        if len(self._transforms) == 0:
+            return False
+
+        # If the new transformations are smaller than the existing ones,
+        # then it's not a superset.
+        if len(self._transforms) > len(transforms.transforms):
+            return False
+
+        for i, transform in enumerate(self._transforms):
+            if transform != transforms.transforms[i]:
+                return False
+
+        return True
+
+    def _get_next_transformations(
+        self, transforms: Transformations
+    ) -> Transformations:
+        """
+        Gets the next transformations to apply.
+        """
+        if self._is_superset(transforms):
+            return Transformations(
+                transforms.transforms[len(self._transforms) :]
+            )
+        else:
+            return transforms

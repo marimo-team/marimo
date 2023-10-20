@@ -17,7 +17,7 @@ from marimo._plugins.ui._impl.utils.dataframe import get_row_headers
 from marimo._runtime.functions import Function
 from marimo._utils.parse_dataclass import parse_raw
 
-from .handlers import apply_transforms
+from .handlers import TransformsContainer
 from .transforms import Transformations
 
 
@@ -75,6 +75,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             pass
 
         self._data = df
+        self._transform_container = TransformsContainer(df)
 
         super().__init__(
             component_name=dataframe._name,
@@ -110,7 +111,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
         try:
             transformations = parse_raw(value, Transformations)
-            return apply_transforms(self._data, transformations)
+            return self._transform_container.apply(self._data, transformations)
         except Exception as e:
             sys.stderr.write(
                 "Error applying dataframe transform: %s\n\n" % str(e)

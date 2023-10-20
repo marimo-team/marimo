@@ -2,6 +2,7 @@
 import pandas as pd
 
 from marimo._plugins.ui._impl.dataframes.handlers import (
+    TransformsContainer,
     apply_transforms,
 )
 from marimo._plugins.ui._impl.dataframes.transforms import (
@@ -237,3 +238,100 @@ def test_handle_aggregate() -> None:
     assert result["A"]["max"] == 3
     assert result["B"]["min"] == 4
     assert result["B"]["max"] == 6
+
+
+def test_transforms_container() -> None:
+    # Create a sample dataframe
+    df = pd.DataFrame({"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]})
+    # Create a TransformsContainer object
+    container = TransformsContainer(df)
+
+    # Define some transformations
+    sort_transform = SortColumnTransform(
+        type=TransformType.SORT_COLUMN,
+        column_id="B",
+        ascending=False,
+        na_position="last",
+    )
+    filter_transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="keep_rows",
+        where=[Condition(column_id="A", operator=">=", value=2)],
+    )
+    transformations = Transformations([sort_transform, filter_transform])
+    # Verify the next transformation
+    assert container._is_superset(transformations) is False
+    assert (
+        container._get_next_transformations(transformations) == transformations
+    )
+
+    # Apply the transformations
+    result = container.apply(df, transformations)
+
+    # Get the transformed dataframe
+    # Check that the transformations were applied correctly
+    assert result["A"].tolist() == [2, 3, 4, 5]
+    assert result["B"].tolist() == [4, 3, 2, 1]
+
+    # Reapply transforms by adding a new one
+    filter_again_transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="remove_rows",
+        where=[Condition(column_id="B", operator="==", value=4)],
+    )
+    transformations = Transformations(
+        [sort_transform, filter_transform, filter_again_transform]
+    )
+    # Verify the next transformation
+    assert container._is_superset(transformations) is True
+    assert container._get_next_transformations(
+        transformations
+    ) == Transformations([filter_again_transform])
+    result = container.apply(
+        df,
+        transformations,
+    )
+    # Check that the transformations were applied correctly
+    assert result["A"].tolist() == [3, 4, 5]
+    assert result["B"].tolist() == [3, 2, 1]
+
+    transformations = Transformations([sort_transform, filter_transform])
+    # Verify the next transformation
+    assert container._is_superset(transformations) is False
+    assert (
+        container._get_next_transformations(transformations) == transformations
+    )
+    # Reapply by removing the last transform
+    result = container.apply(
+        df,
+        transformations,
+    )
+    # Check that the transformations were applied correctly
+    assert result["A"].tolist() == [2, 3, 4, 5]
+    assert result["B"].tolist() == [4, 3, 2, 1]
+
+
+def test_transforms_container_new_dataframe() -> None:
+    # Create a sample dataframe
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    # Create a TransformsContainer object
+    container = TransformsContainer(df)
+
+    # Define some transformations
+    filter_transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="keep_rows",
+        where=[Condition(column_id="A", operator=">=", value=2)],
+    )
+    result = container.apply(df, Transformations([filter_transform]))
+
+    assert result["A"].tolist() == [2, 3]
+
+    # Create a new dataframe
+    df_next = pd.DataFrame({"A": [1, 2, 3, 4]})
+    # Apply the transformations
+    result = container.apply(df_next, Transformations([filter_transform]))
+
+    # Get the transformed dataframe
+    # Check that the transformations were applied correctly
+    assert result["A"].tolist() == [2, 3, 4]
