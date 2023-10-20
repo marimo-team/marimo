@@ -47,6 +47,7 @@ class _HTMLBuilder:
         controls: bool = True,
         muted: bool = False,
         autoplay: bool = False,
+        loop: bool = False,
         style: Optional[str] = None,
     ) -> str:
         params: List[Tuple[str, str]] = []
@@ -60,6 +61,8 @@ class _HTMLBuilder:
             params.append(("muted", ""))
         if autoplay:
             params.append(("autoplay", ""))
+        if loop:
+            params.append(("loop", ""))
 
         if len(params) == 0:
             return "<video />"
