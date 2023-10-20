@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ColumnDef,
   OnChangeFn,
@@ -64,7 +64,7 @@ export const DataTable = <TData, TValue>({
       sorting,
       pagination: pagination
         ? { ...paginationState, pageSize: pageSize || 10 }
-        : undefined,
+        : { pageIndex: 0, pageSize: data.length },
       rowSelection,
     },
   });
