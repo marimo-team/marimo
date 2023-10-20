@@ -75,7 +75,7 @@ const EMPTY: Transformations = {
   transforms: [],
 };
 
-const DataFrameComponent = ({
+export const DataFrameComponent = ({
   columns,
   dataframeName,
   value,

@@ -106,7 +106,7 @@ const AggregateTransformSchema = z.object({
   aggregations: z
     .array(z.enum(AGGREGATION_FNS))
     .default(["count"])
-    .describe(FieldOptions.of({ label: "Aggregation" })),
+    .describe(FieldOptions.of({ label: "Aggregations" })),
 });
 
 export const TransformTypeSchema = z.union([

@@ -19,7 +19,6 @@ import {
   FormMessage,
   FormDescription,
 } from "../../../../components/ui/form";
-import { NativeSelect } from "../../../../components/ui/native-select";
 import { Objects } from "../../../../utils/objects";
 import { Button } from "../../../../components/ui/button";
 import { getDefaults, getUnionLiteral } from "./form-utils";
@@ -32,6 +31,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import { Textarea } from "@/components/ui/textarea";
 import { Strings } from "@/utils/strings";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DataTypeIcon } from "./DatatypeIcon";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -127,13 +137,15 @@ function renderZodSchema<T extends FieldValues, S>(
         name={path}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{label}</FormLabel>
-            <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={field.onChange}
-              />
-            </FormControl>
+            <div className="flex flex-row items-start space-x-2">
+              <FormLabel>{label}</FormLabel>
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </div>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
@@ -245,15 +257,22 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel className="whitespace-pre">{label}</FormLabel>
             <FormControl>
-              <NativeSelect {...field}>
-                {schema._def.values.map((value: string) => {
-                  return (
-                    <option key={value} value={value}>
-                      {Strings.startCase(value)}
-                    </option>
-                  );
-                })}
-              </NativeSelect>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="--" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {schema._def.values.map((value: string) => {
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {Strings.startCase(value)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
@@ -299,7 +318,15 @@ function renderZodSchema<T extends FieldValues, S>(
     }
 
     return (
-      <FormArray schema={schema._def.type} form={form} path={path} key={path} />
+      <div className="flex flex-col gap-1">
+        <Label>{label}</Label>
+        <FormArray
+          schema={schema._def.type}
+          form={form}
+          path={path}
+          key={path}
+        />
+      </div>
     );
   } else if (schema instanceof z.ZodUnion) {
     return (
@@ -436,8 +463,6 @@ const FormArray = ({
   );
 };
 
-const EMPTY = "@@--@@";
-
 const ColumnSelector = ({
   schema,
   form,
@@ -458,18 +483,28 @@ const ColumnSelector = ({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <NativeSelect {...field}>
-              <option key={EMPTY} value={undefined}>
-                --
-              </option>
-              {Objects.entries(columns).map(([name, dtype]) => {
-                return (
-                  <option key={name} value={name}>
-                    {name} ({dtype})
-                  </option>
-                );
-              })}
-            </NativeSelect>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="--" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {Objects.entries(columns).map(([name, dtype]) => {
+                    return (
+                      <SelectItem key={name} value={name.toString()}>
+                        <span className="flex items-center gap-2 flex-1">
+                          <DataTypeIcon type={dtype} />
+                          <span className="flex-1">{name}</span>
+                          <span className="text-muted-foreground text-xs font-semibold">
+                            ({dtype})
+                          </span>
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </FormControl>
           <FormDescription>{description}</FormDescription>
           <FormMessage />
@@ -547,15 +582,22 @@ const FilterForm = ({
             <FormItem>
               <FormLabel className="whitespace-pre"> </FormLabel>
               <FormControl>
-                <NativeSelect {...field}>
-                  {operators.map((value: string) => {
-                    return (
-                      <option key={value} value={value}>
-                        {Strings.startCase(value)}
-                      </option>
-                    );
-                  })}
-                </NativeSelect>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select a fruit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {operators.map((value: string) => {
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {Strings.startCase(value)}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormDescription>{description}</FormDescription>
               <FormMessage />

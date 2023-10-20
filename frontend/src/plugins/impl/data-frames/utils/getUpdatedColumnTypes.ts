@@ -29,6 +29,10 @@ function handleTransform(
 ): ColumnDataTypes {
   switch (transform.type) {
     case "column_conversion":
+      if (!transform.column_id) {
+        return next;
+      }
+
       next[transform.column_id] = transform.data_type;
       return next;
     case "rename_column":
