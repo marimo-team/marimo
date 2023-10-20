@@ -1,7 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
-import { Input } from "../../../../components/ui/input";
+import {
+  DebouncedInput,
+  DebouncedNumberInput,
+  Input,
+} from "../../../../components/ui/input";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import {
   FieldValues,
@@ -129,7 +133,13 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholder} disabled={disabled} />
+              <DebouncedInput
+                {...field}
+                value={field.value}
+                onValueChange={field.onChange}
+                placeholder={placeholder}
+                disabled={disabled}
+              />
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
@@ -168,10 +178,10 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input
+              <DebouncedNumberInput
+                {...field}
                 type="number"
-                value={field.value}
-                onChange={(value) => field.onChange(value.target.valueAsNumber)}
+                onValueChange={field.onChange}
               />
             </FormControl>
             <FormDescription>{description}</FormDescription>
@@ -189,7 +199,11 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} type="date" />
+              <DebouncedInput
+                {...field}
+                onValueChange={field.onChange}
+                type="date"
+              />
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
@@ -206,7 +220,7 @@ function renderZodSchema<T extends FieldValues, S>(
           <FormItem>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} />
+              <DebouncedInput {...field} onValueChange={field.onChange} />
             </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
@@ -379,7 +393,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <FormField
         control={form.control}
         name={path}
-        render={({ field }) => <Input {...field} type="hidden" />}
+        render={({ field }) => <input {...field} type="hidden" />}
       />
     );
   } else if (

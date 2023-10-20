@@ -9,7 +9,7 @@ export function pythonPrintTransforms(
 ): string {
   const dfNextName = `${dfName}_next`;
   const transformStrs = transforms.map(
-    (transform, idx) => `${dfNextName} = ${pythonPrint(dfNextName, transform)}`
+    (transform) => `${dfNextName} = ${pythonPrint(dfNextName, transform)}`
   );
 
   return [`${dfNextName} = ${dfName}`, ...transformStrs].join("\n");
