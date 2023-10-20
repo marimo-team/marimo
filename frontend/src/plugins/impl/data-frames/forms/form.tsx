@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTypeIcon } from "./DataTypeIcon";
+import { DataTypeIcon } from "./datatype-icon";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
