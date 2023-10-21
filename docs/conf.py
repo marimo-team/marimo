@@ -45,6 +45,7 @@ extensions = [
     "sphinx_sitemap",
     # To generate tables of inherited members
     "autoclasstoc",
+    "sphinx_design",
 ]
 
 

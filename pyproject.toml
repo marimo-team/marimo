@@ -69,6 +69,7 @@ dev = [
     "sphinx-copybutton~=0.5.2",
     "sphinx-new-tab-link~=0.1.1",
     "sphinx-sitemap~=2.5.1",
+    "sphinx-design~=0.5.0",
     "myst_parser~=2.0.0",
     "furo==2023.5.20"
 ]
