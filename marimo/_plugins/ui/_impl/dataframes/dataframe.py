@@ -49,7 +49,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
     **Initialization Args.**
 
-    - `data`: the DataFrame or series to transform
+    - `df`: the DataFrame or series to transform
     """
 
     _name: Final[str] = "marimo-dataframe"
