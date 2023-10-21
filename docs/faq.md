@@ -173,8 +173,9 @@ import importlib
 importlib.reload(mymodule)
 ```
 
-Manually rerunning this cell would reload `mymodule` with your new edits.
-If you want all cells using `mymodule` to re-execute automatically, use this instead:
+Running this cell will reload `mymodule` with your new edits, but
+won't automatically run cells using `mymodule`. If you want cells using
+`mymodule` to re-run, use this instead:
 
 ```
 import importlib
