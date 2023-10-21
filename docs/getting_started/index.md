@@ -4,20 +4,46 @@ Installing marimo gets you the `marimo` command-line interface (CLI), the entry 
 
 ## Installation
 
-In a terminal, run
+Before installing marimo, we recommend creating and activating a Python
+[virtual environment](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
+
+```{dropdown} Setting up a virtual environment
+
+Python uses virtual environments to minimize conflicts among packages.
+Here's a quickstart. Run the following in the terminal:
+
+
+- create an environment with `python -m venv marimo-env`
+- activate the environment:
+  - macOS/Unix: `source marimo-env/bin/activate`
+  - Windows: `marimo-env\Scripts\activate`
+
+_Make sure the environment is activated before installing marimo and when
+using marimo._ Install other packages you may need, such as numpy, pandas, matplotlib,
+and altair, in this environment. When you're done, deactivate the environment
+with `deactivate` in the terimnal.
+
+Learn more from the [official Python tutorial](https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments).
+```
+
+To install marimo, run the following in a terminal:
 
 ```bash
 pip install marimo
+```
+
+To check if the install worked, run
+
+```bash
 marimo tutorial intro
 ```
 
-You should see a tutorial notebook in your browser:
+A tutorial notebook should open in your browser.
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/intro_tutorial.gif" width="600px"/>
-</div>
+```{admonition} Installation issues?
 
-If that doesn't work, please [open a Github issue](https://github.com/marimo-team/marimo/issues).
+Having installation issues? Reach out to us [at Github](https://github.com/marimo-team/marimo/issues) or [on Discord](https://discord.gg/JE7nhX6mD8).
+```
 
 ## Tutorials
 
