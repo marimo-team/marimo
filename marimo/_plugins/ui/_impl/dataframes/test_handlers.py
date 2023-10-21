@@ -266,7 +266,7 @@ def test_transforms_container() -> None:
     )
 
     # Apply the transformations
-    result = container.apply(df, transformations)
+    result = container.apply(transformations)
 
     # Get the transformed dataframe
     # Check that the transformations were applied correctly
@@ -288,7 +288,6 @@ def test_transforms_container() -> None:
         transformations
     ) == Transformations([filter_again_transform])
     result = container.apply(
-        df,
         transformations,
     )
     # Check that the transformations were applied correctly
@@ -303,35 +302,8 @@ def test_transforms_container() -> None:
     )
     # Reapply by removing the last transform
     result = container.apply(
-        df,
         transformations,
     )
     # Check that the transformations were applied correctly
     assert result["A"].tolist() == [2, 3, 4, 5]
     assert result["B"].tolist() == [4, 3, 2, 1]
-
-
-def test_transforms_container_new_dataframe() -> None:
-    # Create a sample dataframe
-    df = pd.DataFrame({"A": [1, 2, 3]})
-    # Create a TransformsContainer object
-    container = TransformsContainer(df)
-
-    # Define some transformations
-    filter_transform = FilterRowsTransform(
-        type=TransformType.FILTER_ROWS,
-        operation="keep_rows",
-        where=[Condition(column_id="A", operator=">=", value=2)],
-    )
-    result = container.apply(df, Transformations([filter_transform]))
-
-    assert result["A"].tolist() == [2, 3]
-
-    # Create a new dataframe
-    df_next = pd.DataFrame({"A": [1, 2, 3, 4]})
-    # Apply the transformations
-    result = container.apply(df_next, Transformations([filter_transform]))
-
-    # Get the transformed dataframe
-    # Check that the transformations were applied correctly
-    assert result["A"].tolist() == [2, 3, 4]

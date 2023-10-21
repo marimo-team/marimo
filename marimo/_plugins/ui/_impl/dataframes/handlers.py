@@ -165,12 +165,10 @@ class TransformHandlers:
 
 
 def apply_transforms(
-    df_prev: "pd.DataFrame", transforms: Transformations
+    df: "pd.DataFrame", transforms: Transformations
 ) -> "pd.DataFrame":
-    if transforms.transforms is None or len(transforms.transforms) == 0:
-        return df_prev
-    # make a new reference
-    df = df_prev
+    if not transforms.transforms:
+        return df
     for transform in transforms.transforms:
         df = TransformHandlers.handle(df, transform)
     return df
@@ -198,20 +196,10 @@ class TransformsContainer:
         self._snapshot_df = df
         self._transforms: List[Transform] = []
 
-    def apply(
-        self, df: "pd.DataFrame", transform: Transformations
-    ) -> "pd.DataFrame":
+    def apply(self, transform: Transformations) -> "pd.DataFrame":
         """
         Applies the given transformations to the dataframe.
         """
-        # If differs from the original dataframe, then we need to start from
-        # the original dataframe.
-        if df is not self._original_df:
-            self._original_df = df
-            self._snapshot_df = apply_transforms(df, transform)
-            self._transforms = transform.transforms
-            return self._snapshot_df
-
         # If the new transformations are a superset of the existing ones,
         # then we can just apply the new ones to the snapshot dataframe.
         if self._is_superset(transform):
@@ -233,7 +221,7 @@ class TransformsContainer:
         """
         Checks if the new transformations are a superset of the existing ones.
         """
-        if len(self._transforms) == 0:
+        if not self._transforms:
             return False
 
         # If the new transformations are smaller than the existing ones,

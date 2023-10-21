@@ -111,7 +111,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
         try:
             transformations = parse_raw(value, Transformations)
-            return self._transform_container.apply(self._data, transformations)
+            return self._transform_container.apply(transformations)
         except Exception as e:
             sys.stderr.write(
                 "Error applying dataframe transform: %s\n\n" % str(e)
