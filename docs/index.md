@@ -25,10 +25,9 @@ hidden state, transform notebooks into interactive tools, and make notebooking
 a delight._
 
 
-```{admonition} Built from first principles
-marimo was built from the ground up to solve many
-<a href="/faq.html#faq-jupyter">well-known problems associated with traditional notebooks</a>.
-```
+marimo was built from the ground up to solve many <a
+href="/faq.html#faq-jupyter">well-known problems associated with traditional
+notebooks</a>.
 
 > ⚡ marimo notebooks run automatically with interactions and code changes
 
