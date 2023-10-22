@@ -12,7 +12,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.md("Use `mo.ui.tabs` to organize outputs.")
+    mo.md("Use `mo.tabs` to organize outputs.")
     return
 
 
