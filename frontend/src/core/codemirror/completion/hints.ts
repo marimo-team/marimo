@@ -75,7 +75,8 @@ export function hintTooltip() {
     // Clear tooltips on blur
     EditorView.domEventObservers({
       blur: (event, view) => {
-        closeCompletion(view);
+        // Only close tooltip, not view; blur for completion handled by
+        // cell editor, so that completion text is selectable
         clearTooltips(view);
       },
     }),
