@@ -76,6 +76,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
         self._data = df
         self._transform_container = TransformsContainer(df)
+        self._error: Optional[str] = None
 
         super().__init__(
             component_name=dataframe._name,
@@ -99,6 +100,9 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         )
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+        if self._error is not None:
+            raise Exception(self._error)
+
         url = mo_data.csv(self._value).url
         return GetDataFrameResponse(
             url=url,
@@ -107,13 +111,16 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
 
     def _convert_value(self, value: Dict[str, Any]) -> pd.DataFrame:
         if value is None:
+            self._error = None
             return self._data
 
         try:
             transformations = parse_raw(value, Transformations)
-            return self._transform_container.apply(transformations)
+            result = self._transform_container.apply(transformations)
+            self._error = None
+            return result
         except Exception as e:
-            sys.stderr.write(
-                "Error applying dataframe transform: %s\n\n" % str(e)
-            )
+            error = "Error applying dataframe transform: %s\n\n" % str(e)
+            sys.stderr.write(error)
+            self._error = error
             return self._data

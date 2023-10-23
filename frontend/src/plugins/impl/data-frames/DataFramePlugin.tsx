@@ -14,6 +14,15 @@ import { LoadingDataTableComponent } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
 import { prettyError } from "@/utils/errors";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /**
  * Arguments for a data table
@@ -113,11 +122,7 @@ export const DataFrameComponent = ({
           <CodePanel dataframeName={dataframeName} transforms={value} />
         </TabsContent>
       </Tabs>
-      {error && (
-        <div className="text-error border-[var(--red-6)] bg-[var(--red-2)] text-sm p-2 border">
-          {prettyError(error)}
-        </div>
-      )}
+      {error && <ErrorBanner error={error} />}
       <LoadingDataTableComponent
         label={null}
         className="rounded-b border"
@@ -132,5 +137,39 @@ export const DataFrameComponent = ({
         selection={null}
       />
     </div>
+  );
+};
+
+const ErrorBanner = ({ error }: { error: Error }) => {
+  const [open, setOpen] = useState(false);
+
+  if (!error) {
+    return null;
+  }
+
+  const message = prettyError(error);
+
+  return (
+    <>
+      <div
+        className="text-error border-[var(--red-6)] bg-[var(--red-2)] text-sm p-2 border cursor-pointer hover:bg-[var(--red-3)]"
+        onClick={() => setOpen(true)}
+      >
+        <span className="line-clamp-4">{message}</span>
+      </div>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent className="max-w-[80%]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-error">Error</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="text-error text-sm p-2 font-mono">{message}</div>
+          <AlertDialogFooter>
+            <AlertDialogAction autoFocus={true} onClick={() => setOpen(false)}>
+              Ok
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
