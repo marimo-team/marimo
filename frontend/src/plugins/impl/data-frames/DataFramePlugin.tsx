@@ -13,6 +13,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { LoadingDataTableComponent } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
+import { prettyError } from "@/utils/errors";
 
 /**
  * Arguments for a data table
@@ -82,7 +83,10 @@ export const DataFrameComponent = ({
   setValue,
   get_dataframe,
 }: DataTableProps): JSX.Element => {
-  const { data } = useAsyncData(() => get_dataframe({}), [value?.transforms]);
+  const { data, error } = useAsyncData(
+    () => get_dataframe({}),
+    [value?.transforms]
+  );
   const { url, row_headers } = data || {};
 
   return (
@@ -109,6 +113,11 @@ export const DataFrameComponent = ({
           <CodePanel dataframeName={dataframeName} transforms={value} />
         </TabsContent>
       </Tabs>
+      {error && (
+        <div className="text-error border-[var(--red-6)] bg-[var(--red-2)] text-sm p-2 border">
+          {prettyError(error)}
+        </div>
+      )}
       <LoadingDataTableComponent
         label={null}
         className="rounded-b border"

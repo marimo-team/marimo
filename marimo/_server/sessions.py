@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import json
 import multiprocessing as mp
 import os
 import queue
@@ -39,6 +40,7 @@ from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._messaging.ops import Alert, KernelReady, serialize
 from marimo._output.formatters.formatters import register_formatters
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._runtime import requests, runtime
 from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, read_layout_config
@@ -72,10 +74,13 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         """
         try:
             return self.write_message(
-                {
-                    "op": op,
-                    "data": data,
-                }
+                json.dumps(
+                    {
+                        "op": op,
+                        "data": data,
+                    },
+                    cls=WebComponentEncoder,
+                )
             )
         except tornado.websocket.WebSocketClosedError:
             LOGGER.info(
