@@ -346,6 +346,7 @@ function renderZodSchema<T extends FieldValues, S>(
           form={form}
           path={path}
           key={path}
+          minLength={schema._def.minLength?.value}
         />
       </div>
     );
@@ -432,10 +433,12 @@ const FormArray = ({
   schema,
   form,
   path,
+  minLength,
 }: {
   schema: z.ZodType<unknown>;
   form: UseFormReturn<any>;
   path: Path<any>;
+  minLength?: number;
 }) => {
   const { label, description } = FieldOptions.parse(
     schema._def.description || ""
@@ -448,6 +451,9 @@ const FormArray = ({
     name: path,
   });
 
+  const isBelowMinLength = minLength != null && fields.length < minLength;
+  const canRemove = minLength == null || fields.length > minLength;
+
   return (
     <div className="flex flex-col gap-2 pt-2 min-w-[220px]">
       <FormLabel>{label}</FormLabel>
@@ -459,15 +465,22 @@ const FormArray = ({
             key={field.id}
           >
             {renderZodSchema(schema, form, `${path}[${index}]`)}
-            <Trash2Icon
-              className="w-4 h-4 mr-1 hover-action text-muted-foreground hover:text-destructive absolute -right-1 top-0 cursor-pointer"
-              onClick={() => {
-                remove(index);
-              }}
-            />
+            {canRemove && (
+              <Trash2Icon
+                className="w-4 h-4 mr-1 hover-action text-muted-foreground hover:text-destructive absolute -right-1 top-0 cursor-pointer"
+                onClick={() => {
+                  remove(index);
+                }}
+              />
+            )}
           </div>
         );
       })}
+      {isBelowMinLength && (
+        <div className="text-destructive text-xs font-semibold">
+          <div>At least {minLength} required.</div>
+        </div>
+      )}
       <div>
         <Button
           size="xs"
