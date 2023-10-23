@@ -21,6 +21,7 @@ import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
+import { jsonParseWithSpecialChar } from "@/utils/json-parser";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -64,7 +65,7 @@ export function useMarimoWebSocket(opts: {
      * Message callback. Handle messages sent by the kernel.
      */
     onMessage: (e: MessageEvent<string>) => {
-      const msg = JSON.parse(e.data) as OperationMessage;
+      const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
       switch (msg.op) {
         case "kernel-ready": {
           const { codes, names, layout, configs } = msg.data;
