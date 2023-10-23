@@ -2,6 +2,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { Events } from "@/utils/events";
 
 const NativeSelect = React.forwardRef<
   HTMLSelectElement,
@@ -9,6 +10,7 @@ const NativeSelect = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <select
     ref={ref}
+    onClick={Events.stopPropagation()}
     className={cn(
       "flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
       className

@@ -19,10 +19,12 @@ import { CellId } from "@/core/model/ids";
 import { AppMode } from "@/core/mode";
 import { TinyCode } from "@/editor/cell/TinyCode";
 import { cn } from "@/lib/utils";
-import { XIcon } from "lucide-react";
+import { LockIcon, XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import useEvent from "react-use-event-hook";
+import { useIsDragging } from "@/hooks/useIsDragging";
+import { Events } from "@/utils/events";
+import { Switch } from "@/components/ui/switch";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -37,13 +39,13 @@ const GridLayoutRenderer: React.FC<Props> = ({
   mode,
 }) => {
   const isReading = mode === "read";
-  const [isDragging, setIsDragging] = useState(false);
   const inGridIds = new Set(layout.cells.map((cell) => cell.i));
   const [droppingItem, setDroppingItem] = useState<{
     i: string;
     w?: number;
     h?: number;
   } | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   const cols = useMemo(
     () => ({
@@ -55,8 +57,9 @@ const GridLayoutRenderer: React.FC<Props> = ({
     [layout.columns]
   );
 
-  const handleDraggingTrue = useEvent(() => setIsDragging(true));
-  const handleDraggingFalse = useEvent(() => setIsDragging(false));
+  const { isDragging, ...dragProps } = useIsDragging();
+
+  const enableInteractions = !isReading && !isLocked;
 
   const grid = (
     <ReactGridLayout
@@ -91,7 +94,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
           : undefined
       }
       onDrop={(cellLayouts, dropped, _event) => {
-        setIsDragging(false);
+        dragProps.onDragStop();
         if (!dropped) {
           return;
         }
@@ -100,12 +103,20 @@ const GridLayoutRenderer: React.FC<Props> = ({
           cells: [...cellLayouts, dropped],
         });
       }}
-      onDragStart={handleDraggingTrue}
-      onDragStop={handleDraggingFalse}
-      // When in read mode, disable dragging and resizing
-      isDraggable={!isReading}
-      isDroppable={!isReading}
-      isResizable={!isReading}
+      onDragStart={(_layout, _oldItem, _newItem, _placeholder, event) => {
+        dragProps.onDragStart(event);
+      }}
+      onDrag={(_layout, _oldItem, _newItem, _placeholder, event) => {
+        dragProps.onDragMove(event);
+      }}
+      onDragStop={() => {
+        dragProps.onDragStop();
+      }}
+      // When in read mode or locked, disable dragging and resizing
+      isDraggable={enableInteractions}
+      isDroppable={enableInteractions}
+      isResizable={enableInteractions}
+      draggableHandle={enableInteractions ? undefined : "noop"}
     >
       {cells
         .filter((cell) => inGridIds.has(cell.key))
@@ -113,8 +124,8 @@ const GridLayoutRenderer: React.FC<Props> = ({
           <div
             key={cell.key}
             className={cn(
-              "relative transparent-when-disconnected",
-              !isReading &&
+              "relative transparent-when-disconnected z-10",
+              enableInteractions &&
                 "bg-background hover:bg-[var(--slate-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
               isDragging && "bg-[var(--slate-2)] border-border rounded"
             )}
@@ -127,7 +138,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
               status={cell.status}
               hidden={cell.errored || cell.interrupted || cell.stopped}
             />
-            {!isReading && (
+            {enableInteractions && (
               <div className="absolute top-0 right-0 p-1 hover-action">
                 <XIcon
                   className="cursor-pointer h-4 w-4 opacity-60 hover:opacity-100"
@@ -155,8 +166,9 @@ const GridLayoutRenderer: React.FC<Props> = ({
     <>
       <div className="flex flex-row absolute left-5 top-4 gap-4">
         <div className="flex flex-row items-center gap-2">
-          <Label>Columns</Label>
+          <Label htmlFor="columns">Columns</Label>
           <Input
+            id="columns"
             type="number"
             value={layout.columns}
             className="w-[60px]"
@@ -171,8 +183,9 @@ const GridLayoutRenderer: React.FC<Props> = ({
           />
         </div>
         <div className="flex flex-row items-center gap-2">
-          <Label>Row Height (px)</Label>
+          <Label htmlFor="rowHeight">Row Height (px)</Label>
           <Input
+            id="rowHeight"
             type="number"
             value={layout.rowHeight}
             className="w-[60px]"
@@ -186,17 +199,36 @@ const GridLayoutRenderer: React.FC<Props> = ({
             }}
           />
         </div>
+        <div className="flex flex-row items-center gap-2">
+          <Label className="flex flex-row items-center gap-1" htmlFor="lock">
+            <LockIcon className="h-3 w-3" />
+            Lock Grid
+          </Label>
+          <Switch
+            id="lock"
+            checked={isLocked}
+            size="sm"
+            onCheckedChange={setIsLocked}
+          />
+        </div>
       </div>
       <div
         className={cn("relative flex h-full overflow-hidden gap-2 px-2 pb-2")}
       >
         <div
-          className="flex-grow overflow-auto border rounded bg-[var(--slate-2)] shadow-sm transparent-when-disconnected"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)",
-            backgroundSize: `calc((100% / ${layout.columns})) ${layout.rowHeight}px`,
-          }}
+          className={cn(
+            "flex-grow overflow-auto border rounded bg-[var(--slate-2)] shadow-sm transparent-when-disconnected",
+            !enableInteractions && "bg-background"
+          )}
+          style={
+            enableInteractions
+              ? {
+                  backgroundImage:
+                    "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)",
+                  backgroundSize: `calc((100% / ${layout.columns})) ${layout.rowHeight}px`,
+                }
+              : undefined
+          }
         >
           {grid}
         </div>
