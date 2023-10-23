@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   copilot-node-server:
-    specifier: 1.10.3
-    version: 1.10.3
+    specifier: 1.11.0
+    version: 1.11.0
 
 devDependencies:
   '@sourcegraph/vscode-ws-jsonrpc':
@@ -20,8 +20,8 @@ devDependencies:
     specifier: ^20.8.7
     version: 20.8.7
   '@types/ws':
-    specifier: ^8.5.7
-    version: 8.5.7
+    specifier: ^8.5.8
+    version: 8.5.8
   jsonrpc-ws-proxy:
     specifier: ^0.0.5
     version: 0.0.5
@@ -305,8 +305,8 @@ packages:
       undici-types: 5.25.3
     dev: true
 
-  /@types/ws@8.5.7:
-    resolution: {integrity: sha512-6UrLjiDUvn40CMrAubXuIVtj2PEfKDffJS7ychvnPU44j+KVeXmdHHTgqcM/dxLUTHxlXHiFM8Skmb8ozGdTnQ==}
+  /@types/ws@8.5.8:
+    resolution: {integrity: sha512-flUksGIQCnJd6sZ1l5dqCEG/ksaoAg/eUwiLAGTJQcfgvZJKF++Ta4bJA6A5aPSJmsr+xlseHn4KLgVlNnvPTg==}
     dependencies:
       '@types/node': 20.8.7
     dev: true
@@ -400,8 +400,8 @@ packages:
     resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
     dev: true
 
-  /copilot-node-server@1.10.3:
-    resolution: {integrity: sha512-ON9hDmGD60Mx2GIDlgiciVlKJFZW80cBrSvqJox91vQjnOnL3Oz/azEba3jI/qkUNQrm2f/e5I9ty2RvUwDahg==}
+  /copilot-node-server@1.11.0:
+    resolution: {integrity: sha512-6a7tBKgMLbN/FV3JgmQHVKDC2yi4S8D7C5d9I7EA2FspKYEKScTo8pplSHPvNYhU0/LCqeNGBPnuoBm0LhdXtQ==}
     hasBin: true
     dev: false
 
