@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { closeBracketsKeymap } from "@codemirror/autocomplete";
 import { KeymapConfig } from "@/core/config/config";
 import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";
@@ -17,6 +18,7 @@ export function keymapBundle(
   switch (config.preset) {
     case "default":
       return [
+        keymap.of(closeBracketsKeymap),
         keymap.of(defaultKeymap),
         keymap.of([
           {
@@ -50,6 +52,7 @@ export function keymapBundle(
           )
         ),
         vim({ status: false }),
+        keymap.of(closeBracketsKeymap),
         keymap.of(defaultKeymap),
       ];
     default:

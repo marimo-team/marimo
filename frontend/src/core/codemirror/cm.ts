@@ -3,7 +3,6 @@ import {
   acceptCompletion,
   autocompletion,
   closeBrackets,
-  closeBracketsKeymap,
 } from "@codemirror/autocomplete";
 import {
   history,
@@ -149,7 +148,6 @@ export const basicBundle = (
     copilotBundle(),
     foldGutter(),
     closeBrackets(),
-    keymap.of(closeBracketsKeymap),
     bracketMatching(),
     indentOnInput(),
     indentUnit.of("    "),
