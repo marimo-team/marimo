@@ -61,10 +61,6 @@ export function hintTooltip() {
           message: result,
           exactName: fullWord,
         });
-        // Close the completion tooltips
-        if (tooltip) {
-          closeCompletion(view);
-        }
         return tooltip ?? null;
       },
       {
