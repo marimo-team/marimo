@@ -23,7 +23,6 @@ import { LockIcon, XIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsDragging } from "@/hooks/useIsDragging";
-import { Events } from "@/utils/events";
 import { Switch } from "@/components/ui/switch";
 
 type Props = ICellRendererProps<GridLayout>;
