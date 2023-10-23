@@ -9,7 +9,6 @@ import {
 } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
-import { closeCompletion } from "@codemirror/autocomplete";
 import { StateField, StateEffect } from "@codemirror/state";
 
 export function hintTooltip() {
