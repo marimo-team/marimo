@@ -29,12 +29,12 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
   "Backspace": [
     {
       "key": "Backspace",
-      "run": "deleteCharBackward",
-      "shift": "deleteCharBackward",
+      "run": "deleteBracketPair",
     },
     {
       "key": "Backspace",
-      "run": "deleteBracketPair",
+      "run": "deleteCharBackward",
+      "shift": "deleteCharBackward",
     },
   ],
   "Enter": [
@@ -133,12 +133,12 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
   "Backspace": [
     {
       "key": "Backspace",
-      "run": "deleteCharBackward",
-      "shift": "deleteCharBackward",
+      "run": "deleteBracketPair",
     },
     {
       "key": "Backspace",
-      "run": "deleteBracketPair",
+      "run": "deleteCharBackward",
+      "shift": "deleteCharBackward",
     },
   ],
   "Enter": [
