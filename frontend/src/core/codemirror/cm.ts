@@ -149,7 +149,8 @@ export const basicBundle = (
     copilotBundle(),
     foldGutter(),
     closeBrackets(),
-    keymap.of(closeBracketsKeymap),
+    // to avoid clash with charDeleteBackward keymap
+    Prec.high(keymap.of(closeBracketsKeymap)),
     bracketMatching(),
     indentOnInput(),
     indentUnit.of("    "),
