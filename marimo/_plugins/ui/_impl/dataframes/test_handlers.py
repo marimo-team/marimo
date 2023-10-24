@@ -13,6 +13,7 @@ from marimo._plugins.ui._impl.dataframes.transforms import (
     GroupByTransform,
     RenameColumnTransform,
     SortColumnTransform,
+    SelectColumnsTransform,
     Transform,
     Transformations,
     TransformType,
@@ -238,6 +239,32 @@ def test_handle_aggregate() -> None:
     assert result["A"]["max"] == 3
     assert result["B"]["min"] == 4
     assert result["B"]["max"] == 6
+
+
+def test_handle_select_columns() -> None:
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    transform = SelectColumnsTransform(
+        type=TransformType.SELECT_COLUMNS, column_ids=["A"]
+    )
+    result = apply(df, transform)
+    assert "A" in result.columns
+    assert "B" not in result.columns
+
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    transform = SelectColumnsTransform(
+        type=TransformType.SELECT_COLUMNS, column_ids=["B"]
+    )
+    result = apply(df, transform)
+    assert "B" in result.columns
+    assert "A" not in result.columns
+
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    transform = SelectColumnsTransform(
+        type=TransformType.SELECT_COLUMNS, column_ids=["A", "B"]
+    )
+    result = apply(df, transform)
+    assert "A" in result.columns
+    assert "B" in result.columns
 
 
 def test_transforms_container() -> None:

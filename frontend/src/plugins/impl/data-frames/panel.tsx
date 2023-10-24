@@ -28,6 +28,7 @@ import {
   FunctionSquareIcon,
   GroupIcon,
   MousePointerSquareDashedIcon,
+  MousePointerSquareIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -270,5 +271,6 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   filter_rows: FilterIcon,
   group_by: GroupIcon,
   rename_column: PencilIcon,
+  select_columns: MousePointerSquareIcon,
   sort_column: ArrowUpDownIcon,
 };

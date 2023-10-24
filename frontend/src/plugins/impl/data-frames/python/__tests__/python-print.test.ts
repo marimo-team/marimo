@@ -109,6 +109,25 @@ describe("pythonPrint", () => {
   });
 });
 
+// Test for select_columns
+it("generates correct Python code for select_columns", () => {
+  const transform: TransformType = {
+    type: "select_columns",
+    column_ids: ["my_column"],
+  };
+  const result = pythonPrint("df", transform);
+  expect(result).toMatchInlineSnapshot('"df[\\"my_column\\"]"');
+
+  const transform2: TransformType = {
+    type: "select_columns",
+    column_ids: ["my_column", "my_column2"],
+  };
+  const result2 = pythonPrint("df", transform2);
+  expect(result2).toMatchInlineSnapshot(
+    '"df[[\\"my_column\\", \\"my_column2\\"]]"'
+  );
+});
+
 describe("pythonPrint: filter", () => {
   it("handles filter vs keep", () => {
     const result = pythonPrint("df", {

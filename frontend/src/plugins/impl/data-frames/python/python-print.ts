@@ -72,6 +72,16 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       );
       return `${dfName}.groupby(${args}).${aggregation}()`;
     }
+    case "select_columns": {
+      const { column_ids } = transform;
+      if (column_ids.length === 0) {
+        return dfName;
+      }
+      if (column_ids.length === 1) {
+        return `${dfName}["${column_ids[0]}"]`;
+      }
+      return `${dfName}[${listOfStrings(column_ids)}]`;
+    }
 
     default:
       logNever(transform);

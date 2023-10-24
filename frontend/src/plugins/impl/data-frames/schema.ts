@@ -117,8 +117,14 @@ const AggregateTransformSchema = z
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
+const SelectColumnsTransformSchema = z.object({
+  type: z.literal("select_columns"),
+  column_ids: column_id_array,
+});
+
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,
+  SelectColumnsTransformSchema,
   RenameColumnTransformSchema,
   ColumnConversionTransformSchema,
   SortColumnTransformSchema,

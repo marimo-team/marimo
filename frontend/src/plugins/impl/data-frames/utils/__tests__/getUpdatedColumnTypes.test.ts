@@ -43,6 +43,10 @@ const Transforms = {
     column_ids: ["col1", "col3"],
     aggregations: ["max"],
   } satisfies TransformType,
+  SELECT_COLUMNS: {
+    type: "select_columns",
+    column_ids: ["col1", "col2"],
+  } satisfies TransformType,
 };
 
 describe("getUpdatedColumnTypes", () => {
@@ -94,6 +98,19 @@ describe("getUpdatedColumnTypes", () => {
     expect(result).toMatchInlineSnapshot(`
       {
         "col1": "str",
+      }
+    `);
+  });
+
+  it("should update column types for select-columns conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.SELECT_COLUMNS],
+      INITIAL_COLUMN_TYPES
+    );
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "col1": "str",
+        "col2": "bool",
       }
     `);
   });
