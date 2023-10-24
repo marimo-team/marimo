@@ -13,6 +13,7 @@
   - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [What packages can I use?](#faq-packages)
+  - [How do I reload modules?](#faq-reload)
   - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
@@ -155,17 +156,39 @@ Use `marimo.hstack` and `marimo.vstack`. See the layout tutorial for details:
 ```bash
 marimo tutorial layout
 ```
+
 <a name="faq-packages" ></a>
 **What packages can I use?**
 
 You can use any Python package. marimo cells run arbitrary Python code.
+
+<a name="faq-reload" ></a>
+**How do I reload modules?**
+
+To reload modules, use
+[`importlib.reload()`](https://docs.python.org/3/library/importlib.html#importlib.reload):
+
+```
+import importlib
+importlib.reload(mymodule)
+```
+
+Running this cell will reload `mymodule` with your new edits, but
+won't automatically run cells using `mymodule`. If you want cells using
+`mymodule` to re-run, use this instead:
+
+```
+import importlib
+import mymodule
+importlib.reload(mymodule)
+```
 
 <a name="faq-notebook-app" ></a>
 **What's the difference between a marimo notebook and a marimo app?**
 
 You can think of marimo programs as notebooks, apps, or both. Edit a marimo
 program as notebook with `marimo edit`, or run it as an app, rendering cell
-outputs without their code, with `marimo run`.
+outputs with code hidden, with `marimo run`.
 
 <a name="faq-app-deploy" ></a>
 **How do I deploy apps?**

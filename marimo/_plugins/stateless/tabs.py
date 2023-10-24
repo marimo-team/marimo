@@ -26,7 +26,7 @@ def tabs(tabs: dict[str, object]) -> Html:
         "text": mo.ui.text(),
         "date": mo.ui.date()
     ]);
-    tabs = mo.ui.tabs({
+    tabs = mo.tabs({
         "Tab 1": tab1,
         "Tab 2": tab2
     })

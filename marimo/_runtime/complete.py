@@ -233,7 +233,7 @@ def complete(
                             )
                         ],
                     )
-                continue
+                    continue
 
             if not completions:
                 # If there are still no completions, then bail.

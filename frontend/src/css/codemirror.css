@@ -55,6 +55,11 @@
   padding: 0.625rem 0.875rem;
 }
 
+/* Hover tooltips get highest priority in display. */
+.cm .cm-tooltip.cm-tooltip-hover {
+  z-index: 1000;
+}
+
 .mo-cm-tooltip ul {
   white-space: normal;
   display: block;

@@ -46,9 +46,10 @@ __all__ = [
     "tabs",
     "tree",
     "ui",
+    "video",
     "vstack",
 ]
-__version__ = "0.1.33"
+__version__ = "0.1.36"
 
 from marimo._ast.app import App
 from marimo._output.doc import doc
@@ -70,6 +71,7 @@ from marimo._plugins.stateless.stat import stat
 from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
+from marimo._plugins.stateless.video import video
 from marimo._runtime import output
 from marimo._runtime.capture import (
     capture_stderr,
