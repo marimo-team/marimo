@@ -143,9 +143,9 @@ class TransformHandlers:
         elif transform.aggregation == "sum":
             return group.sum()
         elif transform.aggregation == "mean":
-            return group.mean()
+            return group.mean(numeric_only=True)
         elif transform.aggregation == "median":
-            return group.median()
+            return group.median(numeric_only=True)
         elif transform.aggregation == "min":
             return group.min()
         elif transform.aggregation == "max":
