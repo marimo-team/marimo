@@ -71,10 +71,7 @@ export const ConditionSchema = z
       .describe(FieldOptions.of({ label: " " })),
     value: z.any().describe(FieldOptions.of({ label: "Value" })),
   })
-  .describe(FieldOptions.of({ direction: "row", special: "column_filter" }))
-  .refine((v) => {
-    return isConditionValueValid(v.operator, v.value);
-  });
+  .describe(FieldOptions.of({ direction: "row", special: "column_filter" }));
 
 const FilterRowsTransformSchema = z.object({
   type: z.literal("filter_rows"),
@@ -85,6 +82,11 @@ const FilterRowsTransformSchema = z.object({
   where: z
     .array(ConditionSchema)
     .min(1)
+    .transform((value) => {
+      return value.filter((condition) => {
+        return isConditionValueValid(condition.operator, condition.value);
+      });
+    })
     .describe(FieldOptions.of({ label: "Value" }))
     .default([{ column_id: "", operator: "==", value: "" }]),
 });

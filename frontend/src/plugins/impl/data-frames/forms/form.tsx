@@ -399,7 +399,7 @@ function renderZodSchema<T extends FieldValues, S>(
     );
   } else if (
     schema instanceof z.ZodEffects &&
-    schema._def.effect.type === "refinement"
+    ["refinement", "transform"].includes(schema._def.effect.type)
   ) {
     return renderZodSchema(schema._def.schema, form, path);
   } else if (schema instanceof z.ZodRecord) {
@@ -501,10 +501,12 @@ const ColumnSelector = ({
   schema,
   form,
   path,
+  onChange,
 }: {
   schema: z.ZodString;
   form: UseFormReturn<any>;
   path: Path<any>;
+  onChange?: (value: string) => void;
 }) => {
   const columns = useContext(ColumnContext);
   const { label, description } = FieldOptions.parse(schema._def.description);
@@ -517,7 +519,13 @@ const ColumnSelector = ({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select
+              value={field.value}
+              onValueChange={(value) => {
+                onChange?.(value);
+                field.onChange(value);
+              }}
+            >
               <SelectTrigger className="min-w-[210px]">
                 <SelectValue placeholder="--" />
               </SelectTrigger>
@@ -576,6 +584,14 @@ const FilterForm = ({
       schema={columnIdSchema}
       form={form}
       path={`${path}.column_id`}
+      onChange={(value) => {
+        // Reset operator and value if the column type changes
+        const currentDtype = columns[columnId];
+        const nextDtype = columns[value];
+        if (nextDtype !== currentDtype) {
+          form.setValue(`${path}.value`, undefined);
+        }
+      }}
     />,
   ];
 
