@@ -82,7 +82,7 @@ class RunResult:
     # Raw output of cell
     output: Any
     # Exception raised by cell, if any
-    exception: Optional[BaseException]
+    exception: Optional[Exception | MarimoInterrupt | MarimoStopError]
 
     def success(self) -> bool:
         """Whether the cell exected successfully"""
@@ -240,10 +240,11 @@ class Runner:
             run_result = RunResult(output=e.output, exception=e)
             # don't print a traceback, since quitting is the intended
             # behavior (like sys.exit())
-        except BaseException as e:  # noqa: E722
-            # except BaseException to catch everything, including
-            # KeyboardInterrupt: nothing should go uncaught
-            # cancel only the descendants of this cell
+        except Exception as e:
+            # Don't catch BaseExceptions:
+            # - KeyboardInterrupt shouldn't be raised, since marimo
+            #   redirects it to a MarimoInterrupt
+            # - SystemExit should kill the process
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
             self.print_traceback()
