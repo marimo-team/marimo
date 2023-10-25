@@ -97,7 +97,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-4 items-start" : "flex-col gap-4"
+          direction === "row" ? "flex-row gap-6 items-start" : "flex-col gap-4"
         )}
       >
         <FormLabel>{label}</FormLabel>

@@ -37,7 +37,7 @@ const ColumnConversionTransformSchema = z
         FieldOptions.of({ label: "Handle errors", special: "radio_group" })
       ),
   })
-  .describe(FieldOptions.of({ direction: "row" }));
+  .describe(FieldOptions.of({}));
 
 const RenameColumnTransformSchema = z.object({
   type: z.literal("rename_column"),
@@ -95,14 +95,14 @@ const GroupByTransformSchema = z
   .object({
     type: z.literal("group_by"),
     column_ids: column_id_array,
-    drop_na: z
-      .boolean()
-      .default(false)
-      .describe(FieldOptions.of({ label: "Drop N/A" })),
     aggregation: z
       .enum(AGGREGATION_FNS)
       .default("count")
       .describe(FieldOptions.of({ label: "Aggregation" })),
+    drop_na: z
+      .boolean()
+      .default(false)
+      .describe(FieldOptions.of({ label: "Drop N/A" })),
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
