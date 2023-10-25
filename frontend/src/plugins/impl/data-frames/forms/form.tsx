@@ -21,6 +21,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  FormMessageTooltip,
   FormDescription,
 } from "../../../../components/ui/form";
 import { Objects } from "../../../../utils/objects";
@@ -96,7 +97,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-4 items-end" : "flex-col gap-4"
+          direction === "row" ? "flex-row gap-4 items-start" : "flex-col gap-4"
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -155,7 +156,7 @@ function renderZodSchema<T extends FieldValues, S>(
         name={path}
         render={({ field }) => (
           <FormItem>
-            <div className="flex flex-row items-end space-x-2">
+            <div className="flex flex-row items-start space-x-2">
               <FormLabel>{label}</FormLabel>
               <FormDescription>{description}</FormDescription>
               <FormControl>
@@ -436,6 +437,17 @@ function renderZodSchema<T extends FieldValues, S>(
   }
 }
 
+const StyledFormMessage = ({ className }: { className?: string }) => {
+  return (
+    <FormMessageTooltip
+      className={cn(
+        "absolute -left-6 bottom-0 text-destructive text-xs w-[16px]",
+        className
+      )}
+    />
+  );
+};
+
 const FormArray = ({
   schema,
   form,
@@ -462,13 +474,13 @@ const FormArray = ({
   const canRemove = minLength == null || fields.length > minLength;
 
   return (
-    <div className="flex flex-col gap-2 pt-2 min-w-[220px]">
+    <div className="flex flex-col gap-2 min-w-[220px]">
       <FormLabel>{label}</FormLabel>
       <FormDescription>{description}</FormDescription>
       {fields.map((field, index) => {
         return (
           <div
-            className="flex flex-row pl-6 ml-4 border-l-2 border-disabled hover-actions-parent relative pr-5 pt-1 items-center w-fit"
+            className="flex flex-row pl-2 ml-4 border-l-2 border-disabled hover-actions-parent relative pr-5 pt-1 items-center w-fit"
             key={field.id}
           >
             {renderZodSchema(schema, form, `${path}[${index}]`)}
@@ -527,7 +539,7 @@ const ColumnSelector = ({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormDescription>{description}</FormDescription>
-          <FormMessage />
+          <StyledFormMessage />
           <FormControl>
             <Select
               value={field.value}
