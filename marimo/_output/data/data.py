@@ -107,7 +107,7 @@ def html(data: str) -> VirtualFile:
 
     A `VirtualFile` object.
     """
-    return any_data(data, ext="html")  # type: ignore
+    return any_data(data, ext="html")
 
 
 def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
