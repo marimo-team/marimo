@@ -1,8 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._output.formatters.formatter_factory import FormatterFactory
 import marimo._output.data.data as mo_data
+from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
 class PlotlyFormatter(FormatterFactory):
