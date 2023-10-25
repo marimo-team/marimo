@@ -97,7 +97,7 @@ export const TransformPanel: React.FC<Props> = ({
     <ColumnContext.Provider value={effectiveColumns}>
       <form
         onSubmit={(e) => e.preventDefault()}
-        className="flex flex-row max-h-[400px] overflow-hidden bg-[var(--slate-2)] border-x border-t rounded-t"
+        className="flex flex-row max-h-[400px] overflow-hidden bg-white border rounded-t"
       >
         <Sidebar
           items={form.watch("transforms")}
@@ -158,9 +158,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onSelect(idx);
               }}
               className={cn(
-                "flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-[var(--slate-3)] text-sm overflow-hidden hover-actions-parent border-l-2 border-transparent",
+                "flex flex-row min-h-[40px] items-center px-2 cursor-pointer hover:bg-accent/50 text-sm overflow-hidden hover-actions-parent border border-muted border-l-2 border-l-transparent",
                 {
-                  "bg-[var(--slate-3)] border-primary": selected === idx,
+                  "border-l-primary bg-accent text-accent-foreground":
+                    selected === idx,
                 }
               )}
             >
@@ -183,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <DropdownMenuTrigger asChild={true}>
             <Button
               variant="text"
-              className="w-full rounded-none m-0"
+              className="w-full rounded-none m-0 hover:text-accent-foreground"
               size="xs"
             >
               <PlusIcon className="w-3 h-3 mr-1" />
