@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { useEffect, useMemo } from "react";
+import React, { PropsWithChildren, useEffect, useMemo } from "react";
 import {
   TransformType,
   TransformTypeSchema,
@@ -27,6 +27,7 @@ import {
   FilterIcon,
   FunctionSquareIcon,
   GroupIcon,
+  MousePointerSquareDashedIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -93,6 +94,13 @@ export const TransformPanel: React.FC<Props> = ({
     return getUpdatedColumnTypes(transformsBeforeSelected, columns);
   }, [columns, transforms, selectedTransform]);
 
+  const handleAddTransform = (transform: z.ZodType) => {
+    const next = getDefaults(transform) as TransformType;
+    const nextIdx = transformsField.fields.length;
+    transformsField.append(next);
+    setSelectedTransform(nextIdx);
+  };
+
   return (
     <ColumnContext.Provider value={effectiveColumns}>
       <form
@@ -110,12 +118,7 @@ export const TransformPanel: React.FC<Props> = ({
             const indexBefore = index - 1;
             setSelectedTransform(Math.max(indexBefore, 0));
           }}
-          onAdd={(transform) => {
-            const next = getDefaults(transform) as TransformType;
-            const nextIdx = transformsField.fields.length;
-            transformsField.append(next);
-            setSelectedTransform(nextIdx);
-          }}
+          onAdd={handleAddTransform}
         />
         <div className="flex flex-col flex-1 p-4 overflow-auto min-h-[200px] border-l">
           {selectedTransform !== undefined && selectedTransformSchema && (
@@ -125,6 +128,16 @@ export const TransformPanel: React.FC<Props> = ({
               schema={selectedTransformSchema}
               path={`transforms.${selectedTransform}`}
             />
+          )}
+          {(selectedTransform === undefined || !selectedTransformSchema) && (
+            <div className="flex flex-col items-center justify-center flex-grow gap-3">
+              <MousePointerSquareDashedIcon className="w-8 h-8  text-muted-foreground" />
+              <AddTransformDropdown onAdd={handleAddTransform}>
+                <Button variant="text" size="xs">
+                  <div className="text-sm">Select a transform to begin</div>
+                </Button>
+              </AddTransformDropdown>
+            </div>
           )}
         </div>
       </form>
@@ -180,56 +193,64 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
       <div className="flex flex-row flex-shrink-0 border-t">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild={true}>
-            <Button
-              variant="text"
-              className="w-full rounded-none m-0 hover:text-accent-foreground"
-              size="xs"
-            >
-              <PlusIcon className="w-3 h-3 mr-1" />
-              Add
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56">
-            <DropdownMenuLabel>Add Transform</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              {Object.values(TransformTypeSchema._def.options).map((type) => {
-                const literal = getUnionLiteral(type);
-                const Icon = ICONS[literal._def.value as TransformType["type"]];
-                return (
-                  <DropdownMenuItem
-                    key={literal._def.value}
-                    onSelect={(evt) => {
-                      evt.stopPropagation();
-                      onAdd(type);
-                    }}
-                  >
-                    <Icon className="w-3.5 h-3.5 mr-2" />
-                    <span>{Strings.startCase(literal._def.value)}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-              <DropdownMenuItem
-                key="_request_"
-                onSelect={(evt) => {
-                  evt.stopPropagation();
-                  window.open(
-                    "https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml",
-                    "_blank"
-                  );
-                }}
-              >
-                <span className="underline text-primary text-xs cursor-pointer">
-                  Request a transform
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AddTransformDropdown onAdd={onAdd}>
+          <Button
+            variant="text"
+            className="w-full rounded-none m-0 hover:text-accent-foreground"
+            size="xs"
+          >
+            <PlusIcon className="w-3 h-3 mr-1" />
+            Add
+          </Button>
+        </AddTransformDropdown>
       </div>
     </div>
+  );
+};
+
+const AddTransformDropdown: React.FC<
+  PropsWithChildren<{ onAdd: (transform: z.ZodType) => void }>
+> = ({ onAdd, children }) => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>{children}</DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56">
+        <DropdownMenuLabel>Add Transform</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {Object.values(TransformTypeSchema._def.options).map((type) => {
+            const literal = getUnionLiteral(type);
+            const Icon = ICONS[literal._def.value as TransformType["type"]];
+            return (
+              <DropdownMenuItem
+                key={literal._def.value}
+                onSelect={(evt) => {
+                  evt.stopPropagation();
+                  onAdd(type);
+                }}
+              >
+                <Icon className="w-3.5 h-3.5 mr-2" />
+                <span>{Strings.startCase(literal._def.value)}</span>
+              </DropdownMenuItem>
+            );
+          })}
+          <DropdownMenuItem
+            key="_request_"
+            onSelect={(evt) => {
+              evt.stopPropagation();
+              window.open(
+                "https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml",
+                "_blank"
+              );
+            }}
+          >
+            <span className="underline text-primary text-xs cursor-pointer">
+              Request a transform
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
