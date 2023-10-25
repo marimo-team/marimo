@@ -13,6 +13,9 @@ import { useDebugMounting, usePropsDidChange } from "@/hooks/debug";
 import { debounce } from "lodash-es";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
+
+import { vegaLoadData } from "./loader";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
@@ -68,6 +71,61 @@ interface VegaComponentProps<T> extends Data {
 }
 
 export const VegaComponent = ({
+  value,
+  setValue,
+  chartSelection,
+  fieldSelection,
+  spec,
+}: VegaComponentProps<T>) => {
+  const { data: resolvedSpec } = useAsyncData(async () => {
+    // We try to resolve the data before passing it to Vega
+    // otherwise it will try to load it internally and flicker
+    // Instead we can handle the loading state ourselves,
+    // and show the previous chart until the new one is ready
+
+    if (!spec || !spec.data) {
+      return spec;
+    }
+
+    if (!("url" in spec.data)) {
+      return spec;
+    }
+
+    // Skip non-relative URLs
+    if (!spec.data.url.startsWith("/")) {
+      return spec;
+    }
+    const url = spec.data.url;
+
+    const data = await vegaLoadData(url, spec.data.format);
+    return {
+      ...spec,
+      data: {
+        name: url,
+      },
+      datasets: {
+        ...spec.datasets,
+        [url]: data,
+      },
+    } as VegaLiteSpec;
+  }, [spec]);
+
+  if (!resolvedSpec) {
+    return null;
+  }
+
+  return (
+    <LoadedVegaComponent
+      value={value}
+      setValue={setValue}
+      chartSelection={chartSelection}
+      fieldSelection={fieldSelection}
+      spec={resolvedSpec}
+    />
+  );
+};
+
+const LoadedVegaComponent = ({
   value,
   setValue,
   chartSelection,

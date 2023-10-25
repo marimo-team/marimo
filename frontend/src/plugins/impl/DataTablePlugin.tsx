@@ -1,9 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useMemo } from "react";
 import { z } from "zod";
-// @ts-expect-error - no types
-import { loader as createLoader, read } from "vega-loader";
-
 import { DataTable } from "../../components/data-table/data-table";
 import {
   generateColumns,
@@ -14,6 +11,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
+import { vegaLoadData } from "./vega/loader";
 
 /**
  * Arguments for a data table
@@ -37,8 +35,6 @@ type Functions = {
 };
 
 type S = Array<string | number>;
-
-const loader = createLoader();
 
 export const DataTablePlugin = createPlugin<S>("marimo-table")
   .withData(
@@ -90,10 +86,7 @@ const LoadingDataTableComponent = (
   props: DataTableProps & { data: string }
 ) => {
   const { data, loading, error } = useAsyncData<unknown[]>(() => {
-    return loader.load(props.data).then((csvData: string) => {
-      // csv -> json
-      return read(csvData, { type: "csv", parse: "auto" });
-    });
+    return vegaLoadData(props.data, { type: "csv" });
   }, [props.data]);
 
   if (loading && !data) {
