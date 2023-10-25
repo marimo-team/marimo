@@ -63,6 +63,8 @@ def shutdown(with_error: bool = False) -> None:
         )
         print()
     mgr.shutdown()
+    # TODO(akshayka): This method raises an exception sometimes.
+    # debug, or just wrap in a try/except since we're on our way out anyway ...
     tornado.ioloop.IOLoop.current().stop()
     if with_error:
         sys.exit(1)

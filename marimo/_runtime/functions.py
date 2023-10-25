@@ -16,6 +16,7 @@ T = TypeVar("T")
 @dataclasses.dataclass
 class EmptyArgs:
     """Utility type for functions that take no arguments."""
+
     ...
 
 
