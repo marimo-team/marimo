@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._output.utils import flatten_string
 import marimo._output.data.data as mo_data
 
 
@@ -12,8 +11,6 @@ class PlotlyFormatter(FormatterFactory):
         return "plotly"
 
     def register(self) -> None:
-        import html
-
         import plotly.graph_objects  # type:ignore[import]
         import plotly.io  # type:ignore[import]
 
@@ -26,13 +23,14 @@ class PlotlyFormatter(FormatterFactory):
             # Outputting the HTML directly results in a memory leak; we use an
             # iframe to get around the leak. (See
             # https://github.com/marimo-team/marimo/issues/417)
-            file = mo_data.html(plotly.io.to_html(fig))
+            contents = plotly.io.to_html(fig)
+            file = mo_data.html(contents)
             return (
                 "text/html",
                 (
                     f"<iframe src='{file.url}'"
                     "frameborder='0' scrolling='auto'"
-                    "style='width: 100%'"
+                    "style='width: 100%; height: 450px'"
                     "onload='__resizeIframe(this)'></iframe>"
                 ),
             )
