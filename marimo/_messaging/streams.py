@@ -7,8 +7,11 @@ from collections import deque
 from multiprocessing.connection import Connection
 from typing import Any, Optional
 
+from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+
+LOGGER = _loggers.marimo_logger()
 
 # Byte limits on outputs. Limits exist for two reasons:
 #
@@ -56,7 +59,12 @@ class Stream:
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
-            self.pipe.send((op, data))
+            try:
+                self.pipe.send((op, data))
+            except OSError as e:
+                # Most likely a BrokenPipeError, caused by the
+                # server process shutting down
+                LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
 
 
 class Stdout:

@@ -619,7 +619,8 @@ class Kernel:
                 run_result.success()
                 or isinstance(run_result.exception, MarimoStopError)
             ) and new_output:
-                formatted_output = formatting.try_format(run_result.output)
+                with self._install_execution_context(cell_id) as exc_ctx:
+                    formatted_output = formatting.try_format(run_result.output)
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
