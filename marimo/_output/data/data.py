@@ -96,6 +96,20 @@ def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
     return any_data(data, ext="json")  # type: ignore
 
 
+def html(data: str) -> VirtualFile:
+    """Create a virtual file for HTML data.
+
+    **Args.**
+
+    - data: HTML data as a string
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    return any_data(data, ext="html")  # type: ignore
+
+
 def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     """Create a virtual file from any data.
 
@@ -126,12 +140,18 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
         return item.virtual_file
 
     # URL
-    if isinstance(data, str):
+    if isinstance(data, str) and data.startswith("http"):
         return VirtualFile.from_external_url(data)
 
     # Bytes
     if isinstance(data, bytes):
         item = VirtualFileLifecycleItem(ext=ext, buffer=data)
+        get_context().cell_lifecycle_registry.add(item)
+        return item.virtual_file
+
+    # String
+    if isinstance(data, str):
+        item = VirtualFileLifecycleItem(ext=ext, buffer=data.encode("utf-8"))
         get_context().cell_lifecycle_registry.add(item)
         return item.virtual_file
 
