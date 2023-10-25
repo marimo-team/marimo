@@ -66,6 +66,7 @@ export const DebouncedInput = React.forwardRef<
   return (
     <Input
       ref={ref}
+      className={className}
       {...props}
       onChange={(evt) => onChange(evt.target.value)}
       value={value}
@@ -92,6 +93,7 @@ export const DebouncedNumberInput = React.forwardRef<
     <Input
       ref={ref}
       type="number"
+      className={className}
       {...props}
       onChange={(evt) => onChange(evt.target.valueAsNumber)}
       value={value}

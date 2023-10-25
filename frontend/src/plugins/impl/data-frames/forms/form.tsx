@@ -96,7 +96,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-4 items-start" : "flex-col gap-4"
+          direction === "row" ? "flex-row gap-4 items-end" : "flex-col gap-4"
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -132,16 +132,17 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel>{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
             <FormControl>
               <DebouncedInput
                 {...field}
                 value={field.value}
                 onValueChange={field.onChange}
+                className="my-0"
                 placeholder={placeholder}
                 disabled={disabled}
               />
             </FormControl>
-            <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -154,8 +155,9 @@ function renderZodSchema<T extends FieldValues, S>(
         name={path}
         render={({ field }) => (
           <FormItem>
-            <div className="flex flex-row items-start space-x-2">
+            <div className="flex flex-row items-end space-x-2">
               <FormLabel>{label}</FormLabel>
+              <FormDescription>{description}</FormDescription>
               <FormControl>
                 <Checkbox
                   checked={field.value}
@@ -163,7 +165,6 @@ function renderZodSchema<T extends FieldValues, S>(
                 />
               </FormControl>
             </div>
-            <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -177,14 +178,15 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel>{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
             <FormControl>
               <DebouncedNumberInput
                 {...field}
                 type="number"
+                className="my-0"
                 onValueChange={field.onChange}
               />
             </FormControl>
-            <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -198,14 +200,15 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel>{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
             <FormControl>
               <DebouncedInput
                 {...field}
                 onValueChange={field.onChange}
                 type="date"
+                className="my-0"
               />
             </FormControl>
-            <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -219,10 +222,14 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel>{label}</FormLabel>
-            <FormControl>
-              <DebouncedInput {...field} onValueChange={field.onChange} />
-            </FormControl>
             <FormDescription>{description}</FormDescription>
+            <FormControl>
+              <DebouncedInput
+                {...field}
+                onValueChange={field.onChange}
+                className="my-0"
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -237,6 +244,7 @@ function renderZodSchema<T extends FieldValues, S>(
           render={({ field }) => (
             <FormItem>
               <FormLabel>{label}</FormLabel>
+              <FormDescription>{description}</FormDescription>
               <FormControl>
                 <RadioGroup
                   className="flex flex-row gap-2 pt-1 items-center"
@@ -262,7 +270,6 @@ function renderZodSchema<T extends FieldValues, S>(
                   })}
                 </RadioGroup>
               </FormControl>
-              <FormDescription>{description}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -277,6 +284,7 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel className="whitespace-pre">{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
             <FormControl>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger className="min-w-[210px]">
@@ -295,7 +303,6 @@ function renderZodSchema<T extends FieldValues, S>(
                 </SelectContent>
               </Select>
             </FormControl>
-            <FormDescription>{description}</FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -312,6 +319,7 @@ function renderZodSchema<T extends FieldValues, S>(
           render={({ field }) => (
             <FormItem>
               <FormLabel>{label}</FormLabel>
+              <FormDescription>{description}</FormDescription>
               <FormControl>
                 <Textarea
                   value={
@@ -330,7 +338,6 @@ function renderZodSchema<T extends FieldValues, S>(
                   disabled={disabled}
                 />
               </FormControl>
-              <FormDescription>{description}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -410,11 +417,11 @@ function renderZodSchema<T extends FieldValues, S>(
         render={({ field }) => (
           <FormItem>
             <FormLabel>{label}</FormLabel>
-            <FormControl>
-              <Input {...field} />
-            </FormControl>
             <FormDescription>{description}</FormDescription>
             <FormMessage />
+            <FormControl>
+              <Input {...field} className="my-0" />
+            </FormControl>
           </FormItem>
         )}
       />
@@ -461,13 +468,13 @@ const FormArray = ({
       {fields.map((field, index) => {
         return (
           <div
-            className="flex flex-row pl-2 ml-2 border-l-2 border-disabled hover-actions-parent relative pr-5 pt-1"
+            className="flex flex-row pl-6 ml-4 border-l-2 border-disabled hover-actions-parent relative pr-5 pt-1 items-center w-fit"
             key={field.id}
           >
             {renderZodSchema(schema, form, `${path}[${index}]`)}
             {canRemove && (
               <Trash2Icon
-                className="w-4 h-4 mr-1 hover-action text-muted-foreground hover:text-destructive absolute -right-1 top-0 cursor-pointer"
+                className="w-4 h-4 ml-2 my-1 text-muted-foreground hover-action hover:text-destructive cursor-pointer absolute right-0 bottom-0"
                 onClick={() => {
                   remove(index);
                 }}
@@ -485,6 +492,7 @@ const FormArray = ({
         <Button
           size="xs"
           variant="text"
+          className="hover:text-accent-foreground"
           onClick={() => {
             append(getDefaults(schema));
           }}
@@ -518,6 +526,8 @@ const ColumnSelector = ({
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
+          <FormDescription>{description}</FormDescription>
+          <FormMessage />
           <FormControl>
             <Select
               value={field.value}
@@ -548,8 +558,6 @@ const ColumnSelector = ({
               </SelectContent>
             </Select>
           </FormControl>
-          <FormDescription>{description}</FormDescription>
-          <FormMessage />
         </FormItem>
       )}
     />
@@ -631,6 +639,7 @@ const FilterForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel className="whitespace-pre"> </FormLabel>
+              <FormDescription>{description}</FormDescription>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger className="min-w-[210px]">
@@ -649,7 +658,6 @@ const FilterForm = ({
                   </SelectContent>
                 </Select>
               </FormControl>
-              <FormDescription>{description}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -676,7 +684,7 @@ const FilterForm = ({
       name={path}
       render={() => (
         <div className="flex flex-col gap-2 bg-red">
-          <div className={cn("flex flex-row gap-3 items-start")}>
+          <div className={cn("flex flex-row gap-3 items-center")}>
             {children}
           </div>
           <FormMessage />
