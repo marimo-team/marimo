@@ -47,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTypeIcon } from "./datatype-icon";
+import { Events } from "@/utils/events";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -482,6 +483,7 @@ const FormArray = ({
           <div
             className="flex flex-row pl-2 ml-4 border-l-2 border-disabled hover-actions-parent relative pr-5 pt-1 items-center w-fit"
             key={field.id}
+            onKeyDown={Events.onEnter((e) => e.preventDefault())}
           >
             {renderZodSchema(schema, form, `${path}[${index}]`)}
             {canRemove && (

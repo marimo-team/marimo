@@ -10,4 +10,13 @@ export const Events = {
       }
     };
   },
+  onEnter: <E extends Pick<KeyboardEvent, "key">>(
+    callback?: (evt: E) => void
+  ) => {
+    return (event: E) => {
+      if (event.key === "Enter" && callback) {
+        callback(event);
+      }
+    };
+  },
 };
