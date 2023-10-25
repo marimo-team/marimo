@@ -2,6 +2,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { Events } from "@/utils/events";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
@@ -12,6 +13,10 @@ export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, endAdornment, ...props }, ref) => {
     const icon = props.icon;
+
+    if (type === "hidden") {
+      return <input type="hidden" ref={ref} {...props} />;
+    }
 
     return (
       <div className="relative">
@@ -43,5 +48,58 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   }
 );
 Input.displayName = "Input";
+
+export const DebouncedInput = React.forwardRef<
+  HTMLInputElement,
+  InputProps & {
+    value: string;
+    onValueChange: (value: string) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  // Create a debounced value of 200
+  const { value, onChange } = useDebounceControlledState<string>({
+    initialValue: props.value,
+    delay: 200,
+    onChange: onValueChange,
+  });
+
+  return (
+    <Input
+      ref={ref}
+      className={className}
+      {...props}
+      onChange={(evt) => onChange(evt.target.value)}
+      value={value}
+    />
+  );
+});
+DebouncedInput.displayName = "DebouncedInput";
+
+export const DebouncedNumberInput = React.forwardRef<
+  HTMLInputElement,
+  InputProps & {
+    value: number;
+    onValueChange: (valueAsNumber: number) => void;
+  }
+>(({ className, onValueChange, ...props }, ref) => {
+  // Create a debounced value of 200
+  const { value, onChange } = useDebounceControlledState<number>({
+    initialValue: props.value,
+    delay: 200,
+    onChange: onValueChange,
+  });
+
+  return (
+    <Input
+      ref={ref}
+      type="number"
+      className={className}
+      {...props}
+      onChange={(evt) => onChange(evt.target.valueAsNumber)}
+      value={value}
+    />
+  );
+});
+DebouncedNumberInput.displayName = "DebouncedNumberInput";
 
 export { Input };

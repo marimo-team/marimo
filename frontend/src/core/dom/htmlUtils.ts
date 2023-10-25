@@ -1,42 +1,13 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
-
-// Random unicode character that is unlikely to be used in the JSON string
-const CHAR = "◐";
+import { jsonParseWithSpecialChar } from "@/utils/json-parser";
 
 /**
  * Parse an attribute value as JSON.
  */
 export function parseAttrValue<T>(value: string | undefined): T {
-  try {
-    // This will properly handle NaN, Infinity, and -Infinity
-    // The python json.dumps encoding will serialize to NaN, Infinity, -Infinity which is not valid JSON,
-    // but we don't want to change the python encoding because NaN, Infinity, -Infinity are valuable to know.
-    value = value ?? "";
-    value = value.replaceAll(
-      // This was iterated on with GPT. The confidence lies in the unit tests.
-      /(?<=\s|^|\[|,|:)(NaN|-Infinity|Infinity)(?=(?:[^"'\\]*(\\.|'([^'\\]*\\.)*[^'\\]*'|"([^"\\]*\\.)*[^"\\]*"))*[^"']*$)/g,
-      `"${CHAR}$1${CHAR}"`
-    );
-    return JSON.parse(value, (key, v) => {
-      if (typeof v !== "string") {
-        return v;
-      }
-      if (v === `${CHAR}NaN${CHAR}`) {
-        return Number.NaN;
-      }
-      if (v === `${CHAR}Infinity${CHAR}`) {
-        return Number.POSITIVE_INFINITY;
-      }
-      if (v === `${CHAR}-Infinity${CHAR}`) {
-        return Number.NEGATIVE_INFINITY;
-      }
-      return v;
-    }) as T;
-  } catch {
-    return {} as T;
-  }
+  return jsonParseWithSpecialChar(value ?? "");
 }
 
 /**

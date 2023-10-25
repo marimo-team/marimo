@@ -23,8 +23,10 @@ import {
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
 import { DownloadActionProps, DownloadAs } from "./download-actions";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
+  className?: string;
   columns: Array<ColumnDef<TData, TValue>>;
   data: TData[];
   pagination?: boolean;
@@ -35,6 +37,7 @@ interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
 }
 
 export const DataTable = <TData, TValue>({
+  className,
   columns,
   data,
   rowSelection,
@@ -70,8 +73,8 @@ export const DataTable = <TData, TValue>({
   });
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="rounded-md border">
+    <div className="flex flex-col space-y-2">
+      <div className={cn(className || "rounded-md border")}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

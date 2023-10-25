@@ -3,7 +3,17 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from typing import Any, Type, TypeVar, get_args, get_origin, get_type_hints
+from enum import Enum
+from typing import (
+    Any,
+    Literal,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 T = TypeVar("T")
 
@@ -37,6 +47,31 @@ def _build_value(value: Any, cls: Type[T]) -> T:
                 for k, v in value.items()
             }
         )
+    elif origin_cls == Union:
+        arg_types = get_args(cls)
+        for arg_type in arg_types:
+            try:
+                return _build_value(value, arg_type)  # type: ignore # noqa: E501
+            except Exception:
+                continue
+        raise ValueError(f"Value '{value}' does not fit any type of the union")
+    elif origin_cls is Literal:
+        # if its a single Literal of an enum, we can just return the enum
+        arg_types = get_args(cls)
+        first_arg_type = arg_types[0]
+        if (
+            len(arg_types) == 1
+            and isinstance(first_arg_type, Enum)
+            and first_arg_type.value == value
+        ):
+            return first_arg_type  # type: ignore[return-value]
+        if value not in arg_types:
+            raise ValueError(
+                f"Value '{value}' does not fit any type of the literal"
+            )
+        return value  # type: ignore[no-any-return]
+    elif type(cls) == type(Enum) and issubclass(cls, Enum):
+        return cls(value)  # type: ignore[return-value]
     elif dataclasses.is_dataclass(cls):
         return build_dataclass(value, cls)  # type: ignore[return-value]
     else:
@@ -52,7 +87,7 @@ def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
     return cls(**transformed)
 
 
-def parse_raw(message: bytes, cls: Type[T]) -> T:
+def parse_raw(message: Union[bytes, dict[Any, Any]], cls: Type[T]) -> T:
     """Utility to parse a message as JSON, and instantiate into supplied type.
 
     `cls` must be a dataclass.
@@ -69,5 +104,9 @@ def parse_raw(message: bytes, cls: Type[T]) -> T:
     message: the message to parse
     cls: the type to instantiate
     """
+    # If it is a dict, it is already parsed and we can just build the
+    # dataclass.
+    if isinstance(message, dict):
+        return build_dataclass(message, cls)
     parsed = json.loads(message)
     return build_dataclass(parsed, cls)

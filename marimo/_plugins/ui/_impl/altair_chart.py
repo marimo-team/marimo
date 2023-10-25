@@ -50,12 +50,9 @@ def _has_binning(spec: VegaSpec) -> bool:
 
 
 def _filter_dataframe(
-    df_prev: pd.DataFrame, selection: ChartSelection
+    df: pd.DataFrame, selection: ChartSelection
 ) -> pd.DataFrame:
     import numpy as np
-
-    # Make a copy of the DataFrame
-    df = df_prev.copy()
 
     for _channel, fields in selection.items():
         # If vlPoint is in the selection,

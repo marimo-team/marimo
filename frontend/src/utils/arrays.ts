@@ -6,3 +6,8 @@ export function arrayDelete<T>(array: T[], index: number): T[] {
 export function arrayInsert<T>(array: T[], index: number, value: T): T[] {
   return [...array.slice(0, index), value, ...array.slice(index)];
 }
+
+export const Arrays = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  EMPTY: [] as any[],
+};

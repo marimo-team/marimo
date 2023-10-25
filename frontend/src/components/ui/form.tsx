@@ -13,6 +13,8 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { AlertCircleIcon } from "lucide-react";
 
 const Form = FormProvider;
 
@@ -79,7 +81,11 @@ const FormItem = React.forwardRef<
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-1", className)} {...props} />
+      <div
+        ref={ref}
+        className={cn("flex flex-col gap-1", className)}
+        {...props}
+      />
     </FormItemContext.Provider>
   );
 });
@@ -90,6 +96,10 @@ const FormLabel = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
 >(({ className, ...props }, ref) => {
   const { error, formItemId } = useFormField();
+
+  if (!props.children) {
+    return;
+  }
 
   return (
     <Label
@@ -129,6 +139,10 @@ const FormDescription = React.forwardRef<
 >(({ className, ...props }, ref) => {
   const { formDescriptionId } = useFormField();
 
+  if (!props.children) {
+    return null;
+  }
+
   return (
     <p
       ref={ref}
@@ -145,7 +159,7 @@ const FormMessage = React.forwardRef<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
   const { error, formMessageId } = useFormField();
-  const body = error ? String(error?.message) : children;
+  const body = error && error?.message ? String(error?.message) : children;
 
   if (!body) {
     return null;
@@ -155,7 +169,7 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-sm font-medium text-destructive", className)}
+      className={cn("text-xs font-medium text-destructive", className)}
       {...props}
     >
       {body}
@@ -163,6 +177,24 @@ const FormMessage = React.forwardRef<
   );
 });
 FormMessage.displayName = "FormMessage";
+
+const FormMessageTooltip = ({ className }: { className: string }) => {
+  const { error } = useFormField();
+  const body = error && error?.message ? String(error?.message) : null;
+
+  if (!body) {
+    return null;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip content={body}>
+        <AlertCircleIcon className={cn("stroke-[1.8px]", className)} />
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+FormMessageTooltip.displayName = "FormMessageTooltip";
 
 export {
   useFormField,
@@ -172,5 +204,6 @@ export {
   FormControl,
   FormDescription,
   FormMessage,
+  FormMessageTooltip,
   FormField,
 };

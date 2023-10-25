@@ -176,6 +176,7 @@ function PluginSlotInternal<T>(
           namespace: objectId,
         });
         if (response.status.code !== "ok") {
+          Logger.error(response.status);
           throw new Error(response.status.message);
         }
         return output.parse(response.return_value);

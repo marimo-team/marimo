@@ -30,9 +30,10 @@ import { DownloadPlugin } from "./layout/DownloadPlugin";
 import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { VegaPlugin } from "./impl/vega/VegaPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
+import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 
 // List of UI plugins
-const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
+export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new ButtonPlugin(),
   new CheckboxPlugin(),
   DataTablePlugin,
@@ -51,6 +52,7 @@ const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
+  DataFramePlugin,
 ];
 
 // List of output / layout plugins
