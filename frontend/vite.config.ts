@@ -54,6 +54,10 @@ export default defineConfig({
         target: `http://localhost:${SERVER_PORT}`,
         changeOrigin: true,
       },
+      "/@file": {
+        target: `http://localhost:${SERVER_PORT}`,
+        changeOrigin: true,
+      },
       "/iosocket": {
         target: `ws://localhost:${SERVER_PORT}`,
         ws: true,
