@@ -98,6 +98,10 @@ export const DataFrameComponent = ({
   );
   const { url, row_headers } = data || {};
 
+  const [internalValue, setInternalValue] = useState<Transformations>(
+    value || EMPTY
+  );
+
   return (
     <div>
       <Tabs defaultValue="transform">
@@ -113,9 +117,14 @@ export const DataFrameComponent = ({
         </TabsList>
         <TabsContent value="transform" className="mt-1">
           <TransformPanel
-            initialValue={value || EMPTY}
+            initialValue={internalValue}
             columns={columns}
-            onChange={setValue}
+            onChange={(v) => {
+              // Update the value valid changes
+              setValue(v);
+              setInternalValue(v);
+            }}
+            onInvalidChange={setInternalValue}
           />
         </TabsContent>
         <TabsContent value="code" className="mt-1">

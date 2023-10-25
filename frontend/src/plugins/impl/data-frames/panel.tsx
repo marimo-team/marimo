@@ -43,12 +43,14 @@ interface Props {
   columns: ColumnDataTypes;
   initialValue: Transformations;
   onChange: (value: Transformations) => void;
+  onInvalidChange: (value: Transformations) => void;
 }
 
 export const TransformPanel: React.FC<Props> = ({
   initialValue,
   columns,
   onChange,
+  onInvalidChange,
 }) => {
   const form = useForm<z.infer<typeof TransformationsSchema>>({
     resolver: zodResolver(TransformationsSchema),
@@ -62,9 +64,17 @@ export const TransformPanel: React.FC<Props> = ({
     onChange(values);
   });
 
+  const onInvalidSubmit = useEvent(
+    (values: z.infer<typeof TransformationsSchema>) => {
+      onInvalidChange(values);
+    }
+  );
+
   useEffect(() => {
     const subscription = watch(() => {
-      handleSubmit(onSubmit)();
+      handleSubmit(onSubmit, () => {
+        onInvalidSubmit(form.getValues());
+      })();
     });
     return () => subscription.unsubscribe();
   }, [handleSubmit, watch, onSubmit]);
