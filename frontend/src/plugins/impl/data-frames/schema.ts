@@ -104,7 +104,7 @@ const GroupByTransformSchema = z
       .default(false)
       .describe(FieldOptions.of({ label: "Drop N/A" })),
   })
-  .describe(FieldOptions.of({ direction: "row" }));
+  .describe(FieldOptions.of({}));
 
 const AggregateTransformSchema = z
   .object({
