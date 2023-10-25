@@ -26,8 +26,7 @@ class PlotlyFormatter(FormatterFactory):
             # Outputting the HTML directly results in a memory leak; we use an
             # iframe to get around the leak. (See
             # https://github.com/marimo-team/marimo/issues/417)
-            contents = flatten_string(html.escape(plotly.io.to_html(fig)))
-            file = mo_data.html(contents)
+            file = mo_data.html(plotly.io.to_html(fig))
             return (
                 "text/html",
                 (
