@@ -77,7 +77,7 @@ export const TransformPanel: React.FC<Props> = ({
       })();
     });
     return () => subscription.unsubscribe();
-  }, [handleSubmit, watch, onSubmit]);
+  }, [handleSubmit, watch, onInvalidSubmit, onSubmit, form]);
 
   const [selectedTransform, setSelectedTransform] = React.useState<
     number | undefined

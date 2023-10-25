@@ -1,6 +1,6 @@
 # Dataframe
 
-The dataframe UI element will output a visual editor to apply "transforms" to a dataframe. The resulting dataframe will be show below the transform editor. The UI output also includes the generated Python used to generate the resulting dataframe. You can programmatically access the resulting dataframe by accessing the element's `.value` attribute.
+The dataframe UI element outputs a visual editor to apply "transforms" to a dataframe, such as filtering rows, applying group-bys and aggregations, and more. The transformed dataframe is shown below the transform editor. The UI output also includes the generated Python used to generate the resulting dataframe, which you can copy paste into a cell. You can programmatically access the resulting dataframe by accessing the element's `.value` attribute.
 
 ```{admonition} Pandas Required
 :class: note
