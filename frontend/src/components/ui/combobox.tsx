@@ -170,7 +170,7 @@ export const Combobox = <TValue,>({
             value={search}
             onValueChange={onSearchChange}
           />
-          <CommandList className="max-h-60">
+          <CommandList className="max-h-60 py-.5">
             <CommandEmpty>{emptyState}</CommandEmpty>
             <ComboboxContext.Provider
               value={{ isSelected, onSelect: handleSelect }}

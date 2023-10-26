@@ -65,6 +65,39 @@ export const Multiple = () => (
   </div>
 );
 
+const OPTIONS = [
+  "Apple",
+  "Banana",
+  "Blueberry",
+  "Grapes",
+  "Pineapple",
+  "Aubergine",
+  "Broccoli",
+  "Carrot",
+  "Courgette",
+  "Leek",
+  "Beef",
+  "Chicken",
+  "Lamb",
+  "Pork",
+] as const;
+
+export const Large = () => (
+  <div className="w-64 m-10">
+    <Combobox
+      placeholder="Select favorite frameworks"
+      displayValue={(option: string) => option}
+      multiple={true}
+    >
+      {OPTIONS.map((option) => (
+        <ComboboxItem key={option} value={option}>
+          {option}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  </div>
+);
+
 export const WithCustomFilterFn = () => (
   <div className="w-64 m-10">
     <Combobox
