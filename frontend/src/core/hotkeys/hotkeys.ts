@@ -41,24 +41,24 @@ const DEFAULT_HOT_KEY = {
   "cell.focusUp": {
     name: "Focus up",
     group: "Navigation",
-    key: "Mod-Shift-9",
+    key: "Mod-Shift-k",
   },
   "cell.focusDown": {
     name: "Focus down",
     group: "Navigation",
-    key: "Mod-Shift-0",
+    key: "Mod-Shift-j",
   },
 
   // Creation and Ordering
   "cell.moveUp": {
     name: "Move up",
     group: "Creation and Ordering",
-    key: "Mod-Shift-k",
+    key: "Mod-Shift-9",
   },
   "cell.moveDown": {
     name: "Move down",
     group: "Creation and Ordering",
-    key: "Mod-Shift-j",
+    key: "Mod-Shift-0",
   },
   "cell.createAbove": {
     name: "Create cell above",
