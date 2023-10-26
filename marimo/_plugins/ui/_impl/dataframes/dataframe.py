@@ -5,7 +5,6 @@ import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
-
 if TYPE_CHECKING:
     import pandas as pd
 
