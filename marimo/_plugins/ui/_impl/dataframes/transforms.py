@@ -21,6 +21,7 @@ Operator = Literal[
     "is_nan",
     "is_not_nan",
     "equals",
+    "does_not_equal",
     "contains",
     "regex",
     "starts_with",

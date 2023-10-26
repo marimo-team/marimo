@@ -113,6 +113,8 @@ class TransformHandlers:
                 df_filter = df[condition.column_id].notna()
             elif condition.operator == "equals":
                 df_filter = df[condition.column_id].eq(value)
+            elif condition.operator == "does_not_equal":
+                df_filter = df[condition.column_id].ne(value)
             elif condition.operator == "contains":
                 df_filter = df[condition.column_id].str.contains(
                     value, regex=False
