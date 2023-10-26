@@ -767,11 +767,13 @@ const SelectFormField = ({
   form,
   path,
   options,
+  textTransform,
 }: {
   schema: z.ZodEnum<any> | z.ZodString;
   form: UseFormReturn<any>;
   path: Path<any>;
   options: string[];
+  textTransform?: (value: string) => string;
 }) => {
   const { label, description, disabled, special } = FieldOptions.parse(
     schema._def.description
@@ -838,7 +840,7 @@ const SelectFormField = ({
                   {options.map((value: string) => {
                     return (
                       <SelectItem key={value} value={value}>
-                        {Strings.startCase(value)}
+                        {textTransform?.(value) ?? value}
                       </SelectItem>
                     );
                   })}
