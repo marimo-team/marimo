@@ -63,6 +63,8 @@ export const SwitchableMultiSelect: React.FC<Props> = ({
         multiple={true}
         value={valueAsArray}
         onValueChange={onChange}
+        keepPopoverOpenOnSelect={true}
+        chips={true}
       >
         {options.map((option) => (
           <ComboboxItem key={option} value={option}>
