@@ -98,6 +98,7 @@ class VirtualFileRegistry:
     registry: dict[str, shared_memory.SharedMemory] = dataclasses.field(
         default_factory=dict
     )
+    shutting_down = False
 
     def __del__(self) -> None:
         self.shutdown()
@@ -145,9 +146,19 @@ class VirtualFileRegistry:
             del self.registry[key]
 
     def shutdown(self) -> None:
-        for _, shm in self.registry.items():
-            shm.unlink()
-        self.registry.clear()
+        # Try to make this method re-entrant since it's called in the
+        # sigterm handler
+        #
+        # https://www.gnu.org/software/libc/manual/html_node/Nonreentrancy.html
+        if self.shutting_down:
+            return
+        try:
+            self.shutting_down = True
+            for _, shm in self.registry.items():
+                shm.unlink()
+            self.registry.clear()
+        finally:
+            self.shutting_down = False
 
 
 def _without_leading_dot(ext: str) -> str:
