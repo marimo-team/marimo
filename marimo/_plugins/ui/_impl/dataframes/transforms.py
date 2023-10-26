@@ -38,12 +38,13 @@ Aggregation = Literal[
 
 
 class TransformType(Enum):
+    AGGREGATE = "aggregate"
     COLUMN_CONVERSION = "column_conversion"
-    RENAME_COLUMN = "rename_column"
-    SORT_COLUMN = "sort_column"
     FILTER_ROWS = "filter_rows"
     GROUP_BY = "group_by"
-    AGGREGATE = "aggregate"
+    RENAME_COLUMN = "rename_column"
+    SELECT_COLUMNS = "select_columns"
+    SORT_COLUMN = "sort_column"
 
 
 @dataclass
@@ -98,13 +99,20 @@ class AggregateTransform:
     aggregations: List[Aggregation]
 
 
+@dataclass
+class SelectColumnsTransform:
+    type: Literal[TransformType.SELECT_COLUMNS]
+    column_ids: ColumnIds
+
+
 Transform = Union[
+    AggregateTransform,
     ColumnConversionTransform,
-    RenameColumnTransform,
-    SortColumnTransform,
     FilterRowsTransform,
     GroupByTransform,
-    AggregateTransform,
+    RenameColumnTransform,
+    SelectColumnsTransform,
+    SortColumnTransform,
 ]
 
 

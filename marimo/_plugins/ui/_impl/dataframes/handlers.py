@@ -7,6 +7,7 @@ from .transforms import (
     FilterRowsTransform,
     GroupByTransform,
     RenameColumnTransform,
+    SelectColumnsTransform,
     SortColumnTransform,
     Transform,
     Transformations,
@@ -45,6 +46,10 @@ class TransformHandlers:
         elif transform_type is TransformType.AGGREGATE:
             return TransformHandlers.handle_aggregate(
                 df, cast(AggregateTransform, transform)
+            )
+        elif transform_type is TransformType.SELECT_COLUMNS:
+            return TransformHandlers.handle_select_columns(
+                df, cast(SelectColumnsTransform, transform)
             )
 
         else:
@@ -162,6 +167,12 @@ class TransformHandlers:
             for column_id in transform.column_ids
         }
         return df.agg(dict_of_aggs)  # type: ignore[arg-type]
+
+    @staticmethod
+    def handle_select_columns(
+        df: "pd.DataFrame", transform: SelectColumnsTransform
+    ) -> "pd.DataFrame":
+        return df[transform.column_ids]
 
 
 def apply_transforms(

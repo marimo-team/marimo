@@ -59,6 +59,10 @@ function handleTransform(
     case "filter_rows":
     case "sort_column":
       return next;
+    case "select_columns":
+      return Objects.filter(next, (_v, k) =>
+        transform.column_ids.includes(k as string)
+      );
     default:
       logNever(transform);
       return next;
