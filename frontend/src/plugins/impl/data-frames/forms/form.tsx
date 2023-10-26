@@ -31,7 +31,11 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
 import { cn } from "@/lib/utils";
 import React, { useContext, useEffect } from "react";
-import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
+import {
+  ColumnFetchValuesContext,
+  ColumnInfoContext,
+  ColumnNameContext,
+} from "@/plugins/impl/data-frames/forms/context";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getOperatorForDtype, getSchemaForOperator } from "../utils/operators";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { DataTypeIcon } from "./datatype-icon";
 import { Events } from "@/utils/events";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -125,6 +130,10 @@ function renderZodSchema<T extends FieldValues, S>(
   } else if (schema instanceof z.ZodString) {
     if (special === "column_id") {
       return <ColumnSelector schema={schema} form={form} path={path} />;
+    }
+
+    if (special === "column_values") {
+      return <ColumnValuesSelector schema={schema} form={form} path={path} />;
     }
 
     return (
@@ -530,7 +539,7 @@ const ColumnSelector = ({
   path: Path<any>;
   onChange?: (value: string) => void;
 }) => {
-  const columns = useContext(ColumnContext);
+  const columns = useContext(ColumnInfoContext);
   const { label, description } = FieldOptions.parse(schema._def.description);
 
   return (
@@ -588,7 +597,7 @@ const FilterForm = ({
   path: Path<any>;
 }) => {
   const { description } = FieldOptions.parse(schema._def.description);
-  const columns = useContext(ColumnContext);
+  const columns = useContext(ColumnInfoContext);
   const { field } = useController({ name: path });
 
   const columnIdSchema = Objects.entries(schema._def.shape()).find(
@@ -686,7 +695,9 @@ const FilterForm = ({
     if (operandSchemas.length === 1) {
       children.push(
         <React.Fragment key={`value`}>
-          {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
+          <ColumnNameContext.Provider value={columnId}>
+            {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
+          </ColumnNameContext.Provider>
         </React.Fragment>
       );
     }
@@ -703,6 +714,87 @@ const FilterForm = ({
           </div>
           <FormMessage />
         </div>
+      )}
+    />
+  );
+};
+
+const ColumnValuesSelector = ({
+  schema,
+  form,
+  path,
+}: {
+  schema: z.ZodString;
+  form: UseFormReturn<any>;
+  path: Path<any>;
+}) => {
+  const column = useContext(ColumnNameContext);
+  const fetchValues = useContext(ColumnFetchValuesContext);
+  const { label, description, placeholder, disabled } = FieldOptions.parse(
+    schema._def.description
+  );
+
+  const { data } = useAsyncData(() => {
+    return fetchValues({ column });
+  }, [column]);
+
+  const options = data?.values || [];
+
+  if (options.length === 0) {
+    return (
+      <FormField
+        control={form.control}
+        name={path}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
+            <FormControl>
+              <DebouncedInput
+                {...field}
+                value={field.value}
+                onValueChange={field.onChange}
+                className="my-0"
+                placeholder={placeholder}
+                disabled={disabled}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    );
+  }
+
+  return (
+    <FormField
+      control={form.control}
+      name={path}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormDescription>{description}</FormDescription>
+          <StyledFormMessage />
+          <FormControl>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="min-w-[210px]">
+                <SelectValue placeholder="--" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {options.map((option) => {
+                    const asString = String(option);
+                    return (
+                      <SelectItem key={asString} value={asString}>
+                        {asString}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </FormControl>
+        </FormItem>
       )}
     />
   );

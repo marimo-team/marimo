@@ -42,6 +42,10 @@ type PluginFunctions = {
     url: string;
     row_headers: Array<[string, string[]]>;
   }>;
+  get_column_values: (req: { column: string }) => Promise<{
+    values: unknown[];
+    too_many_values: boolean;
+  }>;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -64,6 +68,12 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       z.object({
         url: z.string(),
         row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
+      })
+    ),
+    get_column_values: rpc.input(z.object({ column: z.string() })).output(
+      z.object({
+        values: z.array(z.any()),
+        too_many_values: z.boolean(),
       })
     ),
   })
@@ -91,6 +101,7 @@ export const DataFrameComponent = ({
   value,
   setValue,
   get_dataframe,
+  get_column_values,
 }: DataTableProps): JSX.Element => {
   const { data, error } = useAsyncData(
     () => get_dataframe({}),
@@ -125,6 +136,7 @@ export const DataFrameComponent = ({
               setInternalValue(v);
             }}
             onInvalidChange={setInternalValue}
+            getColumnValues={get_column_values}
           />
         </TabsContent>
         <TabsContent value="code" className="mt-1">

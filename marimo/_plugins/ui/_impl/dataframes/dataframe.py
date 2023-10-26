@@ -5,6 +5,7 @@ import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -14,7 +15,7 @@ import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.utils.dataframe import get_row_headers
-from marimo._runtime.functions import Function
+from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.parse_dataclass import parse_raw
 
 from .handlers import TransformsContainer
@@ -22,14 +23,20 @@ from .transforms import Transformations
 
 
 @dataclass
-class EmptyArgs:
-    ...
-
-
-@dataclass
 class GetDataFrameResponse:
     url: str
     row_headers: List[tuple[str, List[str | int | float]]]
+
+
+@dataclass
+class GetColumnValuesArgs:
+    column: str
+
+
+@dataclass
+class GetColumnValuesResponse:
+    values: List[str | int | float]
+    too_many_values: bool
 
 
 @mddoc
@@ -96,6 +103,11 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
                     arg_cls=EmptyArgs,
                     function=self.get_dataframe,
                 ),
+                Function(
+                    name=self.get_column_values.__name__,
+                    arg_cls=GetColumnValuesArgs,
+                    function=self.get_column_values,
+                ),
             ),
         )
 
@@ -108,6 +120,29 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             url=url,
             row_headers=get_row_headers(self._value),
         )
+
+    def get_column_values(
+        self, args: GetColumnValuesArgs
+    ) -> GetColumnValuesResponse:
+        """Get all the unique values in a column."""
+        LIMIT = 500
+
+        if args.column not in self._data.columns:
+            raise Exception("Column %s does not exist" % args.column)
+
+        # We get the unique values from the original dataframe, not the
+        # transformed one
+        unique_values = self._data[args.column].unique().tolist()
+        if len(unique_values) <= LIMIT:
+            return GetColumnValuesResponse(
+                values=list(sorted(unique_values, key=str)),
+                too_many_values=False,
+            )
+        else:
+            return GetColumnValuesResponse(
+                values=[],
+                too_many_values=True,
+            )
 
     def _convert_value(self, value: Dict[str, Any]) -> pd.DataFrame:
         if value is None:
