@@ -1,7 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import { Story } from "@storybook/addon-docs";
-
 import {
   Select,
   SelectContent,

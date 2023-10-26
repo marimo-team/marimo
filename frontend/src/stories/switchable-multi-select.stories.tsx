@@ -1,7 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import { Story } from "@storybook/addon-docs";
-
 import { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { SwitchableMultiSelect } from "@/components/forms/switchable-multi-select";
