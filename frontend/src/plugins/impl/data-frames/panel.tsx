@@ -125,7 +125,7 @@ export const TransformPanel: React.FC<Props> = ({
       <ColumnFetchValuesContext.Provider value={getColumnValues}>
         <form
           onSubmit={(e) => e.preventDefault()}
-          className="flex flex-row max-h-[400px] overflow-hidden bg-white border rounded-t"
+          className="flex flex-row max-h-[400px] overflow-hidden bg-background"
         >
           <Sidebar
             items={form.watch("transforms")}
@@ -213,7 +213,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
-      <div className="flex flex-row flex-shrink-0 border-t">
+      <div className="flex flex-row flex-shrink-0">
         <AddTransformDropdown onAdd={onAdd}>
           <Button
             variant="text"

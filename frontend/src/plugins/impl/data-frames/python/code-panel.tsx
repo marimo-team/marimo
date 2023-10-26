@@ -26,7 +26,7 @@ const PythonCode = (props: { code: string }) => {
   return (
     <div className="border-t border-x rounded-t overflow-hidden">
       <CodeMirror
-        minHeight="100px"
+        minHeight="200px"
         height="100%"
         editable={true}
         extensions={[python()]}

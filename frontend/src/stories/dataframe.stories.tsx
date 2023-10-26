@@ -17,6 +17,10 @@ export const DataFrame: StoryObj = {
     const [value, setValue] = useState<Transformations>();
     return (
       <DataFrameComponent
+        get_column_values={async () => ({
+          values: Array.from({ length: 100 }).map((_, i) => `value ${i}`),
+          too_many_values: false,
+        })}
         columns={{
           name: "object",
           age: "int",
@@ -25,7 +29,10 @@ export const DataFrame: StoryObj = {
         }}
         dataframeName={"df"}
         value={value}
-        setValue={setValue}
+        setValue={(v) => {
+          console.log(v);
+          setValue(v);
+        }}
         get_dataframe={() => Promise.reject({})}
       />
     );

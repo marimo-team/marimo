@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { selectStyles } from "./native-select";
 
 const Select = SelectPrimitive.Root;
 
@@ -25,10 +26,7 @@ const SelectTrigger = React.forwardRef<
 >(({ className, children, onClear, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
-    className={cn(
-      "flex h-7 items-center justify-between rounded-md border border-input shadow-sm bg-transparent px-2 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-      className
-    )}
+    className={cn(selectStyles({}), "mb-0", className)}
     {...props}
   >
     {children}
@@ -82,7 +80,7 @@ const SelectContent = React.forwardRef<
       </SelectPrimitive.Viewport>
 
       <SelectPrimitive.ScrollDownButton className="flex items-center justify-center h-[20px] bg-white text-muted-foreground cursor-default">
-        <ChevronDownIcon className="h-4 w-4" />
+        <ChevronDownIcon className="h-4 w-4 opacity-50" />
       </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>

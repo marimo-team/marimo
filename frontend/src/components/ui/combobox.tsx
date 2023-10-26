@@ -53,6 +53,7 @@ type ComboboxValueProps<TValue> =
   | {
       multiple?: false;
       chips?: false;
+      chipsClassName?: never;
       value?: TValue | null;
       defaultValue?: TValue | null;
       onValueChange?(value: TValue | null): void;
@@ -60,6 +61,7 @@ type ComboboxValueProps<TValue> =
   | {
       multiple: true;
       chips?: boolean;
+      chipsClassName?: string;
       value?: TValue[] | null;
       defaultValue?: TValue[] | null;
       onValueChange?(value: TValue[] | null): void;
@@ -73,7 +75,7 @@ export const Combobox = <TValue,>({
   children,
   displayValue,
   className,
-  placeholder = "--",
+  placeholder,
   value: valueProp,
   defaultValue,
   onValueChange,
@@ -88,7 +90,8 @@ export const Combobox = <TValue,>({
   onSearchChange,
   emptyState = "Nothing found.",
   chips = false,
-  keepPopoverOpenOnSelect = false,
+  chipsClassName,
+  keepPopoverOpenOnSelect,
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
     prop: openProp,
@@ -117,7 +120,7 @@ export const Combobox = <TValue,>({
       if (Array.isArray(value)) {
         if (value.includes(newValue)) {
           const newArr = value.filter((val) => val !== selectedValue);
-          newValue = newArr.length > 0 ? newArr : null;
+          newValue = newArr.length > 0 ? newArr : [];
         } else {
           newValue = [...value, newValue];
         }
@@ -129,21 +132,22 @@ export const Combobox = <TValue,>({
     }
 
     setValue(newValue);
-    if (!keepPopoverOpenOnSelect) {
+    const keepOpen = keepPopoverOpenOnSelect ?? multiple;
+    if (!keepOpen) {
       setOpen(false);
     }
   };
 
   const renderValue = (): string => {
     // If we show chips, we don't want to change the placeholder
-    if (multiple && chips) {
+    if (multiple && chips && placeholder) {
       return placeholder;
     }
 
     if (value) {
       if (Array.isArray(value)) {
         if (value.length === 0) {
-          return placeholder;
+          return placeholder ?? "--";
         }
         if (value.length === 1 && displayValue !== undefined) {
           return displayValue(value[0]);
@@ -153,63 +157,71 @@ export const Combobox = <TValue,>({
       if (displayValue !== undefined) {
         return displayValue(value as unknown as TValue);
       }
-      return placeholder;
+      return placeholder ?? "--";
     }
-    return placeholder;
+    return placeholder ?? "--";
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild={true}>
-        <div
-          className={cn(
-            "flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50",
-            className
-          )}
-          aria-expanded={open}
+    <div className={cn("relative")}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild={true}>
+          <div
+            className={cn(
+              "flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50",
+              className
+            )}
+            aria-expanded={open}
+          >
+            {renderValue()}{" "}
+            <ChevronDownIcon className="ml-3 w-4 h-4 opacity-50" />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-full min-w-[var(--radix-popover-trigger-width)] p-0"
+          align="start"
         >
-          {renderValue()} <ChevronDownIcon className="ml-3 w-4 h-4" />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-full min-w-[var(--radix-popover-trigger-width)] p-0"
-        align="start"
-      >
-        <Command filter={filterFn} shouldFilter={shouldFilter}>
-          <CommandInput
-            placeholder={inputPlaceholder}
-            rootClassName={"px-2 h-10"}
-            autoFocus={true}
-            value={search}
-            onValueChange={onSearchChange}
-          />
-          <CommandList className="max-h-60 py-.5">
-            <CommandEmpty>{emptyState}</CommandEmpty>
-            <ComboboxContext.Provider
-              value={{ isSelected, onSelect: handleSelect }}
-            >
-              {children}
-            </ComboboxContext.Provider>
-          </CommandList>
-        </Command>
-      </PopoverContent>
+          <Command filter={filterFn} shouldFilter={shouldFilter}>
+            <CommandInput
+              placeholder={inputPlaceholder}
+              rootClassName={"px-1 h-8"}
+              autoFocus={true}
+              value={search}
+              onValueChange={onSearchChange}
+            />
+            <CommandList className="max-h-60 py-.5">
+              <CommandEmpty>{emptyState}</CommandEmpty>
+              <ComboboxContext.Provider
+                value={{ isSelected, onSelect: handleSelect }}
+              >
+                {children}
+              </ComboboxContext.Provider>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
       {multiple && chips && (
-        <div className="flex flex-col gap-1 items-start">
+        <div className={cn("flex flex-col gap-1 items-start", chipsClassName)}>
           {Array.isArray(value) &&
-            value.map((val) => (
-              <Badge key={String(val)} variant="secondary">
-                {displayValue?.(val) ?? String(val)}
-                <XCircle
-                  onClick={() => {
-                    handleSelect(val);
-                  }}
-                  className="w-3 h-3 opacity-50 hover:opacity-100 ml-1 cursor-pointer"
-                />
-              </Badge>
-            ))}
+            value.map((val) => {
+              if (!val) {
+                return null;
+              }
+              return (
+                <Badge key={String(val)} variant="secondary">
+                  {displayValue?.(val) ?? String(val)}
+                  <XCircle
+                    onClick={() => {
+                      handleSelect(val);
+                    }}
+                    className="w-3 h-3 opacity-50 hover:opacity-100 ml-1 cursor-pointer"
+                  />
+                </Badge>
+              );
+            })}
         </div>
       )}
-    </Popover>
+    </div>
   );
 };
 

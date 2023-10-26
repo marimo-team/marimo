@@ -126,7 +126,10 @@ export const DataFrameComponent = ({
             Code
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="transform" className="mt-1">
+        <TabsContent
+          value="transform"
+          className="mt-1 border-x border-t rounded-t"
+        >
           <TransformPanel
             initialValue={internalValue}
             columns={columns}
@@ -139,14 +142,17 @@ export const DataFrameComponent = ({
             getColumnValues={get_column_values}
           />
         </TabsContent>
-        <TabsContent value="code" className="mt-1">
+        <TabsContent
+          value="code"
+          className="mt-1 border-x border-t rounded-t overflow-hidden"
+        >
           <CodePanel dataframeName={dataframeName} transforms={value} />
         </TabsContent>
       </Tabs>
       {error && <ErrorBanner error={error} />}
       <LoadingDataTableComponent
         label={null}
-        className="rounded-b border"
+        className="rounded-b border-x border-b"
         data={url || ""}
         pageSize={5}
         pagination={true}
