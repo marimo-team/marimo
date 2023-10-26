@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { ChevronDownIcon, Check } from "lucide-react";
+import { ChevronDownIcon, Check, XCircle } from "lucide-react";
 import { createContext, useContext } from "react";
 import { cn } from "../../lib/utils";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
@@ -12,6 +12,7 @@ import {
 } from "./command";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Functions } from "../../utils/functions";
+import { Badge } from "./badge";
 
 interface ComboboxContextValue {
   isSelected: (value: unknown) => boolean;
@@ -35,6 +36,7 @@ interface ComboboxCommonProps<TValue> {
   onSearchChange?: (search: string) => void;
   emptyState?: React.ReactNode;
   className?: string;
+  keepPopoverOpenOnSelect?: boolean;
 }
 
 type ComboboxFilterProps =
@@ -50,12 +52,14 @@ type ComboboxFilterProps =
 type ComboboxValueProps<TValue> =
   | {
       multiple?: false;
+      chips?: false;
       value?: TValue | null;
       defaultValue?: TValue | null;
       onValueChange?(value: TValue | null): void;
     }
   | {
       multiple: true;
+      chips?: boolean;
       value?: TValue[] | null;
       defaultValue?: TValue[] | null;
       onValueChange?(value: TValue[] | null): void;
@@ -83,6 +87,8 @@ export const Combobox = <TValue,>({
   search,
   onSearchChange,
   emptyState = "Nothing found.",
+  chips = false,
+  keepPopoverOpenOnSelect = false,
 }: ComboboxProps<TValue>) => {
   const [open = false, setOpen] = useControllableState({
     prop: openProp,
@@ -123,10 +129,17 @@ export const Combobox = <TValue,>({
     }
 
     setValue(newValue);
-    setOpen(false);
+    if (!keepPopoverOpenOnSelect) {
+      setOpen(false);
+    }
   };
 
   const renderValue = (): string => {
+    // If we show chips, we don't want to change the placeholder
+    if (multiple && chips) {
+      return placeholder;
+    }
+
     if (value) {
       if (Array.isArray(value)) {
         if (value.length === 0) {
@@ -180,6 +193,22 @@ export const Combobox = <TValue,>({
           </CommandList>
         </Command>
       </PopoverContent>
+      {multiple && chips && (
+        <div className="flex flex-col gap-1 items-start">
+          {Array.isArray(value) &&
+            value.map((val) => (
+              <Badge key={String(val)} variant="secondary">
+                {displayValue?.(val) ?? String(val)}
+                <XCircle
+                  onClick={() => {
+                    handleSelect(val);
+                  }}
+                  className="w-3 h-3 opacity-50 hover:opacity-100 ml-1 cursor-pointer"
+                />
+              </Badge>
+            ))}
+        </div>
+      )}
     </Popover>
   );
 };

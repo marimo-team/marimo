@@ -65,6 +65,24 @@ export const Multiple = () => (
   </div>
 );
 
+export const MultipleWithChips = () => (
+  <div className="w-64 m-10">
+    <Combobox
+      placeholder="Select favorite frameworks"
+      displayValue={(framework: Framework) => framework.label}
+      multiple={true}
+      chips={true}
+      keepPopoverOpenOnSelect={true}
+    >
+      {frameworks.map((framework) => (
+        <ComboboxItem key={framework.value} value={framework}>
+          {framework.label}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  </div>
+);
+
 const OPTIONS = [
   "Apple",
   "Banana",
