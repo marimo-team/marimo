@@ -19,6 +19,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
+import { useThemeForPlugin } from "@/theme/useTheme";
 
 interface Data {
   spec: VegaLiteSpec;
@@ -132,6 +133,7 @@ const LoadedVegaComponent = ({
   fieldSelection,
   spec,
 }: VegaComponentProps<T>): JSX.Element => {
+  const { theme } = useThemeForPlugin();
   const vegaView = useRef<View>();
   const [error, setError] = useState<Error>();
 
@@ -202,6 +204,7 @@ const LoadedVegaComponent = ({
       )}
       <VegaLite
         spec={selectableSpec}
+        theme={theme === "dark" ? "dark" : undefined}
         actions={actions}
         signalListeners={signalListeners}
         onError={handleError}

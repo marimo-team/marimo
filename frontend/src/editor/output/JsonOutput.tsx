@@ -7,7 +7,7 @@ import { ImageOutput } from "./ImageOutput";
 import { TextOutput } from "./TextOutput";
 import { VideoOutput } from "./VideoOutput";
 import { logNever } from "../../utils/assertNever";
-import { useTheme } from "../../theme/useTheme";
+import { useThemeForPlugin } from "../../theme/useTheme";
 
 interface Props {
   /**
@@ -30,7 +30,7 @@ interface Props {
  */
 export const JsonOutput: React.FC<Props> = memo(
   ({ data, format = "auto", name = false, className }) => {
-    const { theme } = useTheme();
+    const { theme } = useThemeForPlugin();
     if (format === "auto") {
       format = inferBestFormat(data);
     }

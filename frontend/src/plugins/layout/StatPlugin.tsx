@@ -39,8 +39,8 @@ export const StatComponent: React.FC<Data> = ({
   return (
     <div
       className={cn(
-        "text-card-foreground bg-card",
-        bordered && "rounded-xl border shadow"
+        "text-card-foreground",
+        bordered && "rounded-xl border shadow bg-card"
       )}
     >
       {label && (

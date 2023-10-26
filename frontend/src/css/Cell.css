@@ -118,13 +118,13 @@
 }
 
 .tray:first-child .cm-editor {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
 }
 
 .tray:last-child .cm-editor {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
+  border-bottom-left-radius: 9px;
+  border-bottom-right-radius: 9px;
 }
 
 :root {
@@ -312,7 +312,6 @@
 .Cell:focus-within .cm-editor {
   box-shadow: none;
   border: 1px solid transparent;
-  border-radius: 0;
 }
 
 .Cell.published {

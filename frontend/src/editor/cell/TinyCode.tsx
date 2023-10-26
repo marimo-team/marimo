@@ -8,7 +8,7 @@ interface Props {
 export const TinyCode: React.FC<Props> = ({ code }) => {
   return (
     <div
-      className="text-gray-500 flex flex-col overflow-hidden"
+      className="text-muted-foreground flex flex-col overflow-hidden"
       style={{
         fontSize: "8px",
         lineHeight: "10px",
