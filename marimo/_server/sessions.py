@@ -332,8 +332,13 @@ class Session:
         if self.kernel_heartbeat.is_running():
             self.kernel_heartbeat.stop()
         if isinstance(self.kernel_task, mp.Process):
+            # type ignores:
             # guaranteed to be a multiprocessing Queue; annoying to assert
             # this, because mp.Queue appears to be a function
+            #
+            # don't care if queue still has things in it; don't make the
+            # child process wait for it to empty.
+            self.queue.cancel_join_thread()  # type: ignore
             self.queue.close()  # type: ignore
             if self.kernel_task.is_alive():
                 if (
@@ -343,6 +348,12 @@ class Session:
                     # since SIGTERM isn't handled on windows
                     os.kill(self.kernel_task.pid, signal.CTRL_BREAK_EVENT)
                 else:
+                    # TODO(akshayka): Might be able to remove this
+                    # and just rely on the fact that the kernel is a daemon
+                    # process (so will terminate after this process terminates)
+                    #
+                    # Explicitly terminate the process, in case something
+                    # prevents the server process from terminating ...
                     self.kernel_task.terminate()
             tornado.ioloop.IOLoop.current().remove_handler(
                 self.read_conn.fileno()

@@ -1023,6 +1023,8 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters()
 
+        SHUTTING_DOWN = False
+
         def interrupt_handler(signum: int, frame: Any) -> None:
             """Tries to interrupt the kernel."""
             del signum
@@ -1041,8 +1043,31 @@ def launch_kernel(
             del signum
             del frame
 
+            nonlocal SHUTTING_DOWN
+            if SHUTTING_DOWN:
+                # give previous SIGTERM a chance to quit ... makes
+                # sure this method is reentrant
+                return
+            SHUTTING_DOWN = True
+
             get_context().virtual_file_registry.shutdown()
-            sys.exit(0)
+            # Force this process to exit.
+            #
+            # We use os._exit() instead of sys.exit() because we don't want the
+            # child process to also run atexit handlers, which may result in
+            # undefined behavior. Using sys.exit() on Linux sometimes causes
+            # the parent process to hang on shutdown, leading to orphaned
+            # processes and port.
+            #
+            # TODO(akshayka): The Python docs say this method is appropriate
+            # for processes created with fork(), but they don't say anything
+            # about processes made with spawn. macOS and Windows default to
+            # spawn. If we have further issues with clean exits, we might
+            # investigate here.
+            #
+            # https://docs.python.org/3/library/os.html#os._exit
+            # https://www.unixguide.net/unix/programming/1.1.3.shtml
+            os._exit(0)
 
         signal.signal(signal.SIGINT, interrupt_handler)
 
