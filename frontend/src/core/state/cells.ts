@@ -15,6 +15,7 @@ import { store } from "./jotai";
 import { createReducer } from "../../utils/createReducer";
 import { arrayInsert, arrayDelete } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import { mergeOutlines } from "../dom/outline";
 
 /* The array of cells on the page, together with a history of
  * deleted cells to implement an "undo delete" action
@@ -422,6 +423,11 @@ export const cellErrors = atom((get) => {
     )
     .filter(Boolean);
   return errors;
+});
+
+export const notebookOutline = atom((get) => {
+  const outlines = get(cellsAtom).present.map((cell) => cell.outline);
+  return mergeOutlines(outlines);
 });
 
 export const cellErrorCount = atom((get) => get(cellErrors).length);

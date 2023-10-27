@@ -5,6 +5,7 @@ import {
   PanelLeftIcon,
   CircleEqualIcon,
   XCircleIcon,
+  ScrollTextIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChromeActions, useChromeState } from "../state";
@@ -37,6 +38,13 @@ export const Footer: React.FC = () => {
         onClick={() => openApplication("variables")}
       >
         <CircleEqualIcon className={cn("h-4 w-4")} />
+      </FooterItem>
+      <FooterItem
+        tooltip="View outline"
+        selected={selectedPanel === "outline"}
+        onClick={() => openApplication("outline")}
+      >
+        <ScrollTextIcon className={cn("h-4 w-4")} />
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem

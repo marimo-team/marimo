@@ -17,6 +17,7 @@ import { useCellIds } from "@/core/state/cells";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { ErrorsPanel } from "../panels/error-panel";
+import { OutlinePanel } from "../panels/outline-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -79,6 +80,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           variables={variables}
         />
       )}
+      {selectedPanel === "outline" && <OutlinePanel />}
     </div>
   );
 

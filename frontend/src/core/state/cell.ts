@@ -3,6 +3,7 @@ import { logNever } from "@/utils/assertNever";
 import { CellMessage } from "../kernel/messages";
 import { CellState } from "../model/cells";
 import { collapseConsoleOutputs } from "../model/collapseConsoleOutputs";
+import { parseOutline } from "../dom/outline";
 
 export function transitionCell(
   cell: CellState,
@@ -86,6 +87,8 @@ export function transitionCell(
       : collapseConsoleOutputs([...cell.consoleOutputs, message.console]);
   }
   nextCell.consoleOutputs = consoleOutputs;
+  // Derive outline from output
+  nextCell.outline = parseOutline(nextCell.output);
   return nextCell;
 }
 
