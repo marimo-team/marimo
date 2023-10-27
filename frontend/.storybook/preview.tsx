@@ -5,6 +5,7 @@ import "./sb.css";
 import "tailwindcss/tailwind.css";
 import { useEffect } from "react";
 import { cn } from "../src/lib/utils";
+import { TooltipProvider } from "../src/components/ui/tooltip";
 
 const withTheme: Decorator = (Story, context) => {
   const theme = context.globals.theme || "light";
@@ -15,7 +16,9 @@ const withTheme: Decorator = (Story, context) => {
 
   return (
     <div className={cn(theme, "p-5")}>
-      <Story />
+      <TooltipProvider>
+        <Story />
+      </TooltipProvider>
     </div>
   );
 };

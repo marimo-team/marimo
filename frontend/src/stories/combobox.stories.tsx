@@ -65,6 +65,57 @@ export const Multiple = () => (
   </div>
 );
 
+export const MultipleWithChips = () => (
+  <div className="w-64 m-10">
+    <Combobox
+      placeholder="Select favorite frameworks"
+      displayValue={(framework: Framework) => framework.label}
+      multiple={true}
+      chips={true}
+      keepPopoverOpenOnSelect={true}
+    >
+      {frameworks.map((framework) => (
+        <ComboboxItem key={framework.value} value={framework}>
+          {framework.label}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  </div>
+);
+
+const OPTIONS = [
+  "Apple",
+  "Banana",
+  "Blueberry",
+  "Grapes",
+  "Pineapple",
+  "Aubergine",
+  "Broccoli",
+  "Carrot",
+  "Courgette",
+  "Leek",
+  "Beef",
+  "Chicken",
+  "Lamb",
+  "Pork",
+] as const;
+
+export const Large = () => (
+  <div className="w-64 m-10">
+    <Combobox
+      placeholder="Select favorite frameworks"
+      displayValue={(option: string) => option}
+      multiple={true}
+    >
+      {OPTIONS.map((option) => (
+        <ComboboxItem key={option} value={option}>
+          {option}
+        </ComboboxItem>
+      ))}
+    </Combobox>
+  </div>
+);
+
 export const WithCustomFilterFn = () => (
   <div className="w-64 m-10">
     <Combobox

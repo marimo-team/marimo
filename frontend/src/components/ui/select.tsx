@@ -1,7 +1,13 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { CheckIcon, ChevronDown } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDown,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  XIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,8 +19,10 @@ const SelectValue = SelectPrimitive.Value;
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
+    onClear?: () => void;
+  }
+>(({ className, children, onClear, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
@@ -25,7 +33,19 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild={true}>
-      <ChevronDown className="h-4 w-4 opacity-50" />
+      {onClear ? (
+        <span
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClear();
+          }}
+        >
+          <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+        </span>
+      ) : (
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      )}
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
@@ -47,6 +67,10 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
+      <SelectPrimitive.ScrollUpButton className="flex items-center justify-center h-[20px] bg-white text-muted-foreground cursor-default">
+        <ChevronUpIcon className="h-4 w-4" />
+      </SelectPrimitive.ScrollUpButton>
+
       <SelectPrimitive.Viewport
         className={cn(
           "p-1",
@@ -56,6 +80,10 @@ const SelectContent = React.forwardRef<
       >
         {children}
       </SelectPrimitive.Viewport>
+
+      <SelectPrimitive.ScrollDownButton className="flex items-center justify-center h-[20px] bg-white text-muted-foreground cursor-default">
+        <ChevronDownIcon className="h-4 w-4" />
+      </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
