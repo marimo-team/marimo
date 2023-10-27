@@ -51,6 +51,9 @@ const props: CellProps = {
       autosave_delay: 1000,
       format_on_save: false,
     },
+    display: {
+      theme: "light",
+    },
     runtime: {
       auto_instantiate: true,
     },
