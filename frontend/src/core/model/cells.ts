@@ -4,6 +4,8 @@ import { OutputMessage } from "../kernel/messages";
 import { SerializedEditorState } from "../codemirror/types";
 import { CellHandle } from "../../editor/Cell";
 import { CellId } from "./ids";
+import { Outline } from "./outline";
+import { parseOutline } from "../dom/outline";
 
 export const DEFAULT_CELL_NAME = "__";
 
@@ -50,6 +52,7 @@ export function createCell({
     config: config,
     name: name,
     output: output,
+    outline: parseOutline(output),
     code: code,
     status: status,
     edited: edited,
@@ -73,6 +76,8 @@ export interface CellState {
   code: string;
   /** a message encoding the cell's output */
   output: OutputMessage | null;
+  /** TOC outline */
+  outline: Outline | null;
   /** messages encoding the cell's console outputs. */
   consoleOutputs: OutputMessage[];
   /** current status of the cell */

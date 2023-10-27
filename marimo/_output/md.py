@@ -44,6 +44,9 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
             "pymdownx.tilde",
             # Better code blocks
             "pymdownx.superfences",
+            # Table of contents
+            # This adds ids to the HTML headers
+            "toc",
         ],
         extension_configs=extension_configs,
     ).strip()

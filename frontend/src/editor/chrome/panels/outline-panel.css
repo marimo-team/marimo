@@ -1,0 +1,4 @@
+.outline-item-highlight {
+  text-decoration: underline;
+  @apply decoration-primary;
+}

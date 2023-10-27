@@ -11,6 +11,7 @@ exports[`cell reducer > can run a stale cell 1`] = `
   "key": "1",
   "lastCodeRun": "mo.slider()",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -34,6 +35,7 @@ exports[`cell reducer > can run a stale cell 2`] = `
   "key": "1",
   "lastCodeRun": "mo.slider()",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -57,6 +59,7 @@ exports[`cell reducer > can run a stopped cell 1`] = `
   "key": "0",
   "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -80,6 +83,7 @@ exports[`cell reducer > can run a stopped cell 2`] = `
   "key": "0",
   "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -103,6 +107,7 @@ exports[`cell reducer > can run a stopped cell 3`] = `
   "key": "0",
   "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "marimo-error",
     "data": [
@@ -137,6 +142,7 @@ exports[`cell reducer > can run a stopped cell 4`] = `
   "key": "0",
   "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "marimo-error",
     "data": [
@@ -171,6 +177,7 @@ exports[`cell reducer > can run a stopped cell 5`] = `
   "key": "0",
   "lastCodeRun": "mo.md('This has an ancestor that was stopped')",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -194,6 +201,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
   "key": "0",
   "lastCodeRun": null,
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -217,6 +225,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
   "key": "0",
   "lastCodeRun": null,
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -240,6 +249,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -263,6 +273,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -286,6 +297,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -316,6 +328,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": null,
   "ref": {
     "current": null,
@@ -346,6 +359,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "output",
     "data": "ok",
@@ -382,6 +396,7 @@ import numpy",
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "output",
     "data": "ok",
@@ -417,6 +432,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "output",
     "data": "ok",
@@ -453,6 +469,7 @@ import numpy",
   "key": "0",
   "lastCodeRun": "import marimo as mo",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "output",
     "data": "ok",
@@ -490,6 +507,7 @@ import numpy",
   "lastCodeRun": "import marimo as mo
 import numpy",
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "marimo-error",
     "data": [
@@ -532,6 +550,7 @@ import numpy",
   "key": "0",
   "lastCodeRun": null,
   "name": "__",
+  "outline": null,
   "output": {
     "channel": "marimo-error",
     "data": [
