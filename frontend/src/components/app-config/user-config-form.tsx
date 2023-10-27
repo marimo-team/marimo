@@ -16,7 +16,6 @@ import { Input } from "../ui/input";
 import { toast } from "../ui/use-toast";
 import { saveUserConfig } from "../../core/network/requests";
 import { useUserConfig } from "../../core/state/config";
-import { ThemeToggle } from "./theme-toggle";
 import { NativeSelect } from "../ui/native-select";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
@@ -170,7 +169,32 @@ export const UserConfigForm: React.FC = () => {
             )}
           />
         </div>
-        <ThemeToggle />
+        <div className="flex flex-col gap-3">
+          <SettingSubtitle>Display</SettingSubtitle>
+          <FormField
+            control={form.control}
+            name="display.theme"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value === "dark"}
+                    onCheckedChange={(checked) => {
+                      return field.onChange(
+                        checked === true ? "dark" : "light"
+                      );
+                    }}
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">
+                  {/* Spooky mode in October */}
+                  {new Date().getMonth() === 9 ? "👻 " : undefined}
+                  Dark mode
+                </FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
         <div className="flex flex-col gap-3">
           <SettingSubtitle>Runtime</SettingSubtitle>
           <FormField

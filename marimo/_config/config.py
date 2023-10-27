@@ -78,6 +78,18 @@ class RuntimeConfig(TypedDict, total=False):
 
 
 @mddoc
+class DisplayConfig(TypedDict, total=False):
+    """Configuration for display.
+
+    **Keys.**
+
+    - `theme`: one of `"light"` or `"dark"`
+    """
+
+    theme: Literal["light", "dark"]
+
+
+@mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
 
@@ -108,6 +120,7 @@ class MarimoConfig(TypedDict, total=False):
     save: SaveConfig
     keymap: KeymapConfig
     runtime: RuntimeConfig
+    display: DisplayConfig
     experimental: Dict[str, Any]
 
 
@@ -120,6 +133,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},
+    "display": {"theme": "light"},
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 
