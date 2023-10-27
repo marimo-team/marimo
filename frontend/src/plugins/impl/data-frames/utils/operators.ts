@@ -8,6 +8,14 @@ const Schema = {
     .string()
     .min(1)
     .describe(FieldOptions.of({ label: "Value" })),
+  stringColumnValues: z
+    .string()
+    .min(1)
+    .describe(FieldOptions.of({ label: "Value", special: "column_values" })),
+  stringMultiColumnValues: z
+    .array(z.string())
+    .min(1)
+    .describe(FieldOptions.of({ label: "Value", special: "column_values" })),
   date: z.coerce.date().describe(FieldOptions.of({ label: "Value" })),
   stringArray: z
     .array(z.string())
@@ -49,13 +57,13 @@ export const DATE_OPERATORS = {
 };
 
 export const STRING_OPERATORS = {
-  equals: [Schema.string],
-  does_not_equal: [Schema.string],
+  equals: [Schema.stringColumnValues],
+  does_not_equal: [Schema.stringColumnValues],
   contains: [Schema.string],
   regex: [Schema.string],
   starts_with: [Schema.string],
   ends_with: [Schema.string],
-  in: [Schema.stringArray],
+  in: [Schema.stringMultiColumnValues],
 };
 
 export const ALL_OPERATORS = {

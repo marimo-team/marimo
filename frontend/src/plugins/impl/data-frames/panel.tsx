@@ -34,7 +34,10 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { ColumnContext } from "@/plugins/impl/data-frames/forms/context";
+import {
+  ColumnFetchValuesContext,
+  ColumnInfoContext,
+} from "@/plugins/impl/data-frames/forms/context";
 import useEvent from "react-use-event-hook";
 import { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
@@ -45,6 +48,10 @@ interface Props {
   initialValue: Transformations;
   onChange: (value: Transformations) => void;
   onInvalidChange: (value: Transformations) => void;
+  getColumnValues: (req: { column: string }) => Promise<{
+    values: unknown[];
+    too_many_values: boolean;
+  }>;
 }
 
 export const TransformPanel: React.FC<Props> = ({
@@ -52,6 +59,7 @@ export const TransformPanel: React.FC<Props> = ({
   columns,
   onChange,
   onInvalidChange,
+  getColumnValues,
 }) => {
   const form = useForm<z.infer<typeof TransformationsSchema>>({
     resolver: zodResolver(TransformationsSchema),
@@ -113,46 +121,48 @@ export const TransformPanel: React.FC<Props> = ({
   };
 
   return (
-    <ColumnContext.Provider value={effectiveColumns}>
-      <form
-        onSubmit={(e) => e.preventDefault()}
-        className="flex flex-row max-h-[400px] overflow-hidden bg-white border rounded-t"
-      >
-        <Sidebar
-          items={form.watch("transforms")}
-          selected={selectedTransform}
-          onSelect={(index) => {
-            setSelectedTransform(index);
-          }}
-          onDelete={(index) => {
-            transformsField.remove(index);
-            const indexBefore = index - 1;
-            setSelectedTransform(Math.max(indexBefore, 0));
-          }}
-          onAdd={handleAddTransform}
-        />
-        <div className="flex flex-col flex-1 p-4 overflow-auto min-h-[200px] border-l">
-          {selectedTransform !== undefined && selectedTransformSchema && (
-            <ZodForm
-              key={`transforms.${selectedTransform}`}
-              form={form}
-              schema={selectedTransformSchema}
-              path={`transforms.${selectedTransform}`}
-            />
-          )}
-          {(selectedTransform === undefined || !selectedTransformSchema) && (
-            <div className="flex flex-col items-center justify-center flex-grow gap-3">
-              <MousePointerSquareDashedIcon className="w-8 h-8  text-muted-foreground" />
-              <AddTransformDropdown onAdd={handleAddTransform}>
-                <Button variant="text" size="xs">
-                  <div className="text-sm">Select a transform to begin</div>
-                </Button>
-              </AddTransformDropdown>
-            </div>
-          )}
-        </div>
-      </form>
-    </ColumnContext.Provider>
+    <ColumnInfoContext.Provider value={effectiveColumns}>
+      <ColumnFetchValuesContext.Provider value={getColumnValues}>
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="flex flex-row max-h-[400px] overflow-hidden bg-background"
+        >
+          <Sidebar
+            items={form.watch("transforms")}
+            selected={selectedTransform}
+            onSelect={(index) => {
+              setSelectedTransform(index);
+            }}
+            onDelete={(index) => {
+              transformsField.remove(index);
+              const indexBefore = index - 1;
+              setSelectedTransform(Math.max(indexBefore, 0));
+            }}
+            onAdd={handleAddTransform}
+          />
+          <div className="flex flex-col flex-1 p-4 overflow-auto min-h-[200px] border-l">
+            {selectedTransform !== undefined && selectedTransformSchema && (
+              <ZodForm
+                key={`transforms.${selectedTransform}`}
+                form={form}
+                schema={selectedTransformSchema}
+                path={`transforms.${selectedTransform}`}
+              />
+            )}
+            {(selectedTransform === undefined || !selectedTransformSchema) && (
+              <div className="flex flex-col items-center justify-center flex-grow gap-3">
+                <MousePointerSquareDashedIcon className="w-8 h-8  text-muted-foreground" />
+                <AddTransformDropdown onAdd={handleAddTransform}>
+                  <Button variant="text" size="xs">
+                    <div className="text-sm">Select a transform to begin</div>
+                  </Button>
+                </AddTransformDropdown>
+              </div>
+            )}
+          </div>
+        </form>
+      </ColumnFetchValuesContext.Provider>
+    </ColumnInfoContext.Provider>
   );
 };
 
@@ -203,7 +213,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
-      <div className="flex flex-row flex-shrink-0 border-t">
+      <div className="flex flex-row flex-shrink-0">
         <AddTransformDropdown onAdd={onAdd}>
           <Button
             variant="text"

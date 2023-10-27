@@ -33,21 +33,15 @@ export const SwitchableMultiSelect: React.FC<Props> = ({
   comboBoxClassName,
 }) => {
   const [showTextArea, setShowTextArea] = useState(false);
-  const valueAsArray = Array.isArray(value) ? value : [value];
+  const valueAsArray = ensureStringArray(value);
 
   const renderInput = () => {
     if (showTextArea) {
       return (
-        <Textarea
-          value={valueAsArray.join(DELIMINATOR)}
+        <TextAreaMultiSelect
+          value={valueAsArray}
           className={textAreaClassName}
-          onChange={(e) => {
-            if (e.target.value === "") {
-              onChange([]);
-              return;
-            }
-            onChange(e.target.value.split(DELIMINATOR));
-          }}
+          onChange={onChange}
           placeholder={
             placeholder ? `${placeholder}: one per line` : "One value per line"
           }
@@ -59,12 +53,13 @@ export const SwitchableMultiSelect: React.FC<Props> = ({
       <Combobox
         placeholder={placeholder}
         displayValue={(option: string) => option}
-        className={comboBoxClassName}
+        className={cn("w-full max-w-[400px]", comboBoxClassName)}
         multiple={true}
         value={valueAsArray}
         onValueChange={onChange}
         keepPopoverOpenOnSelect={true}
         chips={true}
+        chipsClassName="flex-row flex-wrap min-w-[210px]"
       >
         {options.map((option) => (
           <ComboboxItem key={option} value={option}>
@@ -92,3 +87,46 @@ export const SwitchableMultiSelect: React.FC<Props> = ({
     </div>
   );
 };
+
+/**
+ * Treat a textarea as a multi-select,
+ * where each line is a value.
+ */
+export const TextAreaMultiSelect: React.FC<{
+  value: string[];
+  onChange: (value: string[]) => void;
+  className?: string;
+  placeholder?: string;
+}> = (props) => {
+  const { className, value, onChange, placeholder } = props;
+  const valueAsArray = ensureStringArray(value);
+  return (
+    <Textarea
+      value={valueAsArray.join(DELIMINATOR)}
+      className={className}
+      onChange={(e) => {
+        if (e.target.value === "") {
+          onChange([]);
+          return;
+        }
+        onChange(e.target.value.split(DELIMINATOR));
+      }}
+      placeholder={
+        placeholder ? `${placeholder}: one per line` : "One value per line"
+      }
+    />
+  );
+};
+
+export function ensureStringArray<T extends string>(
+  value: T | T[] | null | undefined
+): T[] {
+  if (value == null) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [value].filter((v) => v != null || v !== "");
+}

@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /**
  * Arguments for a data table
@@ -41,6 +42,10 @@ type PluginFunctions = {
   get_dataframe: (req: {}) => Promise<{
     url: string;
     row_headers: Array<[string, string[]]>;
+  }>;
+  get_column_values: (req: { column: string }) => Promise<{
+    values: unknown[];
+    too_many_values: boolean;
   }>;
 };
 
@@ -66,14 +71,22 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
       })
     ),
+    get_column_values: rpc.input(z.object({ column: z.string() })).output(
+      z.object({
+        values: z.array(z.any()),
+        too_many_values: z.boolean(),
+      })
+    ),
   })
   .renderer((props) => (
-    <DataFrameComponent
-      {...props.data}
-      {...props.functions}
-      value={props.value}
-      setValue={props.setValue}
-    />
+    <TooltipProvider>
+      <DataFrameComponent
+        {...props.data}
+        {...props.functions}
+        value={props.value}
+        setValue={props.setValue}
+      />
+    </TooltipProvider>
   ));
 
 interface DataTableProps extends Data, PluginFunctions {
@@ -91,6 +104,7 @@ export const DataFrameComponent = ({
   value,
   setValue,
   get_dataframe,
+  get_column_values,
 }: DataTableProps): JSX.Element => {
   const { data, error } = useAsyncData(
     () => get_dataframe({}),
@@ -115,7 +129,10 @@ export const DataFrameComponent = ({
             Code
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="transform" className="mt-1">
+        <TabsContent
+          value="transform"
+          className="mt-1 border-x border-t rounded-t"
+        >
           <TransformPanel
             initialValue={internalValue}
             columns={columns}
@@ -125,16 +142,20 @@ export const DataFrameComponent = ({
               setInternalValue(v);
             }}
             onInvalidChange={setInternalValue}
+            getColumnValues={get_column_values}
           />
         </TabsContent>
-        <TabsContent value="code" className="mt-1">
+        <TabsContent
+          value="code"
+          className="mt-1 border-x border-t rounded-t overflow-hidden"
+        >
           <CodePanel dataframeName={dataframeName} transforms={value} />
         </TabsContent>
       </Tabs>
       {error && <ErrorBanner error={error} />}
       <LoadingDataTableComponent
         label={null}
-        className="rounded-b border"
+        className="rounded-b border-x border-b"
         data={url || ""}
         pageSize={5}
         pagination={true}

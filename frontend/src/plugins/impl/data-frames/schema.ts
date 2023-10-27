@@ -19,7 +19,7 @@ const column_id = z
 const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
   .min(1, "At least one column is required")
-  .default([""])
+  .default([])
   .describe(FieldOptions.of({ label: "Columns" }));
 
 const ColumnConversionTransformSchema = z
@@ -112,6 +112,7 @@ const AggregateTransformSchema = z
     column_ids: column_id_array,
     aggregations: z
       .array(z.enum(AGGREGATION_FNS))
+      .min(1, "At least one aggregation is required")
       .default(["count"])
       .describe(FieldOptions.of({ label: "Aggregations" })),
   })

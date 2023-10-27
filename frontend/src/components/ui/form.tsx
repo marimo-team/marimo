@@ -13,7 +13,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip } from "@/components/ui/tooltip";
 import { AlertCircleIcon } from "lucide-react";
 
 const Form = FormProvider;
@@ -187,11 +187,9 @@ const FormMessageTooltip = ({ className }: { className: string }) => {
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip content={body}>
-        <AlertCircleIcon className={cn("stroke-[1.8px]", className)} />
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip content={body}>
+      <AlertCircleIcon className={cn("stroke-[1.8px]", className)} />
+    </Tooltip>
   );
 };
 FormMessageTooltip.displayName = "FormMessageTooltip";
