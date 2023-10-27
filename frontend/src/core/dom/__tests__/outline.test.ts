@@ -42,6 +42,73 @@ describe("parseOutline", () => {
     `);
   });
 
+  it("can parse html outline with duplicate nested headings", () => {
+    const html = `
+    <span class="markdown">
+      <h1 id="experiment-1">Experiment 1</h1>
+      <h2 id="setup">Setup</h2>
+      <h2 id="instructions">Instructions</h2>
+      <h1 id="experiment-2">Experiment 2</h1>
+      <h2 id="setup">Setup</h2>
+      <h2 id="instructions">Instructions</h2>
+      <h1 id="ack">Acknowledgements</h1>
+      <h3 id="marimo">marimo</h1>
+    </span>
+    `;
+    const outline = parseOutline({
+      mimetype: "text/html",
+      timestamp: 0,
+      channel: "output",
+      data: html,
+    });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "id": "experiment-1",
+            "level": 1,
+            "name": "Experiment 1",
+          },
+          {
+            "id": "setup",
+            "level": 2,
+            "name": "Setup",
+          },
+          {
+            "id": "instructions",
+            "level": 2,
+            "name": "Instructions",
+          },
+          {
+            "id": "experiment-2",
+            "level": 1,
+            "name": "Experiment 2",
+          },
+          {
+            "id": "setup",
+            "level": 2,
+            "name": "Setup",
+          },
+          {
+            "id": "instructions",
+            "level": 2,
+            "name": "Instructions",
+          },
+          {
+            "id": "ack",
+            "level": 1,
+            "name": "Acknowledgements",
+          },
+          {
+            "id": "marimo",
+            "level": 3,
+            "name": "marimo",
+          },
+        ],
+      }
+    `);
+  });
+
   it("can handle non-html outline", () => {
     const html = "foo";
     const outline = parseOutline({

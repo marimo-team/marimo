@@ -19,8 +19,10 @@ export const OutlinePanel: React.FC = () => {
     );
   }
 
-  const handleGoToItem = (id: string) => {
-    const el = document.getElementById(id);
+  const handleGoToItem = (id: string, index: number) => {
+    // Selectors may be duplicated, so we need to use querySelectorAll
+    const elems = document.querySelectorAll(`#${id}`);
+    const el = elems[index];
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -32,23 +34,31 @@ export const OutlinePanel: React.FC = () => {
     }
   };
 
+  // Map of selector to its occurrences
+  const seen = new Map<string, number>();
   return (
     <div className="flex flex-col overflow-auto py-4 pl-2">
-      {outline.items.map((item) => (
-        <div
-          key={item.id}
-          className={cn(
-            "px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l",
-            item.level === 1 && "font-semibold",
-            item.level === 2 && "ml-3",
-            item.level === 3 && "ml-6",
-            item.level === 4 && "ml-9"
-          )}
-          onClick={() => handleGoToItem(item.id)}
-        >
-          {item.name}
-        </div>
-      ))}
+      {outline.items.map((item) => {
+        // Keep track of how many times we've seen this selector
+        const occurrences = seen.get(item.id) ?? 0;
+        seen.set(item.id, occurrences + 1);
+
+        return (
+          <div
+            key={item.id}
+            className={cn(
+              "px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l",
+              item.level === 1 && "font-semibold",
+              item.level === 2 && "ml-3",
+              item.level === 3 && "ml-6",
+              item.level === 4 && "ml-9"
+            )}
+            onClick={() => handleGoToItem(item.id, occurrences)}
+          >
+            {item.name}
+          </div>
+        );
+      })}
     </div>
   );
 };
