@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.25"
+__generated_with = "0.1.39"
 app = marimo.App(width="full")
 
 
@@ -23,6 +22,21 @@ def __(mo):
     )
     size
     return size,
+
+
+@app.cell
+def __(alt, flights, mo):
+    scatter = mo.ui.altair_chart(
+        alt.Chart(flights).mark_point().encode(x="delay:Q", y="distance:Q")
+    )
+    scatter
+    return scatter,
+
+
+@app.cell
+def __(scatter):
+    scatter.value.head()
+    return
 
 
 @app.cell
