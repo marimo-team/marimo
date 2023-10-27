@@ -27,9 +27,13 @@ export const UserConfigSchema = z
         auto_instantiate: z.boolean(),
       })
       .default({ auto_instantiate: true }),
+    display: z
+      .object({
+        theme: z.enum(["light", "dark"]).default("light"),
+      })
+      .default({ theme: "light" }),
     experimental: z
       .object({
-        theming: z.boolean().optional(),
         layouts: z.boolean().optional(),
       })
       // Pass through so that we don't remove any extra keys that the user has added.
