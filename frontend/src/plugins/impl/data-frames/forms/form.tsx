@@ -951,13 +951,10 @@ const ColumnValuesFormField = ({
     return fetchValues({ column });
   }, [column]);
 
-  if (loading) {
-    return null;
-  }
-
   const options = data?.values || [];
 
-  if (options.length === 0) {
+  // loaded with no options
+  if (options.length === 0 && !loading) {
     return <StringFormField schema={schema} form={form} path={path} />;
   }
 
@@ -992,11 +989,8 @@ const MultiColumnValuesFormField = ({
 
   const options = data?.values || [];
 
-  if (loading) {
-    return null;
-  }
-
-  if (options.length === 0) {
+  // loaded with no options
+  if (options.length === 0 && !loading) {
     return <MultiStringFormField schema={schema} form={form} path={path} />;
   }
 
