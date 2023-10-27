@@ -104,7 +104,7 @@
     --popover: 151 5.5% 15.2%; /* sage-3 */
     --popover-foreground: 155 5% 68.3%; /* sage-11 */
     --card: 151 5.5% 15.2%; /* sage-3 */
-    --card-foreground: 155 5% 68.3%; /* sage-11 */
+    --card-foreground: 155 5% 76.3%; /* sage-11, modified */
     --border: 153 3.7% 24.2%; /* sage-6 */
     --input: 154 3.3% 28.7%; /* sage-7 */
     --primary: 192 59.8% 39%; /* cyan-8 */
@@ -115,6 +115,47 @@
     --destructive-foreground: 210 40% 98%; /* red-1 */
     --accent: 192 56.6% 26.5%; /* cyan-7 */
     --accent-foreground: 190 80% 84%; /* cyan-12 */
+
+    --link: 211 90% 62% /* blue-11 */;
+    --link-visited: 272 51% 74% /* purple-9 */;
+
+    /* Base shadows. */
+    --base-shadow: hsl(0deg 0% 15% / 60%);
+    --base-shadow-darker: hsl(0deg 0% 50% / 60%);
+
+    /* Fuzzy shadows. */
+    --shadow-xxs: 0px 0px 2px 0px var(--base-shadow-darker);
+    --shadow-xs: 1px 1px 2px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --shadow-sm: 2px 2px 2px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --shadow-md: 4px 4px 4px 0px var(--base-shadow),
+      0 0px 4px 0px hsl(0deg 0% 40% / 50%);
+    --shadow-lg: 5px 6px 4px 0px var(--base-shadow),
+      0 0px 4px 0px hsl(0deg 0% 25% / 50%);
+    --shadow-xl: 8px 9px 4px 0px var(--base-shadow),
+      0 0px 6px 0px hsl(0deg 0% 15% / 50%);
+
+    /* Shadow states. */
+    --stale-color: hsl(42deg 56% 44% / 75%);
+    --light-shadow: 2px 2px 0px 0px var(--base-shadow),
+      0px 0px 2px 0px hsl(0deg 0% 75% / 50%);
+    --light-shadow-stale: 4px 4px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --medium-shadow: 4px 4px 0px 0px var(--base-shadow),
+      0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
+    --medium-shadow-stale: 6px 6px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --light-shadow-error: 4px 4px 0px 0px var(--red-5),
+      0px 0px 2px 0px var(--red-5);
+    --medium-shadow-error: 6px 6px 0px 0px var(--red-5),
+      0px 0px 2px 0px var(--red-5);
+    --heavy-shadow: 5px 6px 0px 0px var(--base-shadow),
+      0px 0px 4px 0px hsl(0deg 0% 100% / 50%);
+    --heavy-shadow-stale: 7px 8px 0px 0px var(--stale-color),
+      0px 0px 4px 0px var(--stale-color);
+    --heavy-shadow-error: 7px 8px 0px 0px var(--red-5),
+      0px 0px 2px 0px var(--red-5);
   }
 }
 

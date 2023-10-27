@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import Cookies from "js-cookie";
 import { atomWithStorage } from "jotai/utils";
 import { SyncStorage } from "jotai/vanilla/utils/atomWithStorage";
+import { useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
@@ -54,4 +55,19 @@ export function getTheme(): Theme {
     return store.get(themeAtom);
   }
   return "light";
+}
+
+/**
+ * Plugins are in a different react tree, so we cannot use useAtom as it looks
+ * for an existing Provider. Instead we need to subscribe to the atom directly.
+ */
+export function useThemeForPlugin() {
+  const [theme, setTheme] = useState(getTheme());
+  useEffect(() => {
+    return store.sub(themeAtom, () => {
+      setTheme(getTheme());
+    });
+  }, []);
+
+  return { theme };
 }

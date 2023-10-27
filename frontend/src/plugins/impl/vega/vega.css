@@ -11,3 +11,7 @@ div:has(> marimo-ui-element > marimo-vega) {
   flex: 1;
   min-width: 450px;
 }
+
+.vega-embed canvas {
+  @apply rounded-md;
+}

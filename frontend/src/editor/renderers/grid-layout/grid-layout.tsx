@@ -254,7 +254,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
                 });
                 e.dataTransfer.setData("text/plain", "");
               }}
-              className="droppable-element bg-white border-border border overflow-hidden p-2 rounded flex-shrink-0"
+              className="droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0"
             >
               <GridCell
                 code={cell.code}

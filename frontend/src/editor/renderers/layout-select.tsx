@@ -29,7 +29,7 @@ export const LayoutSelect: React.FC = () => {
       onValueChange={(v) => setLayoutType(v as LayoutType)}
     >
       <SelectTrigger
-        className="min-w-[110px] border-border"
+        className="min-w-[110px] border-border bg-background"
         data-testid="layout-select"
       >
         <SelectValue placeholder="Select a view" />
