@@ -845,7 +845,7 @@ const SelectFormField = ({
                     );
                   })}
                   {options.length === 0 && (
-                    <SelectItem disabled={true} value={""}>
+                    <SelectItem disabled={true} value="--">
                       No options
                     </SelectItem>
                   )}
@@ -945,6 +945,9 @@ const ColumnValuesFormField = ({
   form: UseFormReturn<any>;
   path: Path<any>;
 }) => {
+  const { label, description, placeholder } = FieldOptions.parse(
+    schema._def.description
+  );
   const column = useContext(ColumnNameContext);
   const fetchValues = useContext(ColumnFetchValuesContext);
   const { data, loading } = useAsyncData(() => {
@@ -958,12 +961,38 @@ const ColumnValuesFormField = ({
     return <StringFormField schema={schema} form={form} path={path} />;
   }
 
+  const optionsAsStrings = options.map(String);
   return (
-    <SelectFormField
-      schema={schema}
-      form={form}
-      path={path}
-      options={options.map(String)}
+    <FormField
+      control={form.control}
+      name={path}
+      render={({ field }) => {
+        return (
+          <FormItem>
+            <FormLabel className="whitespace-pre">{label}</FormLabel>
+            <FormDescription>{description}</FormDescription>
+            <FormControl>
+              <Combobox
+                className="min-w-[210px]"
+                placeholder={placeholder}
+                multiple={false}
+                displayValue={(option: string) => option}
+                value={
+                  Array.isArray(field.value) ? field.value[0] : field.value
+                }
+                onValueChange={field.onChange}
+              >
+                {optionsAsStrings.map((option) => (
+                  <ComboboxItem key={option} value={option}>
+                    {option}
+                  </ComboboxItem>
+                ))}
+              </Combobox>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        );
+      }}
     />
   );
 };
