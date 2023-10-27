@@ -161,9 +161,6 @@ dependencies:
   cmdk:
     specifier: ^0.2.0
     version: 0.2.0(@types/react@18.2.31)(react-dom@18.2.0)(react@18.2.0)
-  codemirror:
-    specifier: ^6.0.1
-    version: 6.0.1(@lezer/common@1.1.0)
   codemirror-extension-inline-suggestion:
     specifier: ^0.0.1
     version: 0.0.1(@codemirror/state@6.3.1)(@codemirror/view@6.21.3)

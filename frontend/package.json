@@ -63,7 +63,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^1.2.1",
     "cmdk": "^0.2.0",
-    "codemirror": "^6.0.1",
     "codemirror-extension-inline-suggestion": "^0.0.1",
     "codemirror-languageserver": "^1.11.0",
     "cssnano": "^6.0.1",
