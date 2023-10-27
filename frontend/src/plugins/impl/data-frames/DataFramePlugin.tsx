@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 /**
  * Arguments for a data table
@@ -78,12 +79,14 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
     ),
   })
   .renderer((props) => (
-    <DataFrameComponent
-      {...props.data}
-      {...props.functions}
-      value={props.value}
-      setValue={props.setValue}
-    />
+    <TooltipProvider>
+      <DataFrameComponent
+        {...props.data}
+        {...props.functions}
+        value={props.value}
+        setValue={props.setValue}
+      />
+    </TooltipProvider>
   ));
 
 interface DataTableProps extends Data, PluginFunctions {
