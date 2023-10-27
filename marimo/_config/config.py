@@ -89,6 +89,18 @@ class DisplayConfig(TypedDict, total=False):
     theme: Literal["light", "dark"]
 
 
+class BrowserConfig(TypedDict, total=False):
+    """Settings related to web browsers.
+
+    **Keys.**
+
+    - `browser`: `"default"` or a browser registered with Python's
+        webbrowser module (e.g., `"firefox"` or `"google-chrome"`)
+    """
+
+    browser: Literal["default"] | str
+
+
 @mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
@@ -116,6 +128,7 @@ class MarimoConfig(TypedDict, total=False):
     - `experimental`: a `dict` of experimental features
     """
 
+    browser: BrowserConfig
     completion: CompletionConfig
     save: SaveConfig
     keymap: KeymapConfig
@@ -125,6 +138,7 @@ class MarimoConfig(TypedDict, total=False):
 
 
 DEFAULT_CONFIG: MarimoConfig = {
+    "browser": {"browser": "default"},
     "completion": {"activate_on_typing": True, "copilot": False},
     "save": {
         "autosave": "after_delay",

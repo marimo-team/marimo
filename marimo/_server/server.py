@@ -318,13 +318,15 @@ async def start_server(
         logger.fatal(type(e).__name__ + ": " + str(e))
         shutdown(with_error=True)
 
-    if not run and get_configuration()["completion"]["copilot"]:
+    user_config = get_configuration()
+    if not run and user_config["completion"]["copilot"]:
         logger.debug("GitHub Copilot is enabled")
         session_mgr.start_lsp_server()
 
     url = f"http://localhost:{port}"
     if not headless:
-        if which("xdg-open") is not None:
+        browser = user_config["browser"]["browser"]
+        if which("xdg-open") is not None and browser == "default":
             with open(os.devnull, "w") as devnull:
                 if sys.platform == "win32" or sys.platform == "cygwin":
                     preexec_fn = None
@@ -339,7 +341,11 @@ async def start_server(
                     stderr=subprocess.STDOUT,
                 )
         else:
-            webbrowser.open(url)
+            controller = (
+                webbrowser if browser == "default" else webbrowser.get(browser)
+            )
+            # type ignore: getting an invalid type error
+            controller.open(url)  # type:ignore[attr-defined]
 
     if not session_mgr.quiet:
         print()
