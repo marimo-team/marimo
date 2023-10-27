@@ -33,7 +33,7 @@ export const SwitchableMultiSelect: React.FC<Props> = ({
   comboBoxClassName,
 }) => {
   const [showTextArea, setShowTextArea] = useState(false);
-  const valueAsArray = Array.isArray(value) ? value : [value];
+  const valueAsArray = ensureStringArray(value);
 
   const renderInput = () => {
     if (showTextArea) {
@@ -98,10 +98,11 @@ export const TextAreaMultiSelect: React.FC<{
   className?: string;
   placeholder?: string;
 }> = (props) => {
-  const { className, value = [], onChange, placeholder } = props;
+  const { className, value, onChange, placeholder } = props;
+  const valueAsArray = ensureStringArray(value);
   return (
     <Textarea
-      value={value.join(DELIMINATOR)}
+      value={valueAsArray.join(DELIMINATOR)}
       className={className}
       onChange={(e) => {
         if (e.target.value === "") {
@@ -116,3 +117,16 @@ export const TextAreaMultiSelect: React.FC<{
     />
   );
 };
+
+export function ensureStringArray<T extends string>(
+  value: T | T[] | null | undefined
+): T[] {
+  if (value == null) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [value].filter((v) => v != null || v !== "");
+}

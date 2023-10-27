@@ -55,6 +55,7 @@ import { Combobox, ComboboxItem } from "@/components/ui/combobox";
 import {
   SwitchableMultiSelect,
   TextAreaMultiSelect,
+  ensureStringArray,
 } from "@/components/forms/switchable-multi-select";
 
 interface Props<T extends FieldValues> {
@@ -507,8 +508,7 @@ const MultiColumnFormField = ({
       control={form.control}
       name={path}
       render={({ field }) => {
-        let values = Array.isArray(field.value) ? field.value : [field.value];
-        values = values.filter(Boolean);
+        const values = ensureStringArray(field.value);
         return (
           <FormItem>
             <FormLabel>{itemLabel}</FormLabel>
@@ -892,10 +892,7 @@ const MultiSelectFormField = ({
       control={form.control}
       name={path}
       render={({ field }) => {
-        let valueAsArray = Array.isArray(field.value)
-          ? field.value
-          : [field.value];
-        valueAsArray = valueAsArray.filter(Boolean);
+        const valueAsArray = ensureStringArray(field.value);
         return (
           <FormItem>
             <FormLabel className="whitespace-pre">{label}</FormLabel>
