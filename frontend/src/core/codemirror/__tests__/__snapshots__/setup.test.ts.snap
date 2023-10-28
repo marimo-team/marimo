@@ -54,6 +54,10 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
     {
       "key": "Escape",
+      "run": "clearTooltips",
+    },
+    {
+      "key": "Escape",
       "run": "simplifySelection",
     },
     {
@@ -155,6 +159,10 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     {
       "key": "Escape",
       "run": "closeCompletion",
+    },
+    {
+      "key": "Escape",
+      "run": "clearTooltips",
     },
     {
       "key": "Escape",
