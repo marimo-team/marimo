@@ -26,6 +26,7 @@
 /* -- Tooltips: code completion and type hints -- */
 
 .cm .cm-tooltip {
+  font-family: var(--monospace-font);
   font-size: 0.875rem;
   border: none;
   box-shadow: var(--light-shadow);
