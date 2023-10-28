@@ -325,7 +325,7 @@ async def start_server(
 
     url = f"http://localhost:{port}"
     if not headless:
-        browser = user_config["browser"]["browser"]
+        browser = user_config["server"]["browser"]
         if which("xdg-open") is not None and browser == "default":
             with open(os.devnull, "w") as devnull:
                 if sys.platform == "win32" or sys.platform == "cygwin":
