@@ -83,10 +83,22 @@ class DisplayConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `theme`: one of `"light"` or `"dark"`
+    - `theme`: `"light"` or `"dark"`
     """
 
     theme: Literal["light", "dark"]
+
+
+class ServerConfig(TypedDict, total=False):
+    """Configuration for the server.
+
+    **Keys.**
+
+    - `browser`: the web browser to use. `"default"` or a browser registered
+        with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+    """
+
+    browser: Literal["default"] | str
 
 
 @mddoc
@@ -107,33 +119,28 @@ class MarimoConfig(TypedDict, total=False):
         "completion": {"activate_on_typing": True},
     }
     ```
-
-    **Keys.**
-
-    - `completion`: a `CompletionConfig`
-    - `save`: a `SaveConfig`
-    - `keymap`: a `KeymapConfig`
-    - `experimental`: a `dict` of experimental features
     """
 
     completion: CompletionConfig
-    save: SaveConfig
+    display: DisplayConfig
     keymap: KeymapConfig
     runtime: RuntimeConfig
-    display: DisplayConfig
+    save: SaveConfig
+    server: ServerConfig
     experimental: Dict[str, Any]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
+    "display": {"theme": "light"},
+    "keymap": {"preset": "default"},
+    "runtime": {"auto_instantiate": True},
     "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
         "format_on_save": False,
     },
-    "keymap": {"preset": "default"},
-    "runtime": {"auto_instantiate": True},
-    "display": {"theme": "light"},
+    "server": {"browser": "default"},
 }
 _USER_CONFIG: Optional[MarimoConfig] = None
 
