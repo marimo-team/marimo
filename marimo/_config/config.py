@@ -95,7 +95,7 @@ class ServerConfig(TypedDict, total=False):
     **Keys.**
 
     - `browser`: the web browser to use. `"default"` or a browser registered
-        with Python's webbrowser module (eg, `"firefox"` or `"google-chrome"`)
+        with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
     """
 
     browser: Literal["default"] | str
