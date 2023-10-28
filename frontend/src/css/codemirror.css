@@ -54,11 +54,11 @@
 }
 
 .cm .cm-tooltip code {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .cm .cm-tooltip .external-docs {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 /* Hover tooltips get highest priority in display. */
