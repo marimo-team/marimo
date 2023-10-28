@@ -5,11 +5,12 @@ import {
   Tooltip,
   hasHoverTooltips,
   hoverTooltip,
+  keymap,
   showTooltip,
 } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
-import { StateField, StateEffect } from "@codemirror/state";
+import { StateField, StateEffect, Prec } from "@codemirror/state";
 
 export function hintTooltip() {
   return [
@@ -67,6 +68,14 @@ export function hintTooltip() {
       }
     ),
     cursorTooltipField,
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Escape",
+          run: clearTooltips,
+        },
+      ])
+    ),
     // Clear tooltips on blur
     EditorView.domEventObservers({
       blur: (event, view) => {
@@ -87,10 +96,15 @@ export function dispatchShowTooltip(view: EditorView, tooltip: Tooltip): void {
   });
 }
 
-function clearTooltips(view: EditorView): void {
-  view.dispatch({
-    effects: TooltipFromCompletionApi.of([]),
-  });
+function clearTooltips(view: EditorView): boolean {
+  const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
+  if (hasCompletionTooltip) {
+    view.dispatch({
+      effects: TooltipFromCompletionApi.of([]),
+    });
+    return true;
+  }
+  return false;
 }
 
 // Effect that dispatches a tooltip

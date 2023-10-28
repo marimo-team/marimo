@@ -1,12 +1,8 @@
-.cm-selectionBackground {
+.light .cm-selectionBackground {
   /* This is the background for selected text when focused,
   but we want to use it when not in focus either because we
   will often lose focus during find/replace or in another editor */
   background-color: #d7d4f0 !important;
-}
-
-.dark .cm-selectionBackground {
-  background-color: #4d4d4d !important;
 }
 
 /* -- Gutters -- */
@@ -30,7 +26,6 @@
 /* -- Tooltips: code completion and type hints -- */
 
 .cm .cm-tooltip {
-  font-family: var(--monospace-font);
   font-size: 0.875rem;
   border: none;
   box-shadow: var(--light-shadow);
@@ -46,7 +41,7 @@
 .cm .cm-tooltip.cm-tooltip-hover,
 .cm .cm-tooltip.mo-cm-tooltip,
 .cm .cm-tooltip.cm-completionInfo {
-  max-height: 800px;
+  max-height: 45vh; /* 45% of viewport height */
   overflow: auto;
 
   /* Respect newlines. */

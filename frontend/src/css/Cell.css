@@ -226,7 +226,7 @@
 }
 
 .dark .Cell .cm-editor.cm-focused .cm-activeLine {
-  background: hsl(210deg 100% 2% / 75%);
+  background: hsl(210deg 100% 2% / 20%);
 }
 
 .Cell .cm-editor .cm-activeLine {
@@ -346,7 +346,6 @@
 .Cell.needs-run:focus-within .cm-editor {
   box-shadow: none;
   border: 1px solid transparent;
-  border-radius: 0;
 }
 
 .Cell.needs-run .output-area {
