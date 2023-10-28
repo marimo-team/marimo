@@ -27,7 +27,7 @@ import {
 } from "../actions/useCellActionButton";
 import { CellConfig } from "@/core/model/cells";
 import { CellId } from "@/core/model/ids";
-import { EditorView } from "codemirror";
+import { EditorView } from "@codemirror/view";
 
 interface Props {
   editorView: EditorView | null;

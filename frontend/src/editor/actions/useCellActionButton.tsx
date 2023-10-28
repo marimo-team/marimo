@@ -18,9 +18,9 @@ import {
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
 import { CellConfig } from "@/core/model/cells";
-import { EditorView } from "codemirror";
 import { CellId } from "@/core/model/ids";
 import { saveCellConfig } from "@/core/network/requests";
+import { EditorView } from "@codemirror/view";
 
 export interface CellActionButtonProps {
   cellId: CellId;

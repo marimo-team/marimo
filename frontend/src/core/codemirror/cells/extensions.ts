@@ -1,7 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
-import { KeyBinding, keymap } from "@codemirror/view";
-import { EditorView } from "codemirror";
+import { EditorView, KeyBinding, keymap } from "@codemirror/view";
 import { CellId } from "@/core/model/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";

@@ -2,7 +2,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
 import { EditorState, Extension } from "@codemirror/state";
-import { EditorView, basicSetup } from "codemirror";
+import { EditorView } from "@codemirror/view";
+import CodeMirror from "@uiw/react-codemirror";
 import { basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
@@ -71,7 +72,7 @@ export const Primary: Story = {
 export const DefaultPython: Story = {
   render: () => (
     <div className="m-20 w-[60%] overflow-hidden">
-      <Editor extensions={[basicSetup, python(), copilotBundle()]} />
+      <CodeMirror extensions={[python(), copilotBundle()]} />
       <CopilotConfig />
     </div>
   ),
