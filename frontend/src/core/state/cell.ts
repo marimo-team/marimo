@@ -68,11 +68,18 @@ export function transitionCell(
       // The cell didn't run, but it was intentional, so don't count as
       // errored.
       nextCell.stopped = true;
-      nextCell.runElapsedTimeMs = null;
+      // Update elapsed time, since it is still useful to know how long before
+      // the cell was stopped.
+      nextCell.runElapsedTimeMs = cell.runStartTimestamp
+        ? (message.timestamp - cell.runStartTimestamp) * 1000
+        : null;
     } else {
       nextCell.errored = true;
-      // The cell didn't actually run.
-      nextCell.runElapsedTimeMs = null;
+      // Update elapsed time, since it is still useful to know how long before
+      // the cell was stopped.
+      nextCell.runElapsedTimeMs = cell.runStartTimestamp
+        ? (message.timestamp - cell.runStartTimestamp) * 1000
+        : null;
     }
   }
 
