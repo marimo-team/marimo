@@ -1,10 +1,12 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { HardDriveDownloadIcon, PlayIcon } from "lucide-react";
+import { HardDriveDownloadIcon, PlayIcon, SquareIcon } from "lucide-react";
 import { Button } from "@/editor/inputs/Inputs";
 import { Tooltip } from "../../components/ui/tooltip";
 import { renderShortcut } from "../../components/shortcuts/renderShortcut";
 import { cn } from "../../lib/utils";
 import { CellConfig, CellStatus } from "../../core/model/cells";
+import { sendInterrupt } from "@/core/network/requests";
+import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 
 function computeColor(
   appClosed: boolean,
@@ -22,6 +24,7 @@ function computeColor(
     return "hint-green";
   }
 }
+
 export const RunButton = (props: {
   edited: boolean;
   status: CellStatus;
@@ -38,6 +41,10 @@ export const RunButton = (props: {
   const inactive =
     appClosed || loading || (!config.disabled && blockedStatus && !edited);
   const color = computeColor(appClosed, needsRun, loading, inactive);
+  const running = status === "running";
+
+  // Show the interrupt button after 200ms to avoid flickering.
+  const showInterrupt = useShouldShowInterrupt(running);
 
   if (config.disabled) {
     return (
@@ -80,11 +87,26 @@ export const RunButton = (props: {
     );
   }
 
+  if (showInterrupt) {
+    return (
+      <Tooltip content={renderShortcut("global.interrupt")} usePortal={false}>
+        <Button
+          className={cn(appClosed && "inactive-button")}
+          onClick={sendInterrupt}
+          color="yellow"
+          shape="circle"
+          size="small"
+          data-testid="run-button"
+        >
+          <SquareIcon strokeWidth={1.5} />
+        </Button>
+      </Tooltip>
+    );
+  }
+
   let tooltipMsg: React.ReactNode = "";
   if (appClosed) {
     tooltipMsg = "App disconnected";
-  } else if (status === "running") {
-    tooltipMsg = "This cell is already running";
   } else if (status === "queued") {
     tooltipMsg = "This cell is already queued to run";
   } else {
@@ -96,8 +118,7 @@ export const RunButton = (props: {
       <Button
         className={cn(
           !needsRun && "hover-action",
-          inactive && "inactive-button",
-          loading && "running"
+          inactive && "inactive-button"
         )}
         onClick={onClick}
         color={color}
