@@ -443,6 +443,7 @@ const CellComponent = (
     <CellActionsContextMenu
       cellId={cellId}
       config={cellConfig}
+      status={status}
       editorView={editorView.current}
       hasOutput={!!output}
     >
@@ -496,6 +497,7 @@ const CellComponent = (
               />
               <CellActionsDropdown
                 cellId={cellId}
+                status={status}
                 editorView={editorView.current}
                 config={cellConfig}
                 hasOutput={!!output}

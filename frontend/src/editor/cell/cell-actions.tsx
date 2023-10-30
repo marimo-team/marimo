@@ -25,16 +25,6 @@ import {
   CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
-import { CellConfig } from "@/core/model/cells";
-import { CellId } from "@/core/model/ids";
-import { EditorView } from "@codemirror/view";
-
-interface Props {
-  editorView: EditorView | null;
-  hasOutput: boolean;
-  cellId: CellId;
-  config: CellConfig;
-}
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
