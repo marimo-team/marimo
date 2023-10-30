@@ -2,12 +2,19 @@
 import { assertExists } from "@/utils/assertExists";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json-parser";
+import { Objects } from "@/utils/objects";
 
 /**
  * Parse an attribute value as JSON.
  */
 export function parseAttrValue<T>(value: string | undefined): T {
   return jsonParseWithSpecialChar(value ?? "");
+}
+
+export function parseDataset(element: HTMLElement): Record<string, unknown> {
+  return Objects.mapValues(element.dataset, (value) =>
+    typeof value === "string" ? parseAttrValue(value) : value
+  );
 }
 
 /**

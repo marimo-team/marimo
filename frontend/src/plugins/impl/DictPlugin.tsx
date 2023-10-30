@@ -64,12 +64,11 @@ const Dict = ({
         // If the UI element firing the event is not in the dict, ignore it
         return;
       }
-
-      // Tell Python to update the dict at the given key with the new value
-      setValue(() => {
-        const updates: Record<string, unknown> = {};
-        updates[key] = e.detail.value;
-        return updates;
+      // Update the dict at the given key with the new value
+      setValue((prevValue) => {
+        const nextValue = prevValue ? { ...prevValue } : {};
+        nextValue[key] = e.detail.value;
+        return nextValue;
       });
     };
     document.addEventListener(marimoValueInputEvent, handleUpdate);

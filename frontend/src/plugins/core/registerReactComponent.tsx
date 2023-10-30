@@ -10,11 +10,10 @@
 import React, {
   createRef,
   ReactNode,
-  useCallback,
+  SetStateAction,
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import ReactDOM, { Root } from "react-dom/client";
@@ -25,7 +24,11 @@ import {
   MarimoValueUpdateEventType,
 } from "@/core/dom/events";
 import { defineCustomElement } from "../../core/dom/defineCustomElement";
-import { parseAttrValue, parseInitialValue } from "../../core/dom/htmlUtils";
+import {
+  parseAttrValue,
+  parseDataset,
+  parseInitialValue,
+} from "../../core/dom/htmlUtils";
 import { IPlugin } from "../types";
 import { Objects } from "../../utils/objects";
 import { renderError } from "./BadPlugin";
@@ -37,6 +40,8 @@ import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { getUIElementObjectId } from "@/core/dom/UIElement";
 import { PluginFunctions } from "./rpc";
 import { ZodSchema } from "zod";
+import useEvent from "react-use-event-hook";
+import { Functions } from "@/utils/functions";
 
 export interface PluginSlotHandle {
   /**
@@ -67,43 +72,19 @@ function PluginSlotInternal<T>(
   const [value, setValue] = useState<T>(getInitialValue());
   const { theme } = useThemeForPlugin();
 
-  const [parseResult, setParseResult] = useState(() => {
-    return plugin.validator.safeParse({
-      // For any string values, unescape/parse them
-      ...Objects.mapValues(hostElement.dataset, (value) =>
-        typeof value === "string" ? parseAttrValue(value) : value
-      ),
-    });
+  const [parsedResult, setParsedResult] = useState(() => {
+    return plugin.validator.safeParse(parseDataset(hostElement));
   });
 
   useImperativeHandle(ref, () => ({
     reset: () => {
       setValue(getInitialValue());
-      setParseResult(
-        plugin.validator.safeParse({
-          // For any string values, unescape/parse them
-          ...Objects.mapValues(hostElement.dataset, (value) =>
-            typeof value === "string" ? parseAttrValue(value) : value
-          ),
-        })
-      );
+      setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
     },
     setChildren: (children) => {
       setChildNodes(children);
     },
   }));
-
-  // When the component's value changes due to an interaction, an input
-  // event should be dispatched; an event should not be dispatched when
-  // the value changes due to an update event broadcast by another component.
-  // TODO: is this still needed ...? might want to dispatch value update
-  // even when value hasn't changed (so python kernel gets triggered ...)
-  const shouldDispatchInput = useRef(false);
-
-  if (shouldDispatchInput.current) {
-    hostElement.dispatchEvent(createInputEvent(value, hostElement));
-    shouldDispatchInput.current = false;
-  }
 
   useEffect(() => {
     const handleValue = (e: MarimoValueUpdateEventType) => {
@@ -120,14 +101,7 @@ function PluginSlotInternal<T>(
           mutation.attributeName?.startsWith("data-")
       );
       if (hasAttributeMutation) {
-        setParseResult(
-          plugin.validator.safeParse({
-            // For any string values, unescape/parse them
-            ...Objects.mapValues(hostElement.dataset, (value) =>
-              typeof value === "string" ? parseAttrValue(value) : value
-            ),
-          })
-        );
+        setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
       }
     });
 
@@ -144,13 +118,15 @@ function PluginSlotInternal<T>(
     };
   }, [hostElement, plugin.validator]);
 
-  const setValueAndSendInput = useCallback(
-    (value: T | ((prevValue: T) => T)): void => {
-      shouldDispatchInput.current = true;
-      setValue(value);
-    },
-    [setValue, shouldDispatchInput]
-  );
+  // When the value changes, send an input event
+  const setValueAndSendInput = useEvent((value: SetStateAction<T>): void => {
+    setValue((prevValue) => {
+      const updater = Functions.asUpdater(value);
+      const nextValue = updater(prevValue);
+      hostElement.dispatchEvent(createInputEvent(nextValue, hostElement));
+      return nextValue;
+    });
+  });
 
   // Create a map of functions that can be called by the plugin
   const functionMethods = useMemo<PluginFunctions>(() => {
@@ -188,9 +164,9 @@ function PluginSlotInternal<T>(
   }, [plugin.functions, hostElement]);
 
   // If we failed to parse the initial value, render an error
-  if (!parseResult.success) {
+  if (!parsedResult.success) {
     return renderError(
-      parseResult.error,
+      parsedResult.error,
       Objects.mapValues(hostElement.dataset, (value) =>
         typeof value === "string" ? parseAttrValue(value) : value
       ),
@@ -204,7 +180,7 @@ function PluginSlotInternal<T>(
       {plugin.render({
         setValue: setValueAndSendInput,
         value,
-        data: parseResult.data,
+        data: parsedResult.data,
         children: childNodes,
         host: hostElement,
         functions: functionMethods,
