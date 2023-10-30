@@ -76,5 +76,41 @@ def __(form_2, mo, random):
     return
 
 
+@app.cell
+def __(mo):
+    mo.md("## Dictionary")
+    return
+
+
+@app.cell
+def __(mo):
+    dict = mo.ui.dictionary(
+        {
+            "slider": mo.ui.slider(1, 10),
+            "text": mo.ui.text("type something!"),
+            "array": mo.ui.array(
+                [
+                    mo.ui.button(value=0, on_click=lambda v: v + 1)
+                    for _ in range(3)
+                ],
+                label="buttons",
+            ),
+        }
+    )
+    dict
+    return dict,
+
+
+@app.cell
+def __(dict, mo):
+    mo.vstack(
+        [
+            mo.md("### Dict Value"),
+            dict.value,
+        ]
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

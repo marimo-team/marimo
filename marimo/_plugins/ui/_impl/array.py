@@ -96,7 +96,10 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     def _convert_value(self, value: dict[str, JSONType]) -> Sequence[object]:
         if self._initialized:
             for k, v in value.items():
-                self._elements[int(k)]._update(v)
+                element = self._elements[int(k)]
+                # only call update if the value has changed
+                if element and element._value != v:
+                    element._update(v)
         return [e._value for e in self._elements]
 
     def _clone(self) -> array:
