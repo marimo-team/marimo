@@ -2,12 +2,13 @@
 import React from "react";
 import { Transformations } from "../schema";
 import { python } from "@codemirror/lang-python";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { pythonPrintTransforms } from "./python-print";
 import { CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
+import { useThemeForPlugin } from "@/theme/useTheme";
 
 interface Props {
   dataframeName: string;
@@ -27,14 +28,17 @@ export const CodePanel: React.FC<Props> = ({ transforms, dataframeName }) => {
 };
 
 const PythonCode = (props: { code: string }) => {
+  const { theme } = useThemeForPlugin();
   return (
     <div className="relative min-h-[200px]">
       <FloatingCopyButton text={props.code} />
       <CodeMirror
         minHeight="200px"
+        className="cm"
+        theme={theme === "dark" ? "dark" : "light"}
         height="100%"
         editable={true}
-        extensions={[python()]}
+        extensions={[python(), EditorView.lineWrapping]}
         value={props.code}
         readOnly={true}
       />
