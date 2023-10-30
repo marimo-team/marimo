@@ -131,7 +131,7 @@ export const DataFrameComponent = ({
         </TabsList>
         <TabsContent
           value="transform"
-          className="mt-1 border-x border-t rounded-t"
+          className="mt-1 border rounded-t overflow-hidden"
         >
           <TransformPanel
             initialValue={internalValue}
@@ -147,7 +147,7 @@ export const DataFrameComponent = ({
         </TabsContent>
         <TabsContent
           value="code"
-          className="mt-1 border-x border-t rounded-t overflow-hidden"
+          className="mt-1 border rounded-t overflow-hidden"
         >
           <CodePanel dataframeName={dataframeName} transforms={value} />
         </TabsContent>
