@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
 import queue
 from typing import cast
 
@@ -76,9 +77,14 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         ).text
 
     if body:
-        # aggressively treat docstrings as markdown. this does mostly okay for
-        # most docstrings, and makes marimo docstrings much easier to read.
-        body = _md(body, apply_markdown_class=False).text
+        # for marimo docstrings, treat them as markdown
+        # for other modules, treat them as plain text
+        if completion.module_name.startswith("marimo"):
+            body = _md(body, apply_markdown_class=False).text
+        else:
+            # TODO: this would look better parsed as RST
+            # for non-marimo modules
+            body = "<pre class='external-docs'>" + html.escape(body) + "</pre>"
 
     if signature_text and body:
         docstring = signature_text + "\n\n" + body
