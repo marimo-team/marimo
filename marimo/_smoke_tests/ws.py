@@ -160,7 +160,7 @@ def __(
         mo.md(
             f"""
             API key and secret required. 
-            
+
             You can create one from Coinbase following [these instructions](https://help.coinbase.com/en/exchange/managing-my-account/how-to-create-an-api-key).
             """
         ).callout(),
@@ -204,6 +204,17 @@ def __(
             mo.output.replace(
                 mo.vstack(
                     [
+                        mo.md(
+                            f"""
+                        Since marimo does not let other cells runt until the current cell has completed,
+                        we must output the UI in the same cell as the websocket thread.
+
+                        This cell runs a websocket indefinitely, until manually interrupted.
+
+                        Ideally we can run this cell async, not blocking other cells, or run in a thread
+                        and have the data be updated in the UI.
+                        """
+                        ),
                         output_stats(current),
                         output_chart(current),
                         output_table(current),
