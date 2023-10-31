@@ -8,8 +8,7 @@ import { IStatelessPlugin } from "@/plugins/stateless-plugin";
 import { T } from "vitest/dist/reporters-5f784f42";
 import { Logger } from "@/utils/Logger";
 
-import { useLayoutEffect } from "react";
-import { addPlotlyCSS } from "./styles";
+import "./plotly.css";
 
 interface Data {
   figure: Figure;
@@ -35,14 +34,6 @@ interface PlotlyPluginProps extends Data {
 }
 
 export const PlotlyComponent = ({ figure, host }: PlotlyPluginProps) => {
-  // Set styles on mount
-  useLayoutEffect(() => {
-    if (host.shadowRoot) {
-      addPlotlyCSS(host.shadowRoot);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <Plot
       {...figure}

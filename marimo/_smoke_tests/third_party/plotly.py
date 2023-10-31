@@ -98,7 +98,6 @@ def __(cars, mo):
 
 @app.cell
 def __(cars, px, sample_size):
-    # Create a scatter plot
     _fig = px.scatter(
         cars.sample(sample_size.value),
         x="Horsepower",
@@ -108,7 +107,6 @@ def __(cars, px, sample_size):
         hover_data=["Name"],
     )
 
-    # Show the plot
     _fig
     return
 
