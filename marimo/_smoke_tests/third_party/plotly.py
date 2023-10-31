@@ -1,4 +1,3 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.39"
@@ -105,6 +104,85 @@ def __(cars, px, sample_size):
         color="Origin",
         size="Weight_in_lbs",
         hover_data=["Name"],
+    )
+
+    _fig
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# 3D Chart")
+    return
+
+
+@app.cell
+def __(go, pd):
+    # load dataset
+    _df = pd.read_csv(
+        "https://raw.githubusercontent.com/plotly/datasets/master/volcano.csv"
+    )
+
+    # create figure
+    _fig = go.Figure()
+
+    # Add surface trace
+    _fig.add_trace(go.Surface(z=_df.values.tolist(), colorscale="Viridis"))
+
+    # Update plot sizing
+    _fig.update_layout(
+        width=800,
+        height=900,
+        autosize=False,
+        margin=dict(t=0, b=0, l=0, r=0),
+        template="plotly_white",
+    )
+
+    # Update 3D scene options
+    _fig.update_scenes(aspectratio=dict(x=1, y=1, z=0.7), aspectmode="manual")
+
+    # Add dropdown
+    _fig.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="left",
+                buttons=list(
+                    [
+                        dict(
+                            args=["type", "surface"],
+                            label="3D Surface",
+                            method="restyle",
+                        ),
+                        dict(
+                            args=["type", "heatmap"],
+                            label="Heatmap",
+                            method="restyle",
+                        ),
+                    ]
+                ),
+                pad={"r": 10, "t": 10},
+                showactive=True,
+                x=0.11,
+                xanchor="left",
+                y=1.1,
+                yanchor="top",
+            ),
+        ]
+    )
+
+    # Add annotation
+    _fig.update_layout(
+        annotations=[
+            dict(
+                text="Trace type:",
+                showarrow=False,
+                x=0,
+                y=1.08,
+                yref="paper",
+                align="left",
+            )
+        ]
     )
 
     _fig
