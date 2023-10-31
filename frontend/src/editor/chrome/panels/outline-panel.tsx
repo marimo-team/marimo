@@ -21,7 +21,8 @@ export const OutlinePanel: React.FC = () => {
 
   const handleGoToItem = (id: string, index: number) => {
     // Selectors may be duplicated, so we need to use querySelectorAll
-    const elems = document.querySelectorAll(`#${id}`);
+    // IDs that start with a number are invalid, so we need to escape them
+    const elems = document.querySelectorAll(`[id="${CSS.escape(id)}"]`);
     const el = elems[index];
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
