@@ -34,12 +34,15 @@ interface PlotlyPluginProps extends Data {
 }
 
 export const PlotlyComponent = ({ figure, host }: PlotlyPluginProps) => {
+  // Enable autosize if width is not specified
+  const shouldAutoSize = figure.layout.width === undefined;
   return (
     <Plot
       {...figure}
       layout={{
+        autosize: shouldAutoSize,
+        // Prioritize user's config
         ...figure.layout,
-        autosize: true,
       }}
       config={{
         displaylogo: false,

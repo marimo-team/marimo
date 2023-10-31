@@ -19,6 +19,17 @@ def __():
 
 
 @app.cell
+def __(mo, px):
+    mo.vstack(
+        [
+            mo.md("# Fixed width"),
+            px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16], width=600),
+        ]
+    )
+    return
+
+
+@app.cell
 def __(mo):
     mo.md("# Plotly Graph Objects Chart")
     return
