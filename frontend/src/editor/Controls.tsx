@@ -18,11 +18,11 @@ import { Tooltip } from "../components/ui/tooltip";
 import { renderShortcut } from "../components/shortcuts/renderShortcut";
 import { useCellActions } from "../core/state/cells";
 import { AppConfigButton } from "../components/app-config/app-config-button";
-import { useState, useEffect } from "react";
 import { LayoutSelect } from "./renderers/layout-select";
 import { NotebookMenuDropdown } from "@/editor/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
 import { AppConfig } from "@/core/config/config";
+import { useShouldShowInterrupt } from "./cell/useShouldShowInterrupt";
 
 interface ControlsProps {
   filename: string | null;
@@ -163,21 +163,10 @@ const RunControlButton = ({
   onRun: () => void;
   onInterrupt: () => void;
 }) => {
-  // Start a timer when the run starts.
-  // After 200ms, show the interrupt button to avoid flickering.
-  const [hasRunLongEnough, setHasRunLongEnough] = useState(false);
-  useEffect(() => {
-    if (!running) {
-      return;
-    }
-    setHasRunLongEnough(false);
-    const timeout = setTimeout(() => {
-      setHasRunLongEnough(true);
-    }, 200);
-    return () => clearTimeout(timeout);
-  }, [running]);
+  // Show the interrupt button after 200ms to avoid flickering.
+  const showInterrupt = useShouldShowInterrupt(running);
 
-  if (running && hasRunLongEnough) {
+  if (showInterrupt) {
     return (
       <Tooltip content={renderShortcut("global.interrupt")}>
         <Button
