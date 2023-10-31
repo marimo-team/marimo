@@ -523,7 +523,7 @@ import numpy",
   "ref": {
     "current": null,
   },
-  "runElapsedTimeMs": null,
+  "runElapsedTimeMs": 11000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
   "status": "idle",

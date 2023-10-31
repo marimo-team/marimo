@@ -151,19 +151,36 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
 
   // outdated
   if (edited || interrupted) {
+    const elapsedTimeStr = formatElapsedTime(elapsedTime);
     const title = interrupted
       ? "This cell was interrupted when it was last run"
       : "This cell has been modified since it was last run";
+    const timerTitle = interrupted
+      ? `This cell ran for ${elapsedTimeStr} before being interrupted`
+      : `This cell took ${elapsedTimeStr} to run`;
     return (
-      <Tooltip content={title} usePortal={false}>
-        <div
-          className="cell-status-icon cell-status-stale"
-          data-testid="cell-status"
-          data-status="outdated"
-        >
-          <RefreshCwIcon className="h-5 w-5" strokeWidth={1.5} />
-        </div>
-      </Tooltip>
+      <div className="cell-status-icon flex items-center gap-2">
+        <Tooltip content={title} usePortal={false}>
+          <div
+            className="cell-status-stale"
+            data-testid="cell-status"
+            data-status="outdated"
+          >
+            <RefreshCwIcon className="h-5 w-5" strokeWidth={1.5} />
+          </div>
+        </Tooltip>
+        {elapsedTimeStr && (
+          <Tooltip content={timerTitle} usePortal={false}>
+            <div
+              className={"elapsed-time hover-action"}
+              data-testid="cell-status"
+              data-status="outdated"
+            >
+              <span>{elapsedTimeStr}</span>
+            </div>
+          </Tooltip>
+        )}
+      </div>
     );
   }
 

@@ -409,7 +409,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo\nimport numpy");
     expect(cell.edited).toBe(false);
-    expect(cell.runElapsedTimeMs).toBe(null);
+    expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
