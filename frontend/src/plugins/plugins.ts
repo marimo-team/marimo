@@ -31,6 +31,7 @@ import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { VegaPlugin } from "./impl/vega/VegaPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
 import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
+import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -61,9 +62,10 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CalloutPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
+  new PlotlyPlugin(),
+  new ProgressPlugin(),
   new StatPlugin(),
   new TabsPlugin(),
-  new ProgressPlugin(),
   new TexPlugin(),
 ];
 
