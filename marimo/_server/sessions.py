@@ -341,20 +341,8 @@ class Session:
             self.queue.cancel_join_thread()  # type: ignore
             self.queue.close()  # type: ignore
             if self.kernel_task.is_alive():
-                if (
-                    sys.platform == "win32" or sys.platform == "cygwin"
-                ) and self.kernel_task.pid is not None:
-                    # send a CTRL_BREAK_EVENT to gracefully shutdown
-                    # since SIGTERM isn't handled on windows
-                    os.kill(self.kernel_task.pid, signal.CTRL_BREAK_EVENT)
-                else:
-                    # TODO(akshayka): Might be able to remove this
-                    # and just rely on the fact that the kernel is a daemon
-                    # process (so will terminate after this process terminates)
-                    #
-                    # Explicitly terminate the process, in case something
-                    # prevents the server process from terminating ...
-                    self.kernel_task.terminate()
+                # Explicitly terminate the process
+                self.kernel_task.terminate()
             tornado.ioloop.IOLoop.current().remove_handler(
                 self.read_conn.fileno()
             )
@@ -521,6 +509,7 @@ class SessionManager:
         self.sessions = {}
 
     def shutdown(self) -> None:
+        LOGGER.debug("Shutting down")
         self.close_all_sessions()
         if self.lsp_process is not None:
             self.lsp_process.terminate()
