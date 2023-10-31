@@ -14,16 +14,19 @@ import {
   ChevronsDownIcon,
   Trash2Icon,
   ZapOffIcon,
+  PlayIcon,
 } from "lucide-react";
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import { CellConfig } from "@/core/model/cells";
+import { CellConfig, CellStatus } from "@/core/model/cells";
 import { CellId } from "@/core/model/ids";
 import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
+import { useRunCell } from "../cell/useRunCells";
 
 export interface CellActionButtonProps {
   cellId: CellId;
+  status: CellStatus;
   config: CellConfig;
   editorView: EditorView | null;
   hasOutput: boolean;
@@ -34,6 +37,7 @@ export function useCellActionButtons({
   config,
   editorView,
   hasOutput,
+  status,
 }: CellActionButtonProps) {
   const {
     createNewCell: createCell,
@@ -44,6 +48,7 @@ export function useCellActionButtons({
     sendToTop,
     sendToBottom,
   } = useCellActions();
+  const runCell = useRunCell(cellId);
   const toggleDisabled = async () => {
     if (config.disabled) {
       await saveCellConfig({ configs: { [cellId]: { disabled: false } } });
@@ -57,6 +62,17 @@ export function useCellActionButtons({
   // Actions
   const actions: ActionButton[][] = [
     [
+      {
+        icon: <PlayIcon size={13} strokeWidth={1.5} />,
+        label: "Run cell",
+        hotkey: "cell.run",
+        hidden:
+          status === "running" ||
+          status === "queued" ||
+          status === "disabled-transitively" ||
+          config.disabled === true,
+        handle: () => runCell(),
+      },
       {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,
         label: "Export to PNG",
