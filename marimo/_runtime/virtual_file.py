@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import random
 import string
+import sys
 import threading
 from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Optional
@@ -135,7 +136,14 @@ class VirtualFileRegistry:
         shm.buf[: len(buffer)] = buffer
         # we can safely close this shm, since we don't need to access its
         # buffer; we do need to keep it around so we can unlink it later
-        shm.close()
+        if sys.platform != "win32":
+            # don't call close() on Windows, due to a bug in the Windows
+            # Python implementation. On Windows, close() actually unlinks
+            # (destroys) the shared_memory:
+            # https://stackoverflow.com/questions/63713241/segmentation-fault-using-python-shared-memory/63717188#63717188
+            shm.close()
+        # We hav to keep a reference to the shared memory to prevent it from
+        # being destroyed on Windows
         self.registry[key] = shm
 
     def remove(self, virtual_file: VirtualFile) -> None:

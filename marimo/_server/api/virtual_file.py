@@ -19,6 +19,7 @@ class VirtualFileHandler(tornado.web.RequestHandler):
     """Handler for virtual files."""
 
     def get(self, filename_and_length: str) -> None:
+        LOGGER.debug("Getting virtual file: %s", filename_and_length)
         if filename_and_length == EMPTY_VIRTUAL_FILE.filename:
             self.write(b"")
             return
@@ -33,6 +34,9 @@ class VirtualFileHandler(tornado.web.RequestHandler):
             shm = shared_memory.SharedMemory(name=key)
             buffer_contents = bytes(shm.buf)[: int(byte_length)]
         except FileNotFoundError as err:
+            LOGGER.debug(
+                "Error retrieving shared memory for virtual file: %s", err
+            )
             raise tornado.web.HTTPError(
                 HTTPStatus.NOT_FOUND,
                 reason="File not found",
