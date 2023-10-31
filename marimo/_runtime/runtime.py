@@ -1012,7 +1012,8 @@ def launch_kernel(
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
-        # TODO: windows workaround
+        # TODO: Windows workaround -- find a way to make the process
+        # its group leader
         if sys.platform != "win32":
             # Make this process group leader to prevent it from receiving
             # signals intended for the parent (server) process,
@@ -1083,7 +1084,7 @@ def launch_kernel(
         except Exception as e:
             # triggered on Windows when quit with Ctrl+C
             LOGGER.debug("kernel queue.get() failed %s", e)
-            return
+            break
         LOGGER.debug("received request %s", request)
         if isinstance(request, CreationRequest):
             kernel.instantiate(request)
