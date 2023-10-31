@@ -68,6 +68,7 @@ export function useCellActionButtons({
         hotkey: "cell.run",
         hidden:
           status === "running" ||
+          status === "queued" ||
           status === "disabled-transitively" ||
           config.disabled === true,
         handle: () => runCell(),
