@@ -1,8 +1,14 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.0"
-app = marimo.App()
+__generated_with = "0.1.39"
+app = marimo.App(width="full")
+
+
+@app.cell
+def __(mo):
+    mo.md("# Plotly Express Chart")
+    return
 
 
 @app.cell
@@ -10,7 +16,13 @@ def __():
     import plotly.express as px
 
     px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16])
-    return (px,)
+    return px,
+
+
+@app.cell
+def __(mo):
+    mo.md("# Plotly Graph Objects Chart")
+    return
 
 
 @app.cell
@@ -63,8 +75,41 @@ def __():
 
 
 @app.cell
-def __(fig):
-    fig
+def __(mo):
+    mo.md("# Re-rendering Chart")
+    return
+
+
+@app.cell
+def __():
+    import vega_datasets as datasets
+    import marimo as mo
+
+    cars = datasets.data.cars()
+    return cars, datasets, mo
+
+
+@app.cell
+def __(cars, mo):
+    sample_size = mo.ui.slider(label="Sample", start=100, stop=len(cars), step=100)
+    sample_size
+    return sample_size,
+
+
+@app.cell
+def __(cars, px, sample_size):
+    # Create a scatter plot
+    _fig = px.scatter(
+        cars.sample(sample_size.value),
+        x="Horsepower",
+        y="Miles_per_Gallon",
+        color="Origin",
+        size="Weight_in_lbs",
+        hover_data=["Name"],
+    )
+
+    # Show the plot
+    _fig
     return
 
 
