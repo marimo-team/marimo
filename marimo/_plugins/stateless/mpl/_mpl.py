@@ -35,9 +35,6 @@ from marimo._runtime.context import (
 )
 
 
-LOGGER = _loggers.marimo_logger()
-
-
 class MplApplication(tornado.web.Application):
     # Figure Manager, Any type because matplotlib doesn't have typings
     manager: Any
@@ -199,15 +196,11 @@ class CleanupHandle(CellLifecycleItem):
 
     def create(self, context: RuntimeContext) -> None:
         del context
-        LOGGER.debug("Creating mpl cleanup handle")
         pass
 
     def dispose(self, context: RuntimeContext) -> None:
         del context
-        LOGGER.debug("Disposing mpl cleanup handle")
-        LOGGER.debug("shutdown event: %s", self.shutdown_event)
         if self.shutdown_event is not None:
-            LOGGER.debug("Setting event")
             self.shutdown_event.set()
 
 
@@ -260,11 +253,11 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         http_server = tornado.httpserver.HTTPServer(application)
         http_server.add_sockets(sockets)
         await cleanup_handle.shutdown_event.wait()
-        LOGGER.debug("MPL: Quitting")
+        http_server.stop()
+        await http_server.close_all_connections()
 
     def start_server() -> None:
         asyncio.run(main())
-        LOGGER.debug("MPL: mpl server done")
 
     addr: Optional[str] = None
     port: Optional[int] = None
