@@ -57,10 +57,7 @@ export function transitionCell(
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
     if (message.output.data.some((error) => error["type"] === "interruption")) {
-      // This cell needs to be re-run, even if its code contents haven't
-      // changed since it was last run. Force the re-run state by clearing
-      // its lastCodeRun
-      // nextCell.lastCodeRun = null;
+      // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
     } else if (
       message.output.data.some((error) => error["type"] === "ancestor-stopped")

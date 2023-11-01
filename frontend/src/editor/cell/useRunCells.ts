@@ -12,11 +12,7 @@ import useEvent from "react-use-event-hook";
 export function useRunStaleCells() {
   const notebook = useNotebook();
   const runCells = useRunCells();
-
-  const runStaleCells = useEvent(async () => {
-    await runCells(staleCellIds(notebook));
-  });
-
+  const runStaleCells = useEvent(() => runCells(staleCellIds(notebook)));
   return runStaleCells;
 }
 
@@ -25,11 +21,7 @@ export function useRunStaleCells() {
  */
 export function useRunCell(cellId: CellId) {
   const runCells = useRunCells();
-
-  const runCell = useEvent(async () => {
-    await runCells([cellId]);
-  });
-
+  const runCell = useEvent(() => runCells([cellId]));
   return runCell;
 }
 
@@ -49,10 +41,7 @@ function useRunCells() {
     const codes: string[] = [];
     for (const cellId of cellIds) {
       const ref = derefNotNull(cellHandles[cellId]);
-
-      cellIds.push(cellId);
       codes.push(ref.editorView.state.doc.toString());
-
       ref.registerRun();
     }
 
