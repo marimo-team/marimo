@@ -472,7 +472,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
-    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.lastCodeRun).toBe(cell.code);
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
