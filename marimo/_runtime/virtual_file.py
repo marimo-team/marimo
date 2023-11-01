@@ -149,6 +149,8 @@ class VirtualFileRegistry:
     def remove(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
         if key in self.registry:
+            if sys.platform == "win32":
+                self.registry[key].close()
             # destroy the shared memory
             self.registry[key].unlink()
             del self.registry[key]
@@ -163,6 +165,8 @@ class VirtualFileRegistry:
         try:
             self.shutting_down = True
             for _, shm in self.registry.items():
+                if sys.platform == "win32":
+                    shm.close()
                 shm.unlink()
             self.registry.clear()
         finally:
