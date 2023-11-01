@@ -21,6 +21,7 @@ import {
   ArrowRightIcon,
   CaseSensitiveIcon,
   RegexIcon,
+  WholeWordIcon,
   XIcon,
 } from "lucide-react";
 import { useHotkey } from "@/hooks/useHotkey";
@@ -58,7 +59,14 @@ export const FindReplace: React.FC = () => {
     const matches = getMatches();
     // False count means an invalid regex
     setMatches(matches === false ? undefined : matches);
-  }, [state.findText, state.isOpen]);
+  }, [
+    // Re-search when any of these change
+    state.findText,
+    state.isOpen,
+    state.caseSensitive,
+    state.regexp,
+    state.wholeWord,
+  ]);
 
   if (!state.isOpen) {
     return null;
@@ -140,6 +148,18 @@ export const FindReplace: React.FC = () => {
                   }
                 >
                   <CaseSensitiveIcon className="w-4 h-4" />
+                </Toggle>
+              </Tooltip>
+              <Tooltip content="Match Whole Word">
+                <Toggle
+                  size="sm"
+                  pressed={state.wholeWord}
+                  data-state={state.wholeWord ? "on" : "off"}
+                  onPressedChange={(pressed) =>
+                    dispatch({ type: "setWholeWord", wholeWord: pressed })
+                  }
+                >
+                  <WholeWordIcon className="w-4 h-4" />
                 </Toggle>
               </Tooltip>
               <Tooltip content="Use Regular Expression">
