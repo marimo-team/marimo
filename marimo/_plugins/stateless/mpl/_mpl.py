@@ -23,7 +23,6 @@ import tornado.netutil
 import tornado.web
 import tornado.websocket
 
-from marimo import _loggers
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
