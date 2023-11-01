@@ -8,7 +8,7 @@ import {
   SerializedGridLayoutCell,
 } from "./types";
 import { OutputArea } from "@/editor/Output";
-import { CellState } from "@/core/model/cells";
+import { CellRuntimeState } from "@/core/model/cells";
 
 import "react-grid-layout/css/styles.css";
 import "./styles.css";
@@ -272,7 +272,8 @@ const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps extends Pick<CellState, "output" | "status" | "code"> {
+interface GridCellProps
+  extends Pick<CellRuntimeState, "output" | "status" | "code"> {
   cellId: CellId;
   mode: AppMode;
   hidden: boolean;

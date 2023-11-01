@@ -12,7 +12,7 @@ import { OperationMessage } from "@/core/kernel/messages";
 import { saveCellConfig, sendInstantiate } from "../network/requests";
 import { CellId } from "../model/ids";
 import { CellConfig } from "../model/cells";
-import { CellState, createCell } from "../model/cells";
+import { CellRuntimeState, createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
 import { layoutDataAtom, layoutViewAtom } from "../state/layout";
@@ -30,7 +30,7 @@ import { prettyError } from "@/utils/errors";
 export function useMarimoWebSocket(opts: {
   sessionId: string;
   autoInstantiate: boolean;
-  setCells: (cells: CellState[]) => void;
+  setCells: (cells: CellRuntimeState[]) => void;
   setInitialCodes: (codes: string[]) => void;
   setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {

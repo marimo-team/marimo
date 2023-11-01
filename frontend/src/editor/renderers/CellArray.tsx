@@ -4,7 +4,7 @@ import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
 import { ConnectionStatus, WebSocketState } from "../../core/websocket/types";
-import { CellsAndHistory, useCellActions } from "../../core/state/cells";
+import { NotebookState, useCellActions } from "../../core/state/cells";
 import { AppConfig, UserConfig } from "../../core/config/config";
 import { AppMode } from "../../core/mode";
 import { useHotkey } from "../../hooks/useHotkey";
@@ -16,7 +16,7 @@ import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
 import { useChromeActions } from "../chrome/state";
 
 interface CellArrayProps {
-  cells: CellsAndHistory;
+  cells: NotebookState;
   mode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;

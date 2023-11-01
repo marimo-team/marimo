@@ -1,19 +1,19 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { CellState, createCell } from "../../model/cells";
-import { CellsAndHistory, exportedForTesting } from "../cells";
+import { CellRuntimeState, createCell } from "../../model/cells";
+import { NotebookState, exportedForTesting } from "../cells";
 import { CellId } from "@/core/model/ids";
 
 const { initialCellState, reducer, createActions } = exportedForTesting;
 
-function formatCells(cells: CellState[]) {
+function formatCells(cells: CellRuntimeState[]) {
   return `\n${cells
     .map((cell) => [`key: ${cell.key}`, `code: '${cell.code}'`].join("\n"))
     .join("\n\n")}`;
 }
 
 describe("cell reducer", () => {
-  let state: CellsAndHistory;
+  let state: NotebookState;
   let firstCellId: CellId;
 
   const actions = createActions((action) => {

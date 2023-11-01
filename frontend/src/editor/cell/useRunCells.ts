@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { RuntimeState } from "@/core/RuntimeState";
-import { CellState } from "@/core/model/cells";
+import { CellRuntimeState } from "@/core/model/cells";
 import { CellId } from "@/core/model/ids";
 import { sendRunMultiple } from "@/core/network/requests";
 import { useCells } from "@/core/state/cells";
@@ -45,7 +45,7 @@ export function useRunCell(cellId: CellId) {
  * Creates a function that runs the given cells.
  */
 export function useRunCells() {
-  const runCells = useEvent(async (cells: CellState[]) => {
+  const runCells = useEvent(async (cells: CellRuntimeState[]) => {
     if (cells.length === 0) {
       return;
     }

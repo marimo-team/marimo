@@ -1,9 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { AppMode } from "@/core/mode";
-import { CellState } from "@/core/model/cells";
+import { CellRuntimeState } from "@/core/model/cells";
 import { useState, useEffect } from "react";
 
-export function useDelayVisibility(cells: CellState[], mode: AppMode) {
+export function useDelayVisibility(cells: CellRuntimeState[], mode: AppMode) {
   // Start the app as invisible and delay proportional to the number of cells,
   // to avoid most of the flickering when the app is loaded (b/c it is
   // streamed). Delaying also helps prevent cell editors from stealing focus.

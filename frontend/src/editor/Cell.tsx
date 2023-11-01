@@ -19,7 +19,7 @@ import { sendRun } from "@/core/network/requests";
 import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
 
 import { UserConfig } from "../core/config/config";
-import { CellState } from "../core/model/cells";
+import { CellRuntimeState } from "../core/model/cells";
 import { CellActions, useCellActions } from "../core/state/cells";
 import { derefNotNull } from "../utils/dereference";
 import { OutputArea } from "./Output";
@@ -62,7 +62,7 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-      CellState,
+      CellRuntimeState,
       | "consoleOutputs"
       | "status"
       | "output"

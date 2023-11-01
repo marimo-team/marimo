@@ -1,13 +1,12 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React from "react";
-import { cellErrors } from "../../../core/state/cells";
+import { useCellErrors } from "../../../core/state/cells";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
 import { CellLinkError } from "@/editor/links/cell-link";
-import { useAtomValue } from "jotai";
 import { PartyPopperIcon } from "lucide-react";
 
 export const ErrorsPanel: React.FC = () => {
-  const errors = useAtomValue(cellErrors);
+  const errors = useCellErrors();
 
   if (errors.length === 0) {
     return (

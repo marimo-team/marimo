@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { memo, useRef } from "react";
-import { CellState } from "@/core/model/cells";
+import { CellRuntimeState } from "@/core/model/cells";
 import { CellId, HTMLCellId } from "@/core/model/ids";
 import { OutputArea } from "@/editor/Output";
 import clsx from "clsx";
@@ -37,7 +37,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
 interface VerticalCellProps
   extends Pick<
-    CellState,
+    CellRuntimeState,
     "output" | "key" | "status" | "stopped" | "errored" | "interrupted"
   > {
   cellId: CellId;
