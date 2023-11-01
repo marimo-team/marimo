@@ -88,8 +88,6 @@ export function useMarimoWebSocket(opts: {
           objectIds.push(objectId);
           values.push(entry.value);
         });
-        // Start the run
-        RuntimeState.INSTANCE.registerRunStart();
         // Register the configs
         saveCellConfig({
           configs: Object.fromEntries(
@@ -102,6 +100,8 @@ export function useMarimoWebSocket(opts: {
         });
         // Send the instantiate message
         if (autoInstantiate) {
+          // Start the run
+          RuntimeState.INSTANCE.registerRunStart();
           sendInstantiate({ objectIds, values }).catch((error) => {
             showBoundary(new Error("Failed to instantiate", { cause: error }));
           });
