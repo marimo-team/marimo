@@ -2,6 +2,7 @@
 import { OutputMessage } from "../kernel/messages";
 import { SerializedEditorState } from "../codemirror/types";
 import { Outline } from "./outline";
+import { CellId } from "./ids";
 
 const DEFAULT_CELL_NAME = "__";
 
@@ -25,14 +26,16 @@ export type CellStatus =
  * Create a new cell with default state.
  */
 export function createCell({
+  id,
   name = DEFAULT_CELL_NAME,
   code = "",
   lastCodeRun = null,
   edited = false,
   config = {},
   serializedEditorState = null,
-}: Partial<CellData> = {}): CellData {
+}: Partial<CellData> & { id: CellId }): CellData {
   return {
+    id: id,
     config: config,
     name: name,
     code: code,
@@ -60,6 +63,7 @@ export function createCellRuntimeState(): CellRuntimeState {
  * Data of the cell
  */
 export interface CellData {
+  id: CellId;
   /** user-given name, or default */
   name: string;
   /** current contents of the editor */

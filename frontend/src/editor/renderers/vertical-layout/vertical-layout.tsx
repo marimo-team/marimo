@@ -17,13 +17,13 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   appConfig,
   mode,
 }) => {
-  const { invisible } = useDelayVisibility(cells, mode);
+  const { invisible } = useDelayVisibility(cells.length, mode);
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
         <VerticalCell
-          key={cell.key}
-          cellId={cell.key}
+          key={cell.id}
+          cellId={cell.id}
           output={cell.output}
           status={cell.status}
           stopped={cell.stopped}
@@ -38,7 +38,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 interface VerticalCellProps
   extends Pick<
     CellRuntimeState,
-    "output" | "key" | "status" | "stopped" | "errored" | "interrupted"
+    "output" | "status" | "stopped" | "errored" | "interrupted"
   > {
   cellId: CellId;
 }

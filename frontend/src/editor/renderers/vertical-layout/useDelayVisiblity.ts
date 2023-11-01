@@ -1,21 +1,21 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { AppMode } from "@/core/mode";
-import { CellRuntimeState } from "@/core/model/cells";
+import { getAllEditorViews } from "@/core/state/cells";
 import { useState, useEffect } from "react";
 
-export function useDelayVisibility(cells: CellRuntimeState[], mode: AppMode) {
+export function useDelayVisibility(numCells: number, mode: AppMode) {
   // Start the app as invisible and delay proportional to the number of cells,
   // to avoid most of the flickering when the app is loaded (b/c it is
   // streamed). Delaying also helps prevent cell editors from stealing focus.
   const [invisible, setInvisible] = useState(true);
   useEffect(() => {
-    const delay = Math.max(Math.min((cells.length - 1) * 15, 100), 0);
+    const delay = Math.max(Math.min((numCells - 1) * 15, 100), 0);
     const timeout = setTimeout(() => {
       setInvisible(false);
       // After 1 frame, focus on the first cell if it's been mounted
       if (mode !== "read") {
         requestAnimationFrame(() => {
-          cells[0]?.ref.current?.editorView.focus();
+          focusFirstEditor();
         });
       }
     }, delay);
@@ -25,4 +25,11 @@ export function useDelayVisibility(cells: CellRuntimeState[], mode: AppMode) {
   }, []);
 
   return { invisible };
+}
+
+function focusFirstEditor() {
+  const editors = getAllEditorViews();
+  if (editors.length > 0) {
+    editors[0].focus();
+  }
 }

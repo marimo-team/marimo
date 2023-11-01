@@ -19,11 +19,13 @@ import { CellId } from "../model/ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "./jotai";
 import { createReducer } from "../../utils/createReducer";
-import { arrayInsert, arrayDelete } from "@/utils/arrays";
+import { arrayInsert, arrayDelete, arrayShallowEquals } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { mergeOutlines } from "../dom/outline";
 import { CellHandle } from "@/editor/Cell";
 import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { EditorView } from "@codemirror/view";
 
 /**
  * The state of the notebook.
@@ -60,6 +62,9 @@ export interface NotebookState {
   scrollKey: CellId | null;
 }
 
+/**
+ * Initial state of the notebook.
+ */
 function initialNotebookState(): NotebookState {
   return {
     cellIds: [],
@@ -71,6 +76,9 @@ function initialNotebookState(): NotebookState {
   };
 }
 
+/**
+ * Actions and reducer for the notebook state.
+ */
 const { reducer, createActions } = createReducer(initialNotebookState, {
   createNewCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
@@ -83,7 +91,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       cellIds: arrayInsert(state.cellIds, insertionIndex, newCellId),
       cellData: {
         ...state.cellData,
-        [newCellId]: createCell(),
+        [newCellId]: createCell({ id: newCellId }),
       },
       cellRuntime: {
         ...state.cellRuntime,
@@ -237,6 +245,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       } = mostRecentlyDeleted;
       const cellId = CellId.create();
       const undoCell = createCell({
+        id: cellId,
         name,
         code: serializedEditorState.doc,
         edited: serializedEditorState.doc.trim().length > 0,
@@ -309,8 +318,15 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     });
   },
   prepareForRun: (state, action: { cellId: CellId }) => {
-    return updateCellRuntimeState(state, action.cellId, (cell) => {
+    const newState = updateCellRuntimeState(state, action.cellId, (cell) => {
       return prepareCellForExecution(cell);
+    });
+    return updateCellData(newState, action.cellId, (cell) => {
+      return {
+        ...cell,
+        edited: false,
+        lastCodeRun: cell.code.trim(),
+      };
     });
   },
   handleCellMessage: (
@@ -322,10 +338,17 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       return transitionCell(cell, message);
     });
   },
-  setCells: (state, cells: CellId[]) => {
+  setCells: (state, cells: CellData[]) => {
     return {
       ...state,
-      cellIds: cells,
+      cellIds: cells.map((cell) => cell.id),
+      cellData: Object.fromEntries(cells.map((cell) => [cell.id, cell])),
+      cellHandles: Object.fromEntries(
+        cells.map((cell) => [cell.id, createRef()])
+      ),
+      cellRuntime: Object.fromEntries(
+        cells.map((cell) => [cell.id, createCellRuntimeState()])
+      ),
     };
   },
   /**
@@ -350,7 +373,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         cellIds: [...state.cellIds, newCellId],
         cellData: {
           ...state.cellData,
-          [newCellId]: createCell(),
+          [newCellId]: createCell({ id: newCellId }),
         },
         cellRuntime: {
           ...state.cellRuntime,
@@ -370,7 +393,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         cellIds: [newCellId, ...state.cellIds],
         cellData: {
           ...state.cellData,
-          [newCellId]: createCell(),
+          [newCellId]: createCell({ id: newCellId }),
         },
         cellRuntime: {
           ...state.cellRuntime,
@@ -467,11 +490,14 @@ function updateCellData(
   };
 }
 
-const cellsAtom = atom<NotebookState>(initialNotebookState());
-const cellIdsAtom = atom((get) => get(cellsAtom).cellIds);
+/// ATOMS
+
+const notebookAtom = atom<NotebookState>(initialNotebookState());
+
+const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
 const cellErrorsAtom = atom((get) => {
-  const { cellIds, cellRuntime } = get(cellsAtom);
+  const { cellIds, cellRuntime } = get(notebookAtom);
   const errors = cellIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
@@ -486,41 +512,135 @@ const cellErrorsAtom = atom((get) => {
   return errors;
 });
 
-/**
- * Get the array of cells.
- */
-export const useCells = () => useAtomValue(cellsAtom);
-
-export const useCellIds = () => useAtomValue(cellIdsAtom);
-
-export const useCellErrors = () => useAtomValue(cellErrorsAtom);
-
-export const getCells = () => store.get(cellsAtom).cellIds;
-
-/**
- * Get the editor views for all cells.
- */
-export const getAllEditorViews = () => {
-  const { cellIds, cellHandles } = store.get(cellsAtom);
-  return cellIds
-    .map((cellId) => cellHandles[cellId].current?.editorView)
-    .filter(Boolean);
-};
-
 export const notebookOutline = atom((get) => {
-  const { cellIds, cellRuntime } = get(cellsAtom);
+  const { cellIds, cellRuntime } = get(notebookAtom);
   const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
   return mergeOutlines(outlines);
 });
 
 export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 
+/// HOOKS
+
+/**
+ * React-hook for the array of cells.
+ */
+export const useNotebook = () => useAtomValue(notebookAtom);
+
+/**
+ * React-hook for the array of cell IDs.
+ */
+export const useCellIds = () => useAtomValue(cellIdsAtom);
+
+/**
+ * React-hook for the array of cell errors.
+ */
+export const useCellErrors = () => useAtomValue(cellErrorsAtom);
+
+/// IMPERATIVE GETTERS
+
+/**
+ * Get the array of cell IDs.
+ */
+export const getNotebook = () => store.get(notebookAtom);
+
+/**
+ * Get the array of cell IDs.
+ */
+export const getCells = () => store.get(notebookAtom).cellIds;
+
+/**
+ * Get the editor views for all cells.
+ */
+export const getAllEditorViews = () => {
+  const { cellIds, cellHandles } = store.get(notebookAtom);
+  return cellIds
+    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .filter(Boolean);
+};
+
+export const getCellEditorView = (cellId: CellId) => {
+  const { cellHandles } = store.get(notebookAtom);
+  return cellHandles[cellId].current?.editorView;
+};
+
+/// HELPERS
+
+export function notebookIsRunning(state: NotebookState) {
+  return Object.values(state.cellRuntime).some(
+    (cell) => cell.status === "running"
+  );
+}
+
+export function notebookNeedsSave(
+  state: NotebookState,
+  otherCodes: string[],
+  otherConfigs: CellConfig[]
+) {
+  const { cellIds, cellData } = state;
+  const data = cellIds.map((cellId) => cellData[cellId]);
+  const codes = data.map((d) => d.code);
+  const configs = data.map((d) => d.config);
+  return (
+    !arrayShallowEquals(codes, otherCodes) ||
+    !arrayShallowEquals(configs, otherConfigs)
+  );
+}
+
+export function notebookNeedsRun(state: NotebookState) {
+  return staleCellIds(state).length > 0;
+}
+
+export function notebookCells(state: NotebookState) {
+  return state.cellIds.map((cellId) => state.cellData[cellId]);
+}
+
+export function notebookCellEditorViews({ cellHandles }: NotebookState) {
+  const views: Record<CellId, EditorView> = {};
+  for (const [cell, ref] of Objects.entries(cellHandles)) {
+    if (!ref.current) {
+      continue;
+    }
+    views[cell] = ref.current.editorView;
+  }
+  return views;
+}
+
+export function disabledCellIds(state: NotebookState) {
+  const { cellIds, cellData } = state;
+  return cellIds
+    .map((cellId) => cellData[cellId])
+    .filter((cell) => cell.config.disabled);
+}
+
+export function enabledCellIds(state: NotebookState) {
+  const { cellIds, cellData } = state;
+  return cellIds
+    .map((cellId) => cellData[cellId])
+    .filter((cell) => !cell.config.disabled);
+}
+
+export function staleCellIds(state: NotebookState) {
+  const { cellIds, cellData, cellRuntime } = state;
+  return cellIds.filter(
+    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted
+  );
+}
+
+export function flattenNotebookCells(state: NotebookState) {
+  const { cellIds, cellData, cellRuntime } = state;
+  return cellIds.map((cellId) => ({
+    ...cellData[cellId],
+    ...cellRuntime[cellId],
+  }));
+}
+
 /**
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
 export function useCellActions() {
-  const setState = useSetAtom(cellsAtom);
+  const setState = useSetAtom(notebookAtom);
 
   return useMemo(() => {
     const actions = createActions((action) => {
@@ -530,6 +650,9 @@ export function useCellActions() {
   }, [setState]);
 }
 
+/**
+ * Map of cell actions
+ */
 export type CellActions = ReturnType<typeof createActions>;
 
 /**

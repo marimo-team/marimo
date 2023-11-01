@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useCells } from "@/core/state/cells";
+import { flattenNotebookCells, useNotebook } from "@/core/state/cells";
 import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import { AppConfig } from "@/core/config/config";
@@ -14,7 +14,7 @@ interface Props {
 
 export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
-    const cells = useCells();
+    const notebook = useNotebook();
     const [layoutData, setLayoutData] = useAtom(layoutDataAtom);
     const [layoutType] = useAtom(layoutViewAtom);
 
@@ -30,13 +30,15 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       return children;
     }
 
+    const cells = flattenNotebookCells(notebook);
+
     const Renderer = plugin.Component;
     const body = (
       <Renderer
         appConfig={appConfig}
         mode={mode}
-        cells={cells.present}
-        layout={layoutData || plugin.getInitialLayout(cells.present)}
+        cells={cells}
+        layout={layoutData || plugin.getInitialLayout(cells)}
         setLayout={setLayoutData}
       />
     );

@@ -60,7 +60,7 @@ export function transitionCell(
       // This cell needs to be re-run, even if its code contents haven't
       // changed since it was last run. Force the re-run state by clearing
       // its lastCodeRun
-      nextCell.lastCodeRun = null;
+      // nextCell.lastCodeRun = null;
       nextCell.interrupted = true;
     } else if (
       message.output.data.some((error) => error["type"] === "ancestor-stopped")
@@ -108,9 +108,7 @@ export function prepareCellForExecution(
 
   nextCell.interrupted = false;
   nextCell.errored = false;
-  nextCell.edited = false;
   nextCell.runElapsedTimeMs = null;
-  nextCell.lastCodeRun = cell.code.trim();
 
   return nextCell;
 }

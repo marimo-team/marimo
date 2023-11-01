@@ -18,7 +18,14 @@ import { UUID } from "./utils/uuid";
 import clsx from "clsx";
 import { WebSocketState } from "./core/websocket/types";
 import { useMarimoWebSocket } from "./core/websocket/useMarimoWebSocket";
-import { useCellActions, useCells } from "./core/state/cells";
+import {
+  notebookCells,
+  notebookIsRunning,
+  notebookNeedsRun,
+  notebookNeedsSave,
+  useCellActions,
+  useNotebook,
+} from "./core/state/cells";
 import { Disconnected } from "./editor/Disconnected";
 import { AppConfig, UserConfig } from "./core/config/config";
 import { toggleAppMode, viewStateAtom } from "./core/mode";
@@ -55,7 +62,7 @@ interface AppProps {
 }
 
 export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
-  const cells = useCells();
+  const notebook = useNotebook();
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useState(getFilenameFromDOM());
@@ -66,7 +73,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
   const isReading = viewState.mode === "read";
-  const isRunning = cells.present.some((cell) => cell.status === "running");
+  const isRunning = notebookIsRunning(notebook);
 
   function alertSaveFailed() {
     openAlert("Failed to save notebook: not connected to a kernel.");
@@ -108,14 +115,11 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     }
   );
 
-  const codes = cells.present.map((cell) => cell.code);
-  const cellNames = cells.present.map((cell) => cell.name);
-  const configs = cells.present.map((cell) => cell.config);
-  const needsSave =
-    savedCodes.length !== codes.length ||
-    savedCodes.some((code, index) => codes[index] !== code) ||
-    savedConfigs.length !== configs.length ||
-    savedConfigs.some((config, index) => configs[index] !== config);
+  const cells = notebookCells(notebook);
+  const codes = cells.map((cell) => cell.code);
+  const cellNames = cells.map((cell) => cell.name);
+  const configs = cells.map((cell) => cell.config);
+  const needsSave = notebookNeedsSave(notebook, savedCodes, savedConfigs);
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
@@ -273,7 +277,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     return JSON.stringify(
       {
         filename: filename,
-        cells: cells.present.map((cell) => {
+        cells: cells.map((cell) => {
           return { name: cell.name, code: cell.code };
         }),
       },
@@ -286,7 +290,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const editableCellsArray = (
     <CellArray
-      cells={cells}
+      notebook={notebook}
       connStatus={connStatus}
       mode={viewState.mode}
       userConfig={userConfig}
@@ -334,7 +338,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         </div>
 
         {/* Don't render until we have a single cell */}
-        {cells.present.length > 0 && (
+        {cells.length > 0 && (
           <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
             <SortableCellsProvider disabled={!isEditing}>
               {editableCellsArray}
@@ -356,10 +360,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           onRun={runStaleCells}
           closed={connStatus.state === WebSocketState.CLOSED}
           running={isRunning}
-          needsRun={cells.present.some(
-            (cell) => cell.edited || cell.interrupted
-          )}
-          undoAvailable={cells.history.length > 0}
+          needsRun={notebookNeedsRun(notebook)}
+          undoAvailable={notebook.history.length > 0}
           appWidth={appConfig.width}
         />
       )}

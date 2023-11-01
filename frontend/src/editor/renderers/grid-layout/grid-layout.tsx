@@ -118,10 +118,10 @@ const GridLayoutRenderer: React.FC<Props> = ({
       draggableHandle={enableInteractions ? undefined : "noop"}
     >
       {cells
-        .filter((cell) => inGridIds.has(cell.key))
+        .filter((cell) => inGridIds.has(cell.id))
         .map((cell) => (
           <div
-            key={cell.key}
+            key={cell.id}
             className={cn(
               "relative transparent-when-disconnected z-10",
               enableInteractions &&
@@ -132,7 +132,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
             <GridCell
               code={cell.code}
               mode={mode}
-              cellId={cell.key}
+              cellId={cell.id}
               output={cell.output}
               status={cell.status}
               hidden={cell.errored || cell.interrupted || cell.stopped}
@@ -144,7 +144,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
                   onClick={() => {
                     setLayout({
                       ...layout,
-                      cells: layout.cells.filter((c) => c.i !== cell.key),
+                      cells: layout.cells.filter((c) => c.i !== cell.id),
                     });
                   }}
                 />
@@ -159,7 +159,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
     return grid;
   }
 
-  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.key));
+  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.id));
 
   return (
     <>
@@ -237,10 +237,10 @@ const GridLayoutRenderer: React.FC<Props> = ({
           </div>
           {notInGrid.map((cell) => (
             <div
-              key={cell.key}
+              key={cell.id}
               draggable={true}
               unselectable="on"
-              data-cell-id={cell.key}
+              data-cell-id={cell.id}
               // Firefox requires some kind of initialization which we can do by adding this attribute
               // @see https://bugzilla.mozilla.org/show_bug.cgi?id=568313
               onDragStart={(e) => {
@@ -248,7 +248,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
                 const height = e.currentTarget.offsetHeight;
 
                 setDroppingItem({
-                  i: cell.key,
+                  i: cell.id,
                   w: layout.columns / 4,
                   h: Math.ceil(height / layout.rowHeight) || 1,
                 });
@@ -259,7 +259,7 @@ const GridLayoutRenderer: React.FC<Props> = ({
               <GridCell
                 code={cell.code}
                 mode={mode}
-                cellId={cell.key}
+                cellId={cell.id}
                 output={cell.output}
                 status={cell.status}
                 hidden={false}
@@ -272,8 +272,8 @@ const GridLayoutRenderer: React.FC<Props> = ({
   );
 };
 
-interface GridCellProps
-  extends Pick<CellRuntimeState, "output" | "status" | "code"> {
+interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
+  code: string;
   cellId: CellId;
   mode: AppMode;
   hidden: boolean;
@@ -350,7 +350,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
           return [];
         }
         return {
-          i: cell.key,
+          i: cell.id,
           x: position[0],
           y: position[1],
           w: position[2],
@@ -363,7 +363,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
   serializeLayout: (layout, cells): SerializedGridLayout => {
     const layoutsByKey = Maps.keyBy(layout.cells, (cell) => cell.i);
     const serializedCells: SerializedGridLayoutCell[] = cells.map((cell) => {
-      const layout = layoutsByKey.get(cell.key);
+      const layout = layoutsByKey.get(cell.id);
       if (!layout) {
         return {
           position: null,

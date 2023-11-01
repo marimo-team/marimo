@@ -4,7 +4,7 @@ import { LayoutType } from "@/editor/renderers/types";
 import { cellRendererPlugins } from "@/editor/renderers/plugins";
 import { Logger } from "@/utils/Logger";
 import { atom } from "jotai";
-import { getCells } from "./cells";
+import { getNotebook, notebookCells } from "./cells";
 import { store } from "./jotai";
 
 /**
@@ -21,7 +21,7 @@ export const layoutDataAtom = atom<GridLayout | undefined>(undefined);
  * Get the serialized layout data, to be used when saving.
  */
 export function getSerializedLayout() {
-  const cells = getCells();
+  const notebook = getNotebook();
   const layoutData = store.get(layoutDataAtom);
   const layoutViewType = store.get(layoutViewAtom);
 
@@ -41,6 +41,6 @@ export function getSerializedLayout() {
   }
   return {
     type: layoutViewType,
-    data: plugin.serializeLayout(layoutData, cells),
+    data: plugin.serializeLayout(layoutData, notebookCells(notebook)),
   };
 }

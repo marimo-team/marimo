@@ -4,7 +4,11 @@ import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "editor/Cell";
 import { RuntimeState } from "../../core/RuntimeState";
 import { ConnectionStatus, WebSocketState } from "../../core/websocket/types";
-import { NotebookState, useCellActions } from "../../core/state/cells";
+import {
+  NotebookState,
+  flattenNotebookCells,
+  useCellActions,
+} from "../../core/state/cells";
 import { AppConfig, UserConfig } from "../../core/config/config";
 import { AppMode } from "../../core/mode";
 import { useHotkey } from "../../hooks/useHotkey";
@@ -16,7 +20,7 @@ import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
 import { useChromeActions } from "../chrome/state";
 
 interface CellArrayProps {
-  cells: NotebookState;
+  notebook: NotebookState;
   mode: AppMode;
   userConfig: UserConfig;
   appConfig: AppConfig;
@@ -29,7 +33,7 @@ function registerRunStart() {
 }
 
 export const CellArray: React.FC<CellArrayProps> = ({
-  cells,
+  notebook,
   mode,
   userConfig,
   appConfig,
@@ -52,7 +56,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
 
-  const { invisible } = useDelayVisibility(cells.present, mode);
+  const { invisible } = useDelayVisibility(notebook.cellIds.length, mode);
 
   // HOTKEYS
   useHotkey("global.focusTop", focusTopCell);
@@ -71,20 +75,22 @@ export const CellArray: React.FC<CellArrayProps> = ({
 
   // Scroll to a cell targeted by a previous action
   useEffect(() => {
-    if (cells.scrollKey !== null) {
+    if (notebook.scrollKey !== null) {
       scrollToTarget();
     }
-  }, [cells.present, cells.scrollKey, scrollToTarget]);
+  }, [notebook.cellIds, notebook.scrollKey, scrollToTarget]);
+
+  const cells = flattenNotebookCells(notebook);
 
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
-      {cells.present.map((cell) => (
+      {cells.map((cell) => (
         <Cell
-          key={cell.key.toString()}
+          key={cell.id.toString()}
           theme={theme}
-          showPlaceholder={cells.present.length === 1}
+          showPlaceholder={cells.length === 1}
           allowFocus={!invisible}
-          cellId={cell.key}
+          id={cell.id}
           code={cell.code}
           output={cell.output}
           consoleOutputs={cell.consoleOutputs}
@@ -99,7 +105,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           runElapsedTimeMs={cell.runElapsedTimeMs}
           registerRunStart={registerRunStart}
           serializedEditorState={cell.serializedEditorState}
-          showDeleteButton={cells.present.length > 1}
+          showDeleteButton={cells.length > 1}
           createNewCell={createNewCell}
           deleteCell={onDeleteCell}
           focusCell={focusCell}
@@ -107,7 +113,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           moveCell={moveCell}
           mode={mode}
           appClosed={connStatus.state !== WebSocketState.OPEN}
-          ref={cell.ref}
+          ref={notebook.cellHandles[cell.id]}
           userConfig={userConfig}
           config={cell.config}
         />

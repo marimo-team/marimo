@@ -4,7 +4,7 @@ import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "../../../utils/Logger";
 import { CellId, HTMLCellId } from "@/core/model/ids";
-import { getCells } from "@/core/state/cells";
+import { getCellEditorView } from "@/core/state/cells";
 import { dispatchShowTooltip } from "./hints";
 
 export async function completer(
@@ -38,8 +38,7 @@ export async function completer(
   });
   if (tooltip) {
     // Find EditorView for the cell
-    const editorView = getCells().find((cell) => cell.key === cellId)?.ref
-      .current?.editorView;
+    const editorView = getCellEditorView(cellId);
     if (editorView) {
       dispatchShowTooltip(editorView, tooltip);
     }
