@@ -1,8 +1,14 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { atom, useAtomValue, useSetAtom } from "jotai";
-import { ReducerWithoutAction, useMemo } from "react";
+import { ReducerWithoutAction, createRef, useMemo } from "react";
 import { CellMessage } from "../kernel/messages";
-import { CellConfig, CellState, createCell } from "../model/cells";
+import {
+  CellConfig,
+  CellRuntimeState,
+  CellData,
+  createCell,
+  createCellRuntimeState,
+} from "../model/cells";
 import {
   scrollToBottom,
   scrollToTop,
@@ -13,27 +19,41 @@ import { CellId } from "../model/ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "./jotai";
 import { createReducer } from "../../utils/createReducer";
-import { arrayInsert, arrayDelete } from "@/utils/arrays";
+import { arrayInsert, arrayDelete, arrayShallowEquals } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { mergeOutlines } from "../dom/outline";
+import { CellHandle } from "@/editor/Cell";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { EditorView } from "@codemirror/view";
 
-/* The array of cells on the page, together with a history of
- * deleted cells to implement an "undo delete" action
+/**
+ * The state of the notebook.
  */
-export interface CellsAndHistory {
+export interface NotebookState {
   /**
-   * The array of cells on the page
+   * Order of cells on the page.
    */
-  present: CellState[];
+  cellIds: CellId[];
   /**
-   * Tuples of deleted cells, represented by (cell name, serialized editor
-   * config, and insertion index), so that cell deletion can be undone
+   * Map of cells to their view state
+   */
+  cellData: Record<CellId, CellData>;
+  /**
+   * Map of cells to their runtime state
+   */
+  cellRuntime: Record<CellId, CellRuntimeState>;
+  /**
+   * Cell handlers
+   */
+  cellHandles: Record<CellId, React.RefObject<CellHandle>>;
+  /**
+   * Array of deleted cells (with their data and index) so that cell deletion can be undone
    *
    * (CodeMirror types the serialized config as any.)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  history: Array<[string, any, number]>;
-
+  history: Array<{ name: string; serializedEditorState: any; index: number }>;
   /**
    * Key of cell to scroll to; typically set by actions that re-order the cell
    * array. Call the SCROLL_TO_TARGET action to scroll to the specified cell
@@ -42,41 +62,62 @@ export interface CellsAndHistory {
   scrollKey: CellId | null;
 }
 
-function initialCellState(): CellsAndHistory {
+/**
+ * Initial state of the notebook.
+ */
+function initialNotebookState(): NotebookState {
   return {
-    present: [],
+    cellIds: [],
+    cellData: {},
+    cellRuntime: {},
+    cellHandles: {},
     history: [],
     scrollKey: null,
   };
 }
 
-const { reducer, createActions } = createReducer(initialCellState, {
+/**
+ * Actions and reducer for the notebook state.
+ */
+const { reducer, createActions } = createReducer(initialNotebookState, {
   createNewCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
-    const cell = createCell({ key: CellId.create() });
+    const newCellId = CellId.create();
 
     return {
       ...state,
-      present: arrayInsert(state.present, insertionIndex, cell),
-      scrollKey: cell.key,
+      cellIds: arrayInsert(state.cellIds, insertionIndex, newCellId),
+      cellData: {
+        ...state.cellData,
+        [newCellId]: createCell({ id: newCellId }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [newCellId]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [newCellId]: createRef(),
+      },
+      scrollKey: newCellId,
     };
   },
   moveCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
-    const cell = state.present[index];
+    const index = state.cellIds.indexOf(cellId);
+    const cell = state.cellIds[index];
     if (before && index === 0) {
       return {
         ...state,
-        present: [cell, ...state.present.slice(1)],
+        cellIds: [cell, ...state.cellIds.slice(1)],
         scrollKey: cellId,
       };
-    } else if (!before && index === state.present.length - 1) {
+    } else if (!before && index === state.cellIds.length - 1) {
       return {
         ...state,
-        present: [...state.present.slice(0, -1), cell],
+        cellIds: [...state.cellIds.slice(0, -1), cell],
         scrollKey: cellId,
       };
     }
@@ -84,103 +125,109 @@ const { reducer, createActions } = createReducer(initialCellState, {
     return before
       ? {
           ...state,
-          present: arrayMove(state.present, index, index - 1),
+          cellIds: arrayMove(state.cellIds, index, index - 1),
           scrollKey: cellId,
         }
       : {
           ...state,
-          present: arrayMove(state.present, index, index + 1),
+          cellIds: arrayMove(state.cellIds, index, index + 1),
           scrollKey: cellId,
         };
   },
   dropCellOver: (state, action: { cellId: CellId; overCellId: CellId }) => {
     const { cellId, overCellId } = action;
-    const fromIndex = state.present.findIndex((cell) => cell.key === cellId);
-    const toIndex = state.present.findIndex((cell) => cell.key === overCellId);
+    const fromIndex = state.cellIds.indexOf(cellId);
+    const toIndex = state.cellIds.indexOf(overCellId);
     return {
       ...state,
-      present: arrayMove(state.present, fromIndex, toIndex),
+      cellIds: arrayMove(state.cellIds, fromIndex, toIndex),
       scrollKey: null,
     };
   },
   focusCell: (state, action: { cellId: CellId; before: boolean }) => {
-    if (state.present.length === 0) {
+    if (state.cellIds.length === 0) {
       return state;
     }
 
     const { cellId, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
     let focusIndex = before ? index - 1 : index + 1;
     // clamp
-    focusIndex = Math.max(0, Math.min(focusIndex, state.present.length - 1));
+    focusIndex = Math.max(0, Math.min(focusIndex, state.cellIds.length - 1));
+    const focusCellId = state.cellIds[focusIndex];
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
-    focusAndScrollCellIntoView(state.present[focusIndex]);
+    focusAndScrollCellIntoView(focusCellId, state.cellHandles[focusCellId]);
     return state;
   },
   focusTopCell: (state) => {
-    if (state.present.length === 0) {
+    if (state.cellIds.length === 0) {
       return state;
     }
 
-    state.present[0].ref.current?.editorView.focus();
+    const cellKey = state.cellIds[0];
+    state.cellHandles[cellKey].current?.editorView.focus();
     scrollToTop();
     return state;
   },
   focusBottomCell: (state) => {
-    if (state.present.length === 0) {
+    if (state.cellIds.length === 0) {
       return state;
     }
 
-    state.present[state.present.length - 1].ref.current?.editorView.focus();
+    const cellKey = state.cellIds[state.cellIds.length - 1];
+    state.cellHandles[cellKey].current?.editorView.focus();
     scrollToBottom();
     return state;
   },
   sendToTop: (state, action: { cellId: CellId }) => {
-    if (state.present.length === 0) {
+    if (state.cellIds.length === 0) {
       return state;
     }
 
     const { cellId } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
     return {
       ...state,
-      present: arrayMove(state.present, index, 0),
+      cellIds: arrayMove(state.cellIds, index, 0),
       scrollKey: cellId,
     };
   },
   sendToBottom: (state, action: { cellId: CellId }) => {
-    if (state.present.length === 0) {
+    if (state.cellIds.length === 0) {
       return state;
     }
 
     const { cellId } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
     return {
       ...state,
-      present: arrayMove(state.present, index, state.present.length - 1),
+      cellIds: arrayMove(state.cellIds, index, state.cellIds.length - 1),
       scrollKey: cellId,
     };
   },
   deleteCell: (state, action: { cellId: CellId }) => {
     const cellId = action.cellId;
-    if (state.present.length === 1) {
+    if (state.cellIds.length === 1) {
       return state;
     }
 
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
+    const cellKey = state.cellIds[index];
     const focusIndex = index === 0 ? 1 : index - 1;
-    const scrollKey = state.present[focusIndex].key;
+    const scrollKey = state.cellIds[focusIndex];
 
     return {
-      present: arrayDelete(state.present, index),
+      ...state,
+      cellIds: arrayDelete(state.cellIds, index),
       history: [
         ...state.history,
-        [
-          state.present[index].name,
-          state.present[index].ref.current?.editorStateJSON(),
-          index,
-        ],
+        {
+          name: state.cellData[cellKey].name,
+          serializedEditorState:
+            state.cellHandles[cellKey].current?.editorStateJSON(),
+          index: index,
+        },
       ],
       scrollKey: scrollKey,
     };
@@ -191,13 +238,14 @@ const { reducer, createActions } = createReducer(initialCellState, {
     } else {
       const mostRecentlyDeleted = state.history[state.history.length - 1];
 
-      const name = mostRecentlyDeleted[0];
-      const serializedEditorState = mostRecentlyDeleted[1] || {
-        doc: "",
-      };
-      const index = mostRecentlyDeleted[2];
+      const {
+        name,
+        serializedEditorState = { doc: "" },
+        index,
+      } = mostRecentlyDeleted;
+      const cellId = CellId.create();
       const undoCell = createCell({
-        key: CellId.create(),
+        id: cellId,
         name,
         code: serializedEditorState.doc,
         edited: serializedEditorState.doc.trim().length > 0,
@@ -205,7 +253,19 @@ const { reducer, createActions } = createReducer(initialCellState, {
       });
       return {
         ...state,
-        present: arrayInsert(state.present, index, undoCell),
+        cellIds: arrayInsert(state.cellIds, index, cellId),
+        cellData: {
+          ...state.cellData,
+          [cellId]: undoCell,
+        },
+        cellRuntime: {
+          ...state.cellRuntime,
+          [cellId]: createCellRuntimeState(),
+        },
+        cellHandles: {
+          ...state.cellHandles,
+          [cellId]: createRef(),
+        },
         history: state.history.slice(0, -1),
       };
     }
@@ -223,13 +283,13 @@ const { reducer, createActions } = createReducer(initialCellState, {
     }
   ) => {
     const { cellId, code, formattingChange } = action;
-    const cellToUpdate = state.present.find((cell) => cell.key === cellId);
+    const cellIndex = state.cellIds.indexOf(cellId);
 
-    if (!cellToUpdate || cellToUpdate.code === code) {
+    if (cellIndex === -1) {
       return state;
     }
 
-    return updateCell(state, cellId, (cell) => {
+    return updateCellData(state, cellId, (cell) => {
       // Formatting-only change means we can re-use the last code run
       // if it was not previously edited. And we don't change the edited state.
       return formattingChange
@@ -250,7 +310,7 @@ const { reducer, createActions } = createReducer(initialCellState, {
     action: { cellId: CellId; config: Partial<CellConfig> }
   ) => {
     const { cellId, config } = action;
-    return updateCell(state, cellId, (cell) => {
+    return updateCellData(state, cellId, (cell) => {
       return {
         ...cell,
         config: { ...cell.config, ...config },
@@ -258,14 +318,15 @@ const { reducer, createActions } = createReducer(initialCellState, {
     });
   },
   prepareForRun: (state, action: { cellId: CellId }) => {
-    const cellToUpdate = state.present.find(
-      (cell) => cell.key === action.cellId
-    );
-    if (!cellToUpdate) {
-      return state;
-    }
-    return updateCell(state, action.cellId, (cell) => {
+    const newState = updateCellRuntimeState(state, action.cellId, (cell) => {
       return prepareCellForExecution(cell);
+    });
+    return updateCellData(newState, action.cellId, (cell) => {
+      return {
+        ...cell,
+        edited: false,
+        lastCodeRun: cell.code.trim(),
+      };
     });
   },
   handleCellMessage: (
@@ -273,14 +334,21 @@ const { reducer, createActions } = createReducer(initialCellState, {
     action: { cellId: CellId; message: CellMessage }
   ) => {
     const { cellId, message } = action;
-    return updateCell(state, cellId, (cell) => {
+    return updateCellRuntimeState(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
   },
-  setCells: (state, cells: CellState[]) => {
+  setCells: (state, cells: CellData[]) => {
     return {
       ...state,
-      present: cells,
+      cellIds: cells.map((cell) => cell.id),
+      cellData: Object.fromEntries(cells.map((cell) => [cell.id, cell])),
+      cellHandles: Object.fromEntries(
+        cells.map((cell) => [cell.id, createRef()])
+      ),
+      cellRuntime: Object.fromEntries(
+        cells.map((cell) => [cell.id, createCellRuntimeState()])
+      ),
     };
   },
   /**
@@ -294,31 +362,52 @@ const { reducer, createActions } = createReducer(initialCellState, {
    */
   moveToNextCell: (state, action: { cellId: CellId; before: boolean }) => {
     const { cellId, before } = action;
-    const index = state.present.findIndex((cell) => cell.key === cellId);
+    const index = state.cellIds.indexOf(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === state.present.length) {
-      const newCell = createCell({
-        key: CellId.create(),
-      });
+    if (nextCellIndex === state.cellIds.length) {
+      const newCellId = CellId.create();
       return {
         ...state,
-        present: [...state.present, newCell],
+        cellIds: [...state.cellIds, newCellId],
+        cellData: {
+          ...state.cellData,
+          [newCellId]: createCell({ id: newCellId }),
+        },
+        cellRuntime: {
+          ...state.cellRuntime,
+          [newCellId]: createCellRuntimeState(),
+        },
+        cellHandles: {
+          ...state.cellHandles,
+          [newCellId]: createRef(),
+        },
       };
       // Create a new cell at the beginning; again, no need to update
       // scrollKey
     } else if (nextCellIndex === -1) {
-      const newCell = createCell({
-        key: CellId.create(),
-      });
+      const newCellId = CellId.create();
       return {
         ...state,
-        present: [newCell, ...state.present],
+        cellIds: [newCellId, ...state.cellIds],
+        cellData: {
+          ...state.cellData,
+          [newCellId]: createCell({ id: newCellId }),
+        },
+        cellRuntime: {
+          ...state.cellRuntime,
+          [newCellId]: createCellRuntimeState(),
+        },
+        cellHandles: {
+          ...state.cellHandles,
+          [newCellId]: createRef(),
+        },
       };
     } else {
+      const nextCellId = state.cellIds[nextCellIndex];
       // Just focus, no state change
-      focusAndScrollCellIntoView(state.present[nextCellIndex]);
+      focusAndScrollCellIntoView(nextCellId, state.cellHandles[nextCellId]);
       return state;
     }
   },
@@ -328,15 +417,17 @@ const { reducer, createActions } = createReducer(initialCellState, {
     if (scrollKey === null) {
       return state;
     } else {
-      const index = state.present.findIndex((cell) => cell.key === scrollKey);
+      const index = state.cellIds.indexOf(scrollKey);
 
       // Special-case scrolling to the end of the page: bug in Chrome where
       // browser fails to scrollIntoView an element at the end of a long page
-      if (index === state.present.length - 1) {
-        state.present[state.present.length - 1].ref.current?.editorView.focus();
+      if (index === state.cellIds.length - 1) {
+        const cellId = state.cellIds[state.cellIds.length - 1];
+        state.cellHandles[cellId].current?.editorView.focus();
         scrollToBottom();
       } else {
-        focusAndScrollCellIntoView(state.present[index]);
+        const nextCellId = state.cellIds[index];
+        focusAndScrollCellIntoView(nextCellId, state.cellHandles[nextCellId]);
       }
 
       return {
@@ -346,98 +437,210 @@ const { reducer, createActions } = createReducer(initialCellState, {
     }
   },
   foldAll: (state) => {
-    const targets = state.present.map((cell) => cell.ref.current?.editorView);
+    const targets = Object.values(state.cellHandles).map(
+      (handle) => handle.current?.editorView
+    );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
-    const targets = state.present.map((cell) => cell.ref.current?.editorView);
+    const targets = Object.values(state.cellHandles).map(
+      (handle) => handle.current?.editorView
+    );
     unfoldAllBulk(targets);
     return state;
   },
 });
 
 // Helper function to update a cell in the array
-function updateCell(
-  state: CellsAndHistory,
+function updateCellRuntimeState(
+  state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellState>
+  cellReducer: ReducerWithoutAction<CellRuntimeState>
 ) {
+  if (!(cellId in state.cellRuntime)) {
+    Logger.warn(`Cell ${cellId} not found in state`);
+    return state;
+  }
+
   return {
     ...state,
-    present: state.present.map((cell) =>
-      cell.key === cellId ? cellReducer(cell) : cell
-    ),
+    cellRuntime: {
+      ...state.cellRuntime,
+      [cellId]: cellReducer(state.cellRuntime[cellId]),
+    },
+  };
+}
+function updateCellData(
+  state: NotebookState,
+  cellId: CellId,
+  cellReducer: ReducerWithoutAction<CellData>
+) {
+  if (!(cellId in state.cellData)) {
+    Logger.warn(`Cell ${cellId} not found in state`);
+    return state;
+  }
+
+  return {
+    ...state,
+    cellData: {
+      ...state.cellData,
+      [cellId]: cellReducer(state.cellData[cellId]),
+    },
   };
 }
 
-const cellsAtom = atom<CellsAndHistory>(initialCellState());
-const cellIdsAtom = atom((get) =>
-  get(cellsAtom).present.map((cell) => cell.key)
-);
+/// ATOMS
+
+const notebookAtom = atom<NotebookState>(initialNotebookState());
+
+const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
 const cellErrorsAtom = atom((get) => {
-  const errors = get(cellsAtom)
-    .present.map((cell) =>
-      cell.output?.mimetype === "application/vnd.marimo+error"
+  const { cellIds, cellRuntime } = get(notebookAtom);
+  const errors = cellIds
+    .map((cellId) => {
+      const cell = cellRuntime[cellId];
+      return cell.output?.mimetype === "application/vnd.marimo+error"
         ? {
             output: cell.output,
-            cellId: cell.key,
+            cellId: cellId,
           }
-        : null
-    )
-    .filter(Boolean);
-  return errors;
-});
-
-/**
- * Get the array of cells.
- */
-export const useCells = () => useAtomValue(cellsAtom);
-
-export const useCellIds = () => useAtomValue(cellIdsAtom);
-
-export const useCellErrors = () => useAtomValue(cellErrorsAtom);
-
-export const getCells = () => store.get(cellsAtom).present;
-
-/**
- * Get the editor views for all cells.
- */
-export const getAllEditorViews = () => {
-  const cells = store.get(cellsAtom).present;
-  return cells
-    .map((cell) => cell.ref.current?.editorView)
-    .flatMap((x) => (x ? [x] : []));
-};
-
-export const cellErrors = atom((get) => {
-  const errors = get(cellsAtom)
-    .present.map((cell) =>
-      cell.output?.mimetype === "application/vnd.marimo+error"
-        ? {
-            output: cell.output,
-            cellId: cell.key,
-          }
-        : null
-    )
+        : null;
+    })
     .filter(Boolean);
   return errors;
 });
 
 export const notebookOutline = atom((get) => {
-  const outlines = get(cellsAtom).present.map((cell) => cell.outline);
+  const { cellIds, cellRuntime } = get(notebookAtom);
+  const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
   return mergeOutlines(outlines);
 });
 
-export const cellErrorCount = atom((get) => get(cellErrors).length);
+export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
+
+/// HOOKS
+
+/**
+ * React-hook for the array of cells.
+ */
+export const useNotebook = () => useAtomValue(notebookAtom);
+
+/**
+ * React-hook for the array of cell IDs.
+ */
+export const useCellIds = () => useAtomValue(cellIdsAtom);
+
+/**
+ * React-hook for the array of cell errors.
+ */
+export const useCellErrors = () => useAtomValue(cellErrorsAtom);
+
+/// IMPERATIVE GETTERS
+
+/**
+ * Get the array of cell IDs.
+ */
+export const getNotebook = () => store.get(notebookAtom);
+
+/**
+ * Get the array of cell IDs.
+ */
+export const getCells = () => store.get(notebookAtom).cellIds;
+
+/**
+ * Get the editor views for all cells.
+ */
+export const getAllEditorViews = () => {
+  const { cellIds, cellHandles } = store.get(notebookAtom);
+  return cellIds
+    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .filter(Boolean);
+};
+
+export const getCellEditorView = (cellId: CellId) => {
+  const { cellHandles } = store.get(notebookAtom);
+  return cellHandles[cellId].current?.editorView;
+};
+
+/// HELPERS
+
+export function notebookIsRunning(state: NotebookState) {
+  return Object.values(state.cellRuntime).some(
+    (cell) => cell.status === "running"
+  );
+}
+
+export function notebookNeedsSave(
+  state: NotebookState,
+  otherCodes: string[],
+  otherConfigs: CellConfig[]
+) {
+  const { cellIds, cellData } = state;
+  const data = cellIds.map((cellId) => cellData[cellId]);
+  const codes = data.map((d) => d.code);
+  const configs = data.map((d) => d.config);
+  return (
+    !arrayShallowEquals(codes, otherCodes) ||
+    !arrayShallowEquals(configs, otherConfigs)
+  );
+}
+
+export function notebookNeedsRun(state: NotebookState) {
+  return staleCellIds(state).length > 0;
+}
+
+export function notebookCells(state: NotebookState) {
+  return state.cellIds.map((cellId) => state.cellData[cellId]);
+}
+
+export function notebookCellEditorViews({ cellHandles }: NotebookState) {
+  const views: Record<CellId, EditorView> = {};
+  for (const [cell, ref] of Objects.entries(cellHandles)) {
+    if (!ref.current) {
+      continue;
+    }
+    views[cell] = ref.current.editorView;
+  }
+  return views;
+}
+
+export function disabledCellIds(state: NotebookState) {
+  const { cellIds, cellData } = state;
+  return cellIds
+    .map((cellId) => cellData[cellId])
+    .filter((cell) => cell.config.disabled);
+}
+
+export function enabledCellIds(state: NotebookState) {
+  const { cellIds, cellData } = state;
+  return cellIds
+    .map((cellId) => cellData[cellId])
+    .filter((cell) => !cell.config.disabled);
+}
+
+export function staleCellIds(state: NotebookState) {
+  const { cellIds, cellData, cellRuntime } = state;
+  return cellIds.filter(
+    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted
+  );
+}
+
+export function flattenNotebookCells(state: NotebookState) {
+  const { cellIds, cellData, cellRuntime } = state;
+  return cellIds.map((cellId) => ({
+    ...cellData[cellId],
+    ...cellRuntime[cellId],
+  }));
+}
 
 /**
  * Use this hook to dispatch cell actions. This hook will not cause a re-render
  * when cells change.
  */
 export function useCellActions() {
-  const setState = useSetAtom(cellsAtom);
+  const setState = useSetAtom(notebookAtom);
 
   return useMemo(() => {
     const actions = createActions((action) => {
@@ -447,6 +650,9 @@ export function useCellActions() {
   }, [setState]);
 }
 
+/**
+ * Map of cell actions
+ */
 export type CellActions = ReturnType<typeof createActions>;
 
 /**
@@ -455,5 +661,5 @@ export type CellActions = ReturnType<typeof createActions>;
 export const exportedForTesting = {
   reducer,
   createActions,
-  initialCellState,
+  initialCellState: initialNotebookState,
 };

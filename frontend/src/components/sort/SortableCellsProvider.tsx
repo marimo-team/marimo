@@ -15,7 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useCellActions, useCells } from "../../core/state/cells";
+import { useCellActions, useNotebook } from "../../core/state/cells";
 import { useEvent } from "../../hooks/useEvent";
 import { CellId } from "@/core/model/ids";
 
@@ -28,7 +28,7 @@ const SortableCellsProviderInternal = ({
   children,
   disabled,
 }: SortableCellsProviderProps) => {
-  const cells = useCells();
+  const notebook = useNotebook();
   const { dropCellOver } = useCellActions();
 
   const sensors = useSensors(
@@ -43,7 +43,7 @@ const SortableCellsProviderInternal = ({
     })
   );
 
-  const ids = cells.present.map((item) => item.key.toString());
+  const ids = notebook.cellIds;
 
   const handleDragEnd = useEvent((event: DragEndEvent) => {
     const { active, over } = event;

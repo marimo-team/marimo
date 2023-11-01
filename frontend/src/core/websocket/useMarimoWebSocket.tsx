@@ -11,8 +11,8 @@ import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { saveCellConfig, sendInstantiate } from "../network/requests";
 import { CellId } from "../model/ids";
-import { CellConfig } from "../model/cells";
-import { CellState, createCell } from "../model/cells";
+import { CellConfig, CellData } from "../model/cells";
+import { createCell } from "../model/cells";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
 import { layoutDataAtom, layoutViewAtom } from "../state/layout";
@@ -30,7 +30,7 @@ import { prettyError } from "@/utils/errors";
 export function useMarimoWebSocket(opts: {
   sessionId: string;
   autoInstantiate: boolean;
-  setCells: (cells: CellState[]) => void;
+  setCells: (cells: CellData[]) => void;
   setInitialCodes: (codes: string[]) => void;
   setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {
@@ -62,7 +62,7 @@ export function useMarimoWebSocket(opts: {
         // Set the layout, initial codes, cells
         const cells = codes.map((code, i) =>
           createCell({
-            key: CellId.create(),
+            id: CellId.create(),
             code,
             edited: !autoInstantiate,
             name: names[i],
@@ -91,7 +91,7 @@ export function useMarimoWebSocket(opts: {
         // Register the configs
         saveCellConfig({
           configs: Object.fromEntries(
-            cells.map((cell) => [cell.key, cell.config])
+            cells.map((cell) => [cell.id, cell.config])
           ),
         }).catch((error) => {
           showBoundary(

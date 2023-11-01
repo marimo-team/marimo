@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { AppConfig } from "@/core/config/config";
-import { CellState } from "@/core/model/cells";
+import { CellData, CellRuntimeState } from "@/core/model/cells";
 import { ZodType, ZodTypeDef } from "zod";
 import { AppMode } from "@/core/mode";
 
@@ -16,7 +16,7 @@ export interface ICellRendererProps<L> {
   /**
    * The cells to render.
    */
-  cells: CellState[];
+  cells: Array<CellRuntimeState & CellData>;
 
   /**
    * The layout configuration.
@@ -56,10 +56,10 @@ export interface ICellRendererPlugin<S, L> {
    */
   validator: ZodType<S, ZodTypeDef, unknown>;
 
-  deserializeLayout: (layout: S, cells: CellState[]) => L;
-  serializeLayout: (layout: L, cells: CellState[]) => S;
+  deserializeLayout: (layout: S, cells: CellData[]) => L;
+  serializeLayout: (layout: L, cells: CellData[]) => S;
 
   Component: React.FC<ICellRendererProps<L>>;
 
-  getInitialLayout: (cells: CellState[]) => L;
+  getInitialLayout: (cells: CellData[]) => L;
 }

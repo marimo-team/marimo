@@ -1,15 +1,19 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { RefObject } from "react";
 import { Logger } from "../../utils/Logger";
-import { CellState } from "./cells";
-import { HTMLCellId } from "./ids";
+import { CellId, HTMLCellId } from "./ids";
+import { CellHandle } from "@/editor/Cell";
 
-export function focusAndScrollCellIntoView(cell: CellState) {
+export function focusAndScrollCellIntoView(
+  cellId: CellId,
+  cell: RefObject<CellHandle>
+) {
   if (!cell) {
     return;
   }
 
-  cell.ref.current?.editorView.focus();
-  const element = document.getElementById(HTMLCellId.create(cell.key));
+  cell.current?.editorView.focus();
+  const element = document.getElementById(HTMLCellId.create(cellId));
   if (element) {
     element.scrollIntoView({
       behavior: "smooth",

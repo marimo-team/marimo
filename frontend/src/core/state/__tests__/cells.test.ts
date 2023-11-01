@@ -1,31 +1,38 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { CellState, createCell } from "../../model/cells";
-import { CellsAndHistory, exportedForTesting } from "../cells";
+import {
+  NotebookState,
+  exportedForTesting,
+  flattenNotebookCells,
+  notebookCells,
+} from "../cells";
 import { CellId } from "@/core/model/ids";
 
 const { initialCellState, reducer, createActions } = exportedForTesting;
 
-function formatCells(cells: CellState[]) {
+function formatCells(notebook: NotebookState) {
+  const cells = notebookCells(notebook);
   return `\n${cells
-    .map((cell) => [`key: ${cell.key}`, `code: '${cell.code}'`].join("\n"))
+    .map((cell) => [`key: ${cell.id}`, `code: '${cell.code}'`].join("\n"))
     .join("\n\n")}`;
 }
 
 describe("cell reducer", () => {
-  let state: CellsAndHistory;
+  let state: NotebookState;
+  let cells: ReturnType<typeof flattenNotebookCells>;
   let firstCellId: CellId;
 
   const actions = createActions((action) => {
     state = reducer(state, action);
+    cells = flattenNotebookCells(state);
   });
 
   beforeEach(() => {
     CellId.reset();
 
     state = initialCellState();
-    state.present = [createCell({ key: CellId.create() })];
-    firstCellId = state.present[0].key;
+    actions.createNewCell({ cellId: undefined!, before: false });
+    firstCellId = state.cellIds[0];
   });
 
   it("can add a cell after another cell", () => {
@@ -33,7 +40,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: false,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 0
       code: ''
@@ -48,7 +55,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: true,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 1
       code: ''
@@ -66,7 +73,7 @@ describe("cell reducer", () => {
     actions.deleteCell({
       cellId: firstCellId,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 1
       code: ''"
@@ -74,7 +81,7 @@ describe("cell reducer", () => {
 
     // undo
     actions.undoDeleteCell();
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 2
       code: ''
@@ -90,7 +97,7 @@ describe("cell reducer", () => {
       code: "import numpy as np",
       formattingChange: false,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 0
       code: 'import numpy as np'"
@@ -102,7 +109,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: false,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 0
       code: ''
@@ -116,7 +123,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: false,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 1
       code: ''
@@ -130,7 +137,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: true,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 0
       code: ''
@@ -149,7 +156,7 @@ describe("cell reducer", () => {
       cellId: "1" as CellId,
       before: false,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 0
       code: ''
@@ -166,7 +173,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       overCellId: "2" as CellId,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 1
       code: ''
@@ -183,7 +190,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       overCellId: "2" as CellId,
     });
-    expect(formatCells(state.present)).toMatchInlineSnapshot(`
+    expect(formatCells(state)).toMatchInlineSnapshot(`
       "
       key: 1
       code: ''
@@ -200,7 +207,7 @@ describe("cell reducer", () => {
     // HAPPY PATH
     /////////////////
     // Initial state
-    let cell = state.present[0];
+    let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
@@ -212,7 +219,7 @@ describe("cell reducer", () => {
       code: "import marimo as mo",
       formattingChange: false,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
@@ -222,7 +229,7 @@ describe("cell reducer", () => {
     actions.prepareForRun({
       cellId: firstCellId,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
@@ -239,7 +246,7 @@ describe("cell reducer", () => {
         timestamp: new Date(10).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
@@ -258,7 +265,7 @@ describe("cell reducer", () => {
         timestamp: new Date(20).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("running");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
@@ -282,7 +289,7 @@ describe("cell reducer", () => {
         timestamp: new Date(22).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("running");
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
@@ -310,7 +317,7 @@ describe("cell reducer", () => {
         timestamp: new Date(33).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(13_000);
@@ -325,7 +332,7 @@ describe("cell reducer", () => {
       code: "import marimo as mo\nimport numpy",
       formattingChange: false,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
@@ -336,7 +343,7 @@ describe("cell reducer", () => {
       code: "import marimo as mo",
       formattingChange: false,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.edited).toBe(false);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -346,7 +353,7 @@ describe("cell reducer", () => {
       code: "import marimo as mo\nimport numpy",
       formattingChange: false,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(true);
@@ -358,7 +365,7 @@ describe("cell reducer", () => {
     actions.prepareForRun({
       cellId: firstCellId,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
     actions.handleCellMessage({
@@ -371,7 +378,7 @@ describe("cell reducer", () => {
         timestamp: new Date(40).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
     actions.handleCellMessage({
@@ -384,7 +391,7 @@ describe("cell reducer", () => {
         timestamp: new Date(50).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
     actions.handleCellMessage({
@@ -404,7 +411,7 @@ describe("cell reducer", () => {
         timestamp: new Date(61).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo\nimport numpy");
@@ -419,7 +426,7 @@ describe("cell reducer", () => {
     actions.prepareForRun({
       cellId: firstCellId,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
     actions.handleCellMessage({
@@ -432,7 +439,7 @@ describe("cell reducer", () => {
         timestamp: new Date(40).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
     actions.handleCellMessage({
@@ -445,7 +452,7 @@ describe("cell reducer", () => {
         timestamp: new Date(50).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
     actions.handleCellMessage({
@@ -463,9 +470,9 @@ describe("cell reducer", () => {
         timestamp: new Date(61).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
-    expect(cell.lastCodeRun).toBe(null);
+    expect(cell.lastCodeRun).toBe(cell.code);
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
@@ -484,7 +491,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       before: false,
     });
-    const secondCell = state.present[1].key;
+    const secondCell = cells[1].id;
     // Update code
     actions.updateCellCode({
       code: "mo.slider()",
@@ -508,7 +515,7 @@ describe("cell reducer", () => {
         timestamp: new Date(10).getTime(),
       },
     });
-    let cell = state.present[1];
+    let cell = cells[1];
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("mo.slider()");
     expect(cell.edited).toBe(false);
@@ -527,7 +534,7 @@ describe("cell reducer", () => {
         timestamp: new Date(20).getTime(),
       },
     });
-    cell = state.present[1];
+    cell = cells[1];
     expect(cell.status).toBe("stale");
     expect(cell.lastCodeRun).toBe("mo.slider()");
     expect(cell.edited).toBe(false);
@@ -537,13 +544,13 @@ describe("cell reducer", () => {
   });
 
   it("can format code and update cell", () => {
-    const firstCellId = state.present[0].key;
+    const firstCellId = cells[0].id;
     actions.updateCellCode({
       cellId: firstCellId,
       code: "import marimo as    mo",
       formattingChange: false,
     });
-    let cell = state.present[0];
+    let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
@@ -574,7 +581,7 @@ describe("cell reducer", () => {
     });
 
     // Check steady state
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(false);
     expect(cell.lastCodeRun).toBe("import marimo as    mo");
@@ -585,15 +592,15 @@ describe("cell reducer", () => {
       code: "import marimo as mo",
       formattingChange: true,
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
   });
 
   it("can update a cells config", () => {
-    const firstCellId = state.present[0].key;
-    let cell = state.present[0];
+    const firstCellId = cells[0].id;
+    let cell = cells[0];
     // Starts empty
     expect(cell.config).toEqual({});
 
@@ -601,7 +608,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       config: { disabled: true },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.config.disabled).toBe(true);
 
     // Revert
@@ -609,7 +616,7 @@ describe("cell reducer", () => {
       cellId: firstCellId,
       config: { disabled: false },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.config.disabled).toBe(false);
   });
 
@@ -637,7 +644,7 @@ describe("cell reducer", () => {
         timestamp: new Date(10).getTime(),
       },
     });
-    let cell = state.present[0];
+    let cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe(
       "mo.md('This has an ancestor that was stopped')"
@@ -658,7 +665,7 @@ describe("cell reducer", () => {
         timestamp: new Date(20).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive stop output
@@ -683,7 +690,7 @@ describe("cell reducer", () => {
         timestamp: new Date(20).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("idle");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((cell.output?.data as any)[0].msg).toBe(
@@ -703,7 +710,7 @@ describe("cell reducer", () => {
         timestamp: new Date(30).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.stopped).toBe(true);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
@@ -719,7 +726,7 @@ describe("cell reducer", () => {
         timestamp: new Date(40).getTime(),
       },
     });
-    cell = state.present[0];
+    cell = cells[0];
     expect(cell.status).toBe("running");
     expect(cell.stopped).toBe(false);
     expect(cell.output).toBe(null);

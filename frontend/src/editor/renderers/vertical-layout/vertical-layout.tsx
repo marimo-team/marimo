@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { memo, useRef } from "react";
-import { CellState } from "@/core/model/cells";
+import { CellRuntimeState } from "@/core/model/cells";
 import { CellId, HTMLCellId } from "@/core/model/ids";
 import { OutputArea } from "@/editor/Output";
 import clsx from "clsx";
@@ -17,13 +17,13 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   appConfig,
   mode,
 }) => {
-  const { invisible } = useDelayVisibility(cells, mode);
+  const { invisible } = useDelayVisibility(cells.length, mode);
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
         <VerticalCell
-          key={cell.key}
-          cellId={cell.key}
+          key={cell.id}
+          cellId={cell.id}
           output={cell.output}
           status={cell.status}
           stopped={cell.stopped}
@@ -37,8 +37,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 
 interface VerticalCellProps
   extends Pick<
-    CellState,
-    "output" | "key" | "status" | "stopped" | "errored" | "interrupted"
+    CellRuntimeState,
+    "output" | "status" | "stopped" | "errored" | "interrupted"
   > {
   cellId: CellId;
 }

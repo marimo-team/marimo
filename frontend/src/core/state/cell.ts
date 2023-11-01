@@ -1,14 +1,14 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { CellMessage } from "../kernel/messages";
-import { CellState } from "../model/cells";
+import { CellRuntimeState } from "../model/cells";
 import { collapseConsoleOutputs } from "../model/collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 
 export function transitionCell(
-  cell: CellState,
+  cell: CellRuntimeState,
   message: CellMessage
-): CellState {
+): CellRuntimeState {
   const nextCell = { ...cell };
 
   // Handle status transition and update output; message.status !== null
@@ -57,10 +57,7 @@ export function transitionCell(
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
     if (message.output.data.some((error) => error["type"] === "interruption")) {
-      // This cell needs to be re-run, even if its code contents haven't
-      // changed since it was last run. Force the re-run state by clearing
-      // its lastCodeRun
-      nextCell.lastCodeRun = null;
+      // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
     } else if (
       message.output.data.some((error) => error["type"] === "ancestor-stopped")
@@ -101,14 +98,14 @@ export function transitionCell(
 
 // Should be called when a cell's code is registered with the kernel for
 // execution.
-export function prepareCellForExecution(cell: CellState): CellState {
+export function prepareCellForExecution(
+  cell: CellRuntimeState
+): CellRuntimeState {
   const nextCell = { ...cell };
 
   nextCell.interrupted = false;
   nextCell.errored = false;
-  nextCell.edited = false;
   nextCell.runElapsedTimeMs = null;
-  nextCell.lastCodeRun = cell.code.trim();
 
   return nextCell;
 }

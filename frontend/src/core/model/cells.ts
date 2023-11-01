@@ -1,13 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { createRef } from "react";
 import { OutputMessage } from "../kernel/messages";
 import { SerializedEditorState } from "../codemirror/types";
-import { CellHandle } from "../../editor/Cell";
-import { CellId } from "./ids";
 import { Outline } from "./outline";
-import { parseOutline } from "../dom/outline";
+import { CellId } from "./ids";
 
-export const DEFAULT_CELL_NAME = "__";
+const DEFAULT_CELL_NAME = "__";
 
 /**
  * The status of a cell.
@@ -29,51 +26,59 @@ export type CellStatus =
  * Create a new cell with default state.
  */
 export function createCell({
-  key,
-  ref = createRef(),
+  id,
   name = DEFAULT_CELL_NAME,
   code = "",
-  output = null,
-  consoleOutputs = [],
-  status = "idle",
-  edited = false,
-  interrupted = false,
-  errored = false,
-  stopped = false,
-  runElapsedTimeMs = null,
-  runStartTimestamp = null,
   lastCodeRun = null,
-  serializedEditorState = null,
+  edited = false,
   config = {},
-}: Partial<CellState> & Pick<CellState, "key">): CellState {
+  serializedEditorState = null,
+}: Partial<CellData> & { id: CellId }): CellData {
   return {
-    key: key,
-    ref: ref,
+    id: id,
     config: config,
     name: name,
-    output: output,
-    outline: parseOutline(output),
     code: code,
-    status: status,
     edited: edited,
-    interrupted: interrupted,
-    errored: errored,
-    stopped: stopped,
-    runElapsedTimeMs: runElapsedTimeMs,
-    runStartTimestamp: runStartTimestamp,
     lastCodeRun: lastCodeRun,
-    consoleOutputs: consoleOutputs,
     serializedEditorState: serializedEditorState,
   };
 }
 
-export interface CellState {
-  /** unique key */
-  key: CellId;
+export function createCellRuntimeState(): CellRuntimeState {
+  return {
+    outline: null,
+    output: null,
+    consoleOutputs: [],
+    status: "idle",
+    interrupted: false,
+    errored: false,
+    stopped: false,
+    runElapsedTimeMs: null,
+    runStartTimestamp: null,
+  };
+}
+
+/**
+ * Data of the cell
+ */
+export interface CellData {
+  id: CellId;
   /** user-given name, or default */
   name: string;
   /** current contents of the editor */
   code: string;
+  /** whether this cell has been modified since its last run */
+  edited: boolean;
+  /** snapshot of code that was last run */
+  lastCodeRun: string | null;
+  /** cell configuration */
+  config: CellConfig;
+  /** serialized state of the underlying editor */
+  serializedEditorState: SerializedEditorState | null;
+}
+
+export interface CellRuntimeState {
   /** a message encoding the cell's output */
   output: OutputMessage | null;
   /** TOC outline */
@@ -82,14 +87,10 @@ export interface CellState {
   consoleOutputs: OutputMessage[];
   /** current status of the cell */
   status: CellStatus;
-  /** whether this cell has been modified since its last run */
-  edited: boolean;
   /** whether this cell has been interrupted since its last run */
   interrupted: boolean;
   /** whether this cell was stopped with mo.stop */
   stopped: boolean;
-  /** snapshot of code that was last run */
-  lastCodeRun: string | null;
   /**
    * whether marimo encountered an error when trying to register or run
    * this cell (such as a multiple definition error)
@@ -99,14 +100,6 @@ export interface CellState {
   runStartTimestamp: number | null;
   /** run elapsed time, in milliseconds */
   runElapsedTimeMs: number | null;
-  /** serialized state of the underyling editor */
-  serializedEditorState: SerializedEditorState | null;
-
-  /** handle to access the underlying cell */
-  ref: React.RefObject<CellHandle>;
-
-  /** cell configuration */
-  config: CellConfig;
 }
 
 export interface CellConfig {

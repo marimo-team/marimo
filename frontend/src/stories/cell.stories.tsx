@@ -16,7 +16,7 @@ type Story = StoryObj<typeof Cell>;
 const props: CellProps = {
   theme: "light",
   showPlaceholder: false,
-  cellId: "1" as CellId,
+  id: "1" as CellId,
   code: "import marimo as mo",
   output: null,
   consoleOutputs: [],

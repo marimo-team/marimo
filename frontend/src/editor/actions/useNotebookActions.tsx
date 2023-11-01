@@ -10,7 +10,12 @@ import {
   BookMarkedIcon,
 } from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
-import { useCellActions, useCells } from "@/core/state/cells";
+import {
+  disabledCellIds,
+  enabledCellIds,
+  useCellActions,
+  useNotebook,
+} from "@/core/state/cells";
 import { saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
@@ -18,12 +23,12 @@ import { ActionButton } from "./types";
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
 
-  const cells = useCells();
+  const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
   const setCommandPalletteOpen = useSetAtom(commandPalletteAtom);
 
-  const disabledCells = cells.present.filter((cell) => cell.config.disabled);
-  const enabledCells = cells.present.filter((cell) => !cell.config.disabled);
+  const disabledCells = disabledCellIds(notebook);
+  const enabledCells = enabledCellIds(notebook);
 
   const actions: ActionButton[] = [
     {
@@ -44,7 +49,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       label: "Enable all cells",
       hidden: disabledCells.length === 0,
       handle: async () => {
-        const ids = disabledCells.map((cell) => cell.key);
+        const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
           ids.map((cellId) => [cellId, { disabled: false }])
         );
@@ -61,7 +66,7 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       label: "Disable all cells",
       hidden: enabledCells.length === 0,
       handle: async () => {
-        const ids = enabledCells.map((cell) => cell.key);
+        const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
           ids.map((cellId) => [cellId, { disabled: true }])
         );

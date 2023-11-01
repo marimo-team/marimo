@@ -19,7 +19,7 @@ import { sendRun } from "@/core/network/requests";
 import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
 
 import { UserConfig } from "../core/config/config";
-import { CellState } from "../core/model/cells";
+import { CellData, CellRuntimeState } from "../core/model/cells";
 import { CellActions, useCellActions } from "../core/state/cells";
 import { derefNotNull } from "../utils/dereference";
 import { OutputArea } from "./Output";
@@ -35,7 +35,7 @@ import { Functions } from "../utils/functions";
 import { Logger } from "../utils/Logger";
 import { SerializedEditorState } from "../core/codemirror/types";
 import { CellDragHandle, SortableCell } from "./SortableCell";
-import { CellId, HTMLCellId } from "../core/model/ids";
+import { HTMLCellId } from "../core/model/ids";
 import { Theme } from "../theme/useTheme";
 import { CellActionsDropdown } from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
@@ -62,19 +62,17 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-      CellState,
+      CellRuntimeState,
       | "consoleOutputs"
       | "status"
       | "output"
-      | "code"
-      | "edited"
       | "errored"
       | "interrupted"
-      | "config"
       | "stopped"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
     >,
+    Pick<CellData, "id" | "code" | "edited" | "config">,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -87,7 +85,6 @@ export interface CellProps
     > {
   theme: Theme;
   showPlaceholder: boolean;
-  cellId: CellId;
   registerRunStart: () => void;
   serializedEditorState: SerializedEditorState | null;
   mode: AppMode;
@@ -107,7 +104,7 @@ const CellComponent = (
     theme,
     showPlaceholder,
     allowFocus,
-    cellId,
+    id: cellId,
     code,
     output,
     consoleOutputs,
