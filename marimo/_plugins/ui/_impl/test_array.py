@@ -43,3 +43,32 @@ def test_nested_array() -> None:
     outer._update({"0": {"1": "hello"}})
     assert outer.value == [[7, "hello"], ""]
     assert inner.value == [1, ""]
+
+
+def test_update_on_frontend_value_change_only() -> None:
+    array = ui.array([ui.button(value=0, on_click=lambda v: v + 1)])
+    # Multiple updates with the same value -- should only register once
+    array._update({"0": 2})
+    array._update({"0": 2})
+    array._update({"0": 2})
+    assert array.value == [1]
+
+
+def test_update_checks_against_frontend_value() -> None:
+    class NoEquality:
+        def __init__(self) -> None:
+            pass
+
+        def __eq__(self, other: object) -> bool:
+            del other
+            raise ValueError
+
+        def __neq__(self, other: object) -> bool:
+            del other
+            raise ValueError
+
+    v = NoEquality()
+    array = ui.array([ui.dropdown({"option": v})])
+    # smoke test: don't check against backend value, which will raise
+    array._update({"0": ["option"]})
+    assert len(array.value) == 1 and isinstance(array.value[0], NoEquality)

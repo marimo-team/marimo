@@ -69,6 +69,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
     - form: create a submittable form this `UIElement`.
     """
 
+    _value_frontend: S
     _value: T
 
     def __init__(
@@ -175,6 +176,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                     namespace=self._id, function=function
                 )
         self._initial_value_frontend = initial_value
+        self._value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
 
@@ -276,6 +278,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         Calls the on_change handler with the element's new value as a
         side-effect.
         """
+        self._value_frontend = value
         try:
             self._value = self._convert_value(value)
         except MarimoConvertValueException:
