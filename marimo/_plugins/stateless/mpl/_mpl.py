@@ -23,6 +23,7 @@ import tornado.netutil
 import tornado.web
 import tornado.websocket
 
+from marimo import _loggers
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -32,6 +33,9 @@ from marimo._runtime.context import (
     RuntimeContext,
     get_context,
 )
+
+
+LOGGER = _loggers.marimo_logger()
 
 
 class MplApplication(tornado.web.Application):
@@ -195,11 +199,15 @@ class CleanupHandle(CellLifecycleItem):
 
     def create(self, context: RuntimeContext) -> None:
         del context
+        LOGGER.debug("Creating mpl cleanup handle")
         pass
 
     def dispose(self, context: RuntimeContext) -> None:
         del context
+        LOGGER.debug("Disposing mpl cleanup handle")
+        LOGGER.debug("shutdown event: %s", self.shutdown_event)
         if self.shutdown_event is not None:
+            LOGGER.debug("Setting event")
             self.shutdown_event.set()
 
 
@@ -252,9 +260,11 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         http_server = tornado.httpserver.HTTPServer(application)
         http_server.add_sockets(sockets)
         await cleanup_handle.shutdown_event.wait()
+        LOGGER.debug("MPL: Quitting")
 
     def start_server() -> None:
         asyncio.run(main())
+        LOGGER.debug("MPL: mpl server done")
 
     addr: Optional[str] = None
     port: Optional[int] = None
