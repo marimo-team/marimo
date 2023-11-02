@@ -38,6 +38,8 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
         extensions=[
             # Syntax highlighting
             "codehilite",
+            # Markdown tables
+            "tables",
             # LaTeX
             "pymdownx.arithmatex",
             # Subscripts and strikethrough
