@@ -900,7 +900,7 @@ class Kernel:
         error_title, error_message = "", ""
 
         def debug(title: str, message: str) -> None:
-            return LOGGER.debug("%s: %s", title, message)
+            LOGGER.debug("%s: %s", title, message)
 
         if function is None:
             error_title = "Function not found"
