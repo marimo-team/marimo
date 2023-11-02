@@ -252,6 +252,8 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         http_server = tornado.httpserver.HTTPServer(application)
         http_server.add_sockets(sockets)
         await cleanup_handle.shutdown_event.wait()
+        http_server.stop()
+        await http_server.close_all_connections()
 
     def start_server() -> None:
         asyncio.run(main())
