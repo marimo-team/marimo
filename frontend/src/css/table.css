@@ -1,3 +1,4 @@
+.markdown table,
 table.dataframe {
   border: none;
   border-collapse: collapse;
@@ -9,6 +10,7 @@ table.dataframe {
   overflow: auto;
 }
 
+.markdown table thead,
 table.dataframe thead {
   border-bottom: 1px solid;
   vertical-align: bottom;
@@ -16,18 +18,24 @@ table.dataframe thead {
   @apply border-foreground;
 }
 
+.markdown table tbody tr:nth-child(odd),
 table.dataframe tbody tr:nth-child(odd) {
   background: var(--lime-2);
 }
 
+.markdown table tbody tr:nth-child(even),
 table.dataframe tbody tr:nth-child(even) {
   @apply bg-card;
 }
 
+.markdown table tbody tr:hover,
 table.dataframe tbody tr:hover {
   background: var(--yellow-5);
 }
 
+.markdown table tr,
+.markdown table th,
+.markdown table td,
 table.dataframe tr,
 table.dataframe th,
 table.dataframe td {
@@ -41,6 +49,7 @@ table.dataframe td {
   font-size: 0.875rem;
 }
 
+.markdown table th,
 table.dataframe th {
   font-weight: bold;
 }
