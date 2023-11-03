@@ -95,11 +95,6 @@ const cursorTooltipField = StateField.define<Tooltip[]>({
     return [];
   },
   update(tooltips, tr) {
-    // If the document or selection has changed, clear the tooltips
-    if (tr.docChanged || tr.selection) {
-      return [];
-    }
-
     // If the effect is a tooltip, return it
     for (const effect of tr.effects) {
       if (effect.is(TooltipFromCompletionApi)) {
