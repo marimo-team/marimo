@@ -14,6 +14,7 @@ import { useAppConfig } from "@/core/state/config";
 import { Switch } from "@/components/ui/switch";
 import { saveAppConfig } from "@/core/network/requests";
 import { SettingTitle, SettingDescription } from "./common";
+import { useEffect } from "react";
 
 export const AppConfigForm: React.FC = () => {
   const [config, setConfig] = useAppConfig();
@@ -35,6 +36,11 @@ export const AppConfigForm: React.FC = () => {
       });
   };
 
+  // When width is changed, dispatch a resize event so widgets know to resize
+  useEffect(() => {
+    window.dispatchEvent(new Event("resize"));
+  }, [config.width]);
+
   return (
     <Form {...form}>
       <form
@@ -55,7 +61,7 @@ export const AppConfigForm: React.FC = () => {
                   checked={field.value === "full"}
                   size="sm"
                   onCheckedChange={(checked) => {
-                    return field.onChange(checked === true ? "full" : "normal");
+                    field.onChange(checked === true ? "full" : "normal");
                   }}
                 />
               </FormControl>
