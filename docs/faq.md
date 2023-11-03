@@ -10,7 +10,7 @@
   - [How do I add a submit button to UI elements?](#faq-form)
   - [How do I write markdown?](#faq-markdown)
   - [How do I display plots?](#faq-plots)
-  - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff))
+  - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff)
   - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [What packages can I use?](#faq-packages)
