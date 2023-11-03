@@ -233,7 +233,7 @@ const AddTransformDropdown: React.FC<
   PropsWithChildren<{ onAdd: (transform: z.ZodType) => void }>
 > = ({ onAdd, children }) => {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{children}</DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>Add Transform</DropdownMenuLabel>
