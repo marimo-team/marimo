@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { ErrorsPanel } from "../panels/error-panel";
 import { OutlinePanel } from "../panels/outline-panel";
+import { flushSync } from "react-dom";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -39,6 +40,15 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     if (!isOpen && !isCurrentlyCollapsed) {
       sidebarRef.current.collapse();
     }
+
+    // Dispatch a resize event so widgets know to resize
+    requestAnimationFrame(() => {
+      // HACK: Unfortunately, we have to do this twice to make sure it the
+      // panel is fully expanded before we dispatch the resize event
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
   }, [isOpen]);
 
   const appBody = (
@@ -49,6 +59,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const resizeHandle = (
     <PanelResizeHandle
+      onDragging={(isDragging) => {
+        if (!isDragging) {
+          // Once the user is done dragging, dispatch a resize event
+          window.dispatchEvent(new Event("resize"));
+        }
+      }}
       className={cn(
         "border-border no-print",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
