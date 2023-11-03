@@ -18,7 +18,7 @@ dependencies = [
     # add features to markdown
     "pymdown-extensions>=9.0,<11",
     # syntax highlighting of code in markdown
-    "pygments>=2.3,<3",
+    "pygments>=2.13,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
     # web server
