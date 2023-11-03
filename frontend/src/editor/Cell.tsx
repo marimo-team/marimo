@@ -195,7 +195,7 @@ const CellComponent = (
 
     const code = prepareToRunEffects();
     registerRunStart();
-    sendRun(cellId, code);
+    sendRun([cellId], [code]);
   });
 
   const handleDelete = useEvent(() => {

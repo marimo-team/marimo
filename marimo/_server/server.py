@@ -136,6 +136,13 @@ class ShutdownHandler(tornado.web.RequestHandler):
         shutdown()
 
 
+class CorsStaticFileHandler(tornado.web.StaticFileHandler):
+    def set_default_headers(self):
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Headers", "x-requested-with")
+        self.set_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+
+
 def construct_app(
     root: str, development_mode: bool
 ) -> tornado.web.Application:
@@ -225,7 +232,7 @@ def construct_app(
             ),
             (
                 r"/assets/(.*)",
-                tornado.web.StaticFileHandler,
+                CorsStaticFileHandler,
                 {"path": static_dir},
             ),
         ],

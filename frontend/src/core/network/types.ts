@@ -5,6 +5,9 @@ import { CellId } from "../../core/model/ids";
 import { CellConfig } from "../model/cells";
 import { RequestId } from "./DeferredRequestRegistry";
 
+// Ideally this would be generated from server.py, but for now we just
+// manually keep them in sync.
+
 export interface DeleteRequest {
   cellId: CellId;
 }
@@ -88,4 +91,40 @@ export interface SendFunctionRequest {
   args: unknown;
   namespace: string;
   functionName: string;
+}
+
+interface ValueUpdate {
+  objectId: string;
+  value: unknown;
+}
+
+/**
+ * Requests sent to the BE during run/edit mode.
+ */
+export interface RunRequests {
+  sendComponentValues: (valueUpdates: ValueUpdate[]) => Promise<null>;
+  sendInstantiate: (request: InstantiateRequest) => Promise<null>;
+  sendFunctionRequest: (request: SendFunctionRequest) => Promise<null>;
+}
+
+/**
+ * Requests sent to the BE during edit mode.
+ */
+export interface EditRequests {
+  sendRename: (filename: string | null) => Promise<null>;
+  sendSave: (request: SaveKernelRequest) => Promise<null>;
+  sendRun: (cellIds: CellId[], codes: string[]) => Promise<null>;
+  sendInterrupt: () => Promise<null>;
+  sendShutdown: () => Promise<null>;
+  sendFormat: (
+    codes: Record<CellId, string>
+  ) => Promise<Record<CellId, string>>;
+  sendDeleteCell: (cellId: CellId) => Promise<null>;
+  sendDirectoryAutocompleteRequest: (
+    prefix: string
+  ) => Promise<SendDirectoryAutocompleteResponse>;
+  sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
+  saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;
+  saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
+  saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
 }

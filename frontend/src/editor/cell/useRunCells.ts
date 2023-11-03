@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { RuntimeState } from "@/core/RuntimeState";
 import { CellId } from "@/core/model/ids";
-import { sendRunMultiple } from "@/core/network/requests";
+import { sendRun } from "@/core/network/requests";
 import { staleCellIds, useNotebook } from "@/core/state/cells";
 import { derefNotNull } from "@/utils/dereference";
 import useEvent from "react-use-event-hook";
@@ -46,7 +46,7 @@ function useRunCells() {
     }
 
     RuntimeState.INSTANCE.registerRunStart();
-    await sendRunMultiple(cellIds, codes);
+    await sendRun(cellIds, codes);
   });
 
   return runCells;
