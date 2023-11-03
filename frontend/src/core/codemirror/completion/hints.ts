@@ -10,7 +10,7 @@ import {
 } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
-import { StateField, StateEffect, Prec } from "@codemirror/state";
+import { StateField, StateEffect, Prec, Text } from "@codemirror/state";
 
 export function hintTooltip() {
   return [
@@ -24,31 +24,10 @@ export function hintTooltip() {
 
         const cellId = HTMLCellId.parse(cellContainer.id);
 
-        let startToken = pos;
-        let endToken = pos;
-
-        // Start of word
-        while (startToken > 0) {
-          const prevChar = view.state.doc.sliceString(
-            startToken - 1,
-            startToken
-          );
-          // Anything but a letter or number
-          if (!/[\dA-Za-z]/.test(prevChar)) {
-            break;
-          }
-          startToken--;
-        }
-
-        // End of word
-        while (endToken < view.state.doc.length) {
-          const nextChar = view.state.doc.sliceString(endToken, endToken + 1);
-          // Anything but a letter or number
-          if (!/[\dA-Za-z]/.test(nextChar)) {
-            break;
-          }
-          endToken++;
-        }
+        const { startToken, endToken } = getPositionAtWordBounds(
+          view.state.doc,
+          pos
+        );
 
         const result = await AUTOCOMPLETER.request({
           document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
@@ -143,3 +122,30 @@ const cursorTooltipField = StateField.define<Tooltip[]>({
     });
   },
 });
+
+export function getPositionAtWordBounds(doc: Text, pos: number) {
+  let startToken = pos;
+  let endToken = pos;
+
+  // Start of word
+  while (startToken > 0) {
+    const prevChar = doc.sliceString(startToken - 1, startToken);
+    // Anything but a letter, number, or underscore
+    if (!/\w/.test(prevChar)) {
+      break;
+    }
+    startToken--;
+  }
+
+  // End of word
+  while (endToken < doc.length) {
+    const nextChar = doc.sliceString(endToken, endToken + 1);
+    // Anything but a letter, number, or underscore
+    if (!/\w/.test(nextChar)) {
+      break;
+    }
+    endToken++;
+  }
+
+  return { startToken, endToken };
+}
