@@ -39,6 +39,15 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     if (!isOpen && !isCurrentlyCollapsed) {
       sidebarRef.current.collapse();
     }
+
+    // Dispatch a resize event so widgets know to resize
+    requestAnimationFrame(() => {
+      // HACK: Unfortunately, we have to do this twice to make sure it the
+      // panel is fully expanded before we dispatch the resize event
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+    });
   }, [isOpen]);
 
   const appBody = (
@@ -49,6 +58,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const resizeHandle = (
     <PanelResizeHandle
+      onDragging={(isDragging) => {
+        if (!isDragging) {
+          // Once the user is done dragging, dispatch a resize event
+          window.dispatchEvent(new Event("resize"));
+        }
+      }}
       className={cn(
         "border-border no-print",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
@@ -121,7 +136,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
       <PanelGroup
         key={panelLocation}
         autoSaveId={`marimo:chrome`}
