@@ -10,6 +10,7 @@
   - [How do I add a submit button to UI elements?](#faq-form)
   - [How do I write markdown?](#faq-markdown)
   - [How do I display plots?](#faq-plots)
+  - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff)
   - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [What packages can I use?](#faq-packages)
@@ -136,6 +137,21 @@ marimo tutorial plots
 ```
 
 Also see the <a href="/api/plotting.html">plotting API reference</a>.
+
+<a name="faq-mpl-cutoff" ></a>
+**How do I prevent matplotlib plots from being cut off?**
+
+If your legend or axes labels are cut off, try calling `plt.tight_layout()`
+before outputting your plot:
+
+```python
+import matplotlib.pyplot as plt
+
+plt.plot([-8, 8])
+plt.ylabel("my variable")
+plt.tight_layout()
+plt.gca()
+```
 
 <a name="faq-interactive-plots" ></a>
 **How do I display interactive matplotlib plots?**
