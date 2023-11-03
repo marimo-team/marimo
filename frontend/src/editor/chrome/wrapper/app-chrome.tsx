@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { ErrorsPanel } from "../panels/error-panel";
 import { OutlinePanel } from "../panels/outline-panel";
-import { flushSync } from "react-dom";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -137,7 +136,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
       <PanelGroup
         key={panelLocation}
         autoSaveId={`marimo:chrome`}
