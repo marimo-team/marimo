@@ -3,6 +3,7 @@
   "version": "0.0.0-placeholder",
   "main": "lib/marimo.js",
   "types": "lib/index.d.ts",
+  "license": "Apache-2.0",
   "sideEffects": [
     "*.css",
     "*.css.ts"
