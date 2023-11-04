@@ -9,10 +9,11 @@ import { getAppConfig, getUserConfig } from "../state/config";
 export function downloadAsHTML(opts: { filename?: string }) {
   const { filename } = opts;
   const notebook = getNotebook();
+  const version = "0.1.43"; // TODO: Grab from <marimo-version>
   const html = constructHTML({
     notebookState: notebook,
-    version: "0.0.1",
-    assetUrl: "http://localhost:2718",
+    version: version,
+    assetUrl: `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`,
     filename: filename || "notebook",
   });
   const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
@@ -49,6 +50,7 @@ export function constructHTML(opts: {
     </script>
     <marimo-filename hidden>${filename}</marimo-filename>
     <marimo-mode data-mode="read" hidden></marimo-mode>
+    <marimo-version data-mode="${version}" hidden></marimo-mode>
     <marimo-user-config data-config='${JSON.stringify(
       getUserConfig()
     )}' hidden></marimo-user-config>
@@ -101,17 +103,23 @@ function createNewElements(assetUrl: string) {
   const newElements = assets.map((element) => {
     const newElement = element.cloneNode(true) as HTMLElement;
     if (newElement instanceof HTMLScriptElement) {
-      newElement.src = newElement.src.startsWith("/")
-        ? `${assetUrl}${newElement.src}`
-        : newElement.src;
+      newElement.src = updateAssetUrl(newElement.src, assetUrl);
       newElement.crossOrigin = "anonymous";
     } else if (newElement instanceof HTMLLinkElement) {
-      newElement.href = newElement.href.startsWith("/")
-        ? `${assetUrl}${newElement.href}`
-        : newElement.href;
+      newElement.href = updateAssetUrl(newElement.href, assetUrl);
       newElement.crossOrigin = "anonymous";
     }
     return newElement;
   });
   return newElements;
+}
+
+function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
+  // Will convert: https://localhost:8080/assets/index-c78b8d10.js
+  // into: https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.43/dist/assets/index-c78b8d10.js
+
+  const path = existingUrl.startsWith("/")
+    ? existingUrl
+    : new URL(existingUrl).pathname;
+  return `${assetBaseUrl}${path}`;
 }
