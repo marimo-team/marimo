@@ -1,6 +1,6 @@
 {
   "name": "@marimo-team/frontend",
-  "version": "placeholder",
+  "version": "0.0.0-placeholder",
   "main": "lib/marimo.js",
   "types": "lib/index.d.ts",
   "sideEffects": [
