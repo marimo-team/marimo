@@ -29,7 +29,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._config.utils import load_config
 from marimo._server import api, sessions
@@ -122,6 +122,7 @@ class MainHandler(tornado.web.RequestHandler):
             title=title,
             filename=mgr.filename if mgr.filename is not None else "",
             mode="read" if mgr.mode == sessions.SessionMode.RUN else "edit",
+            version=__version__,
             user_config=json.dumps(user_config),
             app_config=json.dumps(app_config),
         )
