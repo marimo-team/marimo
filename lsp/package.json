@@ -6,12 +6,12 @@
     "build": "pnpm run build:ts && pnpm run build:deps"
   },
   "dependencies": {
-    "copilot-node-server": "1.11.2"
+    "copilot-node-server": "1.11.4"
   },
   "devDependencies": {
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
     "@types/minimist": "^1.2.4",
-    "@types/node": "^20.8.9",
+    "@types/node": "^20.8.10",
     "@types/ws": "^8.5.8",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
