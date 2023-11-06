@@ -2,47 +2,56 @@
 import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
+import { JSDOM } from "jsdom";
+
+const SERVER_PORT = process.env.SERVER_PORT || 2718;
+const isDev = process.env.NODE_ENV === "development";
 
 const htmlDevPlugin = (): Plugin => {
   return {
     apply: "serve",
     name: "html-transform",
-    transformIndexHtml(html) {
-      return html
-        .replace(`{{ filename }}`, `dev-mode`)
-        .replace(`{{ mode }}`, `"edit"`)
-        .replace(
-          `{{ user_config }}`,
-          JSON.stringify({
-            completion: {
-              activate_on_typing: true,
-              copilot: true,
-            },
-            save: {
-              autosave: "off",
-              autosave_delay: 0,
-              format_on_save: false,
-            },
-            runtime: {
-              auto_instantiate: true,
-            },
-            keymap: {
-              preset: "default",
-            },
-            experimental: {
-              theming: true,
-              layouts: true,
-            },
-          })
-        )
-        .replace(`{{ app_config }}`, JSON.stringify({}))
-        .replace(`{{ title }}`, `dev-mode`);
+    transformIndexHtml: async (html) => {
+      // fetch html from server
+      const serverHtml = await fetch(`http://localhost:${SERVER_PORT}/`).then(
+        (res) => res.text()
+      );
+
+      const serverDoc = new JSDOM(serverHtml).window.document;
+      const devDoc = new JSDOM(html).window.document;
+      const devHead = devDoc.head;
+
+      // copies these elements from server to dev
+      const copyElements = [
+        "marimo-filename",
+        "marimo-mode",
+        "marimo-user-config",
+        "marimo-app-config",
+        "title",
+      ];
+
+      // remove from dev
+      copyElements.forEach((id) => {
+        const element = devDoc.querySelector(id);
+        if (!element) {
+          throw new Error(`Element ${id} not found.`);
+        }
+        element.remove();
+      });
+
+      // copy from server
+      copyElements.forEach((id) => {
+        const element = serverDoc.querySelector(id);
+        if (!element) {
+          throw new Error(`Element ${id} not found.`);
+        }
+        devHead.append(element);
+      });
+
+      return devDoc.documentElement.outerHTML;
     },
   };
 };
-
-const SERVER_PORT = process.env.SERVER_PORT || 2718;
-const isDev = process.env.NODE_ENV === "development";
 
 // https://vitejs.dev/config/
 export default defineConfig({
