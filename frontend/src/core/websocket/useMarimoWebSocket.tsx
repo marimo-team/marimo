@@ -23,6 +23,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { jsonParseWithSpecialChar } from "@/utils/json-parser";
 import { prettyError } from "@/utils/errors";
+import { useRef } from "react";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -34,6 +35,8 @@ export function useMarimoWebSocket(opts: {
   setInitialCodes: (codes: string[]) => void;
   setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {
+  // Track whether we want to try reconnecting.
+  const shouldTryReconnecting = useRef<boolean>(true);
   const {
     autoInstantiate,
     sessionId,
@@ -176,6 +179,16 @@ export function useMarimoWebSocket(opts: {
     }
   };
 
+  const tryReconnecting = (code?: number, reason?: string) => {
+    // If not properly gated, we could try reconnecting forever if the
+    // issue is not transient. So we want to try reconnecting only once after an
+    // open connection is closed.
+    if (shouldTryReconnecting.current) {
+      shouldTryReconnecting.current = false;
+      ws.current?.reconnect(code, reason);
+    }
+  };
+
   const ws = useWebSocket({
     /**
      * Unique URL for this session.
@@ -186,6 +199,8 @@ export function useMarimoWebSocket(opts: {
      * Open callback. Set the connection status to open.
      */
     onOpen: () => {
+      // If we are open, we can reset our reconnecting flag.
+      shouldTryReconnecting.current = true;
       setConnStatus({ state: WebSocketState.OPEN });
     },
 
@@ -245,7 +260,7 @@ export function useMarimoWebSocket(opts: {
           //
           // so try reconnecting.
           setConnStatus({ state: WebSocketState.CONNECTING });
-          ws.current?.reconnect();
+          tryReconnecting(e.code, e.reason);
       }
     },
 
@@ -259,8 +274,7 @@ export function useMarimoWebSocket(opts: {
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
       });
-      // Try reconnecting as this could have been a network error.
-      ws.current?.reconnect();
+      tryReconnecting();
     },
   });
 
