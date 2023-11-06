@@ -75,7 +75,7 @@ export function dispatchShowTooltip(view: EditorView, tooltip: Tooltip): void {
   });
 }
 
-function clearTooltips(view: EditorView): boolean {
+export function clearTooltips(view: EditorView): boolean {
   const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
   if (hasCompletionTooltip) {
     view.dispatch({
