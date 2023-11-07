@@ -6,7 +6,9 @@ from marimo._runtime.runtime import Kernel
 
 # TODO: colocate test with UIElementRegistry file; requires refactoring
 # pytest's conftests ...
-def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
+def test_cached_element_still_registered(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
     k.run(
         [
             exec_req.get("import functools"),
