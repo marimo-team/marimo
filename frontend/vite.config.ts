@@ -19,15 +19,15 @@ const htmlDevPlugin = (): Plugin => {
 
       const serverDoc = new JSDOM(serverHtml).window.document;
       const devDoc = new JSDOM(html).window.document;
-      const devHead = devDoc.head;
 
       // copies these elements from server to dev
       const copyElements = [
+        "title",
         "marimo-filename",
+        "marimo-version",
         "marimo-mode",
         "marimo-user-config",
         "marimo-app-config",
-        "title",
       ];
 
       // remove from dev
@@ -45,7 +45,7 @@ const htmlDevPlugin = (): Plugin => {
         if (!element) {
           throw new Error(`Element ${id} not found.`);
         }
-        devHead.append(element);
+        devDoc.head.append(element);
       });
 
       return devDoc.documentElement.outerHTML;

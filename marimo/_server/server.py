@@ -217,17 +217,17 @@ def construct_app(
             ),
             (
                 r"/(favicon\.ico)",
-                tornado.web.StaticFileHandler,
+                CorsStaticFileHandler,
                 {"path": root},
             ),
             (
                 r"/(manifest\.json)",
-                tornado.web.StaticFileHandler,
+                CorsStaticFileHandler,
                 {"path": root},
             ),
             (
                 r"/(android-chrome-(192x192|512x512)\.png)",
-                tornado.web.StaticFileHandler,
+                CorsStaticFileHandler,
                 {"path": root},
             ),
             (

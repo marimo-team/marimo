@@ -20,7 +20,7 @@ import {
 import { saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
-import { downloadAsHTML } from "@/core/static/downloadAsHTML";
+import { downloadAsHTML } from "@/core/static/download-html";
 
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
