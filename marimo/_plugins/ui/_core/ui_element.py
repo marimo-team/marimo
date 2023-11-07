@@ -198,6 +198,14 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             + "</marimo-ui-element>"
         )
 
+    def _dispose(self) -> None:
+        """Handle used by the registry to clean-up this element on removal."""
+        try:
+            ctx = get_context()
+            ctx.function_registry.delete(namespace=self._id)
+        except ContextNotInitializedError:
+            pass
+
     def __del__(self) -> None:
         try:
             ctx = get_context()

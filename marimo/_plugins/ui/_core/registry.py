@@ -7,7 +7,7 @@ from typing import Any, Iterable
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import get_context
 
 UIElementId = str
 LOGGER = _loggers.marimo_logger()
@@ -29,6 +29,9 @@ class UIElementRegistry:
     ) -> None:
         kernel = get_context().kernel
         if object_id in self._objects:
+            # on cell re-run, a UI element may be (re)-registered before
+            # its destructor was called, so manually delete the old element
+            # here
             self.delete(object_id, id(self._objects[object_id]))
         self._objects[object_id] = weakref.ref(ui_element)
         assert kernel.execution_context is not None
@@ -62,7 +65,8 @@ class UIElementRegistry:
         if object_id not in self._objects:
             return
 
-        registered_python_id = id(self._objects[object_id]())
+        ui_element = self._objects[object_id]()
+        registered_python_id = id(ui_element)
         if registered_python_id != python_id:
             # guards against UIElement's destructor racing against
             # registration of another element when a cell re-runs
@@ -71,18 +75,13 @@ class UIElementRegistry:
             )
             return
 
-        if self._objects[object_id]:
+        if ui_element is not None:
             del self._objects[object_id]
+            ui_element._dispose()
         if object_id in self._bindings:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
-
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            pass
-        ctx.function_registry.delete(namespace=object_id)
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
