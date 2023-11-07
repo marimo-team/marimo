@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { invariant } from "@/utils/invariant";
 import { NotebookState } from "../state/cells";
 
 export interface StaticNotebookState
@@ -18,9 +19,7 @@ declare global {
 }
 
 export function parseStaticState(): StaticNotebookState {
-  if (!window.__MARIMO_STATIC__) {
-    throw new Error("Not a static notebook");
-  }
+  invariant(window.__MARIMO_STATIC__ !== undefined, "Not a static notebook");
 
   return window.__MARIMO_STATIC__.notebookState;
 }
@@ -29,4 +28,10 @@ export function isStaticNotebook(): boolean {
   return (
     typeof window !== "undefined" && window.__MARIMO_STATIC__ !== undefined
   );
+}
+
+export function getStaticNotebookAssetUrl(): string {
+  invariant(window.__MARIMO_STATIC__ !== undefined, "Not a static notebook");
+
+  return window.__MARIMO_STATIC__.assetUrl;
 }

@@ -42,6 +42,10 @@ import { PluginFunctions } from "./rpc";
 import { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
+import {
+  getStaticNotebookAssetUrl,
+  isStaticNotebook,
+} from "@/core/static/static-state";
 
 export interface PluginSlotHandle {
   /**
@@ -323,8 +327,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         ) {
           return true;
         }
-        // Only copy stylesheets that point to our domain
-        return sheet.href && sheet.href.startsWith(window.location.origin);
+        return shouldCopyStyleSheet(sheet);
       });
       // Create new stylesheets if not already cached
       for (const sheet of sheets) {
@@ -368,8 +371,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       );
 
       const styleSheets = Array.from(document.styleSheets).flatMap((sheet) => {
-        // Only copy stylesheets that point to our domain
-        if (!sheet.href || !sheet.href.startsWith(window.location.origin)) {
+        if (!shouldCopyStyleSheet(sheet)) {
           return [];
         }
 
@@ -392,4 +394,18 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
   };
 
   defineCustomElement(plugin.tagName, WebComponent);
+}
+
+// Copy the stylesheet to the shadow root if it is local
+// or from our assetUrl (in the case of a static notebook)
+function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
+  if (!sheet.href) {
+    return false;
+  }
+
+  if (isStaticNotebook()) {
+    return sheet.href.startsWith(getStaticNotebookAssetUrl());
+  }
+
+  return sheet.href.startsWith(window.location.origin);
 }

@@ -2,6 +2,11 @@
 import { NotebookState, getNotebook } from "../state/cells";
 import { getMarimoVersion } from "../dom/version";
 
+// For Testing:
+// Flip this to true to use local assets instead of CDN
+// This should be false for production
+const ENABLE_LOCAL_ASSETS = false;
+
 /**
  * Downloads the current notebook as an HTML file.
  */
@@ -10,10 +15,15 @@ export function downloadAsHTML(opts: { filename?: string }) {
   const notebook = getNotebook();
   const version = getMarimoVersion();
 
+  const assetUrl =
+    ENABLE_LOCAL_ASSETS || process.env.NODE_ENV === "development"
+      ? window.location.origin
+      : `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`;
+
   const html = constructHTML({
     notebookState: notebook,
     version: version,
-    assetUrl: `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`,
+    assetUrl: assetUrl,
     filename: filename || "notebook",
     existingDocument: document,
   });
@@ -84,12 +94,16 @@ export function constructHTML(opts: {
 
   // Copy over any stylesheets or scripts from the body that are URL based
   const body = existingDocument.body;
-  const bodyStyles = body.querySelectorAll("style[href]");
-  bodyStyles.forEach((style) => doc.body.append(style));
-  const bodyScripts = body.querySelectorAll("script[src]");
-  bodyScripts.forEach((script) => doc.body.append(script));
-  const bodyLinks = body.querySelectorAll("link[href]");
-  bodyLinks.forEach((link) => doc.body.append(link));
+  const appendToBody = (element: Element) => {
+    const el = element.cloneNode(true);
+    if (el instanceof HTMLElement) {
+      el.setAttribute("crossorigin", "anonymous");
+    }
+    doc.body.append(element.cloneNode(true));
+  };
+  body.querySelectorAll("style[href]").forEach(appendToBody);
+  body.querySelectorAll("script[src]").forEach(appendToBody);
+  body.querySelectorAll("link[href]").forEach(appendToBody);
 
   // Update scripts to point to CDN
   const scripts = doc.querySelectorAll("script");
@@ -97,6 +111,7 @@ export function constructHTML(opts: {
     const src = script.getAttribute("src");
     if (src) {
       script.setAttribute("src", updateAssetUrl(src, assetUrl));
+      script.setAttribute("crossorigin", "anonymous");
     } else if (!Object.hasOwn(script.dataset, "marimo")) {
       script.remove();
     }
@@ -108,6 +123,7 @@ export function constructHTML(opts: {
     const href = link.getAttribute("href");
     if (href) {
       link.setAttribute("href", updateAssetUrl(href, assetUrl));
+      link.setAttribute("crossorigin", "anonymous");
     } else {
       link.remove();
     }
@@ -131,11 +147,6 @@ export function constructHTML(opts: {
 function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
   // Will convert: https://localhost:8080/assets/index-c78b8d10.js
   // into: https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.43/dist/assets/index-c78b8d10.js
-
-  // In development, we can use our local server
-  if (process.env.NODE_ENV === "development" || 10) {
-    return `${window.location.origin}${existingUrl}`;
-  }
 
   // relative path
   if (existingUrl.startsWith("/")) {
