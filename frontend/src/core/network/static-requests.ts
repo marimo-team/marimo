@@ -17,7 +17,8 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendComponentValues: async (valueUpdates) => {
       toast({
         title: "Static notebook",
-        description: "This notebook is not connected to a kernel.",
+        description:
+          "This notebook is not connected to a kernel. Any interactive elements will not work.",
       });
       Logger.log("Updating UI elements is not supported in static mode");
       return null;
@@ -29,7 +30,8 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendFunctionRequest: async (request: SendFunctionRequest) => {
       toast({
         title: "Static notebook",
-        description: "This notebook is not connected to a kernel.",
+        description:
+          "This notebook is not connected to a kernel. Any interactive elements will not work.",
       });
       Logger.log("Function requests are not supported in static mode");
       return null;

@@ -2,6 +2,7 @@
 import { sendComponentValues } from "@/core/network/requests";
 import { marimoValueReadyEvent, MarimoValueReadyEventType } from "./dom/events";
 import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "./dom/uiregistry";
+import { isStaticNotebook } from "./static/static-state";
 
 /**
  * Manager to track running cells.
@@ -55,7 +56,7 @@ export class RuntimeState {
   }
 
   running(): boolean {
-    return this.runningCount > 0;
+    return this.runningCount > 0 && !isStaticNotebook();
   }
 
   flushUpdates() {
