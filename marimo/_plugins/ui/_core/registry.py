@@ -7,7 +7,7 @@ from typing import Any, Iterable
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context import get_context
+from marimo._runtime.context import ContextNotInitializedError, get_context
 
 UIElementId = str
 LOGGER = _loggers.marimo_logger()
@@ -28,6 +28,8 @@ class UIElementRegistry:
         ui_element: UIElement[Any, Any],
     ) -> None:
         kernel = get_context().kernel
+        if object_id in self._objects:
+            self.delete(object_id, id(self._objects[object_id]))
         self._objects[object_id] = weakref.ref(ui_element)
         assert kernel.execution_context is not None
         self._constructing_cells[object_id] = kernel.execution_context.cell_id
@@ -73,6 +75,12 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
+
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            pass
+        ctx.function_registry.delete(namespace=object_id)
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
