@@ -127,7 +127,10 @@ export const basicBundle = (
     highlightSpecialChars(),
     lineNumbers(),
     rectangularSelection(),
-    tooltips({ position: "absolute" }),
+    tooltips({
+      position: "fixed",
+      parent: document.getElementById("App") ?? undefined,
+    }),
     scrollActiveLineIntoView(),
     theme === "dark" ? oneDark : [],
 
