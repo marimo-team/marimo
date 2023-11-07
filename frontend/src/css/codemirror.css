@@ -25,7 +25,7 @@
 
 /* -- Tooltips: code completion and type hints -- */
 
-.cm .cm-tooltip {
+#App .cm-tooltip {
   font-size: 0.875rem;
   border: none;
   box-shadow: var(--light-shadow);
@@ -38,10 +38,11 @@
  First selector is when there is a tooltip by hover
  Second selector is when there is tooltip by cursor
  Third selector is during code completion */
-.cm .cm-tooltip.cm-tooltip-hover,
-.cm .cm-tooltip.mo-cm-tooltip,
-.cm .cm-tooltip.cm-completionInfo {
+#App .cm-tooltip.cm-tooltip-hover,
+#App .cm-tooltip.mo-cm-tooltip,
+#App .cm-tooltip.cm-completionInfo {
   max-height: 45vh; /* 45% of viewport height */
+  max-width: 40vw; /* 40% of viewport width */
   overflow: auto;
 
   /* Respect newlines. */
@@ -49,16 +50,16 @@
   padding: 0.625rem 0.875rem;
 }
 
-.cm .cm-tooltip code {
+#App .cm-tooltip code {
   font-size: 0.8125rem;
 }
 
-.cm .cm-tooltip .external-docs {
+#App .cm-tooltip .external-docs {
   font-size: 0.8125rem;
 }
 
 /* Hover tooltips get highest priority in display. */
-.cm .cm-tooltip.cm-tooltip-hover {
+#App .cm-tooltip.cm-tooltip-hover {
   z-index: 1000;
 }
 
@@ -101,15 +102,15 @@
 
 /* -- Completion Info -- */
 
-.cm .cm-tooltip-autocomplete ul li[aria-selected] {
+#App .cm-tooltip-autocomplete ul li[aria-selected] {
   background: #1177ccb0;
 }
 
-.dark .cm .cm-tooltip-autocomplete ul li[aria-selected] {
+.dark #App .cm-tooltip-autocomplete ul li[aria-selected] {
   background: #1177cc80;
 }
 
-.cm .cm-tooltip.cm-completionInfo {
+#App .cm-tooltip.cm-completionInfo {
   /* Codemirror generates an inline style for these properties,
    * so we have to override them with !important. */
   top: 0 !important;
@@ -118,13 +119,13 @@
 /* Completion Info may show up to the left or right of another menu item.
  First is the parent (completion list)
  Second is the child (completion info) */
-.cm .cm-tooltip:has(.cm-completionInfo-left),
-.cm .cm-tooltip.cm-completionInfo-right {
+#App .cm-tooltip:has(.cm-completionInfo-left),
+#App .cm-tooltip.cm-completionInfo-right {
   border-top-left-radius: 0;
 }
 
-.cm .cm-tooltip:has(.cm-completionInfo-right),
-.cm .cm-tooltip.cm-completionInfo-left {
+#App .cm-tooltip:has(.cm-completionInfo-right),
+#App .cm-tooltip.cm-completionInfo-left {
   border-top-right-radius: 0;
 }
 

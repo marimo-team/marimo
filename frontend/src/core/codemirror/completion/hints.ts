@@ -75,7 +75,7 @@ export function dispatchShowTooltip(view: EditorView, tooltip: Tooltip): void {
   });
 }
 
-function clearTooltips(view: EditorView): boolean {
+export function clearTooltips(view: EditorView): boolean {
   const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
   if (hasCompletionTooltip) {
     view.dispatch({
@@ -95,11 +95,6 @@ const cursorTooltipField = StateField.define<Tooltip[]>({
     return [];
   },
   update(tooltips, tr) {
-    // If the document or selection has changed, clear the tooltips
-    if (tr.docChanged || tr.selection) {
-      return [];
-    }
-
     // If the effect is a tooltip, return it
     for (const effect of tr.effects) {
       if (effect.is(TooltipFromCompletionApi)) {
