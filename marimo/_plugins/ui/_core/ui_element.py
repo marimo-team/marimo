@@ -19,10 +19,8 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
-from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import (
     ContextNotInitializedError,
-    RuntimeContext,
     get_context,
 )
 from marimo._runtime.functions import Function
@@ -45,22 +43,6 @@ LOGGER = _loggers.marimo_logger()
 
 class MarimoConvertValueException(Exception):
     pass
-
-
-class UIElementLifeCycleItem(CellLifecycleItem):
-    """Handles to cleanup a UI element."""
-
-    def __init__(self, element_id: str, object_id: int) -> None:
-        self.element_id = element_id
-        self.object_id = object_id
-
-    def create(self, context: RuntimeContext) -> None:
-        del context
-        pass
-
-    def dispose(self, context: RuntimeContext) -> None:
-        context.function_registry.delete(namespace=self.element_id)
-        context.ui_element_registry.delete(self.element_id, self.object_id)
 
 
 @mddoc
@@ -197,12 +179,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 ctx.function_registry.register(
                     namespace=self._id, function=function
                 )
-
-            # This has to happen in the cell lifecycle, not del, to avoid
-            # races; order in which __del__ is called is not guaranteed
-            ctx.cell_lifecycle_registry.add(
-                UIElementLifeCycleItem(element_id=self._id, object_id=id(self))
-            )
         self._initial_value_frontend = initial_value
         self._value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
@@ -221,6 +197,21 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             + self._inner_text
             + "</marimo-ui-element>"
         )
+
+    def _dispose(self) -> None:
+        """Handle used by the registry to clean-up this element on removal."""
+        try:
+            ctx = get_context()
+            ctx.function_registry.delete(namespace=self._id)
+        except ContextNotInitializedError:
+            pass
+
+    def __del__(self) -> None:
+        try:
+            ctx = get_context()
+            ctx.ui_element_registry.delete(self._id, id(self))
+        except ContextNotInitializedError:
+            pass
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
