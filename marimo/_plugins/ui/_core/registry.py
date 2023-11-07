@@ -64,6 +64,8 @@ class UIElementRegistry:
 
         registered_python_id = id(self._objects[object_id]())
         if registered_python_id != python_id:
+            # guards against UIElement's destructor racing against
+            # registration of another element when a cell re-runs
             LOGGER.debug(
                 "Python id mismatch when deleting UI element %s", object_id
             )
