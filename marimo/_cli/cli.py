@@ -106,7 +106,7 @@ main_help_msg = "\n".join(
 
 
 @click.group(help=main_help_msg)
-@click.version_option(version=__version__)
+@click.version_option(version=__version__, message="%(version)s")
 @click.option(
     "-l",
     "--log-level",

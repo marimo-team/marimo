@@ -12,6 +12,7 @@ import time
 import urllib.request
 from typing import Optional
 
+from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 
@@ -72,6 +73,9 @@ def test_cli_edit() -> None:
     p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode=edit", contents)
+    _check_contents(
+        p, f"marimo-version data-version={__version__}".encode(), contents
+    )
 
 
 def test_cli_run() -> None:
@@ -89,6 +93,9 @@ def test_cli_run() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode=read", contents)
+    _check_contents(
+        p, f"marimo-version data-version={__version__}".encode(), contents
+    )
 
 
 def test_cli_tutorial() -> None:
@@ -98,4 +105,7 @@ def test_cli_tutorial() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode=edit", contents)
+    _check_contents(
+        p, f"marimo-version data-version={__version__}".encode(), contents
+    )
     _check_contents(p, b"intro.py", contents)

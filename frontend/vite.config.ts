@@ -11,6 +11,7 @@ const htmlDevPlugin = (): Plugin => {
       return html
         .replace(`{{ filename }}`, `dev-mode`)
         .replace(`{{ mode }}`, `"edit"`)
+        .replace(`{{ version }}`, `"0.1.0"`)
         .replace(
           `{{ user_config }}`,
           JSON.stringify({

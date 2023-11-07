@@ -1,14 +1,15 @@
 {
-  "name": "@marimo-team/app",
-  "version": "0.1.15",
+  "name": "@marimo-team/frontend",
+  "version": "0.0.0-placeholder",
   "main": "lib/marimo.js",
   "types": "lib/index.d.ts",
+  "license": "Apache-2.0",
   "sideEffects": [
     "*.css",
     "*.css.ts"
   ],
   "files": [
-    "lib"
+    "dist"
   ],
   "dependencies": {
     "@codemirror/autocomplete": "^6.10.2",
