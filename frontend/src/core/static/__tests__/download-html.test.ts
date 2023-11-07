@@ -4,6 +4,7 @@ import { constructHTML } from "../download-html";
 import { CellId } from "@/core/model/ids";
 import { createCell, createCellRuntimeState } from "@/core/model/cells";
 import { JSDOM } from "jsdom";
+// @ts-expect-error - no types
 import prettier from "prettier";
 
 const DOC = `

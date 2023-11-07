@@ -4,25 +4,36 @@ exports[`download-html > should construct html correctly 1`] = `
 "<html>
   <head>
     <meta charset=\\"utf-8\\" />
-    <link rel=\\"icon\\" href=\\"http://localhost:3000/favicon.ico\\" />
     <link
-      rel=\\"preload\\"
-      href=\\"http://localhost:3000/assets/gradient-6c6e9bb3.png\\"
-      as=\\"image\\"
+      rel=\\"icon\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/favicon.ico\\"
+      crossorigin=\\"anonymous\\"
     />
     <link
       rel=\\"preload\\"
-      href=\\"http://localhost:3000/assets/noise-b5c8172e.png\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/gradient-6c6e9bb3.png\\"
       as=\\"image\\"
+      crossorigin=\\"anonymous\\"
+    />
+    <link
+      rel=\\"preload\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/noise-b5c8172e.png\\"
+      as=\\"image\\"
+      crossorigin=\\"anonymous\\"
     />
     <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />
     <meta name=\\"theme-color\\" content=\\"#000000\\" />
     <meta name=\\"description\\" content=\\"a marimo app\\" />
     <link
       rel=\\"apple-touch-icon\\"
-      href=\\"http://localhost:3000/apple-touch-icon.png\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/apple-touch-icon.png\\"
+      crossorigin=\\"anonymous\\"
     />
-    <link rel=\\"manifest\\" href=\\"http://localhost:3000/manifest.json\\" />
+    <link
+      rel=\\"manifest\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/manifest.json\\"
+      crossorigin=\\"anonymous\\"
+    />
   </head>
 
   <body>
@@ -74,12 +85,13 @@ exports[`download-html > should construct html correctly 1`] = `
 
     <script
       type=\\"module\\"
-      crossorigin=\\"\\"
-      src=\\"http://localhost:3000/assets/index-2e140915.js\\"
+      crossorigin=\\"anonymous\\"
+      src=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/index-2e140915.js\\"
     ></script>
     <link
       rel=\\"stylesheet\\"
-      href=\\"http://localhost:3000/assets/index-116d8088.css\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/index-116d8088.css\\"
+      crossorigin=\\"anonymous\\"
     />
   </body>
 </html>
