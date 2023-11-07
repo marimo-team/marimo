@@ -61,11 +61,13 @@ export const Autocompleter = {
     position,
     message,
     limitToType,
+    excludeTypes,
     exactName,
   }: {
     position: number;
     message: CompletionResultMessage;
     limitToType?: "tooltip";
+    excludeTypes?: string[];
     exactName?: string;
   }): Tooltip | undefined {
     const options = [...message.options];
@@ -93,6 +95,10 @@ export const Autocompleter = {
     }
 
     if (limitToType && firstOption.type !== limitToType) {
+      return;
+    }
+
+    if (excludeTypes && excludeTypes.includes(firstOption.type)) {
       return;
     }
 

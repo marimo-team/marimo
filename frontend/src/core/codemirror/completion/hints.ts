@@ -39,6 +39,7 @@ export function hintTooltip() {
           position: endToken,
           message: result,
           exactName: fullWord,
+          excludeTypes: ["tooltip"],
         });
         return tooltip ?? null;
       },
@@ -69,9 +70,12 @@ export function hintTooltip() {
 /**
  * Dispatch an effect that shows a tooltip
  */
-export function dispatchShowTooltip(view: EditorView, tooltip: Tooltip): void {
+export function dispatchShowTooltip(
+  view: EditorView,
+  tooltip: Tooltip | undefined
+): void {
   view.dispatch({
-    effects: TooltipFromCompletionApi.of([tooltip]),
+    effects: TooltipFromCompletionApi.of([tooltip].filter(Boolean)),
   });
 }
 
