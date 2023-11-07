@@ -21,6 +21,7 @@ import { saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
@@ -49,7 +50,8 @@ export function useNotebookActions(opts: { filename?: string | null }) {
     {
       icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
       label: "Export as HTML",
-      handle: async () => {
+      hidden: !getFeatureFlag("static_export"),
+      handle: () => {
         return downloadAsHTML({ filename: filename || "notebook.html" });
       },
     },
