@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Atom, useAtomValue } from "jotai";
 import { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
+import { DependencyGraphConstants } from "./constants";
 
 export function getHeight(linesOfCode: number) {
   return Math.min(linesOfCode * 10 + 40, 200);
@@ -39,7 +40,7 @@ export const CustomNode = memo((props: NodeProps<{ atom: Atom<CellData> }>) => {
         )}
         style={{
           height: getHeight(linesOfCode),
-          width: 150,
+          width: DependencyGraphConstants.nodeWidth,
         }}
       >
         <div className="text-muted-foreground font-semibold text-xs pb-1">

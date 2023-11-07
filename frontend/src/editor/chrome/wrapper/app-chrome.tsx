@@ -62,7 +62,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         }
       }}
       className={cn(
-        "border-border no-print",
+        "border-border no-print z-10",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
         panelLocation === "left" ? "vertical" : "horizontal"
       )}

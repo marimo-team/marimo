@@ -6,6 +6,7 @@ import ReactFlow, {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  PanOnScrollMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -19,6 +20,7 @@ import { CellId } from "@/core/model/ids";
 import { CellData } from "@/core/model/cells";
 import { Atom } from "jotai";
 import { store } from "@/core/state/jotai";
+import { DependencyGraphConstants } from "./constants";
 
 interface Props {
   cellIds: CellId[];
@@ -52,49 +54,45 @@ const DependencyGraphInternal: React.FC<Props> = ({
   const [nodes] = useNodesState(initialNodes);
 
   return (
-    <div className="w-full h-full relative">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        // onScroll={}
-        onNodeClick={(_event, node) => {
-          const id = node.id;
-          const selectedEdges = initialEdges.filter(
-            (edge) =>
-              (edge.source === id && edge.data.direction === "outputs") ||
-              (edge.target === id && edge.data.direction === "inputs")
-          );
-          console.log(selectedEdges.length);
-          setEdges([]);
-          requestAnimationFrame(() => {
-            setEdges(selectedEdges);
-          });
-        }}
-        // On
-        snapToGrid={true}
-        fitView={true}
-        elementsSelectable={true}
-        // Off
-        minZoom={1}
-        maxZoom={1}
-        draggable={false}
-        // zoomOnScroll={false}
-        zoomOnDoubleClick={false}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        nodesFocusable={false}
-        edgesFocusable={false}
-        // edgesUpdatable={false}
-        selectNodesOnDrag={false}
-        panOnDrag={false}
-        preventScrolling={false}
-        zoomOnPinch={false}
-        panOnScroll={true}
-        autoPanOnNodeDrag={false}
-        autoPanOnConnect={false}
-      />
-    </div>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      onNodeClick={(_event, node) => {
+        const id = node.id;
+        const selectedEdges = initialEdges.filter(
+          (edge) =>
+            (edge.source === id && edge.data.direction === "outputs") ||
+            (edge.target === id && edge.data.direction === "inputs")
+        );
+        console.log(selectedEdges.length);
+        setEdges([]);
+        requestAnimationFrame(() => {
+          setEdges(selectedEdges);
+        });
+      }}
+      // On
+      snapToGrid={true}
+      fitView={true}
+      elementsSelectable={true}
+      // Off
+      minZoom={1}
+      maxZoom={1}
+      draggable={false}
+      panOnScrollMode={PanOnScrollMode.Vertical}
+      zoomOnDoubleClick={false}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      nodesFocusable={false}
+      edgesFocusable={false}
+      selectNodesOnDrag={false}
+      panOnDrag={false}
+      preventScrolling={false}
+      zoomOnPinch={false}
+      panOnScroll={true}
+      autoPanOnNodeDrag={false}
+      autoPanOnConnect={false}
+    />
   );
 };
 
@@ -126,10 +124,8 @@ function createNode(id: string, atom: Atom<CellData>, prevY: number): Node {
   return {
     id: id,
     data: { atom },
-    // data: { linesOfCode, label: `${id} (${linesOfCode})`, code },
-    width: 100,
+    width: DependencyGraphConstants.nodeWidth,
     type: "custom",
-    // height: 50,
     height: height,
     position: { x: 0, y: prevY + 20 },
   };
