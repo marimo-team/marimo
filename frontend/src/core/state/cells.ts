@@ -669,5 +669,5 @@ export type CellActions = ReturnType<typeof createActions>;
 export const exportedForTesting = {
   reducer,
   createActions,
-  initialCellData: initialNotebookState,
+  initialNotebookState,
 };
