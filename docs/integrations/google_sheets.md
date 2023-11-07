@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-To use Google Sheets as a data source, you will need to install the `google-cloud-storage` Python package. You can install this package using `pip`:
+To use Google Sheets as a data source, you will need to install the `gspread` and `oauth2client` Python packages. You can install this package using `pip`:
 
 ```bash
 pip install gspread oauth2client
