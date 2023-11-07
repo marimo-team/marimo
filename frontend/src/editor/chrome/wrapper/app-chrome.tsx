@@ -11,20 +11,17 @@ import "./app-chrome.css";
 import { useChromeActions, useChromeState } from "../state";
 import { cn } from "@/lib/utils";
 import { createStorage } from "./storage";
-import { VariableTable } from "@/components/variables/variables-table";
-import { useVariables } from "@/core/variables/state";
-import { useCellIds } from "@/core/state/cells";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import { ErrorsPanel } from "../panels/error-panel";
 import { OutlinePanel } from "../panels/outline-panel";
+import { DependencyGraphPanel } from "@/editor/chrome/panels/dependency-graph-panel";
+import { VariablePanel } from "../panels/variable-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
   const { setIsOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
-  const variables = useVariables();
-  const cellIds = useCellIds();
 
   // sync sidebar
   useEffect(() => {
@@ -88,13 +85,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </Button>
       </div>
       {selectedPanel === "errors" && <ErrorsPanel />}
-      {selectedPanel === "variables" && (
-        <VariableTable
-          className="flex-1"
-          cellIds={cellIds}
-          variables={variables}
-        />
-      )}
+      {selectedPanel === "variables" && <VariablePanel />}
+      {selectedPanel === "dependencies" && <DependencyGraphPanel />}
       {selectedPanel === "outline" && <OutlinePanel />}
     </div>
   );

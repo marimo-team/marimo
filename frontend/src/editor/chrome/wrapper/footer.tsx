@@ -6,6 +6,7 @@ import {
   CircleEqualIcon,
   XCircleIcon,
   ScrollTextIcon,
+  NetworkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChromeActions, useChromeState } from "../state";
@@ -45,6 +46,13 @@ export const Footer: React.FC = () => {
         onClick={() => openApplication("outline")}
       >
         <ScrollTextIcon className={cn("h-4 w-4")} />
+      </FooterItem>
+      <FooterItem
+        tooltip="Explore dependencies"
+        selected={selectedPanel === "dependencies"}
+        onClick={() => openApplication("dependencies")}
+      >
+        <NetworkIcon className={cn("h-4 w-4")} />
       </FooterItem>
       <div className="mx-auto" />
       <FooterItem
