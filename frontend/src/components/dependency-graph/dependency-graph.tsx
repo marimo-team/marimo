@@ -8,7 +8,6 @@ import ReactFlow, {
   useNodesState,
   PanOnScrollMode,
 } from "reactflow";
-import "reactflow/dist/style.css";
 
 import React from "react";
 import {
@@ -21,6 +20,9 @@ import { CellData } from "@/core/model/cells";
 import { Atom } from "jotai";
 import { store } from "@/core/state/jotai";
 import { DependencyGraphConstants } from "./constants";
+
+import "reactflow/dist/style.css";
+import "./dependency-graph.css";
 
 interface Props {
   cellIds: CellId[];
@@ -65,7 +67,6 @@ const DependencyGraphInternal: React.FC<Props> = ({
             (edge.source === id && edge.data.direction === "outputs") ||
             (edge.target === id && edge.data.direction === "inputs")
         );
-        console.log(selectedEdges.length);
         setEdges([]);
         requestAnimationFrame(() => {
           setEdges(selectedEdges);
