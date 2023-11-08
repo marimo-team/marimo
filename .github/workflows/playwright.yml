@@ -93,7 +93,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           destination: marimo-oss-visual-snapshots/branch/${{ steps.extract_branch.outputs.branch }}
-          path: /frontend/e2e-tests/screenshots
+          path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
         uses: actions/upload-artifact@v3
