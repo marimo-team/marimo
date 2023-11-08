@@ -75,6 +75,11 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         return self._virtual_file
 
     def create(self, context: "RuntimeContext") -> None:
+        """Create the virtual file
+
+        Every virtual file gets a unique random name. Uniqueness is
+        required for reference counting.
+        """
         filename = random_filename(self.ext)
         registry = context.virtual_file_registry
         # create a unique filename for the virtual file
@@ -93,9 +98,8 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
     def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
         # Remove the file if the refcount is 0, or if the cell is being
-        # deleted. (We can't rely on when the refcount will be
-        # decremented, so we need to check for deletion explictly to prevent
-        # leaks.)
+        # deleted. (We can't rely on when the refcount will be decremented, so
+        # we need to check for deletion explictly to prevent leaks.)
         if deletion or (
             context.virtual_file_registry.refcount(self.virtual_file.filename)
             <= 0
@@ -116,6 +120,16 @@ class VirtualFileRegistryItem:
 
 @dataclasses.dataclass
 class VirtualFileRegistry:
+    """Registry of virtual files
+
+    The registry maps virtual file filenames to their contents. Each
+    registry item is reference counted: refcount > 0 means that an object
+    exists somewhere that uses the virtual file.
+
+    The registry itself doesn't maintain the reference counts, it only
+    exposes methods for incrementing, decrementing, and getting the counts.
+    """
+
     registry: dict[str, VirtualFileRegistryItem] = dataclasses.field(
         default_factory=dict
     )
@@ -131,15 +145,18 @@ class VirtualFileRegistry:
         return self.registry.keys()
 
     def reference(self, filename: str) -> None:
+        """Increment the reference count"""
         if filename in self.registry:
             self.registry[filename].refcount += 1
             print(filename + ": " + str(self.registry[filename].refcount))
 
     def dereference(self, filename: str) -> None:
+        """Decrement the reference count"""
         if filename in self.registry:
             self.registry[filename].refcount -= 1
 
     def refcount(self, filename: str) -> int:
+        """Get the reference count"""
         if filename in self.registry:
             return self.registry[filename].refcount
         return 0
