@@ -26,6 +26,7 @@ import { CellHandle } from "@/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { EditorView } from "@codemirror/view";
+import { isStaticNotebook, parseStaticState } from "../static/static-state";
 
 /**
  * The state of the notebook.
@@ -66,6 +67,18 @@ export interface NotebookState {
  * Initial state of the notebook.
  */
 function initialNotebookState(): NotebookState {
+  if (isStaticNotebook()) {
+    const notebookState = parseStaticState();
+    return {
+      cellIds: notebookState.cellIds,
+      cellData: notebookState.cellData,
+      cellRuntime: notebookState.cellRuntime,
+      cellHandles: {},
+      history: [],
+      scrollKey: null,
+    };
+  }
+
   return {
     cellIds: [],
     cellData: {},

@@ -1,5 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
+import ReconnectingWebSocket from "partysocket/ws";
+
 export enum WebSocketState {
   CONNECTING = 0,
   OPEN = 1,
@@ -28,3 +30,9 @@ export type ConnectionStatus =
         | WebSocketState.OPEN
         | WebSocketState.CLOSING;
     };
+
+type PublicInterface<T> = {
+  [P in keyof T]: T[P];
+};
+
+export type IReconnectingWebSocket = PublicInterface<ReconnectingWebSocket>;

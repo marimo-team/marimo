@@ -35,3 +35,7 @@ const appConfigAtom = atom<AppConfig>(parseAppConfig());
 export function useAppConfig() {
   return useAtom(appConfigAtom);
 }
+
+export function getAppConfig() {
+  return store.get(appConfigAtom);
+}
