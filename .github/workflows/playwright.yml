@@ -82,17 +82,24 @@ jobs:
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
-      - name: ✂️ Extract branch name
-        shell: bash
-        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-        id: extract_branch
+      - name: 🌲 Get branch name
+        id: branch-name
+        uses: tj-actions/branch-names@v7
 
-      - name: 📦 Upload to bucket
+      - name: 📦 Upload to bucket (PR)
         uses: google-github-actions/upload-cloud-storage@v1
         # Only on PRs
         if: github.event_name == 'pull_request'
         with:
-          destination: marimo-oss-visual-snapshots/branch/${{ steps.extract_branch.outputs.branch }}
+          destination: marimo-oss-visual-snapshots/branches/${{ steps.branch-name.outputs.current_branch }}
+          path: frontend/e2e-tests/screenshots
+
+      - name: 📦 Upload to bucket (main)
+        uses: google-github-actions/upload-cloud-storage@v1
+        # Only on main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          destination: marimo-oss-visual-snapshots/main
           path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
