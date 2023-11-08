@@ -191,12 +191,13 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             args,
             slotted_html,
         )
-        self._text = (
+        text = (
             f"<marimo-ui-element object-id='{self._id}' "
             + f"random-id='{self._random_id}'>"
             + self._inner_text
             + "</marimo-ui-element>"
         )
+        super().__init__(text=text)
 
     def _dispose(self) -> None:
         """Handle used by the registry to clean-up this element on removal."""
@@ -212,6 +213,8 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             ctx.ui_element_registry.delete(self._id, id(self))
         except ContextNotInitializedError:
             pass
+
+        super().__del__()
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
