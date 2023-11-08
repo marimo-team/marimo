@@ -31,17 +31,25 @@ class CellLifecycleRegistry:
         item.create(ctx)
         self.registry[cell_id].add(item)
 
-    def dispose(self, cell_id: CellId_t) -> None:
+    def dispose(self, cell_id: CellId_t, deletion: bool) -> None:
         """Dispose lifecycle items associated with `cell_id`
 
         Calls `dispose` hooks and clears items from the registry.
+
+        If `deletion` is `True`, the cell is being removed from the graph.
         """
         from marimo._runtime.context import get_context
 
         ctx = get_context()
+        # LifecycleItems can request that their `dispose` method is retried in
+        # the next cell lifecycle; these items are persisted.
         persisted_lifecycle_items = set()
         if cell_id in self.registry:
             for lifecycle_item in self.registry[cell_id]:
-                if not lifecycle_item.dispose(context=ctx):
+                if not lifecycle_item.dispose(context=ctx, deletion=deletion):
                     persisted_lifecycle_items.add(lifecycle_item)
-        self.registry[cell_id] = persisted_lifecycle_items
+
+            if persisted_lifecycle_items:
+                self.registry[cell_id] = persisted_lifecycle_items
+            else:
+                del self.registry[cell_id]

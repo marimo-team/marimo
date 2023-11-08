@@ -91,16 +91,18 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         self._virtual_file = VirtualFile(filename, self.buffer)
         context.virtual_file_registry.add(self._virtual_file)
 
-    def dispose(self, context: "RuntimeContext") -> bool:
-        # TODO: when cell is getting deleted, should force removal, even
-        # if refcount is > 0
-        if (
+    def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
+        # Remove the file if the refcount is 0, or if the cell is being
+        # deleted. (We can't rely on when the refcount will be
+        # decremented, so we need to check for deletion explictly to prevent
+        # leaks.)
+        if deletion or (
             context.virtual_file_registry.refcount(self.virtual_file.filename)
             <= 0
         ):
             context.virtual_file_registry.remove(self.virtual_file)
             return True
-        # Refcount > 0, so need to keep this disposal hook around
+        # refcount > 0, so need to keep this disposal hook around
         return False
 
 

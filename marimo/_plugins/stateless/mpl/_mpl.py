@@ -197,12 +197,15 @@ class CleanupHandle(CellLifecycleItem):
         del context
         pass
 
-    def dispose(self, context: RuntimeContext) -> bool:
+    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
         del context
+        del deletion
         if self.shutdown_event is not None:
             self.shutdown_event.set()
         # TODO: if Html containing server is cached, disposal still trashes
-        # it, which is a bug ...
+        # it, which is a bug ... fix this. Use `deletion` flag to make
+        # sure shutdown happens on cell deletion, otherwise need to
+        # find a way to keep server alive if its Html is cached.
         return True
 
 
