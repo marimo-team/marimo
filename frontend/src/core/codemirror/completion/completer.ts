@@ -5,7 +5,7 @@ import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "../../../utils/Logger";
 import { CellId, HTMLCellId } from "@/core/model/ids";
 import { getCellEditorView } from "@/core/state/cells";
-import { clearTooltips, dispatchShowTooltip } from "./hints";
+import { dispatchShowTooltip } from "./hints";
 
 export async function completer(
   context: CompletionContext
@@ -38,15 +38,11 @@ export async function completer(
   });
   // Find EditorView for the cell
   const editorView = getCellEditorView(cellId);
+  if (editorView) {
+    dispatchShowTooltip(editorView, tooltip);
+  }
   if (tooltip) {
-    if (editorView) {
-      dispatchShowTooltip(editorView, tooltip);
-    }
     return null;
-  } else {
-    if (editorView) {
-      clearTooltips(editorView);
-    }
   }
 
   return Autocompleter.asCompletionResult(context.pos, result);
