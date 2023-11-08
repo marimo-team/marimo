@@ -14,7 +14,7 @@ jobs:
         shell: bash
     env:
       NODE_ENV: test
-      DEBUG: 'pw:webserver'
+      DEBUG: "pw:webserver"
 
     steps:
       - name: 🛑 Cancel Previous Runs
@@ -36,8 +36,8 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
 
       - name: 📦 Build frontend
         run: make fe
@@ -45,7 +45,7 @@ jobs:
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: 🐍 Install marimo
         run: |
@@ -77,41 +77,23 @@ jobs:
         working-directory: ./frontend
         run: npx playwright test
 
-      - name: 📸 Save screenshots
-        uses: getsentry/action-visual-snapshot@v2.0.0
-        # Beta: Don't fail the build
-        # Only on main
-        if: github.ref == 'refs/heads/main'
-        continue-on-error: true
+      - name: ☁️ Google Auth
+        uses: google-github-actions/auth@v1
         with:
-          save-only: true
-          snapshot-path: frontend/e2e-tests/screenshots
+          credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
-      - name: 🤖 Diff screenshots
-        uses: getsentry/action-visual-snapshot@v2.0.0
-        id: visual-snapshots-diff
-        # Only diff on PRs
-        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
-        # Beta: Don't fail the build
-        continue-on-error: true
-        with:
-          base-branch: main
-          api-endpoint: 'https://marimo.io/api'
-          api-token: ${{ secrets.VISUAL_SNAPSHOT_SECRET }}
-          gcs-bucket: 'marimo-oss-visual-snapshots'
-          snapshot-path: frontend/e2e-tests/screenshots
+      - name: ✂️ Extract branch name
+        shell: bash
+        run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+        id: extract_branch
 
-      - name: 📊 Upload snapshots
-        uses: actions/upload-artifact@v3
-        # Beta: Don't fail the build
-        continue-on-error: true
+      - name: 📦 Upload to bucket
+        uses: google-github-actions/upload-cloud-storage@v1
+        # Only on PRs
+        if: github.event_name == 'pull_request'
         with:
-          name: visual-snapshots-diffs
-          path: |
-            ${{ steps.visual-snapshots-diff.outputs.merge-base-images-path }}
-            ${{ steps.visual-snapshots-diff.outputs.base-images-path }}
-            ${{ steps.visual-snapshots-diff.outputs.results-path }}
-          retention-days: 1
+          destination: marimo-oss-visual-snapshots/branch/${{ steps.extract_branch.outputs.branch }}
+          path: /frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
         uses: actions/upload-artifact@v3
