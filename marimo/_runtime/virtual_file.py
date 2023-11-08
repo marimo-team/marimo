@@ -6,6 +6,7 @@ import random
 import string
 import sys
 import threading
+from collections.abc import Iterable
 from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Optional
 
@@ -90,13 +91,30 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         self._virtual_file = VirtualFile(filename, self.buffer)
         context.virtual_file_registry.add(self._virtual_file)
 
-    def dispose(self, context: "RuntimeContext") -> None:
-        context.virtual_file_registry.remove(self.virtual_file)
+    def dispose(self, context: "RuntimeContext") -> bool:
+        # TODO: when cell is getting deleted, should force removal, even
+        # if refcount is > 0
+        if (
+            context.virtual_file_registry.refcount(self.virtual_file.filename)
+            <= 0
+        ):
+            context.virtual_file_registry.remove(self.virtual_file)
+            return True
+        # Refcount > 0, so need to keep this disposal hook around
+        return False
+
+
+@dataclasses.dataclass
+class VirtualFileRegistryItem:
+    # contents of the file
+    shm: shared_memory.SharedMemory
+    # number of HTML objects that are referencing this virtual file
+    refcount: int
 
 
 @dataclasses.dataclass
 class VirtualFileRegistry:
-    registry: dict[str, shared_memory.SharedMemory] = dataclasses.field(
+    registry: dict[str, VirtualFileRegistryItem] = dataclasses.field(
         default_factory=dict
     )
     shutting_down = False
@@ -106,6 +124,23 @@ class VirtualFileRegistry:
 
     def has(self, filename: str) -> bool:
         return filename in self.registry
+
+    def filenames(self) -> Iterable[str]:
+        return self.registry.keys()
+
+    def reference(self, filename: str) -> None:
+        if filename in self.registry:
+            self.registry[filename].refcount += 1
+            print(filename + ": " + str(self.registry[filename].refcount))
+
+    def dereference(self, filename: str) -> None:
+        if filename in self.registry:
+            self.registry[filename].refcount -= 1
+
+    def refcount(self, filename: str) -> int:
+        if filename in self.registry:
+            return self.registry[filename].refcount
+        return 0
 
     def add(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
@@ -144,15 +179,15 @@ class VirtualFileRegistry:
             shm.close()
         # We hav to keep a reference to the shared memory to prevent it from
         # being destroyed on Windows
-        self.registry[key] = shm
+        self.registry[key] = VirtualFileRegistryItem(shm=shm, refcount=0)
 
     def remove(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
         if key in self.registry:
             if sys.platform == "win32":
-                self.registry[key].close()
+                self.registry[key].shm.close()
             # destroy the shared memory
-            self.registry[key].unlink()
+            self.registry[key].shm.unlink()
             del self.registry[key]
 
     def shutdown(self) -> None:
@@ -164,10 +199,10 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            for _, shm in self.registry.items():
+            for _, item in self.registry.items():
                 if sys.platform == "win32":
-                    shm.close()
-                shm.unlink()
+                    item.shm.close()
+                item.shm.unlink()
             self.registry.clear()
         finally:
             self.shutting_down = False

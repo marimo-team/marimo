@@ -14,5 +14,5 @@ class CellLifecycleItem(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def dispose(self, context: "RuntimeContext") -> None:
+    def dispose(self, context: "RuntimeContext") -> bool:
         ...

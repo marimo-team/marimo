@@ -39,7 +39,9 @@ class CellLifecycleRegistry:
         from marimo._runtime.context import get_context
 
         ctx = get_context()
+        persisted_lifecycle_items = set()
         if cell_id in self.registry:
             for lifecycle_item in self.registry[cell_id]:
-                lifecycle_item.dispose(context=ctx)
-            del self.registry[cell_id]
+                if not lifecycle_item.dispose(context=ctx):
+                    persisted_lifecycle_items.add(lifecycle_item)
+        self.registry[cell_id] = persisted_lifecycle_items

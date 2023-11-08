@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, final
 
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
+from marimo._output.utils import flatten_string
 
 if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
@@ -52,6 +53,37 @@ class Html(MIME):
 
     def __init__(self, text: str) -> None:
         self._text = text
+        self._virtual_filenames: list[str] = []
+
+        from marimo._runtime.context import (
+            ContextNotInitializedError,
+            get_context,
+        )
+
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            return
+
+        flat_text = flatten_string(self._text)
+        for virtual_filename in ctx.virtual_file_registry.filenames():
+            if virtual_filename in flat_text:
+                ctx.virtual_file_registry.reference(virtual_filename)
+                self._virtual_filenames.append(virtual_filename)
+
+    def __del__(self) -> None:
+        from marimo._runtime.context import (
+            ContextNotInitializedError,
+            get_context,
+        )
+
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            return
+
+        for f in self._virtual_filenames:
+            ctx.virtual_file_registry.dereference(f)
 
     @property
     def text(self) -> str:
