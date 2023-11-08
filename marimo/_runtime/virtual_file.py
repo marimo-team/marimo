@@ -148,7 +148,6 @@ class VirtualFileRegistry:
         """Increment the reference count"""
         if filename in self.registry:
             self.registry[filename].refcount += 1
-            print(filename + ": " + str(self.registry[filename].refcount))
 
     def dereference(self, filename: str) -> None:
         """Decrement the reference count"""
