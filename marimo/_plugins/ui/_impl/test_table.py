@@ -49,6 +49,11 @@ def test_normalize_data() -> None:
         {"key3": "value3"},
     ]
 
+    # Test with empty list
+    data = []
+    result = _normalize_data(data)
+    assert result == []
+
     # Test with pandas DataFrame
     try:
         import pandas as pd
