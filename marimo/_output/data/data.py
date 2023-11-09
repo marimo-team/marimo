@@ -14,6 +14,7 @@ from marimo._runtime.virtual_file import (
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 
 def pdf(data: bytes) -> VirtualFile:
@@ -48,7 +49,9 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     return item.virtual_file
 
 
-def csv(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
+def csv(
+    data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
+) -> VirtualFile:
     """Create a virtual file for CSV data.
 
     **Args.**
@@ -70,10 +73,20 @@ def csv(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
             ).encode("utf-8")
             return any_data(buffer, ext="csv")
 
+    # Polars DataFrame
+    if DependencyManager.has_polars():
+        import polars as pl
+
+        if isinstance(data, pl.DataFrame):
+            buffer = data.write_csv().encode("utf-8")
+            return any_data(buffer, ext="csv")
+
     return any_data(data, ext="csv")  # type: ignore
 
 
-def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
+def json(
+    data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
+) -> VirtualFile:
     """Create a virtual file for JSON data.
 
     **Args.**
@@ -91,6 +104,14 @@ def json(data: Union[str, bytes, io.BytesIO, "pd.DataFrame"]) -> VirtualFile:
 
         if isinstance(data, pd.DataFrame):
             buffer = data.to_json(orient="records").encode("utf-8")
+            return any_data(buffer, ext="json")
+
+    # Polars DataFrame
+    if DependencyManager.has_polars():
+        import polars as pl
+
+        if isinstance(data, pl.DataFrame):
+            buffer = data.write_json(row_oriented=True).encode("utf-8")
             return any_data(buffer, ext="json")
 
     return any_data(data, ext="json")  # type: ignore

@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Dict,
     Final,
     List,
     Literal,
@@ -31,6 +30,7 @@ Numeric = Union[int, float]
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 
 @dataclass
@@ -39,7 +39,9 @@ class DownloadAsArgs:
 
 
 @mddoc
-class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
+class table(
+    UIElement[List[str], Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]]
+):
     """
     A table component.
 
@@ -56,7 +58,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
     ```
 
     ```python
-    # df is a Pandas dataframe
+    # df is a Pandas or Polars dataframe
     table = mo.ui.table(
         data=df,
         # use pagination when your table has many rows
@@ -72,8 +74,9 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
 
     **Initialization Args.**
 
-    - `data`: A pandas dataframe, or a list of values representing a column,
-        or a list of dicts where each dict represents a row in the table
+    - `data`: A pandas dataframe, a polars dataframe,
+        a list of values representing a column, or a list of dicts
+        where each dict represents a row in the table
         (mapping column names to values). values can be
         primitives (`str`, `int`, `float`, `bool`, or `None`)
         or Marimo elements: e.g.
@@ -94,8 +97,10 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         self,
         data: Union[
             Sequence[Union[str, int, float, bool, MIME, None]],
-            Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
+            Sequence[JSONType],
+            List[JSONType],
             "pd.DataFrame",
+            "pl.DataFrame",
         ],
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
@@ -103,7 +108,9 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         *,
         label: str = "",
         on_change: Optional[
-            Callable[[Union[List[object], "pd.DataFrame"]], None]
+            Callable[
+                [Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]], None
+            ]
         ] = None,
     ) -> None:
         self._data = data
@@ -114,6 +121,10 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
         if pagination is None:
             pagination = len(self._data) > 10
 
+        can_download = (
+            DependencyManager.has_pandas() or DependencyManager.has_polars()
+        )
+
         super().__init__(
             component_name=table._name,
             label=label,
@@ -123,7 +134,7 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
                 "pagination": pagination,
                 "page-size": page_size,
                 "selection": selection,
-                "show-download": DependencyManager.has_pandas(),
+                "show-download": can_download,
                 "row-headers": get_row_headers(data),
             },
             on_change=on_change,
@@ -144,35 +155,74 @@ class table(UIElement[List[str], Union[List[object], "pd.DataFrame"]]):
 
     def _convert_value(
         self, value: list[str]
-    ) -> Union[List[object], "pd.DataFrame"]:
+    ) -> Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]:
+        # Handle pandas
         if DependencyManager.has_pandas():
             import pandas as pd
 
             if isinstance(self._data, pd.DataFrame):
                 return self._data.iloc[[int(v) for v in value]]
-        return [self._data[int(v)] for v in value]
+
+        # Handle polars
+        if DependencyManager.has_polars():
+            import polars as pl
+
+            if isinstance(self._data, pl.DataFrame):
+                return self._data[[int(v) for v in value]]
+
+        return [self._data[int(v)] for v in value]  # type: ignore[misc]
+
+    def _as_data_frame(
+        self, data: TableData
+    ) -> Union["pd.DataFrame", "pl.DataFrame"]:
+        """
+        Convert the given data to the same type as the original data.
+        Otherwise, convert to whatever framework we have.
+        """
+        # Handle pandas
+        if DependencyManager.has_pandas():
+            import pandas as pd
+
+            # Make result a dataframe of the original type
+            if isinstance(self._data, pd.DataFrame) and not isinstance(
+                data, pd.DataFrame
+            ):
+                return pd.DataFrame(data)  # type: ignore[arg-type]
+
+        # Handle polars
+        if DependencyManager.has_polars():
+            import polars as pl
+
+            # Make result a dataframe of the original type
+            if isinstance(self._data, pl.DataFrame) and not isinstance(
+                data, pl.DataFrame
+            ):
+                return pl.DataFrame(data)
+
+        # Convert to whatever framework we have
+
+        if DependencyManager.has_pandas():
+            import pandas as pd
+
+            return pd.DataFrame(data)  # type: ignore[arg-type]
+
+        if DependencyManager.has_polars():
+            import polars as pl
+
+            return pl.DataFrame(data)
+
+        raise ValueError("Requires pandas or polars to be installed.")
 
     def download_as(self, args: DownloadAsArgs) -> str:
-        if not DependencyManager.has_pandas():
-            raise RuntimeError("Pandas must be installed to download tables.")
-
-        import pandas as pd
-
         # download selected rows if there are any, otherwise use all rows
-        data = self._value if len(self._value) > 0 else self._data
+        data: TableData = self._value if len(self._value) > 0 else self._data
 
-        as_dataframe = (
-            data
-            if isinstance(data, pd.DataFrame)
-            # TODO: fix types to remove type ignore
-            else pd.DataFrame(self._normalized_data)  # type:ignore[arg-type]
-        )
-
+        df = self._as_data_frame(data)
         ext = args.format
         if ext == "csv":
-            return mo_data.csv(as_dataframe).url
+            return mo_data.csv(df).url
         elif ext == "json":
-            return mo_data.json(as_dataframe).url
+            return mo_data.json(df).url
         else:
             raise ValueError("format must be one of 'csv' or 'json'.")
 
@@ -184,6 +234,14 @@ def _normalize_data(data: TableData) -> JSONType:
         import pandas as pd
 
         if isinstance(data, pd.DataFrame):
+            vf = mo_data.csv(data)
+            return vf.url
+
+    # Handle polars
+    if DependencyManager.has_polars():
+        import polars as pl
+
+        if isinstance(data, pl.DataFrame):
             vf = mo_data.csv(data)
             return vf.url
 
