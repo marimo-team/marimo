@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
+import { takeScreenshot } from "./helper";
 
 const appUrl = getAppUrl("components.py");
 test.beforeEach(async ({ page }, info) => {
@@ -36,6 +37,8 @@ test("page renders read only view in read mode", async ({ page }) => {
 
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
 });
 
 test("button", async ({ page }) => {
@@ -51,6 +54,8 @@ test("button", async ({ page }) => {
   await element.click();
   // Verify output
   await helper.verifyOutput("1");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("checkbox", async ({ page }) => {
@@ -70,6 +75,8 @@ test("checkbox", async ({ page }) => {
   await element.click();
   // Verify output
   await helper.verifyOutput("False");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("date", async ({ page }) => {
@@ -82,6 +89,8 @@ test("date", async ({ page }) => {
   await element.fill("2020-01-20");
   // Verify output
   await helper.verifyOutput("2020-01-20");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("dropdown", async ({ page }) => {
@@ -94,19 +103,25 @@ test("dropdown", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("None");
   // Select option
+
   await element.selectOption({ label: "b" });
   // Verify output
   await helper.verifyOutput("b");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("file button", async ({ page }) => {
   const helper = await pageHelper(page);
   await helper.selectBasicComponent("file button");
+
   const element = page.getByRole("button", { name: "Upload", exact: true });
   // Verify is visible
   await expect(element).toBeVisible();
   // Verify output
   await helper.verifyOutput("None");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("file area", async ({ page }) => {
@@ -117,6 +132,8 @@ test("file area", async ({ page }) => {
   await expect(element).toBeVisible();
   // Verify output
   await helper.verifyOutput("None");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("multiselect", async ({ page }) => {
@@ -139,6 +156,8 @@ test("multiselect", async ({ page }) => {
   await page.getByText("c", { exact: true }).click();
   // Verify output
   await helper.verifyOutput("b, c");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("number", async ({ page }) => {
@@ -154,6 +173,8 @@ test("number", async ({ page }) => {
   await element.fill("5");
   // Verify output
   await helper.verifyOutput("5");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("radio", async ({ page }) => {
@@ -170,6 +191,8 @@ test("radio", async ({ page }) => {
   // Verify a is not selected
   // Verify output
   await helper.verifyOutput("b");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("slider", async ({ page }) => {
@@ -185,6 +208,8 @@ test("slider", async ({ page }) => {
   await element.dragTo(page.locator("marimo-slider"));
   // Verify output
   await helper.verifyOutput("6");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("switch", async ({ page }) => {
@@ -204,6 +229,8 @@ test("switch", async ({ page }) => {
   await element.click();
   // Verify output
   await helper.verifyOutput("False");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("table", async ({ page }) => {
@@ -248,6 +275,8 @@ test("table", async ({ page }) => {
 `.trim(),
     { useInnerText: true }
   );
+
+  await takeScreenshot(page, __filename);
 });
 
 test("text", async ({ page }) => {
@@ -261,6 +290,8 @@ test("text", async ({ page }) => {
   await element.fill("hello");
   // Verify output
   await helper.verifyOutput("hello");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("text_area", async ({ page }) => {
@@ -274,6 +305,8 @@ test("text_area", async ({ page }) => {
   await element.fill("hello");
   // Verify output
   await helper.verifyOutput("hello");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - array", async ({ page }) => {
@@ -305,6 +338,8 @@ test("complex - array", async ({ page }) => {
 `.trim(),
     { useInnerText: true }
   );
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - batch", async ({ page }) => {
@@ -332,6 +367,8 @@ test("complex - batch", async ({ page }) => {
 `.trim(),
     { useInnerText: true }
   );
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - dictionary", async ({ page }) => {
@@ -368,6 +405,8 @@ test("complex - dictionary", async ({ page }) => {
 `.trim(),
     { useInnerText: true }
   );
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - form", async ({ page }) => {
@@ -389,6 +428,8 @@ test("complex - form", async ({ page }) => {
   await page.locator("button:visible").getByText("Submit").click();
   // Verify output
   await helper.verifyOutput("something!");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - reused in json", async ({ page }) => {
@@ -415,6 +456,8 @@ test("complex - reused in json", async ({ page }) => {
   // Verify all have the same value
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");
+
+  await takeScreenshot(page, __filename);
 });
 
 test("complex - reused in markdown", async ({ page }) => {
@@ -441,4 +484,6 @@ test("complex - reused in markdown", async ({ page }) => {
   // Verify all have the same value
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");
+
+  await takeScreenshot(page, __filename);
 });

@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
+import { takeScreenshot } from "./helper";
 
 const runUrl = getAppUrl("layout_grid.py//run");
 const editUrl = getAppUrl("layout_grid.py//edit");
@@ -24,6 +25,8 @@ test("can run Grid layout", async ({ page }) => {
   const bb2 = await bbForText(page, "text 2");
   await expect(bb1.y).toBe(bb2.y);
   await expect(bb1.x).toBeGreaterThan(bb2.x);
+
+  await takeScreenshot(page, __filename);
 });
 
 test("can edit Grid layout", async ({ page }) => {
@@ -62,6 +65,8 @@ test("can edit Grid layout", async ({ page }) => {
   bb2 = await bbForText(page, "text 2");
   await expect(bb1.x).toBe(bb2.x);
   await expect(bb1.y).toBeLessThan(bb2.y);
+
+  await takeScreenshot(page, __filename);
 });
 
 interface BoundingBox {

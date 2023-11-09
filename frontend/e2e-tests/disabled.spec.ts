@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
+import { takeScreenshot } from "./helper";
 
 const appUrl = getAppUrl("cells.py");
 test.beforeEach(async ({ page }, info) => {
@@ -112,4 +113,6 @@ test("disabled cells", async ({ page }) => {
   await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
     0
   );
+
+  await takeScreenshot(page, __filename);
 });
