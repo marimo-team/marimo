@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { atom, useAtomValue, useSetAtom } from "jotai";
+import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ReducerWithoutAction, createRef, useMemo } from "react";
 import { CellMessage } from "../kernel/messages";
 import {
@@ -26,6 +26,7 @@ import { CellHandle } from "@/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { EditorView } from "@codemirror/view";
+import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 
 /**
@@ -562,6 +563,13 @@ export const getNotebook = () => store.get(notebookAtom);
  */
 export const getCells = () => store.get(notebookAtom).cellIds;
 
+const cellDataAtoms = splitAtom(
+  selectAtom(notebookAtom, (cells) =>
+    cells.cellIds.map((id) => cells.cellData[id])
+  )
+);
+export const useCellDataAtoms = () => useAtom(cellDataAtoms);
+
 /**
  * Get the editor views for all cells.
  */
@@ -674,5 +682,5 @@ export type CellActions = ReturnType<typeof createActions>;
 export const exportedForTesting = {
   reducer,
   createActions,
-  initialCellState: initialNotebookState,
+  initialNotebookState,
 };

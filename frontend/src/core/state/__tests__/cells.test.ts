@@ -8,7 +8,7 @@ import {
 } from "../cells";
 import { CellId } from "@/core/model/ids";
 
-const { initialCellState, reducer, createActions } = exportedForTesting;
+const { initialNotebookState, reducer, createActions } = exportedForTesting;
 
 function formatCells(notebook: NotebookState) {
   const cells = notebookCells(notebook);
@@ -30,7 +30,7 @@ describe("cell reducer", () => {
   beforeEach(() => {
     CellId.reset();
 
-    state = initialCellState();
+    state = initialNotebookState();
     actions.createNewCell({ cellId: undefined!, before: false });
     firstCellId = state.cellIds[0];
   });

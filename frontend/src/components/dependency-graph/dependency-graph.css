@@ -1,0 +1,11 @@
+.react-flow__pane.react-flow__pane {
+  cursor: default;
+}
+
+.react-flow__node.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__handle.react-flow__handle {
+  @apply border-background;
+}

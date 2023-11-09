@@ -1,0 +1,9 @@
+.tiny-code .cm-editor {
+  padding: 0;
+  margin: 0;
+  font-size: 8px;
+}
+
+.tiny-code .cm-editor .cm-scroller {
+  line-height: 11px;
+}

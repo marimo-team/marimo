@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useEffect, useState } from "react";
+import { debounce } from "lodash-es";
+import { useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 
 export function useDebounce<T>(value: T, delay: number): T {
@@ -74,4 +75,14 @@ export function useDebounceControlledState<T>(opts: {
       setInternalValue(value);
     },
   };
+}
+
+export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
+  callback: T,
+  delay: number
+) {
+  const internalCallback = useEvent(callback);
+  return useMemo(() => {
+    return debounce(internalCallback, delay);
+  }, [internalCallback, delay]);
 }
