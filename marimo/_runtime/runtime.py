@@ -291,7 +291,10 @@ class Kernel:
                 del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
-        self, cell_id: CellId_t, exclude_defs: Optional[set[str]] = None
+        self,
+        cell_id: CellId_t,
+        exclude_defs: Optional[set[str]] = None,
+        deletion: bool = False,
     ) -> None:
         """Cleanup state associated with this cell.
 
@@ -303,7 +306,9 @@ class Kernel:
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
-        get_context().cell_lifecycle_registry.dispose(cell_id)
+        get_context().cell_lifecycle_registry.dispose(
+            cell_id, deletion=deletion
+        )
         RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -315,7 +320,7 @@ class Kernel:
         from the kernel and graph.
         """
         if cell_id not in self.errors:
-            self._invalidate_cell_state(cell_id)
+            self._invalidate_cell_state(cell_id, deletion=True)
             return self.graph.delete_cell(cell_id)
         else:
             # An errored cell can be thought of as a cell that's in the graph

@@ -12,6 +12,7 @@ import { CommandPallette } from "./editor/CommandPallette";
 import { useAppConfig, useUserConfig } from "@/core/state/config";
 import { initialMode } from "./core/mode";
 import { AppChrome } from "./editor/chrome/wrapper/app-chrome";
+import { StaticBanner } from "./components/static-html/static-banner";
 
 /**
  * The root component of the Marimo app.
@@ -27,6 +28,7 @@ export const MarimoApp: React.FC = () => {
   const body =
     initialMode === "read" ? (
       <>
+        <StaticBanner />
         <App userConfig={userConfig} appConfig={appConfig} />
         <Toaster />
       </>

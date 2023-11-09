@@ -28,6 +28,11 @@ class UIElementRegistry:
         ui_element: UIElement[Any, Any],
     ) -> None:
         kernel = get_context().kernel
+        if object_id in self._objects:
+            # on cell re-run, a UI element may be (re)-registered before
+            # its destructor was called, so manually delete the old element
+            # here
+            self.delete(object_id, id(self._objects[object_id]))
         self._objects[object_id] = weakref.ref(ui_element)
         assert kernel.execution_context is not None
         self._constructing_cells[object_id] = kernel.execution_context.cell_id
@@ -60,15 +65,19 @@ class UIElementRegistry:
         if object_id not in self._objects:
             return
 
-        registered_python_id = id(self._objects[object_id]())
+        ui_element = self._objects[object_id]()
+        registered_python_id = id(ui_element)
         if registered_python_id != python_id:
+            # guards against UIElement's destructor racing against
+            # registration of another element when a cell re-runs
             LOGGER.debug(
                 "Python id mismatch when deleting UI element %s", object_id
             )
             return
 
-        if self._objects[object_id]:
+        if ui_element is not None:
             del self._objects[object_id]
+            ui_element._dispose()
         if object_id in self._bindings:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:

@@ -191,6 +191,10 @@ def _normalize_data(data: TableData) -> JSONType:
     if not isinstance(data, (list, tuple)):
         raise ValueError("data must be a list or tuple.")
 
+    # Handle empty data
+    if len(data) == 0:
+        return []
+
     # Handle single-column data
     if not isinstance(data[0], dict) and isinstance(
         data[0], (str, int, float, bool, type(None))

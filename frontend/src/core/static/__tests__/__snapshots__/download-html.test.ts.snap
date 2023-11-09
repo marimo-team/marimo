@@ -1,0 +1,99 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`download-html > should construct html correctly 1`] = `
+"<html>
+  <head>
+    <meta charset=\\"utf-8\\" />
+    <link
+      rel=\\"icon\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/favicon.ico\\"
+      crossorigin=\\"anonymous\\"
+    />
+    <link
+      rel=\\"preload\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/gradient-6c6e9bb3.png\\"
+      as=\\"image\\"
+      crossorigin=\\"anonymous\\"
+    />
+    <link
+      rel=\\"preload\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/noise-b5c8172e.png\\"
+      as=\\"image\\"
+      crossorigin=\\"anonymous\\"
+    />
+    <meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1\\" />
+    <meta name=\\"theme-color\\" content=\\"#000000\\" />
+    <meta name=\\"description\\" content=\\"a marimo app\\" />
+    <link
+      rel=\\"apple-touch-icon\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/apple-touch-icon.png\\"
+      crossorigin=\\"anonymous\\"
+    />
+    <link
+      rel=\\"manifest\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/manifest.json\\"
+      crossorigin=\\"anonymous\\"
+    />
+  </head>
+
+  <body>
+    <div id=\\"root\\"></div>
+    <marimo-mode data-mode=\\"read\\" hidden=\\"\\"></marimo-mode>
+    <marimo-filename hidden=\\"\\">app.py</marimo-filename>
+    <marimo-version data-version=\\"0.1.44\\" hidden=\\"\\"></marimo-version>
+    <marimo-user-config
+      data-config='{\\"display\\": {\\"theme\\": \\"light\\"}, \\"keymap\\": {\\"preset\\": \\"default\\"}, \\"save\\": {\\"autosave\\": \\"after_delay\\", \\"format_on_save\\": true, \\"autosave_delay\\": 1000}, \\"server\\": {\\"browser\\": \\"default\\"}, \\"experimental\\": {\\"layouts\\": true, \\"theming\\": true}, \\"runtime\\": {\\"auto_instantiate\\": true}, \\"completion\\": {\\"activate_on_typing\\": true, \\"copilot\\": true}}'
+      hidden=\\"\\"
+    ></marimo-user-config>
+    <marimo-app-config
+      data-config='{\\"width\\": \\"full\\", \\"layout_file\\": null}'
+      hidden=\\"\\"
+    ></marimo-app-config>
+    <script data-marimo=\\"true\\">
+      window.__MARIMO_STATIC__ = {};
+      window.__MARIMO_STATIC__.version = \\"0.1.44\\";
+      window.__MARIMO_STATIC__.notebookState = {
+        cellIds: [\\"1\\"],
+        cellData: {
+          1: {
+            id: \\"1\\",
+            config: {},
+            name: \\"cell\\",
+            code: \\"code\\",
+            edited: false,
+            lastCodeRun: null,
+            serializedEditorState: null,
+          },
+        },
+        cellRuntime: {
+          1: {
+            outline: null,
+            output: null,
+            consoleOutputs: [],
+            status: \\"idle\\",
+            interrupted: false,
+            errored: false,
+            stopped: false,
+            runElapsedTimeMs: null,
+            runStartTimestamp: null,
+          },
+        },
+      };
+      window.__MARIMO_STATIC__.assetUrl =
+        \\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist\\";
+    </script>
+
+    <script
+      type=\\"module\\"
+      crossorigin=\\"anonymous\\"
+      src=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/index-2e140915.js\\"
+    ></script>
+    <link
+      rel=\\"stylesheet\\"
+      href=\\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist/assets/index-116d8088.css\\"
+      crossorigin=\\"anonymous\\"
+    />
+  </body>
+</html>
+"
+`;

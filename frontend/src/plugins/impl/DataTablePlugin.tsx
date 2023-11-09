@@ -134,7 +134,7 @@ const DataTableComponent = ({
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
   return (
-    <Labeled label={label} align="top">
+    <Labeled label={label} align="top" fullWidth={true}>
       <DataTable
         data={data}
         columns={columns}

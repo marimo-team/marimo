@@ -23,6 +23,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import { jsonParseWithSpecialChar } from "@/utils/json-parser";
 import { prettyError } from "@/utils/errors";
+import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 
 /**
@@ -190,6 +191,7 @@ export function useMarimoWebSocket(opts: {
   };
 
   const ws = useWebSocket({
+    static: isStaticNotebook(),
     /**
      * Unique URL for this session.
      */

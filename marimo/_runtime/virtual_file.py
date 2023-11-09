@@ -6,6 +6,7 @@ import random
 import string
 import sys
 import threading
+from collections.abc import Iterable
 from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Optional
 
@@ -74,6 +75,11 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         return self._virtual_file
 
     def create(self, context: "RuntimeContext") -> None:
+        """Create the virtual file
+
+        Every virtual file gets a unique random name. Uniqueness is
+        required for reference counting.
+        """
         filename = random_filename(self.ext)
         registry = context.virtual_file_registry
         # create a unique filename for the virtual file
@@ -90,13 +96,41 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         self._virtual_file = VirtualFile(filename, self.buffer)
         context.virtual_file_registry.add(self._virtual_file)
 
-    def dispose(self, context: "RuntimeContext") -> None:
-        context.virtual_file_registry.remove(self.virtual_file)
+    def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
+        # Remove the file if the refcount is 0, or if the cell is being
+        # deleted. (We can't rely on when the refcount will be decremented, so
+        # we need to check for deletion explictly to prevent leaks.)
+        if deletion or (
+            context.virtual_file_registry.refcount(self.virtual_file.filename)
+            <= 0
+        ):
+            context.virtual_file_registry.remove(self.virtual_file)
+            return True
+        # refcount > 0, so need to keep this disposal hook around
+        return False
+
+
+@dataclasses.dataclass
+class VirtualFileRegistryItem:
+    # contents of the file
+    shm: shared_memory.SharedMemory
+    # number of HTML objects that are referencing this virtual file
+    refcount: int
 
 
 @dataclasses.dataclass
 class VirtualFileRegistry:
-    registry: dict[str, shared_memory.SharedMemory] = dataclasses.field(
+    """Registry of virtual files
+
+    The registry maps virtual file filenames to their contents. Each
+    registry item is reference counted: refcount > 0 means that an object
+    exists somewhere that uses the virtual file.
+
+    The registry itself doesn't maintain the reference counts, it only
+    exposes methods for incrementing, decrementing, and getting the counts.
+    """
+
+    registry: dict[str, VirtualFileRegistryItem] = dataclasses.field(
         default_factory=dict
     )
     shutting_down = False
@@ -106,6 +140,25 @@ class VirtualFileRegistry:
 
     def has(self, filename: str) -> bool:
         return filename in self.registry
+
+    def filenames(self) -> Iterable[str]:
+        return self.registry.keys()
+
+    def reference(self, filename: str) -> None:
+        """Increment the reference count"""
+        if filename in self.registry:
+            self.registry[filename].refcount += 1
+
+    def dereference(self, filename: str) -> None:
+        """Decrement the reference count"""
+        if filename in self.registry:
+            self.registry[filename].refcount -= 1
+
+    def refcount(self, filename: str) -> int:
+        """Get the reference count"""
+        if filename in self.registry:
+            return self.registry[filename].refcount
+        return 0
 
     def add(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
@@ -144,15 +197,15 @@ class VirtualFileRegistry:
             shm.close()
         # We hav to keep a reference to the shared memory to prevent it from
         # being destroyed on Windows
-        self.registry[key] = shm
+        self.registry[key] = VirtualFileRegistryItem(shm=shm, refcount=0)
 
     def remove(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
         if key in self.registry:
             if sys.platform == "win32":
-                self.registry[key].close()
+                self.registry[key].shm.close()
             # destroy the shared memory
-            self.registry[key].unlink()
+            self.registry[key].shm.unlink()
             del self.registry[key]
 
     def shutdown(self) -> None:
@@ -164,10 +217,10 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            for _, shm in self.registry.items():
+            for _, item in self.registry.items():
                 if sys.platform == "win32":
-                    shm.close()
-                shm.unlink()
+                    item.shm.close()
+                item.shm.unlink()
             self.registry.clear()
         finally:
             self.shutting_down = False
