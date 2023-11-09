@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React from "react";
+import React, { memo } from "react";
 import CodeMirror, { minimalSetup } from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 
@@ -10,7 +10,7 @@ interface Props {
   code: string;
 }
 
-export const TinyCode: React.FC<Props> = ({ code }) => {
+export const TinyCode: React.FC<Props> = memo(({ code }) => {
   const { theme } = useTheme();
 
   return (
@@ -26,7 +26,7 @@ export const TinyCode: React.FC<Props> = ({ code }) => {
           python(),
           minimalSetup({
             syntaxHighlighting: true,
-            // Rest false
+            // Other options are false
             highlightSpecialChars: false,
             history: false,
             drawSelection: false,
@@ -38,4 +38,6 @@ export const TinyCode: React.FC<Props> = ({ code }) => {
       />
     </div>
   );
-};
+});
+
+TinyCode.displayName = "TinyCode";

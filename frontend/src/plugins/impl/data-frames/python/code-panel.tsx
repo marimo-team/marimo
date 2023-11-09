@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React from "react";
+import React, { memo } from "react";
 import { Transformations } from "../schema";
 import { python } from "@codemirror/lang-python";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
@@ -27,7 +27,7 @@ export const CodePanel: React.FC<Props> = ({ transforms, dataframeName }) => {
   );
 };
 
-const PythonCode = (props: { code: string }) => {
+const PythonCode = memo((props: { code: string }) => {
   const { theme } = useThemeForPlugin();
   return (
     <div className="relative min-h-[200px]">
@@ -44,7 +44,8 @@ const PythonCode = (props: { code: string }) => {
       />
     </div>
   );
-};
+});
+PythonCode.displayName = "PythonCode";
 
 const FloatingCopyButton = (props: { text: string }) => {
   const copy = Events.stopPropagation(() => {
