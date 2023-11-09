@@ -56,6 +56,17 @@ export function hintTooltip() {
         },
       ])
     ),
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Backspace",
+          run: (view) => {
+            clearTooltips(view);
+            return false; // don't stop propagation
+          },
+        },
+      ])
+    ),
     // Clear tooltips on blur
     EditorView.domEventObservers({
       blur: (event, view) => {
