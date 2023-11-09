@@ -7,9 +7,12 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   PanOnScrollMode,
+  useStore,
+  useReactFlow,
+  CoordinateExtent,
 } from "reactflow";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CustomNode,
   getHeight,
@@ -19,10 +22,10 @@ import { CellId } from "@/core/model/ids";
 import { CellData } from "@/core/model/cells";
 import { Atom } from "jotai";
 import { store } from "@/core/state/jotai";
-import { DependencyGraphConstants } from "./constants";
 
 import "reactflow/dist/style.css";
 import "./dependency-graph.css";
+import { useDebouncedCallback } from "@/hooks/useDebounce";
 
 interface Props {
   cellIds: CellId[];
@@ -53,24 +56,58 @@ const DependencyGraphInternal: React.FC<Props> = ({
     variables
   );
   const [edges, setEdges] = useEdgesState([]);
-  const [nodes] = useNodesState(initialNodes);
+  const [nodes, setNodes] = useNodesState(initialNodes);
+
+  const [allEdges, setAllEdges] = useState<Edge[]>(initialEdges);
+  const [selectedNodeId, setSelectedNodeId] = useState<string>();
+
+  // If the cellIds change, update the nodes.
+  useEffect(() => {
+    const { nodes, edges } = createElements(cellIds, cellAtoms, variables);
+    setNodes(nodes);
+    setAllEdges(edges);
+  }, [cellIds, setNodes, variables, cellAtoms, setAllEdges]);
+
+  // If the selected node changes, update the edges.
+  useEffect(() => {
+    if (selectedNodeId) {
+      const selectedEdges = allEdges.filter((edge) => {
+        const { source, target, data } = edge;
+
+        return (
+          (source === selectedNodeId && data.direction === "outputs") ||
+          (target === selectedNodeId && data.direction === "inputs")
+        );
+      });
+      setEdges(selectedEdges);
+    } else {
+      setEdges([]);
+    }
+  }, [selectedNodeId, setEdges, allEdges]);
+
+  const instance = useReactFlow();
+  const [width, height] = useStore(({ width, height }) => [width, height]);
+
+  const debounceFitView = useDebouncedCallback(() => {
+    instance.fitView({ duration: 100 });
+  }, 100);
+
+  // When the window is resized, fit the view to the graph.
+  useEffect(() => {
+    debounceFitView();
+  }, [width, height, debounceFitView]);
+
+  const translateExtent = useTranslateExtent(nodes, height);
 
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      translateExtent={translateExtent}
       onNodeClick={(_event, node) => {
         const id = node.id;
-        const selectedEdges = initialEdges.filter(
-          (edge) =>
-            (edge.source === id && edge.data.direction === "outputs") ||
-            (edge.target === id && edge.data.direction === "inputs")
-        );
-        setEdges([]);
-        requestAnimationFrame(() => {
-          setEdges(selectedEdges);
-        });
+        setSelectedNodeId(id);
       }}
       // On
       snapToGrid={true}
@@ -125,7 +162,7 @@ function createNode(id: string, atom: Atom<CellData>, prevY: number): Node {
   return {
     id: id,
     data: { atom },
-    width: DependencyGraphConstants.nodeWidth,
+    width: 250,
     type: "custom",
     height: height,
     position: { x: 0, y: prevY + 20 },
@@ -160,4 +197,28 @@ function createElements(
     }
   }
   return { nodes, edges };
+}
+
+// Limit the extent of the graph to just the visible nodes.
+// The top node and bottom node can be scrolled to the middle of the graph.
+function useTranslateExtent(nodes: Node[], height: number): CoordinateExtent {
+  const PADDING_Y = 10;
+
+  return useMemo<CoordinateExtent>(() => {
+    const top = nodes.reduce(
+      (top, { position }) => Math.min(top, position.y - height / 2 - PADDING_Y),
+      Number.POSITIVE_INFINITY
+    );
+
+    const bottom = nodes.reduce(
+      (bottom, { position }) =>
+        Math.max(bottom, position.y + height / 2 + PADDING_Y),
+      Number.NEGATIVE_INFINITY
+    );
+
+    return [
+      [Number.NEGATIVE_INFINITY, top],
+      [Number.POSITIVE_INFINITY, bottom],
+    ];
+  }, [nodes, height]);
 }
