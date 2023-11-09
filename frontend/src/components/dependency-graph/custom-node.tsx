@@ -7,7 +7,8 @@ import { memo } from "react";
 import { Handle, Position, NodeProps, useStore } from "reactflow";
 
 export function getHeight(linesOfCode: number) {
-  return Math.min(linesOfCode * 10 + 40, 200);
+  const LINE_HEIGHT = 11; // matches TinyCode.css
+  return Math.min(linesOfCode * LINE_HEIGHT + 35, 200);
 }
 
 function getWidth(canvasWidth: number) {
@@ -53,9 +54,7 @@ export const CustomNode = memo((props: NodeProps<{ atom: Atom<CellData> }>) => {
         <div className="text-muted-foreground font-semibold text-xs py-1 px-2 bg-muted border-b">
           Cell {id}
         </div>
-        <div className="p-2">
-          <TinyCode code={cell.code} />
-        </div>
+        <TinyCode code={cell.code} />
       </div>
       <Handle
         type="source"
