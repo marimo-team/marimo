@@ -63,7 +63,7 @@ const DependencyGraphInternal: React.FC<Props> = ({
     setNodes(nodes);
     setAllEdges(edges);
     setEdges([]);
-  }, [cellIds, setNodes, variables, cellAtoms, setAllEdges]);
+  }, [cellIds, setNodes, variables, cellAtoms, setAllEdges, setEdges]);
 
   // If the selected node changes, update the edges.
   useEffect(() => {
