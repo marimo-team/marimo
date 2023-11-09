@@ -58,6 +58,7 @@ dev = [
     # For testing mo.ui.chart
     "pandas>=1.3.0",
     "pandas-stubs>=1.3.0",
+    "polars>=0.19.12",
     "pytest~=7.4.0",
     "mypy~=1.4.1",
     "ruff~=0.0.275",
