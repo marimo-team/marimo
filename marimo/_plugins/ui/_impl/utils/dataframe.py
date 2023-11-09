@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     List,
     Sequence,
     Union,
@@ -13,6 +12,11 @@ from typing import (
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
+from marimo._plugins.core.web_component import JSONType
+
+if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
 
 LOGGER = _loggers.marimo_logger()
 
@@ -20,13 +24,11 @@ Numeric = Union[int, float]
 
 TableData = Union[
     Sequence[Union[str, int, float, bool, MIME, None]],
-    Sequence[Dict[str, Union[str, int, float, bool, MIME, None]]],
+    Sequence[JSONType],
+    List[JSONType],
     "pd.DataFrame",
+    "pl.DataFrame",
 ]
-
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 
 def get_row_headers(

@@ -23,6 +23,21 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def require_polars(why: str) -> None:
+        """
+        Raise an ModuleNotFoundError if polars is not installed.
+
+        Args:
+            why: A string of the form "for <reason>" that will be appended
+
+        """
+        if not DependencyManager.has_polars():
+            raise ModuleNotFoundError(
+                f"polars is required {why}. "
+                + "You can install it with 'pip install polars'"
+            ) from None
+
+    @staticmethod
     def require_numpy(why: str) -> None:
         """
         Raise an ModuleNotFoundError if numpy is not installed.
@@ -56,6 +71,11 @@ class DependencyManager:
     def has_pandas() -> bool:
         """Return True if pandas is installed."""
         return importlib.util.find_spec("pandas") is not None
+
+    @staticmethod
+    def has_polars() -> bool:
+        """Return True if polars is installed."""
+        return importlib.util.find_spec("polars") is not None
 
     @staticmethod
     def has_numpy() -> bool:
