@@ -1,15 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { CellData } from "@/core/model/cells";
 import { TinyCode } from "@/editor/cell/TinyCode";
 import { cn } from "@/lib/utils";
-import { Atom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { memo } from "react";
-import { Handle, Position, NodeProps, useStore } from "reactflow";
-
-export function getHeight(linesOfCode: number) {
-  const LINE_HEIGHT = 11; // matches TinyCode.css
-  return Math.min(linesOfCode * LINE_HEIGHT + 35, 200);
-}
+import { Handle, Position, useStore } from "reactflow";
+import { CustomNodeProps, getNodeHeight } from "./elements";
 
 function getWidth(canvasWidth: number) {
   const minWidth = 100;
@@ -18,7 +13,7 @@ function getWidth(canvasWidth: number) {
   return Math.min(Math.max(canvasWidth - padding * 2, minWidth), maxWidth);
 }
 
-export const CustomNode = memo((props: NodeProps<{ atom: Atom<CellData> }>) => {
+export const CustomNode = memo((props: CustomNodeProps) => {
   const { data, selected, id } = props;
   const cell = useAtomValue(data.atom);
   const nonSelectedColor = "var(--gray-3)";
@@ -47,7 +42,7 @@ export const CustomNode = memo((props: NodeProps<{ atom: Atom<CellData> }>) => {
           selected && "border-primary"
         )}
         style={{
-          height: getHeight(linesOfCode),
+          height: getNodeHeight(linesOfCode),
           width: getWidth(reactFlowWidth),
         }}
       >
