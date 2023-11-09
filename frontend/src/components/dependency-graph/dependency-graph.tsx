@@ -62,6 +62,7 @@ const DependencyGraphInternal: React.FC<Props> = ({
     const { nodes, edges } = createElements(cellIds, cellAtoms, variables);
     setNodes(nodes);
     setAllEdges(edges);
+    setEdges([]);
   }, [cellIds, setNodes, variables, cellAtoms, setAllEdges]);
 
   // If the selected node changes, update the edges.
@@ -76,8 +77,6 @@ const DependencyGraphInternal: React.FC<Props> = ({
         );
       });
       setEdges(selectedEdges);
-    } else {
-      setEdges([]);
     }
   }, [selectedNodeId, setEdges, allEdges]);
 
@@ -103,7 +102,11 @@ const DependencyGraphInternal: React.FC<Props> = ({
       translateExtent={translateExtent}
       onNodeClick={(_event, node) => {
         const id = node.id;
+        if (id === selectedNodeId) {
+          return;
+        }
         setSelectedNodeId(id);
+        setEdges([]);
       }}
       // On
       snapToGrid={true}
