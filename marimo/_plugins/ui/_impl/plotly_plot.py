@@ -22,7 +22,6 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go  # type:ignore
-    import plotly.io as pio  # type:ignore
 
 # Selection is a dictionary of the form:
 # {
