@@ -4,6 +4,10 @@ export const Objects = {
     obj: Record<K, T>,
     mapper: (value: T) => U
   ): Record<K, U> {
+    if (!obj) {
+      return obj as Record<K, U>;
+    }
+
     return Objects.fromEntries(
       Objects.entries(obj).map(([key, value]) => [key, mapper(value)])
     );
