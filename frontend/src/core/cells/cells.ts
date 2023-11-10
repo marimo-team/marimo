@@ -515,12 +515,23 @@ const cellErrorsAtom = atom((get) => {
   const errors = cellIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
-      return cell.output?.mimetype === "application/vnd.marimo+error"
-        ? {
-            output: cell.output,
+      if (cell.output?.mimetype === "application/vnd.marimo+error") {
+        // Filter out ancestor-stopped errors
+        // These are errors that are caused by a cell that was stopped,
+        // but nothing the user can take action on.
+        const nonAncestorErrors = cell.output.data.filter(
+          (error) => error.type !== "ancestor-stopped"
+        );
+
+        if (nonAncestorErrors.length > 0) {
+          return {
+            output: { ...cell.output, data: nonAncestorErrors },
             cellId: cellId,
-          }
-        : null;
+          };
+        }
+      }
+
+      return null;
     })
     .filter(Boolean);
   return errors;
