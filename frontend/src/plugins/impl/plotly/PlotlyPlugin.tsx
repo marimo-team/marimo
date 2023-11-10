@@ -61,10 +61,9 @@ const config = {
 };
 
 export const PlotlyComponent = memo(
-  ({ figure, value, setValue }: PlotlyPluginProps) => {
-    // Enable autosize if width is not specified
-
+  ({ figure, setValue }: PlotlyPluginProps) => {
     const layout: Partial<Plotly.Layout> = useMemo(() => {
+      // Enable autosize if width is not specified
       const shouldAutoSize = figure.layout.width === undefined;
       return {
         autosize: shouldAutoSize,
