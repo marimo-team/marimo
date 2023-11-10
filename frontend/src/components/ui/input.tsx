@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { Events } from "@/utils/events";
 

@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import React from "react";
 import { Button } from "../ui/button";
 import { CircleIcon, SquareIcon } from "lucide-react";

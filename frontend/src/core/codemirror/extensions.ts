@@ -1,10 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { EditorView, keymap, placeholder } from "@codemirror/view";
-import { CellId } from "../model/ids";
+import { CellId } from "../cells/ids";
 import { formatEditorViews } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
-import { CellActions } from "../state/cells";
+import { CellActions } from "../cells/cells";
 
 function acceptPlaceholder(cm: EditorView, text: string) {
   // if empty, insert the placeholder

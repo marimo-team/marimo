@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 const Skeleton = ({
   className,

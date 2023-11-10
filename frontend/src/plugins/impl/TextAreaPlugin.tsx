@@ -4,7 +4,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Textarea } from "../../components/ui/textarea";
 import { Labeled } from "./common/labeled";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 type T = string;
 

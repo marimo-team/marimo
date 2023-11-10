@@ -8,8 +8,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@radix-ui/react-accordion";
-import { JsonOutput } from "@/editor/output/JsonOutput";
-import { EmotionCacheProvider } from "@/editor/output/EmotionCacheProvider";
+import { JsonOutput } from "@/components/editor/output/JsonOutput";
+import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
 
 interface Props {
   error: ZodError | Error;

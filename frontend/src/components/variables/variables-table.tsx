@@ -9,9 +9,9 @@ import {
   Table,
 } from "../ui/table";
 import { Variables } from "@/core/variables/types";
-import { CellId } from "@/core/model/ids";
-import { CellLink } from "@/editor/links/cell-link";
-import { cn } from "@/lib/utils";
+import { CellId } from "@/core/cells/ids";
+import { CellLink } from "@/components/editor/links/cell-link";
+import { cn } from "@/utils/cn";
 import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { toast } from "../ui/use-toast";

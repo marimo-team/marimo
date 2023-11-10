@@ -14,8 +14,8 @@ import ReactFlow, {
 import React, { useEffect, useMemo, useState } from "react";
 import { CustomNode } from "@/components/dependency-graph/custom-node";
 import { Variables } from "@/core/variables/types";
-import { CellId } from "@/core/model/ids";
-import { CellData } from "@/core/model/cells";
+import { CellId } from "@/core/cells/ids";
+import { CellData } from "@/core/cells/types";
 import { Atom } from "jotai";
 
 import "reactflow/dist/style.css";

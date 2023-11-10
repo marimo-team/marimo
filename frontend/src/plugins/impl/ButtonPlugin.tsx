@@ -5,7 +5,7 @@ import { IPlugin, IPluginProps } from "../types";
 import { Button } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
 import { Intent, zodIntent } from "./common/intent";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Data {
   label: string;

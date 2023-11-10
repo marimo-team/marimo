@@ -8,9 +8,9 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/ui/form";
-import { AppConfig, AppConfigSchema } from "../../core/config/config";
+import { AppConfig, AppConfigSchema } from "../../core/config/config-schema";
 import { toast } from "../ui/use-toast";
-import { useAppConfig } from "@/core/state/config";
+import { useAppConfig } from "@/core/config/config";
 import { Switch } from "@/components/ui/switch";
 import { saveAppConfig } from "@/core/network/requests";
 import { SettingTitle, SettingDescription } from "./common";

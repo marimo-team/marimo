@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
 import { DownloadActionProps, DownloadAs } from "./download-actions";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   className?: string;

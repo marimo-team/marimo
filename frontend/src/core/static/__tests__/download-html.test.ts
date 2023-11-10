@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { constructHTML } from "../download-html";
-import { CellId } from "@/core/model/ids";
-import { createCell, createCellRuntimeState } from "@/core/model/cells";
+import { CellId } from "@/core/cells/ids";
+import { createCell, createCellRuntimeState } from "@/core/cells/types";
 import { JSDOM } from "jsdom";
 // @ts-expect-error - no types
 import prettier from "prettier";

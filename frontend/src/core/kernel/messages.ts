@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
-import { LayoutType } from "@/editor/renderers/types";
-import { CellConfig, CellStatus } from "../model/cells";
-import { CellId } from "../model/ids";
+import { LayoutType } from "@/components/editor/renderers/types";
+import { CellConfig, CellStatus } from "../cells/types";
+import { CellId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";
 

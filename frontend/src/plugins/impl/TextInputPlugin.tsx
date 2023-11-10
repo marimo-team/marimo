@@ -3,7 +3,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Input } from "../../components/ui/input";
-import { cn } from "../../lib/utils";
+import { cn } from "../../utils/cn";
 import { AtSignIcon, GlobeIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import { Labeled } from "./common/labeled";

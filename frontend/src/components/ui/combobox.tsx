@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { ChevronDownIcon, Check, XCircle } from "lucide-react";
 import { createContext, useContext } from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "../../utils/cn";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import {
   Command,

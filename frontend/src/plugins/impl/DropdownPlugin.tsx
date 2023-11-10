@@ -5,7 +5,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps } from "../types";
 import { NativeSelect } from "../../components/ui/native-select";
 import { Labeled } from "./common/labeled";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Data {
   label: string | null;

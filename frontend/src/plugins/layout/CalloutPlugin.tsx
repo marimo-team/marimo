@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
-import { CalloutOutput } from "../../editor/output/CalloutOutput";
+import { CalloutOutput } from "../../components/editor/output/CalloutOutput";
 import { Intent, zodIntent } from "../impl/common/intent";
 
 interface Data {

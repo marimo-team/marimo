@@ -10,12 +10,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { UserConfig, UserConfigSchema } from "../../core/config/config";
+import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { toast } from "../ui/use-toast";
 import { saveUserConfig } from "../../core/network/requests";
-import { useUserConfig } from "../../core/state/config";
+import { useUserConfig } from "../../core/config/config";
 import { NativeSelect } from "../ui/native-select";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";

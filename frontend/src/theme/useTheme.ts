@@ -2,7 +2,7 @@
 import { store } from "@/core/state/jotai";
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
-import { userConfigAtom } from "@/core/state/config";
+import { userConfigAtom } from "@/core/config/config";
 
 export type Theme = "light" | "dark";
 

@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { CellId } from "@/core/model/ids";
+import { CellId } from "@/core/cells/ids";
 import { exportedForTesting } from "../state";
 import { VariableName, Variables } from "../types";
 

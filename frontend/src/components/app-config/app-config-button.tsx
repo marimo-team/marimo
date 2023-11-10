@@ -4,7 +4,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Button } from "../../editor/inputs/Inputs";
+import { Button } from "../editor/inputs/Inputs";
 import { SettingsIcon } from "lucide-react";
 import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";

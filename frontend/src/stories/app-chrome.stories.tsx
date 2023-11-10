@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppChrome } from "@/editor/chrome/wrapper/app-chrome";
+import { AppChrome } from "@/components/editor/chrome/wrapper/app-chrome";
 import type { Meta, StoryObj } from "@storybook/react";
 
 const meta: Meta<typeof AppChrome> = {

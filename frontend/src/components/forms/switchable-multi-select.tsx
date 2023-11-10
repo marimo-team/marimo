@@ -5,7 +5,7 @@ import { Combobox, ComboboxItem } from "../ui/combobox";
 import { Tooltip } from "../ui/tooltip";
 import { EditIcon } from "lucide-react";
 import { Toggle } from "../ui/toggle";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   options: string[];
