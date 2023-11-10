@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { cn } from "@/lib/utils";
-import { formatOutput } from "../../editor/Output";
+import { cn } from "@/utils/cn";
+import { formatOutput } from "../editor/Output";
 import { OutputMessage } from "../../core/kernel/messages";
 
 interface MimeCellProps {

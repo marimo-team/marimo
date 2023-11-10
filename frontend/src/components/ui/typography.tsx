@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 /* eslint-disable jsx-a11y/heading-has-content */
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 const H1 = React.forwardRef<
   HTMLHeadingElement,

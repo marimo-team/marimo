@@ -10,7 +10,7 @@ import {
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Button } from "../../components/ui/button";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
-import { cn } from "../../lib/utils";
+import { cn } from "../../utils/cn";
 import { renderHTML } from "../core/RenderHTML";
 
 type T = unknown;

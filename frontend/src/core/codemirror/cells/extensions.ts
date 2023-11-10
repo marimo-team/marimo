@@ -1,10 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { EditorView, KeyBinding, keymap } from "@codemirror/view";
-import { CellId } from "@/core/model/ids";
+import { CellId } from "@/core/cells/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
-import { CellActions } from "@/core/state/cells";
+import { CellActions } from "@/core/cells/cells";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {

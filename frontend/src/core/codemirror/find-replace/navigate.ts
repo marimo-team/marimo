@@ -4,7 +4,7 @@ import { SearchCursor, SearchQuery } from "@codemirror/search";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { findReplaceAtom } from "./state";
-import { getAllEditorViews } from "@/core/state/cells";
+import { getAllEditorViews } from "@/core/cells/cells";
 
 type SearchResult = typeof SearchCursor.prototype.value;
 

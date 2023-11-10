@@ -1,9 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
 import { z } from "zod";
-import { JsonOutput } from "../../editor/output/JsonOutput";
+import { JsonOutput } from "../../components/editor/output/JsonOutput";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
-import { EmotionCacheProvider } from "../../editor/output/EmotionCacheProvider";
+import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 
 interface Data {
   name?: string | null;

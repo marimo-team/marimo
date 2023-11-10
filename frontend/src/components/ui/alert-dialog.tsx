@@ -2,7 +2,7 @@
 import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import { buttonVariants } from "@/components/ui/button";
 import { useRestoreFocus } from "./use-restore-focus";
 

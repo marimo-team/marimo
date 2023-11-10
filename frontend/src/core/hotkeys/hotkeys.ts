@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { isPlatformMac } from "@/core/shortcuts/shortcuts";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
 interface Hotkey {

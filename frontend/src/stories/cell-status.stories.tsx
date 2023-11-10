@@ -3,7 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import {
   CellStatusComponent,
   CellStatusComponentProps,
-} from "@/editor/cell/CellStatus";
+} from "@/components/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const meta: Meta<typeof CellStatusComponent> = {

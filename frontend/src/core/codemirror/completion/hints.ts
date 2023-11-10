@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { HTMLCellId } from "@/core/model/ids";
+import { HTMLCellId } from "@/core/cells/ids";
 import {
   EditorView,
   Tooltip,

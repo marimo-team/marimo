@@ -8,7 +8,7 @@ import timestring from "timestring";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { useEvent } from "../../hooks/useEvent";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import { Labeled } from "./common/labeled";
 
 type Value = string | number | undefined;

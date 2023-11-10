@@ -5,7 +5,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Combobox, ComboboxItem } from "../../components/ui/combobox";
 import { Labeled } from "./common/labeled";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Data {
   label: string | null;

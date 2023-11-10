@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { NotebookState, getNotebook } from "../state/cells";
+import { NotebookState, getNotebook } from "../cells/cells";
 import { getMarimoVersion } from "../dom/version";
 
 // For Testing:

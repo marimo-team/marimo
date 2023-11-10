@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useDropzone } from "react-dropzone";
 import { Upload } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { filesToBase64 } from "../../utils/fileToBase64";
 import { buttonVariants } from "../../components/ui/button";

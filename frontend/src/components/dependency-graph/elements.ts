@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
-import { CellData } from "@/core/model/cells";
-import { CellId } from "@/core/model/ids";
+import { CellData } from "@/core/cells/types";
+import { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { Variables } from "@/core/variables/types";
 import { Edge, MarkerType, Node, NodeProps } from "reactflow";

@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import { CellId } from "./model/ids";
+import { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
 
 /**

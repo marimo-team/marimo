@@ -2,7 +2,7 @@
 
 import { Logger } from "@/utils/Logger";
 import { OutputMessage } from "../kernel/messages";
-import { Outline } from "../model/outline";
+import { Outline } from "../cells/outline";
 
 function getOutline(html: string): Outline {
   const items: Outline["items"] = [];

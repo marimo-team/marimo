@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { getAllEditorViews } from "@/core/state/cells";
+import { getAllEditorViews } from "@/core/cells/cells";
 
 export function getCodes(otherCode: string) {
   // Get all other cells' code

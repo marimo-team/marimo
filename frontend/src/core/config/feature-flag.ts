@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
-import { getUserConfig } from "../state/config";
+import { getUserConfig } from "./config";
 
 export interface ExperimentalFeatures {
   /**

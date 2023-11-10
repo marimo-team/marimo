@@ -3,8 +3,8 @@ import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "../../../utils/Logger";
-import { CellId, HTMLCellId } from "@/core/model/ids";
-import { getCellEditorView } from "@/core/state/cells";
+import { CellId, HTMLCellId } from "@/core/cells/ids";
+import { getCellEditorView } from "@/core/cells/cells";
 import { dispatchShowTooltip } from "./hints";
 
 export async function completer(

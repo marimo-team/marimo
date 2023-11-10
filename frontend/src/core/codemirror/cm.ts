@@ -45,7 +45,7 @@ import {
 import { EditorState, Extension, Prec } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
-import { CompletionConfig, KeymapConfig } from "../config/config";
+import { CompletionConfig, KeymapConfig } from "../config/config-schema";
 import { Theme } from "../../theme/useTheme";
 
 import { completer } from "@/core/codemirror/completion/completer";
@@ -56,7 +56,7 @@ import {
   cellCodeEditingBundle,
   cellMovementBundle,
 } from "./cells/extensions";
-import { CellId } from "../model/ids";
+import { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
 import {
   scrollActiveLineIntoView,

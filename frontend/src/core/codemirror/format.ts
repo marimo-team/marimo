@@ -1,13 +1,13 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { EditorView } from "@codemirror/view";
-import { CellId } from "../model/ids";
+import { CellId } from "../cells/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
 import {
   CellActions,
   getNotebook,
   notebookCellEditorViews,
-} from "../state/cells";
+} from "../cells/cells";
 
 /**
  * Format the code in the editor views via the marimo server,

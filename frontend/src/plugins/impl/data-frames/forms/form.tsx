@@ -28,7 +28,7 @@ import { Button } from "../../../../components/ui/button";
 import { getDefaults, getUnionLiteral } from "./form-utils";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import React, { useContext, useEffect } from "react";
 import {
   ColumnFetchValuesContext,

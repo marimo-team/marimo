@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { StoryFn, Meta } from "@storybook/react";
-import { Button, Input } from "../editor/inputs/Inputs";
+import { Button, Input } from "../components/editor/inputs/Inputs";
 import { PlayIcon } from "lucide-react";
 
 export default {

@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
-import { NotebookState } from "../state/cells";
+import { NotebookState } from "../cells/cells";
 
 export interface StaticNotebookState
   extends Pick<NotebookState, "cellIds" | "cellData" | "cellRuntime"> {

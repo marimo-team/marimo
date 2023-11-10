@@ -2,7 +2,7 @@
 import { Label } from "@/components/ui/label";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import React, { PropsWithChildren } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Props {
   label: string | null | undefined;

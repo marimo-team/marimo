@@ -10,7 +10,7 @@ import {
   menuSeparatorVariants,
   menuSubTriggerVariants,
 } from "./menu-items";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import React from "react";
 import { Check, ChevronRight, Circle } from "lucide-react";
 

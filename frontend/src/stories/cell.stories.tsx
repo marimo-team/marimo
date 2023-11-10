@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
-import { Cell, CellProps } from "../editor/Cell";
+import { Cell, CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
-import { CellId } from "../core/model/ids";
+import { CellId } from "../core/cells/ids";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",

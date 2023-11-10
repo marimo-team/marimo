@@ -1,10 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useEffect } from "react";
 
-import { parseShortcut } from "../core/shortcuts/shortcuts";
+import { parseShortcut } from "../core/hotkeys/shortcuts";
 import { useEventListener } from "./useEventListener";
 import { useEvent } from "./useEvent";
-import { useSetRegisteredAction } from "../core/state/actions";
+import { useSetRegisteredAction } from "../core/hotkeys/actions";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 
 /**

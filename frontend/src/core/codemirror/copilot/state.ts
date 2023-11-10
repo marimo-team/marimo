@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { getUserConfig, userConfigAtom } from "@/core/state/config";
+import { getUserConfig, userConfigAtom } from "@/core/config/config";
 import { waitFor } from "@/core/state/jotai";
 import { atomWithStorage } from "jotai/utils";
 

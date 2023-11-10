@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { TriangleIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 
 interface Data {
   value: string;

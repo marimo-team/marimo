@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { TinyCode } from "@/editor/cell/TinyCode";
-import { cn } from "@/lib/utils";
+import { TinyCode } from "@/components/editor/cell/TinyCode";
+import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";
 import { memo } from "react";
 import { Handle, Position, useStore } from "reactflow";

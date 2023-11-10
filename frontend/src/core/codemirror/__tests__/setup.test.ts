@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import { CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
 import { EditorState, Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
-import { CellId } from "@/core/model/ids";
+import { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 
 vi.mock("@/core/config/config", () => ({

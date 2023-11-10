@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { AppConfig, UserConfig } from "../config/config";
-import { LayoutType } from "@/editor/renderers/types";
-import { CellId } from "../../core/model/ids";
-import { CellConfig } from "../model/cells";
+import { AppConfig, UserConfig } from "../config/config-schema";
+import { LayoutType } from "@/components/editor/renderers/types";
+import { CellId } from "../cells/ids";
+import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
 
 // Ideally this would be generated from server.py, but for now we just

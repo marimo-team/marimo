@@ -1,8 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useEffect, useRef } from "react";
 import { ConnectionStatus, WebSocketState } from "../websocket/types";
-import { UserConfig } from "../config/config";
-import { CellConfig } from "../model/cells";
+import { UserConfig } from "../config/config-schema";
+import { CellConfig } from "../cells/types";
 
 export function useAutoSave(opts: {
   codes: string[];

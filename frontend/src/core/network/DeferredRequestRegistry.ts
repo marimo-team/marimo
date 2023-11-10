@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import { Deferred } from "@/utils/Deferred";
 import { generateUUID } from "@/utils/uuid";
-import { TypedString } from "../model/typed";
+import { TypedString } from "../../utils/typed";
 
 export type RequestId = TypedString<"RequestId">;
 export const RequestId = {

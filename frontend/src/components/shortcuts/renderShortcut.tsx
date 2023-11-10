@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { HotkeyAction, HOTKEYS } from "@/core/hotkeys/hotkeys";
-import { isPlatformMac } from "@/core/shortcuts/shortcuts";
+import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Kbd } from "../ui/kbd";
 import { DropdownMenuShortcut } from "../ui/dropdown-menu";
 
