@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import "../css/App.css";
 
 import { HourglassIcon, UnlinkIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
