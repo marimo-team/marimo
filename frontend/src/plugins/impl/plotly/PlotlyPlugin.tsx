@@ -1,20 +1,34 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { IPluginProps } from "@/plugins/types";
+import { IPlugin, IPluginProps } from "@/plugins/types";
 
 import Plot, { Figure } from "react-plotly.js";
-import { IStatelessPlugin } from "@/plugins/stateless-plugin";
-import { T } from "vitest/dist/reporters-5f784f42";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
+import { Objects } from "@/utils/objects";
+import { memo, useMemo } from "react";
+import useEvent from "react-use-event-hook";
 
 interface Data {
   figure: Figure;
 }
 
-export class PlotlyPlugin implements IStatelessPlugin<Data> {
+type AxisName = string;
+type AxisDatum = unknown;
+
+type T =
+  | {
+      points?: Array<Record<AxisName, AxisDatum>>;
+      range?: {
+        x?: number[];
+        y?: number[];
+      };
+    }
+  | undefined;
+
+export class PlotlyPlugin implements IPlugin<T, Data> {
   tagName = "marimo-plotly";
 
   validator = z.object({
@@ -25,34 +39,81 @@ export class PlotlyPlugin implements IStatelessPlugin<Data> {
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
-    return <PlotlyComponent {...props.data} host={props.host} />;
+    return (
+      <PlotlyComponent
+        {...props.data}
+        host={props.host}
+        value={props.value}
+        setValue={props.setValue}
+      />
+    );
   }
 }
 
 interface PlotlyPluginProps extends Data {
+  value: T;
+  setValue: (value: T) => void;
   host: HTMLElement;
 }
 
-export const PlotlyComponent = ({ figure, host }: PlotlyPluginProps) => {
-  // Enable autosize if width is not specified
-  const shouldAutoSize = figure.layout.width === undefined;
-  return (
-    <Plot
-      {...figure}
-      layout={{
+const config = {
+  displaylogo: false,
+};
+
+export const PlotlyComponent = memo(
+  ({ figure, value, setValue }: PlotlyPluginProps) => {
+    // Enable autosize if width is not specified
+
+    const layout: Partial<Plotly.Layout> = useMemo(() => {
+      const shouldAutoSize = figure.layout.width === undefined;
+      return {
         autosize: shouldAutoSize,
+        dragmode: "select",
+        height: 560,
         // Prioritize user's config
         ...figure.layout,
-      }}
-      config={{
-        displaylogo: false,
-      }}
-      className="w-full h-full"
-      useResizeHandler={true}
-      frames={figure.frames ?? undefined}
-      onError={(err) => {
-        Logger.error("PlotlyPlugin: ", err);
-      }}
-    />
-  );
-};
+      };
+    }, [figure.layout]);
+
+    return (
+      <Plot
+        {...figure}
+        layout={layout}
+        config={config}
+        onSelected={useEvent((evt) => {
+          setValue({
+            points: extractPoints(evt.points),
+            range: evt.range,
+          });
+        })}
+        className="w-full h-full"
+        useResizeHandler={true}
+        frames={figure.frames ?? undefined}
+        onError={useEvent((err) => {
+          Logger.error("PlotlyPlugin: ", err);
+        })}
+      />
+    );
+  }
+);
+PlotlyComponent.displayName = "PlotlyComponent";
+
+const keysToInclude = new Set(["x", "y", "value", "label"]);
+function extractPoints(
+  points: Plotly.PlotDatum[]
+): Array<Record<AxisName, AxisDatum>> {
+  if (!points) {
+    return [];
+  }
+
+  return points.map((point) => {
+    const data: Record<AxisName, AxisDatum> = Objects.filter(point, (_v, key) =>
+      keysToInclude.has(key)
+    );
+    // Add name if it exists
+    if (point.data.name) {
+      data.name = point.data.name;
+    }
+    return data;
+  });
+}

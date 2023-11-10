@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.39"
+__generated_with = "0.1.47"
 app = marimo.App(width="full")
 
 
@@ -21,11 +21,33 @@ def __():
 
 @app.cell
 def __(mo, px):
+    plot = mo.ui.plotly_plot(
+        px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16], width=600)
+    )
     mo.vstack(
         [
             mo.md("# Fixed width"),
-            px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16], width=600),
+            plot,
         ]
+    )
+    return plot,
+
+
+@app.cell
+def __(mo, plot):
+    mo.hstack(
+        [
+            mo.ui.table(plot.value, label="Points", selection=None),
+            mo.ui.table(
+                [
+                    {"start": r[0], "end": r[1], "axis": key}
+                    for key, r in plot.ranges.items()
+                ],
+                selection=None,
+                label="Ranges",
+            ),
+        ],
+        widths="equal",
     )
     return
 
@@ -37,7 +59,7 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __(mo):
     import pandas as pd
     import plotly.graph_objects as go
 
@@ -81,8 +103,15 @@ def __():
     fig.update_xaxes(title_text="Fruit")
     fig.update_yaxes(title_text="Number Eaten")
 
-    fig
-    return contestant, df, fig, go, group, pd
+    plot2 = mo.ui.plotly_plot(fig)
+    plot2
+    return contestant, df, fig, go, group, pd, plot2
+
+
+@app.cell
+def __(mo, plot2):
+    mo.ui.table(plot2.value, selection=None)
+    return
 
 
 @app.cell
@@ -108,7 +137,7 @@ def __(cars, mo):
 
 
 @app.cell
-def __(cars, px, sample_size):
+def __(cars, mo, px, sample_size):
     _fig = px.scatter(
         cars.sample(sample_size.value),
         x="Horsepower",
@@ -119,6 +148,14 @@ def __(cars, px, sample_size):
     )
 
     _fig
+    plot3 = mo.ui.plotly_plot(_fig)
+    plot3
+    return plot3,
+
+
+@app.cell
+def __(mo, plot3):
+    mo.ui.table(plot3.value, selection=None)
     return
 
 
