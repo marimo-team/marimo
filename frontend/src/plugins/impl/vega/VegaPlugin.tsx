@@ -20,6 +20,7 @@ import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
 import { useThemeForPlugin } from "@/theme/useTheme";
+import { Objects } from "@/utils/objects";
 
 interface Data {
   spec: VegaLiteSpec;
@@ -172,8 +173,12 @@ const LoadedVegaComponent = ({
         // Debounce each signal listener, otherwise we may create expensive requests
         acc[name] = debounce((signalName, signalValue) => {
           Logger.debug("[Vega signal]", signalName, signalValue);
+
           handleUpdateValue({
-            [signalName]: signalValue,
+            [signalName]: Objects.mapValues(
+              signalValue as object,
+              convertSetToList
+            ),
           });
         }, 100);
         return acc;
@@ -218,3 +223,13 @@ const actions = {
   source: false,
   compiled: false,
 };
+
+/**
+ * Convert any sets to a list before passing to the BE
+ */
+function convertSetToList(value: unknown): unknown {
+  if (value instanceof Set) {
+    return [...value];
+  }
+  return value;
+}

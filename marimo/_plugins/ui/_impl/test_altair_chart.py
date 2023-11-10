@@ -26,6 +26,19 @@ def test_filter_dataframe() -> None:
     # Filter the DataFrame with the point selection
     assert len(_filter_dataframe(df, point_selection)) == 2
 
+    # Point selected with a no fields
+    point_selection = {
+        "select_point": {
+            "_vgsid_": [2, 3],  # vega is 1-indexed
+            "vlPoint": [""],
+        },
+    }
+    # Filter the DataFrame with the point selection
+    assert len(_filter_dataframe(df, point_selection)) == 2
+    first, second = _filter_dataframe(df, point_selection)["field"].values
+    assert first == "value2"
+    assert second == "value3"
+
     # Define an interval selection
     interval_selection: ChartSelection = {
         "signal_channel_2": {"field_2": [1, 3]}

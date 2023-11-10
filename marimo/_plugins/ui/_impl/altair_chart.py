@@ -55,6 +55,14 @@ def _filter_dataframe(
     import numpy as np
 
     for _channel, fields in selection.items():
+        # This is a case when altair does not pass back the fields to filter on
+        # and instead passes an individual selected point.
+        if len(fields) == 2 and "vlPoint" in fields and "_vgsid_" in fields:
+            # Vega is 1-indexed, so subtract 1
+            indexes = [int(i) - 1 for i in fields["_vgsid_"]]
+            df = df.iloc[indexes]
+            continue
+
         # If vlPoint is in the selection,
         # then the selection is a point selection
         # otherwise, it is an interval selection
