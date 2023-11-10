@@ -4,7 +4,7 @@ import "../src/css/App.css";
 import "./sb.css";
 import "tailwindcss/tailwind.css";
 import { useEffect } from "react";
-import { cn } from "../src/lib/utils";
+import { cn } from "../src/utils/cn";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 
 const withTheme: Decorator = (Story, context) => {
