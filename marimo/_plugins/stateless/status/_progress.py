@@ -34,7 +34,10 @@ class _Progress(Html):
         self.closed = False
         # We show a loading spinner if total not known
         self.loading_spinner = total is None
-        self._text = self._get_text()
+        super().__init__(self._get_text())
+
+    def __del__(self) -> None:
+        super().__del__()
 
     def update_progress(
         self,
