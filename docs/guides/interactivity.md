@@ -31,7 +31,7 @@ references the slider variable `x`. It doesn't re-run the second cell, because
 that cell defines `x`.
 
 **For interactions on a UI element to have any effect, the element must be
-assign to a global variable.** 
+assigned to a global variable.**
 
 ## Displaying UI elements
 
