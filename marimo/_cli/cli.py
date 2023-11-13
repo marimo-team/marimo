@@ -412,11 +412,11 @@ def convert(ipynb: str) -> None:
 
 
 @main.command()
-def envinfo() -> None:
+def env() -> None:
     """Print out environment information for debugging purposes.
 
     Example usage:
 
-        marimo envinfo
+        marimo env
     """
     print(json.dumps(get_system_info(), indent=2))
