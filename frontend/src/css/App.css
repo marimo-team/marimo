@@ -28,6 +28,7 @@ html {
   position: relative;
   margin: auto;
   z-index: 1;
+  flex: 1;
 }
 
 .disconnected-gradient {
