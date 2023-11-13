@@ -21,8 +21,8 @@ class dictionary(_batch_base):
     - group together logically related UI elements
     - keep the number of global variables in your program small
 
-    _Access the values of the elements using the `value` attribute of the
-    dictionary._
+    Access the values of the elements using the `value` attribute of the
+    dictionary.
 
     The UI elements in the dictionary are clones of the original elements:
     interacting with the dictionary will _not_ update the original

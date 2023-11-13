@@ -23,8 +23,8 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     - group together logically related UI elements
     - keep the number of global variables in your program small
 
-    _Access the values of the elements using the `value` attribute of the
-    dictionary._
+    Access the values of the elements using the `value` attribute of the
+    array.
 
     The UI elements in the array are clones of the original elements:
     interacting with the array will _not_ update the original elements, and
