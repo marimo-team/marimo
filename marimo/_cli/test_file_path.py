@@ -1,3 +1,4 @@
+import tempfile
 from typing import Any
 from unittest.mock import mock_open, patch
 
@@ -14,34 +15,38 @@ from marimo._cli.file_path import (
     validate_name,
 )
 
+temp_dir = tempfile.TemporaryDirectory()
+
 
 def test_validate_name_with_python_file() -> None:
     full_path = __file__
-    assert validate_name(full_path, allow_new_file=False).endswith(
-        "test_file_path.py"
-    )
+    assert validate_name(
+        full_path, allow_new_file=False, temp_dir=temp_dir
+    ).endswith("test_file_path.py")
 
 
 def test_validate_name_with_non_python_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=False)
+        validate_name("example.txt", allow_new_file=False, temp_dir=temp_dir)
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=True)
+        validate_name("example.txt", allow_new_file=True, temp_dir=temp_dir)
 
 
 def test_validate_name_with_nonexistent_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("nonexistent.py", allow_new_file=False)
+        validate_name(
+            "nonexistent.py", allow_new_file=False, temp_dir=temp_dir
+        )
     assert "nonexistent.py" == validate_name(
-        "nonexistent.py", allow_new_file=True
+        "nonexistent.py", allow_new_file=True, temp_dir=temp_dir
     )
 
 
 def test_validate_name_with_directory() -> None:
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=False)
+        validate_name(".", allow_new_file=False, temp_dir=temp_dir)
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=True)
+        validate_name(".", allow_new_file=True, temp_dir=temp_dir)
 
 
 def test_is_github_issue_url_with_valid_url() -> None:
@@ -72,16 +77,16 @@ def test_handle_github_issue(mock_urlopen: Any) -> None:
 
     # Call the function with a mock URL
     issue_url = "https://github.com/marimo-team/marimo/issues/1"
-    result = _handle_github_issue(issue_url)
+    result = _handle_github_issue(issue_url, temp_dir)
 
     # Check if the result is a path to a temporary file
     assert result.endswith(".py")
-    assert open(result).read() == "print('Hello, world!')"
+    assert open(result).read().strip() == "print('Hello, world!')"
 
 
 def test_create_tmp_file_from_url():
     url = "https://raw.githubusercontent.com/marimo-team/marimo/main/examples/optimization/regularization_and_sparsity.py"
-    result = _create_tmp_file_from_url(url)
+    result = _create_tmp_file_from_url(url, temp_dir)
 
     # Check if the result is a path to a temporary file
     assert result.endswith(".py")
@@ -90,7 +95,7 @@ def test_create_tmp_file_from_url():
 def test_create_tmp_file_from_content():
     content = 'print("Hello, world!")'
     name = "test_script.py"
-    result = _create_tmp_file_from_content(content, name)
+    result = _create_tmp_file_from_content(content, name, temp_dir)
 
     assert result.endswith("/test_script.py")
     assert open(result).read() == content

@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import logging
 import os
 import pathlib
 import tempfile
-import urllib.request
 from typing import Any, Literal, Optional
 
 import click
@@ -17,7 +15,6 @@ from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
 from marimo._cli.file_path import validate_name
 from marimo._server.server import start_server
-from marimo._utils.url import is_url
 
 DEVELOPMENT_MODE = False
 QUIET = False
@@ -185,8 +182,9 @@ def edit(
     name: Optional[str] = None,
 ) -> None:
     if name is not None:
+        temp_dir = tempfile.TemporaryDirectory()
         # Validate name, or download from URL
-        name = validate_name(name, allow_new_file=True)
+        name = validate_name(name, allow_new_file=True, temp_dir=temp_dir)
         if os.path.exists(name):
             # module correctness check - don't start the server
             # if we can't import the module
@@ -241,7 +239,8 @@ Example:
 @click.argument("name", required=True)
 def run(port: Optional[int], headless: bool, name: str) -> None:
     # Validate name, or download from URL
-    name = validate_name(name, allow_new_file=False)
+    temp_dir = tempfile.TemporaryDirectory()
+    name = validate_name(name, allow_new_file=False, temp_dir=temp_dir)
 
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
