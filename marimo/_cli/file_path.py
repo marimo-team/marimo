@@ -62,13 +62,18 @@ def _handle_github_issue(url: str) -> str:
     body = issue_json["body"]
 
     # Find the content between first ```python and last ```
-    body.split("```python")[1].rsplit("```", 1)[0]
+    code = _find_python_code_in_github_issue(body)
 
     # Create a temporary file with the content
     path_to_app = _create_tmp_file_from_content(
-        body, f"issue_{issue_number}.py"
+        code, f"issue_{issue_number}.py"
     )
     return path_to_app
+
+
+def _find_python_code_in_github_issue(body: str) -> str:
+    # Find the content between first ```python and last ```
+    return body.split("```python")[1].rsplit("```", 1)[0]
 
 
 def _is_github_py(url: str) -> bool:

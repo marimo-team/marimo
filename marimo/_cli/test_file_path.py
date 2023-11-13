@@ -1,4 +1,3 @@
-import os
 from typing import Any
 from unittest.mock import mock_open, patch
 
@@ -8,8 +7,8 @@ import pytest
 from marimo._cli.file_path import (
     _create_tmp_file_from_content,
     _create_tmp_file_from_url,
+    _find_python_code_in_github_issue,
     _handle_github_issue,
-    _handle_github_py,
     _is_github_issue_url,
     _is_github_py,
     validate_name,
@@ -18,22 +17,31 @@ from marimo._cli.file_path import (
 
 def test_validate_name_with_python_file() -> None:
     full_path = __file__
-    assert validate_name(full_path).endswith("test_file_path.py")
+    assert validate_name(full_path, allow_new_file=False).endswith(
+        "test_file_path.py"
+    )
 
 
 def test_validate_name_with_non_python_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("example.txt")
+        validate_name("example.txt", allow_new_file=False)
+    with pytest.raises(click.UsageError):
+        validate_name("example.txt", allow_new_file=True)
 
 
 def test_validate_name_with_nonexistent_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("nonexistent.py")
+        validate_name("nonexistent.py", allow_new_file=False)
+    assert "nonexistent.py" == validate_name(
+        "nonexistent.py", allow_new_file=True
+    )
 
 
 def test_validate_name_with_directory() -> None:
     with pytest.raises(click.UsageError):
-        validate_name(".")
+        validate_name(".", allow_new_file=False)
+    with pytest.raises(click.UsageError):
+        validate_name(".", allow_new_file=True)
 
 
 def test_is_github_issue_url_with_valid_url() -> None:
@@ -86,3 +94,39 @@ def test_create_tmp_file_from_content():
 
     assert result.endswith("/test_script.py")
     assert open(result).read() == content
+
+
+def test_find_python_code_in_github_issue_multiple_codes():
+    body = """
+    some text.
+    ```python
+    print("First block of Python code")
+    ```
+    some more text.
+    ```python
+    print("Second block of Python code")
+    ```
+    """
+    expected = '\n    print("First block of Python code")\n    '
+    actual = _find_python_code_in_github_issue(body)
+    assert actual == expected
+
+    body = """
+    some text without any code blocks.
+    """
+    try:
+        _find_python_code_in_github_issue(body)
+        raise AssertionError("Expected an IndexError")
+    except IndexError:
+        # IndexError if there are no code blocks
+        pass
+
+    body = """
+    some text.
+    ```python
+    print("Only one block of Python code")
+    ```
+    """
+    expected = '\n    print("Only one block of Python code")\n    '
+    actual = _find_python_code_in_github_issue(body)
+    assert actual == expected
