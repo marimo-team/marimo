@@ -16,9 +16,13 @@ class dictionary(_batch_base):
     A dictionary of UI elements.
 
     Use a dictionary to
+
     - create a set of UI elements at runtime
     - group together logically related UI elements
     - keep the number of global variables in your program small
+
+    _Access the values of the elements using the `value` attribute of the
+    dictionary._
 
     The UI elements in the dictionary are clones of the original elements:
     interacting with the dictionary will _not_ update the original
@@ -35,6 +39,9 @@ class dictionary(_batch_base):
             "date": mo.ui.date()
         })
     ```
+
+    Get the values of the `slider`, `text`, and `date` elements via
+    `d.value`:
 
     ```python
     # d.value returns a dict with keys "slider", "text", "date"
