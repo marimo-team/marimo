@@ -1,29 +1,40 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { memo, useMemo, useState } from "react";
+import React, { PropsWithChildren, memo, useMemo, useState } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
-import { ICellRendererPlugin, ICellRendererProps } from "../types";
-import {
-  GridLayout,
-  SerializedGridLayout,
-  SerializedGridLayoutCell,
-} from "./types";
+import { ICellRendererProps } from "../types";
+import { GridLayout, GridLayoutCellSide } from "./types";
 import { OutputArea } from "@/components/editor/Output";
 import { CellRuntimeState } from "@/core/cells/types";
 
 import "react-grid-layout/css/styles.css";
 import "./styles.css";
-import { Logger } from "@/utils/Logger";
-import { z } from "zod";
-import { Maps } from "@/utils/maps";
 import { CellId } from "@/core/cells/ids";
 import { AppMode } from "@/core/mode";
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { cn } from "@/utils/cn";
-import { LockIcon, XIcon } from "lucide-react";
+import {
+  AlignEndVerticalIcon,
+  AlignHorizontalSpaceAroundIcon,
+  AlignStartVerticalIcon,
+  CheckIcon,
+  GripHorizontalIcon,
+  LockIcon,
+  ScrollIcon,
+  XIcon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Objects } from "@/utils/objects";
+import { Maps } from "@/utils/maps";
+import { startCase } from "lodash-es";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -31,7 +42,9 @@ const ReactGridLayout = WidthProvider(Responsive);
 
 const MARGIN: [number, number] = [0, 0];
 
-const GridLayoutRenderer: React.FC<Props> = ({
+const DRAG_HANDLE = "grid-drag-handle";
+
+export const GridLayoutRenderer: React.FC<Props> = ({
   layout,
   setLayout,
   cells,
@@ -59,6 +72,45 @@ const GridLayoutRenderer: React.FC<Props> = ({
   const { isDragging, ...dragProps } = useIsDragging();
 
   const enableInteractions = !isReading && !isLocked;
+  const layoutByCellId = Maps.keyBy(layout.cells, (cell) => cell.i);
+
+  const handleMakeScrollable = (cellId: CellId) => (isScrollable: boolean) => {
+    const scrollableCells = new Set(layout.scrollableCells);
+    if (isScrollable) {
+      scrollableCells.add(cellId);
+    } else {
+      scrollableCells.delete(cellId);
+    }
+    setLayout({
+      ...layout,
+      scrollableCells: scrollableCells,
+    });
+  };
+
+  const handleSetSide = (cellId: CellId) => (side: GridLayoutCellSide) => {
+    const cellSide = new Map(layout.cellSide);
+    if (side === cellSide.get(cellId)) {
+      cellSide.delete(cellId);
+    } else {
+      cellSide.set(cellId, side);
+    }
+    setLayout({
+      ...layout,
+      cellSide: cellSide,
+    });
+  };
+
+  const styles: React.CSSProperties = {};
+  if (layout.maxWidth) {
+    styles.maxWidth = `${layout.maxWidth}px`;
+    styles.margin = "0 auto";
+  }
+  if (enableInteractions) {
+    styles.backgroundImage =
+      "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)";
+
+    styles.backgroundSize = `calc((100% / ${layout.columns})) ${layout.rowHeight}px`;
+  }
 
   const grid = (
     <ReactGridLayout
@@ -66,14 +118,17 @@ const GridLayoutRenderer: React.FC<Props> = ({
       layouts={{
         lg: layout.cells,
       }}
+      style={styles}
       cols={cols}
-      isBounded={true}
       allowOverlap={false}
       className={cn(
-        !isReading && "min-w-[800px] min-h-full",
-        isReading && "disable-animation"
+        "w-full",
+        !isReading && "min-h-full",
+        isReading && "disable-animation",
+        !layout.maxWidth && "min-w-[800px]"
       )}
       margin={MARGIN}
+      isBounded={false}
       compactType={null}
       preventCollision={true}
       rowHeight={layout.rowHeight}
@@ -119,43 +174,52 @@ const GridLayoutRenderer: React.FC<Props> = ({
       isDraggable={enableInteractions}
       isDroppable={enableInteractions}
       isResizable={enableInteractions}
-      draggableHandle={enableInteractions ? undefined : "noop"}
+      draggableHandle={enableInteractions ? `.${DRAG_HANDLE}` : "noop"}
     >
       {cells
         .filter((cell) => inGridIds.has(cell.id))
-        .map((cell) => (
-          <div
-            key={cell.id}
-            className={cn(
-              "relative transparent-when-disconnected z-10",
-              enableInteractions &&
-                "bg-background hover:bg-[var(--slate-2)] border-transparent hover:border-border border hover:rounded hover-actions-parent",
-              isDragging && "bg-[var(--slate-2)] border-border rounded"
-            )}
-          >
+        .map((cell) => {
+          const cellLayout = layoutByCellId.get(cell.id);
+          const isScrollable = layout.scrollableCells.has(cell.id) ?? false;
+          const side = layout.cellSide.get(cell.id);
+          const gridCell = (
             <GridCell
               code={cell.code}
               mode={mode}
               cellId={cell.id}
               output={cell.output}
               status={cell.status}
+              isScrollable={isScrollable}
+              side={side}
               hidden={cell.errored || cell.interrupted || cell.stopped}
             />
-            {enableInteractions && (
-              <div className="absolute top-0 right-0 p-1 hover-action">
-                <XIcon
-                  className="cursor-pointer h-4 w-4 opacity-60 hover:opacity-100"
-                  onClick={() => {
-                    setLayout({
-                      ...layout,
-                      cells: layout.cells.filter((c) => c.i !== cell.id),
-                    });
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        ))}
+          );
+
+          if (enableInteractions) {
+            return (
+              <EditableGridCell
+                key={cell.id}
+                id={cell.id}
+                isDragging={isDragging}
+                side={side}
+                setSide={handleSetSide(cell.id)}
+                isScrollable={isScrollable}
+                setIsScrollable={handleMakeScrollable(cell.id)}
+                display={cellLayout?.y === 0 ? "bottom" : "top"}
+                onDelete={() => {
+                  setLayout({
+                    ...layout,
+                    cells: layout.cells.filter((c) => c.i !== cell.id),
+                  });
+                }}
+              >
+                {gridCell}
+              </EditableGridCell>
+            );
+          }
+
+          return <div key={cell.id}>{gridCell}</div>;
+        })}
     </ReactGridLayout>
   );
 
@@ -167,76 +231,23 @@ const GridLayoutRenderer: React.FC<Props> = ({
 
   return (
     <>
-      <div className="flex flex-row absolute left-5 top-4 gap-4">
-        <div className="flex flex-row items-center gap-2">
-          <Label htmlFor="columns">Columns</Label>
-          <Input
-            id="columns"
-            type="number"
-            value={layout.columns}
-            className="w-[60px]"
-            placeholder="# of Columns"
-            min={1}
-            onChange={(e) => {
-              setLayout({
-                ...layout,
-                columns: Number.parseInt(e.target.value) || 1,
-              });
-            }}
-          />
-        </div>
-        <div className="flex flex-row items-center gap-2">
-          <Label htmlFor="rowHeight">Row Height (px)</Label>
-          <Input
-            id="rowHeight"
-            type="number"
-            value={layout.rowHeight}
-            className="w-[60px]"
-            placeholder="Row Height (px)"
-            min={1}
-            onChange={(e) => {
-              setLayout({
-                ...layout,
-                rowHeight: Number.parseInt(e.target.value) || 1,
-              });
-            }}
-          />
-        </div>
-        <div className="flex flex-row items-center gap-2">
-          <Label className="flex flex-row items-center gap-1" htmlFor="lock">
-            <LockIcon className="h-3 w-3" />
-            Lock Grid
-          </Label>
-          <Switch
-            id="lock"
-            checked={isLocked}
-            size="sm"
-            onCheckedChange={setIsLocked}
-          />
-        </div>
-      </div>
-      <div
-        className={cn("relative flex h-full overflow-hidden gap-2 px-2 pb-2")}
-      >
+      <GridControls
+        layout={layout}
+        setLayout={setLayout}
+        isLocked={isLocked}
+        setIsLocked={setIsLocked}
+      />
+      <div className={cn("relative flex gap-2 px-2 pb-2 z-10")}>
         <div
           className={cn(
             "flex-grow overflow-auto border rounded bg-[var(--slate-2)] shadow-sm transparent-when-disconnected",
             !enableInteractions && "bg-background"
           )}
-          style={
-            enableInteractions
-              ? {
-                  backgroundImage:
-                    "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)",
-                  backgroundSize: `calc((100% / ${layout.columns})) ${layout.rowHeight}px`,
-                }
-              : undefined
-          }
         >
           {grid}
         </div>
-        <div className="flex-none flex flex-col w-[400px] p-3 gap-3 overflow-auto h-full bg-[var(--slate-2)] border rounded shadow-sm transparent-when-disconnected">
-          <div className="text font-bold text-[var(--slate-20)] overflow-auto flex-shrink-0">
+        <div className="flex-none flex flex-col w-[300px] p-2 gap-2 overflow-auto h-full bg-[var(--slate-2)] border rounded shadow-sm transparent-when-disconnected">
+          <div className="text font-bold text-[var(--slate-20)] flex-shrink-0">
             Outputs
           </div>
           {notInGrid.map((cell) => (
@@ -258,13 +269,18 @@ const GridLayoutRenderer: React.FC<Props> = ({
                 });
                 e.dataTransfer.setData("text/plain", "");
               }}
-              className="droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0"
+              className={cn(
+                DRAG_HANDLE,
+                "droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0"
+              )}
             >
               <GridCell
                 code={cell.code}
+                className="select-none pointer-events-none"
                 mode={mode}
                 cellId={cell.id}
                 output={cell.output}
+                isScrollable={false}
                 status={cell.status}
                 hidden={false}
               />
@@ -277,25 +293,47 @@ const GridLayoutRenderer: React.FC<Props> = ({
 };
 
 interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
+  className?: string;
   code: string;
   cellId: CellId;
   mode: AppMode;
   hidden: boolean;
+  isScrollable: boolean;
+  side?: GridLayoutCellSide;
 }
 
 const GridCell = memo(
-  ({ output, cellId, status, mode, code, hidden }: GridCellProps) => {
+  ({
+    output,
+    cellId,
+    status,
+    mode,
+    code,
+    hidden,
+    isScrollable,
+    side,
+    className,
+  }: GridCellProps) => {
     const loading = status === "running" || status === "queued";
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output
     if (isOutputEmpty && mode !== "read") {
-      return <TinyCode code={code} />;
+      return <TinyCode className={className} code={code} />;
     }
 
     return (
       <div
-        className={cn("h-full w-full overflow-auto p-2", hidden && "invisible")}
+        className={cn(
+          className,
+          "h-full w-full p-2 overflow-x-auto",
+          hidden && "invisible",
+          isScrollable ? "overflow-y-auto" : "overflow-y-hidden",
+          side === "top" && "flex items-start",
+          side === "bottom" && "flex items-end",
+          side === "left" && "flex justify-start",
+          side === "right" && "flex justify-end"
+        )}
       >
         <OutputArea output={output} cellId={cellId} stale={loading} />
       </div>
@@ -304,92 +342,237 @@ const GridCell = memo(
 );
 GridCell.displayName = "GridCell";
 
-/**
- * Plugin definition for the grid layout.
- */
-export const GridLayoutPlugin: ICellRendererPlugin<
-  SerializedGridLayout,
-  GridLayout
-> = {
-  type: "grid",
-  name: "Grid",
+const GridControls: React.FC<{
+  layout: GridLayout;
+  setLayout: (layout: GridLayout) => void;
+  isLocked: boolean;
+  setIsLocked: (isLocked: boolean) => void;
+}> = ({ layout, setLayout, isLocked, setIsLocked }) => {
+  return (
+    <div className="flex flex-row absolute left-5 top-4 gap-4 w-full justify-end pr-[450px]">
+      <div className="flex flex-row items-center gap-2">
+        <Label htmlFor="columns">Columns</Label>
+        <Input
+          id="columns"
+          type="number"
+          value={layout.columns}
+          className="w-[60px]"
+          placeholder="# of Columns"
+          min={1}
+          onChange={(e) => {
+            setLayout({
+              ...layout,
+              columns: e.target.valueAsNumber,
+            });
+          }}
+        />
+      </div>
+      <div className="flex flex-row items-center gap-2">
+        <Label htmlFor="rowHeight">Row Height (px)</Label>
+        <Input
+          id="rowHeight"
+          type="number"
+          value={layout.rowHeight}
+          className="w-[60px]"
+          placeholder="Row Height (px)"
+          min={1}
+          onChange={(e) => {
+            setLayout({
+              ...layout,
+              rowHeight: e.target.valueAsNumber,
+            });
+          }}
+        />
+      </div>
+      <div className="flex flex-row items-center gap-2">
+        <Label htmlFor="maxWidth">Max Width (px)</Label>
+        <Input
+          id="maxWidth"
+          type="number"
+          value={layout.maxWidth}
+          className="w-[70px]"
+          placeholder="Full"
+          onChange={(e) => {
+            setLayout({
+              ...layout,
+              maxWidth: e.target.value ? e.target.valueAsNumber : undefined,
+            });
+          }}
+        />
+      </div>
+      <div className="flex flex-row items-center gap-2">
+        <Label className="flex flex-row items-center gap-1" htmlFor="lock">
+          <LockIcon className="h-3 w-3" />
+          Lock Grid
+        </Label>
+        <Switch
+          id="lock"
+          checked={isLocked}
+          size="sm"
+          onCheckedChange={setIsLocked}
+        />
+      </div>
+    </div>
+  );
+};
 
-  validator: z.object({
-    columns: z.number().min(1),
-    rowHeight: z.number().min(1),
-    cells: z.array(
-      z.object({
-        position: z
-          .tuple([z.number(), z.number(), z.number(), z.number()])
-          .nullable(),
-      })
-    ),
-  }),
+const EditableGridCell = React.forwardRef(
+  (
+    {
+      children,
+      isDragging,
+      className,
+      onDelete,
+      isScrollable,
+      setIsScrollable,
+      side,
+      setSide,
+      display,
+      ...rest
+    }: PropsWithChildren<{
+      id: CellId;
+      className?: string;
+      isDragging: boolean;
 
-  deserializeLayout: (serialized, cells): GridLayout => {
-    if (serialized.cells.length === 0) {
-      return {
-        columns: serialized.columns,
-        rowHeight: serialized.rowHeight,
-        cells: [],
-      };
-    }
+      onDelete: () => void;
 
-    if (serialized.cells.length !== cells.length) {
-      Logger.warn(
-        "Number of cells in layout does not match number of cells in notebook"
-      );
-    }
+      isScrollable: boolean;
+      setIsScrollable: (isScrollable: boolean) => void;
 
-    return {
-      columns: serialized.columns,
-      rowHeight: serialized.rowHeight,
-      cells: serialized.cells.flatMap((cellLayout, idx) => {
-        const position = cellLayout.position;
-        if (!position) {
-          return [];
-        }
-        const cell = cells[idx];
-        if (!cell) {
-          return [];
-        }
-        return {
-          i: cell.id,
-          x: position[0],
-          y: position[1],
-          w: position[2],
-          h: position[3],
-        };
-      }),
-    };
-  },
+      side?: GridLayoutCellSide;
+      setSide: (side: GridLayoutCellSide) => void;
 
-  serializeLayout: (layout, cells): SerializedGridLayout => {
-    const layoutsByKey = Maps.keyBy(layout.cells, (cell) => cell.i);
-    const serializedCells: SerializedGridLayoutCell[] = cells.map((cell) => {
-      const layout = layoutsByKey.get(cell.id);
-      if (!layout) {
-        return {
-          position: null,
-        };
-      }
-      return {
-        position: [layout.x, layout.y, layout.w, layout.h],
-      };
-    });
+      display: "top" | "bottom";
+    }>,
+    ref: React.Ref<HTMLDivElement>
+  ) => {
+    const [popoverOpened, setPopoverOpened] = useState<"side" | "scroll">();
 
-    return {
-      columns: layout.columns,
-      rowHeight: layout.rowHeight,
-      cells: serializedCells,
-    };
-  },
+    return (
+      <div
+        ref={ref}
+        {...rest}
+        className={cn(
+          className,
+          "relative z-10 hover:z-20",
+          "bg-background border-transparent hover:border-[var(--sky-8)] border",
+          popoverOpened && "border-[var(--sky-8)] z-20",
+          !popoverOpened && "hover-actions-parent",
+          isDragging && "bg-[var(--slate-2)] border-border z-20"
+        )}
+      >
+        {children}
+        <GridHoverActions
+          onDelete={onDelete}
+          isScrollable={isScrollable}
+          setIsScrollable={setIsScrollable}
+          side={side}
+          setSide={setSide}
+          display={display}
+          setPopoverOpened={setPopoverOpened}
+          popoverOpened={popoverOpened}
+        />
+      </div>
+    );
+  }
+);
+EditableGridCell.displayName = "EditableGridCell";
 
-  Component: GridLayoutRenderer,
+interface GridHoverActionsProps {
+  onDelete: () => void;
 
-  getInitialLayout: () => ({
-    columns: 24,
-    rowHeight: 20,
-    cells: [],
-  }),
+  isScrollable: boolean;
+  setIsScrollable: (isScrollable: boolean) => void;
+
+  side?: GridLayoutCellSide;
+  setSide: (side: GridLayoutCellSide) => void;
+
+  display: "top" | "bottom";
+
+  popoverOpened: "side" | "scroll" | undefined;
+  setPopoverOpened: (popoverOpened: "side" | "scroll" | undefined) => void;
+}
+
+const GridHoverActions: React.FC<GridHoverActionsProps> = ({
+  display,
+  onDelete,
+  side,
+  setSide,
+  isScrollable,
+  setIsScrollable,
+  popoverOpened,
+  setPopoverOpened,
+}) => {
+  const buttonClassName = "h-4 w-4 opacity-60 hover:opacity-100";
+  const SideIcon =
+    side === "left"
+      ? AlignStartVerticalIcon
+      : side === "right"
+      ? AlignEndVerticalIcon
+      : undefined;
+
+  return (
+    <div
+      className={cn(
+        "absolute right-0 p-1 bg-[var(--sky-8)] text-white h-6 z-10 flex gap-2",
+        !popoverOpened && "hover-action",
+        display === "top" && "-top-6 rounded-t",
+        display === "bottom" && "-bottom-6 rounded-b"
+      )}
+    >
+      <DropdownMenu
+        open={popoverOpened === "side"}
+        onOpenChange={(open) => setPopoverOpened(open ? "side" : undefined)}
+      >
+        <DropdownMenuTrigger asChild={true}>
+          {SideIcon ? (
+            <SideIcon className={buttonClassName} />
+          ) : (
+            <AlignHorizontalSpaceAroundIcon className={buttonClassName} />
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom">
+          {Objects.entries(SIDE_TO_ICON).map(([option, Icon]) => (
+            <DropdownMenuItem key={option} onSelect={() => setSide(option)}>
+              <Icon className={"h-4 w-3 mr-2"} />
+              <span className="flex-1">{startCase(option)}</span>
+              {option === side && <CheckIcon className="h-4 w-4" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu
+        open={popoverOpened === "scroll"}
+        onOpenChange={(open) => setPopoverOpened(open ? "scroll" : undefined)}
+      >
+        <DropdownMenuTrigger asChild={true}>
+          <ScrollIcon className={buttonClassName} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom">
+          <DropdownMenuItem onSelect={() => setIsScrollable(!isScrollable)}>
+            <span className="flex-1">Scrollable</span>
+            <Switch
+              checked={isScrollable}
+              size="sm"
+              onCheckedChange={setIsScrollable}
+            />
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <GripHorizontalIcon
+        className={cn(DRAG_HANDLE, "cursor-move", buttonClassName)}
+      />
+      <XIcon className={buttonClassName} onClick={() => onDelete()} />
+    </div>
+  );
+};
+
+const SIDE_TO_ICON = {
+  // We are only showing horizontal sides for now
+  // top: AlignHorizontalSpaceAroundIcon,
+  // bottom: AlignHorizontalSpaceAroundIcon,
+  left: AlignStartVerticalIcon,
+  right: AlignEndVerticalIcon,
 };

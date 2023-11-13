@@ -1,5 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
+import { CellId } from "@/core/cells/ids";
+
 /**
  * The serialized form of a grid layout.
  * This must be backwards-compatible as it is stored on the user's disk.
@@ -23,6 +25,11 @@ export interface SerializedGridLayout {
   rowHeight: number;
 
   /**
+   * The max-width of the grid layout.
+   */
+  maxWidth?: number;
+
+  /**
    * The cells in the layout.
    * Cells don't have IDs at rest but are indexed based.
    *
@@ -38,7 +45,19 @@ export interface SerializedGridLayoutCell {
    * If null, the cell is not in the layout.
    */
   position: SerializedGridLayoutCellPosition | null;
+
+  /**
+   * True if the cell is scrollable.
+   */
+  scrollable?: boolean;
+
+  /**
+   * The cell's alignment.
+   */
+  side?: GridLayoutCellSide;
 }
+
+export type GridLayoutCellSide = "top" | "left" | "right" | "bottom";
 
 export interface GridLayout extends Omit<SerializedGridLayout, "cells"> {
   /**
@@ -51,6 +70,10 @@ export interface GridLayout extends Omit<SerializedGridLayout, "cells"> {
     w: number;
     h: number;
   }>;
+
+  scrollableCells: Set<CellId>;
+
+  cellSide: Map<CellId, GridLayoutCellSide>;
 }
 
 export type SerializedGridLayoutCellPosition = [

@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { GridLayoutPlugin } from "./grid-layout/grid-layout";
+import { GridLayoutPlugin } from "./grid-layout/plugin";
 import { ICellRendererPlugin, LayoutType } from "./types";
 import { CellData } from "@/core/cells/types";
 
