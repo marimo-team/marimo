@@ -23,6 +23,9 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     - group together logically related UI elements
     - keep the number of global variables in your program small
 
+    Access the values of the elements using the `value` attribute of the
+    array.
+
     The UI elements in the array are clones of the original elements:
     interacting with the array will _not_ update the original elements, and
     vice versa.
@@ -34,6 +37,9 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     ```python
     array = mo.ui.array([mo.ui.slider(1, 10), mo.ui.text(), mo.ui.date()])
     ```
+
+    Get the values of the `slider`, `text`, and `date` elements via
+    `array.value`:
 
     ```python
     # array.value returns a list with the values of the elements
