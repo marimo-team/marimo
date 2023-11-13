@@ -79,7 +79,7 @@
     "katex": "^0.16.9",
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.292.0",
-    "partysocket": "0.0.12",
+    "partysocket": "0.0.14",
     "plotly.js": "^2.27.0",
     "react-day-picker": "^8.9.1",
     "react-dropzone": "^14.2.3",
