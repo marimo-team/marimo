@@ -98,7 +98,7 @@ def test_create_tmp_file_from_content() -> None:
     name = "test_script.py"
     result = _create_tmp_file_from_content(content, name, temp_dir)
 
-    assert result.endswith("/test_script.py")
+    assert result.endswith(name)
     assert open(result).read() == content
 
 
