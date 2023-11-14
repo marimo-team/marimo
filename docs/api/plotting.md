@@ -17,7 +17,7 @@ For more information about plotting, see the [plotting guide](../guides/plotting
 ## Reactive plots with Plotly
 
 ```{eval-rst}
-.. autofunction:: marimo.ui.plotly_plot
+.. autofunction:: marimo.ui.plotly
 ```
 
 ## matplotlib

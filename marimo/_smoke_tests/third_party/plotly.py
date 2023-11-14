@@ -21,7 +21,7 @@ def __():
 
 @app.cell
 def __(mo, px):
-    plot = mo.ui.plotly_plot(
+    plot = mo.ui.plotly(
         px.scatter(x=[0, 1, 2, 3, 4], y=[0, 1, 4, 9, 16], width=600)
     )
     mo.vstack(
@@ -103,7 +103,7 @@ def __(mo):
     fig.update_xaxes(title_text="Fruit")
     fig.update_yaxes(title_text="Number Eaten")
 
-    plot2 = mo.ui.plotly_plot(fig)
+    plot2 = mo.ui.plotly(fig)
     plot2
     return contestant, df, fig, go, group, pd, plot2
 
@@ -148,7 +148,7 @@ def __(cars, mo, px, sample_size):
     )
 
     _fig
-    plot3 = mo.ui.plotly_plot(_fig)
+    plot3 = mo.ui.plotly(_fig)
     plot3
     return plot3,
 

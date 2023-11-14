@@ -38,10 +38,10 @@ PlotlySelection = Dict[str, JSONType]
 
 
 @mddoc
-class plotly_plot(UIElement[PlotlySelection, List[Dict[str, Any]]]):
-    """Make reactive plots with Plotly Express.
+class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
+    """Make reactive plots with Plotly.
 
-    Use `mo.ui.plotly_plot` to make plotly plots reactive: select data
+    Use `mo.ui.plotly` to make plotly plots reactive: select data
     with your cursor on the frontend, get them as a list of dicts in Python!
 
     **Example.**
@@ -58,7 +58,7 @@ class plotly_plot(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         color="Origin"
     )
 
-    plot = mo.ui.plotly_plot(_plot)
+    plot = mo.ui.plotly(_plot)
     ```
 
     ```
@@ -79,7 +79,7 @@ class plotly_plot(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     - `on_change`: optional callback to run when this element's value changes
     """
 
-    name: Final[str] = "marimo-vega"
+    name: Final[str] = "marimo-plotly"
 
     def __init__(
         self,
@@ -88,14 +88,14 @@ class plotly_plot(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         label: str = "",
         on_change: Optional[Callable[[JSONType], None]] = None,
     ) -> None:
-        DependencyManager.require_plotly("for `mo.ui.plotly_plot`")
+        DependencyManager.require_plotly("for `mo.ui.plotly`")
 
-        import plotly.io as pio
+        import plotly.io as pio  # type:ignore
 
         json_str = pio.to_json(figure)
 
         super().__init__(
-            component_name="marimo-plotly",
+            component_name=plotly.name,
             initial_value={},
             label=label,
             args={
@@ -114,7 +114,6 @@ class plotly_plot(UIElement[PlotlySelection, List[Dict[str, Any]]]):
 
     @property
     def points(self) -> List[Dict[str, Any]]:
-        print(self._selection_data)
         if not self._selection_data:
             return []
         if "points" not in self._selection_data:
