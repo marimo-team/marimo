@@ -4,6 +4,7 @@ import { cn } from "@/utils/cn";
 import { AppConfig } from "@/core/config/config-schema";
 
 interface Props {
+  className?: string;
   appConfig: AppConfig;
   invisible?: boolean;
 }
@@ -11,10 +12,11 @@ interface Props {
 export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   invisible,
   appConfig,
+  className,
   children,
 }) => {
   return (
-    <div className="sm:px-16 md:px-32">
+    <div className={cn("sm:px-16 md:px-32", className)}>
       <div
         className={cn(
           "m-auto pb-12",

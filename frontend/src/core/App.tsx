@@ -15,7 +15,6 @@ import { Controls } from "@/components/editor/Controls";
 import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
 import { FilenameForm } from "@/components/editor/FilenameForm";
 import { UUID } from "../utils/uuid";
-import clsx from "clsx";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
@@ -55,6 +54,7 @@ import { getSerializedLayout } from "./layout/layout";
 import { useAtom } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
+import { cn } from "@/utils/cn";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -311,7 +311,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       {statusOverlay}
       <div
         id="App"
-        className={clsx(
+        className={cn(
           connStatus.state === WebSocketState.CLOSED && "disconnected",
           "bg-background w-full h-full text-textColor",
           "flex flex-col overflow-y-auto overflow-x-hidden",
@@ -319,9 +319,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         )}
       >
         <div
-          className={clsx(
-            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-            (isPresenting || isReading) && "sm:pt-8"
+          className={cn(
+            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4"
           )}
         >
           {isEditing && (
