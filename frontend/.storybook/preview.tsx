@@ -3,9 +3,10 @@ import "../src/css/index.css";
 import "../src/css/App.css";
 import "./sb.css";
 import "tailwindcss/tailwind.css";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { cn } from "../src/utils/cn";
 import { TooltipProvider } from "../src/components/ui/tooltip";
+import { TailwindIndicator } from "../src/components/ui/tailwind-indicator";
 
 const withTheme: Decorator = (Story, context) => {
   const theme = context.globals.theme || "light";
@@ -18,6 +19,7 @@ const withTheme: Decorator = (Story, context) => {
     <div className={cn(theme, "p-5")}>
       <TooltipProvider>
         <Story />
+        <TailwindIndicator />
       </TooltipProvider>
     </div>
   );

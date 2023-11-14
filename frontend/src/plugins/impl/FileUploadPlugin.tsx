@@ -160,7 +160,8 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     <section>
       <div
         className={cn(
-          "mt-3 mb-2 h-24 w-full px-16 flex flex-col items-center justify-center ",
+          "mt-3 mb-2 w-full flex flex-col items-center justify-center ",
+          "px-6 py-6 sm:px-8 sm:py-8 md:py-10 md:px-16",
           "border rounded-sm",
           "text-sm text-muted-foreground",
           "shadow-smSolid",
