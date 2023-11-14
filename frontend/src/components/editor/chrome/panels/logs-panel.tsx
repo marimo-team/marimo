@@ -40,7 +40,7 @@ export const LogsPanel: React.FC = () => {
   );
 };
 
-const LogViewer: React.FC<Props> = ({ logs, className }) => {
+export const LogViewer: React.FC<Props> = ({ logs, className }) => {
   const hover =
     "opacity-70 group-hover:bg-[var(--gray-3)] group-hover:opacity-100";
   return (
