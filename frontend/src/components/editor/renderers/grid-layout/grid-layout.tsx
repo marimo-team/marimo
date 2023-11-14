@@ -153,7 +153,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         layout.bordered &&
           "border-t border-x rounded-t shadow-sm overflow-hidden",
         // Add additional padding if bordered when reading
-        layout.bordered && isReading && "mt-4 w-[calc(100%-2rem)]",
+        layout.bordered && isReading && "pt-4 w-[calc(100%-2rem)]",
         !layout.maxWidth && "min-w-[800px]"
       )}
       margin={MARGIN}
@@ -266,7 +266,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         isLocked={isLocked}
         setIsLocked={setIsLocked}
       />
-      <div className={cn("relative flex gap-2 px-2 z-10")}>
+      <div className={cn("relative flex gap-2 px-2 z-10 flex-1")}>
         <div
           className={cn(
             "flex-grow overflow-auto transparent-when-disconnected"
