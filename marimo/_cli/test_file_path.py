@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import tempfile
 from typing import Any
 from unittest.mock import mock_open, patch
@@ -84,7 +85,7 @@ def test_handle_github_issue(mock_urlopen: Any) -> None:
     assert open(result).read().strip() == "print('Hello, world!')"
 
 
-def test_create_tmp_file_from_url():
+def test_create_tmp_file_from_url() -> None:
     url = "https://raw.githubusercontent.com/marimo-team/marimo/main/examples/optimization/regularization_and_sparsity.py"
     result = _create_tmp_file_from_url(url, temp_dir)
 
@@ -92,7 +93,7 @@ def test_create_tmp_file_from_url():
     assert result.endswith(".py")
 
 
-def test_create_tmp_file_from_content():
+def test_create_tmp_file_from_content() -> None:
     content = 'print("Hello, world!")'
     name = "test_script.py"
     result = _create_tmp_file_from_content(content, name, temp_dir)
@@ -101,7 +102,7 @@ def test_create_tmp_file_from_content():
     assert open(result).read() == content
 
 
-def test_find_python_code_in_github_issue_multiple_codes():
+def test_find_python_code_in_github_issue_multiple_codes() -> None:
     body = """
     some text.
     ```python
