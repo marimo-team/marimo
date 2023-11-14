@@ -68,6 +68,21 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def require_plotly(why: str) -> None:
+        """
+        Raise an ModuleNotFoundError if plotly is not installed.
+
+        Args:
+            why: A string of the form "for <reason>" that will be appended
+
+        """
+        if not DependencyManager.has_plotly():
+            raise ModuleNotFoundError(
+                f"plotly is required {why}. "
+                + "You can install it with 'pip install plotly'"
+            ) from None
+
+    @staticmethod
     def has_pandas() -> bool:
         """Return True if pandas is installed."""
         return importlib.util.find_spec("pandas") is not None
@@ -86,3 +101,8 @@ class DependencyManager:
     def has_altair() -> bool:
         """Return True if altair is installed."""
         return importlib.util.find_spec("altair") is not None
+
+    @staticmethod
+    def has_plotly() -> bool:
+        """Return True if plotly is installed."""
+        return importlib.util.find_spec("plotly") is not None

@@ -53,6 +53,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),
+  new PlotlyPlugin(),
   DataFramePlugin,
 ];
 
@@ -62,7 +63,6 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CalloutPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
-  new PlotlyPlugin(),
   new ProgressPlugin(),
   new StatPlugin(),
   new TabsPlugin(),
