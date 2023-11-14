@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
+import logging
 import os
 import pathlib
 import tempfile
@@ -13,6 +15,7 @@ import click
 from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
+from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._server.server import start_server
 
@@ -385,3 +388,14 @@ def convert(ipynb: str) -> None:
     errors.
     """
     print(ipynb_to_marimo.convert(ipynb))
+
+
+@main.command()
+def env() -> None:
+    """Print out environment information for debugging purposes.
+
+    Example usage:
+
+        marimo env
+    """
+    print(json.dumps(get_system_info(), indent=2))

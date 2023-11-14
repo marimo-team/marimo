@@ -65,7 +65,15 @@ class batch(_batch_base):
     represented by custom HTML or markdown. You can create
     a `batch` by calling the `batch()` method on `Html` objects.
 
+    Get the value of the wrapped UI elements using the `value` attribute
+    of the batch.
+
     **Example.**
+
+    In the below example, `user_info` is a UI Element whose output is markdown
+    and whose value is a dict with keys `'name'` and '`birthday`'
+    (and values equal to the values of their corresponding elements).
+
 
     ```python3
     user_info = mo.md(
@@ -76,9 +84,11 @@ class batch(_batch_base):
     ).batch(name=mo.ui.text(), birthday=mo.ui.date())
     ```
 
-    In this example, `user_info` is a UI Element whose output is markdown
-    and whose value is a dict with keys `'name'` and '`birthday`'
-    (and values equal to the values of their corresponding elements).
+    To get the value of `name` and `birthday`, use:
+
+    ```
+    user_info.value
+    ```
 
     You can also instantiate this class directly:
 
