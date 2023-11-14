@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Cell, CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { CellId } from "../core/cells/ids";
+import { Logger } from "@/utils/Logger";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",
@@ -25,9 +26,9 @@ const props: CellProps = {
   interrupted: false,
   errored: false,
   stopped: false,
-  updateCellCode: console.log,
-  prepareForRun: console.log,
-  registerRunStart: console.log,
+  updateCellCode: Logger.log,
+  prepareForRun: Logger.log,
+  registerRunStart: Logger.log,
   runStartTimestamp: 0,
   runElapsedTimeMs: 10,
   serializedEditorState: null,
@@ -35,11 +36,11 @@ const props: CellProps = {
   appClosed: false,
   showDeleteButton: true,
   allowFocus: false,
-  createNewCell: console.log,
-  deleteCell: console.log,
-  focusCell: console.log,
-  moveCell: console.log,
-  moveToNextCell: console.log,
+  createNewCell: Logger.log,
+  deleteCell: Logger.log,
+  focusCell: Logger.log,
+  moveCell: Logger.log,
+  moveToNextCell: Logger.log,
   config: {},
   userConfig: {
     completion: {
