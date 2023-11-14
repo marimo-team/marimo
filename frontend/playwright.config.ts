@@ -33,6 +33,7 @@ const appToOptions = {
   "bugs.py": { port: port(), command: "edit" },
   "layout_grid.py//edit": { port: port(), command: "edit" },
   "layout_grid.py//run": { port: port(), command: "run" },
+  "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "output.py//run": { port: port(), command: "run" },
 } satisfies Record<string, ServerOptions>;
 

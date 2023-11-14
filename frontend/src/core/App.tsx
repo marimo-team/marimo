@@ -320,7 +320,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       >
         <div
           className={cn(
-            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4"
+            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
+            isReading && "sm:pt-8"
           )}
         >
           {isEditing && (

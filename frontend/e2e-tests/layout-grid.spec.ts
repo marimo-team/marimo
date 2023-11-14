@@ -4,6 +4,7 @@ import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
 
 const runUrl = getAppUrl("layout_grid.py//run");
+const runMaxWidthUrl = getAppUrl("layout_grid_max_width.py//run");
 const editUrl = getAppUrl("layout_grid.py//edit");
 
 test("can run Grid layout", async ({ page }) => {
@@ -25,6 +26,17 @@ test("can run Grid layout", async ({ page }) => {
   const bb2 = await bbForText(page, "text 2");
   await expect(bb1.y).toBe(bb2.y);
   await expect(bb1.x).toBeGreaterThan(bb2.x);
+
+  await takeScreenshot(page, __filename);
+});
+
+test("can run Grid layout with max-width", async ({ page }) => {
+  await page.goto(runMaxWidthUrl);
+  // wait 500ms to render
+  await page.waitForTimeout(500);
+
+  // Verify markdown "Grid Layout"
+  await expect(page.getByText("Grid Layout")).toBeVisible();
 
   await takeScreenshot(page, __filename);
 });
