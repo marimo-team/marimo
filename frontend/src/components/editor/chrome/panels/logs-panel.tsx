@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useCellActions, useCellLogs } from "@/core/cells/cells";
-import { CellLog } from "@/core/cells/logs";
+import { CellLog, formatLogTimestamp } from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
 import React from "react";
 import { FileTextIcon } from "lucide-react";
@@ -67,7 +67,7 @@ export const LogViewer: React.FC<Props> = ({ logs, className }) => {
 };
 
 function formatLog(log: CellLog) {
-  const timestamp = formatTimestamp(log.timestamp);
+  const timestamp = formatLogTimestamp(log.timestamp);
 
   const color = levelColor[log.level];
   let level = log.level.toUpperCase();
@@ -85,21 +85,6 @@ function formatLog(log: CellLog) {
       {log.message}
     </>
   );
-}
-
-// e.g. 9:45:10 AM
-function formatTimestamp(timestamp: number): string {
-  try {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString("en-US", {
-      hour12: true,
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    });
-  } catch {
-    return "";
-  }
 }
 
 const levelColor: Record<CellLog["level"], string> = {
