@@ -1,6 +1,4 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { color } from "@codemirror/theme-one-dark";
-import { Logger } from "vscode-languageserver-protocol";
 import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";
