@@ -19,6 +19,19 @@ import { FileUpload } from "@/plugins/impl/FileUploadPlugin";
   />
 </Story>
 
+## Accept long text
+
+<Story name="Accept long text">
+  <FileUpload
+    filetypes={[]}
+    multiple={true}
+    kind="area"
+    label={"Drop here, ".repeat(100)}
+    value={[]}
+    setValue={() => null}
+  />
+</Story>
+
 ## Accept txt files only
 
 <Story name="Accept .txt only">
