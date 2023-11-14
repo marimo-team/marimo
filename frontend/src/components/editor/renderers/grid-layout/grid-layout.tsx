@@ -1,5 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { PropsWithChildren, memo, useMemo, useState } from "react";
+import React, {
+  PropsWithChildren,
+  memo,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { ICellRendererProps } from "../types";
 import { GridLayout, GridLayoutCellSide } from "./types";
@@ -35,6 +41,7 @@ import {
 import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { startCase } from "lodash-es";
+import { BorderAllIcon } from "@radix-ui/react-icons";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -69,6 +76,20 @@ export const GridLayoutRenderer: React.FC<Props> = ({
     [layout.columns]
   );
 
+  // Add class to update the background of the app
+  useEffect(() => {
+    const appEl = document.getElementById("App");
+    if (layout.bordered) {
+      appEl?.classList.add("grid-bordered");
+    } else {
+      appEl?.classList.remove("grid-bordered");
+    }
+
+    return () => {
+      appEl?.classList.remove("grid-bordered");
+    };
+  }, [layout.bordered]);
+
   const { isDragging, ...dragProps } = useIsDragging();
 
   const enableInteractions = !isReading && !isLocked;
@@ -101,10 +122,11 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   };
 
   const styles: React.CSSProperties = {};
+  // Max width styles
   if (layout.maxWidth) {
     styles.maxWidth = `${layout.maxWidth}px`;
-    styles.margin = "0 auto";
   }
+  // Editing background styles
   if (enableInteractions) {
     styles.backgroundImage =
       "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)";
@@ -122,9 +144,16 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       cols={cols}
       allowOverlap={false}
       className={cn(
-        "w-full",
-        !isReading && "min-h-full",
-        isReading && "disable-animation",
+        "w-full mx-auto bg-background flex-1 min-h-full",
+        // Show grid border and background when editing
+        enableInteractions && "bg-[var(--slate-2)] border-r",
+        // Disable animations and add padding when reading
+        isReading && "disable-animation px-4 ",
+        // Add border styles
+        layout.bordered &&
+          "border-t border-x rounded-t shadow-sm overflow-hidden",
+        // Add additional padding if bordered when reading
+        layout.bordered && isReading && "mt-4 w-[calc(100%-2rem)]",
         !layout.maxWidth && "min-w-[800px]"
       )}
       margin={MARGIN}
@@ -237,16 +266,15 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         isLocked={isLocked}
         setIsLocked={setIsLocked}
       />
-      <div className={cn("relative flex gap-2 px-2 pb-2 z-10")}>
+      <div className={cn("relative flex gap-2 px-2 z-10")}>
         <div
           className={cn(
-            "flex-grow overflow-auto border rounded bg-[var(--slate-2)] shadow-sm transparent-when-disconnected",
-            !enableInteractions && "bg-background"
+            "flex-grow overflow-auto transparent-when-disconnected"
           )}
         >
           {grid}
         </div>
-        <div className="flex-none flex flex-col w-[300px] p-2 gap-2 overflow-auto h-full bg-[var(--slate-2)] border rounded shadow-sm transparent-when-disconnected">
+        <div className="flex-none flex flex-col w-[300px] p-2 gap-2 overflow-auto h-full bg-[var(--slate-2)] border-t border-x rounded-t shadow-sm transparent-when-disconnected">
           <div className="text font-bold text-[var(--slate-20)] flex-shrink-0">
             Outputs
           </div>
@@ -349,7 +377,7 @@ const GridControls: React.FC<{
   setIsLocked: (isLocked: boolean) => void;
 }> = ({ layout, setLayout, isLocked, setIsLocked }) => {
   return (
-    <div className="flex flex-row absolute left-5 top-4 gap-4 w-full justify-end pr-[450px]">
+    <div className="flex flex-row absolute left-5 top-4 gap-4 w-full justify-end pr-[350px]">
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="columns">Columns</Label>
         <Input
@@ -391,11 +419,29 @@ const GridControls: React.FC<{
           type="number"
           value={layout.maxWidth}
           className="w-[70px]"
+          step={100}
           placeholder="Full"
           onChange={(e) => {
             setLayout({
               ...layout,
               maxWidth: e.target.value ? e.target.valueAsNumber : undefined,
+            });
+          }}
+        />
+      </div>
+      <div className="flex flex-row items-center gap-2">
+        <Label className="flex flex-row items-center gap-1" htmlFor="lock">
+          <BorderAllIcon className="h-3 w-3" />
+          Bordered
+        </Label>
+        <Switch
+          id="lock"
+          checked={layout.bordered}
+          size="sm"
+          onCheckedChange={(bordered) => {
+            setLayout({
+              ...layout,
+              bordered,
             });
           }}
         />

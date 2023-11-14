@@ -19,7 +19,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   return (
-    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+    <VerticalLayoutWrapper
+      className="sm:pt-8"
+      invisible={invisible}
+      appConfig={appConfig}
+    >
       {cells.map((cell) => (
         <VerticalCell
           key={cell.id}

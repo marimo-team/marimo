@@ -27,6 +27,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
     columns: z.number().min(1),
     rowHeight: z.number().min(1),
     maxWidth: z.number().optional(),
+    bordered: z.boolean().optional(),
     cells: z.array(
       z.object({
         position: z
@@ -84,9 +85,12 @@ export const GridLayoutPlugin: ICellRendererPlugin<
     });
 
     return {
+      // Grid config
       columns: serialized.columns,
       rowHeight: serialized.rowHeight,
       maxWidth: serialized.maxWidth,
+      bordered: serialized.bordered,
+      // Cell config
       cells: cellLayouts,
       cellSide: cellSide,
       scrollableCells: scrollableCells,
@@ -115,9 +119,12 @@ export const GridLayoutPlugin: ICellRendererPlugin<
     });
 
     return {
+      // Grid config
       columns: layout.columns,
       rowHeight: layout.rowHeight,
       maxWidth: layout.maxWidth,
+      bordered: layout.bordered,
+      // Cell config
       cells: serializedCells,
     };
   },
@@ -125,9 +132,12 @@ export const GridLayoutPlugin: ICellRendererPlugin<
   Component: GridLayoutRenderer,
 
   getInitialLayout: () => ({
+    // Grid config
     columns: 24,
     rowHeight: 20,
     maxWidth: 1400,
+    bordered: true,
+    // Cell config
     scrollableCells: new Set(),
     cellSide: new Map(),
     cells: [],

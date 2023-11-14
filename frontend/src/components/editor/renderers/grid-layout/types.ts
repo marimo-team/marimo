@@ -37,6 +37,11 @@ export interface SerializedGridLayout {
    * track as they move around.
    */
   cells: SerializedGridLayoutCell[];
+
+  /**
+   * Bordered grid
+   */
+  bordered?: boolean;
 }
 
 export interface SerializedGridLayoutCell {

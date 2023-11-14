@@ -19,3 +19,13 @@
   transition-property: none !important;
   transition: none !important;
 }
+
+/* for images we expand the image to fill the grid item */
+.output img {
+  height: 100%;
+  object-fit: contain;
+}
+
+#App.grid-bordered {
+  background-color: var(--slate-1);
+}
