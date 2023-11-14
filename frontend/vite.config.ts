@@ -6,12 +6,17 @@ import { JSDOM } from "jsdom";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
 const isDev = process.env.NODE_ENV === "development";
+const isStorybook = process.env.npm_lifecycle_script?.includes("storybook");
 
 const htmlDevPlugin = (): Plugin => {
   return {
     apply: "serve",
     name: "html-transform",
     transformIndexHtml: async (html) => {
+      if (isStorybook) {
+        return html;
+      }
+
       // fetch html from server
       const serverHtml = await fetch(`http://localhost:${SERVER_PORT}/`).then(
         (res) => res.text()
