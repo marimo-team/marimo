@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.47"
+__generated_with = "0.1.51"
 app = marimo.App(width="full")
 
 
@@ -35,19 +35,24 @@ def __(mo, px):
 
 @app.cell
 def __(mo, plot):
-    mo.hstack(
+    mo.vstack(
         [
-            mo.ui.table(plot.value, label="Points", selection=None),
-            mo.ui.table(
+            mo.hstack(
                 [
-                    {"start": r[0], "end": r[1], "axis": key}
-                    for key, r in plot.ranges.items()
+                    mo.ui.table(plot.value, label="Points", selection=None),
+                    mo.ui.table(
+                        [
+                            {"start": r[0], "end": r[1], "axis": key}
+                            for key, r in plot.ranges.items()
+                        ],
+                        selection=None,
+                        label="Ranges",
+                    ),
                 ],
-                selection=None,
-                label="Ranges",
+                widths="equal",
             ),
-        ],
-        widths="equal",
+            plot.indexes,
+        ]
     )
     return
 
@@ -144,7 +149,7 @@ def __(cars, mo, px, sample_size):
         y="Miles_per_Gallon",
         color="Origin",
         size="Weight_in_lbs",
-        hover_data=["Name"],
+        hover_data=["Name", "Origin"],
     )
 
     _fig

@@ -7,9 +7,9 @@ import Plot, { Figure } from "react-plotly.js";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
-import { Objects } from "@/utils/objects";
 import { memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
+import { PlotlyTemplateParser, createParser } from "./parse-from-template";
 
 interface Data {
   figure: Figure;
@@ -21,6 +21,7 @@ type AxisDatum = unknown;
 type T =
   | {
       points?: Array<Record<AxisName, AxisDatum>>;
+      indexes?: number[];
       range?: {
         x?: number[];
         y?: number[];
@@ -79,9 +80,14 @@ export const PlotlyComponent = memo(
         {...figure}
         layout={layout}
         config={config}
-        onSelected={useEvent((evt) => {
+        onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
+          if (!evt) {
+            return;
+          }
+
           setValue({
             points: extractPoints(evt.points),
+            indexes: evt.points.map((point) => point.pointIndex),
             range: evt.range,
           });
         })}
@@ -97,7 +103,11 @@ export const PlotlyComponent = memo(
 );
 PlotlyComponent.displayName = "PlotlyComponent";
 
-const keysToInclude = new Set(["x", "y", "value", "label"]);
+/**
+ * This is a hack to extract the points with their original keys,
+ * instead of the ones that Plotly uses internally,
+ * by using the hovertemplate.
+ */
 function extractPoints(
   points: Plotly.PlotDatum[]
 ): Array<Record<AxisName, AxisDatum>> {
@@ -105,14 +115,17 @@ function extractPoints(
     return [];
   }
 
+  let parser: PlotlyTemplateParser | undefined;
+
   return points.map((point) => {
-    const data: Record<AxisName, AxisDatum> = Objects.filter(point, (_v, key) =>
-      keysToInclude.has(key)
-    );
-    // Add name if it exists
-    if (point.data.name) {
-      data.name = point.data.name;
-    }
-    return data;
+    // Get the first hovertemplate
+    const hovertemplate = Array.isArray(point.data.hovertemplate)
+      ? point.data.hovertemplate[0]
+      : point.data.hovertemplate;
+    // Update or create a parser
+    parser = parser
+      ? parser.update(hovertemplate)
+      : createParser(hovertemplate);
+    return parser.parse(point);
   });
 }
