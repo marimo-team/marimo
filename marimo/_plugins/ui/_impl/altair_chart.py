@@ -88,10 +88,9 @@ def _filter_dataframe(
             elif len(resolved_values) == 2 and isinstance(
                 resolved_values[0], (int, float, np.number)
             ):
-                df = df[
-                    (df[field] >= resolved_values[0])
-                    & (df[field] <= resolved_values[1])
-                ]
+                left_value = _coerce_value(dtype, resolved_values[0])
+                right_value = _coerce_value(dtype, resolved_values[1])
+                df = df[(df[field] >= left_value) & (df[field] <= right_value)]
             # Multi-selection via range
             # This can happen when you use an interval selection
             # on categorical data
@@ -102,6 +101,17 @@ def _filter_dataframe(
                     f"Invalid selection: {field}={resolved_values}"
                 ) from None
     return df
+
+
+def _coerce_value(dtype: Any, value: Any) -> Any:
+    # If dtype is datetime[ns], then we need to convert the value
+    # from milliseconds (which is what vega returns for dates)
+    if dtype == "datetime64[ns]":
+        import pandas as pd
+
+        return pd.to_datetime(value, unit="ms")
+
+    return value
 
 
 def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
