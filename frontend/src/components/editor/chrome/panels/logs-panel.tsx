@@ -70,10 +70,7 @@ function formatLog(log: CellLog) {
   const timestamp = formatLogTimestamp(log.timestamp);
 
   const color = levelColor[log.level];
-  let level = log.level.toUpperCase();
-  if (level === "WARNING") {
-    level = "WARN";
-  }
+  const level = log.level.toUpperCase();
 
   return (
     <>
@@ -88,7 +85,6 @@ function formatLog(log: CellLog) {
 }
 
 const levelColor: Record<CellLog["level"], string> = {
-  info: "text-[var(--grass-9)]",
-  warning: "text-[var(--amber-10)]",
-  error: "text-[var(--red-9)]",
+  stdout: "text-[var(--grass-9)]",
+  stderr: "text-[var(--red-9)]",
 };

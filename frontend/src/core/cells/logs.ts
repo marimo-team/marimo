@@ -5,7 +5,7 @@ import { fromUnixTime } from "date-fns";
 
 export interface CellLog {
   timestamp: number;
-  level: "info" | "warning" | "error";
+  level: "stdout" | "stderr";
   message: string;
   cellId: CellId;
 }
@@ -21,7 +21,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         case "stdout":
           logs.push({
             timestamp: output.timestamp,
-            level: "info",
+            level: "stdout",
             message: output.data,
             cellId: cell.cell_id,
           });
@@ -30,7 +30,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
         case "marimo-error":
           logs.push({
             timestamp: output.timestamp,
-            level: "error",
+            level: "stderr",
             message: output.data,
             cellId: cell.cell_id,
           });
@@ -50,15 +50,12 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
 const CellLogLogger = {
   log: (payload: CellLog) => {
     const color =
-      payload.level === "info"
+      payload.level === "stdout"
         ? "gray"
-        : payload.level === "warning"
-        ? "orange"
-        : "red";
-    let status = payload.level.toUpperCase();
-    if (status === "WARNING") {
-      status = "WARN";
-    }
+        : payload.level === "stderr"
+        ? "red"
+        : "orange";
+    const status = payload.level.toUpperCase();
     console.log(
       `%c[${status}]`,
       `color:${color}; padding:2px 0; border-radius:2px; font-weight:bold`,
