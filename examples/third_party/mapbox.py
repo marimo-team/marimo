@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.47"
+__generated_with = "0.1.51"
 app = marimo.App()
 
 
@@ -16,20 +16,20 @@ def __(mo):
 
 
 @app.cell
-def __(mo, set_map):
-    view_button = mo.ui.switch(value=False, on_change=set_map)
+def __(mo):
+    view_button = mo.ui.switch(value=False)
     mo.hstack([mo.md("Satellite view:"), view_button], justify="start")
     return view_button,
 
 
 @app.cell
-def __(get_view):
-    get_view()
+def __(get_map, view_button):
+    get_map(satellite=view_button.value)
     return
 
 
 @app.cell
-def __(mo, px, us_cities):
+def __(px, us_cities):
     def get_map(satellite):
         map = px.scatter_mapbox(
             us_cities,
@@ -60,14 +60,7 @@ def __(mo, px, us_cities):
             map.update_layout(mapbox_style="open-street-map")
             map.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         return map
-
-
-    def set_map(satellite):
-        set_view(get_map(satellite))
-
-
-    get_view, set_view = mo.state(get_map(False))
-    return get_map, get_view, set_map, set_view
+    return get_map,
 
 
 @app.cell
