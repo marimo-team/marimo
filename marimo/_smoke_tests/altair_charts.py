@@ -149,7 +149,7 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
 
     _chart = (
         alt.Chart(iris)
-        .mark_circle()
+        .mark_circle(opacity=0.7)
         .encode(
             alt.X("sepalLength", scale=alt.Scale(zero=False)),
             alt.Y("sepalWidth", scale=alt.Scale(zero=False, padding=1)),

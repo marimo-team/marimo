@@ -70,19 +70,6 @@ describe("findEncodedFields", () => {
 });
 
 describe("makeEncodingInteractive", () => {
-  it("should return the original encodings when key is not in the allowed list", () => {
-    const encodings: Encodings = {
-      x: {
-        field: "someField",
-        type: "quantitative",
-      },
-    };
-
-    expect(makeEncodingInteractive("x", encodings, ["param1"])).toEqual(
-      encodings
-    );
-  });
-
   it.each([
     "color",
     "fill",
@@ -111,9 +98,45 @@ describe("makeEncodingInteractive", () => {
       },
     };
 
-    expect(makeEncodingInteractive(type, encodings, ["param1"])).toEqual(
-      expected
-    );
+    expect(
+      makeEncodingInteractive("opacity", encodings, ["param1"], "point")
+    ).toEqual(expected);
+  });
+
+  it("should use a factor of the given opacity", () => {
+    const encodings: Encodings = {
+      x: {
+        field: "someField",
+        type: "quantitative",
+      },
+    };
+
+    expect(
+      makeEncodingInteractive("opacity", encodings, ["param1"], {
+        type: "point",
+        opacity: 0.6,
+      })
+    ).toMatchInlineSnapshot(`
+      {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "param1",
+                },
+              ],
+            },
+            "value": 0.6,
+          },
+          "value": 0.12,
+        },
+        "x": {
+          "field": "someField",
+          "type": "quantitative",
+        },
+      }
+    `);
   });
 
   it("should return updated encodings for multiple parameters", () => {
@@ -138,7 +161,12 @@ describe("makeEncodingInteractive", () => {
     };
 
     expect(
-      makeEncodingInteractive("color", encodings, ["param1", "param2"])
+      makeEncodingInteractive(
+        "opacity",
+        encodings,
+        ["param1", "param2"],
+        "point"
+      )
     ).toEqual(expected);
   });
 });
