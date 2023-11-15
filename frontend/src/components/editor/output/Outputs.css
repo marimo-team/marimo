@@ -17,6 +17,10 @@
   @apply text-link;
 }
 
+.output {
+  position: relative;
+}
+
 .output > * {
   max-width: 100%;
 }
