@@ -20,7 +20,7 @@ class MarimoCLIState:
     last_checked_at: Optional[str] = None
 
 
-def check_for_updates():
+def check_for_updates() -> None:
     try:
         _check_for_updates_internal()
     except Exception:
@@ -29,7 +29,7 @@ def check_for_updates():
         pass
 
 
-def _check_for_updates_internal():
+def _check_for_updates_internal() -> None:
     # Find the state file
     state_file = ".marimo/state.toml"
     home_expansion = os.path.expanduser("~")
@@ -73,7 +73,7 @@ def _check_for_updates_internal():
         tomlkit.dump(asdict(state), file)
 
 
-def _maybe_create_directory(file_path: str):
+def _maybe_create_directory(file_path: str) -> None:
     marimo_directory = os.path.dirname(file_path)
     if not os.path.exists(marimo_directory):
         os.makedirs(marimo_directory)
@@ -112,7 +112,7 @@ def _fetch_data_from_url(url: str) -> Dict[str, Any]:
         if response.status == 200:
             data = response.read()
             encoding = response.info().get_content_charset("utf-8")
-            return json.loads(data.decode(encoding))
+            return json.loads(data.decode(encoding))  # type: ignore
         else:
             raise Exception(
                 f"HTTP request failed with status code {response.status}"

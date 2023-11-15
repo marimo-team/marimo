@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 from datetime import datetime
 from typing import Any
 from unittest.mock import mock_open, patch
