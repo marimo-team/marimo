@@ -1,8 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { Marks } from "./marks";
 import {
+  AnyMark,
   EncodingType,
   Encodings,
   Field,
+  MarkDef,
   SharedCompositeEncoding,
   VegaLiteSpec,
 } from "./types";
@@ -76,9 +79,10 @@ const ALLOWED_ENCODING_TYPES = new Set<EncodingType>([
 ]);
 
 export function makeEncodingInteractive(
-  key: EncodingType,
+  key: "opacity",
   encodings: SharedCompositeEncoding<Field>,
-  paramNames: string[]
+  paramNames: string[],
+  mark: AnyMark | undefined
 ): SharedCompositeEncoding<Field> {
   const test = {
     and: paramNames.map((paramName) => ({
@@ -87,23 +91,20 @@ export function makeEncodingInteractive(
   };
 
   switch (key) {
-    // For most encodings, we want to update the opacity of the mark
-    case "color":
-    case "fill":
-    case "fillOpacity":
-    case "opacity":
-    case "shape":
-    case "size":
+    // As of now, we only update opacity to signal selection
+    case "opacity": {
+      const initialOpacity = Marks.getOpacity(mark as MarkDef) || 1;
       return {
         ...encodings,
         opacity: {
           condition: {
             test: test,
-            value: 1,
+            value: initialOpacity,
           },
-          value: 0.2,
+          value: initialOpacity / 5, // 20% opacity
         },
       };
+    }
     default:
       return encodings;
   }

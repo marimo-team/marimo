@@ -127,7 +127,8 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
     encoding: makeEncodingInteractive(
       "opacity",
       prevEncodings || {},
-      paramNames
+      paramNames,
+      spec.mark
     ),
   };
 }

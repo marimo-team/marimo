@@ -18,4 +18,13 @@ export const Marks = {
     }
     return mark;
   },
+  getOpacity(mark: AnyMark): number | null {
+    if (typeof mark === "string") {
+      return null;
+    }
+    if ("opacity" in mark && typeof mark.opacity === "number") {
+      return mark.opacity;
+    }
+    return null;
+  },
 };
