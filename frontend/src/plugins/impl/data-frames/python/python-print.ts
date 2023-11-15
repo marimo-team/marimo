@@ -132,9 +132,9 @@ function generateWhereClause(
     case "is_not_nan":
       return `${dfName}["${column_id}"].notna()`;
     case "is_true":
-      return `${dfName}["${column_id}"] == True`;
+      return `${dfName}["${column_id}"].eq(True)`;
     case "is_false":
-      return `${dfName}["${column_id}"] == False`;
+      return `${dfName}["${column_id}"].eq(False)`;
     default:
       logNever(operator);
       return "df";

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Literal, Union
+from typing import Any, List, Literal, Optional, Union
 
 ColumnId = str
 ColumnIds = List[ColumnId]
@@ -52,7 +52,7 @@ class TransformType(Enum):
 class Condition:
     column_id: ColumnId
     operator: Operator
-    value: Any
+    value: Optional[Any] = None
 
 
 @dataclass

@@ -12,13 +12,13 @@ exports[`pythonPrint: filter > filter_rows > date > > 1`] = `"df[df[\\"my_column
 
 exports[`pythonPrint: filter > filter_rows > date > >= 1`] = `"df[df[\\"my_column\\"] >= 1000]"`;
 
-exports[`pythonPrint: filter > filter_rows > date > is_false 1`] = `"df[df[\\"my_column\\"] == False]"`;
+exports[`pythonPrint: filter > filter_rows > date > is_false 1`] = `"df[df[\\"my_column\\"].eq(False)]"`;
 
 exports[`pythonPrint: filter > filter_rows > date > is_nan 1`] = `"df[df[\\"my_column\\"].isna()]"`;
 
 exports[`pythonPrint: filter > filter_rows > date > is_not_nan 1`] = `"df[df[\\"my_column\\"].notna()]"`;
 
-exports[`pythonPrint: filter > filter_rows > date > is_true 1`] = `"df[df[\\"my_column\\"] == True]"`;
+exports[`pythonPrint: filter > filter_rows > date > is_true 1`] = `"df[df[\\"my_column\\"].eq(True)]"`;
 
 exports[`pythonPrint: filter > filter_rows > number > != 1`] = `"df[df[\\"my_column\\"].ne(42)]"`;
 

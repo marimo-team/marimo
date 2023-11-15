@@ -7,6 +7,7 @@ from enum import Enum
 from typing import (
     Any,
     Literal,
+    Optional,
     Type,
     TypeVar,
     Union,
@@ -30,7 +31,13 @@ def _build_value(value: Any, cls: Type[T]) -> T:
     # origin_cls is not None if cls is a container (such as list, tuple, set,
     # ...)
     origin_cls = get_origin(cls)
-    if origin_cls in (list, set):
+    if origin_cls is Optional:
+        (arg_type,) = get_args(cls)
+        if value is None:
+            return None  # type: ignore[return-value]
+        else:
+            return _build_value(value, arg_type)  # type: ignore # noqa: E501
+    elif origin_cls in (list, set):
         (arg_type,) = get_args(cls)
         return origin_cls(_build_value(v, arg_type) for v in value)  # type: ignore # noqa: E501
     elif origin_cls == tuple:
@@ -80,10 +87,12 @@ def _build_value(value: Any, cls: Type[T]) -> T:
 
 def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
     types = get_type_hints(cls)
+
     transformed = {
         to_snake(k): _build_value(v, types[to_snake(k)])
         for k, v in value.items()
     }
+
     return cls(**transformed)
 
 

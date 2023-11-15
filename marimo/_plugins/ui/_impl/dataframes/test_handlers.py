@@ -195,6 +195,26 @@ def test_handle_filter_rows_multiple_conditions_2() -> None:
     assert result["B"].tolist() == [5, 3, 2, 1]
 
 
+def test_handle_fitler_rows_boolean() -> None:
+    df = pd.DataFrame({"A": [True, False, True, False]})
+    transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="keep_rows",
+        where=[Condition(column_id="A", operator="is_true")],
+    )
+    result = apply(df, transform)
+    assert result["A"].tolist() == [True, True]
+
+    df = pd.DataFrame({"A": [True, False, True, False]})
+    transform = FilterRowsTransform(
+        type=TransformType.FILTER_ROWS,
+        operation="remove_rows",
+        where=[Condition(column_id="A", operator="is_false")],
+    )
+    result = apply(df, transform)
+    assert result["A"].tolist() == [True, True]
+
+
 def test_handle_group_by() -> None:
     df = pd.DataFrame({"A": ["foo", "foo", "bar"], "B": [1, 2, 3]})
     transform = GroupByTransform(

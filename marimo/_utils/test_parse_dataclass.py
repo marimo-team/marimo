@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Any, Dict, List, Literal, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pytest
 
@@ -214,6 +214,17 @@ class TestParseRaw:
                 serialize({"config": {"invalid": True}}), Nested
             )
             assert "invalid" in str(e.value)
+
+    def test_build_optional(self) -> None:
+        @dataclass
+        class TestOptional:
+            x: Optional[str] = None
+
+        parsed = build_dataclass({}, TestOptional)
+        assert parsed == TestOptional(x=None)
+
+        parsed = build_dataclass({"x": "hello"}, TestOptional)
+        assert parsed == TestOptional(x="hello")
 
 
 def test_build_empty_dataclass() -> None:
