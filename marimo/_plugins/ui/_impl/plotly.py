@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 #     "field1": [min, max],
 #     "field2": [min, max],
 #   },
+#  "indices": int[],
 # }
 PlotlySelection = Dict[str, JSONType]
 
@@ -119,6 +120,14 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         if "points" not in self._selection_data:
             return []
         return self._selection_data["points"]  # type:ignore
+
+    @property
+    def indices(self) -> List[int]:
+        if not self._selection_data:
+            return []
+        if "indices" not in self._selection_data:
+            return []
+        return self._selection_data["indices"]  # type:ignore
 
     def _convert_value(self, value: PlotlySelection) -> Any:
         # Store the selection data
