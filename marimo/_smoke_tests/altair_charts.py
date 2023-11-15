@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.24"
+__generated_with = "0.1.50"
 app = marimo.App(width="full")
 
 
@@ -11,7 +11,8 @@ def __():
     from vega_datasets import data
     import json
     import pandas as pd
-    return data, json, mo, pd
+    import numpy as np
+    return data, json, mo, np, pd
 
 
 @app.cell
@@ -380,6 +381,102 @@ def __(alt, mo, pd):
 @app.cell
 def __(mo, pie):
     mo.vstack([pie, pie.value])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Line Chart")
+    return
+
+
+@app.cell
+def __(alt, mo, np, pd):
+    x = np.arange(100)
+    source = pd.DataFrame({"x": x, "f(x)": np.sin(x / 5)})
+
+    line_chart = mo.ui.altair_chart(
+        alt.Chart(source).mark_line().encode(x="x", y="f(x)"),
+        chart_selection="interval",
+    )
+    line_chart
+    return line_chart, source, x
+
+
+@app.cell
+def __(line_chart, mo):
+    mo.hstack([line_chart.value, line_chart.selections])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Multi-Line Chart")
+    return
+
+
+@app.cell
+def __(alt, data, mo):
+    _source = data.stocks()
+
+    alt.Chart(_source).mark_line().encode(
+        x="date:T",
+        y="price:Q",
+        color="symbol:N",
+    )
+
+    multiline_chart = mo.ui.altair_chart(
+        alt.Chart(_source)
+        .mark_line()
+        .encode(
+            x="date:T",
+            y="price:Q",
+            color="symbol:N",
+        ),
+    )
+    multiline_chart
+    return multiline_chart,
+
+
+@app.cell
+def __(mo, multiline_chart):
+    mo.hstack([multiline_chart.value, multiline_chart.selections])
+    return
+
+
+@app.cell
+def __(alt, mo, np, pd):
+    # Example dataset
+    _data = pd.DataFrame(
+        {
+            "date": pd.date_range(start="2021-01-01", periods=90, freq="D"),
+            "value": np.random.randn(90).cumsum(),
+            "category": ["A", "B", "C"] * 30,
+            "color": ["red", "green", "blue"] * 30,
+        }
+    )
+
+    # Create a base chart
+    facet_chart = (
+        alt.Chart(_data)
+        .mark_line()
+        .encode(
+            x="date:T",  # T indicates temporal (time-based) data
+            y="value:Q",  # Q indicates a quantitative field
+            row="category:N",  # N indicates a nominal field
+        )
+        .properties(title="Faceted Time Series Chart")
+        .configure_facet(spacing=10)  # Adjust spacing between facets
+    )
+
+    facet_chart = mo.ui.altair_chart(facet_chart, chart_selection="interval")
+    facet_chart
+    return facet_chart,
+
+
+@app.cell
+def __(facet_chart, mo):
+    mo.hstack([facet_chart.value, facet_chart.selections])
     return
 
 
