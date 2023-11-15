@@ -4,11 +4,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
-import logging
 import os
 import pathlib
 import tempfile
-import urllib.request
 from typing import Any, Literal, Optional
 
 import click
@@ -17,8 +15,8 @@ from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
+from marimo._cli.file_path import validate_name
 from marimo._server.server import start_server
-from marimo._utils.url import is_url
 
 DEVELOPMENT_MODE = False
 QUIET = False
@@ -186,17 +184,12 @@ def edit(
     name: Optional[str] = None,
 ) -> None:
     if name is not None:
-        path = pathlib.Path(name)
-        if path.suffix != ".py":
-            raise click.UsageError(
-                "Invalid NAME - %s is not a Python file" % name
-            )
-
+        # Validate name, or download from URL
+        # The second return value is an optional temporary directory. It is
+        # unused, but must be kept around because its lifetime on disk is bound
+        # to the life of the Python object
+        name, _ = validate_name(name, allow_new_file=True)
         if os.path.exists(name):
-            if not path.is_file():
-                raise click.UsageError(
-                    "Invalid NAME - %s is not a file" % name
-                )
             # module correctness check - don't start the server
             # if we can't import the module
             codegen.get_app(name)
@@ -249,22 +242,11 @@ Example:
 )
 @click.argument("name", required=True)
 def run(port: Optional[int], headless: bool, name: str) -> None:
-    path = pathlib.Path(name)
-    if path.suffix != ".py":
-        raise click.UsageError("Invalid NAME - %s is not a Python file" % name)
-
-    if is_url(name):
-        d = tempfile.TemporaryDirectory()
-        logging.info("Downloading %s", name)
-        path_to_app = os.path.join(d.name, os.path.basename(name))
-        urllib.request.urlretrieve(url=name, filename=path_to_app)
-        logging.info("App saved to %s", path_to_app)
-        # overwrite name to point to the temporary file
-        name = path_to_app
-    elif not os.path.exists(name):
-        raise click.UsageError("Invalid NAME - %s does not exist" % name)
-    elif not path.is_file():
-        raise click.UsageError("Invalid NAME - %s is not a file" % name)
+    # Validate name, or download from URL
+    # The second return value is an optional temporary directory. It is unused,
+    # but must be kept around because its lifetime on disk is bound to the life
+    # of the Python object
+    name, _ = validate_name(name, allow_new_file=False)
 
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
