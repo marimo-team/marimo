@@ -8,6 +8,7 @@ import pathlib
 import urllib.parse
 import urllib.request
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import click
 
@@ -15,8 +16,8 @@ from marimo._utils.url import is_url
 
 
 def validate_name(
-    name: str, allow_new_file: bool, temp_dir: TemporaryDirectory[str]
-) -> str:
+    name: str, allow_new_file: bool
+) -> tuple[str, Optional[TemporaryDirectory[str]]]:
     """
     Validate the name of the file to be edited/run.
 
@@ -26,20 +27,27 @@ def validate_name(
 
     Args:
         name: The name of the file to be edited/run.
+
+    Returns:
+        The name of file to to be edited/run
+        Optional TemporaryDirectory, returned to prevent it from being
+          cleaned up
     """
 
     if _is_github_issue_url(name):
-        return _handle_github_issue(name, temp_dir)
+        temp_dir = TemporaryDirectory()
+        return _handle_github_issue(name, temp_dir), temp_dir
 
     path = pathlib.Path(name)
     if path.suffix != ".py":
         raise click.UsageError("Invalid NAME - %s is not a Python file" % name)
 
     if _is_github_py(name):
-        return _handle_github_py(name, temp_dir)
+        temp_dir = TemporaryDirectory()
+        return _handle_github_py(name, temp_dir), temp_dir
 
     if is_url(name):
-        return _create_tmp_file_from_url(name, temp_dir)
+        return _create_tmp_file_from_url(name, temp_dir), temp_dir
 
     if not allow_new_file:
         if not os.path.exists(name):
@@ -47,7 +55,7 @@ def validate_name(
         if not path.is_file():
             raise click.UsageError("Invalid NAME - %s is not a file" % name)
 
-    return name
+    return name, None
 
 
 def _is_github_issue_url(url: str) -> bool:

@@ -21,33 +21,32 @@ temp_dir = tempfile.TemporaryDirectory()
 
 def test_validate_name_with_python_file() -> None:
     full_path = __file__
-    assert validate_name(
-        full_path, allow_new_file=False, temp_dir=temp_dir
-    ).endswith("test_file_path.py")
+    assert validate_name(full_path, allow_new_file=False)[0].endswith(
+        "test_file_path.py"
+    )
 
 
 def test_validate_name_with_non_python_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=False, temp_dir=temp_dir)
+        validate_name("example.txt", allow_new_file=False)
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=True, temp_dir=temp_dir)
+        validate_name("example.txt", allow_new_file=True)
 
 
 def test_validate_name_with_nonexistent_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name(
-            "nonexistent.py", allow_new_file=False, temp_dir=temp_dir
-        )
-    assert "nonexistent.py" == validate_name(
-        "nonexistent.py", allow_new_file=True, temp_dir=temp_dir
+        validate_name("nonexistent.py", allow_new_file=False)
+    assert (
+        "nonexistent.py"
+        == validate_name("nonexistent.py", allow_new_file=True)[0]
     )
 
 
 def test_validate_name_with_directory() -> None:
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=False, temp_dir=temp_dir)
+        validate_name(".", allow_new_file=False)
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=True, temp_dir=temp_dir)
+        validate_name(".", allow_new_file=True)
 
 
 def test_is_github_issue_url_with_valid_url() -> None:

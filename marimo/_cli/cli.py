@@ -184,9 +184,11 @@ def edit(
     name: Optional[str] = None,
 ) -> None:
     if name is not None:
-        temp_dir = tempfile.TemporaryDirectory()
         # Validate name, or download from URL
-        name = validate_name(name, allow_new_file=True, temp_dir=temp_dir)
+        # The second return value is an optional temporary directory. It is
+        # unused, but must be kept around because its lifetime on disk is bound
+        # to the life of the Python object
+        name, _ = validate_name(name, allow_new_file=True)
         if os.path.exists(name):
             # module correctness check - don't start the server
             # if we can't import the module
@@ -241,8 +243,10 @@ Example:
 @click.argument("name", required=True)
 def run(port: Optional[int], headless: bool, name: str) -> None:
     # Validate name, or download from URL
-    temp_dir = tempfile.TemporaryDirectory()
-    name = validate_name(name, allow_new_file=False, temp_dir=temp_dir)
+    # The second return value is an optional temporary directory. It is unused,
+    # but must be kept around because its lifetime on disk is bound to the life
+    # of the Python object
+    name, _ = validate_name(name, allow_new_file=False)
 
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
