@@ -21,7 +21,7 @@ type AxisDatum = unknown;
 type T =
   | {
       points?: Array<Record<AxisName, AxisDatum>>;
-      indexes?: number[];
+      indices?: number[];
       range?: {
         x?: number[];
         y?: number[];
@@ -87,7 +87,7 @@ export const PlotlyComponent = memo(
 
           setValue({
             points: extractPoints(evt.points),
-            indexes: evt.points.map((point) => point.pointIndex),
+            indices: evt.points.map((point) => point.pointIndex),
             range: evt.range,
           });
         })}

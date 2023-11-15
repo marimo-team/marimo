@@ -51,7 +51,7 @@ def __(mo, plot):
                 ],
                 widths="equal",
             ),
-            plot.indexes,
+            plot.indices,
         ]
     )
     return
