@@ -23,8 +23,14 @@ def __(mo):
 
 
 @app.cell
-def __(get_map, view_button):
-    get_map(satellite=view_button.value)
+def __(mo, get_map, view_button):
+    f = mo.ui.plotly(get_map(satellite=view_button.value))
+    f
+    return f,
+
+@app.cell
+def __(f, mo):
+    mo.ui.table(f.value)
     return
 
 
