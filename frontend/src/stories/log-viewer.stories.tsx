@@ -22,37 +22,37 @@ export const Primary: Story = {
           logs={[
             {
               timestamp: Date.now(),
-              level: "info",
+              level: "stdout",
               cellId: "cell1" as CellId,
               message: "Hello world!",
             },
             {
               timestamp: Date.now(),
-              level: "info",
+              level: "stdout",
               cellId: "cell1" as CellId,
               message: "Running cell...",
             },
             {
               timestamp: Date.now(),
-              level: "info",
+              level: "stdout",
               cellId: "cell1" as CellId,
               message: "Done!",
             },
             {
               timestamp: Date.now(),
-              level: "warning",
+              level: "stderr",
               cellId: "cell2" as CellId,
               message: "Output is too large!",
             },
             {
               timestamp: Date.now(),
-              level: "error",
+              level: "stderr",
               cellId: "cell2" as CellId,
               message: "String length is too short.".repeat(100),
             },
             ...Array.from({ length: 100 }).map((_, index) => ({
               timestamp: Date.now(),
-              level: "info" as const,
+              level: "stdout" as const,
               cellId: "cell1" as CellId,
               message: "Running cell...",
             })),
