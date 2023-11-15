@@ -128,8 +128,8 @@ export const basicBundle = (
     lineNumbers(),
     rectangularSelection(),
     tooltips({
-      position: "fixed",
-      parent: document.getElementById("App") ?? undefined,
+      // Having absolute position makes it possible to select text in the tooltip
+      position: "absolute",
     }),
     scrollActiveLineIntoView(),
     theme === "dark" ? oneDark : [],
