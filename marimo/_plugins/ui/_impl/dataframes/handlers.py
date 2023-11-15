@@ -104,9 +104,9 @@ class TransformHandlers:
             elif condition.operator == "<=":
                 df_filter = df[condition.column_id] <= value
             elif condition.operator == "is_true":
-                df_filter = df[condition.column_id] is True
+                df_filter = df[condition.column_id].eq(True)
             elif condition.operator == "is_false":
-                df_filter = df[condition.column_id] is False
+                df_filter = df[condition.column_id].eq(False)
             elif condition.operator == "is_nan":
                 df_filter = df[condition.column_id].isna()
             elif condition.operator == "is_not_nan":
