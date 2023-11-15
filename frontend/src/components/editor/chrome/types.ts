@@ -1,2 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-export type PanelType = "errors" | "variables" | "outline" | "dependencies";
+export type PanelType =
+  | "errors"
+  | "variables"
+  | "outline"
+  | "dependencies"
+  | "logs";

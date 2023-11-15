@@ -28,6 +28,7 @@ import { Objects } from "@/utils/objects";
 import { EditorView } from "@codemirror/view";
 import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
+import { CellLog, getCellLogsForMessage } from "./logs";
 
 /**
  * The state of the notebook.
@@ -62,6 +63,10 @@ export interface NotebookState {
    * and clear this field.
    */
   scrollKey: CellId | null;
+  /**
+   * Logs of all cell messages
+   */
+  cellLogs: CellLog[];
 }
 
 /**
@@ -77,6 +82,7 @@ function initialNotebookState(): NotebookState {
       cellHandles: {},
       history: [],
       scrollKey: null,
+      cellLogs: [],
     };
   }
 
@@ -87,6 +93,7 @@ function initialNotebookState(): NotebookState {
     cellHandles: {},
     history: [],
     scrollKey: null,
+    cellLogs: [],
   };
 }
 
@@ -348,9 +355,13 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     action: { cellId: CellId; message: CellMessage }
   ) => {
     const { cellId, message } = action;
-    return updateCellRuntimeState(state, cellId, (cell) => {
+    const nextState = updateCellRuntimeState(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
+    return {
+      ...nextState,
+      cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
+    };
   },
   setCells: (state, cells: CellData[]) => {
     return {
@@ -464,6 +475,12 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     unfoldAllBulk(targets);
     return state;
   },
+  clearLogs: (state) => {
+    return {
+      ...state,
+      cellLogs: [],
+    };
+  },
 });
 
 // Helper function to update a cell in the array
@@ -561,6 +578,11 @@ export const useCellIds = () => useAtomValue(cellIdsAtom);
  * React-hook for the array of cell errors.
  */
 export const useCellErrors = () => useAtomValue(cellErrorsAtom);
+
+/**
+ * React-hook for the cell logs.
+ */
+export const useCellLogs = () => useAtomValue(notebookAtom).cellLogs;
 
 /// IMPERATIVE GETTERS
 

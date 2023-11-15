@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { startCase } from "lodash-es";
+import { Logger } from "./Logger";
 
 export const Strings = {
   /**
@@ -11,7 +12,7 @@ export const Strings = {
     }
 
     if (typeof str !== "string") {
-      console.error(str);
+      Logger.error(str);
       throw new TypeError(`Expected string, got ${typeof str}`);
     }
 

@@ -39,16 +39,15 @@ export type OutputMessage =
   | {
       channel: OutputChannel;
       mimetype:
-        | "text/plain"
-        | "text/html"
-        | "text/plain"
-        | "image/png"
-        | "image/svg+xml"
-        | "image/tiff"
         | "image/avif"
         | "image/bmp"
         | "image/gif"
         | "image/jpeg"
+        | "image/png"
+        | "image/svg+xml"
+        | "image/tiff"
+        | "text/html"
+        | "text/plain"
         | "video/mp4"
         | "video/mpeg";
       data: string;

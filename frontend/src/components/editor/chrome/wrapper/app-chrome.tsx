@@ -17,6 +17,7 @@ import { ErrorsPanel } from "../panels/error-panel";
 import { OutlinePanel } from "../panels/outline-panel";
 import { DependencyGraphPanel } from "@/components/editor/chrome/panels/dependency-graph-panel";
 import { VariablePanel } from "../panels/variable-panel";
+import { LogsPanel } from "../panels/logs-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -88,6 +89,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       {selectedPanel === "variables" && <VariablePanel />}
       {selectedPanel === "dependencies" && <DependencyGraphPanel />}
       {selectedPanel === "outline" && <OutlinePanel />}
+      {selectedPanel === "logs" && <LogsPanel />}
     </div>
   );
 
