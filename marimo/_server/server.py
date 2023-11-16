@@ -281,6 +281,16 @@ def connect_app(app: tornado.web.Application, port: Optional[int]) -> int:
     return port
 
 
+def initialize_mimetypes() -> None:
+    import mimetypes
+
+    # Fixes an issue with invalid mimetypes on windows:
+    # https://github.com/encode/starlette/issues/829#issuecomment-587163696
+    mimetypes.add_type("application/javascript", ".js")
+    mimetypes.add_type("text/css", ".css")
+    mimetypes.add_type("image/svg+xml", ".svg")
+
+
 async def start_server(
     port: Optional[int] = None,
     headless: bool = False,
@@ -300,6 +310,9 @@ async def start_server(
         in edit (read-write) mode.
     development_mode: if True, enables tornado debug logging and autoreloading
     """
+
+    initialize_mimetypes()
+
     logger = _loggers.marimo_logger()
     _loggers.initialize_tornado_loggers(development_mode)
     signal.signal(signal.SIGINT, interrupt_handler)
