@@ -10,7 +10,7 @@ import tomlkit
 from packaging import version
 
 from marimo import __version__ as current_version
-from marimo._cli.print import light_gray, orange
+from marimo._cli.print import green, orange
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -59,13 +59,12 @@ def _check_for_updates_internal() -> None:
     if current_version and version.parse(state.latest_version) > version.parse(
         current_version
     ):
-        #         Update available 0.1.35 -> 0.1.123.
-        # Run "fly version upgrade" to upgrade.
         message = (
             f"Update available {(current_version)} → {state.latest_version}"
         )
         print(orange(message))
-        print(f"Run {light_gray('pip install --upgrade marimo')} to upgrade.")
+        print(f"Run {green('pip install --upgrade marimo')} to upgrade.")
+        print()
 
     # Save the state, create directories if necessary
     _maybe_create_directory(file_path)
