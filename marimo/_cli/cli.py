@@ -16,6 +16,7 @@ from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
+from marimo._cli.upgrade import check_for_updates
 from marimo._server.server import start_server
 
 DEVELOPMENT_MODE = False
@@ -183,6 +184,9 @@ def edit(
     headless: bool,
     name: Optional[str] = None,
 ) -> None:
+    # Check for version updates
+    check_for_updates()
+
     if name is not None:
         # Validate name, or download from URL
         # The second return value is an optional temporary directory. It is
