@@ -1,12 +1,11 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import tornado.web
-
 from marimo._server import sessions
+from marimo._server.api.validated_handler import ValidatedHandler
 
 
-class InterruptHandler(tornado.web.RequestHandler):
+class InterruptHandler(ValidatedHandler):
     """Interrupt the kernel's execution."""
 
     def post(self) -> None:

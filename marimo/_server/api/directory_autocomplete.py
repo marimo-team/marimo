@@ -4,8 +4,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-import tornado.web
-
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -14,7 +13,7 @@ class DirectoryAutocomplete:
     prefix: str
 
 
-class DirectoryAutocompleteHandler(tornado.web.RequestHandler):
+class DirectoryAutocompleteHandler(ValidatedHandler):
     """Complete a path to subdirectories and Python files."""
 
     def post(self) -> None:

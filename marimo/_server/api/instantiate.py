@@ -4,11 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, List
 
-import tornado.web
-
 from marimo._ast.app import App
 from marimo._runtime import requests
 from marimo._server import sessions
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -20,7 +19,7 @@ class Instantiate:
     values: List[Any]
 
 
-class InstantiateHandler(tornado.web.RequestHandler):
+class InstantiateHandler(ValidatedHandler):
     """Instantiate an app
 
     Run all cells, parametrized by values for UI elements, if any.

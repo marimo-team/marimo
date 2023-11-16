@@ -3,11 +3,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import tornado.web
-
 from marimo._ast.cell import CellId_t
 from marimo._runtime import requests
 from marimo._server import sessions
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -18,7 +17,7 @@ class CodeComplete:
     cell_id: CellId_t
 
 
-class CodeCompleteHandler(tornado.web.RequestHandler):
+class CodeCompleteHandler(ValidatedHandler):
     """Complete a path to subdirectories and Python files."""
 
     def post(self) -> None:
