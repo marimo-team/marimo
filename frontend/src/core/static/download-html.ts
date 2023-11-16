@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { NotebookState, getNotebook } from "../cells/cells";
-import { getMarimoVersion } from "../dom/version";
+import { getMarimoVersion } from "../dom/marimo-tag";
 
 // For Testing:
 // Flip this to true to use local assets instead of CDN
