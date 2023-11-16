@@ -7,7 +7,7 @@ export function getMarimoVersion(): string {
 }
 
 export function getMarimoServerToken(): string {
-  return getMarimoDOMValue("marimo-server-token", "config");
+  return getMarimoDOMValue("marimo-server-token", "token");
 }
 
 export function getRawMarimoAppConfig(): string {

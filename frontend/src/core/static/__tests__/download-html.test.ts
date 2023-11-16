@@ -34,7 +34,7 @@ const DOC = `
     <marimo-filename hidden="">app.py</marimo-filename>
     <marimo-mode data-mode="edit" hidden=""></marimo-mode>
     <marimo-version data-version="0.1.44" hidden=""></marimo-version>
-    <marimo-server-token data-version="123" hidden=""></marimo-server-token>
+    <marimo-server-token data-token="123" hidden=""></marimo-server-token>
     <marimo-user-config
       data-config='{"display": {"theme": "light"}, "keymap": {"preset": "default"}, "save": {"autosave": "after_delay", "format_on_save": true, "autosave_delay": 1000}, "server": {"browser": "default"}, "experimental": {"layouts": true, "theming": true}, "runtime": {"auto_instantiate": true}, "completion": {"activate_on_typing": true, "copilot": true}}'
       hidden=""
