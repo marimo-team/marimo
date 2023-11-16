@@ -138,6 +138,14 @@ const SampleRowsTransformSchema = z.object({
     .describe(
       FieldOptions.of({ label: "Re-sample", special: "random_number_button" })
     ),
+  replace: z
+    .boolean()
+    .default(false)
+    .describe(
+      FieldOptions.of({
+        label: "Sample with replacement",
+      })
+    ),
 });
 
 const ShuffleRowsTransformSchema = z.object({

@@ -301,7 +301,7 @@ def test_shuffle_rows() -> None:
 def test_sample_rows() -> None:
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
     transform = SampleRowsTransform(
-        type=TransformType.SAMPLE_ROWS, n=2, seed=42
+        type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
     )
     result = apply(df, transform)
     assert len(result) == 2

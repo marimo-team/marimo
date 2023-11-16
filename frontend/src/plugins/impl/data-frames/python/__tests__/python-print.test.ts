@@ -134,6 +134,7 @@ it("generates correct Python code for sample_rows", () => {
     type: "sample_rows",
     n: 42,
     seed: 10,
+    replace: false,
   };
   const result = pythonPrint("df", transform);
   expect(result).toMatchInlineSnapshot('"df.sample(n=42)"');

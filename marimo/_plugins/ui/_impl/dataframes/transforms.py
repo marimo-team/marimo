@@ -118,6 +118,7 @@ class ShuffleRowsTransform:
 class SampleRowsTransform:
     type: Literal[TransformType.SAMPLE_ROWS]
     n: int
+    replace: bool
     seed: int
 
 

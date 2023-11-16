@@ -196,7 +196,11 @@ class TransformHandlers:
     def handle_sample_rows(
         df: "pd.DataFrame", transform: SampleRowsTransform
     ) -> "pd.DataFrame":
-        return df.sample(n=transform.n, random_state=transform.seed)
+        return df.sample(
+            n=transform.n,
+            random_state=transform.seed,
+            replace=transform.replace,
+        )
 
 
 def apply_transforms(
