@@ -33,6 +33,7 @@ const htmlDevPlugin = (): Plugin => {
         "marimo-mode",
         "marimo-user-config",
         "marimo-app-config",
+        "marimo-server-token",
       ];
 
       // remove from dev

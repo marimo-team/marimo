@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { Logger } from "../../utils/Logger";
 import { UUID } from "../../utils/uuid";
+import { getMarimoServerToken } from "../dom/marimo-tag";
 
 export function getXsrfCookie(): string {
   const r = document.cookie.match("\\b_xsrf=([^;]*)\\b");
@@ -8,6 +9,8 @@ export function getXsrfCookie(): string {
 }
 
 const BASE_URL = "/api";
+
+const serverToken = getMarimoServerToken();
 
 /**
  * Wrapper around fetch that adds XSRF token and session ID to the request and
@@ -22,6 +25,7 @@ export const API = {
         "Content-Type": "application/json",
         "X-Xsrftoken": getXsrfCookie(),
         "Marimo-Session-Id": UUID,
+        "Marimo-Server-Token": serverToken,
       },
       body: JSON.stringify(body),
     })

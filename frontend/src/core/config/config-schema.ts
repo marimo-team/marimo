@@ -1,7 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { z } from "zod";
-import { assertExists } from "../../utils/assertExists";
 import { Logger } from "@/utils/Logger";
+import {
+  getRawMarimoAppConfig,
+  getRawMarimoUserConfig,
+} from "../dom/marimo-tag";
 
 export const UserConfigSchema = z
   .object({
@@ -55,7 +58,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {
   try {
-    return AppConfigSchema.parse(JSON.parse(getConfig("app")));
+    return AppConfigSchema.parse(JSON.parse(getRawMarimoAppConfig()));
   } catch (error) {
     throw new Error(
       `Marimo got an unexpected value in the configuration file: ${error}`
@@ -65,7 +68,7 @@ export function parseAppConfig() {
 
 export function parseUserConfig() {
   try {
-    const parsed = UserConfigSchema.parse(JSON.parse(getConfig("user")));
+    const parsed = UserConfigSchema.parse(JSON.parse(getRawMarimoUserConfig()));
     for (const [key, value] of Object.entries(parsed.experimental)) {
       if (value === true) {
         Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
@@ -77,15 +80,4 @@ export function parseUserConfig() {
       `Marimo got an unexpected value in the configuration file: ${error}`
     );
   }
-}
-
-function getConfig(kind: "user" | "app") {
-  const tagName = kind === "user" ? "marimo-user-config" : "marimo-app-config";
-  const tag = document.querySelector<HTMLElement>(tagName);
-  assertExists(tag, `internal-error: ${tagName} tag not found`);
-
-  const configData = tag.dataset.config;
-  assertExists(configData, "internal-error: missing config");
-
-  return configData;
 }
