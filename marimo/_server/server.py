@@ -125,6 +125,7 @@ class MainHandler(tornado.web.RequestHandler):
             version=__version__,
             user_config=json.dumps(user_config),
             app_config=json.dumps(app_config),
+            server_token=mgr.server_token,
         )
 
 

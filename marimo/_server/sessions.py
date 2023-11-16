@@ -27,6 +27,7 @@ import threading
 from enum import Enum
 from multiprocessing import connection
 from typing import Any, Callable, Optional
+from uuid import uuid4
 
 import importlib_resources
 import tornado.httputil
@@ -377,6 +378,7 @@ class SessionManager:
     The SessionManager also encapsulates state common to all sessions:
     - the app filename
     - the app mode (edit or run)
+    - the server token
     """
 
     def __init__(
@@ -396,6 +398,8 @@ class SessionManager:
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
+        # token uniquely identifying this server
+        self.server_token = str(uuid4())
 
         if (app := self.load_app()) is not None:
             self.app_config = app._config
@@ -558,6 +562,35 @@ def get_manager() -> SessionManager:
     return SESSION_MANAGER
 
 
+def server_token_from_header(
+    headers: tornado.httputil.HTTPHeaders,
+) -> str:
+    """Extracts session ID from request header.
+
+    All endpoints require a session ID to be in the request header.
+    """
+    server_token = headers.get_list("Marimo-Server-Token")
+    if not server_token:
+        raise RuntimeError(
+            "Invalid headers (Marimo-Server-Token not found)\n\n"
+            + str(headers)
+        )
+    elif len(server_token) > 1:
+        raise RuntimeError(
+            "Invalid headers (> 1 Marimo-Server-Token)\n\n" + str(headers)
+        )
+    return server_token[0]
+
+
+def check_server_token(headers: tornado.httputil.HTTPHeaders) -> None:
+    """Throws an HTTPError if no Session is found."""
+    server_token = server_token_from_header(headers)
+    if server_token != get_manager().server_token:
+        raise tornado.web.HTTPError(
+            HTTPStatus.FORBIDDEN, "Inavlid server token."
+        )
+
+
 def session_id_from_header(
     headers: tornado.httputil.HTTPHeaders,
 ) -> str:
@@ -568,11 +601,11 @@ def session_id_from_header(
     session_id = headers.get_list("Marimo-Session-Id")
     if not session_id:
         raise RuntimeError(
-            "Invalid headers (Marimo-Session-Id not found\n\n)" + str(headers)
+            "Invalid headers (Marimo-Session-Id not found)\n\n" + str(headers)
         )
     elif len(session_id) > 1:
         raise RuntimeError(
-            "Invalid headers (> 1 Marimo-Session-Id\n\n)" + str(headers)
+            "Invalid headers (> 1 Marimo-Session-Id)\n\n" + str(headers)
         )
     return session_id[0]
 

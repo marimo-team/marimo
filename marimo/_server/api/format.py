@@ -4,11 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
-import tornado.web
-
 from marimo import _loggers
 from marimo._ast import cell
 from marimo._server import sessions
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -20,7 +19,7 @@ class Format:
     codes: Dict[cell.CellId_t, str]
 
 
-class FormatHandler(tornado.web.RequestHandler):
+class FormatHandler(ValidatedHandler):
     """Save an app to disk."""
 
     @sessions.requires_edit

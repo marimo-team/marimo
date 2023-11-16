@@ -12,6 +12,7 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._server import sessions
 from marimo._server.api.status import HTTPStatus
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._server.layout import LayoutConfig, save_layout_config
 from marimo._server.utils import canonicalize_filename
 from marimo._utils.parse_dataclass import parse_raw
@@ -33,7 +34,7 @@ class Save:
     layout: Optional[Dict[str, Any]] = None
 
 
-class SaveHandler(tornado.web.RequestHandler):
+class SaveHandler(ValidatedHandler):
     """Save an app to disk."""
 
     @sessions.requires_edit

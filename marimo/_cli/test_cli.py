@@ -65,7 +65,7 @@ def test_cli_help_exit_code() -> None:
 
 
 def test_cli_edit() -> None:
-    # smoke test: makes sure CLI starts
+    # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
     # Python 3.8 compatibility, such as forgetting `from __future__` import
     # annotations
@@ -76,6 +76,7 @@ def test_cli_edit() -> None:
     _check_contents(
         p, f"marimo-version data-version={__version__}".encode(), contents
     )
+    _check_contents(p, b"marimo-server-token", contents)
 
 
 def test_cli_run() -> None:

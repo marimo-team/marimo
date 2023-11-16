@@ -4,11 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-import tornado.web
-
 from marimo._ast.cell import CellId_t
 from marimo._runtime import requests
 from marimo._server import sessions
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -20,7 +19,7 @@ class Run:
     codes: List[str]
 
 
-class RunHandler(tornado.web.RequestHandler):
+class RunHandler(ValidatedHandler):
     """Run multiple cells (and their descendants).
 
     Only allowed in edit mode.
