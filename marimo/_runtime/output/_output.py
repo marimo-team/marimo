@@ -81,10 +81,10 @@ def flush() -> None:
         return
 
     if ctx.kernel.execution_context.output is not None:
-        write_internal(
-            cell_id=ctx.kernel.execution_context.cell_id,
-            value=vstack(ctx.kernel.execution_context.output),
-        )
+        value = vstack(ctx.kernel.execution_context.output)
+    else:
+        value = None
+    write_internal(cell_id=ctx.kernel.execution_context.cell_id, value=value)
 
 
 def remove(value: object) -> None:
