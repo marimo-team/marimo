@@ -3,7 +3,10 @@ import {
   AGGREGATION_FNS,
   NUMPY_DTYPES,
 } from "@/plugins/impl/data-frames/types";
-import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
+import {
+  FieldOptions,
+  randomNumber,
+} from "@/plugins/impl/data-frames/forms/options";
 import { z } from "zod";
 import {
   ALL_OPERATORS,
@@ -123,6 +126,38 @@ const SelectColumnsTransformSchema = z.object({
   column_ids: column_id_array,
 });
 
+const SampleRowsTransformSchema = z.object({
+  type: z.literal("sample_rows"),
+  n: z
+    .number()
+    .positive()
+    .describe(FieldOptions.of({ label: "Number of rows" })),
+  seed: z
+    .number()
+    .default(() => randomNumber())
+    .describe(
+      FieldOptions.of({ label: "Re-sample", special: "random_number_button" })
+    ),
+  replace: z
+    .boolean()
+    .default(false)
+    .describe(
+      FieldOptions.of({
+        label: "Sample with replacement",
+      })
+    ),
+});
+
+const ShuffleRowsTransformSchema = z.object({
+  type: z.literal("shuffle_rows"),
+  seed: z
+    .number()
+    .default(() => randomNumber())
+    .describe(
+      FieldOptions.of({ label: "Re-shuffle", special: "random_number_button" })
+    ),
+});
+
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,
   SelectColumnsTransformSchema,
@@ -131,6 +166,8 @@ export const TransformTypeSchema = z.union([
   SortColumnTransformSchema,
   GroupByTransformSchema,
   AggregateTransformSchema,
+  SampleRowsTransformSchema,
+  ShuffleRowsTransformSchema,
 ]);
 
 export type TransformType = z.infer<typeof TransformTypeSchema>;

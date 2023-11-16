@@ -24,6 +24,7 @@ import { getDefaults, getUnionLiteral } from "./forms/form-utils";
 import {
   ArrowUpDownIcon,
   ColumnsIcon,
+  CombineIcon,
   FilterIcon,
   FunctionSquareIcon,
   GroupIcon,
@@ -31,6 +32,7 @@ import {
   MousePointerSquareIcon,
   PencilIcon,
   PlusIcon,
+  ShuffleIcon,
   Trash2Icon,
 } from "lucide-react";
 import { cn } from "../../../utils/cn";
@@ -283,4 +285,6 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   rename_column: PencilIcon,
   select_columns: MousePointerSquareIcon,
   sort_column: ArrowUpDownIcon,
+  shuffle_rows: ShuffleIcon,
+  sample_rows: CombineIcon,
 };

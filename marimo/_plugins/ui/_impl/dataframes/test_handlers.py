@@ -12,7 +12,9 @@ from marimo._plugins.ui._impl.dataframes.transforms import (
     FilterRowsTransform,
     GroupByTransform,
     RenameColumnTransform,
+    SampleRowsTransform,
     SelectColumnsTransform,
+    ShuffleRowsTransform,
     SortColumnTransform,
     Transform,
     Transformations,
@@ -283,6 +285,26 @@ def test_handle_select_columns() -> None:
         type=TransformType.SELECT_COLUMNS, column_ids=["A", "B"]
     )
     result = apply(df, transform)
+    assert "A" in result.columns
+    assert "B" in result.columns
+
+
+def test_shuffle_rows() -> None:
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    transform = ShuffleRowsTransform(type=TransformType.SHUFFLE_ROWS, seed=42)
+    result = apply(df, transform)
+    assert len(result) == 3
+    assert "A" in result.columns
+    assert "B" in result.columns
+
+
+def test_sample_rows() -> None:
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    transform = SampleRowsTransform(
+        type=TransformType.SAMPLE_ROWS, n=2, seed=42, replace=False
+    )
+    result = apply(df, transform)
+    assert len(result) == 2
     assert "A" in result.columns
     assert "B" in result.columns
 

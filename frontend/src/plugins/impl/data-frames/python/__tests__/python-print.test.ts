@@ -128,6 +128,28 @@ it("generates correct Python code for select_columns", () => {
   );
 });
 
+// Test for sample_rows
+it("generates correct Python code for sample_rows", () => {
+  const transform: TransformType = {
+    type: "sample_rows",
+    n: 42,
+    seed: 10,
+    replace: false,
+  };
+  const result = pythonPrint("df", transform);
+  expect(result).toMatchInlineSnapshot('"df.sample(n=42)"');
+});
+
+// Test for shuffle_rows
+it("generates correct Python code for shuffle_rows", () => {
+  const transform: TransformType = {
+    type: "shuffle_rows",
+    seed: 10,
+  };
+  const result = pythonPrint("df", transform);
+  expect(result).toMatchInlineSnapshot('"df.sample(frac=1)"');
+});
+
 describe("pythonPrint: filter", () => {
   it("handles filter vs keep", () => {
     const result = pythonPrint("df", {

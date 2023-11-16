@@ -7,7 +7,9 @@ from .transforms import (
     FilterRowsTransform,
     GroupByTransform,
     RenameColumnTransform,
+    SampleRowsTransform,
     SelectColumnsTransform,
+    ShuffleRowsTransform,
     SortColumnTransform,
     Transform,
     Transformations,
@@ -50,6 +52,14 @@ class TransformHandlers:
         elif transform_type is TransformType.SELECT_COLUMNS:
             return TransformHandlers.handle_select_columns(
                 df, cast(SelectColumnsTransform, transform)
+            )
+        elif transform_type is TransformType.SHUFFLE_ROWS:
+            return TransformHandlers.handle_shuffle_rows(
+                df, cast(ShuffleRowsTransform, transform)
+            )
+        elif transform_type is TransformType.SAMPLE_ROWS:
+            return TransformHandlers.handle_sample_rows(
+                df, cast(SampleRowsTransform, transform)
             )
 
         else:
@@ -175,6 +185,22 @@ class TransformHandlers:
         df: "pd.DataFrame", transform: SelectColumnsTransform
     ) -> "pd.DataFrame":
         return df[transform.column_ids]
+
+    @staticmethod
+    def handle_shuffle_rows(
+        df: "pd.DataFrame", transform: ShuffleRowsTransform
+    ) -> "pd.DataFrame":
+        return df.sample(frac=1, random_state=transform.seed)
+
+    @staticmethod
+    def handle_sample_rows(
+        df: "pd.DataFrame", transform: SampleRowsTransform
+    ) -> "pd.DataFrame":
+        return df.sample(
+            n=transform.n,
+            random_state=transform.seed,
+            replace=transform.replace,
+        )
 
 
 def apply_transforms(
