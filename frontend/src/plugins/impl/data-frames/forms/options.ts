@@ -8,6 +8,7 @@ export interface FieldOptions {
   direction?: "row" | "column";
   special?:
     | "column_id"
+    | "random_number_button"
     | "column_type"
     | "radio_group"
     | "column_filter"
@@ -33,3 +34,8 @@ export const FieldOptions = {
     }
   },
 };
+
+// Random number between 0 and 100_000
+export function randomNumber(): number {
+  return Math.floor(Math.random() * 100_000);
+}

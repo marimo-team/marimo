@@ -82,6 +82,12 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       }
       return `${dfName}[${listOfStrings(column_ids)}]`;
     }
+    case "sample_rows": {
+      const { n } = transform;
+      return `${dfName}.sample(n=${n})`;
+    }
+    case "shuffle_rows":
+      return `${dfName}.sample(frac=1)`;
 
     default:
       logNever(transform);

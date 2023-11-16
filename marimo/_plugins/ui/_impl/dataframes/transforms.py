@@ -46,6 +46,8 @@ class TransformType(Enum):
     RENAME_COLUMN = "rename_column"
     SELECT_COLUMNS = "select_columns"
     SORT_COLUMN = "sort_column"
+    SHUFFLE_ROWS = "shuffle_rows"
+    SAMPLE_ROWS = "sample_rows"
 
 
 @dataclass
@@ -106,6 +108,19 @@ class SelectColumnsTransform:
     column_ids: ColumnIds
 
 
+@dataclass
+class ShuffleRowsTransform:
+    type: Literal[TransformType.SHUFFLE_ROWS]
+    seed: int
+
+
+@dataclass
+class SampleRowsTransform:
+    type: Literal[TransformType.SAMPLE_ROWS]
+    n: int
+    seed: int
+
+
 Transform = Union[
     AggregateTransform,
     ColumnConversionTransform,
@@ -114,6 +129,8 @@ Transform = Union[
     RenameColumnTransform,
     SelectColumnsTransform,
     SortColumnTransform,
+    ShuffleRowsTransform,
+    SampleRowsTransform,
 ]
 
 

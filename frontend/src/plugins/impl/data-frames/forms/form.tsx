@@ -26,8 +26,11 @@ import {
 import { Objects } from "../../../../utils/objects";
 import { Button } from "../../../../components/ui/button";
 import { getDefaults, getUnionLiteral } from "./form-utils";
-import { PlusIcon, Trash2Icon } from "lucide-react";
-import { FieldOptions } from "@/plugins/impl/data-frames/forms/options";
+import { PlusIcon, RefreshCcw, Trash2Icon } from "lucide-react";
+import {
+  FieldOptions,
+  randomNumber,
+} from "@/plugins/impl/data-frames/forms/options";
 import { cn } from "@/utils/cn";
 import React, { useContext, useEffect } from "react";
 import {
@@ -162,6 +165,27 @@ function renderZodSchema<T extends FieldValues, S>(
       />
     );
   } else if (schema instanceof z.ZodNumber) {
+    if (special === "random_number_button") {
+      return (
+        <FormField
+          control={form.control}
+          name={path}
+          render={({ field }) => (
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={() => {
+                field.onChange(randomNumber());
+              }}
+            >
+              <RefreshCcw className="w-3.5 h-3.5 mr-1" />
+              {label}
+            </Button>
+          )}
+        />
+      );
+    }
+
     return (
       <FormField
         control={form.control}
