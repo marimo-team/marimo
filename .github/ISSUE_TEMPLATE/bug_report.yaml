@@ -16,12 +16,12 @@ body:
       placeholder: What happened?
     validations:
       required: true
-  - type: input
-    id: version
+  - type: textarea
+    id: env
     attributes:
-      label: Version
-      description: Please provide the version of marimo you are using.
-      placeholder: pip show marimo
+      label: Environment
+      description: Please paste the output of `marimo env`
+      placeholder: marimo env
     validations:
       required: true
   - type: textarea
