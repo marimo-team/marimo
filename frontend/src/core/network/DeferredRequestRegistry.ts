@@ -21,10 +21,20 @@ export class DeferredRequestRegistry<REQ, RES> {
 
   constructor(
     public operation: string,
-    private makeRequest: (id: RequestId, req: REQ) => Promise<void>
+    private makeRequest: (id: RequestId, req: REQ) => Promise<void>,
+    private opts: {
+      cancelExistingRequests: boolean;
+    } = { cancelExistingRequests: false }
   ) {}
 
   async request(opts: REQ): Promise<RES> {
+    // if (this.opts.cancelExistingRequests) {
+    //   this.requests.forEach((deferred) => {
+    //     deferred.reject(new Error("Cancelled"));
+    //   });
+    //   this.requests.clear();
+    // }
+
     const requestId = RequestId.create();
     const deferred = new Deferred<RES>();
 
