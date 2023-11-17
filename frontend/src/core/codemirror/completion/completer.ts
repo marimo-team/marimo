@@ -29,6 +29,9 @@ export async function completer(
     document: query,
     cellId: cellId,
   });
+  if (!result) {
+    return null;
+  }
 
   // If it is a tooltip, show it as a Tooltip instead of a completion
   const tooltip = Autocompleter.asHoverTooltip({

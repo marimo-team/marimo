@@ -5,6 +5,14 @@
  * This also handles NaN, Infinity, and -Infinity.
  */
 export function jsonParseWithSpecialChar<T>(value: string): T {
+  // This regex handling is expensive and often not needed.
+  // We try to parse with JSON.parse first, and if that fails, we use the regex.
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    // Do nothing
+  }
+
   // Random unicode character that is unlikely to be used in the JSON string
   const CHAR = "◐";
 
