@@ -547,3 +547,12 @@ def test_from_import() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
+
+
+def test_from_import_star() -> None:
+    expr = "from a.b.c import *"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set()
+    assert v.refs == set()
