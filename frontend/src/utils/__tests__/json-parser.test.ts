@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { expect, it } from "vitest";
-import { jsonParseWithSpecialChar } from "../json-parser";
+import { jsonParseWithSpecialChar } from "../json/json-parser";
 
 it("can jsonParseWithSpecialChar happy path", () => {
   expect(jsonParseWithSpecialChar('"hello"')).toEqual("hello");

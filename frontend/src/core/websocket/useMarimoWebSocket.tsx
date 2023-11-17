@@ -21,10 +21,10 @@ import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
-import { jsonParseWithSpecialChar } from "@/utils/json-parser";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
+import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.

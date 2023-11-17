@@ -25,13 +25,19 @@ function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
 
 export const AUTOCOMPLETER = new DeferredRequestRegistry<
   Omit<CodeCompletionRequest, "id">,
-  CompletionResultMessage
->("function-call-result", async (requestId, req) => {
-  await sendCodeCompletionRequest({
-    id: requestId,
-    ...req,
-  });
-});
+  CompletionResultMessage | null
+>(
+  "autocomplete-result",
+  async (requestId, req) => {
+    await sendCodeCompletionRequest({
+      id: requestId,
+      ...req,
+    });
+  },
+  // We don't care about previous requests
+  // so we just resolve them with an empty response.
+  { resolveExistingRequests: () => null }
+);
 
 export const Autocompleter = {
   /**
@@ -70,20 +76,7 @@ export const Autocompleter = {
     excludeTypes?: string[];
     exactName?: string;
   }): Tooltip | undefined {
-    const options = [...message.options];
-
-    let firstOption: CompletionOption | undefined;
-    // If there are no options, don't show a tooltip
-    if (options.length === 0) {
-      return undefined;
-    } else if (options.length === 1) {
-      // One option
-      firstOption = options[0];
-    } else if (exactName) {
-      // Tie break to a matching name
-      firstOption = options.find((option) => option.name === exactName);
-    }
-
+    const firstOption = getFirstOption(message.options, exactName);
     if (!firstOption) {
       return undefined;
     }
@@ -110,3 +103,19 @@ export const Autocompleter = {
     };
   },
 };
+
+function getFirstOption(
+  options: CompletionOption[],
+  tieBreak?: string
+): CompletionOption | undefined {
+  if (options.length === 0) {
+    return undefined;
+  } else if (options.length === 1) {
+    // One option
+    return options[0];
+  } else if (tieBreak) {
+    // Tie break to a matching name
+    return options.find((option) => option.name === tieBreak);
+  }
+  return undefined;
+}
