@@ -25,7 +25,7 @@ function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
 
 export const AUTOCOMPLETER = new DeferredRequestRegistry<
   Omit<CodeCompletionRequest, "id">,
-  CompletionResultMessage
+  CompletionResultMessage | null
 >(
   "autocomplete-result",
   async (requestId, req) => {
@@ -34,7 +34,9 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
       ...req,
     });
   },
-  { cancelExistingRequests: true }
+  // We don't care about previous requests
+  // so we just resolve them with an empty response.
+  { resolveExistingRequests: () => null }
 );
 
 export const Autocompleter = {

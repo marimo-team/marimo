@@ -55,6 +55,10 @@ export function useMarimoWebSocket(opts: {
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
 
   const handleMessage = async (e: MessageEvent<string>) => {
+    // Parse the message async. This uses a web worker to parse the message
+    // in a separate thread, so that we don't block the main thread / UX.
+    // This _could_ be less performant for small messages, but we can optimize
+    // later if needed.
     const msg = await asyncJSONParse<OperationMessage>(e.data);
     // const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
@@ -211,9 +215,9 @@ export function useMarimoWebSocket(opts: {
     /**
      * Message callback. Handle messages sent by the kernel.
      */
-    onMessage: (e) => {
+    onMessage: async (e) => {
       try {
-        handleMessage(e);
+        await handleMessage(e);
       } catch (error) {
         toast({
           title: "Failed to handle message",

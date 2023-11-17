@@ -33,6 +33,9 @@ export function hintTooltip() {
           document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
           cellId: cellId,
         });
+        if (!result) {
+          return null;
+        }
 
         const fullWord = view.state.doc.slice(startToken, endToken).toString();
         const tooltip = Autocompleter.asHoverTooltip({

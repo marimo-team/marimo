@@ -8,5 +8,4 @@ self.onmessage = (e: MessageEvent) => {
   const data = e.data;
   const json = jsonParseWithSpecialChar(data);
   self.postMessage(json);
-  self.close();
 };
