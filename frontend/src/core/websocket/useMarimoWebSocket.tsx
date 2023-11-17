@@ -21,7 +21,6 @@ import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
-// import { asyncJSONParse, jsonParseWithSpecialChar } from "@/utils/json-parser";
 import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
@@ -60,7 +59,6 @@ export function useMarimoWebSocket(opts: {
     // This _could_ be less performant for small messages, but we can optimize
     // later if needed.
     const msg = await asyncJSONParse<OperationMessage>(e.data);
-    // const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
         const { codes, names, layout, configs } = msg.data;
