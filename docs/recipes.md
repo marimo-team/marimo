@@ -219,7 +219,6 @@ to interpolate UI elements into it to create a new UI element batching the
 consituent ones (like `mo.ui.dictionary`).
 
 ```python
-
 # n_items, checkboxes, and texts are just placeholders: replace them
 # with the real data you want to put in the batch
 import random
