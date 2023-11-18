@@ -9,6 +9,7 @@ from typing import (
     List,
     Literal,
     Optional,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -29,7 +30,7 @@ LOGGER = _loggers.marimo_logger()
 T = TypeVar("T")
 
 Numeric = Union[int, float]
-ListOrTuple = Union[list[T], tuple[T, ...]]
+ListOrTuple = Union[List[T], Tuple[T, ...]]
 
 if TYPE_CHECKING:
     import pandas as pd
