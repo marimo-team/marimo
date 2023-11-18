@@ -93,6 +93,9 @@ Interactive UI elements like sliders are available in `marimo.ui`.
 it (`slider` or `mo.md(f"Choose a value: {slider}")`)
 - Read its current value in another cell via its `value` attribute (`slider.value`)
 
+_When a UI element bound to a global variable is interacted with, all cells
+referencing the global variable are run automatically_.
+
 If you have many UI elements or don't know the elements
 you'll create until runtime, use `marimo.ui.array` and `marimo.ui.dictionary`
 to create UI elements that wrap other UI elements (`sliders =
@@ -185,19 +188,13 @@ To reload modules, use
 [`importlib.reload()`](https://docs.python.org/3/library/importlib.html#importlib.reload):
 
 ```
-import importlib
-importlib.reload(mymodule)
-```
-
-Running this cell will reload `mymodule` with your new edits, but
-won't automatically run cells using `mymodule`. If you want cells using
-`mymodule` to re-run, use this instead:
-
-```
-import importlib
 import mymodule
+import importlib
 importlib.reload(mymodule)
 ```
+
+Running this cell will reload `mymodule` with your new edits and automatically
+re-run any cells using `mymodule`.
 
 <a name="faq-notebook-app" ></a>
 **What's the difference between a marimo notebook and a marimo app?**
