@@ -69,9 +69,10 @@ notebooks</a>.
    getting_started/index
    guides/index
    api/index
-   integrations/index
-   examples
+   recipes
    faq
+   examples
+   integrations/index
    community
 ```
 

@@ -27,7 +27,7 @@ class MarimoStopError(BaseException):
 
 @mddoc
 def stop(predicate: bool, output: Optional[object] = None) -> None:
-    """Stops execution of a cell when `predicate` is `False`
+    """Stops execution of a cell when `predicate` is `True`
 
     When `predicate` is `True`, this function raises a `MarimoStopError`. If
     uncaught, this exception stops execution of the current cell and makes
