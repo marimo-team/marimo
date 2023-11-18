@@ -75,6 +75,7 @@ export function hintTooltip() {
       blur: (event, view) => {
         // Only close tooltip, not view; blur for completion handled by
         // cell editor, so that completion text is selectable
+        // TODO: make text in cursor tooltips selectable
         clearTooltips(view);
       },
     }),
