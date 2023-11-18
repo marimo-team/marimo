@@ -200,6 +200,63 @@ dictionary
 dictionary.value
 ```
 
+### Create a batch of UI elements with custom formatting
+
+**Use cases.** When you want to batch UI elements together into a `dictionary`,
+but want custom formatting, use [`Html.batch`](api/html.md#marimo.Html.batch)
+or [`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch).
+
+**Recipe.**
+
+1. Import packages
+
+```python
+import marimo as mo
+```
+
+2. Create an HTML template, and use [`Html.batch`](api/html.md#marimo.Html.batch)
+to interpolate UI elements into it to create a new UI element batching the
+consituent ones (like `mo.ui.dictionary`).
+
+```python
+
+# n_items, checkboxes, and texts are just placeholders: replace them
+# with the real data you want to put in the batch
+import random
+n_items = random.randint(1, 10)
+checkboxes = {f"checkbox_{i}": mo.ui.checkbox() for i in range(n_items)}
+texts = {
+    f"text_{i}": mo.ui.text(placeholder="task ...") for i in range(n_items)
+}
+
+
+# a utility function
+def _brace_wrap(name) -> str:
+    return "{" + name + "}"
+
+
+# a batch is just like mo.ui.dictionary(), but lets you have custom formatting
+batch = mo.md(
+    f"""
+    Here's a TODO list of {n_items} items\n\n
+    """
+    + "\n\n".join(
+        [
+            _brace_wrap(cb) + " " + _brace_wrap(t)
+            for cb, t in zip(checkboxes.keys(), texts.keys())
+        ]
+    )
+).batch(**checkboxes, **texts)
+batch
+```
+
+3. Get the value of the batch as a Python `dict`, keyed by the names of
+the UI elements in the HTML template.
+
+```python
+batch.value
+```
+
 ### Create a form with multiple UI elements
 
 **Use cases.** Combine multiple UI elements into a form so that submission
