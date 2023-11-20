@@ -9,7 +9,8 @@ from typing import (
     List,
     Literal,
     Optional,
-    Sequence,
+    Tuple,
+    TypeVar,
     Union,
     cast,
 )
@@ -26,7 +27,10 @@ from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
+T = TypeVar("T")
+
 Numeric = Union[int, float]
+ListOrTuple = Union[List[T], Tuple[T, ...]]
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -43,9 +47,19 @@ class table(
     UIElement[List[str], Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]]
 ):
     """
-    A table component.
+    A table component with selectable rows. Get the selected rows with
+    `table.value`.
 
-    **Example.**
+    The table data can be supplied a :
+
+        1. a list of dicts, with one dict for each row, keyed by column names;
+        2. a list of values, representing a table with a single column;
+        3. a Pandas dataframe; or
+        4. a Polars dataframe.
+
+    **Examples.**
+
+    Create a table from a list of dicts, one for each row.
 
     ```python
     table = mo.ui.table(
@@ -57,29 +71,44 @@ class table(
     )
     ```
 
+    Create a table from a single column of data:
+
+    table = mo.ui.table(
+      data=[
+        {'first_name': 'Michael', 'last_name': 'Scott'},
+        {'first_name': 'Dwight', 'last_name': 'Schrute'}
+      ],
+      label='Users'
+    )
+
+    Create a table from a dataframe:
+
     ```python
     # df is a Pandas or Polars dataframe
     table = mo.ui.table(
         data=df,
         # use pagination when your table has many rows
         pagination=True,
-        label='Dataset'
+        label='Dataframe'
     )
     ```
 
+    In each case, access the table data with `table.value`.
+
     **Attributes.**
 
-    - `value`: the selected values, or `None` if no selection.
-    - `data`: the table data
+    - `value`: the selected rows, in the same format as the original data,
+       or `None` if no selection
+    - `data`: the original table data
 
     **Initialization Args.**
 
     - `data`: A pandas dataframe, a polars dataframe,
         a list of values representing a column, or a list of dicts
         where each dict represents a row in the table
-        (mapping column names to values). values can be
+        (mapping column names to values). Values can be
         primitives (`str`, `int`, `float`, `bool`, or `None`)
-        or Marimo elements: e.g.
+        or marimo elements: e.g.
         `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc.
     - `pagination`: whether to paginate; if `False`, all rows will be shown
       defaults to `True` when above 10 rows, `False` otherwise
@@ -96,9 +125,8 @@ class table(
     def __init__(
         self,
         data: Union[
-            Sequence[Union[str, int, float, bool, MIME, None]],
-            Sequence[JSONType],
-            List[JSONType],
+            ListOrTuple[Union[str, int, float, bool, MIME, None]],
+            ListOrTuple[dict[str, JSONType]],
             "pd.DataFrame",
             "pl.DataFrame",
         ],
