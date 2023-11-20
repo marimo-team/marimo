@@ -42,7 +42,7 @@
 #App .cm-tooltip.mo-cm-tooltip,
 #App .cm-tooltip.cm-completionInfo {
   max-height: 45vh; /* 45% of viewport height */
-  max-width: 80vw; /* 80% of viewport width */
+  max-width: 40vw; /* 40% of viewport width */
   overflow: auto;
 
   /* Respect newlines. */
