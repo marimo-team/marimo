@@ -37,5 +37,5 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`outputs`       | Modify cell outputs, redirect console output              |
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`html`          | Manipulate HTML objects                                   |
-| {doc}`state`         | Make stateful apps with `mo.state`                        |
+| {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
 | {doc}`debugging`     | Debugging utilities                                       |
