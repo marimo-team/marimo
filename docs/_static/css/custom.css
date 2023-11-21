@@ -82,3 +82,22 @@ figure img {
 blockquote {
   border-left-color: #1c7362;
 }
+
+details.sd-dropdown summary {
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
+}
+
+details.sd-dropdown:not([open]) > .sd-card-header {
+  /* make border more visible */
+  border: 1px solid #d7d7d7;
+}
+
+details.sd-dropdown .sd-summary-title {
+  font-weight: normal;
+}
+
+details.sd-dropdown .sd-summary-down,
+details.sd-dropdown .sd-summary-up {
+  top: 0.3em;
+}

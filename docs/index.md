@@ -68,8 +68,8 @@ notebooks</a>.
 
    getting_started/index
    guides/index
-   api/index
    recipes
+   api/index
    faq
    examples
    integrations/index
