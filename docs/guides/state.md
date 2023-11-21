@@ -1,4 +1,4 @@
-# Reactive State
+# Reactive state
 
 ```{admonition} Advanced topic!
 :class: warning

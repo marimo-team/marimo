@@ -48,6 +48,10 @@ extensions = [
     "sphinx_design",
 ]
 
+myst_enable_extensions = [
+    "colon_fence",
+]
+
 
 autoclasstoc_sections = [
     PublicMethods.key,
@@ -112,7 +116,7 @@ html_theme_options = {
             "url": "https://discord.gg/JE7nhX6mD8",
             "html": "",
             "class": "fa-brands fa-solid fa-discord fa-2x",
-        }
+        },
     ],
 }
 
@@ -125,4 +129,4 @@ pygments_dark_style = "monokai"
 def setup(app):
     # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#docstring-preprocessing
     app.connect("autodoc-process-docstring", md2rst)
-    app.add_directive('readmepart', ReadmePartDirective)
+    app.add_directive("readmepart", ReadmePartDirective)
