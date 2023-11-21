@@ -25,7 +25,7 @@ These guides cover marimo's core concepts.
 | {doc}`interactivity`  | Using interactive UI elements             |
 | {doc}`outputs`        | Markdown, plots, and other visual outputs |
 | {doc}`plotting`       | Interactive and reactive plots            |
-| {doc}`state`          | Reacting to interactions with state       |
+| {doc}`state`          | Mutable, reactive state                   |
 | {doc}`apps`           | Running notebooks as apps                 |
 | {doc}`scripts`        | Running notebooks as scripts              |
 | {doc}`best_practices` | Best practices when working with marimo   |
