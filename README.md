@@ -25,7 +25,9 @@ environment_.
 pip install marimo && marimo tutorial intro
 ```
 
-https://github.com/marimo-team/marimo/assets/1994308/61b77b27-84be-4fe1-aef9-8c5b86f4c7fc
+![marimo](https://github.com/marimo-team/marimo/assets/1994308/59cecbb4-7c4c-4b9b-baae-e98ed209c3bb)
+
+_Watch the animated GIF as a video at [this link](https://marimo.io/videos/landing/full.mp4)._
 
 When you run a cell, marimo _automatically_ runs all other cells that depend on
 it (like a spreadsheet!). This **reactivity**, along with marimo's built-in
