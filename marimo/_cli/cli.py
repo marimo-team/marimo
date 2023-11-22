@@ -383,7 +383,7 @@ def convert(ipynb: str) -> None:
     """Convert a Jupyter notebook to a marimo notebook.
 
     The argument may be either a path to a local .ipynb file,
-    or an .ipynb file hosted on Github.
+    or an .ipynb file hosted on GitHub.
 
     Example usage:
 
