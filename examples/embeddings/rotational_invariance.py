@@ -57,22 +57,22 @@ def __(E_X, degrees, mde, mo, rotated_embedding):
         Embeddings try to be faithful to the original data by minimizing
         the distortion between pairwise relationships of items, on average.
         For this embedding $X$, the average distortion is $E(X) = {E_X:0.4f}$.
-        
+
         ## Rotational Invariance
         Embeddings are _rotationally invariant_: the distortion doesn't change
         with rotation.
-        
+
         **Try it!** Rotate the embedding {degrees} degrees to
         produce a new embedding $\hat X$:
 
         \[
-        \hat X = \begin{{bmatrix}}
+        \hat X = X \begin{{bmatrix}}
             \cos({degrees.value} \degree) & -\sin({degrees.value} \degree) \\
             \sin({degrees.value} \degree) & \cos({degrees.value} \degree)
-        \end{{bmatrix}} X 
+        \end{{bmatrix}}
         \]
-        
-        
+
+
         The average distortion of the rotated embedding is $E(\hat X) = {_E_X_hat:0.4f}$,
         which should match $E(X)$!
         """
