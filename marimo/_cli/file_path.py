@@ -15,6 +15,26 @@ import click
 from marimo._utils.url import is_url
 
 
+def is_github_src(url: str, ext: str) -> bool:
+    if not is_url(url):
+        return False
+
+    hostname = urllib.parse.urlparse(url).hostname
+    if hostname != "github.com" and hostname != "raw.githubusercontent.com":
+        return False
+    path: str = urllib.parse.urlparse(url).path
+    if not path.endswith(ext):
+        return False
+    return True
+
+
+def get_github_src_url(url: str) -> str:
+    # Change hostname to raw.githubusercontent.com
+    path = urllib.parse.urlparse(url).path
+    path = path.replace("/blob/", "/", 1)
+    return f"https://raw.githubusercontent.com{path}"
+
+
 def validate_name(
     name: str, allow_new_file: bool
 ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
@@ -42,9 +62,9 @@ def validate_name(
     if path.suffix != ".py":
         raise click.UsageError("Invalid NAME - %s is not a Python file" % name)
 
-    if _is_github_py(name):
+    if is_github_src(name, ext=".py"):
         temp_dir = TemporaryDirectory()
-        return _handle_github_py(name, temp_dir), temp_dir
+        return _handle_github_src(name, temp_dir), temp_dir
 
     if is_url(name):
         return _create_tmp_file_from_url(name, temp_dir), temp_dir
@@ -91,24 +111,8 @@ def _find_python_code_in_github_issue(body: str) -> str:
     return body.split("```python")[1].rsplit("```", 1)[0]
 
 
-def _is_github_py(url: str) -> bool:
-    if not is_url(url):
-        return False
-
-    hostname = urllib.parse.urlparse(url).hostname
-    if hostname != "github.com" and hostname != "raw.githubusercontent.com":
-        return False
-    path: str = urllib.parse.urlparse(url).path
-    if not path.endswith(".py"):
-        return False
-    return True
-
-
-def _handle_github_py(url: str, temp_dir: TemporaryDirectory[str]) -> str:
-    # Change hostname to raw.githubusercontent.com
-    path = urllib.parse.urlparse(url).path
-    path = path.replace("/blob/", "/", 1)
-    url = f"https://raw.githubusercontent.com{path}"
+def _handle_github_src(url: str, temp_dir: TemporaryDirectory[str]) -> str:
+    url = get_github_src_url(url)
     path_to_app = _create_tmp_file_from_url(url, temp_dir)
     return path_to_app
 

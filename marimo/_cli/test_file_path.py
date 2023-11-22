@@ -12,7 +12,7 @@ from marimo._cli.file_path import (
     _find_python_code_in_github_issue,
     _handle_github_issue,
     _is_github_issue_url,
-    _is_github_py,
+    is_github_src,
     validate_name,
 )
 
@@ -57,12 +57,12 @@ def test_is_github_issue_url_with_valid_url() -> None:
     assert _is_github_issue_url(invalid_url) is False
 
 
-def test_is_github_py_with_valid_url() -> None:
+def test_is_github_src_with_valid_url() -> None:
     valid_url = "https://github.com/marimo-team/marimo/blob/main/example.py"
-    assert _is_github_py(valid_url) is True
+    assert is_github_src(valid_url, ext=".py") is True
 
     invalid_url = "https://github.com/marimo-team/marimo/blob/main/example.txt"
-    assert _is_github_py(invalid_url) is False
+    assert is_github_src(invalid_url, ext=".py") is False
 
 
 @patch("urllib.request.urlopen")
