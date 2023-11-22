@@ -553,6 +553,8 @@ def test_from_import_star() -> None:
     expr = "from a.b.c import *"
     v = visitor.ScopedVisitor()
     mod = ast.parse(expr)
-    v.visit(mod)
+    with pytest.raises(SyntaxError) as e:
+        v.visit(mod)
+    assert "`import *` is not allowed in marimo." in str(e)
     assert v.defs == set()
     assert v.refs == set()
