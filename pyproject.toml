@@ -62,7 +62,7 @@ dev = [
     # have the rust toolchain installed on CI
     "polars==0.19.12",
     "pytest~=7.4.0",
-    "mypy~=1.4.1",
+    "mypy~=1.7.0",
     "ruff~=0.0.275",
     # For docs
     "pypandoc~=1.11",

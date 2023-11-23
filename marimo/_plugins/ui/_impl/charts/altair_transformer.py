@@ -1,14 +1,14 @@
 # Copyright 2023 Marimo. All rights reserved.
 import json
-from typing import TYPE_CHECKING, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
 
 import marimo._output.data.data as mo_data
 
 if TYPE_CHECKING:
     import pandas as pd
 
-Data = Union[dict, "pd.DataFrame"]
-_DataType = Union[dict, "pd.DataFrame"]
+Data = Union[Dict[Any, Any], "pd.DataFrame"]
+_DataType = Union[Dict[Any, Any], "pd.DataFrame"]
 
 
 class _JsonFormatDict(TypedDict):
@@ -52,7 +52,7 @@ def _to_marimo_csv(data: Data) -> _ToCsvReturnUrlDict:
 # Copied from https://github.com/altair-viz/altair/blob/0ca83784e2455f2b84d0f6d789af2abbe8814348/altair/utils/data.py#L263C1-L288C10
 def _data_to_json_string(data: _DataType) -> str:
     """Return a JSON string representation of the input data"""
-    import altair as alt  # type: ignore[import]
+    import altair as alt  # type: ignore[import-not-found]
     import pandas as pd
 
     if isinstance(data, pd.DataFrame):

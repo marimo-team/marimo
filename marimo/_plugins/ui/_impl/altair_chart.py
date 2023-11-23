@@ -26,7 +26,7 @@ from marimo._utils import flatten
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    import altair  # type:ignore[import]
+    import altair  # type:ignore[import-not-found]
     import pandas as pd
 
 # Selection is a dictionary of the form:

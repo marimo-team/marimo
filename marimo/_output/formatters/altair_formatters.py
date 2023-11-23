@@ -13,7 +13,7 @@ class AltairFormatter(FormatterFactory):
     def register(self) -> None:
         import html
 
-        import altair  # type:ignore[import]
+        import altair  # type:ignore[import-not-found]
 
         from marimo._output import formatting
 

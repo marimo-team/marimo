@@ -12,7 +12,7 @@ class SeabornFormatter(FormatterFactory):
     def register(self) -> None:
         from typing import Any, cast
 
-        import seaborn  # type:ignore[import]
+        import seaborn  # type:ignore[import-not-found]
 
         from marimo._output import formatting
         from marimo._output.mime import MIME
