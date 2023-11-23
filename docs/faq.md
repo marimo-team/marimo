@@ -5,6 +5,7 @@
   - [How is marimo.ui different from Jupyter widgets?](#faq-widgets)
 - [Using marimo](#using-marimo)
   - [Is marimo a notebook or a library?](#faq-notebook-or-library)
+  - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
   - [How does marimo know what cells to run?](#faq-reactivity)
   - [How do I use sliders and other interactive elements?](#faq-interactivity)
   - [How do I add a submit button to UI elements?](#faq-form)
@@ -15,7 +16,7 @@
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [What packages can I use?](#faq-packages)
   - [How do I reload modules?](#faq-reload)
-  - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
+  - [How does marimo treat type annotations?](#faq-annotations)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -68,6 +69,28 @@ marimo is both a notebook and a library.
   marimo notebooks. Write markdown with `mo.md(...)`,
   create stateful interactive elements with `mo.ui` (`mo.ui.slider(...)`), and
   more. See the docs for an [API reference](https://docs.marimo.io/api/).
+
+<a name="faq-notebook-app" ></a>
+**What's the difference between a marimo notebook and a marimo app?**
+
+marimo programs are notebooks, apps, or both, depending on how you use them.
+
+There are two ways to interact with a marimo program:
+
+1. open it as a computational _notebook_ with `marimo edit`
+2. run it as an interactive _app_ with `marimo run`
+
+All marimo programs start as notebooks, since they are created with `marimo
+edit`. Because marimo notebooks are reactive and have built-in interactive
+elements, many can easily be made into useful and beautiful apps by simply
+hiding the notebook code: this is what `marimo run` does.
+
+Not every notebook needs to be run as an app — marimo notebooks are useful in
+and of themselves for rapidly exploring data and doing reproducible science.
+And not every app is improved by interacting with the notebook. In some
+settings, such as collaborative research, education, and technical
+presentations, going back and forth between the notebook view and app view
+(which you can do from `marimo edit`) can be useful!
 
 <a name="faq-reactivity" ></a>
 **How does marimo know what cells to run?**
@@ -196,12 +219,32 @@ importlib.reload(mymodule)
 Running this cell will reload `mymodule` with your new edits and automatically
 re-run any cells using `mymodule`.
 
-<a name="faq-notebook-app" ></a>
-**What's the difference between a marimo notebook and a marimo app?**
+<a name="faq-annotations"></a>
+**How does marimo treat type annotations?**
 
-You can think of marimo programs as notebooks, apps, or both. Edit a marimo
-program as notebook with `marimo edit`, or run it as an app, rendering cell
-outputs with code hidden, with `marimo run`.
+Type annotations are registered as references of a cell, unless they
+are explicitly written as strings. This helps ensure correctness of code that
+depends on type annotations at runtime (_e.g._, Pydantic), while still
+providing a way to omit annotations from affecting dataflow graph.
+
+
+For example, in
+
+```python
+x: A = ...
+```
+
+`A` is treated as a reference, used in determining the dataflow graph, but
+in
+
+```python
+x: "A" = ...
+```
+
+`A` isn't made a reference.
+
+For Python 3.12+, marimo additionally implements annotation scoping.
+
 
 <a name="faq-app-deploy" ></a>
 **How do I deploy apps?**
