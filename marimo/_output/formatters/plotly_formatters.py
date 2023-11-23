@@ -14,8 +14,8 @@ class PlotlyFormatter(FormatterFactory):
         return "plotly"
 
     def register(self) -> None:
-        import plotly.graph_objects  # type:ignore[import-not-found]
-        import plotly.io  # type:ignore[import-not-found]
+        import plotly.graph_objects  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import plotly.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
 

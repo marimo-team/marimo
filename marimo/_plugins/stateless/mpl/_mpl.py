@@ -153,7 +153,7 @@ class MplApplication(tornado.web.Application):
                 self.write_message(data_uri)
 
     def __init__(self, figure: Any) -> None:
-        import matplotlib as mpl  # type: ignore[import-not-found]
+        import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         from matplotlib.backends.backend_webagg import (
             FigureManagerWebAgg,
             new_figure_manager_given_figure,
@@ -234,7 +234,9 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     """
     # No top-level imports of matplotlib, since it isn't a required
     # dependency
-    from matplotlib.axes import Axes  # type: ignore[import-not-found]
+    from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        Axes,
+    )
 
     if isinstance(figure, Axes):
         figure = figure.get_figure()

@@ -42,3 +42,12 @@ def test_nested_dict() -> None:
     outer._update({"inner": {"slider": 7}})
     assert outer.value == {"inner": {"slider": 7}}
     assert inner.value == {"slider": 1}
+
+
+def test_update_on_frontend_value_change_only() -> None:
+    d = ui.dictionary({"0": ui.button(value=0, on_click=lambda v: v + 1)})
+    # Multiple updates with the same value -- should only register once
+    d._update({"0": 2})
+    d._update({"0": 2})
+    d._update({"0": 2})
+    assert d.value == {"0": 1}

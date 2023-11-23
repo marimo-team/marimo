@@ -52,7 +52,7 @@ def _to_marimo_csv(data: Data) -> _ToCsvReturnUrlDict:
 # Copied from https://github.com/altair-viz/altair/blob/0ca83784e2455f2b84d0f6d789af2abbe8814348/altair/utils/data.py#L263C1-L288C10
 def _data_to_json_string(data: _DataType) -> str:
     """Return a JSON string representation of the input data"""
-    import altair as alt  # type: ignore[import-not-found]
+    import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
     import pandas as pd
 
     if isinstance(data, pd.DataFrame):
