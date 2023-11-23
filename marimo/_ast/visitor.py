@@ -154,6 +154,13 @@ class ScopedVisitor(ast.NodeVisitor):
             self.visit(node.value)
             self.visit(node.key)
             self._pop_block()
+        elif sys.version_info >= (3, 12) and isinstance(node, ast.TypeAlias):
+            self.visit(node.name)
+            self._push_block(is_comprehension=False)
+            for t in node.type_params:
+                self.visit(t)
+            self.visit(node.value)
+            self._pop_block()
         else:
             # Other nodes that don't introduce a new scope
             super().generic_visit(node)
@@ -338,3 +345,22 @@ class ScopedVisitor(ast.NodeVisitor):
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
                 self._define(node.name)
+
+    if sys.version_info >= (3, 12):
+
+        def visit_TypeVar(self, node: ast.TypeVar) -> None:
+            # node.name is a str, not an ast.Name node
+            self._define(node.name)
+            if isinstance(node.bound, tuple):
+                for name in node.bound:
+                    self.visit(name)
+            elif node.bound is not None:
+                self.visit(node.bound)
+
+        def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
+            # node.name is a str, not an ast.Name node
+            self._define(node.name)
+
+        def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
+            # node.name is a str, not an ast.Name node
+            self._define(node.name)

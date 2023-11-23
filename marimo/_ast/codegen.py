@@ -5,7 +5,7 @@ import builtins
 import importlib.util
 import json
 from collections.abc import Sequence
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
@@ -226,4 +226,8 @@ def recover(filename: str) -> str:
             ]
         )
     )
-    return generate_filecontents(codes, names, configs)
+    return generate_filecontents(
+        cast(list[str], codes),
+        cast(list[str], names),
+        cast(list[CellConfig], configs),
+    )
