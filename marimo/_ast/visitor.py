@@ -293,6 +293,11 @@ class ScopedVisitor(ast.NodeVisitor):
     # that needs to be tracked?
     # Import and ImportFrom statements have symbol names in alias nodes
     def visit_alias(self, node: ast.alias) -> None:
+        """Visiting names in import statements
+
+        NB: We disallow `import *` because Python only allows
+        star imports at module-level, but we store cells as functions.
+        """
         if node.asname is None:
             # imported name, no "as" clause; examples:
             #   import [a.b.c] - we define a
@@ -302,8 +307,16 @@ class ScopedVisitor(ast.NodeVisitor):
             # Note:
             # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
-            if basename != "*":
-                self._define(basename)
+            if basename == "*":
+                line = (
+                    f"line {node.lineno}"
+                    if hasattr(node, "lineno")
+                    else "line ..."
+                )
+                raise SyntaxError(
+                    f"{line} SyntaxError: `import *` is not allowed in marimo."
+                )
+            self._define(basename)
         else:
             node.asname = self._if_local_then_mangle(node.asname)
             self._define(node.asname)
