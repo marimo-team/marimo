@@ -558,6 +558,7 @@ def test_from_import_star() -> None:
     assert v.refs == set()
 
 
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_alias_scoped() -> None:
     expr = "type alias[T] = list[T]"
     v = visitor.ScopedVisitor()
@@ -568,6 +569,7 @@ def test_type_alias_scoped() -> None:
     assert v.refs == set(["list"])
 
 
+@pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_var_generic_class() -> None:
     expr = cleandoc(
         """

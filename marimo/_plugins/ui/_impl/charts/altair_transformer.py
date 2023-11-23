@@ -1,14 +1,14 @@
 # Copyright 2023 Marimo. All rights reserved.
 import json
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
 
 import marimo._output.data.data as mo_data
 
 if TYPE_CHECKING:
     import pandas as pd
 
-Data = Union[dict[Any, Any], "pd.DataFrame"]
-_DataType = Union[dict[Any, Any], "pd.DataFrame"]
+Data = Union[Dict[Any, Any], "pd.DataFrame"]
+_DataType = Union[Dict[Any, Any], "pd.DataFrame"]
 
 
 class _JsonFormatDict(TypedDict):
