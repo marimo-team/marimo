@@ -104,7 +104,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
             for k, v in value.items():
                 element = self._elements[int(k)]
                 # only call update if the value has changed
-                if element and element._value_frontend != v:
+                if element._value_frontend != v:
                     element._update(v)
         return [e._value for e in self._elements]
 

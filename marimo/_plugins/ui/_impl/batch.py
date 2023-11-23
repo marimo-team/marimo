@@ -49,7 +49,10 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
     def _convert_value(self, value: dict[str, JSONType]) -> dict[str, object]:
         if self._initialized:
             for k, v in value.items():
-                self._elements[k]._update(v)
+                element = self._elements[k]
+                # only call update if the value has changed
+                if element._value_frontend != v:
+                    element._update(v)
         return {
             key: wrapped_element._value
             for key, wrapped_element in self._elements.items()
