@@ -308,9 +308,13 @@ class ScopedVisitor(ast.NodeVisitor):
             # Don't mangle - user has no control over package name
             basename = node.name.split(".")[0]
             if basename == "*":
-                raise SyntaxError(
+                line = (
                     f"line {node.lineno}"
-                    " SyntaxError: `import *` is not allowed in marimo."
+                    if hasattr(node, "lineno")
+                    else "line ..."
+                )
+                raise SyntaxError(
+                    f"{line} SyntaxError: `import *` is not allowed in marimo."
                 )
             self._define(basename)
         else:
