@@ -12,8 +12,8 @@ from typing import Optional
 
 import click
 
-from marimo._utils.url import is_url
 from marimo._cli.print import green
+from marimo._utils.url import is_url
 
 
 def is_github_src(url: str, ext: str) -> bool:
@@ -61,7 +61,7 @@ def validate_name(
 
     path = pathlib.Path(name)
     if path.suffix == ".ipynb":
-        prefix = str(path)[:-len(".ipynb")]
+        prefix = str(path)[: -len(".ipynb")]
         raise click.UsageError(
             f"Invalid NAME - {name} is not a Python file.\n\n"
             f"  {green('Tip:')} Convert {name} to a marimo notebook with\n\n"
