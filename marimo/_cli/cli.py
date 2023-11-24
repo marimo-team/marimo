@@ -89,12 +89,12 @@ main_help_msg = "\n".join(
                     "create a notebook",
                 ),
                 (
-                    "marimo edit app.py",
-                    "create or edit a notebook called app.py",
+                    "marimo edit notebook.py",
+                    "create or edit a notebook called notebook.py",
                 ),
                 (
-                    "marimo run app.py",
-                    "run as a read-only app",
+                    "marimo run notebook.py",
+                    "run a notebook as a read-only app",
                 ),
                 (
                     "marimo tutorial --help",
@@ -154,7 +154,7 @@ edit_help_msg = "\n".join(
                     "marimo edit",
                     "Create a new notebook",
                 ),
-                ("marimo edit app.py", "Create or edit app.py"),
+                ("marimo edit notebook.py", "Create or edit notebook.py"),
             ]
         ),
     ]
@@ -218,14 +218,14 @@ def edit(
 
 
 @main.command(
-    help="""Run as an app in read-only mode.
+    help="""Run a notebook as an app in read-only mode.
 
-If NAME is a url, the app will be downloaded to a temporary file.
+If NAME is a url, the notebook will be downloaded to a temporary file.
 
 Example:
 
   \b
-  * marimo run your_app.py
+  * marimo run notebook.py
 """
 )
 @click.option(
@@ -283,8 +283,8 @@ def recover(name: str) -> None:
 @main.command(
     help="""Open a tutorial.
 
-marimo is a powerful library for building interactive experiments
-and dataflow apps. To get the most out of marimo, get started with a few
+marimo is a powerful library for making reactive notebooks
+and apps. To get the most out of marimo, get started with a few
 tutorials, starting with the intro:
 
     \b
@@ -387,11 +387,11 @@ def convert(ipynb: str) -> None:
 
     Example usage:
 
-        marimo convert your_nb.ipynb > your_app.py
+        marimo convert your_nb.ipynb > your_nb.py
 
-    After conversion, you can open the app in the editor:
+    After conversion, you can open the notebook in the editor:
 
-        marimo edit your_app.py
+        marimo edit your_nb.py
 
     Since marimo is different from traditional notebooks, once in the editor,
     you may need to fix errors like multiple definition errors or cycle
