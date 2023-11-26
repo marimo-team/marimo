@@ -155,6 +155,9 @@ dependencies:
   '@uiw/react-codemirror':
     specifier: ^4.21.20
     version: 4.21.20(@babel/runtime@7.22.5)(@codemirror/autocomplete@6.10.2)(@codemirror/language@6.9.2)(@codemirror/lint@6.4.2)(@codemirror/search@6.5.4)(@codemirror/state@6.3.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.22.0)(codemirror@6.0.1)(react-dom@18.2.0)(react@18.2.0)
+  blob-polyfill:
+    specifier: ^7.0.20220408
+    version: 7.0.20220408
   class-variance-authority:
     specifier: ^0.7.0
     version: 0.7.0
@@ -313,9 +316,6 @@ devDependencies:
   '@types/lodash-es':
     specifier: ^4.17.10
     version: 4.17.10
-  '@types/node':
-    specifier: ^20.8.10
-    version: 20.8.10
   '@types/react':
     specifier: ^18.2.36
     version: 18.2.36
@@ -7702,6 +7702,10 @@ packages:
       inherits: 2.0.4
       readable-stream: 3.6.0
     dev: true
+
+  /blob-polyfill@7.0.20220408:
+    resolution: {integrity: sha512-oD8Ydw+5lNoqq+en24iuPt1QixdPpe/nUF8azTHnviCZYu9zUC+TwdzIp5orpblJosNlgNbVmmAb//c6d6ImUQ==}
+    dev: false
 
   /body-parser@1.20.1:
     resolution: {integrity: sha512-jWi7abTbYwajOytWCQc37VulmWiRae5RyTpaCyDcS5/lMdtwSz5lOpDE67srw/HYe35f1z3fDQw+3txg7gNtWw==}

@@ -10,6 +10,9 @@ import { reportVitals } from "./utils/vitals";
 import { Provider } from "jotai";
 import { store } from "./core/state/jotai";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
+import { patchFetch, patchVegaLoader } from "./core/static/files";
+import { isStaticNotebook } from "./core/static/static-state";
+import { vegaLoader } from "./plugins/impl/vega/loader";
 
 maybeRegisterVSCodeBindings();
 
@@ -30,6 +33,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_MSW) {
       }
     },
   });
+}
+
+// If we're in static mode, we need to patch fetch to use the virtual file
+if (isStaticNotebook()) {
+  patchFetch();
+  patchVegaLoader(vegaLoader);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion, ssr-friendly/no-dom-globals-in-module-scope

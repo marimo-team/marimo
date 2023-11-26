@@ -69,6 +69,11 @@ describe("download-html", () => {
         },
         cellRuntime: { [cellId]: createCellRuntimeState() },
       },
+      files: {
+        "/@file/note.txt": {
+          base64: "data:text/plain;base64,bm90ZQo=",
+        },
+      },
       assetUrl: `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`,
       filename: "app",
       existingDocument: new JSDOM(DOC).window.document,

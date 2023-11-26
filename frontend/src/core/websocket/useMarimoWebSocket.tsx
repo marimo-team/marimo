@@ -25,6 +25,7 @@ import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { VirtualFileTracker } from "../static/virtual-file-tracker";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -128,6 +129,7 @@ export function useMarimoWebSocket(opts: {
         // if the same cell-id is later reused for another element.
         const { cell_id } = msg.data;
         UI_ELEMENT_REGISTRY.removeElementsByCell(cell_id);
+        VirtualFileTracker.INSTANCE.removeForCellId(cell_id);
         return;
       }
       case "completion-result":
@@ -146,6 +148,7 @@ export function useMarimoWebSocket(opts: {
          */
         const body = msg.data;
         handleCellMessage({ cellId: body.cell_id, message: body });
+        VirtualFileTracker.INSTANCE.track(body);
         return;
       }
       case "variables":

@@ -1,6 +1,8 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { NotebookState, getNotebook } from "../cells/cells";
 import { getMarimoVersion } from "../dom/marimo-tag";
+import { downloadVirtualFiles } from "./files";
+import { StaticVirtualFiles } from "./types";
 
 // For Testing:
 // Flip this to true to use local assets instead of CDN
@@ -10,7 +12,7 @@ const ENABLE_LOCAL_ASSETS = false;
 /**
  * Downloads the current notebook as an HTML file.
  */
-export function downloadAsHTML(opts: { filename?: string }) {
+export async function downloadAsHTML(opts: { filename?: string }) {
   const { filename } = opts;
   const notebook = getNotebook();
   const version = getMarimoVersion();
@@ -26,6 +28,7 @@ export function downloadAsHTML(opts: { filename?: string }) {
     assetUrl: assetUrl,
     filename: filename || "notebook",
     existingDocument: document,
+    files: await downloadVirtualFiles(),
   });
 
   const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
@@ -43,9 +46,10 @@ export function constructHTML(opts: {
   notebookState: Pick<NotebookState, "cellIds" | "cellData" | "cellRuntime">;
   assetUrl: string;
   filename: string;
+  files: StaticVirtualFiles;
   existingDocument: Document;
 }) {
-  const { version, notebookState, assetUrl, existingDocument } = opts;
+  const { version, notebookState, assetUrl, existingDocument, files } = opts;
 
   const staticHead = existingDocument.head.cloneNode(true) as HTMLHeadElement;
 
@@ -85,6 +89,7 @@ export function constructHTML(opts: {
           cellRuntime: notebookState.cellRuntime,
         })};
         window.__MARIMO_STATIC__.assetUrl = "${assetUrl}";
+        window.__MARIMO_STATIC__.files = ${JSON.stringify(files)};
       </script>
     </body>
   </html>

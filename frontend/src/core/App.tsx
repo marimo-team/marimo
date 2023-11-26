@@ -55,6 +55,7 @@ import { useAtom } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
+import { isStaticNotebook } from "./static/static-state";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -196,6 +197,10 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   });
 
   useWindowEventListener("beforeunload", (e: BeforeUnloadEvent) => {
+    if (isStaticNotebook()) {
+      return;
+    }
+
     if (needsSave) {
       e.preventDefault();
       return (e.returnValue =

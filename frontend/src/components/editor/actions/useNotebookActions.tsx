@@ -51,8 +51,9 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
       label: "Export as HTML",
       hidden: !getFeatureFlag("static_export"),
-      handle: () => {
-        return downloadAsHTML({ filename: filename || "notebook.html" });
+      handle: async () => {
+        await downloadAsHTML({ filename: filename || "notebook.html" });
+        return;
       },
     },
     {

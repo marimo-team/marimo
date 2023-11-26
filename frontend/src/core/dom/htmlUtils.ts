@@ -3,6 +3,7 @@ import { assertExists } from "@/utils/assertExists";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
+import { UIElementId } from "../cells/ids";
 
 /**
  * Parse an attribute value as JSON.
@@ -25,7 +26,9 @@ export function parseDataset(element: HTMLElement): Record<string, unknown> {
  */
 export function parseInitialValue<T>(element: HTMLElement): T {
   // If parent is a <marimo-ui-element/> and has object-id, use that as the initialize the value
-  const objectId = element.parentElement?.getAttribute("object-id");
+  const objectId = element.parentElement
+    ? UIElementId.parse(element.parentElement)
+    : undefined;
   if (objectId && UI_ELEMENT_REGISTRY.has(objectId)) {
     return UI_ELEMENT_REGISTRY.lookupValue(objectId) as T;
   }
