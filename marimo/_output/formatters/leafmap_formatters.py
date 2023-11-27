@@ -12,7 +12,7 @@ class LeafmapFormatter(FormatterFactory):
         return "leafmap"
 
     def register(self) -> None:
-        import leafmap
+        import leafmap  # type: ignore[import-not-found]
 
         from marimo._output import formatting
 
