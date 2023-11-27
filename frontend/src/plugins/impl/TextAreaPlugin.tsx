@@ -14,6 +14,7 @@ interface Data {
   maxLength?: number;
   minLength?: number;
   disabled?: boolean;
+  rows: number;
   fullWidth: boolean;
 }
 
@@ -27,6 +28,7 @@ export class TextAreaPlugin implements IPlugin<T, Data> {
     maxLength: z.number().optional(),
     minLength: z.number().optional(),
     disabled: z.boolean().optional(),
+    rows: z.number().default(4),
     fullWidth: z.boolean().default(false),
   });
 
@@ -59,7 +61,7 @@ const TextAreaComponent = (props: TextAreaComponentProps) => {
         className={cn("font-code", {
           "w-full": props.fullWidth,
         })}
-        rows={5}
+        rows={props.rows}
         cols={33}
         maxLength={props.maxLength}
         minLength={props.minLength}
