@@ -22,7 +22,7 @@ def __(mo):
 
 @app.cell
 def __(leafmap):
-    m = leafmap.Map(center=(40, -100), zoom=4)
+    m = leafmap.Map(center=(40, -100), zoom=4, height="400px")
     m.add_basemap("HYBRID")
     m.add_basemap("Esri.NatGeoWorldMap")
     m.add_tile_layer(

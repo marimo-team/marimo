@@ -20,7 +20,9 @@ class LeafmapFormatter(FormatterFactory):
         def _show_dataframe(lmap: leafmap.Map) -> tuple[str, str]:
             # 540px is the pixel height that makes the map fit in the
             # notebook without scrolling
-            html = mo_data.html(lmap.to_html(height="540px"))
+            height = lmap.layout.height or "540px"
+            width = lmap.layout.width or "100%"
+            html = mo_data.html(lmap.to_html(width=width, height=height))
             return (
                 "text/html",
                 (
