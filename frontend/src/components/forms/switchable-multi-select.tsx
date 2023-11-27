@@ -104,6 +104,7 @@ export const TextAreaMultiSelect: React.FC<{
     <Textarea
       value={valueAsArray.join(DELIMINATOR)}
       className={className}
+      rows={4}
       onChange={(e) => {
         if (e.target.value === "") {
           onChange([]);
