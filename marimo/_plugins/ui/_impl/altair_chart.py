@@ -196,7 +196,11 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
                 f"{type(chart)}; expected altair.Chart"
             )
 
-        if isinstance(chart, (alt.Chart, alt.LayerChart)):
+        # Make full-width if no width is specified
+        if (
+            isinstance(chart, (alt.Chart, alt.LayerChart))
+            and chart.width is alt.Undefined
+        ):
             chart = chart.properties(width="container")
 
         vega_spec = _parse_spec(chart)

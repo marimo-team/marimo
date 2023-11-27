@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.50"
+__generated_with = "0.1.59"
 app = marimo.App(width="full")
 
 
@@ -139,6 +139,34 @@ def __(mo):
 @app.cell
 def __(chart2, mo):
     mo.vstack([chart2, chart2.value.head(10)])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Defined Width + Height")
+    return
+
+
+@app.cell
+def __(alt, iris, mo):
+    _chart = (
+        alt.Chart(iris)
+        .mark_circle()
+        .properties(width=600, height=400)
+        .encode(
+            alt.X("sepalLength", scale=alt.Scale(zero=False)),
+            alt.Y("sepalWidth", scale=alt.Scale(zero=False)),
+            color="species",
+            size="petalWidth",
+        )
+    )
+
+    mo.ui.altair_chart(
+        _chart,
+        chart_selection=None,
+        legend_selection=None,
+    )
     return
 
 
