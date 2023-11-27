@@ -45,6 +45,7 @@ const props: CellProps = {
   userConfig: {
     completion: {
       activate_on_typing: true,
+      activate_on_hover: true,
       copilot: false,
     },
     save: {

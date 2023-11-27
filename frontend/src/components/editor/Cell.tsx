@@ -320,6 +320,7 @@ const CellComponent = (
     reading,
     cellId,
     userConfig.completion.activate_on_typing,
+    userConfig.completion.activate_on_hover,
     userConfig.keymap,
     theme,
     showPlaceholder,

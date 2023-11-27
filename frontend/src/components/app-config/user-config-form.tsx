@@ -147,6 +147,30 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
+            name="completion.activate_on_hover"
+            render={({ field }) => (
+              <div className="flex flex-col space-y-1">
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) => {
+                        return field.onChange(Boolean(checked));
+                      }}
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal">
+                    Hover documentation
+                  </FormLabel>
+                </FormItem>
+                <FormDescription>
+                  Whether to show documentation when hovering over code.
+                </FormDescription>
+              </div>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="keymap.preset"
             render={({ field }) => (
               <FormItem>

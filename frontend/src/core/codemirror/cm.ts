@@ -149,7 +149,7 @@ export const basicBundle = (
       closeOnBlur: false,
       override: [completer],
     }),
-    hintTooltip(),
+    completionConfig.activate_on_hover ? hintTooltip() : [],
     copilotBundle(),
     foldGutter(),
     closeBrackets(),

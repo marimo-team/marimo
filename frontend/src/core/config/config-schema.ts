@@ -10,6 +10,7 @@ export const UserConfigSchema = z
   .object({
     completion: z.object({
       activate_on_typing: z.boolean(),
+      activate_on_hover: z.boolean(),
       copilot: z.boolean(),
     }),
     save: z.object({

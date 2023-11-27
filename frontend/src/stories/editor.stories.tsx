@@ -61,7 +61,11 @@ export const Primary: Story = {
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
         extensions={basicBundle(
-          { activate_on_typing: false, copilot: false },
+          {
+            activate_on_typing: false,
+            activate_on_hover: true,
+            copilot: false,
+          },
           ctx.globals.theme
         )}
       />

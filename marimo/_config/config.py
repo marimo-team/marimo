@@ -26,10 +26,13 @@ class CompletionConfig(TypedDict, total=False):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
+    - `activate_on_hover`: if `False`, hover tooltips won't activate
     - `copilot`: if `True`, enable the GitHub Copilot language server
     """
 
     activate_on_typing: bool
+
+    activate_on_hover: bool
 
     copilot: bool
 
@@ -131,7 +134,11 @@ class MarimoConfig(TypedDict, total=False):
 
 
 DEFAULT_CONFIG: MarimoConfig = {
-    "completion": {"activate_on_typing": True, "copilot": False},
+    "completion": {
+        "activate_on_typing": True,
+        "activate_on_hover": True,
+        "copilot": False,
+    },
     "display": {"theme": "light"},
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},
