@@ -390,7 +390,7 @@ class text_area(UIElement[str, str]):
     - `placeholder`: placeholder text to display when the text area is empty
     - `max_length`: maximum length of input
     - `disabled`: whether the input is disabled
-    - `rows`: number of rows to display
+    - `rows`: number of rows of text to display
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
