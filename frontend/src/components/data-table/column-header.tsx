@@ -1,6 +1,12 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { Column } from "@tanstack/react-table";
-import { ChevronsUpDown, SortAsc, SortDesc } from "lucide-react";
+import { Column, sortingFns } from "@tanstack/react-table";
+import {
+  ChevronsUpDown,
+  ArrowDownNarrowWideIcon,
+  ArrowDownWideNarrowIcon,
+  ArrowDown10Icon,
+  ArrowDown01Icon,
+} from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
@@ -27,6 +33,12 @@ export const DataTableColumnHeader = <TData, TValue>({
     return <div className={cn(className)}>{title}</div>;
   }
 
+  const sortFn = column.getSortingFn();
+  const AscIcon =
+    sortFn === sortingFns.basic ? ArrowDown01Icon : ArrowDownNarrowWideIcon;
+  const DescIcon =
+    sortFn === sortingFns.basic ? ArrowDown10Icon : ArrowDownWideNarrowIcon;
+
   return (
     <div className={cn("flex items-center space-x-2", className)}>
       <span>{title}</span>
@@ -38,9 +50,9 @@ export const DataTableColumnHeader = <TData, TValue>({
             className="ml-3 h-5 data-[state=open]:bg-accent m-0 p-1"
           >
             {column.getIsSorted() === "desc" ? (
-              <SortDesc className="h-3 w-3" />
+              <DescIcon className="h-3 w-3" />
             ) : column.getIsSorted() === "asc" ? (
-              <SortAsc className="h-3 w-3" />
+              <AscIcon className="h-3 w-3" />
             ) : (
               <ChevronsUpDown className="h-3 w-3" />
             )}
@@ -48,11 +60,11 @@ export const DataTableColumnHeader = <TData, TValue>({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <SortAsc className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
             Asc
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <SortDesc className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+            <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
             Desc
           </DropdownMenuItem>
           {column.getIsSorted() && (

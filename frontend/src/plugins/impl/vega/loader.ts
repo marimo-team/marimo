@@ -5,7 +5,10 @@ import { DataFormat } from "./types";
 
 export const vegaLoader = createLoader();
 
-export function vegaLoadData(url: string, format: DataFormat | undefined) {
+export function vegaLoadData(
+  url: string,
+  format: DataFormat | undefined | { type: "csv"; parse: "auto" }
+) {
   return vegaLoader.load(url).then((csvData: string) => {
     // csv -> json
     return read(csvData, format);

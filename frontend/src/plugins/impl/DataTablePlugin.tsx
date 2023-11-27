@@ -90,7 +90,7 @@ export const LoadingDataTableComponent = (
     if (!props.data) {
       return Promise.resolve([]);
     }
-    return vegaLoadData(props.data, { type: "csv" });
+    return vegaLoadData(props.data, { type: "csv", parse: "auto" });
   }, [props.data]);
 
   if (loading && !data) {
