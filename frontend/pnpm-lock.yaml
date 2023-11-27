@@ -207,8 +207,8 @@ dependencies:
     specifier: ^0.292.0
     version: 0.292.0(react@18.2.0)
   partysocket:
-    specifier: 0.0.14
-    version: 0.0.14
+    specifier: 0.0.16
+    version: 0.0.16
   plotly.js:
     specifier: ^2.27.0
     version: 2.27.0
@@ -12553,8 +12553,8 @@ packages:
     engines: {node: '>= 0.8'}
     dev: true
 
-  /partysocket@0.0.14:
-    resolution: {integrity: sha512-8B+1rsiUkZv2i8jOVlyo55RbsRVIpalg7jHnsu/dKdXnxTZ8u5sVx+C7VhOHhqCVArPliN4ssSL61CYVl+Ap0Q==}
+  /partysocket@0.0.16:
+    resolution: {integrity: sha512-Ki/DdL3ANCKRUCxZb11QrtlQaNpTaDpGKsnDfDEm9jDm5FUS7CKvq3j+HsZbddF55OTZ0WgWBTTSSIh309otzw==}
     dev: false
 
   /path-exists@3.0.0:
