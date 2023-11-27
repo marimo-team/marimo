@@ -81,6 +81,9 @@ exports[`download-html > should construct html correctly 1`] = `
       };
       window.__MARIMO_STATIC__.assetUrl =
         \\"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.44/dist\\";
+      window.__MARIMO_STATIC__.files = {
+        \\"/@file/note.txt\\": { base64: \\"data:text/plain;base64,bm90ZQo=\\" },
+      };
     </script>
 
     <script

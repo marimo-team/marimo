@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { repl } from "../../utils/repl";
+import { CellId, UIElementId } from "../cells/ids";
 import {
   ValueType,
   marimoValueUpdateEvent,
@@ -27,11 +28,17 @@ export class UIElementRegistry {
   // maps UIElement objectIds to entries.
   entries: Map<string, UIElementEntry>;
 
-  constructor() {
+  /**
+   * Shared instance of UIElementRegistry since this must be a singleton.
+   */
+  static readonly INSTANCE = new UIElementRegistry();
+
+  private constructor() {
+    repl(UIElementRegistry.INSTANCE, "UIElementRegistry");
     this.entries = new Map();
   }
 
-  has(objectId: string): boolean {
+  has(objectId: UIElementId): boolean {
     return this.entries.has(objectId);
   }
 
@@ -41,7 +48,7 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @param instance - the HTMLElement that the UIElement wraps
    */
-  registerInstance(objectId: string, instance: HTMLElement) {
+  registerInstance(objectId: UIElementId, instance: HTMLElement) {
     const entry = this.entries.get(objectId);
     if (entry === undefined) {
       this.entries.set(objectId, {
@@ -64,7 +71,7 @@ export class UIElementRegistry {
    * @param instance - the HTMLElement to remove
    *
    */
-  removeInstance(objectId: string, instance: HTMLElement) {
+  removeInstance(objectId: UIElementId, instance: HTMLElement) {
     const entry = this.entries.get(objectId);
     // The UIElement can be removed from the registry before all
     // instances are removed: UIElement removal is triggered
@@ -84,7 +91,7 @@ export class UIElementRegistry {
    *
    * @param cellId - stringified cellId
    */
-  removeElementsByCell(cellId: string) {
+  removeElementsByCell(cellId: CellId) {
     const objectIds = [...this.entries.keys()].filter((objectId) =>
       objectId.startsWith(`${cellId}-`)
     );
@@ -117,7 +124,7 @@ export class UIElementRegistry {
    */
   broadcastValueUpdate(
     initiator: HTMLElement,
-    objectId: string,
+    objectId: UIElementId,
     value: ValueType
   ): void {
     const entry = this.entries.get(objectId);
@@ -148,5 +155,4 @@ export class UIElementRegistry {
   }
 }
 
-export const UI_ELEMENT_REGISTRY = new UIElementRegistry();
-repl(UI_ELEMENT_REGISTRY, "UI_ELEMENT_REGISTRY");
+export const UI_ELEMENT_REGISTRY = UIElementRegistry.INSTANCE;

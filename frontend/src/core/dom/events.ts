@@ -1,4 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { UIElementId } from "../cells/ids";
+
 export type ValueType = unknown;
 
 export type MarimoValueInputEventType = CustomEvent<{
@@ -13,7 +15,7 @@ export type MarimoValueUpdateEventType = CustomEvent<{
 }>;
 export const marimoValueUpdateEvent = "marimo-value-update";
 
-export type MarimoValueReadyEventType = CustomEvent<{ objectId: string }>;
+export type MarimoValueReadyEventType = CustomEvent<{ objectId: UIElementId }>;
 export const marimoValueReadyEvent = "marimo-value-ready";
 
 /**

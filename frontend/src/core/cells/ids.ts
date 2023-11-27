@@ -49,3 +49,18 @@ export const HTMLCellId = {
     return element.closest('div[id^="cell-"]');
   },
 };
+
+/**
+ * A typed UIElementId
+ */
+export type UIElementId = `${CellId}-${string}`;
+export const UIElementId = {
+  parse(element: Element): UIElementId | null {
+    return element.getAttribute("object-id") as UIElementId | null;
+  },
+  parseOrThrow(element: Element): UIElementId {
+    const id = UIElementId.parse(element);
+    invariant(id, "<marimo-ui-element/> missing object-id attribute");
+    return id;
+  },
+};

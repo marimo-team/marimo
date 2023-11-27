@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { Logger } from "../../utils/Logger";
 import { Functions } from "../../utils/functions";
+import { UIElementId } from "../cells/ids";
 import { defineCustomElement } from "./defineCustomElement";
 import { MarimoValueInputEventType, marimoValueInputEvent } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
@@ -83,7 +84,7 @@ export function initializeUIElement() {
         return;
       }
 
-      const objectId = this.getAttribute("object-id");
+      const objectId = UIElementId.parseOrThrow(this);
       this.inputListener = (e: MarimoValueInputEventType) => {
         // TODO: just fill in the objectId and let the document handle
         // broadcast? that would still let other elements cancel the event
@@ -122,7 +123,7 @@ export function initializeUIElement() {
         // It is critical that the element is registered in this method,
         // and not in the constructor, since it may be disconnected and
         // reconnected without being re-constructed
-        const objectId = this.getAttribute("object-id") as string;
+        const objectId = UIElementId.parseOrThrow(this);
         const child = this.firstElementChild as HTMLElement;
         UI_ELEMENT_REGISTRY.registerInstance(objectId, child);
 
@@ -136,7 +137,7 @@ export function initializeUIElement() {
       if (this.initialized) {
         // Unregister everything
         document.removeEventListener(marimoValueInputEvent, this.inputListener);
-        const objectId = this.getAttribute("object-id") as string;
+        const objectId = UIElementId.parseOrThrow(this);
         UI_ELEMENT_REGISTRY.removeInstance(
           objectId,
           this.firstElementChild as HTMLElement
@@ -187,18 +188,18 @@ export function initializeUIElement() {
  * Given a node, check if its parent or itself is a UIElement,
  * and return its objectId if so.
  */
-export function getUIElementObjectId(target: HTMLElement): string | null {
+export function getUIElementObjectId(target: HTMLElement): UIElementId | null {
   if (!target) {
     return null;
   }
 
   if (target.nodeName === UI_ELEMENT_TAG_NAME) {
-    return target.getAttribute("object-id");
+    return UIElementId.parseOrThrow(target);
   }
 
   const node = target.parentElement;
   if (node?.nodeName === UI_ELEMENT_TAG_NAME) {
-    return node.getAttribute("object-id");
+    return UIElementId.parseOrThrow(node);
   }
 
   return null;
