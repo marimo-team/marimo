@@ -17,10 +17,10 @@ class LeafmapFormatter(FormatterFactory):
         from marimo._output import formatting
 
         @formatting.formatter(leafmap.Map)
-        def _show_dataframe(map: leafmap.Map) -> tuple[str, str]:
+        def _show_dataframe(lmap: leafmap.Map) -> tuple[str, str]:
             # 540px is the pixel height that makes the map fit in the
             # notebook without scrolling
-            html = mo_data.html(map.to_html(height="540px"))
+            html = mo_data.html(lmap.to_html(height="540px"))
             return (
                 "text/html",
                 (
