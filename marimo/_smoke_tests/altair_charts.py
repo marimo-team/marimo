@@ -1,3 +1,4 @@
+# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.59"
@@ -148,14 +149,14 @@ def __(mo):
 
 
 @app.cell
-def __(alt, chart_selection_value, iris, legend_selection_value, mo):
+def __(alt, iris, mo):
     _chart = (
         alt.Chart(iris)
         .mark_circle()
         .properties(width=600, height=400)
         .encode(
             alt.X("sepalLength", scale=alt.Scale(zero=False)),
-            alt.Y("sepalWidth", scale=alt.Scale(zero=False, padding=1)),
+            alt.Y("sepalWidth", scale=alt.Scale(zero=False)),
             color="species",
             size="petalWidth",
         )
@@ -163,8 +164,8 @@ def __(alt, chart_selection_value, iris, legend_selection_value, mo):
 
     mo.ui.altair_chart(
         _chart,
-        chart_selection=chart_selection_value,
-        legend_selection=legend_selection_value,
+        chart_selection=None,
+        legend_selection=None,
     )
     return
 
