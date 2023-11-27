@@ -39,7 +39,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     completionConfig: {
       activate_on_typing: false,
-      activate_on_hover: false,
+      activate_on_hover: true,
       copilot: false,
     },
     keymapConfig: {
