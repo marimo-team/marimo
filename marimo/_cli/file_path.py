@@ -76,6 +76,7 @@ def validate_name(
         return _handle_github_src(name, temp_dir), temp_dir
 
     if is_url(name):
+        temp_dir = TemporaryDirectory()
         return _create_tmp_file_from_url(name, temp_dir), temp_dir
 
     if not allow_new_file:
