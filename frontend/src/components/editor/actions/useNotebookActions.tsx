@@ -21,6 +21,7 @@ import { saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
+import { toast } from "@/components/ui/use-toast";
 
 export function useNotebookActions(opts: { filename?: string | null }) {
   const { filename } = opts;
@@ -50,8 +51,15 @@ export function useNotebookActions(opts: { filename?: string | null }) {
       icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
       label: "Export as HTML",
       handle: async () => {
-        await downloadAsHTML({ filename: filename || "notebook.html" });
-        return;
+        if (!filename) {
+          toast({
+            variant: "danger",
+            title: "Error",
+            description: "Notebooks must be named to be exported.",
+          });
+          return;
+        }
+        await downloadAsHTML({ filename });
       },
     },
     {

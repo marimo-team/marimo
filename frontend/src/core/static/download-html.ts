@@ -7,6 +7,7 @@ import { StaticVirtualFiles } from "./types";
 import { serializeJsonToBase64 } from "@/utils/json/base64";
 import { readCode } from "../network/requests";
 import { downloadBlob } from "@/utils/download";
+import { toast } from "@/components/ui/use-toast";
 
 // For Testing:
 // Flip this to `true` to use local assets instead of CDN
@@ -16,7 +17,7 @@ const ENABLE_LOCAL_ASSETS = false;
 /**
  * Downloads the current notebook as an HTML file.
  */
-export async function downloadAsHTML(opts: { filename?: string }) {
+export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
   const notebook = getNotebook();
   const version = getMarimoVersion();
@@ -28,6 +29,15 @@ export async function downloadAsHTML(opts: { filename?: string }) {
       ? window.location.origin
       : `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`;
 
+  const codeResponse = await readCode().catch((error) => {
+    toast({
+      variant: "danger",
+      title: "Error",
+      description: error.message,
+    });
+    throw error;
+  });
+
   const html = constructHTML({
     notebookState: notebook,
     version: version,
@@ -35,7 +45,7 @@ export async function downloadAsHTML(opts: { filename?: string }) {
     filename: filename || "notebook",
     existingDocument: document,
     files: await downloadVirtualFiles(),
-    code: (await readCode()).contents,
+    code: codeResponse.contents,
   });
 
   downloadBlob(
