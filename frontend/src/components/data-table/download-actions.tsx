@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { toast } from "../ui/use-toast";
+import { downloadByURL } from "@/utils/download";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: "csv" | "json" }) => Promise<string>;
@@ -48,12 +49,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
               if (!downloadUrl) {
                 return;
               }
-              const link = document.createElement("a");
-              link.href = downloadUrl;
-              link.setAttribute("download", "download");
-              document.body.append(link);
-              link.click();
-              link.remove();
+              downloadByURL(downloadUrl, "download");
             }}
           >
             {option.label}

@@ -127,4 +127,5 @@ export interface EditRequests {
   saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
+  readCode: () => Promise<{ contents: string }>;
 }

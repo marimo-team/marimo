@@ -48,5 +48,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     saveUserConfig: throwNotInEditMode,
     saveAppConfig: throwNotInEditMode,
     saveCellConfig: throwNotInEditMode,
+    readCode: throwNotInEditMode,
   };
 }

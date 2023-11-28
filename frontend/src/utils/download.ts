@@ -11,13 +11,10 @@ export async function downloadHTMLAsImage(
     document.body.classList.add("printing");
     // Get screenshot
     const dataUrl = await toPng(element);
-    // Create an anchor element
-    const a = document.createElement("a");
-    // Create a PNG image from the canvas
-    a.href = dataUrl;
-    a.download = filename.endsWith(".png") ? filename : `${filename}.png`;
-    // Download the image
-    a.click();
+    downloadByURL(
+      dataUrl,
+      filename.endsWith(".png") ? filename : `${filename}.png`
+    );
   } catch {
     toast({
       title: "Error",
@@ -28,4 +25,17 @@ export async function downloadHTMLAsImage(
     // Remove classnames for printing
     document.body.classList.remove("printing");
   }
+}
+
+export function downloadByURL(url: string, filename: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  a.remove();
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  downloadByURL(url, filename);
 }
