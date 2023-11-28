@@ -1,7 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
-import { pressShortcut } from "./helper";
+import { exportAsHTMLAndTakeScreenshot, pressShortcut } from "./helper";
 
 const appUrl = getAppUrl("cells.py");
 test.beforeEach(async ({ page }, info) => {
@@ -133,4 +133,8 @@ test("page renders 2 cells", async ({ page }) => {
 
   // Verify the rendered cells
   await expect(page.locator("h1")).toHaveText(["Cell 1", "Cell 2"]);
+});
+
+test("export as HTML", async ({ page }) => {
+  await exportAsHTMLAndTakeScreenshot(page);
 });

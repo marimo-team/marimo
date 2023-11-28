@@ -24,6 +24,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({ filename }) => {
       shape="circle"
       size="small"
       className="h-[27px] w-[27px]"
+      data-testid="notebook-menu-dropdown"
       color="hint-green"
     >
       <MenuIcon strokeWidth={1.8} />
@@ -35,7 +36,11 @@ export const NotebookMenuDropdown: React.FC<Props> = ({ filename }) => {
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[220px]">
         {actions.map((action) => (
-          <DropdownMenuItem key={action.label} onSelect={() => action.handle()}>
+          <DropdownMenuItem
+            key={action.label}
+            onSelect={() => action.handle()}
+            data-testid={`notebook-menu-dropdown-${action.label}`}
+          >
             {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
             <span className="flex-1">{action.label}</span>
             {action.hotkey && renderMinimalShortcut(action.hotkey)}

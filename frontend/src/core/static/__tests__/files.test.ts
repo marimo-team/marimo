@@ -1,6 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { describe, afterEach, expect, it, vi } from "vitest";
 import { patchFetch, patchVegaLoader } from "../files";
+import { Base64String } from "@/utils/json/base64";
 
 describe("patchFetch", () => {
   const originalFetch = window.fetch;
@@ -12,7 +13,7 @@ describe("patchFetch", () => {
   it("should return a blob response when a virtual file is fetched", async () => {
     const virtualFiles = {
       "/@file/virtual-file.txt": {
-        base64: "data:text/plain;base64,VGVzdCBjb250ZW50", // Base64 for "Test content"
+        base64: "data:text/plain;base64,VGVzdCBjb250ZW50" as Base64String,
       },
     };
 
@@ -48,7 +49,8 @@ describe("patchVegaLoader", () => {
   it("should return file content for virtual files", async () => {
     const virtualFiles = {
       "virtual-file.json": {
-        base64: "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==", // Base64 for '{"key": "value"}'
+        base64:
+          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as Base64String,
       },
     };
 
