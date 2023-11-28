@@ -18,6 +18,13 @@ export function getRawMarimoUserConfig(): string {
   return getMarimoDOMValue("marimo-user-config", "config");
 }
 
+export function getMarimoCode(): string {
+  const tag = document.querySelector("marimo-code");
+  invariant(tag, "internal-error: marimo-code not tag not found");
+  const inner = tag.innerHTML;
+  return decodeURIComponent(inner).trim();
+}
+
 function getMarimoDOMValue(tagName: string, key: string) {
   const tag = document.querySelector(tagName);
   invariant(

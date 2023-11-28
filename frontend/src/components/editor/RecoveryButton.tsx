@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "../ui/dialog";
+import { downloadBlob } from "@/utils/download";
 
 const RecoveryModal = (props: {
   proposedName: string;
@@ -19,12 +20,10 @@ const RecoveryModal = (props: {
   closeModal: () => void;
 }): JSX.Element => {
   const downloadRecoveryFile = () => {
-    const link = document.createElement("a");
-    link.download = `${props.proposedName}.json`;
-    link.href = window.URL.createObjectURL(
-      new Blob([props.getCellsAsJSON()], { type: "text/plain" })
+    downloadBlob(
+      new Blob([props.getCellsAsJSON()], { type: "text/plain" }),
+      `${props.proposedName}.json`
     );
-    link.click();
   };
 
   // NB: we use markdown class to have sane styling for list, paragraph

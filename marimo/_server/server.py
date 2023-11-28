@@ -213,6 +213,10 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
+                r"/api/kernel/read_code/",
+                api.ReadCodeHandler,
+            ),
+            (
                 r"/@file/(.*)",
                 api.VirtualFileHandler,
             ),

@@ -5,6 +5,9 @@ import { getMarimoVersion } from "../dom/marimo-tag";
 import { downloadVirtualFiles } from "./files";
 import { StaticVirtualFiles } from "./types";
 import { serializeJsonToBase64 } from "@/utils/json/base64";
+import { readCode } from "../network/requests";
+import { downloadBlob } from "@/utils/download";
+import { toast } from "@/components/ui/use-toast";
 
 // For Testing:
 // Flip this to `true` to use local assets instead of CDN
@@ -14,7 +17,7 @@ const ENABLE_LOCAL_ASSETS = false;
 /**
  * Downloads the current notebook as an HTML file.
  */
-export async function downloadAsHTML(opts: { filename?: string }) {
+export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
   const notebook = getNotebook();
   const version = getMarimoVersion();
@@ -26,6 +29,15 @@ export async function downloadAsHTML(opts: { filename?: string }) {
       ? window.location.origin
       : `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`;
 
+  const codeResponse = await readCode().catch((error) => {
+    toast({
+      variant: "danger",
+      title: "Error",
+      description: error.message,
+    });
+    throw error;
+  });
+
   const html = constructHTML({
     notebookState: notebook,
     version: version,
@@ -33,13 +45,13 @@ export async function downloadAsHTML(opts: { filename?: string }) {
     filename: filename || "notebook",
     existingDocument: document,
     files: await downloadVirtualFiles(),
+    code: codeResponse.contents,
   });
 
-  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename ? `${filename}.html` : "notebook.html";
-  a.click();
+  downloadBlob(
+    new Blob([html], { type: "text/html" }),
+    filename ? `${filename}.html` : "notebook.html"
+  );
 }
 
 /**
@@ -52,8 +64,10 @@ export function constructHTML(opts: {
   filename: string;
   files: StaticVirtualFiles;
   existingDocument: Document;
+  code: string;
 }) {
-  const { version, notebookState, assetUrl, existingDocument, files } = opts;
+  const { version, notebookState, assetUrl, existingDocument, files, code } =
+    opts;
 
   const staticHead = existingDocument.head.cloneNode(true) as HTMLHeadElement;
 
@@ -101,6 +115,10 @@ export function constructHTML(opts: {
         window.__MARIMO_STATIC__.assetUrl = "${assetUrl}";
         window.__MARIMO_STATIC__.files = ${JSON.stringify(files)};
       </script>
+
+      <marimo-code hidden="">
+        ${encodeURIComponent(code)}
+      </marimo-code>
     </body>
   </html>
   `;

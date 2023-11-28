@@ -7,6 +7,7 @@ __all__ = [
     "FunctionHandler",
     "InstantiateHandler",
     "InterruptHandler",
+    "ReadCodeHandler",
     "RenameHandler",
     "RunHandler",
     "SaveAppConfigurationHandler",
@@ -26,6 +27,7 @@ from marimo._server.api.format import FormatHandler
 from marimo._server.api.function_call import FunctionHandler
 from marimo._server.api.instantiate import InstantiateHandler
 from marimo._server.api.interrupt import InterruptHandler
+from marimo._server.api.read_code import ReadCodeHandler
 from marimo._server.api.rename import RenameHandler
 from marimo._server.api.run import RunHandler
 from marimo._server.api.save import SaveHandler

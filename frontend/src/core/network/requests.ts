@@ -129,6 +129,9 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendFunctionRequest: (request) => {
       return API.post<SendFunctionRequest>("/kernel/function_call/", request);
     },
+    readCode: () => {
+      return API.post<{}, { contents: string }>("/kernel/read_code/", {});
+    },
   };
 }
 
@@ -148,4 +151,5 @@ export const {
   saveAppConfig,
   saveCellConfig,
   sendFunctionRequest,
+  readCode,
 } = isStaticNotebook() ? createStaticRequests() : createNetworkRequests();

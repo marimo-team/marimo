@@ -82,6 +82,10 @@ exports[`download-html > should construct html correctly 1`] = `
       };
     </script>
 
+    <marimo-code hidden=\\"\\">
+      import%20marimo%20as%20mo%0A%0Amo.html('%3Ch1%3Ehello%3C%2Fh1%3E')
+    </marimo-code>
+
     <script
       type=\\"module\\"
       crossorigin=\\"anonymous\\"
