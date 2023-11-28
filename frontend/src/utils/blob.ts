@@ -1,9 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-export function serializeBlob(blob: Blob): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+import { Base64String } from "./json/base64";
+
+export function serializeBlob(blob: Blob): Promise<Base64String> {
+  return new Promise<Base64String>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      resolve(event.target?.result as string);
+      resolve(event.target?.result as Base64String);
     };
     reader.onerror = (error) => {
       reject(error);
@@ -12,7 +14,7 @@ export function serializeBlob(blob: Blob): Promise<string> {
   });
 }
 
-export function deserializeBlob(serializedBlob: string): Promise<Blob> {
+export function deserializeBlob(serializedBlob: Base64String): Promise<Blob> {
   return new Promise((resolve, reject) => {
     try {
       // Extract the base64 data from the data URL

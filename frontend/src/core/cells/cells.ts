@@ -29,6 +29,7 @@ import { EditorView } from "@codemirror/view";
 import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { CellLog, getCellLogsForMessage } from "./logs";
+import { deserializeBase64ToJson } from "@/utils/json/base64";
 
 /**
  * The state of the notebook.
@@ -77,8 +78,14 @@ function initialNotebookState(): NotebookState {
     const notebookState = parseStaticState();
     return {
       cellIds: notebookState.cellIds,
-      cellData: notebookState.cellData,
-      cellRuntime: notebookState.cellRuntime,
+      cellData: Objects.mapValues(
+        notebookState.cellData,
+        deserializeBase64ToJson<CellData>
+      ),
+      cellRuntime: Objects.mapValues(
+        notebookState.cellRuntime,
+        deserializeBase64ToJson<CellRuntimeState>
+      ),
       cellHandles: {},
       history: [],
       scrollKey: null,

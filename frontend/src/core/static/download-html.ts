@@ -1,12 +1,14 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { Objects } from "@/utils/objects";
 import { NotebookState, getNotebook } from "../cells/cells";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { downloadVirtualFiles } from "./files";
 import { StaticVirtualFiles } from "./types";
+import { serializeJsonToBase64 } from "@/utils/json/base64";
 
 // For Testing:
-// Flip this to true to use local assets instead of CDN
-// This should be false for production
+// Flip this to `true` to use local assets instead of CDN
+// This should be `false` for production
 const ENABLE_LOCAL_ASSETS = false;
 
 /**
@@ -18,7 +20,9 @@ export async function downloadAsHTML(opts: { filename?: string }) {
   const version = getMarimoVersion();
 
   const assetUrl =
-    ENABLE_LOCAL_ASSETS || process.env.NODE_ENV === "development"
+    ENABLE_LOCAL_ASSETS ||
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test"
       ? window.location.origin
       : `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`;
 
@@ -85,8 +89,14 @@ export function constructHTML(opts: {
         window.__MARIMO_STATIC__.version = "${version}";
         window.__MARIMO_STATIC__.notebookState = ${JSON.stringify({
           cellIds: notebookState.cellIds,
-          cellData: notebookState.cellData,
-          cellRuntime: notebookState.cellRuntime,
+          cellData: Objects.mapValues(
+            notebookState.cellData,
+            serializeJsonToBase64
+          ),
+          cellRuntime: Objects.mapValues(
+            notebookState.cellRuntime,
+            serializeJsonToBase64
+          ),
         })};
         window.__MARIMO_STATIC__.assetUrl = "${assetUrl}";
         window.__MARIMO_STATIC__.files = ${JSON.stringify(files)};

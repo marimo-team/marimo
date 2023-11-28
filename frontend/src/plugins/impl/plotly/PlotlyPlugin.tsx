@@ -91,7 +91,7 @@ export const PlotlyComponent = memo(
             range: evt.range,
           });
         })}
-        className="w-full h-full"
+        className="w-full"
         useResizeHandler={true}
         frames={figure.frames ?? undefined}
         onError={useEvent((err) => {

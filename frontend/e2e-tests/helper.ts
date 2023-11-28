@@ -84,3 +84,27 @@ export async function pressShortcut(page: Page, action: HotkeyAction) {
 
   await page.keyboard.press(keymap);
 }
+
+/**
+ * Export as HTML
+ *
+ * Download HTML of the current notebook and take a screenshot
+ */
+export async function exportAsHTMLAndTakeScreenshot(page: Page) {
+  // Start waiting for download before clicking. Note no await.
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByTestId("notebook-menu-dropdown").click();
+  await page.getByText("Export as HTML").click();
+  const download = await downloadPromise;
+
+  // Wait for the download process to complete and save the downloaded file somewhere.
+  const path = `e2e-tests/exports/${download.suggestedFilename()}`;
+  await download.saveAs(path);
+
+  // Open a new page and take a screenshot
+  const exportPage = await page.context().newPage();
+  // @ts-expect-error process not defined
+  const fullPath = `${process.cwd()}/${path}`;
+  await exportPage.goto(`file://${fullPath}`);
+  await takeScreenshot(exportPage, path);
+}

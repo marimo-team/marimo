@@ -21,7 +21,7 @@
 }
 
 /* for images we expand the image to fill the grid item */
-.output img {
+.react-grid-item .output img {
   height: 100%;
   object-fit: contain;
 }

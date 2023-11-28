@@ -27,6 +27,7 @@ jobs:
         run: |
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
+          echo "static_export=true" >> .marimo.toml
 
       - uses: pnpm/action-setup@v2
         with:

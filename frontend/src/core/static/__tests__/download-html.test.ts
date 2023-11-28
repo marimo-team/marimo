@@ -6,6 +6,7 @@ import { createCell, createCellRuntimeState } from "@/core/cells/types";
 import { JSDOM } from "jsdom";
 // @ts-expect-error - no types
 import prettier from "prettier";
+import { Base64String } from "@/utils/json/base64";
 
 const DOC = `
 <html lang="en">
@@ -24,9 +25,18 @@ const DOC = `
     <meta name="description" content="a marimo app" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <script>
+    <script data-marimo="true">
       function __resizeIframe(obj) {
-        obj.style.height = obj.contentWindow.document.documentElement.scrollHeight + 'px';
+        // Resize the iframe to the height of the content
+        obj.style.height =
+          obj.contentWindow.document.documentElement.scrollHeight + "px";
+
+        // Resize the iframe when the content changes
+        const resizeObserver = new ResizeObserver((entries) => {
+          obj.style.height =
+            obj.contentWindow.document.documentElement.scrollHeight + "px";
+        });
+        resizeObserver.observe(obj.contentWindow.document.body);
       }
     </script>
   </head>
@@ -71,7 +81,7 @@ describe("download-html", () => {
       },
       files: {
         "/@file/note.txt": {
-          base64: "data:text/plain;base64,bm90ZQo=",
+          base64: "data:text/plain;base64,bm90ZQo=" as Base64String,
         },
       },
       assetUrl: `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`,
