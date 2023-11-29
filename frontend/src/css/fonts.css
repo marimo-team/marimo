@@ -1,3 +1,6 @@
+/* This must be kept in sync with the fonts used in the static HTML download,
+but instead use the Google Fonts CDN.
+see frontend/src/core/static/download-html.ts */
 @font-face {
   font-family: Lora;
   font-style: normal;
