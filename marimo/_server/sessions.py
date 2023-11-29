@@ -29,7 +29,6 @@ from multiprocessing import connection
 from typing import Any, Callable, Optional
 from uuid import uuid4
 
-import importlib_resources
 import tornado.httputil
 import tornado.ioloop
 import tornado.web
@@ -46,6 +45,11 @@ from marimo._runtime import requests, runtime
 from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.utils import print_tabbed
+
+if sys.version_info < (3, 10):
+    from importlib_resources import files as importlib_files
+else:
+    from importlib.resources import files as importlib_files
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
@@ -477,7 +481,7 @@ class SessionManager:
         try:
             LOGGER.debug("Starting LSP server at port %s...", self.lsp_port)
             lsp_bin = os.path.join(
-                str(importlib_resources.files("marimo").joinpath("_lsp")),
+                str(importlib_files("marimo").joinpath("_lsp")),
                 "index.js",
             )
             cmd = f"node {lsp_bin} --port {self.lsp_port}"
