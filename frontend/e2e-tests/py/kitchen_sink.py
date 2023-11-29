@@ -1,20 +1,7 @@
 import marimo
 
-__generated_with = "0.1.60"
+__generated_with = "0.1.61"
 app = marimo.App()
-
-
-@app.cell
-def __(mo):
-    # markdown
-    markdown = mo.md(
-        f"""
-    # Hello world!
-
-    `marimo` _supports_ **markdown**
-    """
-    )
-    return markdown,
 
 
 @app.cell
@@ -217,10 +204,53 @@ def __(callout, callout_kind, create_wrapper, mo):
 
 
 @app.cell
-def __(create_wrapper, markdown):
+def __(create_wrapper, mo):
     create_wrapper(
-        markdown,
+        mo.md(
+            f"""
+    # Hello world!
+    ## **Hello world!**
+    ## *Hello world!*
+    ## **_Hello world!_**
+
+    `marimo` _supports_ **markdown**
+
+    > And Blockquotes
+
+    ```python
+    # And code
+    import marimo as mo
+    import numpy as np
+    ```
+
+    - And
+    - Lists
+
+    1. And
+    2. Ordered
+    3. Lists
+
+    [And](https://www.youtube.com/watch?v=dQw4w9WgXcQ) Links
+    """
+        ),
         "markdown",
+    )
+    return
+
+
+@app.cell
+def __(create_wrapper, mo):
+    create_wrapper(
+        mo.md(
+            r"""
+        The exponential function $f(x) = e^x$ can be represented as
+
+        \[
+            f(x) = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \ldots.
+        \]
+        """
+        ),
+        "latex",
     )
     return
 
