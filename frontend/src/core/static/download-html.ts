@@ -84,10 +84,6 @@ export function constructHTML(opts: {
   <html>
     <head>
       ${staticHead.innerHTML}
-
-      <link rel="preconnect" href="https://fonts.googleapis.com">
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lora&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
     </head>
 
     <body>
@@ -159,12 +155,6 @@ export function constructHTML(opts: {
   links.forEach((link) => {
     const href = link.getAttribute("href");
     if (href) {
-      if (
-        href.startsWith("https://fonts.googleapis.com") ||
-        href.startsWith("https://fonts.gstatic.com")
-      ) {
-        return;
-      }
       link.setAttribute("href", updateAssetUrl(href, assetUrl));
       link.setAttribute("crossorigin", "anonymous");
     } else {
@@ -183,6 +173,13 @@ export function constructHTML(opts: {
     devScript.setAttribute("src", `${window.location.origin}/src/main.tsx`);
     doc.body.append(devScript);
   }
+
+  doc.head.innerHTML = `
+  ${doc.head.innerHTML}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lora&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+  `.trim();
 
   // add DOCTYPE back in
   return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
