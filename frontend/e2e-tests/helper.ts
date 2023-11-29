@@ -91,6 +91,9 @@ export async function pressShortcut(page: Page, action: HotkeyAction) {
  * Download HTML of the current notebook and take a screenshot
  */
 export async function exportAsHTMLAndTakeScreenshot(page: Page) {
+  // Wait for networkidle so that the notebook is fully loaded
+  await page.waitForLoadState("networkidle");
+
   // Start waiting for download before clicking. Note no await.
   const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("notebook-menu-dropdown").click();
@@ -105,6 +108,8 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   const exportPage = await page.context().newPage();
   // @ts-expect-error process not defined
   const fullPath = `${process.cwd()}/${path}`;
-  await exportPage.goto(`file://${fullPath}`);
+  await exportPage.goto(`file://${fullPath}`, {
+    waitUntil: "networkidle",
+  });
   await takeScreenshot(exportPage, path);
 }
