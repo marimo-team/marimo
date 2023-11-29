@@ -174,7 +174,15 @@ export function constructHTML(opts: {
     doc.body.append(devScript);
   }
 
-  return doc.documentElement.outerHTML;
+  doc.head.innerHTML = `
+  ${doc.head.innerHTML}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lora&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+  `.trim();
+
+  // add DOCTYPE back in
+  return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
 }
 
 function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
