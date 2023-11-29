@@ -5,12 +5,14 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from threading import Condition
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellOutput
 
 if TYPE_CHECKING:
+    from typing import Optional
+
     from marimo._messaging.streams import Stream
 
 StreamT = Literal["stdout", "stderr"]

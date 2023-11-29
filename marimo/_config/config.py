@@ -1,18 +1,13 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
-from typing import Any, Dict, Optional, cast
-
-from typing_extensions import Literal
-
-if sys.version_info < (3, 8):
-    from typing_extensions import TypedDict
-else:
-    from typing import TypedDict
+from typing import TYPE_CHECKING, Any, Dict, TypedDict, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
+
+if TYPE_CHECKING:
+    from typing import Literal, Optional
 
 
 @mddoc

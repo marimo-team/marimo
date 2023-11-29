@@ -1,8 +1,17 @@
 # Copyright 2023 Marimo. All rights reserved.
-import inspect
-from typing import Any, Callable, Generic, Optional, Protocol, TypeVar, cast
+from __future__ import annotations
 
-from typing_extensions import runtime_checkable
+import inspect
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Protocol,
+    TypeVar,
+    cast,
+    runtime_checkable,
+)
 
 from marimo._utils.format_signature import format_signature
 
