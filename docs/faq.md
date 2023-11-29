@@ -14,9 +14,11 @@
   - [How do I prevent matplotlib plots from being cut off?](#faq-mpl-cutoff)
   - [How do I display interactive matplotlib plots?](#faq-interactive-plots)
   - [How do I display objects in rows and columns?](#faq-rows-columns)
-  - [What packages can I use?](#faq-packages)
+  - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
+  - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
+  - [What packages can I use?](#faq-packages)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -199,10 +201,21 @@ Use `marimo.hstack` and `marimo.vstack`. See the layout tutorial for details:
 marimo tutorial layout
 ```
 
-<a name="faq-packages" ></a>
-**What packages can I use?**
+<a name="faq-dynamic-ui-elements"></a>
+**How do I create an output with a dynamic number of UI elements?**
 
-You can use any Python package. marimo cells run arbitrary Python code.
+Use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch) to create a UI element
+that wraps a dynamic number of other UI elements.
+
+If you need custom
+formatting, use [`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch), otherwise
+use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array) or
+[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary).
+
+For usage examples, see the
+[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
 
 <a name="faq-reload" ></a>
 **How do I reload modules?**
@@ -218,6 +231,26 @@ importlib.reload(mymodule)
 
 Running this cell will reload `mymodule` with your new edits and automatically
 re-run any cells using `mymodule`.
+
+<a name="faq-on-change-called"></a>
+**Why aren't my `on_change`/`on_click` handlers being called?**
+
+A UI Element's `on_change` (or for buttons, `on_click`) handlers are only
+called if the element is bound to a global variable. For example, this won't work
+
+```python
+mo.vstack([mo.ui.button(on_change=lambda _: print('I was called")) for _ in range(10)])
+```
+
+In such cases (when you want to output a dynamic number of UI elements),
+you need to use 
+[`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
+[`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
+[`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch).
+
+See the
+[recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
+for example code.
 
 <a name="faq-annotations"></a>
 **How does marimo treat type annotations?**
@@ -245,6 +278,10 @@ x: "A" = ...
 
 For Python 3.12+, marimo additionally implements annotation scoping.
 
+<a name="faq-packages" ></a>
+**What packages can I use?**
+
+You can use any Python package. marimo cells run arbitrary Python code.
 
 <a name="faq-app-deploy" ></a>
 **How do I deploy apps?**
