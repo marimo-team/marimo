@@ -7,6 +7,7 @@
   - [Is marimo a notebook or a library?](#faq-notebook-or-library)
   - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
   - [How does marimo know what cells to run?](#faq-reactivity)
+  - [How do I prevent automatic execution from running expensive cells?](#faq-expensive)
   - [How do I use sliders and other interactive elements?](#faq-interactivity)
   - [How do I add a submit button to UI elements?](#faq-form)
   - [How do I write markdown?](#faq-markdown)
@@ -106,6 +107,27 @@ In other words, marimo uses _static analysis_ to make a dataflow graph out of
 your cells. Each cell is a node in the graph across which global
 variables "flow". Whenever a cell is run, either because you changed its
 code or interacted with a UI element it reads, all its descendants run in turn.
+
+<a name="faq-expensive"></a>
+
+**How do I prevent automatic execution from running expensive cells?**
+
+Reactive (automatic) execution ensures your code and outputs are always
+in sync, improving reproducibility by eliminating hidden state and
+out-of-order execution; marimo also takes care to run only the minimal set of
+cells needed to keep your notebook up to date. But when some cells take a long
+time to run, it's understandable to be concerned that automatic execution will
+kick off expensive cells before you're ready to run them.
+
+_Here are some tips to avoid accidental execution of expensive cells:_
+
+- [Disable expensive cells](guides/reactivity.md#disabling-cells).
+When a cell is disabled, it and its descendants are blocked from running.
+- Use Python's `functools.cache` to cache expensive
+intermediate computations (see our [best practices guide](guides/best_practices.md)).
+- Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
+- Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
+  execution of a cell and its descendants.
 
 <a name="faq-interactivity" ></a>
 **How do I use sliders and other interactive elements?**
