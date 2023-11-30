@@ -50,7 +50,6 @@ export function hintTooltip() {
         hideOnChange: true,
       }
     ),
-    cursorTooltipField,
     Prec.highest(
       keymap.of([
         {
