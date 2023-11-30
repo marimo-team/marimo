@@ -322,7 +322,7 @@ async def start_server(
     _loggers.initialize_tornado_loggers(development_mode)
     signal.signal(signal.SIGINT, interrupt_handler)
 
-    root = os.path.realpath(importlib_files("marimo").joinpath("_static"))
+    root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
     app = construct_app(root=root, development_mode=development_mode)
     port = connect_app(app, port)
     session_mgr = sessions.initialize_manager(
