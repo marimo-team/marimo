@@ -24,7 +24,7 @@ export const commandPalletteAtom = atom(false);
 export const CommandPallette = () => {
   const [open, setOpen] = useAtom(commandPalletteAtom);
   const registeredActions = useRegisteredActions();
-  const notebookActions = useNotebookActions({});
+  const notebookActions = useNotebookActions();
   const notebookActionsWithoutHotkeys = notebookActions.filter(
     (action) => !action.hotkey
   );
