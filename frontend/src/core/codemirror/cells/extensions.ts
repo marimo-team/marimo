@@ -5,6 +5,8 @@ import { CellId } from "@/core/cells/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
+import { languageAdapterState } from "../language/extension";
+import { getEditorCodeAsPython } from "../language/utils";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
@@ -171,8 +173,12 @@ export function cellCodeEditingBundle(
 
   const onChangePlugin = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      const nextCode = update.state.doc.toString();
-      updateCellCode({ cellId, code: nextCode, formattingChange: false });
+      const nextCode = getEditorCodeAsPython(update.view);
+      updateCellCode({
+        cellId,
+        code: nextCode,
+        formattingChange: false,
+      });
     }
   });
 

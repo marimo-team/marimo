@@ -8,6 +8,10 @@ import {
   getNotebook,
   notebookCellEditorViews,
 } from "../cells/cells";
+import {
+  getEditorCodeAsPython,
+  updateEditorCodeFromPython,
+} from "./language/utils";
 
 /**
  * Format the code in the editor views via the marimo server,
@@ -17,7 +21,7 @@ export async function formatEditorViews(
   views: Record<CellId, EditorView>,
   updateCellCode: CellActions["updateCellCode"]
 ) {
-  const codes = Objects.mapValues(views, (view) => view.state.doc.toString());
+  const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 
   const formatResponse = await sendFormat(codes);
 
@@ -35,16 +39,8 @@ export async function formatEditorViews(
       continue;
     }
 
+    updateEditorCodeFromPython(view, formattedCode);
     updateCellCode({ cellId, code: formattedCode, formattingChange: true });
-
-    view.dispatch({
-      changes: {
-        from: 0,
-        // overwrite the entire document
-        to: view.state.doc.length,
-        insert: formattedCode,
-      },
-    });
   }
 }
 

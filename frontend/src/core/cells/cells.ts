@@ -30,6 +30,8 @@ import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64ToJson } from "@/utils/json/base64";
+import { historyField } from "@codemirror/commands";
+import { clamp } from "@/utils/math";
 
 /**
  * The state of the notebook.
@@ -181,7 +183,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     const index = state.cellIds.indexOf(cellId);
     let focusIndex = before ? index - 1 : index + 1;
     // clamp
-    focusIndex = Math.max(0, Math.min(focusIndex, state.cellIds.length - 1));
+    focusIndex = clamp(focusIndex, 0, state.cellIds.length - 1);
     const focusCellId = state.cellIds[focusIndex];
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
@@ -245,6 +247,9 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.cellIds[focusIndex];
 
+    const serializedEditorState = state.cellHandles[
+      cellKey
+    ].current?.editorView.state.toJSON({ history: historyField });
     return {
       ...state,
       cellIds: arrayDelete(state.cellIds, index),
@@ -252,8 +257,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         ...state.history,
         {
           name: state.cellData[cellKey].name,
-          serializedEditorState:
-            state.cellHandles[cellKey].current?.editorStateJSON(),
+          serializedEditorState: serializedEditorState,
           index: index,
         },
       ],

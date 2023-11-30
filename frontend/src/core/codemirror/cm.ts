@@ -12,18 +12,10 @@ import {
   indentMore,
 } from "@codemirror/commands";
 import {
-  pythonLanguage,
-  localCompletionSource,
-  globalCompletion,
-} from "@codemirror/lang-python";
-import {
   bracketMatching,
   defaultHighlightStyle,
   foldGutter,
-  foldInside,
   foldKeymap,
-  foldNodeProp,
-  LanguageSupport,
   indentOnInput,
   indentUnit,
   syntaxHighlighting,
@@ -48,7 +40,6 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { CompletionConfig, KeymapConfig } from "../config/config-schema";
 import { Theme } from "../../theme/useTheme";
 
-import { completer } from "@/core/codemirror/completion/completer";
 import { findReplaceBundle } from "./find-replace/extension";
 import {
   CodeCallbacks,
@@ -64,6 +55,8 @@ import {
 } from "./extensions";
 import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
+import { adaptiveLanguageConfiguration } from "./language/extension";
+import { completer } from "./completion/completer";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -100,17 +93,6 @@ export const setupCodeMirror = ({
       : [],
   ];
 };
-
-// Customize python to support folding some additional syntax nodes
-const customizedPython = pythonLanguage.configure({
-  props: [
-    foldNodeProp.add({
-      ParenthesizedExpression: foldInside,
-      // Fold function calls whose arguments are split over multiple lines
-      ArgList: foldInside,
-    }),
-  ],
-});
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (
@@ -161,11 +143,7 @@ export const basicBundle = (
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of([...foldKeymap, ...lintKeymap]),
 
-    ///// Python Support
-    new LanguageSupport(customizedPython, [
-      customizedPython.data.of({ autocomplete: localCompletionSource }),
-      customizedPython.data.of({ autocomplete: globalCompletion }),
-    ]),
+    adaptiveLanguageConfiguration(),
 
     ///// Editing
     history(),
