@@ -46,7 +46,7 @@ from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.utils import print_tabbed
 
-if sys.version_info < (3, 10):
+if sys.version_info < (3, 9):
     from importlib_resources import files as importlib_files
 else:
     from importlib.resources import files as importlib_files
