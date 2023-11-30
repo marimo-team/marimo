@@ -74,6 +74,6 @@ def _get_row_headers_for_index(
             or dtype == "category"
         ):
             name = str(index.name) if index.name else ""
-            return [(name, index.tolist())]
+            return [(name, index.tolist())]   # type: ignore[list-item]
 
     return []
