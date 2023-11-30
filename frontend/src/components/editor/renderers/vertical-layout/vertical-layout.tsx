@@ -8,6 +8,7 @@ import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisiblity";
+import { AppMode } from "@/core/mode";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -32,6 +33,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           status={cell.status}
           stopped={cell.stopped}
           errored={cell.errored}
+          mode={mode}
           interrupted={cell.interrupted}
         />
       ))}
@@ -45,6 +47,7 @@ interface VerticalCellProps
     "output" | "status" | "stopped" | "errored" | "interrupted"
   > {
   cellId: CellId;
+  mode: AppMode;
 }
 
 const VerticalCell = memo(
@@ -55,6 +58,7 @@ const VerticalCell = memo(
     stopped,
     errored,
     interrupted,
+    mode,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
     const loading = status === "running" || status === "queued";
@@ -70,6 +74,7 @@ const VerticalCell = memo(
     return hidden ? null : (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         <OutputArea
+          allowExpand={mode === "edit"}
           output={output}
           className="output-area"
           cellId={cellId}

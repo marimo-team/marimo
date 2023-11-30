@@ -94,6 +94,27 @@ export const WithOutput: Story = {
   ),
 };
 
+export const WithLargeOutput: Story = {
+  render: () => (
+    <div className="p-20 max-w-4xl">
+      <TooltipProvider>
+        <Cell
+          {...props}
+          runElapsedTimeMs={20}
+          output={{
+            channel: "output",
+            data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
+              10
+            ),
+            mimetype: "text/html",
+            timestamp: 1_686_863_688,
+          }}
+        />
+      </TooltipProvider>
+    </div>
+  ),
+};
+
 export const UnsavedEditsOutput: Story = {
   render: () => (
     <div className="p-20 max-w-4xl">

@@ -396,6 +396,7 @@ const CellComponent = (
 
   const outputArea = (
     <OutputArea
+      allowExpand={editing}
       output={output}
       className="output-area"
       cellId={cellId}
