@@ -6,9 +6,12 @@ export async function downloadHTMLAsImage(
   element: HTMLElement,
   filename: string
 ) {
+  // Capture current scroll position
+  const appEl = document.getElementById("App");
+  const currentScrollY = appEl?.scrollTop ?? 0;
+  // Add classnames for printing
+  document.body.classList.add("printing");
   try {
-    // Add classnames for printing
-    document.body.classList.add("printing");
     // Get screenshot
     const dataUrl = await toPng(element);
     downloadByURL(
@@ -24,6 +27,10 @@ export async function downloadHTMLAsImage(
   } finally {
     // Remove classnames for printing
     document.body.classList.remove("printing");
+    // Restore scroll position
+    requestAnimationFrame(() => {
+      appEl?.scrollTo(0, currentScrollY);
+    });
   }
 }
 
