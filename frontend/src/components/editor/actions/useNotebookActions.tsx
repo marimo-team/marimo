@@ -38,7 +38,7 @@ export function useNotebookActions() {
   const actions: ActionButton[] = [
     {
       icon: <ImageIcon size={14} strokeWidth={1.5} />,
-      label: "Export to PNG",
+      label: "Export as PNG",
       handle: async () => {
         await runDuringPresentMode(() => {
           const app = document.getElementById("App");

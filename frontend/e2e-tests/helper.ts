@@ -94,7 +94,7 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   // Wait for networkidle so that the notebook is fully loaded
   await page.waitForLoadState("networkidle");
 
-  // Start waiting for download before clicking. Note no await.
+  // Start waiting for download before clicking.
   const downloadPromise = page.waitForEvent("download");
   await page.getByTestId("notebook-menu-dropdown").click();
   await page.getByText("Export as HTML").click();
@@ -112,4 +112,19 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
     waitUntil: "networkidle",
   });
   await takeScreenshot(exportPage, path);
+}
+
+export async function exportAsPNG(page: Page) {
+  // Wait for networkidle so that the notebook is fully loaded
+  await page.waitForLoadState("networkidle");
+
+  // Start waiting for download before clicking.
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByTestId("notebook-menu-dropdown").click();
+  await page.getByText("Export as PNG").click();
+  const download = await downloadPromise;
+
+  // Wait for the download process to complete and save the downloaded file somewhere.
+  const path = `e2e-tests/screenshots/${download.suggestedFilename()}`;
+  await download.saveAs(path);
 }
