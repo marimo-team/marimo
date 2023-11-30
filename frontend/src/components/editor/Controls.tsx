@@ -88,7 +88,7 @@ export const Controls = ({
       {!closed && (
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
-          <NotebookMenuDropdown filename={filename} />
+          <NotebookMenuDropdown />
           <AppConfigButton />
           <ShutdownButton onShutdown={onShutdown} />
         </div>

@@ -9,6 +9,7 @@ import {
   ZapOffIcon,
   BookMarkedIcon,
   FolderDownIcon,
+  ClipboardCopyIcon,
 } from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
 import {
@@ -17,14 +18,15 @@ import {
   useCellActions,
   useNotebook,
 } from "@/core/cells/cells";
-import { saveCellConfig } from "@/core/network/requests";
+import { readCode, saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { toast } from "@/components/ui/use-toast";
+import { useFilename } from "@/core/saving/filename";
 
-export function useNotebookActions(opts: { filename?: string | null }) {
-  const { filename } = opts;
+export function useNotebookActions() {
+  const [filename] = useFilename();
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
@@ -94,6 +96,20 @@ export function useNotebookActions(opts: { filename?: string | null }) {
         ids.forEach((cellId) =>
           updateCellConfig({ cellId, config: { disabled: true } })
         );
+      },
+    },
+
+    {
+      icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
+      label: "Copy code to clipboard",
+      hidden: !filename,
+      handle: async () => {
+        const code = await readCode();
+        navigator.clipboard.writeText(code.contents);
+        toast({
+          title: "Copied",
+          description: "Code copied to clipboard.",
+        });
       },
     },
 

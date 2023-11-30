@@ -11,12 +11,8 @@ import {
 import { renderMinimalShortcut } from "../shortcuts/renderShortcut";
 import { useNotebookActions } from "./actions/useNotebookActions";
 
-interface Props {
-  filename: string | null;
-}
-
-export const NotebookMenuDropdown: React.FC<Props> = ({ filename }) => {
-  const actions = useNotebookActions({ filename });
+export const NotebookMenuDropdown: React.FC = () => {
+  const actions = useNotebookActions();
 
   const button = (
     <Button

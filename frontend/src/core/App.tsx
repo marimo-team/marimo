@@ -46,7 +46,6 @@ import { toast } from "../components/ui/use-toast";
 import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
 import { CellId, HTMLCellId } from "./cells/ids";
 import { CellConfig } from "./cells/types";
-import { getFilenameFromDOM } from "./dom/htmlUtils";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
@@ -56,6 +55,7 @@ import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
+import { useFilename } from "./saving/filename";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -66,7 +66,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const notebook = useNotebook();
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
-  const [filename, setFilename] = useState(getFilenameFromDOM());
+  const [filename, setFilename] = useFilename();
   const [savedCodes, setSavedCodes] = useState<string[]>([""]);
   const [savedConfigs, setSavedConfigs] = useState<CellConfig[]>([]);
   const { openModal, closeModal, openAlert } = useImperativeModal();
