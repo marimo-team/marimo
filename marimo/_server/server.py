@@ -34,7 +34,7 @@ from marimo._config.utils import load_config
 from marimo._server import api, sessions
 from marimo._server.utils import TAB, print_tabbed
 
-if sys.version_info < (3, 10):
+if sys.version_info < (3, 9):
     from importlib_resources import files as importlib_files
 else:
     from importlib.resources import files as importlib_files
