@@ -10,7 +10,7 @@ dependencies = [
     # cli
     "click>=8.0,<9",
     # python 3.8 compatibility
-    "importlib_resources>=5.10.2",
+    "importlib_resources>=5.10.2; python_version < \"3.9\"",
     # code completion
     "jedi>=0.18.0",
     # compile markdown to html
@@ -23,8 +23,8 @@ dependencies = [
     "tomlkit>= 0.12.0",
     # web server
     "tornado>=6.1,<7",
-    # python 3.8 compatibility
-    "typing_extensions>=4.4.0",
+    # python <=3.9 compatibility
+    "typing_extensions>=4.4.0; python_version < \"3.10\"",
     # for cell formatting; if user version is not compatible, no-op
     "black",
 ]
@@ -124,6 +124,9 @@ select = [
 # Never try to fix `F401` (unused imports).
 unfixable = ["F401"]
 
+[tool.ruff.isort]
+required-imports = ["from __future__ import annotations"]
+
 [tool.black]
 line-length = 79
 extend-exclude = """
@@ -135,10 +138,6 @@ extend-exclude = """
     | ^/marimo/_smoke_tests/*
 )
 """
-
-[tool.isort]
-profile = "black"
-line_length = 79
 
 [tool.mypy]
 strict = true

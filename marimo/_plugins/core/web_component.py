@@ -4,9 +4,24 @@ from __future__ import annotations
 import json
 import re
 from html import escape, unescape
-from typing import Mapping, Optional, Sequence, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Mapping,
+    Sequence,
+    TypeVar,
+    Union,
+    cast,
+)
 
-from typing_extensions import TypeAlias
+if TYPE_CHECKING:
+    import sys
+
+    if sys.version_info < (3, 10):
+        from typing_extensions import TypeAlias
+    else:
+        from typing import TypeAlias
+
+    from typing import Optional
 
 from marimo._output.md import md
 from marimo._output.mime import MIME

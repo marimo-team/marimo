@@ -23,7 +23,6 @@ import webbrowser
 from shutil import which
 from typing import Any, Optional
 
-import importlib_resources
 import tornado.autoreload
 import tornado.ioloop
 import tornado.web
@@ -34,6 +33,11 @@ from marimo._config.config import get_configuration
 from marimo._config.utils import load_config
 from marimo._server import api, sessions
 from marimo._server.utils import TAB, print_tabbed
+
+if sys.version_info < (3, 9):
+    from importlib_resources import files as importlib_files
+else:
+    from importlib.resources import files as importlib_files
 
 DEFAULT_PORT = 2718
 UTF8_SUPPORTED = False
@@ -322,9 +326,7 @@ async def start_server(
     _loggers.initialize_tornado_loggers(development_mode)
     signal.signal(signal.SIGINT, interrupt_handler)
 
-    root = os.path.realpath(
-        importlib_resources.files("marimo").joinpath("_static")
-    )
+    root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
     app = construct_app(root=root, development_mode=development_mode)
     port = connect_app(app, port)
     session_mgr = sessions.initialize_manager(
