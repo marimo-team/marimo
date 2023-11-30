@@ -190,11 +190,11 @@ const ExpandableOutput = React.memo(
           >
             {isExpanded ? (
               <Tooltip content="Collapse output" side="left">
-                <ChevronsUpDownIcon className="h-4 w-4" />
+                <ChevronsDownUpIcon className="h-4 w-4" />
               </Tooltip>
             ) : (
               <Tooltip content="Expand output" side="left">
-                <ChevronsDownUpIcon className="h-4 w-4" />
+                <ChevronsUpDownIcon className="h-4 w-4" />
               </Tooltip>
             )}
           </Button>
