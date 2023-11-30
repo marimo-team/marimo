@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { OutputMessage } from "@/core/kernel/messages";
 
@@ -15,6 +15,10 @@ import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
 
 import "./output/Outputs.css";
+import { Button } from "../ui/button";
+import { ChevronsDownUpIcon, ChevronsUpDownIcon } from "lucide-react";
+import { Tooltip } from "../ui/tooltip";
+import { useExpandedOutput } from "@/core/cells/outputs";
 
 /**
  * Renders an output based on an OutputMessage.
@@ -64,57 +68,140 @@ export function formatOutput({
   }
 }
 
+interface OutputAreaProps {
+  output: OutputMessage | null;
+  cellId: CellId;
+  stale: boolean;
+  allowExpand: boolean;
+  className?: string;
+}
+
 export const OutputArea = React.memo(
-  (props: {
-    output: OutputMessage | null;
-    cellId: CellId;
-    stale: boolean;
-    className?: string;
-  }) => {
+  ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
     // Memoize parsing the json data
     const parsedJsonData = useMemo(() => {
-      if (!props.output) {
+      if (!output) {
         return;
       }
 
-      const { mimetype, data } = props.output;
+      const { mimetype, data } = output;
       switch (mimetype) {
         case "application/json":
           return typeof data === "string" ? JSON.parse(data) : data;
         default:
           return;
       }
-    }, [props.output]);
+    }, [output]);
 
-    if (props.output === null) {
+    if (output === null) {
       return null;
-    } else if (props.output.channel === "output" && props.output.data === "") {
+    } else if (output.channel === "output" && output.data === "") {
       return null;
     } else {
       // TODO(akshayka): More descriptive title
       // 1. This output is stale (this cell has been edited but not run)
       // 2. This output is stale (this cell is queued to run)
       // 3. This output is stale (its inputs have changed)
-      const title = props.stale ? "This output is stale" : undefined;
+      const title = stale ? "This output is stale" : undefined;
+      const Container = allowExpand ? ExpandableOutput : Div;
+
       return (
         <ErrorBoundary>
-          <div
+          <Container
             title={title}
-            id={`output-${props.cellId}`}
-            className={cn(
-              props.stale && "marimo-output-stale",
-              props.className
-            )}
+            cellId={cellId}
+            id={`output-${cellId}`}
+            className={cn(stale && "marimo-output-stale", className)}
           >
             {formatOutput({
-              message: props.output,
+              message: output,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               parsedJsonData: parsedJsonData as Record<string, any>,
             })}
-          </div>
+          </Container>
         </ErrorBoundary>
       );
     }
   }
 );
 OutputArea.displayName = "OutputArea";
+
+const Div = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<"div">
+>((props, ref) => <div ref={ref} {...props} />);
+Div.displayName = "Div";
+
+/**
+ * Detects if there is overflow in the output area and adds a button to optionally expand
+ */
+const ExpandableOutput = React.memo(
+  ({
+    cellId,
+    children,
+    ...props
+  }: React.HTMLProps<HTMLDivElement> & {
+    cellId: CellId;
+  }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    // Create resize observer to detect overflow
+    useEffect(() => {
+      if (!containerRef.current) {
+        return;
+      }
+      const el = containerRef.current;
+
+      const detectOverflow = () => {
+        setIsOverflowing(el.scrollHeight > el.clientHeight);
+      };
+
+      const resizeObserver = new ResizeObserver(detectOverflow);
+      resizeObserver.observe(el);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, [props.id]);
+
+    return (
+      <>
+        <div className="increase-pointer-area-x" />
+        <div
+          {...props}
+          className={cn("relative", props.className)}
+          ref={containerRef}
+          style={isExpanded ? { maxHeight: "none" } : undefined}
+        >
+          {children}
+        </div>
+        {(isOverflowing || isExpanded) && (
+          <Button
+            className={cn(
+              "absolute top-1 -right-10",
+              // Force show button if expanded
+              !isExpanded && "hover-action"
+            )}
+            onClick={() => setIsExpanded(!isExpanded)}
+            size="xs"
+            variant="text"
+          >
+            {isExpanded ? (
+              <Tooltip content="Collapse output" side="left">
+                <ChevronsDownUpIcon className="h-4 w-4" />
+              </Tooltip>
+            ) : (
+              <Tooltip content="Expand output" side="left">
+                <ChevronsUpDownIcon className="h-4 w-4" />
+              </Tooltip>
+            )}
+          </Button>
+        )}
+      </>
+    );
+  }
+);
+
+ExpandableOutput.displayName = "ExpandableOutput";

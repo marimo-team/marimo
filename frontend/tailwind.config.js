@@ -1,4 +1,7 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+
+const plugin = require("tailwindcss/plugin");
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -117,5 +120,34 @@ module.exports = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    plugin(function ({ addUtilities }) {
+      const newUtilities = {
+        ".increase-pointer-area-x": {
+          position: "absolute",
+          width: "100%",
+          height: "100%",
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            left: "-50px",
+            width: "50px",
+          },
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            top: "0",
+            bottom: "0",
+            right: "-50px",
+            width: "50px",
+          },
+        },
+      };
+
+      addUtilities(newUtilities);
+    }),
+  ],
 };

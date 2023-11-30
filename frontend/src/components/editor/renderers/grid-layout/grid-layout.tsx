@@ -363,7 +363,12 @@ const GridCell = memo(
           side === "right" && "flex justify-end"
         )}
       >
-        <OutputArea output={output} cellId={cellId} stale={loading} />
+        <OutputArea
+          allowExpand={false}
+          output={output}
+          cellId={cellId}
+          stale={loading}
+        />
       </div>
     );
   }
