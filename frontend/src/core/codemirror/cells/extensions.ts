@@ -5,7 +5,6 @@ import { CellId } from "@/core/cells/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
-import { languageAdapterState } from "../language/extension";
 import { getEditorCodeAsPython } from "../language/utils";
 
 export interface MovementCallbacks

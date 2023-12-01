@@ -10,20 +10,36 @@ import { PythonLanguageAdapter } from "./python";
 import { EditorView, Panel, keymap, showPanel } from "@codemirror/view";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { clamp } from "@/utils/math";
+import { CompletionConfig } from "@/core/config/config-schema";
+import { completionConfigState } from "../config/extension";
 
-const LANGUAGES = [new PythonLanguageAdapter(), new MarkdownLanguageAdapter()];
+export const LanguageAdapters: Record<
+  LanguageAdapter["type"],
+  LanguageAdapter
+> = {
+  python: new PythonLanguageAdapter(),
+  markdown: new MarkdownLanguageAdapter(),
+};
+
+const LANGUAGES: LanguageAdapter[] = [
+  LanguageAdapters.python,
+  LanguageAdapters.markdown,
+];
 
 const languageCompartment = new Compartment();
 
-const updateLanguageAdapter = StateEffect.define<LanguageAdapter>();
+const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
 
+/**
+ * State field to keep track of the current language adapter.
+ */
 export const languageAdapterState = StateField.define<LanguageAdapter>({
   create() {
-    return LANGUAGES[0];
+    return LanguageAdapters.python;
   },
   update(value, tr) {
     for (const effect of tr.effects) {
-      if (effect.is(updateLanguageAdapter)) {
+      if (effect.is(setLanguageAdapter)) {
         return effect.value;
       }
     }
@@ -36,7 +52,7 @@ export const languageAdapterState = StateField.define<LanguageAdapter>({
 });
 
 // Keymap to toggle between languages
-function languageToggle() {
+function languageToggle(completionConfig: CompletionConfig) {
   // Cycle through the language to find the next one that supports the code
   const findNextLanguage = (code: string, index: number): LanguageAdapter => {
     const language = LANGUAGES[index % LANGUAGES.length];
@@ -62,34 +78,47 @@ function languageToggle() {
             return false;
           }
 
-          // Update the code
-          const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
-          const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
-
-          // Update the cursor position
-          let cursor = cm.state.selection.main.head;
-          cursor += cursorDiff1;
-          cursor -= cursorDiff2;
-          cursor = clamp(cursor, 0, newCode.length);
-
-          // Update the state
-          cm.dispatch({
-            effects: [
-              updateLanguageAdapter.of(nextLanguage),
-              languageCompartment.reconfigure(nextLanguage.getExtension()),
-            ],
-            changes: {
-              from: 0,
-              to: cm.state.doc.length,
-              insert: newCode,
-            },
-            selection: EditorSelection.cursor(cursor),
-          });
+          updateLanguageAdapterAndCode(cm, nextLanguage);
           return true;
         },
       },
     ]),
   ];
+}
+
+function updateLanguageAdapterAndCode(
+  view: EditorView,
+  nextLanguage: LanguageAdapter
+) {
+  const currentLanguage = view.state.field(languageAdapterState);
+  const code = view.state.doc.toString();
+  const completionConfig = view.state.facet(completionConfigState);
+
+  // Update the code
+  const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
+  const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
+
+  // Update the cursor position
+  let cursor = view.state.selection.main.head;
+  cursor += cursorDiff1;
+  cursor -= cursorDiff2;
+  cursor = clamp(cursor, 0, newCode.length);
+
+  // Update the state
+  view.dispatch({
+    effects: [
+      setLanguageAdapter.of(nextLanguage),
+      languageCompartment.reconfigure(
+        nextLanguage.getExtension(completionConfig)
+      ),
+    ],
+    changes: {
+      from: 0,
+      to: view.state.doc.length,
+      insert: newCode,
+    },
+    selection: EditorSelection.cursor(cursor),
+  });
 }
 
 function createLanguagePanel(view: EditorView): Panel {
@@ -106,10 +135,39 @@ function createLanguagePanel(view: EditorView): Panel {
   };
 }
 
-export function adaptiveLanguageConfiguration() {
+/**
+ * Set of extensions to enable adaptive language configuration.
+ */
+export function adaptiveLanguageConfiguration(
+  completionConfig: CompletionConfig
+) {
   return [
-    languageToggle(),
-    languageCompartment.of(new PythonLanguageAdapter().getExtension()),
+    completionConfigState.of(completionConfig),
+    languageToggle(completionConfig),
+    languageCompartment.of(
+      LanguageAdapters.python.getExtension(completionConfig)
+    ),
     languageAdapterState,
   ];
+}
+
+/**
+ * Switch the language of the editor.
+ */
+export function switchLanguage(
+  view: EditorView,
+  language: LanguageAdapter["type"]
+) {
+  const newLanguage = LanguageAdapters[language];
+  updateLanguageAdapterAndCode(view, newLanguage);
+}
+
+export function reconfigureLanguageEffect(
+  view: EditorView,
+  completionConfig: CompletionConfig
+) {
+  const language = view.state.field(languageAdapterState);
+  return languageCompartment.reconfigure(
+    language.getExtension(completionConfig)
+  );
 }

@@ -1,4 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
+import { CompletionConfig } from "@/core/config/config-schema";
 import { Extension } from "@codemirror/state";
 
 /**
@@ -7,9 +8,9 @@ import { Extension } from "@codemirror/state";
  * you're writing Markdown, but it will actually be transformed into Python.
  */
 export interface LanguageAdapter {
-  type: string;
+  type: "python" | "markdown";
   transformIn(code: string): [string, number];
   transformOut(code: string): [string, number];
   isSupported(code: string): boolean;
-  getExtension(): Extension;
+  getExtension(completionConfig: CompletionConfig): Extension;
 }

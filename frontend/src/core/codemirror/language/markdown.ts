@@ -22,7 +22,7 @@ const regexes = pairs.map(
     // mo.md( + any number of spaces + start + capture + any number of spaces + end)
     [
       start,
-      new RegExp(`^mo\\.md\\(\\s*${start}(.*)\\s*${end}\\)$`, "s"),
+      new RegExp(`^mo\\.md\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
     ] as const
 );
 
@@ -30,7 +30,7 @@ const regexes = pairs.map(
  * Language adapter for Markdown.
  */
 export class MarkdownLanguageAdapter implements LanguageAdapter {
-  type = "markdown";
+  type = "markdown" as const;
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {

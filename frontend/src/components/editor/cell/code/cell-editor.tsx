@@ -1,8 +1,15 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { memo, useCallback, useEffect, useRef, useLayoutEffect } from "react";
+import { EditorView, ViewPlugin } from "@codemirror/view";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  useState,
+} from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import { AppMode } from "@/core/mode";
@@ -12,6 +19,13 @@ import { CellRuntimeState, CellData } from "@/core/cells/types";
 import { SerializedEditorState } from "@/core/codemirror/types";
 import { UserConfig } from "@/core/config/config-schema";
 import { Theme } from "@/theme/useTheme";
+import {
+  LanguageAdapters,
+  languageAdapterState,
+  reconfigureLanguageEffect,
+} from "@/core/codemirror/language/extension";
+import { derefNotNull } from "@/utils/dereference";
+import { LanguageToggle } from "./language-toggle";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -58,6 +72,8 @@ const CellEditorInternal = ({
   userConfig,
   editorViewRef,
 }: CellEditorProps) => {
+  const [canUseMarkdown, setCanUseMarkdown] = useState(false);
+
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
@@ -130,6 +146,20 @@ const CellEditorInternal = ({
       theme,
     });
 
+    // listen to code changes if we can use markdown
+    extensions.push(
+      ViewPlugin.define(() => ({
+        update(view) {
+          const code = view.state.doc.toString();
+          const languageAdapter = view.state.field(languageAdapterState);
+          // If its not markdown, set if we can use markdown
+          if (languageAdapter.type !== "markdown") {
+            setCanUseMarkdown(LanguageAdapters.markdown.isSupported(code));
+          }
+        },
+      }))
+    );
+
     // Should focus will be true if its a newly created editor
     let shouldFocus: boolean;
     if (serializedEditorState === null) {
@@ -146,7 +176,13 @@ const CellEditorInternal = ({
         shouldFocus = true;
       } else {
         editorViewRef.current.dispatch({
-          effects: [StateEffect.reconfigure.of([extensions])],
+          effects: [
+            StateEffect.reconfigure.of([extensions]),
+            reconfigureLanguageEffect(
+              editorViewRef.current,
+              userConfig.completion
+            ),
+          ],
         });
         shouldFocus = false;
       }
@@ -220,7 +256,19 @@ const CellEditorInternal = ({
     }
   }, [editing, editorViewRef]);
 
-  return <div className="cm" ref={editorViewParentRef} />;
+  return (
+    <>
+      {canUseMarkdown && (
+        <div className="absolute top-1 right-1">
+          <LanguageToggle
+            editorView={derefNotNull(editorViewRef)}
+            canUseMarkdown={canUseMarkdown}
+          />
+        </div>
+      )}
+      <div className="cm" ref={editorViewParentRef} />
+    </>
+  );
 };
 
 export const CellEditor = memo(CellEditorInternal);

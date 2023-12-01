@@ -112,6 +112,13 @@ describe("MarkdownLanguageAdapter", () => {
       expect(innerCode).toBe("   \n# Title\nContent\n   ");
       expect(offset).toBe(9);
     });
+
+    it("should handle space around the f=strings", () => {
+      const pythonCode = 'mo.md(\n\t"""\n# Title\nContent\n"""\n)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("\n# Title\nContent\n");
+      expect(offset).toBe(11);
+    });
   });
 
   describe("transformOut", () => {

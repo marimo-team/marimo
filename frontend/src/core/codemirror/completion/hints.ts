@@ -87,13 +87,14 @@ export function dispatchShowTooltip(
 }
 
 export function clearTooltips(view: EditorView): boolean {
-  const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
-  if (hasCompletionTooltip) {
-    view.dispatch({
-      effects: TooltipFromCompletionApi.of([]),
-    });
-    return true;
-  }
+  // We stopped showing cursorTooltipField
+  // const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
+  // if (hasCompletionTooltip) {
+  //   view.dispatch({
+  //     effects: TooltipFromCompletionApi.of([]),
+  //   });
+  //   return true;
+  // }
   return false;
 }
 
@@ -101,7 +102,7 @@ export function clearTooltips(view: EditorView): boolean {
 const TooltipFromCompletionApi = StateEffect.define<Tooltip[]>();
 
 // Field that stores the current tooltips
-const cursorTooltipField = StateField.define<Tooltip[]>({
+export const cursorTooltipField = StateField.define<Tooltip[]>({
   create: () => {
     return [];
   },

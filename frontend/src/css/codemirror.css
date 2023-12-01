@@ -168,3 +168,13 @@
 .cm .cm-completionIcon-keyword::after {
   content: "κ";
 }
+
+/* -- Panels -- */
+
+.cm .cm-panels {
+  background: transparent;
+  color: var(--sky-11);
+  font-weight: 700;
+
+  @apply text-xs;
+}
