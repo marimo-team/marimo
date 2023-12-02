@@ -92,11 +92,20 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should handle multiple markdown blocks in a single string", () => {
-      const pythonCode =
-        'mo.md("""# Title 1""") + "\\n" + mo.md("""## Title 2""")';
-      expect(() =>
-        adapter.transformIn(pythonCode)
-      ).toThrowErrorMatchingInlineSnapshot('"Not supported"');
+      const pythonCode = `mo.md("""
+        # Hello, Markdown!
+        mo.md(
+            '''
+            # Hello, Markdown!
+            Use marimo's "md" function to embed rich text into your marimo
+            '''
+        )
+        """)`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe(
+        `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`
+      );
+      expect(offset).toBe(18);
     });
 
     it("simple markdown", () => {

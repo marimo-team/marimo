@@ -81,12 +81,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
-    // more than one mo.md() call
-    const matches = pythonCode.match(/mo\.md\(/g);
-    if (matches && matches.length > 1) {
-      return false;
-    }
-
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
