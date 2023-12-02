@@ -20,7 +20,7 @@
    "source": [
     "Here is some math\n",
     "\n",
-    "$x = 0$"
+    "$x \\approx 0$"
    ]
   }
  ],
