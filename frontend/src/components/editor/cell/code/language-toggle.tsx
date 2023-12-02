@@ -32,7 +32,7 @@ export const LanguageToggle: React.FC<Props> = ({
 
   return (
     <div className="absolute top-0 right-4 z-20 hover-action">
-      <Tooltip content={`Switch to ${startCase(otherLanguage)}`}>
+      <Tooltip content={`View as ${startCase(otherLanguage)}`}>
         <Button variant="text" size="xs" className="opacity-80">
           <Icon
             className="cursor-pointer"
