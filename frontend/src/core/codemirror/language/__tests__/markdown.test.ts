@@ -106,18 +106,26 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(7);
     });
 
-    it("should handle strings with leading and trailing whitespace", () => {
+    it("should trim strings with leading and trailing whitespace", () => {
       const pythonCode = 'mo.md("""   \n# Title\nContent\n   """)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("   \n# Title\nContent\n   ");
-      expect(offset).toBe(9);
+      expect(innerCode).toBe("# Title\nContent");
+      expect(offset).toBe(13);
     });
 
     it("should handle space around the f=strings", () => {
       const pythonCode = 'mo.md(\n\t"""\n# Title\nContent\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("\n# Title\nContent\n");
-      expect(offset).toBe(11);
+      expect(innerCode).toBe("# Title\nContent");
+      expect(offset).toBe(12);
+    });
+
+    it("should dedent indented strings", () => {
+      const pythonCode =
+        'mo.md(\n\t"""\n\t- item 1\n\t-item 2\n\t-item3\n\t"""\n)';
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("- item 1\n-item 2\n-item3");
+      expect(offset).toBe(13);
     });
   });
 
@@ -125,17 +133,58 @@ describe("MarkdownLanguageAdapter", () => {
     it("should wrap Markdown code with triple double-quoted string format", () => {
       const code = "# Markdown Title\n\nSome content here.";
       const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe(`mo.md(f"""${code}""")`);
-      expect(offset).toBe(10);
+      expect(wrappedCode).toMatchInlineSnapshot(`
+        "mo.md(
+        	\\"\\"\\"
+        	# Markdown Title
+
+        	Some content here.
+        	\\"\\"\\"
+        )"
+      `);
+      expect(offset).toBe(13);
     });
 
     it("should escape triple quotes in the Markdown code", () => {
       const code = 'Markdown with an escaped """quote"""!!';
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(
-        `mo.md(f"""Markdown with an escaped \\"""quote\\"""!!""")`
+        `mo.md("""Markdown with an escaped \\"""quote\\"""!!""")`
       );
+      expect(offset).toBe(9);
+    });
+
+    it("should upgrade to an f-string if the code contains {}", () => {
+      const code = "Markdown with an {foo} f-string";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe(`mo.md(f"""Markdown with an {foo} f-string""")`);
       expect(offset).toBe(10);
+    });
+
+    it("should upgrade to an f-string from r-string if the code contains {}", () => {
+      const code = "Markdown with an {foo} f-string";
+      adapter.lastQuotePrefix = "r";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe(
+        `mo.md(rf"""Markdown with an {foo} f-string""")`
+      );
+      expect(offset).toBe(11);
+    });
+
+    it("should not downgrade a f-string", () => {
+      const code = "Normal markdown";
+      adapter.lastQuotePrefix = "f";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe('mo.md(f"""Normal markdown""")');
+      expect(offset).toBe(10);
+    });
+
+    it("should not downgrade a rf-string", () => {
+      const code = "Normal markdown";
+      adapter.lastQuotePrefix = "rf";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      expect(wrappedCode).toBe('mo.md(rf"""Normal markdown""")');
+      expect(offset).toBe(11);
     });
   });
 

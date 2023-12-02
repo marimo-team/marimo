@@ -12,18 +12,20 @@ import { MarkdownLanguageAdapter } from "./markdown";
 import { clamp } from "@/utils/math";
 import { CompletionConfig } from "@/core/config/config-schema";
 import { completionConfigState } from "../config/extension";
+import { historyCompartment } from "../editing/extensions";
+import { history } from "@codemirror/commands";
 
 export const LanguageAdapters: Record<
   LanguageAdapter["type"],
-  LanguageAdapter
+  () => LanguageAdapter
 > = {
-  python: new PythonLanguageAdapter(),
-  markdown: new MarkdownLanguageAdapter(),
+  python: () => new PythonLanguageAdapter(),
+  markdown: () => new MarkdownLanguageAdapter(),
 };
 
 const LANGUAGES: LanguageAdapter[] = [
-  LanguageAdapters.python,
-  LanguageAdapters.markdown,
+  LanguageAdapters.python(),
+  LanguageAdapters.markdown(),
 ];
 
 const languageCompartment = new Compartment();
@@ -35,7 +37,7 @@ const setLanguageAdapter = StateEffect.define<LanguageAdapter>();
  */
 export const languageAdapterState = StateField.define<LanguageAdapter>({
   create() {
-    return LanguageAdapters.python;
+    return LanguageAdapters.python();
   },
   update(value, tr) {
     for (const effect of tr.effects) {
@@ -70,7 +72,9 @@ function languageToggle(completionConfig: CompletionConfig) {
         run: (cm) => {
           // Find the next language
           const currentLanguage = cm.state.field(languageAdapterState);
-          const currentLanguageIndex = LANGUAGES.indexOf(currentLanguage);
+          const currentLanguageIndex = LANGUAGES.findIndex(
+            (l) => l.type === currentLanguage.type
+          );
           const code = cm.state.doc.toString();
           const nextLanguage = findNextLanguage(code, currentLanguageIndex + 1);
 
@@ -111,6 +115,8 @@ function updateLanguageAdapterAndCode(
       languageCompartment.reconfigure(
         nextLanguage.getExtension(completionConfig)
       ),
+      // Clear history
+      historyCompartment.reconfigure([]),
     ],
     changes: {
       from: 0,
@@ -118,6 +124,11 @@ function updateLanguageAdapterAndCode(
       insert: newCode,
     },
     selection: EditorSelection.cursor(cursor),
+  });
+
+  // Add history back
+  view.dispatch({
+    effects: [historyCompartment.reconfigure([history()])],
   });
 }
 
@@ -145,7 +156,7 @@ export function adaptiveLanguageConfiguration(
     completionConfigState.of(completionConfig),
     languageToggle(completionConfig),
     languageCompartment.of(
-      LanguageAdapters.python.getExtension(completionConfig)
+      LanguageAdapters.python().getExtension(completionConfig)
     ),
     languageAdapterState,
   ];
@@ -159,7 +170,7 @@ export function switchLanguage(
   language: LanguageAdapter["type"]
 ) {
   const newLanguage = LanguageAdapters[language];
-  updateLanguageAdapterAndCode(view, newLanguage);
+  updateLanguageAdapterAndCode(view, newLanguage());
 }
 
 export function reconfigureLanguageEffect(

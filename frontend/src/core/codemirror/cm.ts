@@ -55,6 +55,7 @@ import {
 import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
 import { adaptiveLanguageConfiguration } from "./language/extension";
+import { historyCompartment } from "./editing/extensions";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -131,7 +132,7 @@ export const basicBundle = (
     adaptiveLanguageConfiguration(completionConfig),
 
     ///// Editing
-    history(),
+    historyCompartment.of(history()),
     EditorState.allowMultipleSelections.of(true),
     findReplaceBundle(),
     keymap.of([

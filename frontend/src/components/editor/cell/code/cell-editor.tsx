@@ -154,7 +154,7 @@ const CellEditorInternal = ({
           const languageAdapter = view.state.field(languageAdapterState);
           // If its not markdown, set if we can use markdown
           if (languageAdapter.type !== "markdown") {
-            setCanUseMarkdown(LanguageAdapters.markdown.isSupported(code));
+            setCanUseMarkdown(LanguageAdapters.markdown().isSupported(code));
           }
         },
       }))
