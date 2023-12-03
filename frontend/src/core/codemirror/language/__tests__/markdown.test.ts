@@ -145,9 +145,9 @@ describe("MarkdownLanguageAdapter", () => {
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
         	\\"\\"\\"
-        	# Markdown Title
+            # Markdown Title
 
-        	Some content here.
+            Some content here.
         	\\"\\"\\"
         )"
       `);
@@ -205,6 +205,12 @@ describe("MarkdownLanguageAdapter", () => {
 
     it("should return false for unsupported string formats", () => {
       const pythonCode = 'print("Hello, World!")';
+      expect(adapter.isSupported(pythonCode)).toBe(false);
+    });
+
+    it("should return false sequences that look like markdown but are not", () => {
+      const once = 'mo.md("""# Markdown Title\n\nSome content here""")';
+      const pythonCode = [once, once].join("\n");
       expect(adapter.isSupported(pythonCode)).toBe(false);
     });
   });
