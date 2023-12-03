@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.24"
+__generated_with = "0.1.63"
 app = marimo.App()
 
 
@@ -18,6 +17,15 @@ def __(mo, time):
         range(10), title="Loading", subtitle="Please wait"
     ):
         time.sleep(0.1)
+    return
+
+
+@app.cell
+def __(mo, time):
+    for _ in mo.status.progress_bar(
+        range(10), title="Loading", subtitle="Please wait", show_eta=True, show_rate=True
+    ):
+        time.sleep(0.5)
     return
 
 
