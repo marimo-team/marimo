@@ -81,15 +81,15 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
-    const markdownLines = pythonCode                                             
-        .split("\n")                                                               
-        .map((line) => line.startsWith("mo.md("))                                  
-        .filter(Boolean);                                                          
-    if (markdownLines.length > 1) {                                              
-        // more than line starting with mo.md(; as a heuristic,                    
-        // don't show "view as markdown"                                           
-        return false;                                                              
-    }                 
+    const markdownLines = pythonCode
+      .split("\n")
+      .map((line) => line.startsWith("mo.md("))
+      .filter(Boolean);
+    if (markdownLines.length > 1) {
+      // more than line starting with mo.md(; as a heuristic,
+      // don't show "view as markdown"
+      return false;
+    }
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
