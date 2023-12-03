@@ -43,7 +43,7 @@ def test_markdown() -> None:
         == textwrap.dedent(
             """
             mo.md(
-                \"\"\"
+                r\"\"\"
                 # Hello, markdown
 
                 \\"\\"\\"
@@ -60,10 +60,10 @@ def test_markdown() -> None:
         == textwrap.dedent(
             """
             mo.md(
-                \"\"\"
+                r\"\"\"
                 Here is some math
 
-                $x = 0$
+                $x \\approx 0$
                 \"\"\"
             )
             """

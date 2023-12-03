@@ -33,7 +33,8 @@ def convert(ipynb_path: str) -> str:
             source = "\n".join(
                 [
                     "mo.md(",
-                    codegen.indent_text('"""'),
+                    # r-string: a backslash is just a backslash!
+                    codegen.indent_text('r"""'),
                     codegen.indent_text(source),
                     codegen.indent_text('"""'),
                     ")",
