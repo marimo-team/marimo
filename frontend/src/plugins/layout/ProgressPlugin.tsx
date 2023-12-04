@@ -85,6 +85,9 @@ export const ProgressComponent = ({
   };
 
   const renderMeta = () => {
+    const hasCompleted =
+      typeof progress === "number" && total != null && progress >= total;
+
     const elements: React.ReactNode[] = [];
     if (rate) {
       elements.push(
@@ -93,10 +96,18 @@ export const ProgressComponent = ({
       );
     }
 
-    if (eta) {
+    if (!hasCompleted && eta) {
       elements.push(
         <span key="eta">ETA {prettyTime(eta)}</span>,
         <span key="spacer-eta">&middot;</span>
+      );
+    }
+
+    if (hasCompleted && rate) {
+      const totalTime = progress / rate;
+      elements.push(
+        <span key="completed">Total time {prettyTime(totalTime)}</span>,
+        <span key="spacer-completed">&middot;</span>
       );
     }
 

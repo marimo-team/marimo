@@ -242,8 +242,8 @@ def progress_bar(
     subtitle: Optional[str] = None,
     completion_title: Optional[str] = None,
     completion_subtitle: Optional[str] = None,
-    show_rate: bool = False,
-    show_eta: bool = False,
+    show_rate: bool = True,
+    show_eta: bool = True,
 ) -> Iterable[S | int]:
     """Iterate over a collection and show a progress bar
 
