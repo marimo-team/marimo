@@ -24,7 +24,7 @@
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch",
       "excludePackagePatterns": [".*eslint.*", ".*radix.*", ".*storybook.*"],
-      "excludePackageNames": ["typescript", "partysocket"]
+      "excludePackageNames": ["typescript", "react-resizable-panels"]
     },
     {
       "packagePatterns": [".*radix.*"],
