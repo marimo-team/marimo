@@ -25,8 +25,10 @@ def test_progress_init() -> None:
     assert progress.loading_spinner is False
     assert progress.show_rate is True
     assert progress.show_eta is True
-    assert progress._get_rate() == 0.0
-    assert progress._get_eta() is None
+    rate = progress._get_rate()
+    assert rate == 0.0
+    eta = progress._get_eta()
+    assert eta is None
 
 
 # Test update_progress method
@@ -69,8 +71,10 @@ def test_update_progress_no_args(_mock_flush: Any) -> None:
     assert progress.current == 1
     assert progress.title == "Test"
     assert progress.subtitle == "Running"
-    assert progress._get_rate() is None
-    assert progress._get_eta() is None
+    rate = progress._get_rate()
+    assert rate is None
+    eta = progress._get_eta()
+    assert eta is None
 
 
 # Test update_progress with closed progress
