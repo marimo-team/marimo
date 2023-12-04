@@ -3,11 +3,11 @@ import { z } from "zod";
 
 import { IPlugin, IPluginProps } from "@/plugins/types";
 
-import Plot, { Figure } from "react-plotly.js";
+import type { Figure } from "react-plotly.js";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
-import { memo, useMemo } from "react";
+import { lazy, memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { PlotlyTemplateParser, createParser } from "./parse-from-template";
 
@@ -61,6 +61,8 @@ const config = {
   displaylogo: false,
 };
 
+export const LazyPlot = lazy(() => import("react-plotly.js"));
+
 export const PlotlyComponent = memo(
   ({ figure, setValue }: PlotlyPluginProps) => {
     const layout: Partial<Plotly.Layout> = useMemo(() => {
@@ -69,14 +71,14 @@ export const PlotlyComponent = memo(
       return {
         autosize: shouldAutoSize,
         dragmode: "select",
-        height: 560,
+        height: 540,
         // Prioritize user's config
         ...figure.layout,
       };
     }, [figure.layout]);
 
     return (
-      <Plot
+      <LazyPlot
         {...figure}
         layout={layout}
         config={config}

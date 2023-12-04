@@ -1,9 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useLayoutEffect, useRef } from "react";
-import katex from "katex";
 
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
+import { once } from "@/utils/once";
 
 /**
  * TexPlugin
@@ -23,7 +23,12 @@ export class TexPlugin implements IStatelessPlugin<{}> {
   }
 }
 
-function renderLatex(mount: HTMLElement, tex: string) {
+const importKatex = once(async () => {
+  return (await import("katex")).default;
+});
+
+async function renderLatex(mount: HTMLElement, tex: string): Promise<void> {
+  const katex = await importKatex();
   if (tex.startsWith("||(||(") && tex.endsWith("||)||)")) {
     // when $$...$$ is used without newlines before/after the $$.
     katex.render(tex.slice(6, -6), mount, {

@@ -11,6 +11,7 @@ import React, {
   createRef,
   ReactNode,
   SetStateAction,
+  Suspense,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -181,14 +182,16 @@ function PluginSlotInternal<T>(
   // Render the plugin
   return (
     <div className={`contents ${theme}`}>
-      {plugin.render({
-        setValue: setValueAndSendInput,
-        value,
-        data: parsedResult.data,
-        children: childNodes,
-        host: hostElement,
-        functions: functionMethods,
-      })}
+      <Suspense fallback={<div />}>
+        {plugin.render({
+          setValue: setValueAndSendInput,
+          value,
+          data: parsedResult.data,
+          children: childNodes,
+          host: hostElement,
+          functions: functionMethods,
+        })}
+      </Suspense>
     </div>
   );
 }

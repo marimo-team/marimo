@@ -1,10 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { z } from "zod";
 
-import { SignalListeners, VegaLite, View } from "react-vega";
+import type { SignalListeners, View } from "react-vega";
 import { IPlugin, IPluginProps } from "@/plugins/types";
 import { makeSelectable } from "./make-selectable";
-import { useMemo, useRef, useState } from "react";
+import { lazy, useMemo, useRef, useState } from "react";
 import { getSelectionParamNames } from "./params";
 import { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -126,6 +126,10 @@ export const VegaComponent = ({
     />
   );
 };
+
+const VegaLite = lazy(() =>
+  import("react-vega").then((m) => ({ default: m.VegaLite }))
+);
 
 const LoadedVegaComponent = ({
   value,
