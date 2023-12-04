@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import time
 from collections.abc import Collection
 from typing import Iterable, Iterator, Optional, TypeVar
 
@@ -26,6 +27,8 @@ class _Progress(Html):
         title: Optional[str],
         subtitle: Optional[str],
         total: Optional[int],
+        show_rate: bool,
+        show_eta: bool,
     ) -> None:
         self.title = title
         self.subtitle = subtitle
@@ -34,6 +37,9 @@ class _Progress(Html):
         self.closed = False
         # We show a loading spinner if total not known
         self.loading_spinner = total is None
+        self.show_rate = show_rate
+        self.show_eta = show_eta
+        self.start_time = time.time()
         super().__init__(self._get_text())
 
     def __del__(self) -> None:
@@ -100,16 +106,49 @@ class _Progress(Html):
                     # 'progress' is True is we don't know the total,
                     # which shows a loading spinner
                     "progress": True if self.loading_spinner else self.current,
+                    "rate": self._get_rate(),
+                    "eta": self._get_eta(),
                 }
             ),
         )
 
+    def _get_rate(self) -> Optional[float]:
+        if self.show_rate:
+            diff = time.time() - self.start_time
+            if diff == 0:
+                return None
+            rate = self.current / diff
+            return round(rate, 2)
+        else:
+            return None
+
+    def _get_eta(self) -> Optional[float]:
+        if self.show_eta and self.total is not None:
+            rate = self._get_rate()
+            if rate is not None and rate > 0:
+                return round((self.total - self.current) / rate, 2)
+            else:
+                return None
+        else:
+            return None
+
 
 class ProgressBar(_Progress):
     def __init__(
-        self, title: str | None, subtitle: str | None, total: int
+        self,
+        title: str | None,
+        subtitle: str | None,
+        total: int,
+        show_rate: bool,
+        show_eta: bool,
     ) -> None:
-        super().__init__(title=title, subtitle=subtitle, total=total)
+        super().__init__(
+            title=title,
+            subtitle=subtitle,
+            total=total,
+            show_rate=show_rate,
+            show_eta=show_eta,
+        )
 
     def update(
         self,
@@ -127,7 +166,13 @@ class Spinner(_Progress):
     """A spinner output representing a loading state"""
 
     def __init__(self, title: str | None, subtitle: str | None) -> None:
-        super().__init__(title=title, subtitle=subtitle, total=None)
+        super().__init__(
+            title=title,
+            subtitle=subtitle,
+            total=None,
+            show_rate=False,
+            show_eta=False,
+        )
 
     def update(
         self, title: str | None = None, subtitle: str | None = None
@@ -197,6 +242,8 @@ def progress_bar(
     subtitle: Optional[str] = None,
     completion_title: Optional[str] = None,
     completion_subtitle: Optional[str] = None,
+    show_rate: bool = True,
+    show_eta: bool = True,
 ) -> Iterable[S | int]:
     """Iterate over a collection and show a progress bar
 
@@ -217,6 +264,8 @@ def progress_bar(
     - `subtitle`: optional subtitle
     - `completion_title`: optional title to show during completion
     - `completion_subtitle`: optional subtitle to show during completion
+    - `show_rate`: if True, show the rate of progress (items per second)
+    - `show_eta`: if True, show the estimated time of completion
 
     **Returns.**
 
@@ -228,7 +277,13 @@ def progress_bar(
     else:
         total = len(collection)
         step = 1
-    progress = ProgressBar(title=title, subtitle=subtitle, total=total)
+    progress = ProgressBar(
+        title=title,
+        subtitle=subtitle,
+        total=total,
+        show_rate=show_rate,
+        show_eta=show_eta,
+    )
     output.append(progress)
     for item in collection:
         yield item
