@@ -31,7 +31,7 @@ export const LanguageToggle: React.FC<Props> = ({
   const Icon = languageAdapter === "markdown" ? PythonIcon : MarkdownIcon;
 
   return (
-    <div className="absolute top-0 right-4 z-20 hover-action">
+    <div className="absolute top-0 right-5 z-20 hover-action">
       <Tooltip content={`View as ${startCase(otherLanguage)}`}>
         <Button variant="text" size="xs" className="opacity-80">
           <Icon

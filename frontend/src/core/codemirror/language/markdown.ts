@@ -64,7 +64,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
   transformOut(code: string): [string, number] {
     // Get the quote type from the last transformIn
-    const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
+    // const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
+    const prefix = this.lastQuotePrefix;
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
@@ -146,7 +147,7 @@ function splitQuotePrefix(quote: string): [PrefixKind, string] {
   return ["", quote];
 }
 
-function upgradePrefixKind(kind: PrefixKind, code: string): PrefixKind {
+export function upgradePrefixKind(kind: PrefixKind, code: string): PrefixKind {
   const containsSubstitution = code.includes("{") && code.includes("}");
 
   // If there is no substitution, keep the same prefix

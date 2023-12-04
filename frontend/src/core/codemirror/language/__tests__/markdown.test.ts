@@ -163,14 +163,14 @@ describe("MarkdownLanguageAdapter", () => {
       expect(offset).toBe(7);
     });
 
-    it("should upgrade to an f-string if the code contains {}", () => {
+    it.skip("should upgrade to an f-string if the code contains {}", () => {
       const code = "Markdown with an {foo} f-string";
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(`mo.md(f"Markdown with an {foo} f-string")`);
       expect(offset).toBe(8);
     });
 
-    it("should upgrade to an f-string from r-string if the code contains {}", () => {
+    it.skip("should upgrade to an f-string from r-string if the code contains {}", () => {
       const code = "Markdown with an {foo} f-string";
       adapter.lastQuotePrefix = "r";
       const [wrappedCode, offset] = adapter.transformOut(code);
