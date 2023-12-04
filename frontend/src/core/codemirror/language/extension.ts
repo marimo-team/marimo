@@ -14,6 +14,7 @@ import { CompletionConfig } from "@/core/config/config-schema";
 import { completionConfigState } from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
+import { formattingChangeEffect } from "../format";
 
 export const LanguageAdapters: Record<
   LanguageAdapter["type"],
@@ -117,6 +118,8 @@ function updateLanguageAdapterAndCode(
       ),
       // Clear history
       historyCompartment.reconfigure([]),
+      // Let downstream extensions know that this is a formatting change
+      formattingChangeEffect.of(true),
     ],
     changes: {
       from: 0,

@@ -67,8 +67,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
 
     const isOneLine = !code.includes("\n");
-    const escapedCode = code.replaceAll('"""', '\\"""');
     if (isOneLine) {
+      const escapedCode = code.replaceAll('"', '\\"');
       const start = `mo.md(${prefix}"`;
       const end = `")`;
       return [start + escapedCode + end, start.length];
@@ -76,6 +76,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
     // Multiline code
     const start = `mo.md(\n    ${prefix}"""\n`;
+    const escapedCode = code.replaceAll('"""', '\\"""');
     const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }

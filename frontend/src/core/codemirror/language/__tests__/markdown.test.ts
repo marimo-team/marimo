@@ -144,56 +144,54 @@ describe("MarkdownLanguageAdapter", () => {
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
-        	\\"\\"\\"
+            \\"\\"\\"
             # Markdown Title
 
             Some content here.
-        	\\"\\"\\"
+            \\"\\"\\"
         )"
       `);
-      expect(offset).toBe(13);
+      expect(offset).toBe(16);
     });
 
     it("should escape triple quotes in the Markdown code", () => {
       const code = 'Markdown with an escaped """quote"""!!';
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(
-        `mo.md("""Markdown with an escaped \\"""quote\\"""!!""")`
+        `mo.md("Markdown with an escaped \\"\\"\\"quote\\"\\"\\"!!")`
       );
-      expect(offset).toBe(9);
+      expect(offset).toBe(7);
     });
 
     it("should upgrade to an f-string if the code contains {}", () => {
       const code = "Markdown with an {foo} f-string";
       const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe(`mo.md(f"""Markdown with an {foo} f-string""")`);
-      expect(offset).toBe(10);
+      expect(wrappedCode).toBe(`mo.md(f"Markdown with an {foo} f-string")`);
+      expect(offset).toBe(8);
     });
 
     it("should upgrade to an f-string from r-string if the code contains {}", () => {
       const code = "Markdown with an {foo} f-string";
       adapter.lastQuotePrefix = "r";
       const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe(
-        `mo.md(rf"""Markdown with an {foo} f-string""")`
-      );
-      expect(offset).toBe(11);
+      expect(wrappedCode).toBe(`mo.md(rf"Markdown with an {foo} f-string")`);
+      expect(offset).toBe(9);
     });
 
     it("should not downgrade a f-string", () => {
       const code = "Normal markdown";
       adapter.lastQuotePrefix = "f";
       const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(f"""Normal markdown""")');
-      expect(offset).toBe(10);
+      expect(wrappedCode).toBe('mo.md(f"Normal markdown")');
+      expect(offset).toBe(8);
     });
 
     it("should not downgrade a rf-string", () => {
       const code = "Normal markdown";
       adapter.lastQuotePrefix = "rf";
       const [wrappedCode, offset] = adapter.transformOut(code);
-      expect(wrappedCode).toBe('mo.md(rf"""Normal markdown""")');
-      expect(offset).toBe(11);
+      expect(wrappedCode).toBe('mo.md(rf"Normal markdown")');
+      expect(offset).toBe(9);
     });
   });
 

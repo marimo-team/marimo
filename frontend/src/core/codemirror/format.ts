@@ -12,6 +12,9 @@ import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,
 } from "./language/utils";
+import { StateEffect } from "@codemirror/state";
+
+export const formattingChangeEffect = StateEffect.define<boolean>();
 
 /**
  * Format the code in the editor views via the marimo server,
