@@ -38,11 +38,15 @@ export async function downloadAsHTML(opts: { filename: string }) {
     throw error;
   });
 
+  const filenameWithoutPath = filename.split("/").pop() ?? "app.py";
+  const filenameWithoutExtension =
+    filenameWithoutPath.split(".").shift() ?? "app";
+
   const html = constructHTML({
     notebookState: notebook,
     version: version,
     assetUrl: assetUrl,
-    filename: filename || "notebook",
+    filename: filenameWithoutPath,
     existingDocument: document,
     files: await downloadVirtualFiles(),
     code: codeResponse.contents,
@@ -50,7 +54,7 @@ export async function downloadAsHTML(opts: { filename: string }) {
 
   downloadBlob(
     new Blob([html], { type: "text/html" }),
-    filename ? `${filename}.html` : "notebook.html"
+    `${filenameWithoutExtension}.html`
   );
 }
 

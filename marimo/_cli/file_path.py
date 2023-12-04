@@ -15,6 +15,11 @@ import click
 from marimo._cli.print import green
 from marimo._utils.url import is_url
 
+STATIC_HTML_CODE_PREFIX = '<marimo-code hidden="">'
+STATIC_HTML_CODE_SUFFIX = "</marimo-code>"
+STATIC_HTML_FILENAME_PREFIX = '<marimo-filename hidden="">'
+STATIC_HTML_FILENAME_SUFFIX = "</marimo-filename>"
+
 
 def is_github_src(url: str, ext: str) -> bool:
     if not is_url(url):
@@ -59,6 +64,18 @@ def validate_name(
         temp_dir = TemporaryDirectory()
         return _handle_github_issue(name, temp_dir), temp_dir
 
+    is_static_notebook, static_notebook_html = _is_static_marimo_notebook_url(
+        name
+    )
+    if is_static_notebook:
+        temp_dir = TemporaryDirectory()
+        return (
+            _create_tmp_file_from_static_notebook(
+                static_notebook_html, temp_dir
+            ),
+            temp_dir,
+        )
+
     path = pathlib.Path(name)
     if path.suffix == ".ipynb":
         prefix = str(path)[: -len(".ipynb")]
@@ -94,6 +111,19 @@ def _is_github_issue_url(url: str) -> bool:
     )
 
 
+def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
+    if not is_url(url) or not url.endswith(".html"):
+        return False, ""
+    logging.info("Downloading %s", url)
+    request = urllib.request.Request(
+        url,
+        # User agent to avoid 403 Forbidden some bot protection
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    file_contents = urllib.request.urlopen(request).read().decode("utf-8")
+    return STATIC_HTML_CODE_PREFIX in file_contents, str(file_contents)
+
+
 def _handle_github_issue(url: str, temp_dir: TemporaryDirectory[str]) -> str:
     issue_number = url.split("/")[-1]
     api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
@@ -125,6 +155,20 @@ def _handle_github_src(url: str, temp_dir: TemporaryDirectory[str]) -> str:
     url = get_github_src_url(url)
     path_to_app = _create_tmp_file_from_url(url, temp_dir)
     return path_to_app
+
+
+def _create_tmp_file_from_static_notebook(
+    file_contents: str, temp_dir: TemporaryDirectory[str]
+) -> str:
+    def between(prefix: str, suffix: str) -> str:
+        return file_contents.split(prefix)[1].split(suffix)[0]
+
+    code = between(STATIC_HTML_CODE_PREFIX, STATIC_HTML_CODE_SUFFIX)
+    filename = between(
+        STATIC_HTML_FILENAME_PREFIX, STATIC_HTML_FILENAME_SUFFIX
+    )
+    decoded_code = urllib.parse.unquote(code).strip()
+    return _create_tmp_file_from_content(decoded_code, filename, temp_dir)
 
 
 def _create_tmp_file_from_url(
