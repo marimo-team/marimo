@@ -73,7 +73,7 @@
     "dequal": "^2.0.3",
     "eslint-plugin-header": "^3.1.1",
     "htm": "^3.1.1",
-    "html-react-parser": "^4.2.10",
+    "html-react-parser": "^5.0.6",
     "html-to-image": "^1.11.11",
     "jotai": "^2.5.1",
     "js-cookie": "^3.0.5",
