@@ -1,5 +1,4 @@
 # Copyright 2023 Marimo. All rights reserved.
-from math import e
 from typing import Any
 from unittest.mock import patch
 
