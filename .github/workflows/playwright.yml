@@ -81,7 +81,7 @@ jobs:
       - name: ☁️ Google Auth
         uses: google-github-actions/auth@v1
         # Skip on forks
-        if: github.repository_owner != 'marimo'
+        if: github.repository_owner != 'marimo-team'
         with:
           credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
 
@@ -92,7 +92,7 @@ jobs:
       - name: 📦 Upload to bucket (PR)
         uses: google-github-actions/upload-cloud-storage@v1
         # Only on PRs and not forks
-        if: github.event_name == 'pull_request' && github.repository_owner != 'marimo'
+        if: github.event_name == 'pull_request' && github.repository_owner != 'marimo-team'
         with:
           destination: marimo-oss-visual-snapshots/branches/${{ steps.branch-name.outputs.current_branch }}
           path: frontend/e2e-tests/screenshots
@@ -100,7 +100,7 @@ jobs:
       - name: 📦 Upload to bucket (main)
         uses: google-github-actions/upload-cloud-storage@v1
         # Only on main branch and not forks
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner != 'marimo'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner != 'marimo-team'
         with:
           destination: marimo-oss-visual-snapshots/main
           path: frontend/e2e-tests/screenshots
