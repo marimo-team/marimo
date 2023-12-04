@@ -64,7 +64,7 @@
     "@uiw/react-codemirror": "^4.21.20",
     "blob-polyfill": "^7.0.20220408",
     "class-variance-authority": "^0.7.0",
-    "clsx": "^1.2.1",
+    "clsx": "^2.0.0",
     "cmdk": "^0.2.0",
     "codemirror-extension-inline-suggestion": "^0.0.1",
     "codemirror-languageserver": "^1.11.0",
