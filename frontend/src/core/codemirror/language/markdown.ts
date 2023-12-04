@@ -69,14 +69,14 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     const isOneLine = !code.includes("\n");
     const escapedCode = code.replaceAll('"""', '\\"""');
     if (isOneLine) {
-      const start = `mo.md(${prefix}"""`;
-      const end = `""")`;
+      const start = `mo.md(${prefix}"`;
+      const end = `")`;
       return [start + escapedCode + end, start.length];
     }
 
     // Multiline code
-    const start = `mo.md(\n\t${prefix}"""\n`;
-    const end = `\n\t"""\n)`;
+    const start = `mo.md(\n    ${prefix}"""\n`;
+    const end = `\n    """\n)`;
     return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
 
