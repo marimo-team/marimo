@@ -25,6 +25,8 @@ def test_progress_init() -> None:
     assert progress.loading_spinner is False
     assert progress.show_rate is True
     assert progress.show_eta is True
+    # sleep 10ms
+    time.sleep(0.01)
     rate = progress._get_rate()
     assert rate == 0.0
     eta = progress._get_eta()
