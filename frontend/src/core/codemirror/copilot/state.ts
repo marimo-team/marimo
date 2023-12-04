@@ -10,7 +10,7 @@ export const copilotSignedInState = atomWithStorage<boolean | null>(
   null,
   undefined,
   {
-    unstable_getOnInit: true,
+    getOnInit: true,
   }
 );
 
