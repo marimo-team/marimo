@@ -1,4 +1,5 @@
 # Copyright 2023 Marimo. All rights reserved.
+import time
 from typing import Any
 from unittest.mock import patch
 
@@ -38,6 +39,8 @@ def test_update_progress(_mock_flush: Any) -> None:
         show_rate=True,
         show_eta=True,
     )
+    # sleep 100ms
+    time.sleep(0.1)
     progress.update_progress(
         increment=10, title="Updated", subtitle="Still Running"
     )
@@ -60,6 +63,8 @@ def test_update_progress_no_args(_mock_flush: Any) -> None:
         show_rate=False,
         show_eta=False,
     )
+    # sleep 100ms
+    time.sleep(0.1)
     progress.update_progress()
     assert progress.current == 1
     assert progress.title == "Test"
