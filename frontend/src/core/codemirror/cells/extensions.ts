@@ -5,6 +5,8 @@ import { CellId } from "@/core/cells/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
+import { getEditorCodeAsPython } from "../language/utils";
+import { formattingChangeEffect } from "../format";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
@@ -170,9 +172,18 @@ export function cellCodeEditingBundle(
   const { updateCellCode } = callbacks;
 
   const onChangePlugin = EditorView.updateListener.of((update) => {
+    // Check if the doc update was a formatting change
+    // e.g. changing from python to markdown
+    const isFormattingChange = update.transactions.some((tr) =>
+      tr.effects.some((effect) => effect.is(formattingChangeEffect))
+    );
     if (update.docChanged) {
-      const nextCode = update.state.doc.toString();
-      updateCellCode({ cellId, code: nextCode, formattingChange: false });
+      const nextCode = getEditorCodeAsPython(update.view);
+      updateCellCode({
+        cellId,
+        code: nextCode,
+        formattingChange: isFormattingChange,
+      });
     }
   });
 

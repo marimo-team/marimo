@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { getAllEditorViews } from "@/core/cells/cells";
+import { getEditorCodeAsPython } from "../language/utils";
 
 export function getCodes(otherCode: string) {
   // Get all other cells' code
@@ -7,10 +8,11 @@ export function getCodes(otherCode: string) {
   // TODO: we should sort this topologically
   const codes = getAllEditorViews()
     .map((editorView) => {
-      if (editorView.state.doc.toString() === otherCode) {
+      const code = getEditorCodeAsPython(editorView);
+      if (code === otherCode) {
         return null;
       }
-      return editorView.state.doc.toString();
+      return code;
     })
     .filter(Boolean)
     .sort((a, b) => {

@@ -216,6 +216,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-b",
   },
+  "global.toggleLanguage": {
+    name: "Toggle language to markdown (if supported)",
+    group: "Editing",
+    key: "F4",
+  },
 
   // Global Navigation
   "global.focusTop": {

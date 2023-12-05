@@ -1,7 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { historyField } from "@codemirror/commands";
-import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   memo,
@@ -9,18 +7,16 @@ import {
   KeyboardEvent,
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useRef,
-  useLayoutEffect,
 } from "react";
 
 import { sendRun } from "@/core/network/requests";
-import { autocompletionKeymap, setupCodeMirror } from "@/core/codemirror/cm";
+import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
 import { CellData, CellRuntimeState } from "../../core/cells/types";
-import { CellActions, useCellActions } from "../../core/cells/cells";
+import { CellActions } from "../../core/cells/cells";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/ConsoleOutput";
@@ -41,6 +37,8 @@ import { CellActionsDropdown } from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
+import { CellEditor } from "./cell/code/cell-editor";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 
 /**
  * Imperative interface of the cell.
@@ -50,10 +48,6 @@ export interface CellHandle {
    * The CodeMirror editor view.
    */
   editorView: EditorView;
-  /**
-   * Get the serialized editor state.
-   */
-  editorStateJSON: () => Record<string, unknown>;
   /**
    * Register the cell to run.
    */
@@ -137,8 +131,6 @@ const CellComponent = (
   Logger.debug("Rendering Cell", cellId);
   const cellRef = useRef<HTMLDivElement>(null);
   const editorView = useRef<EditorView | null>(null);
-  // DOM node where the editorView will be mounted
-  const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   const needsRun = edited || interrupted;
   const loading = status === "running" || status === "queued";
@@ -159,15 +151,13 @@ const CellComponent = (
   const consoleOutputStale =
     (status === "queued" || edited || status === "stale") && !interrupted;
   const editing = mode === "edit";
-  const reading = mode === "read";
-  const { sendToTop, sendToBottom } = useCellActions();
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
   // actually run the cell.
   //
   // Returns the code to run.
   const prepareToRunEffects = useCallback(() => {
-    const code = derefNotNull(editorView).state.doc.toString();
+    const code = getEditorCodeAsPython(derefNotNull(editorView));
     closeCompletion(derefNotNull(editorView));
     prepareForRun({ cellId });
     return code;
@@ -179,9 +169,6 @@ const CellComponent = (
     () => ({
       get editorView() {
         return derefNotNull(editorView);
-      },
-      editorStateJSON: () => {
-        return derefNotNull(editorView).state.toJSON({ history: historyField });
       },
       registerRun: prepareToRunEffects,
     }),
@@ -198,16 +185,6 @@ const CellComponent = (
     sendRun([cellId], [code]);
   });
 
-  const handleDelete = useEvent(() => {
-    // Cannot delete running cells, since we're waiting for their output.
-    if (loading) {
-      return false;
-    }
-
-    deleteCell({ cellId });
-    return true;
-  });
-
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
     [cellId, createNewCell]
@@ -216,138 +193,6 @@ const CellComponent = (
     () => createNewCell({ cellId, before: true }),
     [cellId, createNewCell]
   );
-  const moveDown = useCallback(
-    () => moveCell({ cellId, before: false }),
-    [cellId, moveCell]
-  );
-  const moveUp = useCallback(
-    () => moveCell({ cellId, before: true }),
-    [cellId, moveCell]
-  );
-  const focusDown = useCallback(
-    () => focusCell({ cellId, before: false }),
-    [cellId, focusCell]
-  );
-  const focusUp = useCallback(
-    () => focusCell({ cellId, before: true }),
-    [cellId, focusCell]
-  );
-
-  useEffect(() => {
-    if (reading) {
-      return;
-    }
-
-    const extensions = setupCodeMirror({
-      cellId,
-      showPlaceholder,
-      cellCodeCallbacks: {
-        updateCellCode,
-      },
-      cellMovementCallbacks: {
-        onRun: handleRun,
-        deleteCell: handleDelete,
-        createAbove,
-        createBelow,
-        moveUp,
-        moveDown,
-        focusUp,
-        focusDown,
-        sendToTop,
-        sendToBottom,
-        moveToNextCell,
-      },
-      completionConfig: userConfig.completion,
-      keymapConfig: userConfig.keymap,
-      theme,
-    });
-
-    // Should focus will be true if its a newly created editor
-    let shouldFocus: boolean;
-    if (serializedEditorState === null) {
-      // If the editor already exists, reconfigure it with the new extensions.
-      // Triggered when, e.g., placeholder changes.
-      if (editorView.current === null) {
-        // Otherwise, create a new editor.
-        editorView.current = new EditorView({
-          state: EditorState.create({
-            doc: code,
-            extensions: extensions,
-          }),
-        });
-        shouldFocus = true;
-      } else {
-        editorView.current.dispatch({
-          effects: [StateEffect.reconfigure.of([extensions])],
-        });
-        shouldFocus = false;
-      }
-    } else {
-      editorView.current = new EditorView({
-        state: EditorState.fromJSON(
-          serializedEditorState,
-          {
-            doc: code,
-            extensions: extensions,
-          },
-          { history: historyField }
-        ),
-      });
-      shouldFocus = true;
-    }
-
-    if (editorView.current !== null && editorViewParentRef.current !== null) {
-      // Always replace the children in case the editor view was re-created.
-      editorViewParentRef.current.replaceChildren(editorView.current.dom);
-    }
-
-    if (shouldFocus && allowFocus) {
-      // Focus and scroll into view; request an animation frame to
-      // avoid a race condition when new editors are created
-      // very rapidly by holding a hotkey
-      requestAnimationFrame(() => {
-        editorView.current?.focus();
-        editorView.current?.dom.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      });
-    }
-
-    // We don't want to re-run this effect when `allowFocus` or `code` changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    reading,
-    cellId,
-    userConfig.completion.activate_on_typing,
-    userConfig.keymap,
-    theme,
-    showPlaceholder,
-    createAbove,
-    createBelow,
-    focusUp,
-    focusDown,
-    moveUp,
-    moveDown,
-    moveToNextCell,
-    updateCellCode,
-    handleDelete,
-    handleRun,
-    serializedEditorState,
-  ]);
-
-  useLayoutEffect(() => {
-    if (editorView.current === null) {
-      return;
-    }
-    if (
-      editing &&
-      editorViewParentRef.current !== null &&
-      editorView.current !== null
-    ) {
-      editorViewParentRef.current.replaceChildren(editorView.current.dom);
-    }
-  }, [editing]);
 
   // Close completion when focus leaves the cell's subtree.
   const closeCompletionHandler = useCallback((e: FocusEvent) => {
@@ -436,8 +281,6 @@ const CellComponent = (
     }
   };
 
-  const editor = <div className="cm" ref={editorViewParentRef} />;
-
   return (
     <CellActionsContextMenu
       cellId={cellId}
@@ -475,7 +318,25 @@ const CellComponent = (
               />
             </div>
           </div>
-          {editor}
+          <CellEditor
+            theme={theme}
+            showPlaceholder={showPlaceholder}
+            allowFocus={allowFocus}
+            id={cellId}
+            code={code}
+            status={status}
+            serializedEditorState={serializedEditorState}
+            mode={mode}
+            runCell={handleRun}
+            updateCellCode={updateCellCode}
+            createNewCell={createNewCell}
+            deleteCell={deleteCell}
+            focusCell={focusCell}
+            moveCell={moveCell}
+            moveToNextCell={moveToNextCell}
+            userConfig={userConfig}
+            editorViewRef={editorView}
+          />
           <div className="shoulder-right">
             <CellStatusComponent
               status={status}

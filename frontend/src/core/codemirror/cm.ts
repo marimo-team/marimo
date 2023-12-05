@@ -1,7 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import {
   acceptCompletion,
-  autocompletion,
   closeBrackets,
   closeBracketsKeymap,
 } from "@codemirror/autocomplete";
@@ -12,18 +11,10 @@ import {
   indentMore,
 } from "@codemirror/commands";
 import {
-  pythonLanguage,
-  localCompletionSource,
-  globalCompletion,
-} from "@codemirror/lang-python";
-import {
   bracketMatching,
   defaultHighlightStyle,
   foldGutter,
-  foldInside,
   foldKeymap,
-  foldNodeProp,
-  LanguageSupport,
   indentOnInput,
   indentUnit,
   syntaxHighlighting,
@@ -48,7 +39,6 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { CompletionConfig, KeymapConfig } from "../config/config-schema";
 import { Theme } from "../../theme/useTheme";
 
-import { completer } from "@/core/codemirror/completion/completer";
 import { findReplaceBundle } from "./find-replace/extension";
 import {
   CodeCallbacks,
@@ -64,6 +54,8 @@ import {
 } from "./extensions";
 import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
+import { adaptiveLanguageConfiguration } from "./language/extension";
+import { historyCompartment } from "./editing/extensions";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -101,17 +93,6 @@ export const setupCodeMirror = ({
   ];
 };
 
-// Customize python to support folding some additional syntax nodes
-const customizedPython = pythonLanguage.configure({
-  props: [
-    foldNodeProp.add({
-      ParenthesizedExpression: foldInside,
-      // Fold function calls whose arguments are split over multiple lines
-      ArgList: foldInside,
-    }),
-  ],
-});
-
 // Based on codemirror's basicSetup extension
 export const basicBundle = (
   completionConfig: CompletionConfig,
@@ -135,20 +116,6 @@ export const basicBundle = (
     scrollActiveLineIntoView(),
     theme === "dark" ? oneDark : [],
 
-    ///// Language Support
-    // Whether or not to require keypress to activate autocompletion (default
-    // keymap is Ctrl+Space)
-    autocompletion({
-      activateOnTyping: completionConfig.activate_on_typing,
-      // The Cell component handles the blur event. `closeOnBlur` is too
-      // aggressive and doesn't let the user click into the completion info
-      // element (which contains the docstring/type --- users might want to
-      // copy paste from the docstring). The main issue is that the completion
-      // tooltip is not part of the editable DOM tree:
-      // https://discuss.codemirror.net/t/adding-click-event-listener-to-autocomplete-tooltip-info-panel-is-not-working/4741
-      closeOnBlur: false,
-      override: [completer],
-    }),
     hintTooltip(),
     copilotBundle(),
     foldGutter(),
@@ -161,14 +128,11 @@ export const basicBundle = (
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     keymap.of([...foldKeymap, ...lintKeymap]),
 
-    ///// Python Support
-    new LanguageSupport(customizedPython, [
-      customizedPython.data.of({ autocomplete: localCompletionSource }),
-      customizedPython.data.of({ autocomplete: globalCompletion }),
-    ]),
+    ///// Language Support
+    adaptiveLanguageConfiguration(completionConfig),
 
     ///// Editing
-    history(),
+    historyCompartment.of(history()),
     EditorState.allowMultipleSelections.of(true),
     findReplaceBundle(),
     keymap.of([

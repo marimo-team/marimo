@@ -5,6 +5,7 @@ import { sendRun } from "@/core/network/requests";
 import { staleCellIds, useNotebook } from "@/core/cells/cells";
 import { derefNotNull } from "@/utils/dereference";
 import useEvent from "react-use-event-hook";
+import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
@@ -41,7 +42,7 @@ function useRunCells() {
     const codes: string[] = [];
     for (const cellId of cellIds) {
       const ref = derefNotNull(cellHandles[cellId]);
-      codes.push(ref.editorView.state.doc.toString());
+      codes.push(getEditorCodeAsPython(ref.editorView));
       ref.registerRun();
     }
 
