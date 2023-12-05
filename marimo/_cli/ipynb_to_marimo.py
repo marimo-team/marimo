@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import json
 import urllib.request
+from typing import Any
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._cli.file_path import get_github_src_url, is_github_src
 
 
-def convert(ipynb_path: str) -> str:
+def convert_from_path(ipynb_path: str) -> str:
     if is_github_src(ipynb_path, ext=".ipynb"):
         notebook = json.loads(
             urllib.request.urlopen(get_github_src_url(ipynb_path))
@@ -19,6 +20,11 @@ def convert(ipynb_path: str) -> str:
     else:
         with open(ipynb_path, "r") as f:
             notebook = json.loads(f.read())
+
+    return convert(notebook)
+
+
+def convert(notebook: dict[str, Any]) -> str:
     sources = []
     has_markdown = False
     for cell in notebook["cells"]:

@@ -397,7 +397,7 @@ def convert(ipynb: str) -> None:
     you may need to fix errors like multiple definition errors or cycle
     errors.
     """
-    print(ipynb_to_marimo.convert(ipynb))
+    print(ipynb_to_marimo.convert_from_path(ipynb))
 
 
 @main.command()
