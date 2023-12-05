@@ -7,13 +7,13 @@ import textwrap
 from collections.abc import Sequence
 
 from marimo._ast import codegen
-from marimo._cli.ipynb_to_marimo import convert
+from marimo._cli.ipynb_to_marimo import convert_from_path
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def get_codes(ipynb_name: str) -> tuple[Sequence[str], Sequence[str]]:
-    contents = convert(
+    contents = convert_from_path(
         DIR_PATH + f"/../_test_utils/ipynb_data/{ipynb_name}.ipynb.txt"
     )
 
