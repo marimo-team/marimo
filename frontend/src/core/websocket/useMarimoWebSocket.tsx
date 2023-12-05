@@ -5,7 +5,7 @@ import { connectionAtom } from "../network/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/cells/cells";
-import { RuntimeState } from "@/core/RuntimeState";
+import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";

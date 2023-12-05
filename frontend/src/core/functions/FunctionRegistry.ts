@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
-import { RuntimeState } from "@/core/RuntimeState";
+import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendFunctionRequest } from "@/core/network/requests";
 import { FunctionCallResultMessage } from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
