@@ -47,7 +47,7 @@ import { SortableCellsProvider } from "../components/sort/SortableCellsProvider"
 import { CellId, HTMLCellId } from "./cells/ids";
 import { CellConfig } from "./cells/types";
 import { CellArray } from "../components/editor/renderers/CellArray";
-import { RuntimeState } from "./RuntimeState";
+import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { getSerializedLayout } from "./layout/layout";
 import { useAtom } from "jotai";

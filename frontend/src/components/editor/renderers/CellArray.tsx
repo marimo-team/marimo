@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "@/components/editor/Cell";
-import { RuntimeState } from "../../../core/RuntimeState";
+import { RuntimeState } from "../../../core/kernel/RuntimeState";
 import {
   ConnectionStatus,
   WebSocketState,
