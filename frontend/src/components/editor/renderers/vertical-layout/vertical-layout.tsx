@@ -26,11 +26,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const [showCode, setShowCode] = useState(false);
   const canShowCode = mode === "read" && isStaticNotebook();
   return (
-    <VerticalLayoutWrapper
-      className="sm:pt-8"
-      invisible={invisible}
-      appConfig={appConfig}
-    >
+    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
         <VerticalCell
           key={cell.id}
@@ -83,10 +79,11 @@ const VerticalCell = memo(
     const cellRef = useRef<HTMLDivElement>(null);
     const loading = status === "running" || status === "queued";
 
-    const className = clsx("Cell", "hover-actions-parent flex flex-col", {
+    const className = clsx("Cell", "hover-actions-parent", {
       published: true,
       "has-error": errored,
       stopped: stopped,
+      "flex flex-col": showCode && code,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
