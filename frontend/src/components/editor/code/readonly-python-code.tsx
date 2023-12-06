@@ -1,3 +1,4 @@
+/* Copyright 2023 Marimo. All rights reserved. */
 import { memo } from "react";
 import { python } from "@codemirror/lang-python";
 import CodeMirror, {
@@ -16,8 +17,8 @@ export const ReadonlyPythonCode = memo(
     const { theme } = useThemeForPlugin();
     const { code, className, ...rest } = props;
     return (
-      <div className={cn("relative hover-actions-parent", props.className)}>
-        <FloatingCopyButton text={props.code} />
+      <div className={cn("relative hover-actions-parent", className)}>
+        <FloatingCopyButton text={code} />
         <CodeMirror
           {...rest}
           className="cm"
@@ -25,13 +26,14 @@ export const ReadonlyPythonCode = memo(
           height="100%"
           editable={true}
           extensions={[python(), EditorView.lineWrapping]}
-          value={props.code}
+          value={code}
           readOnly={true}
         />
       </div>
     );
   }
 );
+ReadonlyPythonCode.displayName = "ReadonlyPythonCode";
 
 const FloatingCopyButton = (props: { text: string }) => {
   const copy = Events.stopPropagation(() => {
