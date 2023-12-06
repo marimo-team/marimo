@@ -3,7 +3,7 @@ import { cva } from "class-variance-authority";
 import "./Inputs.css";
 
 export const button = cva(
-  "flex items-center justify-center m-0 leading-none font-medium border border-foreground/10 shadow-xsSolid shadow-foreground/10 hover:cursor-pointer focus:shadow-md dark:border-border",
+  "flex items-center justify-center m-0 leading-none font-medium border border-foreground/10 shadow-xsSolid shadow-foreground/10 hover:cursor-pointer focus:shadow-md dark:border-border text-sm",
   {
     variants: {
       color: {
