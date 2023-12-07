@@ -17,7 +17,7 @@ export const ReadonlyPythonCode = memo(
     const { theme } = useThemeForPlugin();
     const { code, className, ...rest } = props;
     return (
-      <div className={cn("relative hover-actions-parent", className)}>
+      <div className={cn("relative hover-actions-parent w-full", className)}>
         <FloatingCopyButton text={code} />
         <CodeMirror
           {...rest}
@@ -44,7 +44,7 @@ const FloatingCopyButton = (props: { text: string }) => {
   return (
     <Button
       onClick={copy}
-      className="absolute top-0 right-0 m-1 z-10 hover-action"
+      className="absolute top-0 right-0 m-2 z-10 hover-action"
       size="xs"
       variant="secondary"
     >

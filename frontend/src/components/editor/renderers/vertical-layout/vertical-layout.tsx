@@ -3,7 +3,6 @@ import { memo, useRef, useState } from "react";
 import { CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
-import clsx from "clsx";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
@@ -12,7 +11,7 @@ import { AppMode } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 import { Button } from "../../inputs/Inputs";
 import { Code2Icon } from "lucide-react";
-import { isStaticNotebook } from "@/core/static/static-state";
+import { cn } from "@/utils/cn";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -24,7 +23,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const [showCode, setShowCode] = useState(false);
-  const canShowCode = mode === "read" && isStaticNotebook();
+  // Show code if there is at least one cell with code
+  const canShowCode = mode === "read" && cells.some((cell) => cell.code);
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
@@ -43,7 +43,10 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       ))}
       {canShowCode && (
         <div className="fixed m-4 left-0 bottom-0">
-          <Button onClick={() => setShowCode((prev) => !prev)}>
+          <Button
+            onClick={() => setShowCode((prev) => !prev)}
+            data-testid="show-code"
+          >
             <Code2Icon className="w-4 h-4 mr-2" />
             {showCode ? "Hide code" : "Show code"}
           </Button>
@@ -79,23 +82,36 @@ const VerticalCell = memo(
     const cellRef = useRef<HTMLDivElement>(null);
     const loading = status === "running" || status === "queued";
 
-    const className = clsx("Cell", "hover-actions-parent", {
-      published: true,
+    const className = cn("Cell", "hover-actions-parent", {
+      published: !showCode,
+      interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
-      "flex flex-col": showCode && code,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
     const hidden = errored || interrupted || stopped;
 
-    return hidden ? null : (
-      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
-        {showCode && code && (
-          <div className="shadow-sm border rounded overflow-hidden mt-4 mb-2">
+    // Read mode + show code
+    if (showCode) {
+      return (
+        <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+          <OutputArea
+            allowExpand={mode === "edit"}
+            output={output}
+            className="output-area"
+            cellId={cellId}
+            stale={loading && !interrupted}
+          />
+          <div className="tray">
             <ReadonlyPythonCode code={code} />
           </div>
-        )}
+        </div>
+      );
+    }
+
+    return hidden ? null : (
+      <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         <OutputArea
           allowExpand={mode === "edit"}
           output={output}

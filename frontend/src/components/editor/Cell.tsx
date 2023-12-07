@@ -56,27 +56,27 @@ export interface CellHandle {
 
 export interface CellProps
   extends Pick<
-      CellRuntimeState,
-      | "consoleOutputs"
-      | "status"
-      | "output"
-      | "errored"
-      | "interrupted"
-      | "stopped"
-      | "runStartTimestamp"
-      | "runElapsedTimeMs"
-    >,
-    Pick<CellData, "id" | "code" | "edited" | "config">,
-    Pick<
-      CellActions,
-      | "updateCellCode"
-      | "prepareForRun"
-      | "createNewCell"
-      | "deleteCell"
-      | "focusCell"
-      | "moveCell"
-      | "moveToNextCell"
-    > {
+    CellRuntimeState,
+    | "consoleOutputs"
+    | "status"
+    | "output"
+    | "errored"
+    | "interrupted"
+    | "stopped"
+    | "runStartTimestamp"
+    | "runElapsedTimeMs"
+  >,
+  Pick<CellData, "id" | "code" | "edited" | "config">,
+  Pick<
+    CellActions,
+    | "updateCellCode"
+    | "prepareForRun"
+    | "createNewCell"
+    | "deleteCell"
+    | "focusCell"
+    | "moveCell"
+    | "moveToNextCell"
+  > {
   theme: Theme;
   showPlaceholder: boolean;
   registerRunStart: () => void;
@@ -251,6 +251,7 @@ const CellComponent = (
 
   const className = clsx("Cell", "hover-actions-parent", {
     published: !editing,
+    interactive: editing,
     "needs-run": needsRun,
     "has-error": errored,
     stopped: stopped,
