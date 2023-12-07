@@ -57,6 +57,10 @@
       left: -1px;
       top: -1px;
     }
+
+    .cm {
+      border-radius: 8px;
+    }
   }
 
   /* Stale styles for Cell */
@@ -163,6 +167,8 @@
       display: block;
       padding-top: 0;
       padding-bottom: 0;
+      border: none;
+      box-shadow: none;
     }
 
     &:hover {
@@ -173,11 +179,45 @@
     &:focus-within {
       transform: none;
     }
+  }
 
-    .output-area {
-      border: none;
-      box-shadow: none;
-    }
+  /* -------------------------- Shoulders/Buttons ---------------------------- */
+  .shoulder-left {
+    position: absolute;
+    left: -34px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    height: 100%;
+    z-index: 2;
+  }
+
+  .shoulder-elem-top {
+    margin-bottom: auto;
+  }
+
+  .shoulder-elem-bottom {
+    vertical-align: bottom;
+  }
+
+  .shoulder-right {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    position: absolute;
+    right: -98px;
+    width: 80px;
+    gap: 4px;
+    z-index: 2;
+  }
+
+  .shoulder-bottom {
+    position: absolute;
+    bottom: -2px;
+    right: 2px;
+    z-index: 2; /* lie above editor */
   }
 
   @apply bg-background;
@@ -249,47 +289,6 @@
   --gutter-width: calc(50vw - (var(--content-width) / 2));
 }
 
-/* -------------------------- Shoulders/Buttons ---------------------------- */
-.Cell {
-  .shoulder-left {
-    position: absolute;
-    left: -34px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-    height: 100%;
-    z-index: 2;
-  }
-
-  .shoulder-elem-top {
-    margin-bottom: auto;
-  }
-
-  .shoulder-elem-bottom {
-    vertical-align: bottom;
-  }
-
-  .shoulder-right {
-    display: inline-flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    height: 100%;
-    position: absolute;
-    right: -98px;
-    width: 80px;
-    gap: 4px;
-    z-index: 2;
-  }
-
-  .shoulder-bottom {
-    position: absolute;
-    bottom: -2px;
-    right: 2px;
-    z-index: 2; /* lie above editor */
-  }
-}
-
 /* ------------------------ CodeMirror Editor ----------------------------- */
 .cm {
   width: 100%;
@@ -302,10 +301,6 @@
 
   /* leave some room for UI elements inside the code editor */
   padding-right: 24px;
-}
-
-.Cell .cm {
-  border-radius: 8px;
 }
 
 /* .Cell is needed to take precedence over codemirror's generated class ... */
