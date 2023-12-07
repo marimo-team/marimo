@@ -114,12 +114,12 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   await takeScreenshot(exportPage, path);
 
   // Toggle code
-  await page.getByTestId("show-code").click();
+  await exportPage.getByTestId("show-code").click();
   // wait 100ms for the code to be shown
-  await page.waitForTimeout(100);
+  await exportPage.waitForTimeout(100);
 
   // Take screenshot of code
-  await takeScreenshot(page, `code-${path}`);
+  await takeScreenshot(exportPage, `code-${path}`);
 }
 
 export async function exportAsPNG(page: Page) {
