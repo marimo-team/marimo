@@ -92,12 +92,12 @@ const VerticalCell = memo(
     const HTMLId = HTMLCellId.create(cellId);
     const hidden = errored || interrupted || stopped;
 
-    // Read mode + show code
-    if (showCode) {
+    // Read mode and show code
+    if (mode === "read" && showCode) {
       return (
         <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
           <OutputArea
-            allowExpand={mode === "edit"}
+            allowExpand={true}
             output={output}
             className="output-area"
             cellId={cellId}
