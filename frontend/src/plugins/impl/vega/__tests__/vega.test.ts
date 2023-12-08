@@ -5,7 +5,7 @@ import { vegaLoadData, vegaLoader } from "../loader";
 describe("vega loader", () => {
   it("should parse csv data", async () => {
     const csvData = `
-joined,username,id
+active,username,id
 2023-08-14T19:28:47Z,akshayka,1994308
 2023-08-14T21:30:17Z,mscolnick,5108954
 `.trim();
@@ -17,13 +17,13 @@ joined,username,id
     expect(data).toMatchInlineSnapshot(`
       [
         {
+          "active": "2023-08-14T19:28:47.000Z",
           "id": 1994308,
-          "joined": 2023-08-14T19:28:47.000Z,
           "username": "akshayka",
         },
         {
+          "active": "2023-08-14T21:30:17.000Z",
           "id": 5108954,
-          "joined": 2023-08-14T21:30:17.000Z,
           "username": "mscolnick",
         },
       ]

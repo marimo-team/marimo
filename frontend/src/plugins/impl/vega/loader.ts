@@ -4,7 +4,7 @@ import { loader as createLoader, read, typeParsers } from "vega-loader";
 import { DataFormat } from "./types";
 
 // Augment the typeParsers to support Date
-typeParsers.date = (value: string) => new Date(value);
+typeParsers.date = (value: string) => new Date(value).toISOString();
 
 export const vegaLoader = createLoader();
 
