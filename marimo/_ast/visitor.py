@@ -128,13 +128,25 @@ class ScopedVisitor(ast.NodeVisitor):
         (Calling visit on `node`'s children is fine.) In summary:
         call super().generic_visit on `node` and `visit()` on node's children.
         """
-        if isinstance(
-            node,
-            (ast.ClassDef, ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda),
-        ):
+        if isinstance(node, (ast.ClassDef, ast.Lambda)):
             # These AST nodes introduce a new scope, but otherwise do not
             # require special treatment.
             self._push_block(is_comprehension=False)
+            super().generic_visit(node)
+            self._pop_block()
+        elif isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+            self._push_block(is_comprehension=False)
+            if sys.version_info >= (3, 12):
+                # We need to visit generic type parameters before arguments
+                # to make sure type parameters don't get added as refs. eg, in
+                #
+                #   def foo[U](u: U) -> U: ...
+                #
+                # `U` should not be a ref
+                for child in node.type_params:
+                    self.visit(child)
+            # This will revisit the type_params, but that's okay because
+            # visiting is idempotent
             super().generic_visit(node)
             self._pop_block()
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):

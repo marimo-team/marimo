@@ -586,3 +586,19 @@ def test_type_var_generic_class() -> None:
     # T should not be among the refs or defs
     assert v.defs == set(["A"])
     assert v.refs == set()
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+def test_type_var_generic_function() -> None:
+    expr = cleandoc(
+        """
+        def test[U](u: U) -> U:
+            return u
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["test"])
+    # U should not be a ref
+    assert v.refs == set()
