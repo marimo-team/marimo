@@ -9,9 +9,9 @@ import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisiblity";
 import { AppMode } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
-import { Button } from "../../inputs/Inputs";
 import { Code2Icon } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { Button } from "@/components/ui/button";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -41,9 +41,10 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           interrupted={cell.interrupted}
         />
       ))}
-      {!canShowCode && (
-        <div className="fixed m-4 left-0 top-0">
+      {canShowCode && (
+        <div className="absolute m-4 left-0 top-0">
           <Button
+            variant="secondary"
             onClick={() => setShowCode((prev) => !prev)}
             data-testid="show-code"
           >
