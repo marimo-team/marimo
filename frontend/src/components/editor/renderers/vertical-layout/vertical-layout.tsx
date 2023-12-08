@@ -41,8 +41,8 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           interrupted={cell.interrupted}
         />
       ))}
-      {canShowCode && (
-        <div className="fixed m-4 left-0 bottom-0">
+      {!canShowCode && (
+        <div className="fixed m-4 left-0 top-0">
           <Button
             onClick={() => setShowCode((prev) => !prev)}
             data-testid="show-code"
