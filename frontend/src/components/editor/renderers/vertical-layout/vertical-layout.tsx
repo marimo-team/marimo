@@ -1,14 +1,17 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { memo, useRef } from "react";
+import { memo, useRef, useState } from "react";
 import { CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
-import clsx from "clsx";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisiblity";
 import { AppMode } from "@/core/mode";
+import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
+import { Code2Icon } from "lucide-react";
+import { cn } from "@/utils/cn";
+import { Button } from "@/components/ui/button";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -19,24 +22,37 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   mode,
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
+  const [showCode, setShowCode] = useState(false);
+  // Show code if there is at least one cell with code
+  const canShowCode = mode === "read" && cells.some((cell) => cell.code);
   return (
-    <VerticalLayoutWrapper
-      className="sm:pt-8"
-      invisible={invisible}
-      appConfig={appConfig}
-    >
+    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
         <VerticalCell
           key={cell.id}
           cellId={cell.id}
           output={cell.output}
           status={cell.status}
+          code={cell.code}
           stopped={cell.stopped}
+          showCode={showCode && canShowCode}
           errored={cell.errored}
           mode={mode}
           interrupted={cell.interrupted}
         />
       ))}
+      {canShowCode && (
+        <div className="absolute m-4 left-0 top-0">
+          <Button
+            variant="secondary"
+            onClick={() => setShowCode((prev) => !prev)}
+            data-testid="show-code"
+          >
+            <Code2Icon className="w-4 h-4 mr-2" />
+            {showCode ? "Hide code" : "Show code"}
+          </Button>
+        </div>
+      )}
     </VerticalLayoutWrapper>
   );
 };
@@ -47,7 +63,9 @@ interface VerticalCellProps
     "output" | "status" | "stopped" | "errored" | "interrupted"
   > {
   cellId: CellId;
+  code: string;
   mode: AppMode;
+  showCode: boolean;
 }
 
 const VerticalCell = memo(
@@ -58,19 +76,41 @@ const VerticalCell = memo(
     stopped,
     errored,
     interrupted,
+    code,
+    showCode,
     mode,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
     const loading = status === "running" || status === "queued";
 
-    const className = clsx("Cell", "hover-actions-parent", {
-      published: true,
+    const className = cn("Cell", "hover-actions-parent", {
+      published: !showCode,
+      interactive: mode === "edit",
       "has-error": errored,
       stopped: stopped,
     });
 
     const HTMLId = HTMLCellId.create(cellId);
     const hidden = errored || interrupted || stopped;
+
+    // Read mode and show code
+    if (mode === "read" && showCode) {
+      return (
+        <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
+          <OutputArea
+            allowExpand={true}
+            output={output}
+            className="output-area"
+            cellId={cellId}
+            stale={loading && !interrupted}
+          />
+          <div className="tray">
+            <ReadonlyPythonCode code={code} />
+          </div>
+        </div>
+      );
+    }
+
     return hidden ? null : (
       <div tabIndex={-1} id={HTMLId} ref={cellRef} className={className}>
         <OutputArea

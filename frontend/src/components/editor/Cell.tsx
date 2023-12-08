@@ -251,6 +251,7 @@ const CellComponent = (
 
   const className = clsx("Cell", "hover-actions-parent", {
     published: !editing,
+    interactive: editing,
     "needs-run": needsRun,
     "has-error": errored,
     stopped: stopped,

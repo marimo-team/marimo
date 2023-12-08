@@ -112,6 +112,14 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
     waitUntil: "networkidle",
   });
   await takeScreenshot(exportPage, path);
+
+  // Toggle code
+  await exportPage.getByTestId("show-code").click();
+  // wait 100ms for the code to be shown
+  await exportPage.waitForTimeout(100);
+
+  // Take screenshot of code
+  await takeScreenshot(exportPage, `code-${path}`);
 }
 
 export async function exportAsPNG(page: Page) {
