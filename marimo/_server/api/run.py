@@ -7,7 +7,7 @@ from typing import List
 from marimo._ast.cell import CellId_t
 from marimo._runtime import requests
 from marimo._server import sessions
-from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server.api.edit_handler import EditHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -19,8 +19,11 @@ class Run:
     codes: List[str]
 
 
-class RunHandler(ValidatedHandler):
+class RunHandler(EditHandler):
     """Run multiple cells (and their descendants).
+
+    Updates cell code in the kernel if needed; registers new cells
+    for unseen cell IDs.
 
     Only allowed in edit mode.
     """

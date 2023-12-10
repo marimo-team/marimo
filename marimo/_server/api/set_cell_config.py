@@ -4,10 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict
 
+import tornado.web
+
 from marimo._ast.cell import CellId_t
 from marimo._runtime import requests
 from marimo._server import sessions
-from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -17,7 +18,18 @@ class SetCellConfig:
     configs: Dict[CellId_t, Dict[str, object]]
 
 
-class SetCellConfigHandler(ValidatedHandler):
+class SetCellConfigHandler(tornado.web.RequestHandler):
+    # This mutates cell config in the kernel.
+    #
+    # NB: Checking server token?
+    #
+    # - To prevent a frontend from accidentally setting the config of a kernel
+    #   it wasn't started for (eg, frontend created locally on a port that's
+    #   forwarded to a remote server for a different marimo app), we could
+    #   require a server token.
+    # - But currently we don't check the server token in run mode to allow
+    #   connecting to a marimo server that died and came back, without
+    #   refreshing the page
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, SetCellConfig)

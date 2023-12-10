@@ -9,7 +9,7 @@ import tornado.web
 from marimo import _loggers
 from marimo._server import sessions
 from marimo._server.api import status
-from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server.api.edit_handler import EditHandler
 from marimo._server.utils import canonicalize_filename
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -21,7 +21,7 @@ class Rename:
     filename: str
 
 
-class RenameHandler(ValidatedHandler):
+class RenameHandler(EditHandler):
     """Rename the current app."""
 
     @sessions.requires_edit
