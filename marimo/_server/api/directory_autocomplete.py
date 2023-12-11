@@ -4,7 +4,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server import sessions
+from marimo._server.api.edit_handler import EditHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -13,9 +14,10 @@ class DirectoryAutocomplete:
     prefix: str
 
 
-class DirectoryAutocompleteHandler(ValidatedHandler):
+class DirectoryAutocompleteHandler(EditHandler):
     """Complete a path to subdirectories and Python files."""
 
+    @sessions.requires_edit
     def post(self) -> None:
         args = parse_raw(self.request.body, DirectoryAutocomplete)
         directory = os.path.dirname(args.prefix)

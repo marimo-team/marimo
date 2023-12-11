@@ -4,10 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
+import tornado.web
+
 from marimo import _loggers
 from marimo._runtime import requests
 from marimo._server import sessions
-from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -22,7 +23,7 @@ class FunctionCall:
     args: Dict[str, Any]
 
 
-class FunctionHandler(ValidatedHandler):
+class FunctionHandler(tornado.web.RequestHandler):
     """Invoke an RPC"""
 
     def post(self) -> None:

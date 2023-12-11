@@ -4,11 +4,11 @@ from __future__ import annotations
 import tornado.web
 
 from marimo._server import sessions
+from marimo._server.api.edit_handler import EditHandler
 from marimo._server.api.status import HTTPStatus
-from marimo._server.api.validated_handler import ValidatedHandler
 
 
-class ReadCodeHandler(ValidatedHandler):
+class ReadCodeHandler(EditHandler):
     """Handler for reading code from the server."""
 
     @sessions.requires_edit
