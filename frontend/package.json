@@ -177,7 +177,7 @@
     "stylelint": "^15.11.0",
     "stylelint-config-standard": "^34.0.0",
     "tailwindcss": "^3.3.5",
-    "typescript": "^5.3.2",
+    "typescript": "^5.3.3",
     "vite": "^4.5.1",
     "vite-tsconfig-paths": "^4.2.1",
     "vitest": "^0.34.6"
