@@ -414,7 +414,7 @@ class SessionManager:
             # frontends that it didn't create from connecting to it and
             # executing edit-only commands (such as overwriting the file).
             self.server_token = str(uuid4())
-        elif mode == SessionMode.RUN:
+        else:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
             assert app is not None
