@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 
 from marimo._server import sessions
-from marimo._server.api.edit_handler import EditHandler
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -14,7 +14,7 @@ class DirectoryAutocomplete:
     prefix: str
 
 
-class DirectoryAutocompleteHandler(EditHandler):
+class DirectoryAutocompleteHandler(ValidatedHandler):
     """Complete a path to subdirectories and Python files."""
 
     @sessions.requires_edit

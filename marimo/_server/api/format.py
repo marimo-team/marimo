@@ -7,7 +7,7 @@ from typing import Dict
 from marimo import _loggers
 from marimo._ast import cell
 from marimo._server import sessions
-from marimo._server.api.edit_handler import EditHandler
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -19,7 +19,7 @@ class Format:
     codes: Dict[cell.CellId_t, str]
 
 
-class FormatHandler(EditHandler):
+class FormatHandler(ValidatedHandler):
     """Save an app to disk."""
 
     @sessions.requires_edit

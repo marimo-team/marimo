@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from marimo._server import sessions
-from marimo._server.api.edit_handler import EditHandler
+from marimo._server.api.validated_handler import ValidatedHandler
 
 
-class InterruptHandler(EditHandler):
+class InterruptHandler(ValidatedHandler):
     """Interrupt the kernel's execution."""
 
     @sessions.requires_edit
