@@ -39,6 +39,7 @@ import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
+import { outputIsStale } from "@/core/cells/cell";
 
 /**
  * Imperative interface of the cell.
@@ -134,18 +135,11 @@ const CellComponent = (
 
   const needsRun = edited || interrupted;
   const loading = status === "running" || status === "queued";
-  // output may or may not be refreshed while a cell is running, so
-  // we need to check if an output was received
-  const outputReceivedWhileRunning =
-    status === "running" &&
-    output !== null &&
-    runStartTimestamp !== null &&
-    output.timestamp > runStartTimestamp;
-  const outputStale =
-    ((loading && !outputReceivedWhileRunning) ||
-      edited ||
-      status === "stale") &&
-    !interrupted;
+  const outputStale = outputIsStale(
+    { status, output, runStartTimestamp, interrupted },
+    edited
+  );
+
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =

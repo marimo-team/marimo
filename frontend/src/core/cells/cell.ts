@@ -109,3 +109,43 @@ export function prepareCellForExecution(
 
   return nextCell;
 }
+
+/**
+ * A cell is stale if it has been edited, is loading, or has errored.
+ */
+export function outputIsStale(
+  cell: Pick<
+    CellRuntimeState,
+    "status" | "output" | "runStartTimestamp" | "interrupted"
+  >,
+  edited: boolean
+): boolean {
+  const { status, output, runStartTimestamp, interrupted } = cell;
+
+  // If interrupted, the cell is not stale
+  if (interrupted) {
+    return false;
+  }
+
+  // If edited, the cell is stale
+  if (edited) {
+    return true;
+  }
+
+  // The cell is loading
+  const loading = status === "running" || status === "queued";
+
+  // Output is received while the cell is running (e.g. mo.output.append())
+  const outputReceivedWhileRunning =
+    status === "running" &&
+    output !== null &&
+    runStartTimestamp !== null &&
+    output.timestamp > runStartTimestamp;
+
+  // If loading and output has not been received while running
+  if (loading && !outputReceivedWhileRunning) {
+    return true;
+  }
+
+  return status === "stale";
+}
