@@ -48,10 +48,7 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         closeOnBlur: false,
         override: [completer],
       }),
-      new LanguageSupport(customizedPython, [
-        customizedPython.data.of({ autocomplete: localCompletionSource }),
-        customizedPython.data.of({ autocomplete: globalCompletion }),
-      ]),
+      customPythonLanguageSupport(),
     ];
   }
 }
@@ -66,3 +63,14 @@ const customizedPython = pythonLanguage.configure({
     }),
   ],
 });
+
+/**
+ * This provide LanguageSupport for Python, but with a custom LRLanguage
+ * that supports folding additional syntax nodes at the top-level.
+ */
+export function customPythonLanguageSupport(): LanguageSupport {
+  return new LanguageSupport(customizedPython, [
+    customizedPython.data.of({ autocomplete: localCompletionSource }),
+    customizedPython.data.of({ autocomplete: globalCompletion }),
+  ]);
+}
