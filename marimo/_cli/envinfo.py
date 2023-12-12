@@ -15,6 +15,8 @@ def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
         "marimo": __version__,
         "OS": platform.system(),
         "OS Version": platform.release(),
+         # e.g., x86 or arm
+        "Processor": platform.processor(),
         "Python Version": platform.python_version(),
     }
 
