@@ -69,7 +69,6 @@ interface VerticalCellProps
     | "interrupted"
     | "runStartTimestamp"
   > {
-  cellRuntime: CellRuntimeState;
   cellId: CellId;
   code: string;
   mode: AppMode;
