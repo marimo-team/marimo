@@ -9,8 +9,8 @@ import tornado.web
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._server import sessions
-from marimo._server.api.edit_handler import EditHandler
 from marimo._server.api.status import HTTPStatus
+from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -22,7 +22,7 @@ class SaveAppConfiguration:
     config: Dict[str, Any]
 
 
-class SaveAppConfigurationHandler(EditHandler):
+class SaveAppConfigurationHandler(ValidatedHandler):
     """Save app configuration to session manager."""
 
     @sessions.requires_edit

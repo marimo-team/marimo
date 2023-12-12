@@ -6,8 +6,8 @@ import tornado.web
 from marimo._server import sessions
 
 
-class EditHandler(tornado.web.RequestHandler):
-    """Checks that the frontend has a token matching the edit session."""
+class ValidatedHandler(tornado.web.RequestHandler):
+    """Checks that the frontend has a token matching the server."""
 
     def prepare(self) -> None:
         # Validate the server token -- don't allow connections from frontends

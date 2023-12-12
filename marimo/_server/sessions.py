@@ -218,7 +218,7 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         self.status = ConnectionState.CLOSED
         mgr = get_manager()
         if mgr.mode == SessionMode.RUN:
-            # TODO: keep alive
+
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
                     LOGGER.debug(
@@ -403,12 +403,24 @@ class SessionManager:
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
         # token uniquely identifying this server
-        self.server_token = str(uuid4())
 
         if (app := self.load_app()) is not None:
             self.app_config = app._config
         else:
             self.app_config = None
+
+        if mode == SessionMode.EDIT:
+            # In edit mode, the server gets a random token to prevent
+            # frontends that it didn't create from connecting to it and
+            # executing edit-only commands (such as overwriting the file).
+            self.server_token = str(uuid4())
+        elif mode == SessionMode.RUN:
+            # Because run-mode is read-only, all that matters is that
+            # the frontend's app matches the server's app.
+            assert app is not None
+            self.server_token = str(
+                hash("".join(code for code in app._codes()))
+            )
 
     def load_app(self) -> Optional[App]:
         return codegen.get_app(self.filename)
