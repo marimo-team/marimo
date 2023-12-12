@@ -1,6 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { memo } from "react";
-import { python } from "@codemirror/lang-python";
 import CodeMirror, {
   EditorView,
   ReactCodeMirrorProps,
@@ -11,6 +10,7 @@ import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
 import { useThemeForPlugin } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
+import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 
 export const ReadonlyPythonCode = memo(
   (props: { className?: string; code: string } & ReactCodeMirrorProps) => {
@@ -25,7 +25,7 @@ export const ReadonlyPythonCode = memo(
           theme={theme === "dark" ? "dark" : "light"}
           height="100%"
           editable={true}
-          extensions={[python(), EditorView.lineWrapping]}
+          extensions={[customPythonLanguageSupport(), EditorView.lineWrapping]}
           value={code}
           readOnly={true}
         />

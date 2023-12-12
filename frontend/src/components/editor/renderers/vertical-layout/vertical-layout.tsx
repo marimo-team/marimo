@@ -12,6 +12,7 @@ import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-cod
 import { Code2Icon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
+import { outputIsStale } from "@/core/cells/cell";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -38,6 +39,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           showCode={showCode && canShowCode}
           errored={cell.errored}
           mode={mode}
+          runStartTimestamp={cell.runStartTimestamp}
           interrupted={cell.interrupted}
         />
       ))}
@@ -60,7 +62,12 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 interface VerticalCellProps
   extends Pick<
     CellRuntimeState,
-    "output" | "status" | "stopped" | "errored" | "interrupted"
+    | "output"
+    | "status"
+    | "stopped"
+    | "errored"
+    | "interrupted"
+    | "runStartTimestamp"
   > {
   cellId: CellId;
   code: string;
@@ -76,12 +83,22 @@ const VerticalCell = memo(
     stopped,
     errored,
     interrupted,
+    runStartTimestamp,
     code,
     showCode,
     mode,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
-    const loading = status === "running" || status === "queued";
+
+    const outputStale = outputIsStale(
+      {
+        status,
+        output,
+        interrupted,
+        runStartTimestamp,
+      },
+      false
+    );
 
     const className = cn("Cell", "hover-actions-parent", {
       published: !showCode,
@@ -102,7 +119,7 @@ const VerticalCell = memo(
             output={output}
             className="output-area"
             cellId={cellId}
-            stale={loading && !interrupted}
+            stale={outputStale}
           />
           <div className="tray">
             <ReadonlyPythonCode code={code} />
@@ -118,7 +135,7 @@ const VerticalCell = memo(
           output={output}
           className="output-area"
           cellId={cellId}
-          stale={loading && !interrupted}
+          stale={outputStale}
         />
       </div>
     );
