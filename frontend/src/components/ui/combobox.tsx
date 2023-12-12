@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { ChevronDownIcon, Check, XCircle } from "lucide-react";
-import { createContext, useContext } from "react";
+import React, { createContext, useContext } from "react";
 import { cn } from "../../utils/cn";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import {
@@ -238,29 +238,34 @@ export interface ComboboxItemProps<TValue>
   onSelect?(value: TValue): void;
 }
 
-export const ComboboxItem = <
-  TValue = Parameters<typeof Combobox>[0]["value"],
->({
-  children,
-  className,
-  value,
-  onSelect,
-}: ComboboxItemProps<TValue>) => {
-  const context = useContext(ComboboxContext);
+export const ComboboxItem = React.forwardRef(
+  <TValue extends string | { value: string }>(
+    { children, className, value, onSelect }: ComboboxItemProps<TValue>,
+    ref: React.Ref<HTMLDivElement>
+  ) => {
+    const valueAsString =
+      typeof value === "object" && "value" in value
+        ? value.value
+        : String(value);
+    const context = useContext(ComboboxContext);
 
-  return (
-    <CommandItem
-      className={cn("pl-6 m-1 py-1", className)}
-      role="option"
-      onSelect={() => {
-        context.onSelect(value);
-        onSelect?.(value);
-      }}
-    >
-      {context.isSelected(value) && (
-        <Check className="absolute left-1 h-4 w-4" />
-      )}
-      {children}
-    </CommandItem>
-  );
-};
+    return (
+      <CommandItem
+        ref={ref}
+        className={cn("pl-6 m-1 py-1", className)}
+        role="option"
+        value={valueAsString}
+        onSelect={() => {
+          context.onSelect(value);
+          onSelect?.(value);
+        }}
+      >
+        {context.isSelected(value) && (
+          <Check className="absolute left-1 h-4 w-4" />
+        )}
+        {children}
+      </CommandItem>
+    );
+  }
+);
+ComboboxItem.displayName = "ComboboxItem";
