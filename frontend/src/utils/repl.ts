@@ -16,7 +16,7 @@ export function repl(item: unknown, name: string) {
   }
 
   const fullName = `__marimo__${name}`;
-  if (window[fullName]) {
+  if (window[fullName] && process.env.NODE_ENV !== "test") {
     Logger.warn(`Overwriting existing debug object ${fullName}`);
   }
   window[fullName] = item;

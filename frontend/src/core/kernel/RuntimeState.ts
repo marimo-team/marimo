@@ -7,6 +7,7 @@ import {
 import { UI_ELEMENT_REGISTRY, UIElementRegistry } from "../dom/uiregistry";
 import { isStaticNotebook } from "../static/static-state";
 import { RunRequests } from "../network/types";
+import { repl } from "@/utils/repl";
 
 /**
  * Manager to track running cells.
@@ -40,6 +41,7 @@ export class RuntimeState {
   ) {
     this.runningCount = 0;
     this.componentsToUpdate = new Set();
+    repl(RuntimeState.INSTANCE, "RuntimeState");
   }
 
   /**
@@ -86,7 +88,7 @@ export class RuntimeState {
           })).filter((update) => update.value !== undefined)
         )
         .catch(() => {
-          // This happens if the run was failed ot register (403, network error, etc.)
+          // This happens if the run was failed ot register (401, 403, network error, etc.)
           // If the run fails, restore the components to update and finish the run
           // A run may fail if the kernel is restarted or the notebook is closed,
           // but if we don't restore registerRunEnd() will never be able to flush updates.
