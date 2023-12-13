@@ -31,7 +31,7 @@ describe("MarkdownLanguageAdapter", () => {
       const pythonCode = 'print("Hello, World!")';
       expect(() =>
         adapter.transformIn(pythonCode)
-      ).toThrowErrorMatchingInlineSnapshot('"Not supported"');
+      ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
     });
 
     it("should handle an empty string", () => {
@@ -88,7 +88,7 @@ describe("MarkdownLanguageAdapter", () => {
       const pythonCode = 'print("No markdown here")';
       expect(() =>
         adapter.transformIn(pythonCode)
-      ).toThrowErrorMatchingInlineSnapshot('"Not supported"');
+      ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
     });
 
     it("should handle multiple markdown blocks in a single string", () => {
@@ -144,11 +144,11 @@ describe("MarkdownLanguageAdapter", () => {
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
-            \\"\\"\\"
+            """
             # Markdown Title
 
             Some content here.
-            \\"\\"\\"
+            """
         )"
       `);
       expect(offset).toBe(16);
