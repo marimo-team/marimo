@@ -93,7 +93,7 @@
     "react-grid-layout": "^1.4.4",
     "react-hook-form": "^7.48.2",
     "react-plotly.js": "^2.6.0",
-    "react-resizable-panels": "0.0.55",
+    "react-resizable-panels": "0.0.61",
     "react-use-event-hook": "^0.9.6",
     "react-vega": "^7.6.0",
     "reactflow": "^11.10.1",
