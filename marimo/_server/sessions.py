@@ -113,7 +113,7 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
             codes = ("",)
             names = ("__",)
             configs = (CellConfig(),)
-        elif mgr.mode == SessionMode.EDIT:
+        elif mgr.should_send_code_to_frontend():
             codes, names, configs = tuple(
                 zip(
                     *tuple(
@@ -392,6 +392,7 @@ class SessionManager:
         port: int,
         development_mode: bool,
         quiet: bool,
+        show_code: bool,
     ) -> None:
         self.filename = filename
         self.mode = mode
@@ -402,6 +403,7 @@ class SessionManager:
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
+        self.show_code = show_code
         # token uniquely identifying this server
 
         if (app := self.load_app()) is not None:
@@ -534,6 +536,10 @@ class SessionManager:
         if self.lsp_process is not None:
             self.lsp_process.terminate()
 
+    def should_send_code_to_frontend(self) -> bool:
+        """Returns True if the server can send messages to the frontend."""
+        return self.mode == SessionMode.EDIT or self.show_code
+
 
 def requires_edit(handler: Callable[..., Any]) -> Callable[..., Any]:
     """Mark a function as requiring edit permissions.
@@ -559,6 +565,7 @@ def initialize_manager(
     port: int,
     development_mode: bool,
     quiet: bool,
+    show_code: bool,
 ) -> SessionManager:
     """Must be called on server start."""
     global SESSION_MANAGER
@@ -568,6 +575,7 @@ def initialize_manager(
         port=port,
         development_mode=development_mode,
         quiet=quiet,
+        show_code=show_code,
     )
     return SESSION_MANAGER
 

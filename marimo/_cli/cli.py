@@ -213,6 +213,7 @@ def edit(
             headless=headless,
             filename=name,
             run=False,
+            show_code=True,
         )
     )
 
@@ -244,8 +245,18 @@ Example:
     type=bool,
     help="Don't launch a browser.",
 )
+@click.option(
+    "--show-code",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Show code in the notebook.",
+)
 @click.argument("name", required=True)
-def run(port: Optional[int], headless: bool, name: str) -> None:
+def run(
+    port: Optional[int], headless: bool, show_code: bool, name: str
+) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
@@ -263,6 +274,7 @@ def run(port: Optional[int], headless: bool, name: str) -> None:
             headless=headless,
             filename=name,
             run=True,
+            show_code=show_code,
         )
     )
 
@@ -373,6 +385,7 @@ def tutorial(
             headless=headless,
             filename=fname,
             run=False,
+            show_code=True,
         )
     )
 
