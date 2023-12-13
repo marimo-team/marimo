@@ -17,6 +17,7 @@ export function transitionCell(
     case "queued":
       nextCell.interrupted = false;
       nextCell.errored = false;
+      nextCell.runElapsedTimeMs = null;
       // We intentionally don't update lastCodeRun, since the kernel queues
       // whatever code was last registered with it, which might not match
       // the cell's current code if the user modified it.
@@ -65,18 +66,9 @@ export function transitionCell(
       // The cell didn't run, but it was intentional, so don't count as
       // errored.
       nextCell.stopped = true;
-      // Update elapsed time, since it is still useful to know how long before
-      // the cell was stopped.
-      nextCell.runElapsedTimeMs = cell.runStartTimestamp
-        ? (message.timestamp - cell.runStartTimestamp) * 1000
-        : null;
     } else {
+      // Communicate that the cell errored (e.g., an exception was raised)
       nextCell.errored = true;
-      // Update elapsed time, since it is still useful to know how long before
-      // the cell was stopped.
-      nextCell.runElapsedTimeMs = cell.runStartTimestamp
-        ? (message.timestamp - cell.runStartTimestamp) * 1000
-        : null;
     }
   }
 
