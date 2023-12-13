@@ -21,7 +21,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      '"df[\\"my_column\\"].astype(\\"int8\\", errors=\\"ignore\\")"'
+      `"df["my_column"].astype("int8", errors="ignore")"`
     );
   });
 
@@ -34,7 +34,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      '"df.rename(columns={\\"old_name\\": \\"new_name\\"})"'
+      `"df.rename(columns={"old_name": "new_name"})"`
     );
   });
 
@@ -48,7 +48,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      '"df.sort_values(by=\\"my_column\\", ascending=False, na_position=\\"first\\")"'
+      `"df.sort_values(by="my_column", ascending=False, na_position="first")"`
     );
   });
 
@@ -60,9 +60,7 @@ describe("pythonPrint", () => {
       aggregations: ["mean"],
     };
     const result = pythonPrint("df", transform);
-    expect(result).toMatchInlineSnapshot(
-      '"df.agg({\\"my_column\\": [\\"mean\\"]})"'
-    );
+    expect(result).toMatchInlineSnapshot(`"df.agg({"my_column": ["mean"]})"`);
 
     const transform2: TransformType = {
       type: "aggregate",
@@ -70,7 +68,7 @@ describe("pythonPrint", () => {
       aggregations: ["mean"],
     };
     const result2 = pythonPrint("df", transform2);
-    expect(result2).toMatchInlineSnapshot('"df.agg([\\"mean\\"])"');
+    expect(result2).toMatchInlineSnapshot(`"df.agg(["mean"])"`);
 
     const transform3: TransformType = {
       type: "aggregate",
@@ -79,7 +77,7 @@ describe("pythonPrint", () => {
     };
     const result3 = pythonPrint("df", transform3);
     expect(result3).toMatchInlineSnapshot(
-      '"df.agg({\\"my_column\\": [\\"mean\\", \\"sum\\"]})"'
+      `"df.agg({"my_column": ["mean", "sum"]})"`
     );
   });
 
@@ -93,7 +91,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      '"df.groupby([\\"my_column\\"], dropna=True).sum()"'
+      `"df.groupby(["my_column"], dropna=True).sum()"`
     );
 
     const transform2: TransformType = {
@@ -104,7 +102,7 @@ describe("pythonPrint", () => {
     };
     const result2 = pythonPrint("df", transform2);
     expect(result2).toMatchInlineSnapshot(
-      '"df.groupby([\\"my_column\\", \\"my_column2\\"]).sum()"'
+      `"df.groupby(["my_column", "my_column2"]).sum()"`
     );
   });
 });
@@ -116,16 +114,14 @@ it("generates correct Python code for select_columns", () => {
     column_ids: ["my_column"],
   };
   const result = pythonPrint("df", transform);
-  expect(result).toMatchInlineSnapshot('"df[\\"my_column\\"]"');
+  expect(result).toMatchInlineSnapshot(`"df["my_column"]"`);
 
   const transform2: TransformType = {
     type: "select_columns",
     column_ids: ["my_column", "my_column2"],
   };
   const result2 = pythonPrint("df", transform2);
-  expect(result2).toMatchInlineSnapshot(
-    '"df[[\\"my_column\\", \\"my_column2\\"]]"'
-  );
+  expect(result2).toMatchInlineSnapshot(`"df[["my_column", "my_column2"]]"`);
 });
 
 // Test for sample_rows
@@ -163,7 +159,7 @@ describe("pythonPrint: filter", () => {
         },
       ],
     });
-    expect(result).toMatchInlineSnapshot('"df[df[\\"my_column\\"] == 42]"');
+    expect(result).toMatchInlineSnapshot(`"df[df["my_column"] == 42]"`);
 
     const result2 = pythonPrint("df", {
       type: "filter_rows",
@@ -176,9 +172,7 @@ describe("pythonPrint: filter", () => {
         },
       ],
     });
-    expect(result2).toMatchInlineSnapshot(
-      '"df[~((df[\\"my_column\\"] == 42))]"'
-    );
+    expect(result2).toMatchInlineSnapshot(`"df[~((df["my_column"] == 42))]"`);
   });
 
   it("handle multiple where clauses", () => {
@@ -199,7 +193,7 @@ describe("pythonPrint: filter", () => {
       ],
     });
     expect(result).toMatchInlineSnapshot(
-      '"df[(df[\\"my_column\\"] == 42) & (df[\\"my_column2\\"] == 43)]"'
+      `"df[(df["my_column"] == 42) & (df["my_column2"] == 43)]"`
     );
   });
 
