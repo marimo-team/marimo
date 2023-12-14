@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { memo, useRef, useState } from "react";
+import React, { memo, useRef, useState } from "react";
 import { CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
@@ -13,6 +13,7 @@ import { Code2Icon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { outputIsStale } from "@/core/cells/cell";
+import { isStaticNotebook } from "@/core/static/static-state";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -44,7 +45,15 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
         />
       ))}
       {canShowCode && (
-        <div className="absolute m-4 left-0 top-0">
+        <div
+          className={cn(
+            "right-0 top-0 z-10 m-4",
+            // If the notebook is static, we have a banner at the top, so
+            // we can't use fixed positioning. Ideally this is sticky, but the
+            // current dom structure makes that difficult.
+            isStaticNotebook() ? "absolute" : "fixed"
+          )}
+        >
           <Button
             variant="secondary"
             onClick={() => setShowCode((prev) => !prev)}
