@@ -110,7 +110,7 @@ def test_cli_run_with_show_code() -> None:
 
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "run", path, "-p", str(port), "--headless", "--show-code"]
+        ["marimo", "run", path, "-p", str(port), "--headless", "--include-code"]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode=read", contents)
