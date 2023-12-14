@@ -307,7 +307,7 @@ async def start_server(
     run: bool = False,
     development_mode: bool = False,
     quiet: bool = False,
-    show_code: bool = False,
+    include_code: bool = False,
 ) -> None:
     """Start the server.
 
@@ -319,7 +319,7 @@ async def start_server(
     run: if True, starts the server in run (read-only) mode; if False, runs
         in edit (read-write) mode.
     development_mode: if True, enables tornado debug logging and autoreloading
-    show_code: if True, return the code to the frontend when in run mode
+    include_code: if True, return the code to the frontend when in run mode
     """
 
     initialize_mimetypes()
@@ -339,7 +339,7 @@ async def start_server(
         port=port,
         development_mode=development_mode,
         quiet=quiet,
-        show_code=show_code,
+        include_code=include_code,
     )
 
     try:

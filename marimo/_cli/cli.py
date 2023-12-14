@@ -213,7 +213,7 @@ def edit(
             headless=headless,
             filename=name,
             run=False,
-            show_code=True,
+            include_code=True,
         )
     )
 
@@ -246,16 +246,16 @@ Example:
     help="Don't launch a browser.",
 )
 @click.option(
-    "--show-code",
+    "--include-code",
     is_flag=True,
     default=False,
     show_default=True,
     type=bool,
-    help="Show code in the notebook.",
+    help="Include notebook code in the app.",
 )
 @click.argument("name", required=True)
 def run(
-    port: Optional[int], headless: bool, show_code: bool, name: str
+    port: Optional[int], headless: bool, include_code: bool, name: str
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -274,7 +274,7 @@ def run(
             headless=headless,
             filename=name,
             run=True,
-            show_code=show_code,
+            include_code=include_code,
         )
     )
 
@@ -385,7 +385,7 @@ def tutorial(
             headless=headless,
             filename=fname,
             run=False,
-            show_code=True,
+            include_code=True,
         )
     )
 
