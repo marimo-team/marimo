@@ -35,6 +35,10 @@ jobs:
       - name: 📥 Install dependencies
         run: pnpm install
 
+      - name: 📦 pnpm dedupe
+        if: github.event_name == 'pull_request'
+        run: pnpm dedupe --check
+
       - name: 🧹 Lint
         run: pnpm run lint
 
