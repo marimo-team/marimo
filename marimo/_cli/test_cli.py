@@ -99,6 +99,34 @@ def test_cli_run() -> None:
     )
 
 
+def test_cli_run_with_show_code() -> None:
+    filecontents = codegen.generate_filecontents(
+        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+    )
+    d = tempfile.TemporaryDirectory()
+    path = os.path.join(d.name, "run.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(filecontents)
+
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            path,
+            "-p",
+            str(port),
+            "--headless",
+            "--include-code",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode=read", contents)
+    _check_contents(
+        p, f"marimo-version data-version={__version__}".encode(), contents
+    )
+
+
 def test_cli_tutorial() -> None:
     port = _get_port()
     p = subprocess.Popen(
