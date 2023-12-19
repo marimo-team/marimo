@@ -28,7 +28,6 @@ const props: CellProps = {
   stopped: false,
   updateCellCode: Logger.log,
   prepareForRun: Logger.log,
-  registerRunStart: Logger.log,
   runStartTimestamp: 0,
   runElapsedTimeMs: 10,
   serializedEditorState: null,
