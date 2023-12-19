@@ -40,7 +40,7 @@ import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
-import { RuntimeState, RuntimeState } from "@/core/kernel/RuntimeState";
+import { RuntimeState } from "@/core/kernel/RuntimeState";
 
 /**
  * Imperative interface of the cell.
