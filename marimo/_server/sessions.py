@@ -462,9 +462,6 @@ class SessionManager:
 
     def any_clients_connected(self) -> bool:
         """Returns True if at least one client has an open socket."""
-        for session in self.sessions.values():
-            if session.socket.status == ConnectionState.OPEN:
-                return True
         return False
 
     def start_lsp_server(self) -> None:

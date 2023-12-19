@@ -56,6 +56,7 @@ import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { historyCompartment } from "./editing/extensions";
+import { collabExtension } from "../rtc/yjs-codemirror";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -87,6 +88,7 @@ export const setupCodeMirror = ({
     cellCodeEditingBundle(cellId, cellCodeCallbacks),
     // Comes last so that it can be overridden
     basicBundle(completionConfig, theme),
+    collabExtension(cellId),
     showPlaceholder
       ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
       : [],

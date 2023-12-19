@@ -32,6 +32,7 @@ import { CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64ToJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
+import { bindYDoc } from "../rtc/bind";
 
 /**
  * The state of the notebook.
@@ -375,7 +376,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     };
   },
   setCells: (state, cells: CellData[]) => {
-    return {
+    const nextState: NotebookState = {
       ...state,
       cellIds: cells.map((cell) => cell.id),
       cellData: Object.fromEntries(cells.map((cell) => [cell.id, cell])),
@@ -386,6 +387,9 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         cells.map((cell) => [cell.id, createCellRuntimeState()])
       ),
     };
+
+    bindYDoc(nextState);
+    return nextState;
   },
   /**
    * Move focus to next cell
