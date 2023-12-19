@@ -6,6 +6,7 @@ import { staleCellIds, useNotebook } from "@/core/cells/cells";
 import { derefNotNull } from "@/utils/dereference";
 import useEvent from "react-use-event-hook";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Creates a function that runs all cells that have been edited or interrupted.
@@ -47,7 +48,10 @@ function useRunCells() {
     }
 
     RuntimeState.INSTANCE.registerRunStart();
-    await sendRun(cellIds, codes);
+    await sendRun(cellIds, codes).catch((error) => {
+      Logger.error(error);
+      RuntimeState.INSTANCE.registerRunEnd();
+    });
   });
 
   return runCells;

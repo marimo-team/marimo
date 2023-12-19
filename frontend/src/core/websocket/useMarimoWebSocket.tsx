@@ -108,6 +108,7 @@ export function useMarimoWebSocket(opts: {
           // Start the run
           RuntimeState.INSTANCE.registerRunStart();
           sendInstantiate({ objectIds, values }).catch((error) => {
+            RuntimeState.INSTANCE.registerRunEnd();
             showBoundary(new Error("Failed to instantiate", { cause: error }));
           });
         }

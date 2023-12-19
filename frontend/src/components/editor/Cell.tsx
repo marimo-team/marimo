@@ -40,6 +40,7 @@ import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
+import { RuntimeState, RuntimeState } from "@/core/kernel/RuntimeState";
 
 /**
  * Imperative interface of the cell.
@@ -80,7 +81,6 @@ export interface CellProps
     > {
   theme: Theme;
   showPlaceholder: boolean;
-  registerRunStart: () => void;
   serializedEditorState: SerializedEditorState | null;
   mode: AppMode;
   appClosed: boolean;
@@ -110,7 +110,6 @@ const CellComponent = (
     interrupted,
     errored,
     stopped,
-    registerRunStart,
     serializedEditorState,
     mode,
     appClosed,
@@ -169,14 +168,18 @@ const CellComponent = (
     [editorView, prepareToRunEffects]
   );
 
-  const handleRun = useEvent(() => {
+  const handleRun = useEvent(async () => {
     if (loading) {
       return;
     }
 
     const code = prepareToRunEffects();
-    registerRunStart();
-    sendRun([cellId], [code]);
+
+    RuntimeState.INSTANCE.registerRunStart();
+    await sendRun([cellId], [code]).catch((error) => {
+      Logger.error("Error running cell", error);
+      RuntimeState.INSTANCE.registerRunEnd();
+    });
   });
 
   const createBelow = useCallback(
