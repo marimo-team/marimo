@@ -108,11 +108,11 @@ export function constructHTML(opts: {
         window.__MARIMO_STATIC__.notebookState = ${JSON.stringify({
           cellIds: notebookState.cellIds,
           cellData: Objects.mapValues(
-            notebookState.cellData,
+            Objects.filterUndefined(notebookState.cellData),
             serializeJsonToBase64
           ),
           cellRuntime: Objects.mapValues(
-            notebookState.cellRuntime,
+            Objects.filterUndefined(notebookState.cellRuntime),
             serializeJsonToBase64
           ),
         })};

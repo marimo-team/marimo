@@ -41,7 +41,11 @@ function useRunCells() {
 
     const codes: string[] = [];
     for (const cellId of cellIds) {
-      const ref = derefNotNull(cellHandles[cellId]);
+      const handle = cellHandles[cellId];
+      if (!handle) {
+        continue;
+      }
+      const ref = derefNotNull(handle);
       codes.push(getEditorCodeAsPython(ref.editorView));
       ref.registerRun();
     }

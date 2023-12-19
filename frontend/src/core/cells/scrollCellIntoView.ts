@@ -6,7 +6,7 @@ import { CellHandle } from "@/components/editor/Cell";
 
 export function focusAndScrollCellIntoView(
   cellId: CellId,
-  cell: RefObject<CellHandle>
+  cell: RefObject<CellHandle> | undefined
 ) {
   if (!cell) {
     return;

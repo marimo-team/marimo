@@ -12,6 +12,11 @@ export const Objects = {
       Objects.entries(obj).map(([key, value]) => [key, mapper(value)])
     );
   },
+  filterUndefined<T, K extends string | number>(
+    obj: Record<K, T | undefined>
+  ): Record<K, T> {
+    return Objects.filter(obj, (value) => value !== undefined) as Record<K, T>;
+  },
   /**
    * Type-safe Object.fromEntries
    */

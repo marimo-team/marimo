@@ -32,7 +32,6 @@ import { CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64ToJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
-import { bindYDoc } from "../rtc/bind";
 
 /**
  * The state of the notebook.
@@ -48,12 +47,16 @@ export interface NotebookState {
   cellData: Record<CellId, CellData>;
   /**
    * Map of cells to their runtime state
+   *
+   * This can be undefined if the cell was created by another user.
    */
-  cellRuntime: Record<CellId, CellRuntimeState>;
+  cellRuntime: Record<CellId, CellRuntimeState | undefined>;
   /**
    * Cell handlers
+   *
+   * This can be undefined if the cell was created by another user.
    */
-  cellHandles: Record<CellId, React.RefObject<CellHandle>>;
+  cellHandles: Record<CellId, React.RefObject<CellHandle> | undefined>;
   /**
    * Array of deleted cells (with their data and index) so that cell deletion can be undone
    *
@@ -197,7 +200,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     }
 
     const cellKey = state.cellIds[0];
-    state.cellHandles[cellKey].current?.editorView.focus();
+    state.cellHandles[cellKey]?.current?.editorView.focus();
     scrollToTop();
     return state;
   },
@@ -207,7 +210,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     }
 
     const cellKey = state.cellIds[state.cellIds.length - 1];
-    state.cellHandles[cellKey].current?.editorView.focus();
+    state.cellHandles[cellKey]?.current?.editorView.focus();
     scrollToBottom();
     return state;
   },
@@ -248,16 +251,22 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.cellIds[focusIndex];
 
-    const serializedEditorState = state.cellHandles[
-      cellKey
-    ].current?.editorView.state.toJSON({ history: historyField });
+    const cellData = state.cellData[cellKey];
+    const cellHandle = state.cellHandles[cellKey];
+    if (cellHandle == null) {
+      return state;
+    }
+
+    const serializedEditorState = cellHandle.current?.editorView.state.toJSON({
+      history: historyField,
+    });
     return {
       ...state,
       cellIds: arrayDelete(state.cellIds, index),
       history: [
         ...state.history,
         {
-          name: state.cellData[cellKey].name,
+          name: cellData.name,
           serializedEditorState: serializedEditorState,
           index: index,
         },
@@ -387,8 +396,6 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         cells.map((cell) => [cell.id, createCellRuntimeState()])
       ),
     };
-
-    bindYDoc(nextState);
     return nextState;
   },
   /**
@@ -463,7 +470,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       // browser fails to scrollIntoView an element at the end of a long page
       if (index === state.cellIds.length - 1) {
         const cellId = state.cellIds[state.cellIds.length - 1];
-        state.cellHandles[cellId].current?.editorView.focus();
+        state.cellHandles[cellId]?.current?.editorView.focus();
         scrollToBottom();
       } else {
         const nextCellId = state.cellIds[index];
@@ -478,14 +485,14 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle?.current?.editorView
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle?.current?.editorView
     );
     unfoldAllBulk(targets);
     return state;
@@ -502,7 +509,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
 function updateCellRuntimeState(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>
+  cellReducer: ReducerWithoutAction<CellRuntimeState | undefined>
 ) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -538,7 +545,7 @@ function updateCellData(
 
 /// ATOMS
 
-const notebookAtom = atom<NotebookState>(initialNotebookState());
+export const notebookAtom = atom<NotebookState>(initialNotebookState());
 
 const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
@@ -547,7 +554,7 @@ const cellErrorsAtom = atom((get) => {
   const errors = cellIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
-      if (cell.output?.mimetype === "application/vnd.marimo+error") {
+      if (cell?.output?.mimetype === "application/vnd.marimo+error") {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
@@ -571,7 +578,9 @@ const cellErrorsAtom = atom((get) => {
 
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
-  const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
+  const outlines = cellIds
+    .map((cellId) => cellRuntime[cellId]?.outline)
+    .filter(Boolean);
   return mergeOutlines(outlines);
 });
 
@@ -624,21 +633,21 @@ export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 export const getAllEditorViews = () => {
   const { cellIds, cellHandles } = store.get(notebookAtom);
   return cellIds
-    .map((cellId) => cellHandles[cellId].current?.editorView)
+    .map((cellId) => cellHandles[cellId]?.current?.editorView)
     .filter(Boolean);
 };
 
 export const getCellEditorView = (cellId: CellId) => {
   const { cellHandles } = store.get(notebookAtom);
-  return cellHandles[cellId].current?.editorView;
+  return cellHandles[cellId]?.current?.editorView;
 };
 
 /// HELPERS
 
 export function notebookIsRunning(state: NotebookState) {
-  return Object.values(state.cellRuntime).some(
-    (cell) => cell.status === "running"
-  );
+  return Object.values(state.cellRuntime)
+    .filter(Boolean)
+    .some((cell) => cell.status === "running");
 }
 
 export function notebookNeedsSave(
@@ -667,7 +676,7 @@ export function notebookCells(state: NotebookState) {
 export function notebookCellEditorViews({ cellHandles }: NotebookState) {
   const views: Record<CellId, EditorView> = {};
   for (const [cell, ref] of Objects.entries(cellHandles)) {
-    if (!ref.current) {
+    if (!ref?.current) {
       continue;
     }
     views[cell] = ref.current.editorView;
@@ -692,16 +701,24 @@ export function enabledCellIds(state: NotebookState) {
 export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.filter(
-    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted
+    (cellId) => cellData[cellId].edited || cellRuntime[cellId]?.interrupted
   );
 }
 
-export function flattenNotebookCells(state: NotebookState) {
+export function flattenNotebookCells(
+  state: NotebookState
+): Array<CellData & CellRuntimeState> {
   const { cellIds, cellData, cellRuntime } = state;
-  return cellIds.map((cellId) => ({
-    ...cellData[cellId],
-    ...cellRuntime[cellId],
-  }));
+  return cellIds
+    .map((cellId) => {
+      const data = cellData[cellId];
+      const runtime = cellRuntime[cellId];
+      return {
+        ...data,
+        ...(runtime || createCellRuntimeState()),
+      };
+    })
+    .filter(Boolean);
 }
 
 /**

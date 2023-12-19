@@ -97,6 +97,7 @@
     "react-use-event-hook": "^0.9.6",
     "react-vega": "^7.6.0",
     "reactflow": "^11.10.1",
+    "recursive-diff": "^1.0.9",
     "tailwind-merge": "^1.14.0",
     "tailwindcss-animate": "^1.0.7",
     "timestring": "^7.0.0",

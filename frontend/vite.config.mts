@@ -84,7 +84,7 @@ export default defineConfig({
     },
   },
   resolve: {
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache", "yjs"],
   },
   plugins: [
     htmlDevPlugin(),

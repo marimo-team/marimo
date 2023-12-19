@@ -27,13 +27,14 @@ provider.awareness.setLocalStateField("user", {
 });
 
 export function collabExtension(cellId: CellId) {
-  const yMap = ydoc.getMap("cellData") as any;
-  const code = yMap.get(cellId).get("code");
-  const yCellCode = ydoc.getText(`${cellId}-code`);
-  // Initialize the cell code with the code from the cell data
-  if (code && yCellCode.toString() !== code) {
-    yCellCode.insert(0, code);
-  }
+  // const initialText = ydoc
+  //   .getMap<any>("root")
+  //   .get("cellData")
+  //   .get(cellId)
+  //   .get("code");
+
+  const yCellCode = ydoc.getText(`root.${cellId}.code`);
+
   const undoManager = new Y.UndoManager(yCellCode);
   return yCollab(yCellCode, provider.awareness, { undoManager });
 }

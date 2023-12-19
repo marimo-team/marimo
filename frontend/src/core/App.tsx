@@ -56,6 +56,7 @@ import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
+import { useRealTimeCollaboration } from "./rtc/provider";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -70,6 +71,10 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const [savedCodes, setSavedCodes] = useState<string[]>([""]);
   const [savedConfigs, setSavedConfigs] = useState<CellConfig[]>([]);
   const { openModal, closeModal, openAlert } = useImperativeModal();
+
+  useRealTimeCollaboration({
+    enabled: viewState.mode === "edit",
+  });
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";

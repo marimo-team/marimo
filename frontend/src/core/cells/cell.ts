@@ -1,14 +1,18 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { CellMessage } from "../kernel/messages";
-import { CellRuntimeState } from "./types";
+import { CellRuntimeState, createCellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
 
 export function transitionCell(
-  cell: CellRuntimeState,
+  cell: CellRuntimeState | undefined,
   message: CellMessage
 ): CellRuntimeState {
+  if (cell == null) {
+    return transitionCell(createCellRuntimeState(), message);
+  }
+
   const nextCell = { ...cell };
 
   // Handle status transition and update output; message.status !== null
@@ -91,8 +95,12 @@ export function transitionCell(
 // Should be called when a cell's code is registered with the kernel for
 // execution.
 export function prepareCellForExecution(
-  cell: CellRuntimeState
+  cell: CellRuntimeState | undefined
 ): CellRuntimeState {
+  if (cell == null) {
+    return createCellRuntimeState();
+  }
+
   const nextCell = { ...cell };
 
   nextCell.interrupted = false;

@@ -13,6 +13,8 @@ even if its socket is closed.
 """
 from __future__ import annotations
 
+RTC = True
+
 import asyncio
 import functools
 import json
@@ -180,6 +182,9 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
         )
         LOGGER.debug("existing sessions: %s", mgr.sessions)
         if mgr.mode == SessionMode.EDIT:
+            first_session = (
+                list(mgr.sessions.values())[0] if mgr.sessions else None
+            )
             if mgr.any_clients_connected():
                 LOGGER.debug(
                     "refusing connection; a frontend is already connected."
@@ -192,6 +197,17 @@ class IOSocketHandler(tornado.websocket.WebSocketHandler):
                 # socket, but keep its kernel
                 LOGGER.debug("Reconnecting session %s", session_id)
                 self.reconnect_session(session)
+            elif (
+                RTC
+                and first_session is not None
+                and first_session.socket.status == ConnectionState.OPEN
+            ):
+                # We are running real-time collaboration, so connect to the
+                # first session, if it is active.
+                first_session_id = first_session.socket.session_id
+                LOGGER.debug("RTC: Joining session %s", first_session_id)
+                mgr.join_session(session_id, first_session_id, self)
+                self.write_kernel_ready()
             else:
                 # No clients are connected, and we haven't seen this session id
                 # before. Create a session.
@@ -248,6 +264,7 @@ class Session:
         mpctx = mp.get_context("spawn")
         mgr = get_manager()
         self.socket = socket_handler
+        self.multiplayer_sockets: list[IOSocketHandler] = []
         self.cancel_close_handle: Optional[object] = None
         self.queue: mp.Queue[requests.Request] | queue.Queue[requests.Request]
         self.kernel_task: threading.Thread | mp.Process
@@ -302,6 +319,9 @@ class Session:
             del events
             (op, data) = self.read_conn.recv()
             self.socket.write_op(op=op, data=data)
+            for socket in self.multiplayer_sockets:
+                # TODO: not all ops should be sent to multiplayer sockets
+                socket.write_op(op=op, data=data)
 
         tornado.ioloop.IOLoop.current().add_handler(
             self.read_conn.fileno(),
@@ -454,6 +474,28 @@ class SessionManager:
             return s
         else:
             return self.sessions[session_id]
+
+    def join_session(
+        self,
+        session_id: str,
+        joining_session_id: str,
+        socket_handler: IOSocketHandler,
+    ) -> Session:
+        """Join an existing session
+
+        The `socket_handler` should already be open.
+        """
+        LOGGER.debug("joining session for id %s", joining_session_id)
+        if joining_session_id in self.sessions:
+            s = self.sessions[joining_session_id]
+            s.multiplayer_sockets.append(socket_handler)
+            self.sessions[session_id] = s
+            return s
+        else:
+            LOGGER.debug(
+                "session %s not found. creating new session.", session_id
+            )
+            return self.create_session(session_id, socket_handler)
 
     def get_session(self, session_id: str) -> Optional[Session]:
         if session_id in self.sessions:
