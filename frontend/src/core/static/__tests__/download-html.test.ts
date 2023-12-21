@@ -20,6 +20,18 @@ const DOC = `
     <link rel="icon" href="/favicon.ico" />
     <link rel="preload" href="/assets/gradient-6c6e9bb3.png" as="image" />
     <link rel="preload" href="/assets/noise-b5c8172e.png" as="image" />
+    <link
+      rel="preload"
+      href="/assets/Lora-VariableFont_wght-dqKLWsPt.ttf"
+      as="font"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href="/assets/PTSans-Regular-sS9EvFu5.ttf"
+      as="font"
+      crossorigin="anonymous"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="a marimo app" />

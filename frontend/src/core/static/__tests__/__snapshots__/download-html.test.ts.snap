@@ -22,6 +22,7 @@ exports[`download-html > should construct html correctly 1`] = `
       as="image"
       crossorigin="anonymous"
     />
+
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="a marimo app" />

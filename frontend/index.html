@@ -3,10 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
-    <!-- Preload is necessary because we show this when we disconnect from the server,
+    <!-- Preload is necessary because we show these images when we disconnect from the server,
     but at that point we cannot load these images from the server -->
     <link rel="preload" href="/src/assets/gradient.png" as="image" />
     <link rel="preload" href="/src/assets/noise.png" as="image" />
+    <!-- Preload the fonts -->
+    <link rel="preload" href="/src/fonts/Lora/Lora-VariableFont_wght.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/PT_Sans/PTSans-Regular.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/PT_Sans/PTSans-Bold.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Regular.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Medium.ttf" as="font" crossorigin="anonymous" />
+    <link rel="preload" href="/src/fonts/Fira_Mono/FiraMono-Bold.ttf" as="font" crossorigin="anonymous" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="a marimo app" />

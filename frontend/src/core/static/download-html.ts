@@ -74,6 +74,8 @@ export function constructHTML(opts: {
     opts;
 
   const staticHead = existingDocument.head.cloneNode(true) as HTMLHeadElement;
+  // Remove fonts, that contain as="font"
+  staticHead.querySelectorAll("link[as=font]").forEach((el) => el.remove());
 
   const elementsFromBody = [
     "marimo-filename",
