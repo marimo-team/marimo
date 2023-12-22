@@ -15,5 +15,8 @@ export const FUNCTIONS_REGISTRY = new DeferredRequestRegistry<
   await sendFunctionRequest({
     functionCallId: requestId,
     ...req,
+  }).catch((error) => {
+    RuntimeState.INSTANCE.registerRunEnd();
+    throw error;
   });
 });

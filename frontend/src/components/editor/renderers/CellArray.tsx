@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "@/components/editor/Cell";
-import { RuntimeState } from "../../../core/kernel/RuntimeState";
 import {
   ConnectionStatus,
   WebSocketState,
@@ -28,11 +27,6 @@ interface CellArrayProps {
   userConfig: UserConfig;
   appConfig: AppConfig;
   connStatus: ConnectionStatus;
-}
-
-// TODO(akshayka): move running cells state machine to kernel
-function registerRunStart() {
-  RuntimeState.INSTANCE.registerRunStart();
 }
 
 export const CellArray: React.FC<CellArrayProps> = ({
@@ -106,7 +100,6 @@ export const CellArray: React.FC<CellArrayProps> = ({
           stopped={cell.stopped}
           runStartTimestamp={cell.runStartTimestamp}
           runElapsedTimeMs={cell.runElapsedTimeMs}
-          registerRunStart={registerRunStart}
           serializedEditorState={cell.serializedEditorState}
           showDeleteButton={cells.length > 1}
           createNewCell={createNewCell}
