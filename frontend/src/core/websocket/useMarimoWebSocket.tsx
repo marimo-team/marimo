@@ -9,7 +9,7 @@ import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
-import { saveCellConfig, sendInstantiate } from "../network/requests";
+import { sendInstantiate } from "../network/requests";
 import { CellId } from "../cells/ids";
 import { CellConfig, CellData } from "../cells/types";
 import { createCell } from "../cells/types";
@@ -92,16 +92,6 @@ export function useMarimoWebSocket(opts: {
         UI_ELEMENT_REGISTRY.entries.forEach((entry, objectId) => {
           objectIds.push(objectId);
           values.push(entry.value);
-        });
-        // Register the configs
-        saveCellConfig({
-          configs: Object.fromEntries(
-            cells.map((cell) => [cell.id, cell.config])
-          ),
-        }).catch((error) => {
-          showBoundary(
-            new Error("Failed to register configs", { cause: error })
-          );
         });
         // Send the instantiate message
         if (autoInstantiate) {

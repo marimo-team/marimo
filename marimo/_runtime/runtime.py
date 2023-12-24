@@ -152,13 +152,19 @@ class CellMetadata:
 
 
 class Kernel:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        cell_configs: dict[CellId_t, CellConfig],
+    ) -> None:
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
         }
         self.graph = dataflow.DirectedGraph()
-        self.cell_metadata: dict[CellId_t, CellMetadata] = {}
+        self.cell_metadata: dict[CellId_t, CellMetadata] = {
+            cell_id: CellMetadata(config=config)
+            for cell_id, config in cell_configs.items()
+        }
 
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
@@ -982,6 +988,7 @@ def launch_kernel(
     execution_queue: mp.Queue[Request] | queue.Queue[Request],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
+    configs: dict[CellId_t, CellConfig],
 ) -> None:
     LOGGER.debug("Launching kernel")
 
@@ -1005,7 +1012,7 @@ def launch_kernel(
     stdout = Stdout(stream) if is_edit_mode else None
     stderr = Stderr(stream) if is_edit_mode else None
 
-    kernel = Kernel()
+    kernel = Kernel(cell_configs=configs)
     initialize_context(
         kernel=kernel,
         stream=stream,

@@ -36,7 +36,9 @@ class _MockStdStream:
 
 @dataclasses.dataclass
 class MockedKernel:
-    k: Kernel = dataclasses.field(default_factory=Kernel)
+    k: Kernel = dataclasses.field(
+        default_factory=lambda: Kernel(cell_configs={})
+    )
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
     stdout: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
     stderr: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
