@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A next-generation Python notebook: <em>explore data, build tools, deploy apps!</em>
+  <em>A reactive Python notebook that's reproducible, git-friendly, and deployable as scripts or apps.</em>
 
 <p align="center">
   <a href="https://docs.marimo.io" target="_blank"><strong>Docs</strong></a> ·
@@ -16,10 +16,19 @@
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
-**marimo** is a next-generation Python notebook where every notebook is
-also shareable as an interactive web app: _explore data, run
-experiments, build tools, and deploy apps, all from one seamless
-environment_.
+marimo is a reactive notebook for Python. It allows you to rapidly experiment
+with data and models, code with confidence in your notebook's correctness, and
+productionize notebooks as pipelines or interactive web apps.
+
+
+**Highlights**.
+
+- **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
+- **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
+- **reproducible**: no hidden state, deterministic execution order
+- **git-friendly**: stored as `.py` files
+- **deployable**: executable as a script, deployable as an app
+
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -28,20 +37,6 @@ pip install marimo && marimo tutorial intro
 ![marimo](https://github.com/marimo-team/marimo/assets/1994308/59cecbb4-7c4c-4b9b-baae-e98ed209c3bb)
 
 _Watch the animated GIF as a video at [this link](https://marimo.io/videos/landing/full.mp4)._
-
-When you run a cell, marimo _automatically_ runs all other cells that depend on
-it (like a spreadsheet!). This **reactivity**, along with marimo's built-in
-**interactive** UI elements, lets you make powerful notebooks and apps that _make
-your data tangible_. 
-
-**Highlights.**
-
-- **reactive**: run a cell, and marimo automatically runs cells that depend on it
-- **interactive**: connect inputs like sliders, dropdowns, plots, and
-  more to Python
-- **expressive**: write dynamic makdown parametrized by UI elements, plots, or anything else
-- **Pythonic**: no callbacks, no magical syntax — just Python
-- **git-friendly**: notebooks stored as `.py` files
 
 
 ## Quickstart
@@ -92,14 +87,23 @@ marimo run your_notebook.py
 <img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
 _This app is deployed on [marimo cloud](https://marimo.io/cloud), our
-unified platform for deploying and sharing notebooks and apps._
+platform for deploying marimo notebooks and supercharging them
+with cloud resources._
 
+**Execute as scripts.** marimo noteboooks can be executed as scripts at the
+command line:
 
-**Automatically convert Jupyter notebooks.** Automatically translate Jupyter notebooks to marimo notebooks:
+```bash
+python your_notebook.py
+```
+
+**Automatically convert Jupyter notebooks.** Automatically convert Jupyter notebooks to marimo notebooks with the CLI
 
 ```bash
 marimo convert your_notebook.ipynb > your_notebook.py
 ```
+
+or use our [web interface](https://marimo.io/convert).
 
 **Tutorials.**
 List all tutorials:
@@ -117,10 +121,11 @@ marimo editor.
 
 ## Learn more
 
-marimo is easy to get started with, with lots of room for power users.
-You can build powerful apps, including data labeling tools, embedding
-visualizers, model evaluation dashboards, and more,  with surprisingly little
-code.
+marimo is easy to get started with, with lots of room for power users. In
+addition to experimenting with code and models in a reproducible environment,
+marimo lets you build powerful tools including data labelers,
+embedding visualizers, and model evaluation dashboards, with surprisingly
+little code.
 
 Examples are available in the `examples/` directory.
 We've deployed many of these examples at our [public
@@ -193,8 +198,9 @@ started.
 We're building a community. Come hang out with us!
 
 - 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
+- 💬 [Chat with us on Discord](https://discord.gg/JE7nhX6mD8)
 - 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
-- 💬 [Join us on Discord](https://discord.gg/JE7nhX6mD8)
+- ☁️  [Join our Cloud Waitlist](https://marimo.io/cloud)
+- ✏️  [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
-- ✏️  [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
