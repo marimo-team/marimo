@@ -253,6 +253,12 @@ class Session:
         self.kernel_task: threading.Thread | mp.Process
         self.read_conn: connection.Connection
 
+        app = mgr.load_app()
+        configs = (
+            {cell_id: data.config for cell_id, data in app._cell_data.items()}
+            if app is not None
+            else {}
+        )
         # Need to use a socket for windows compatibility
         listener = connection.Listener(family="AF_INET")
         is_edit_mode = mgr.mode == SessionMode.EDIT
@@ -263,7 +269,7 @@ class Session:
             self.queue = mpctx.Queue()
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
-                args=(self.queue, listener.address, is_edit_mode),
+                args=(self.queue, listener.address, is_edit_mode, configs),
                 daemon=True,
             )
         else:
@@ -289,7 +295,7 @@ class Session:
             # down all client sessions
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
-                args=(self.queue, listener.address, is_edit_mode),
+                args=(self.queue, listener.address, is_edit_mode, configs),
                 daemon=True,
             )
         self.kernel_task.start()
