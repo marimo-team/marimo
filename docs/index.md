@@ -2,31 +2,26 @@
   <img src="_static/marimo-logotype-thick.svg" width="210px">
 </p>
 
-**marimo** is a next-generation Python notebook where every notebook is
-also shareable as an interactive web app: _explore data, run
-experiments, build tools, and deploy apps, all from one seamless
-environment_.
+
+**marimo** is a reactive notebook for Python. It allows you to rapidly experiment
+with data and models, code with confidence in your notebook's correctness, and
+productionize notebooks as pipelines or interactive web apps.
 
 ```python
 pip install marimo && marimo tutorial intro
 ```
 
-marimo is a replacement for Jupyter notebooks with next-gen features.
+**Highlights.**
 
-- **reactive**: marimo runs automatically, like a spreadsheet, based on global variables
-- **interactive**: control notebook execution with interactive elements — scrub a slider or select data in a plot, automatically get values back in Python (no callbacks!)
-- **build apps**: convert marimo notebooks to web apps, with zero lines of code or configuration
-- **performant**: marimo runs the
-  minimal amount of code required to update your notebook
-- **developer-friendly**: pure Python _git-friendly file format_ (`.py`), GitHub Copilot, fast autocomplete, code formatting, and more
+- **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
+- **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
+- **reproducible**: no hidden state, deterministic execution order
+- **deployable**: executable as a script, deployable as an app
+- **developer-friendly**: git-friendly `.py` file format,  GitHub Copilot, fast autocomplete, code formatting, and more
 
-_These features accelerate data work, increase reproducibility by eliminating
-hidden state, transform notebooks into interactive tools, and make notebooking
-a delight._
-
-marimo was built from the ground up to solve many <a
+_marimo was built from the ground up to solve many <a
 href="/faq.html#faq-jupyter">well-known problems associated with traditional
-notebooks</a>.
+notebooks_</a>.
 
 > ⚡ marimo notebooks run automatically with interactions and code changes
 
