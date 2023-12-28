@@ -1,4 +1,4 @@
-This file was generated with `nlf -d --sumary detail` using the nlf node package
+Generated with `nlf -d --summary detail` using the nlf node package
 
 @codemirror/autocomplete@6.11.1 [license(s): MIT]
 ├── package.json:  MIT
