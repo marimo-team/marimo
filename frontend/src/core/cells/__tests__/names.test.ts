@@ -1,0 +1,42 @@
+/* Copyright 2023 Marimo. All rights reserved. */
+
+import { CellId } from "../ids";
+import {
+  normalizeName,
+  DEFAULT_CELL_NAME,
+  getValidName,
+  displayCellName,
+} from "../names";
+import { expect, describe, it } from "vitest";
+
+describe("normalizeName", () => {
+  it("should return the default cell name for empty input", () => {
+    expect(normalizeName("")).toBe(DEFAULT_CELL_NAME);
+  });
+
+  it("should remove special characters and make lowercase", () => {
+    expect(normalizeName("Test Name!")).toBe("test_name_");
+  });
+});
+
+describe("getValidName", () => {
+  it("should return the same name if it is not in the set", () => {
+    expect(getValidName("new_name", ["other"])).toBe("new_name");
+  });
+
+  it("should return a non-conflicting name", () => {
+    expect(getValidName("name", ["name"])).toBe("name_1");
+    expect(getValidName("name", ["name_1", "name"])).toBe("name_2");
+  });
+});
+
+describe("displayCellName", () => {
+  const fallbackCellId = "1" as CellId;
+  it("should return the name if it is not the default cell name", () => {
+    expect(displayCellName("custom_name", fallbackCellId)).toBe("custom_name");
+  });
+
+  it("should return the HTML cell ID if the name is the default cell name", () => {
+    expect(displayCellName(DEFAULT_CELL_NAME, fallbackCellId)).toBe("cell-1");
+  });
+});

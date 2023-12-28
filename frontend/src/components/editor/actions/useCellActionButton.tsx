@@ -15,19 +15,21 @@ import {
   Trash2Icon,
   ZapOffIcon,
   PlayIcon,
+  TextCursorInputIcon,
 } from "lucide-react";
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import { CellConfig, CellStatus } from "@/core/cells/types";
+import { CellData, CellStatus } from "@/core/cells/types";
 import { CellId } from "@/core/cells/ids";
 import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
 import { useRunCell } from "../cell/useRunCells";
+import { NameCellInput } from "./name-cell-input";
 
-export interface CellActionButtonProps {
+export interface CellActionButtonProps
+  extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
   status: CellStatus;
-  config: CellConfig;
   editorView: EditorView | null;
   hasOutput: boolean;
 }
@@ -36,6 +38,7 @@ export function useCellActionButtons({
   cellId,
   config,
   editorView,
+  name,
   hasOutput,
   status,
 }: CellActionButtonProps) {
@@ -43,12 +46,14 @@ export function useCellActionButtons({
     createNewCell: createCell,
     updateCellConfig,
     updateCellCode,
+    updateCellName,
     deleteCell,
     moveCell,
     sendToTop,
     sendToBottom,
   } = useCellActions();
   const runCell = useRunCell(cellId);
+
   const toggleDisabled = async () => {
     if (config.disabled) {
       await saveCellConfig({ configs: { [cellId]: { disabled: false } } });
@@ -62,6 +67,22 @@ export function useCellActionButtons({
   // Actions
   const actions: ActionButton[][] = [
     [
+      {
+        icon: <TextCursorInputIcon size={13} strokeWidth={1.5} />,
+        label: "Name",
+        disableClick: true,
+        handle: (evt) => {
+          evt?.stopPropagation();
+          evt?.preventDefault();
+        },
+        rightElement: (
+          <NameCellInput
+            placeholder={`cell_${cellId}`}
+            value={name}
+            onChange={(newName) => updateCellName({ cellId, name: newName })}
+          />
+        ),
+      },
       {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,
         label: "Run cell",

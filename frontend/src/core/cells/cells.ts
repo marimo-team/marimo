@@ -337,6 +337,15 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
           };
     });
   },
+  updateCellName: (state, action: { cellId: CellId; name: string }) => {
+    const { cellId, name } = action;
+    return updateCellData(state, cellId, (cell) => {
+      return {
+        ...cell,
+        name: name,
+      };
+    });
+  },
   updateCellConfig: (
     state,
     action: { cellId: CellId; config: Partial<CellConfig> }
@@ -539,10 +548,11 @@ const notebookAtom = atom<NotebookState>(initialNotebookState());
 const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
 const cellErrorsAtom = atom((get) => {
-  const { cellIds, cellRuntime } = get(notebookAtom);
+  const { cellIds, cellRuntime, cellData } = get(notebookAtom);
   const errors = cellIds
     .map((cellId) => {
       const cell = cellRuntime[cellId];
+      const { name } = cellData[cellId];
       if (cell.output?.mimetype === "application/vnd.marimo+error") {
         // Filter out ancestor-stopped errors
         // These are errors that are caused by a cell that was stopped,
@@ -555,6 +565,7 @@ const cellErrorsAtom = atom((get) => {
           return {
             output: { ...cell.output, data: nonAncestorErrors },
             cellId: cellId,
+            cellName: name,
           };
         }
       }
@@ -573,6 +584,14 @@ export const notebookOutline = atom((get) => {
 
 export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 
+export const cellIdToNamesMap = atom((get) => {
+  const { cellIds, cellData } = get(notebookAtom);
+  const names: Record<CellId, string | undefined> = Objects.fromEntries(
+    cellIds.map((cellId) => [cellId, cellData[cellId]?.name])
+  );
+  return names;
+});
+
 /// HOOKS
 
 /**
@@ -584,6 +603,11 @@ export const useNotebook = () => useAtomValue(notebookAtom);
  * React-hook for the array of cell IDs.
  */
 export const useCellIds = () => useAtomValue(cellIdsAtom);
+
+/**
+ * React-hook for the dictionary of cell names
+ */
+export const useCellNames = () => useAtomValue(cellIdToNamesMap);
 
 /**
  * React-hook for the array of cell errors.
@@ -606,6 +630,14 @@ export const getNotebook = () => store.get(notebookAtom);
  * Get the array of cell IDs.
  */
 export const getCells = () => store.get(notebookAtom).cellIds;
+
+/**
+ * Get the array of cell names
+ */
+export const getCellNames = () => {
+  const { cellIds, cellData } = store.get(notebookAtom);
+  return cellIds.map((id) => cellData[id]?.name).filter(Boolean);
+};
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>

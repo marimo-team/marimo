@@ -78,6 +78,7 @@ export const CellActionsDropdown = ({ children, ...props }: Props) => {
                         action.handle();
                         setOpen(false);
                       }}
+                      disabled={action.disableClick}
                       variant={action.variant}
                     >
                       <div className="flex items-center flex-1">
