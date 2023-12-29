@@ -270,7 +270,9 @@ class Session:
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(self.queue, listener.address, is_edit_mode, configs),
-                daemon=True,
+                # The process can't be a daemon, because daemonic processes
+                # can't create children
+                daemon=False,
             )
         else:
             # We use threads in run mode to minimize memory consumption;
