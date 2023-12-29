@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.68"
 app = marimo.App()
 
 
@@ -10,8 +10,8 @@ def __(mo):
         """
         # Sanity-Checking Embeddings
 
-        This app shows you the basics of sanity-checking an embedding made with
-        the `PyMDE` library. We'll use MNIST as a case study.
+        This notebook shows you the basics of sanity-checking an embedding made
+        with the `PyMDE` library. We'll use MNIST as a case study.
         """
     )
     return
@@ -21,9 +21,9 @@ def __(mo):
 def __(mo):
     mo.md(
         """
-        We'll start by making a simple neighborhood-preserving embedding. This 
+        We'll start by making a simple neighborhood-preserving embedding. This
         means that we'll try to identify pairs of images that are similar, using
-        a heuristic, and we'll tell PyMDE to place these pairs near each other in 
+        a heuristic, and we'll tell PyMDE to place these pairs near each other in
         the embedding.
         """
     )
@@ -128,8 +128,8 @@ def __(mo, ready):
         ## Pairs with highest and lowest distortion
 
         Let's visualize a few pairs of images with low distortion (meaning they
-        were similar and placed near each other by the embedding) and with high 
-        distortion (meaning they were similar but the embedding failed to place 
+        were similar and placed near each other by the embedding) and with high
+        distortion (meaning they were similar but the embedding failed to place
         them near each other).
         """
     ) if ready else None
@@ -170,8 +170,8 @@ def __(mo, ready):
         Notice that some of these pairs of images are actually not the same digit;
         we told our embedding to put them close together, but the embedding refused
         to do so (in some cases, rightly so!). In other cases, the images in a pair
-        do depict the same digit, but are very strangely drawn. In a very real 
-        sense, these pairs can be considered to be **outliers** in our original 
+        do depict the same digit, but are very strangely drawn. In a very real
+        sense, these pairs can be considered to be **outliers** in our original
         data.
         """
     ) if ready else None
