@@ -270,7 +270,10 @@ class Session:
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(self.queue, listener.address, is_edit_mode, configs),
-                daemon=True,
+                # The process can't be a daemon, because daemonic processes
+                # can't create children
+                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
+                daemon=False,
             )
         else:
             # We use threads in run mode to minimize memory consumption;
@@ -296,6 +299,8 @@ class Session:
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
                 args=(self.queue, listener.address, is_edit_mode, configs),
+                # daemon threads can create child processes, unlike
+                # daemon processes
                 daemon=True,
             )
         self.kernel_task.start()
