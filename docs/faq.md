@@ -17,6 +17,7 @@
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
   - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
+  - [How do I restart a notebook?](#faq-restart)
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
   - [What packages can I use?](#faq-packages)
@@ -238,6 +239,12 @@ use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array) or
 
 For usage examples, see the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
+
+<a name="faq-restart" ></a>
+**How do I restart a notebook?**
+
+To clear all program memory and restart the notebook from scratch, refresh
+the browser page.
 
 <a name="faq-reload" ></a>
 **How do I reload modules?**
