@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 from typing import Any, Optional, Union
 
+import marimo._output.data.data as mo_data
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -50,12 +51,16 @@ def image(
 
     `Html` object
     """
-    # Convert to bytes right away since can only be read once
-    if isinstance(src, io.BufferedReader):
+    # Convert to virtual file
+    resolved_src: Optional[str]
+    if isinstance(src, io.BufferedReader) or isinstance(src, io.BytesIO):
         src.seek(0)
-        src = src.read()
+        resolved_src = mo_data.image(src.read()).url
+    elif isinstance(src, bytes):
+        resolved_src = mo_data.image(src).url
+    else:
+        resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
 
-    resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
     styles = create_style(
         {
             "width": f"{width}px" if width is not None else None,
