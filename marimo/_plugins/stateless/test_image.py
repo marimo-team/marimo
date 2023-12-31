@@ -19,7 +19,7 @@ def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
                 """
                 import io
                 import marimo as mo
-                bytestream = io.BytesIO(b"\x89PNG\r\n\x1a\n\x00\x00\x00")
+                bytestream = io.BytesIO(b"hello")
                 image = mo.image(bytestream)
                 """
             ),
@@ -37,7 +37,7 @@ def test_image_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
                 """
                 import io
                 import marimo as mo
-                bytestream = b"\x89PNG\r\n\x1a\n\x00\x00\x00"
+                bytestream = io.BytesIO(b"hello")
                 image = mo.image(bytestream)
                 """
             ),
