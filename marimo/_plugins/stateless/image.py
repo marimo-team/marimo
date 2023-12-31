@@ -52,6 +52,7 @@ def image(
     `Html` object
     """
     # Convert to virtual file
+    resolved_src: Optional[str]
     if isinstance(src, io.BufferedReader) or isinstance(src, io.BytesIO):
         src.seek(0)
         resolved_src = mo_data.image(src.read()).url
