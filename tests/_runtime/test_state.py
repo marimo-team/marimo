@@ -1,5 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
-from marimo._runtime.conftest import ExecReqProvider
+from conftest import ExecReqProvider
+
 from marimo._runtime.runtime import Kernel
 
 

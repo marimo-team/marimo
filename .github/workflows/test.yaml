@@ -94,4 +94,4 @@ jobs:
           mypy --config-file pyproject.toml marimo/
       - name: Test
         run: |
-          pytest -v marimo/ -k "not test_cli"
+          pytest -v tests/ -k "not test_cli"
