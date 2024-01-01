@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.63"
+__generated_with = "0.1.68"
 app = marimo.App(width="full")
 
 
@@ -20,7 +20,7 @@ def __(
             n_points_slider,
             refresher,
             mo.md("## ISS Positions | [`marimo.ui.altair_chart`](https://docs.marimo.io/api/plotting.html#marimo.ui.altair_chart)\n---"),
-            mo.ui.altair_chart(chart)
+            mo.as_html(chart)
         ], align="center"),
         mo.vstack([
             mo.md("## Data | [`marimo.as_html`](https://docs.marimo.io/api/html.html)`(pd.DataFrame)`\n---"),
@@ -55,9 +55,8 @@ def __(alt, get_iss_positions, sphere, world):
 
 
 @app.cell
-def __(alt):
-    # load geo data
-    from vega_datasets import data
+def __(alt, data):
+    # load geo data from Vega Datasets
     countries = alt.topo_feature(data.world_110m.url, 'countries')
 
     # world base
@@ -69,7 +68,7 @@ def __(alt):
     world = alt.Chart(countries).mark_geoshape(
         fill="mintcream", stroke="black", strokeWidth=0.35
     )
-    return countries, data, sphere, world
+    return countries, sphere, world
 
 
 @app.cell
@@ -117,9 +116,10 @@ def __():
     import pandas as pd
     import requests
     from time import time
+    from vega_datasets import data
 
     pd.options.display.max_rows = 30
-    return alt, mo, pd, requests, time
+    return alt, data, mo, pd, requests, time
 
 
 if __name__ == "__main__":
