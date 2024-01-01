@@ -76,7 +76,7 @@ jobs:
           pip install pytest
 
       - name: Download wheel
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: testwheel
 
