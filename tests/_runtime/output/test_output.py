@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from conftest import ExecReqProvider, MockedKernel
+from tests.conftest import ExecReqProvider, MockedKernel
 
 
 def test_spinner_removed(

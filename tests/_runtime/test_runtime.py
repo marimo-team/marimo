@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from conftest import ExecReqProvider
-
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -21,6 +19,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:

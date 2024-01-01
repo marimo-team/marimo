@@ -1,19 +1,12 @@
 #!/bin/bash
 
-# Directory to scan
+# Directories to scan
 dir="marimo"
 
 # Counter for updated files
 count=0
 
-# Check if directory exists
-if [[ ! -d "$dir" ]]; then
-    echo "Directory does not exist."
-    exit 1
-fi
-
-# Iterate over each Python file excluding "_test_utils" subdirectory, which
-# contains data files for tests
+# Iterate over each Python file and add copyright notice if it isn't there
 while read file
 do
     # Check if the file does not start with "# Copyright"
@@ -28,7 +21,7 @@ do
         mv "$tmp_file" "$file"
         ((count++))
     fi
-done < <(find "$dir" -name "_test_utils" -prune -o -type f -name "*.py" -print) 
+done < <(find "$dir" -type f -name "*.py" -print)
 
 if (( count > 0 )); then
     echo "$(tput bold)added copyright notices to $count files$(tput sgr0)"

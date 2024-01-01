@@ -121,8 +121,6 @@ select = [
     "FA102",
     # isort
     "I001",
-    # copyright notice
-    "CPY001",
 ]
 
 # Never try to fix `F401` (unused imports).

@@ -3,13 +3,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from conftest import MockedKernel
-
 from marimo._plugins.ui._impl.table import (
     _normalize_data,
 )
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.runtime import ExecutionContext
+from tests.conftest import MockedKernel
 
 
 def test_normalize_data() -> None:

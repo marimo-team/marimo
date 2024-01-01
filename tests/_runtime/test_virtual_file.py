@@ -1,11 +1,10 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from conftest import ExecReqProvider
-
 from marimo._runtime.context import get_context
 from marimo._runtime.requests import DeleteRequest
 from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def test_virtual_file_creation(k: Kernel, exec_req: ExecReqProvider) -> None:
