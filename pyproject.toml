@@ -62,6 +62,7 @@ dev = [
     # have the rust toolchain installed on CI
     "polars==0.19.12",
     "pytest~=7.4.0",
+    "pytest-codecov~=0.5.1",
     "mypy~=1.7.0",
     "ruff~=0.0.275",
     # For docs
@@ -160,7 +161,7 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data"
+addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --cov=marimo --cov-branch"
 testpaths = [
     "tests",
 ]
