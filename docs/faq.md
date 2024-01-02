@@ -318,7 +318,7 @@ You can use any Python package. marimo cells run arbitrary Python code.
 
 Use SSH port-forwarding to run the marimo kernel on a remote server
 and connect to it from a browser on your local machine. Make sure
-pass the `--headless` flag when starting marimo on remote:
+to pass the `--headless` flag when starting marimo on remote:
 
 ```bash
 marimo edit notebook.py --headless
