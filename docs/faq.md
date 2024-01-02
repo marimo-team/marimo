@@ -21,6 +21,7 @@
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
   - [What packages can I use?](#faq-packages)
+  - [How do I use marimo on a remote server?](#faq-remote)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -311,6 +312,17 @@ For Python 3.12+, marimo additionally implements annotation scoping.
 **What packages can I use?**
 
 You can use any Python package. marimo cells run arbitrary Python code.
+
+<a name="faq-remote" ></a>
+**How do I use marimo on a remote server?**
+
+Use SSH port-forwarding to run the marimo kernel on a remote server
+and connect to it from a browser on your local machine. Make sure
+to pass the `--headless` flag when starting marimo on remote:
+
+```bash
+marimo edit notebook.py --headless
+```
 
 <a name="faq-app-deploy" ></a>
 **How do I deploy apps?**
