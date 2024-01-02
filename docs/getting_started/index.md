@@ -10,7 +10,10 @@ Before installing marimo, we recommend creating and activating a Python
 ```{dropdown} Setting up a virtual environment
 
 Python uses virtual environments to minimize conflicts among packages.
-Here's a quickstart. Run the following in the terminal:
+Here's a quickstart for `pip` users. If you use `conda`, please use a
+[`conda` environment](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands) instead.
+
+Run the following in the terminal:
 
 
 - create an environment with `python -m venv marimo-env`
@@ -28,9 +31,19 @@ Learn more from the [official Python tutorial](https://docs.python.org/3/tutoria
 
 To install marimo, run the following in a terminal:
 
+
+::::{tab-set}
+:::{tab-item} install with pip
 ```bash
 pip install marimo
 ```
+:::
+:::{tab-item} install with conda
+```bash
+conda install -c conda-forge marimo
+```
+:::
+::::
 
 To check if the install worked, run
 
@@ -99,6 +112,9 @@ _Get started with Copilot_:
 
 1. Install [Node.js](https://nodejs.org/en/download).
 2. Enable Copilot via the settings menu in the marimo editor.
+
+_Note_: Copilot is not yet available in our conda distribution; please install
+marimo using `pip` if you need Copilot.
 
 ## VS Code extension
 

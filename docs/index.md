@@ -7,9 +7,19 @@
 with data and models, code with confidence in your notebook's correctness, and
 productionize notebooks as pipelines or interactive web apps.
 
-```python
+
+::::{tab-set}
+:::{tab-item} install with pip
+```bash
 pip install marimo && marimo tutorial intro
 ```
+:::
+:::{tab-item} install with conda
+```bash
+conda install -c conda-forge marimo && marimo tutorial intro
+```
+:::
+::::
 
 **Highlights.**
 
