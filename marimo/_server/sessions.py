@@ -608,13 +608,15 @@ def server_token_from_header(
     if not server_token:
         LOGGER.error("Invalid headers (Marimo-Server-Token not found)")
         raise tornado.web.HTTPError(
+            HTTPStatus.FORBIDDEN,
             "Invalid headers (Marimo-Server-Token not found)\n\n"
-            + str(headers)
+            + str(headers),
         )
     elif len(server_token) > 1:
         LOGGER.error("Invalid headers (> 1 Marimo-Server-Token)")
         raise tornado.web.HTTPError(
-            "Invalid headers (> 1 Marimo-Server-Token)\n\n" + str(headers)
+            HTTPStatus.FORBIDDEN,
+            "Invalid headers (> 1 Marimo-Server-Token)\n\n" + str(headers),
         )
     return server_token[0]
 
