@@ -12,10 +12,16 @@ import { expect, describe, it } from "vitest";
 describe("normalizeName", () => {
   it("should return the default cell name for empty input", () => {
     expect(normalizeName("")).toBe(DEFAULT_CELL_NAME);
+    expect(normalizeName(" ")).toBe(DEFAULT_CELL_NAME);
+    expect(normalizeName("  ")).toBe(DEFAULT_CELL_NAME);
+    expect(normalizeName("   ")).toBe(DEFAULT_CELL_NAME);
   });
 
   it("should remove special characters and make lowercase", () => {
     expect(normalizeName("Test Name!")).toBe("test_name_");
+    expect(normalizeName("Another Name")).toBe("another_name");
+    expect(normalizeName("Some name 10")).toBe("some_name_10");
+    expect(normalizeName("10 names")).toBe("_10_names");
   });
 });
 

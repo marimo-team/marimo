@@ -1,5 +1,5 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { CellId } from "@/core/cells/ids";
+import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
 import { displayCellName } from "@/core/cells/names";
@@ -15,6 +15,7 @@ interface Props {
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant } = props;
   const cellName = useCellNames()[cellId] ?? "";
+  const cellHtmlId = HTMLCellId.create(cellId);
 
   return (
     <div
@@ -26,10 +27,10 @@ export const CellLink = (props: Props): JSX.Element => {
         e.stopPropagation();
         e.preventDefault();
 
-        const cell: HTMLElement | null = document.getElementById(cellName);
+        const cell: HTMLElement | null = document.getElementById(cellHtmlId);
 
         if (cell === null) {
-          Logger.error(`Cell ${cellName} not found on page.`);
+          Logger.error(`Cell ${cellHtmlId} not found on page.`);
         } else {
           cell.scrollIntoView({ behavior: "smooth", block: "center" });
 

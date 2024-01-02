@@ -8,8 +8,13 @@ export const DEFAULT_CELL_NAME = "__";
  * Make's name pythonic - removes spaces, special characters and makes lowercase
  */
 export function normalizeName(name: string) {
+  name = name.trim();
   if (!name) {
     return DEFAULT_CELL_NAME;
+  }
+  // Cannot start with a number
+  if (/^\d/.test(name)) {
+    name = `_${name}`;
   }
   return name.replaceAll(/\W/g, "_").toLowerCase();
 }

@@ -1,5 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { Input } from "@/components/ui/input";
+import { Tooltip } from "@/components/ui/tooltip";
 import { getCellNames, useCellActions } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import {
@@ -64,20 +65,30 @@ export const NameCellContentEditable: React.FC<{
     updateCellName({ cellId, name: newName })
   );
 
+  // If the name is the default, don't render the content editable
+  if (value === DEFAULT_CELL_NAME) {
+    return null;
+  }
+
   return (
-    <span
-      className={cn("outline-1 outline-cyan-500/40", className)}
-      contentEditable={true}
-      onChange={inputProps.onChange}
-      onBlur={inputProps.onBlur}
-      onKeyDown={Events.onEnter((e) => {
-        if (e.target instanceof HTMLElement) {
-          e.target.blur();
-        }
-      })}
-    >
-      {value}
-    </span>
+    <Tooltip content="Click to rename">
+      <span
+        className={cn(
+          "outline-none border hover:border-cyan-500/40 focus:border-cyan-500/40",
+          className
+        )}
+        contentEditable={true}
+        onChange={inputProps.onChange}
+        onBlur={inputProps.onBlur}
+        onKeyDown={Events.onEnter((e) => {
+          if (e.target instanceof HTMLElement) {
+            e.target.blur();
+          }
+        })}
+      >
+        {value}
+      </span>
+    </Tooltip>
   );
 };
 
