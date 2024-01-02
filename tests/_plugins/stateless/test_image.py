@@ -1,8 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
 from marimo._plugins.stateless.image import image
-from marimo._runtime.conftest import ExecReqProvider
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def test_image() -> None:

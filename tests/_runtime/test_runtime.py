@@ -10,7 +10,6 @@ from marimo._messaging.errors import (
     MultipleDefinitionError,
 )
 from marimo._plugins.ui._core.ids import IDProvider
-from marimo._runtime.conftest import ExecReqProvider
 from marimo._runtime.dataflow import Edge
 from marimo._runtime.requests import (
     CreationRequest,
@@ -20,6 +19,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:

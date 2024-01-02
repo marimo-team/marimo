@@ -14,7 +14,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 def get_codes(ipynb_name: str) -> tuple[Sequence[str], Sequence[str]]:
     contents = convert_from_path(
-        DIR_PATH + f"/../_test_utils/ipynb_data/{ipynb_name}.ipynb.txt"
+        DIR_PATH + f"/ipynb_data/{ipynb_name}.ipynb.txt"
     )
 
     tempfile_name = ""

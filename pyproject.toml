@@ -62,6 +62,7 @@ dev = [
     # have the rust toolchain installed on CI
     "polars==0.19.12",
     "pytest~=7.4.0",
+    "pytest-codecov~=0.5.1",
     "mypy~=1.7.0",
     "ruff~=0.0.275",
     # For docs
@@ -94,6 +95,8 @@ exclude = [
     "marimo/_smoke_tests",
     "marimo/_test_utils/codegen_data",
     "marimo/_test_utils/_tutorials",
+    "tests/_ast/codegen_data",
+    "tests/_cli/ipynb_data",
     "frontend",
     "docs",
     "build",
@@ -118,8 +121,6 @@ select = [
     "FA102",
     # isort
     "I001",
-    # copyright notice
-    "CPY001",
 ]
 
 # Never try to fix `F401` (unused imports).
@@ -133,8 +134,8 @@ line-length = 79
 extend-exclude = """
 (
     ^/examples/*
-    | ^/marimo/_test_utils/codegen_data/*
-    | ^/marimo/_test_utils/ipynb_data/*
+    | ^/tests/_ast/codegen_data/*
+    | ^/tests/_cli/ipynb_data/*
     | ^/marimo/_tutorials/*
     | ^/marimo/_smoke_tests/*
 )
@@ -144,8 +145,8 @@ extend-exclude = """
 strict = true
 exclude = [
     'examples',
-    'marimo/_test_utils/codegen_data',
-    'marimo/_test_utils/ipynb_data',
+    'tests/_ast/codegen_data',
+    'tests/_cli/ipynb_data',
     'marimo/_tutorials/',
     'marimo/_smoke_tests/',
 ]
@@ -158,7 +159,7 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q -v --ignore marimo/_test_utils/"
+addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data"
 testpaths = [
-    "marimo",
+    "tests",
 ]

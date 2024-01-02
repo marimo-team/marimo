@@ -94,4 +94,9 @@ jobs:
           mypy --config-file pyproject.toml marimo/
       - name: Test
         run: |
-          pytest -v marimo/ -k "not test_cli"
+          pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
+      - name: Upload coverage reports to Codecov
+        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

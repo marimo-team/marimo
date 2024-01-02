@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Tuple
 
-from marimo._runtime.conftest import ExecReqProvider, MockedKernel
+from tests.conftest import ExecReqProvider, MockedKernel
 
 
 def _has_output(

@@ -15,9 +15,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 def get_expected_filecontents(name: str) -> str:
-    with open(
-        os.path.join(DIR_PATH, f"../_test_utils/codegen_data/{name}.py"), "r"
-    ) as f:
+    with open(os.path.join(DIR_PATH, f"codegen_data/{name}.py"), "r") as f:
         contents = f.read()
     lines = contents.split("\n")
     break_index = None
@@ -34,7 +32,7 @@ def get_expected_filecontents(name: str) -> str:
 
 
 def get_filepath(name: str) -> str:
-    return os.path.join(DIR_PATH, f"../_test_utils/codegen_data/{name}.py")
+    return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
 def generate_filecontents(
@@ -231,7 +229,7 @@ class TestGetCodes:
 class TestApp:
     @staticmethod
     def test_run() -> None:
-        import marimo._test_utils.codegen_data.test_main as mod
+        import codegen_data.test_main as mod
 
         outputs, defs = mod.app.run()
         assert outputs == (None, "z", None)
