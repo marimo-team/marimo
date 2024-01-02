@@ -5,6 +5,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVerticalIcon } from "lucide-react";
 import { CellId } from "@/core/cells/ids";
+import { cn } from "@/utils/cn";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   cellId: CellId;
@@ -36,7 +37,8 @@ const SortableCellInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            x: transform.x,
+            // No x-transform since only sorting in the y-axis
+            x: 0,
             y: transform.y,
             scaleX: 1,
             scaleY: 1,
@@ -60,8 +62,16 @@ const SortableCellInternal = React.forwardRef(
       </div>
     );
 
+    const isMoving = Boolean(transform);
+
     return (
-      <div tabIndex={-1} ref={mergedRef} {...props} style={style}>
+      <div
+        tabIndex={-1}
+        ref={mergedRef}
+        {...props}
+        className={cn(props.className, isMoving && "is-moving")}
+        style={style}
+      >
         <DragHandleSlot.Provider value={dragHandle}>
           {props.children}
         </DragHandleSlot.Provider>

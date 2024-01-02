@@ -284,6 +284,14 @@
   }
 }
 
+/* Hide tray when dragging a cell, to prevent messing up the measurements. */
+.Cell.is-moving {
+  .tray::before,
+  .tray::after {
+    display: none;
+  }
+}
+
 :root {
   /* In wide mode, this will overextend, but that's fine */
   --gutter-width: calc(50vw - (var(--content-width) / 2));

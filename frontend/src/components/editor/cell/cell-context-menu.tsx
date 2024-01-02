@@ -64,7 +64,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger asChild={true}>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-[300px]">
         {[DEFAULT_CONTEXT_MENU_ITEMS, ...actions].map((group, i) => (
           <Fragment key={i}>
