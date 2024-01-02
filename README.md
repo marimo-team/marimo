@@ -50,6 +50,8 @@ marimo tutorial intro
 
 You should see a tutorial notebook in your browser.
 
+marimo is also available through Conda: `conda install -c conda-forge marimo`.
+
 **Create notebooks.**
 Create an empty notebook with
 
