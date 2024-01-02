@@ -72,6 +72,12 @@ export interface NotebookState {
   cellLogs: CellLog[];
 }
 
+export interface LastSavedNotebook {
+  codes: string[];
+  configs: CellConfig[];
+  names: string[];
+}
+
 /**
  * Initial state of the notebook.
  */
@@ -671,16 +677,20 @@ export function notebookIsRunning(state: NotebookState) {
 
 export function notebookNeedsSave(
   state: NotebookState,
-  otherCodes: string[],
-  otherConfigs: CellConfig[]
+  lastSavedNotebook: LastSavedNotebook | undefined
 ) {
+  if (!lastSavedNotebook) {
+    return false;
+  }
   const { cellIds, cellData } = state;
   const data = cellIds.map((cellId) => cellData[cellId]);
   const codes = data.map((d) => d.code);
   const configs = data.map((d) => d.config);
+  const names = data.map((d) => d.name);
   return (
-    !arrayShallowEquals(codes, otherCodes) ||
-    !arrayShallowEquals(configs, otherConfigs)
+    !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
+    !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
+    !arrayShallowEquals(names, lastSavedNotebook.names)
   );
 }
 

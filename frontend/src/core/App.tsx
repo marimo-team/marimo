@@ -18,6 +18,7 @@ import { UUID } from "../utils/uuid";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
+  LastSavedNotebook,
   notebookCells,
   notebookIsRunning,
   notebookNeedsRun,
@@ -45,7 +46,6 @@ import { useWindowEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
 import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
 import { CellId, HTMLCellId } from "./cells/ids";
-import { CellConfig } from "./cells/types";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
@@ -67,8 +67,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
   const [filename, setFilename] = useFilename();
-  const [savedCodes, setSavedCodes] = useState<string[]>([""]);
-  const [savedConfigs, setSavedConfigs] = useState<CellConfig[]>([]);
+  const [lastSavedNotebook, setLastSavedNotebook] =
+    useState<LastSavedNotebook>();
   const { openModal, closeModal, openAlert } = useImperativeModal();
 
   const isEditing = viewState.mode === "edit";
@@ -91,9 +91,13 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { connStatus } = useMarimoWebSocket({
     autoInstantiate:
       userConfig.runtime.auto_instantiate || viewState.mode === "read",
-    setCells,
-    setInitialCodes: setSavedCodes,
-    setInitialConfigs: setSavedConfigs,
+    setCells: (cells) => {
+      setCells(cells);
+      const names = cells.map((cell) => cell.name);
+      const codes = cells.map((cell) => cell.code);
+      const configs = cells.map((cell) => cell.config);
+      setLastSavedNotebook({ names, codes, configs });
+    },
     sessionId: UUID,
   });
 
@@ -120,7 +124,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
-  const needsSave = notebookNeedsSave(notebook, savedCodes, savedConfigs);
+  const needsSave = notebookNeedsSave(notebook, lastSavedNotebook);
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
@@ -155,8 +159,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
             formatAll(updateCellCode);
           }
         }
-        setSavedCodes(codes);
-        setSavedConfigs(configs);
+        setLastSavedNotebook({ names: cellNames, codes, configs });
       })
       .catch((error) => {
         openAlert(error.message);
@@ -192,6 +195,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     needsSave: needsSave,
     codes: codes,
     cellConfigs: configs,
+    cellNames: cellNames,
     connStatus: connStatus,
     config: userConfig,
   });
