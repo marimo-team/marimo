@@ -3,14 +3,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, TypedDict, cast
 
-from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
 
 if TYPE_CHECKING:
     from typing import Literal, Optional
 
 
-@mddoc
 class CompletionConfig(TypedDict, total=False):
     """Configuration for code completion.
 
@@ -29,7 +27,6 @@ class CompletionConfig(TypedDict, total=False):
     copilot: bool
 
 
-@mddoc
 class SaveConfig(TypedDict, total=False):
     """Configuration for saving.
 
@@ -45,7 +42,6 @@ class SaveConfig(TypedDict, total=False):
     format_on_save: bool
 
 
-@mddoc
 class KeymapConfig(TypedDict, total=False):
     """Configuration for keymaps.
 
@@ -57,7 +53,24 @@ class KeymapConfig(TypedDict, total=False):
     preset: Literal["default", "vim"]
 
 
-@mddoc
+# Byte limits on outputs exist for two reasons:
+#
+# 1. We use a multiprocessing.Connection object to send outputs from
+#    the kernel to the server (the server then sends the output to
+#    the frontend via a websocket). The Connection object has a limit
+#    of ~32MiB that it can send before it chokes
+#    (https://docs.python.org/3/library/multiprocessing.html#multiprocessing.connection.Connection.send).
+#
+#    TODO(akshayka): Get around this by breaking up the message sent
+#    over the Connection or plumbing the websocket into the kernel.
+#
+# 2. The frontend chokes when we send outputs that are too big, i.e.
+#    it freezes and sometimes even crashes. That can lead to lost work.
+#    It appears this is the bottleneck right now, compared to 1.
+#
+# Usually users only output gigantic things accidentally, so refusing
+# to show large outputs should in most cases not bother the user too much.
+# In any case, it's better than breaking the frontend/kernel.
 class RuntimeConfig(TypedDict, total=False):
     """Configuration for runtime.
 
@@ -65,14 +78,20 @@ class RuntimeConfig(TypedDict, total=False):
 
     - `auto_instantiate`: if `False`, cells won't automatically
         run on startup. This only applies when editing a notebook,
-        and not when running as an application.
-        The default is `True`.
+        and not when running as an application. The default is `True`.
+    - `output_max_size_bytes`: max size in bytes for cell outputs; increasing
+         this lets you render larger outputs, but may lead to performance
+         issues
+    - `std_stream_max_size_bytes`: max size in MB for stdout/stderr messages;
+        increasing this lets you render larger messages, but may lead to
+        performance issues
     """
 
     auto_instantiate: bool
+    output_max_size_bytes: int
+    std_stream_max_size_bytes: int
 
 
-@mddoc
 class DisplayConfig(TypedDict, total=False):
     """Configuration for display.
 
@@ -96,7 +115,6 @@ class ServerConfig(TypedDict, total=False):
     browser: Literal["default"] | str
 
 
-@mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
 
@@ -125,11 +143,18 @@ class MarimoConfig(TypedDict, total=False):
     experimental: Dict[str, Any]
 
 
+OUTPUT_MAX_SIZE_BYTES = 5_000_000
+STD_STREAM_MAX_SIZE_BYTES = 1_000_000
+
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
     "display": {"theme": "light"},
     "keymap": {"preset": "default"},
-    "runtime": {"auto_instantiate": True},
+    "runtime": {
+        "auto_instantiate": True,
+        "output_max_size_bytes": OUTPUT_MAX_SIZE_BYTES,
+        "std_stream_max_size_bytes": STD_STREAM_MAX_SIZE_BYTES,
+    },
     "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
@@ -140,7 +165,6 @@ DEFAULT_CONFIG: MarimoConfig = {
 _USER_CONFIG: Optional[MarimoConfig] = None
 
 
-@mddoc
 def configure(config: MarimoConfig) -> MarimoConfig:
     """Configure the marimo editor with a user config.
 

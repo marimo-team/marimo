@@ -989,6 +989,8 @@ def launch_kernel(
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
+    output_max_size_bytes: int,
+    std_stream_max_size_bytes: int,
 ) -> None:
     LOGGER.debug("Launching kernel")
 
@@ -1018,6 +1020,8 @@ def launch_kernel(
         stream=stream,
         stdout=stdout,
         stderr=stderr,
+        output_max_size_bytes=output_max_size_bytes,
+        std_stream_max_size_bytes=std_stream_max_size_bytes,
     )
 
     if is_edit_mode:

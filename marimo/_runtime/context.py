@@ -57,6 +57,8 @@ class RuntimeContext:
     stream: Stream
     stdout: Optional[Stdout]
     stderr: Optional[Stderr]
+    output_max_size_bytes: int
+    std_stream_max_size_bytes: int
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -105,6 +107,8 @@ def initialize_context(
     stream: Stream,
     stdout: Optional[Stdout],
     stderr: Optional[Stderr],
+    output_max_size_bytes: int,
+    std_stream_max_size_bytes: int,
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -127,6 +131,8 @@ def initialize_context(
             stream=stream,
             stdout=stdout,
             stderr=stderr,
+            output_max_size_bytes=output_max_size_bytes,
+            std_stream_max_size_bytes=std_stream_max_size_bytes,
         )
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 

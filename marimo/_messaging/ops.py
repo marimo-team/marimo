@@ -26,7 +26,7 @@ from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
-from marimo._messaging.streams import OUTPUT_MAX_BYTES, Stream
+from marimo._messaging.streams import Stream
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -77,7 +77,7 @@ class CellOp(Op):
 
     @staticmethod
     def maybe_truncate_output(mimetype: str, data: str) -> tuple[str, str]:
-        if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
+        if (size := sys.getsizeof(data)) > get_context().output_max_size_bytes:
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
 

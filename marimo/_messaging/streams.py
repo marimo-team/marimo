@@ -10,33 +10,9 @@ from typing import Any, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._runtime.context import get_context
 
 LOGGER = _loggers.marimo_logger()
-
-# Byte limits on outputs. Limits exist for two reasons:
-#
-# 1. We use a multiprocessing.Connection object to send outputs from
-#    the kernel to the server (the server then sends the output to
-#    the frontend via a websocket). The Connection object has a limit
-#    of ~32MiB that it can send before it chokes
-#    (https://docs.python.org/3/library/multiprocessing.html#multiprocessing.connection.Connection.send).
-#
-#    TODO(akshayka): Get around this by breaking up the message sent
-#    over the Connection or plumbing the websocket into the kernel.
-#
-# 2. The frontend chokes when we send outputs that are too big, i.e.
-#    it freezes and sometimes even crashes. That can lead to lost work.
-#    It appears this is the bottleneck right now, compared to 1.
-#
-# Usually users only output gigantic things accidentally, so refusing
-# to show large outputs should in most cases not bother the user too much.
-# In any case, it's better than breaking the frontend/kernel.
-#
-# Output not shown if larger than OUTPUT_MAX_BYTES=5MB
-OUTPUT_MAX_BYTES = 5_000_000
-
-# Standard stream truncated if larger than STD_STREAM_MAX_BYTES=1MB
-STD_STREAM_MAX_BYTES = 1_000_000
 
 
 class Stream:
@@ -77,11 +53,12 @@ class Stdout:
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        max_bytes = get_context().std_stream_max_size_bytes
+        if sys.getsizeof(data) > max_bytes:
             sys.stderr.write(
                 "Warning: marimo truncated a very large console output.\n"
             )
-            data = data[: int(STD_STREAM_MAX_BYTES)] + " ... "
+            data = data[: int(max_bytes)] + " ... "
         self.stream.console_msg_queue.append(
             ConsoleMsg(stream="stdout", cell_id=self.stream.cell_id, data=data)
         )
@@ -108,14 +85,15 @@ class Stderr:
 
     def write(self, data: str) -> None:
         assert self.stream.cell_id is not None
+        max_bytes = get_context().std_stream_max_size_bytes
         if not isinstance(data, str):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
             )
-        if sys.getsizeof(data) > STD_STREAM_MAX_BYTES:
+        if sys.getsizeof(data) > max_bytes:
             data = (
                 "Warning: marimo truncated a very large console output.\n"
-                + data[: int(STD_STREAM_MAX_BYTES)]
+                + data[: int(max_bytes)]
                 + " ... "
             )
 

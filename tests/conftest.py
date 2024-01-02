@@ -8,10 +8,7 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
-from marimo._runtime.context import (
-    initialize_context,
-    teardown_context,
-)
+from marimo._runtime.context import initialize_context, teardown_context
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
@@ -49,6 +46,8 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
+            output_max_size_bytes=5_000_000,
+            std_stream_max_size_bytes=1_000_000,
         )
 
     def __del__(self) -> None:
