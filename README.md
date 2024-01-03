@@ -67,7 +67,8 @@ marimo edit your_notebook.py
 ```
 
 - marimo **reacts** to your code changes, like a spreadsheet! This rapid feedback
-ensures your code and outputs are always in sync.
+ensures your code and outputs are always in sync. It
+also gives your notebook a deterministic execution order, making it reproducible.
 
 <img src="docs/_static/reactive.gif" width="700px" />
 
@@ -89,9 +90,7 @@ marimo run your_notebook.py
 
 <img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-_This app is deployed on [marimo cloud](https://marimo.io/cloud), our
-platform for deploying marimo notebooks and supercharging them
-with cloud resources._
+_This app is deployed on [marimo cloud](https://marimo.io/cloud)._
 
 **Execute as scripts.** marimo noteboooks can be executed as scripts at the
 command line:
@@ -126,9 +125,8 @@ marimo editor.
 
 marimo is easy to get started with, with lots of room for power users. In
 addition to experimenting with code and models in a reproducible environment,
-marimo lets you build powerful tools including data labelers,
-embedding visualizers, and model evaluation dashboards, with surprisingly
-little code.
+marimo lets you build powerful tools like data labelers and
+embedding visualizers, with surprisingly little code.
 
 Examples are available in the `examples/` directory.
 We've deployed many of these examples at our [public
