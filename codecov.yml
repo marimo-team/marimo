@@ -1,0 +1,10 @@
+coverage:
+  status:
+    project:
+      default:
+        # We'll set this once we have better coverage; auto compares
+        # to previous commit
+        target: auto
+        # this allows a 5% drop from the previous base commit coverage
+        # we'll decrease this as our testing matures
+        threshold: 5%
