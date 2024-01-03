@@ -72,8 +72,8 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
               return (
                 <ContextMenuItem
                   key={action.label}
-                  onSelect={() => {
-                    action.handle();
+                  onSelect={(evt) => {
+                    action.handle(evt);
                   }}
                   variant={action.variant}
                 >
@@ -84,6 +84,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
                     <div className="flex-1">{action.label}</div>
                     <div className="flex-shrink-0 text-sm">
                       {action.hotkey && renderMinimalShortcut(action.hotkey)}
+                      {action.rightElement}
                     </div>
                   </div>
                 </ContextMenuItem>

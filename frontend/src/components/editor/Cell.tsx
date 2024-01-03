@@ -41,6 +41,7 @@ import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
+import { isOutputEmpty } from "@/core/cells/outputs";
 
 /**
  * Imperative interface of the cell.
@@ -68,7 +69,7 @@ export interface CellProps
       | "runStartTimestamp"
       | "runElapsedTimeMs"
     >,
-    Pick<CellData, "id" | "code" | "edited" | "config">,
+    Pick<CellData, "id" | "code" | "edited" | "config" | "name">,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -123,6 +124,7 @@ const CellComponent = (
     moveToNextCell,
     userConfig,
     config: cellConfig,
+    name,
   }: CellProps,
   ref: React.ForwardedRef<CellHandle>
 ) => {
@@ -279,13 +281,16 @@ const CellComponent = (
     }
   };
 
+  const hasOutput = !isOutputEmpty(output);
+
   return (
     <CellActionsContextMenu
       cellId={cellId}
       config={cellConfig}
       status={status}
       editorView={editorView.current}
-      hasOutput={!!output}
+      hasOutput={hasOutput}
+      name={name}
     >
       <SortableCell
         tabIndex={-1}
@@ -357,8 +362,9 @@ const CellComponent = (
                 cellId={cellId}
                 status={status}
                 editorView={editorView.current}
+                name={name}
                 config={cellConfig}
-                hasOutput={!!output}
+                hasOutput={hasOutput}
               >
                 <CellDragHandle />
               </CellActionsDropdown>
@@ -381,6 +387,8 @@ const CellComponent = (
         <ConsoleOutput
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}
+          cellName={name}
+          cellId={cellId}
         />
       </SortableCell>
     </CellActionsContextMenu>

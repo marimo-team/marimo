@@ -382,8 +382,6 @@
 }
 
 .console-output-area {
-  padding: 20px;
-  border-radius: 0 0 8px 8px;
   border-top: 1px solid var(--gray-5);
   border-bottom: 1px solid var(--gray-3);
   border-right: 1px solid var(--gray-3);

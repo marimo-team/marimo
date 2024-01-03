@@ -5,6 +5,8 @@ import { useAtomValue } from "jotai";
 import { memo } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { CustomNodeProps, getNodeHeight } from "./elements";
+import { displayCellName } from "@/core/cells/names";
+import { CellId } from "@/core/cells/ids";
 
 function getWidth(canvasWidth: number) {
   const minWidth = 100;
@@ -47,7 +49,7 @@ export const CustomNode = memo((props: CustomNodeProps) => {
         }}
       >
         <div className="text-muted-foreground font-semibold text-xs py-1 px-2 bg-muted border-b">
-          Cell {id}
+          {displayCellName(cell.name, id as CellId)}
         </div>
         <TinyCode code={cell.code} />
       </div>

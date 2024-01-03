@@ -11,7 +11,7 @@ import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { sendInstantiate } from "../network/requests";
 import { CellId } from "../cells/ids";
-import { CellConfig, CellData } from "../cells/types";
+import { CellData } from "../cells/types";
 import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
@@ -34,18 +34,10 @@ export function useMarimoWebSocket(opts: {
   sessionId: string;
   autoInstantiate: boolean;
   setCells: (cells: CellData[]) => void;
-  setInitialCodes: (codes: string[]) => void;
-  setInitialConfigs: (cellConfigs: CellConfig[]) => void;
 }) {
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);
-  const {
-    autoInstantiate,
-    sessionId,
-    setCells,
-    setInitialCodes,
-    setInitialConfigs,
-  } = opts;
+  const { autoInstantiate, sessionId, setCells } = opts;
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
@@ -79,8 +71,6 @@ export function useMarimoWebSocket(opts: {
           setLayoutData(deserializeLayout(layout.type, layout.data, cells));
         }
         setCells(cells);
-        setInitialCodes(codes);
-        setInitialConfigs(configs);
 
         // Auto-instantiate, in future this can be configurable
         // or include initial values

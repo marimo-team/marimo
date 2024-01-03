@@ -112,6 +112,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           ref={notebook.cellHandles[cell.id]}
           userConfig={userConfig}
           config={cell.config}
+          name={cell.name}
         />
       ))}
     </VerticalLayoutWrapper>

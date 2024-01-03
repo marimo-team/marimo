@@ -2,6 +2,8 @@
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
+import { displayCellName } from "@/core/cells/names";
+import { useCellNames } from "@/core/cells/cells";
 
 interface Props {
   cellId: CellId;
@@ -12,7 +14,8 @@ interface Props {
 /* Component that adds a link to a cell, with styling. */
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant } = props;
-  const cellName = HTMLCellId.create(cellId);
+  const cellName = useCellNames()[cellId] ?? "";
+  const cellHtmlId = HTMLCellId.create(cellId);
 
   return (
     <div
@@ -24,10 +27,10 @@ export const CellLink = (props: Props): JSX.Element => {
         e.stopPropagation();
         e.preventDefault();
 
-        const cell: HTMLElement | null = document.getElementById(cellName);
+        const cell: HTMLElement | null = document.getElementById(cellHtmlId);
 
         if (cell === null) {
-          Logger.error(`Cell ${cellName} not found on page.`);
+          Logger.error(`Cell ${cellHtmlId} not found on page.`);
         } else {
           cell.scrollIntoView({ behavior: "smooth", block: "center" });
 
@@ -46,7 +49,7 @@ export const CellLink = (props: Props): JSX.Element => {
         }
       }}
     >
-      {cellName}
+      {displayCellName(cellName, cellId)}
     </div>
   );
 };
@@ -55,8 +58,5 @@ export const CellLink = (props: Props): JSX.Element => {
 export const CellLinkError = (
   props: Pick<Props, "className" | "cellId">
 ): JSX.Element => {
-  const { className, cellId } = props;
-  return (
-    <CellLink className={className} cellId={cellId} variant={"destructive"} />
-  );
+  return <CellLink {...props} variant={"destructive"} />;
 };

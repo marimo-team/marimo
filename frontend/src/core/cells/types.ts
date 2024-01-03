@@ -3,8 +3,7 @@ import { OutputMessage } from "../kernel/messages";
 import { SerializedEditorState } from "../codemirror/types";
 import { Outline } from "./outline";
 import { CellId } from "./ids";
-
-const DEFAULT_CELL_NAME = "__";
+import { DEFAULT_CELL_NAME } from "./names";
 
 /**
  * The status of a cell.

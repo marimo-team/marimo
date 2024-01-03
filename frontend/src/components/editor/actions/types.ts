@@ -9,8 +9,9 @@ export interface ActionButton {
   label: string;
   variant?: "danger";
   hotkey?: HotkeyAction;
+  disableClick?: boolean;
   icon?: React.ReactNode;
   hidden?: boolean;
   rightElement?: React.ReactNode;
-  handle: () => void;
+  handle: (event?: Event) => void;
 }

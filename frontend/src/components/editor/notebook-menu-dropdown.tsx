@@ -34,7 +34,7 @@ export const NotebookMenuDropdown: React.FC = () => {
         {actions.map((action) => (
           <DropdownMenuItem
             key={action.label}
-            onSelect={() => action.handle()}
+            onSelect={(evt) => action.handle(evt)}
             data-testid={`notebook-menu-dropdown-${action.label}`}
           >
             {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
