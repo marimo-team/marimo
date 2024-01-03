@@ -1,6 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import sys
 import threading
 from collections import deque
@@ -33,10 +34,10 @@ LOGGER = _loggers.marimo_logger()
 # In any case, it's better than breaking the frontend/kernel.
 #
 # Output not shown if larger than OUTPUT_MAX_BYTES=5MB
-OUTPUT_MAX_BYTES = 5_000_000
+OUTPUT_MAX_BYTES = int(os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000))
 
 # Standard stream truncated if larger than STD_STREAM_MAX_BYTES=1MB
-STD_STREAM_MAX_BYTES = 1_000_000
+STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 
 
 class Stream:
