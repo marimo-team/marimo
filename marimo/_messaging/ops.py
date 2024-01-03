@@ -87,7 +87,17 @@ class CellOp(Op):
                 Your output is too large for marimo to show. It has a size
                 of {size} bytes. Did you output this object by accident?
 
-                If this limitation is a problem for you, please reach out
+                If this limitation is a problem for you, you can configure
+                the max output size with the environment variable
+                `MARIMO_OUTPUT_MAX_BYTES`. For example, to increase
+                the max output to 10 MB, use:
+
+                ```
+                export MARIMO_OUTPUT_MAX_BYTES=10_000_000
+                ```
+
+                Increasing the max output size may cause performance issues.
+                If you run into problems, please reach out
                 to us on [Discord](https://discord.gg/JE7nhX6mD8) or
                 [Github](https://github.com/marimo-team/marimo/issues).
                 """
