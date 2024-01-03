@@ -20,7 +20,7 @@ def __(
             n_points_slider,
             refresher,
             mo.md("## ISS Positions | [`marimo.ui.altair_chart`](https://docs.marimo.io/api/plotting.html#marimo.ui.altair_chart)\n---"),
-            mo.as_html(chart)
+            mo.as_html(chart).style({"width": "700px"})
         ], align="center"),
         mo.vstack([
             mo.md("## Data | [`marimo.as_html`](https://docs.marimo.io/api/html.html)`(pd.DataFrame)`\n---"),
