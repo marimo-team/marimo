@@ -38,7 +38,6 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import get_configuration
 from marimo._messaging.ops import Alert, KernelReady, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._plugins.core.json_encoder import WebComponentEncoder
@@ -263,7 +262,6 @@ class Session:
         # Need to use a socket for windows compatibility
         listener = connection.Listener(family="AF_INET")
         is_edit_mode = mgr.mode == SessionMode.EDIT
-        user_config = get_configuration()
         if is_edit_mode:
             # We use a process in edit mode so that we can interrupt the app
             # with a SIGINT; we don't mind the additional memory consumption,
@@ -271,14 +269,7 @@ class Session:
             self.queue = mpctx.Queue()
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
-                args=(
-                    self.queue,
-                    listener.address,
-                    is_edit_mode,
-                    configs,
-                    user_config["runtime"]["output_max_size_bytes"],
-                    user_config["runtime"]["std_stream_max_size_bytes"],
-                ),
+                args=(self.queue, listener.address, is_edit_mode, configs),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
                 # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
@@ -307,14 +298,7 @@ class Session:
             # down all client sessions
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
-                args=(
-                    self.queue,
-                    listener.address,
-                    is_edit_mode,
-                    configs,
-                    user_config["runtime"]["output_max_size_bytes"],
-                    user_config["runtime"]["std_stream_max_size_bytes"],
-                ),
+                args=(self.queue, listener.address, is_edit_mode, configs),
                 # daemon threads can create child processes, unlike
                 # daemon processes
                 daemon=True,
