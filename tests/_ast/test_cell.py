@@ -1,9 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import pytest
-
-from marimo._ast.app import App
 from marimo._ast.cell import cell_factory, parse_cell
 
 
@@ -60,86 +57,24 @@ class TestParseCell:
 
 class TestCellFactory:
     @staticmethod
-    def test_missing_return() -> None:
+    def test_defs() -> None:
+        """defs inferred from function code, not returns"""
+
         def f() -> None:
             x = 10  # noqa: F841
+            y = 20  # noqa: F841
 
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)
-
-        assert "missing a return statement" in str(e.value)
-
-    @staticmethod
-    def test_not_tuple() -> None:
-        def f() -> int:
-            x = 10  # noqa: F841
-            return x
-
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)  # type: ignore[type-var]
-
-        assert "must return a tuple" in str(e.value)
+        cf = cell_factory(f)
+        assert cf.cell.defs == {"x", "y"}
+        assert not cf.cell.refs
 
     @staticmethod
-    def test_missing_some_defs() -> None:
-        def f() -> tuple[int]:
-            x = 10
-            y = x  # noqa: F841
-            return (x,)
+    def test_refs() -> None:
+        """refs inferred from function code, not args"""
 
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)
+        def f() -> None:
+            x = y  # noqa: F841 F821
 
-        assert "must return a tuple of all its defs" in str(e.value)
-
-    @staticmethod
-    def test_missing_some_refs() -> None:
-        z = 0
-
-        app = App()
-
-        @app.cell
-        def f(y: int) -> tuple[int]:
-            x = y + z
-            return (x,)
-
-        with pytest.raises(ValueError) as e:
-            app._validate_args()
-
-        assert "must take all its refs as args" in str(e.value)
-
-    @staticmethod
-    def test_extra_returns() -> None:
-        def f() -> tuple[int]:
-            return (1,)
-
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)
-
-        assert "shouldn't return anything" in str(e.value)
-
-    @staticmethod
-    def return_local_variable() -> None:
-        def f() -> tuple[int]:
-            _x = 0
-            return (_x,)
-
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)
-
-        assert "Names starting with underscores should not be returned" in str(
-            e.value
-        )
-
-    @staticmethod
-    def local_variable_as_arg() -> None:
-        def f(_x: int) -> None:
-            return
-
-        with pytest.raises(ValueError) as e:
-            cell_factory(f)
-
-        assert (
-            "Names starting with underscores should not be taken as "
-            "parameters" in str(e.value)
-        )
+        cf = cell_factory(f)
+        assert cf.cell.defs == {"x"}
+        assert cf.cell.refs == {"y"}

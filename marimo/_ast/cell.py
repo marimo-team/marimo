@@ -361,7 +361,7 @@ def cell_factory(f: CellFuncTypeBound) -> CellFunction[CellFuncTypeBound]:
         first_line = lines[start_line][start_col:]
         cell_code = textwrap.dedent(
             "\n".join([first_line] + lines[start_line + 1 : end_line])
-        )
+        ).strip()
         if end_line is not None and not lines[end_line].strip().startswith(
             "return"
         ):

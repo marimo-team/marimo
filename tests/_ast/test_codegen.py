@@ -155,6 +155,21 @@ class TestGetCodes:
         ]
 
     @staticmethod
+    def test_get_codes_with_incorrect_args_rets() -> None:
+        app = codegen.get_app(
+            get_filepath("test_get_codes_with_incorrect_args_rets")
+        )
+        assert app is not None
+        assert list(app._names()) == ["one", "two", "three", "four", "five"]
+        assert list(app._codes()) == [
+            "import numpy as np",
+            "x = 0\nxx = 1",
+            "y = x + 1",
+            "# comment\nz = np.array(x + y)",
+            "# just a comment\n...",
+        ]
+
+    @staticmethod
     def test_get_codes_with_name_error() -> None:
         # name mo is not defined --- make sure this file is still parseable
         app = codegen.get_app(get_filepath("test_get_codes_with_name_error"))
