@@ -269,6 +269,12 @@ def is_ws(char: str) -> bool:
 
 
 def cell_factory(f: CellFuncTypeBound) -> CellFunction[CellFuncTypeBound]:
+    """Creates a cell from a function.
+
+    The signature and returns of the function are not used
+    to generate refs and defs. If the user introduced errors to the
+    signature, marimo will autofix them on save.
+    """
     function_code = textwrap.dedent(inspect.getsource(f))
 
     # tokenize to find the start of the function body, including
@@ -366,70 +372,6 @@ def cell_factory(f: CellFuncTypeBound) -> CellFunction[CellFuncTypeBound]:
     ret = cell_function(
         parse_cell(cell_code), cast(Set[str], arg_names), function_code, f
     )
-    cell = ret.cell
-
-    # signature validation: we make sure that all defs are returned, and all
-    # refs are taken as inputs, so that the function code is consistent
-    # with its representation as a marimo app.
-    if cell.defs and return_node is None:
-        suggested_return = "return " + ", ".join(sorted(cell.defs))
-        raise ValueError(
-            "The following function is missing a return statement:\n\n"
-            + textwrap.indent(function_code, prefix="    ")
-            + "\n"
-            + f"Fix: Make '{suggested_return}' its last line.\n\n"
-        )
-    elif cell.defs and return_node is not None:
-        if not isinstance(return_node.value, ast.Tuple):
-            raise ValueError(
-                "A cell must return a tuple of defs. "
-                "This rule is violated by the following function:\n\n"
-                + textwrap.indent(function_code, prefix="    ")
-                + "\n"
-                + "Fix: Change the return type to be a tuple."
-            )
-        names = set(elt.id for elt in return_node.value.elts)  # type: ignore
-        local_names = tuple(name for name in names if _is_local(name))
-        if local_names:
-            raise ValueError(
-                "Names starting with underscores should not be returned by "
-                "a cell. This rule is violated by the following function:\n\n"
-                + textwrap.indent(function_code, prefix="    ")
-                + "\n"
-                + f"Fix: Remove {local_names} from this function's returns."
-            )
-
-        if names != cell.defs:
-            suggested_return = "return " + ", ".join(sorted(cell.defs))
-            raise ValueError(
-                "A cell must return a tuple of all its "
-                "defs. This rule is violated by the following function:\n\n"
-                + textwrap.indent(function_code, prefix="    ")
-                + "\n"
-                + f"Fix: Make '{suggested_return}' this function's last line."
-            )
-    elif not cell.defs and return_node is not None:
-        if return_node.value is not None:
-            raise ValueError(
-                "The following function shouldn't return anything, since "
-                "it doesn't define any variables:\n\n"
-                + textwrap.indent(function_code, prefix="    ")
-                + "\n"
-                + "Fix: Don't return anything from this function."
-            )
-
-    local_names = tuple(name for name in arg_names if _is_local(name))
-    if local_names:
-        raise ValueError(
-            "Names starting with underscores should not be taken as "
-            "parameters. This rule is violated by the following function:\n\n"
-            + textwrap.indent(function_code, prefix="    ")
-            + "\n"
-            + f"Fix: Remove {local_names} from this function's argument list."
-        )
-
-    # NB: args can't be validated here, because we need to know which builtins
-    # have been shadowed by other cells, if any.
     return ret
 
 
