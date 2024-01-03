@@ -1,9 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import builtins
-import itertools
-import textwrap
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Any, Callable, Iterable, Literal, Optional, Union, cast
@@ -188,39 +185,6 @@ class App:
         return (
             cell_data.cell_function for cell_data in self._cell_data.values()
         )
-
-    def _validate_args(self) -> None:
-        """Validate the args of each cell function.
-
-        Args should match cell.refs, excluding builtins that haven't been
-        shadowed by other cells.
-
-        This function must be called after all cells have been parsed, because
-        it's only then that we know the set of unshadowed builtins.
-
-        Raises: ValueError if a cell has an invalid arg set.
-        """
-        defs = set(
-            itertools.chain.from_iterable(
-                f.cell.defs for f in self._cell_functions() if f is not None
-            )
-        )
-        unshadowed_builtins = set(builtins.__dict__.keys()).difference(defs)
-        for f in self._cell_functions():
-            if f is None:
-                continue
-            expected_args = f.cell.refs - unshadowed_builtins
-            if f.args != expected_args:
-                suggested_sig = (
-                    f"def {f.__name__}({', '.join(sorted(expected_args))}):"
-                )
-                raise ValueError(
-                    "A cell must take all its refs as args. "
-                    "This rule is violated by the following function:\n\n"
-                    + textwrap.indent(f.code, prefix="    ")
-                    + "\n"
-                    f"Fix: Make '{suggested_sig}' this function's signature."
-                )
 
     def _unparsable_cell(
         self,

@@ -202,7 +202,6 @@ def get_app(filename: Optional[str]) -> Optional[App]:
         raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
 
     app = marimo_app.app
-    app._validate_args()
     return app
 
 

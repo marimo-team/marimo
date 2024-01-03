@@ -75,6 +75,21 @@ class TestApp:
             app.run()
 
     @staticmethod
+    def test_cycle_missing_args_rets() -> None:
+        app = App()
+
+        @app.cell
+        def one():
+            x = y  # noqa
+
+        @app.cell
+        def two():
+            y = x  # noqa
+
+        with pytest.raises(CycleError):
+            app.run()
+
+    @staticmethod
     def test_multiple_definitions() -> None:
         app = App()
 
@@ -92,18 +107,31 @@ class TestApp:
             app.run()
 
     @staticmethod
-    def test_delete_nonlocal() -> None:
+    def test_multiple_definitions_missing_args_rets() -> None:
         app = App()
 
         @app.cell
-        def one() -> tuple[int]:
-            x = 0
-            return (x,)
+        def one():
+            x = 0  # noqa
 
         @app.cell
-        def two(x: int) -> None:
-            del x
-            return
+        def two():
+            x = 0  # noqa
+
+        with pytest.raises(MultipleDefinitionError):
+            app.run()
+
+    @staticmethod
+    def test_delete_nonlocal_missing_args_rets() -> None:
+        app = App()
+
+        @app.cell
+        def one():
+            x = 0  # noqa
+
+        @app.cell
+        def two():
+            del x  # noqa
 
         with pytest.raises(DeleteNonlocalError):
             app.run()
