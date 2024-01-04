@@ -128,7 +128,7 @@ const CellEditorInternal = ({
     // Fire-and-forget save
     void saveCellConfig({ configs: { [cellId]: newConfig } });
     updateCellConfig({ cellId, config: newConfig });
-    return newConfig.hide_code;
+    return newConfig.hide_code || false;
   });
 
   useEffect(() => {

@@ -41,6 +41,9 @@ const props: CellProps = {
   focusCell: Logger.log,
   moveCell: Logger.log,
   moveToNextCell: Logger.log,
+  sendToBottom: Logger.log,
+  sendToTop: Logger.log,
+  updateCellConfig: Logger.log,
   config: {},
   userConfig: {
     completion: {
