@@ -71,7 +71,7 @@ export function useCellActionButtons({
     // otherwise, we should focus it
     if (editorView) {
       if (newConfig.hideCode) {
-        editorView.dom.blur();
+        editorView.contentDOM.blur();
       } else {
         editorView.focus();
       }

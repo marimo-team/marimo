@@ -6,6 +6,9 @@ import { useEventListener } from "./useEventListener";
 import { useEvent } from "./useEvent";
 import { useSetRegisteredAction } from "../core/hotkeys/actions";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { Objects } from "@/utils/objects";
+
+type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
 
 /**
  * Registers a hotkey listener for the given shortcut.
@@ -28,12 +31,13 @@ export function useHotkey(
       // Prevent default if the callback does not return false
       if (response !== false) {
         e.preventDefault();
+        e.stopPropagation();
       }
     }
   });
 
   // Register keydown listener
-  useEventListener("keydown", listener);
+  useEventListener(document, "keydown", listener);
 
   // Register with the shortcut registry
   useEffect(() => {
@@ -41,4 +45,27 @@ export function useHotkey(
     return () => unregisterAction(shortcut);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memoizeCallback, shortcut]);
+}
+
+/**
+ * Registers a hotkey listener on a given element.
+ */
+export function useHotkeysOnElement<T extends HotkeyAction>(
+  element: HTMLElement | null,
+  handlers: Record<T, HotkeyHandler>
+) {
+  useEventListener(element, "keydown", (e) => {
+    for (const [shortcut, callback] of Objects.entries(handlers)) {
+      const key = HOTKEYS.getHotkey(shortcut).key;
+      if (parseShortcut(key)(e)) {
+        console.log("Satisfied", key, e);
+        const response = callback();
+        // Prevent default if the callback does not return false
+        if (response !== false) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }
+  });
 }

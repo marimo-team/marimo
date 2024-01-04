@@ -11,7 +11,7 @@ import {
   useRef,
 } from "react";
 
-import { sendRun } from "@/core/network/requests";
+import { saveCellConfig, sendRun } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
@@ -42,6 +42,7 @@ import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { isOutputEmpty } from "@/core/cells/outputs";
+import { useHotkeysOnElement } from "@/hooks/useHotkey";
 
 /**
  * Imperative interface of the cell.
@@ -80,6 +81,8 @@ export interface CellProps
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
+      | "sendToBottom"
+      | "sendToTop"
     > {
   theme: Theme;
   showPlaceholder: boolean;
@@ -124,6 +127,8 @@ const CellComponent = (
     moveCell,
     moveToNextCell,
     updateCellConfig,
+    sendToBottom,
+    sendToTop,
     userConfig,
     config: cellConfig,
     name,
@@ -261,6 +266,43 @@ const CellComponent = (
   });
 
   const HTMLId = HTMLCellId.create(cellId);
+
+  // Register hotkeys on the cell instead of the code editor
+  // This is in case the code editor is hidden
+  useHotkeysOnElement(editing ? cellRef.current : null, {
+    "cell.run": handleRun,
+    "cell.runAndNewBelow": () => {
+      handleRun();
+      moveToNextCell({ cellId, before: false });
+    },
+    "cell.runAndNewAbove": () => {
+      handleRun();
+      moveToNextCell({ cellId, before: true });
+    },
+    "cell.createAbove": createAbove,
+    "cell.createBelow": createBelow,
+    "cell.moveUp": () => moveCell({ cellId, before: true }),
+    "cell.moveDown": () => moveCell({ cellId, before: false }),
+    "cell.hideCode": () => {
+      const newConfig = { hideCode: !cellConfig.hideCode };
+      // Fire-and-forget
+      void saveCellConfig({ configs: { [cellId]: newConfig } });
+      updateCellConfig({ cellId, config: newConfig });
+      if (newConfig.hideCode) {
+        // Move focus from the editor to the cell
+        editorView.current?.contentDOM.blur();
+        cellRef.current?.focus();
+      } else {
+        // Focus the editor
+        editorView.current?.focus();
+      }
+    },
+    "cell.focusDown": () => moveToNextCell({ cellId, before: false }),
+    "cell.focusUp": () => moveToNextCell({ cellId, before: true }),
+    "cell.sendToBottom": () => sendToBottom({ cellId }),
+    "cell.sendToTop": () => sendToTop({ cellId }),
+  });
+
   if (!editing) {
     const hidden = errored || interrupted || stopped;
     return hidden ? null : (

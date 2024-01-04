@@ -276,7 +276,7 @@ const CellEditorInternal = ({
       await saveCellConfig({ configs: { [cellId]: { hideCode: false } } });
       updateCellConfig({ cellId, config: { hideCode: false } });
       // Focus on the editor view
-      editorViewRef.current!.focus();
+      editorViewRef.current?.focus();
     }
   };
 
@@ -292,7 +292,7 @@ const CellEditorInternal = ({
       )}
       {hidden && (
         <div className="absolute inset-0 z-10" onClick={showCode}>
-          <EyeOpenIcon className="hover-action w-5 h-5 text-accent-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          <EyeOpenIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100" />
         </div>
       )}
       <div
