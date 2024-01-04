@@ -26,6 +26,9 @@ import {
 } from "@/core/codemirror/language/extension";
 import { derefNotNull } from "@/utils/dereference";
 import { LanguageToggle } from "./language-toggle";
+import { cn } from "@/utils/cn";
+import { EyeOpenIcon } from "@radix-ui/react-icons";
+import { saveCellConfig } from "@/core/network/requests";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -38,6 +41,7 @@ export interface CellEditorProps
       | "focusCell"
       | "moveCell"
       | "moveToNextCell"
+      | "updateCellConfig"
     > {
   runCell: () => void;
   theme: Theme;
@@ -51,6 +55,7 @@ export interface CellEditorProps
    */
   allowFocus: boolean;
   userConfig: UserConfig;
+  hidden?: boolean;
 }
 
 const CellEditorInternal = ({
@@ -69,8 +74,10 @@ const CellEditorInternal = ({
   focusCell,
   moveCell,
   moveToNextCell,
+  updateCellConfig,
   userConfig,
   editorViewRef,
+  hidden,
 }: CellEditorProps) => {
   const [canUseMarkdown, setCanUseMarkdown] = useState(false);
 
@@ -116,6 +123,13 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell]
   );
+  const toggleHideCode = useEvent(() => {
+    const newConfig = { hideCode: !hidden };
+    // Fire-and-forget save
+    void saveCellConfig({ configs: { [cellId]: newConfig } });
+    updateCellConfig({ cellId, config: newConfig });
+    return newConfig.hideCode;
+  });
 
   useEffect(() => {
     if (reading) {
@@ -140,6 +154,7 @@ const CellEditorInternal = ({
         sendToTop,
         sendToBottom,
         moveToNextCell,
+        toggleHideCode,
       },
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
@@ -256,6 +271,15 @@ const CellEditorInternal = ({
     }
   }, [editing, editorViewRef]);
 
+  const showCode = async () => {
+    if (hidden) {
+      await saveCellConfig({ configs: { [cellId]: { hideCode: false } } });
+      updateCellConfig({ cellId, config: { hideCode: false } });
+      // Focus on the editor view
+      editorViewRef.current!.focus();
+    }
+  };
+
   return (
     <>
       {canUseMarkdown && (
@@ -266,7 +290,15 @@ const CellEditorInternal = ({
           />
         </div>
       )}
-      <div className="cm" ref={editorViewParentRef} />
+      {hidden && (
+        <div className="absolute inset-0 z-10" onClick={showCode}>
+          <EyeOpenIcon className="hover-action w-5 h-5 text-accent-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+        </div>
+      )}
+      <div
+        className={cn("cm", hidden && "opacity-20 h-8 overflow-hidden")}
+        ref={editorViewParentRef}
+      />
     </>
   );
 };

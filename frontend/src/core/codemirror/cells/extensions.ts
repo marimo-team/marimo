@@ -18,6 +18,7 @@ export interface MovementCallbacks
   moveDown: () => void;
   focusUp: () => void;
   focusDown: () => void;
+  toggleHideCode: () => boolean;
 }
 
 /**
@@ -39,6 +40,7 @@ export function cellMovementBundle(
     sendToTop,
     sendToBottom,
     moveToNextCell,
+    toggleHideCode,
   } = callbacks;
 
   const hotkeys: KeyBinding[] = [
@@ -149,6 +151,22 @@ export function cellMovementBundle(
       run: (ev) => {
         ev.contentDOM.blur();
         createBelow();
+        return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.hideCode").key,
+      preventDefault: true,
+      run: (ev) => {
+        const isHidden = toggleHideCode();
+        // If we are newly hidden, blur the editor
+        if (isHidden) {
+          ev.contentDOM.blur();
+          // Focus on the parent element
+          ev.contentDOM.parentElement?.parentElement?.focus();
+        } else {
+          ev.contentDOM.focus();
+        }
         return true;
       },
     },

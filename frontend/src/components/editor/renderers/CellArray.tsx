@@ -42,6 +42,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     deleteCell,
     moveCell,
     moveToNextCell,
+    updateCellConfig,
     focusCell,
     createNewCell,
     focusBottomCell,
@@ -106,6 +107,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           deleteCell={onDeleteCell}
           focusCell={focusCell}
           moveToNextCell={moveToNextCell}
+          updateCellConfig={updateCellConfig}
           moveCell={moveCell}
           mode={mode}
           appClosed={connStatus.state !== WebSocketState.OPEN}

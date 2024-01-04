@@ -79,6 +79,7 @@ export interface CellProps
       | "focusCell"
       | "moveCell"
       | "moveToNextCell"
+      | "updateCellConfig"
     > {
   theme: Theme;
   showPlaceholder: boolean;
@@ -122,6 +123,7 @@ const CellComponent = (
     focusCell,
     moveCell,
     moveToNextCell,
+    updateCellConfig,
     userConfig,
     config: cellConfig,
     name,
@@ -305,21 +307,18 @@ const CellComponent = (
       >
         {outputArea}
         <div className="tray">
-          <div className="shoulder-left hover-action">
-            <div className="shoulder-elem-top">
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createAbove")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createAbove}
-              />
-            </div>
-            <div className="shoulder-elem-bottom">
-              <CreateCellButton
-                tooltipContent={renderShortcut("cell.createBelow")}
-                appClosed={appClosed}
-                onClick={appClosed ? undefined : createBelow}
-              />
-            </div>
+          <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2 hover-action">
+            <CreateCellButton
+              tooltipContent={renderShortcut("cell.createAbove")}
+              appClosed={appClosed}
+              onClick={appClosed ? undefined : createAbove}
+            />
+            <div className="flex-1" />
+            <CreateCellButton
+              tooltipContent={renderShortcut("cell.createBelow")}
+              appClosed={appClosed}
+              onClick={appClosed ? undefined : createBelow}
+            />
           </div>
           <CellEditor
             theme={theme}
@@ -337,8 +336,10 @@ const CellComponent = (
             focusCell={focusCell}
             moveCell={moveCell}
             moveToNextCell={moveToNextCell}
+            updateCellConfig={updateCellConfig}
             userConfig={userConfig}
             editorViewRef={editorView}
+            hidden={cellConfig.hideCode}
           />
           <div className="shoulder-right">
             <CellStatusComponent

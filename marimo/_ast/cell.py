@@ -40,6 +40,9 @@ class CellConfig:
     # but they can still be added to the graph.
     disabled: bool = False
 
+    # If True, the cell is hidden from the editor.
+    hide_code: bool = False
+
     @classmethod
     def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
         return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})

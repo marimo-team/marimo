@@ -33,6 +33,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
       sendToTop: namedFunction("sendToTop"),
       sendToBottom: namedFunction("sendToBottom"),
       moveToNextCell: namedFunction("moveToNextCell"),
+      toggleHideCode: namedFunction("toggleHideCode"),
     },
     cellCodeCallbacks: {
       updateCellCode: namedFunction("updateCellCode"),

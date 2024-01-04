@@ -163,6 +163,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Shift-Backspace",
   },
+  "cell.hideCode": {
+    name: "Hide cell code",
+    group: "Editing",
+    key: "Mod-h",
+  },
 
   // Global Actions
   "global.hideCode": {
