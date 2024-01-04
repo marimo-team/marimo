@@ -15,12 +15,7 @@ import { setupCodeMirror } from "@/core/codemirror/cm";
 import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellActions, useCellActions } from "@/core/cells/cells";
-import {
-  CellRuntimeState,
-  CellData,
-  CellConfig,
-  CellConfig,
-} from "@/core/cells/types";
+import { CellRuntimeState, CellData, CellConfig } from "@/core/cells/types";
 import { SerializedEditorState } from "@/core/codemirror/types";
 import { UserConfig } from "@/core/config/config-schema";
 import { Theme } from "@/theme/useTheme";
