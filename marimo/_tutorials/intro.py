@@ -1,7 +1,7 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.8"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
@@ -23,10 +23,9 @@ def __(mo):
 def __(mo, slider):
     mo.md(
         f"""
-        marimo is a Python library for creating reactive and interactive
-        notebooks and apps.
+        marimo is a **reactive** Python notebook.
 
-        Unlike traditional notebooks, marimo notebooks **run
+        This means that unlike traditional notebooks, marimo notebooks **run
         automatically** when you modify them or
         interact with UI elements, like this slider: {slider}.
 
@@ -38,29 +37,9 @@ def __(mo, slider):
 
 @app.cell
 def __(mo):
-    mo.accordion(
-        {
-            "A notebook or an app?": (
-                """
-                Because marimo notebooks react to changes and UI interactions,
-                they can also be thought of as apps: click
-                the app window icon to see an "app view" that
-                hides code.
-
-                Depending on how you use marimo, you can think
-                of marimo programs as notebooks, apps, or both.
-                """
-            )
-        }
-    )
-    return
-
-
-@app.cell
-def __(mo):
     mo.md(
         """
-        ## 1. Automatic execution
+        ## 1. Reactive execution
 
         A marimo notebook is made up of small blocks of Python code called
         cells.
@@ -68,6 +47,10 @@ def __(mo):
         marimo reads your cells and models the dependencies among them: whenever
         a cell that defines a global variable  is run, marimo
         **automatically runs** all cells that reference that variable.
+
+        Reactivity keeps your program state and outputs in sync with your code,
+        making for a dynamic programming environment that prevents bugs before they
+        happen.
         """
     )
     return
@@ -217,24 +200,7 @@ def __(icon, mo, repetitions):
 def __(mo):
     mo.md(
         """
-        ## 3. Apps
-
-        marimo notebooks can double as apps. Click the app window icon in the
-        bottom-left to see this notebook in "app view."
-
-        When you're ready to deploy, the `marimo` command-line tool provides a
-        way to serve your app. Of course, you can use marimo just to level-up your
-        notebooking, without ever deploying apps.
-        """
-    )
-    return
-
-
-@app.cell
-def __(mo):
-    mo.md(
-        """
-        ## 4. marimo is just Python
+        ## 3. marimo is just Python
 
         marimo cells parse Python (and only Python), and marimo programs are
         stored as pure Python files — outputs are _not_ included. There's no
@@ -248,6 +214,23 @@ def __(mo):
         - usable as Python  scripts, with UI  elements taking their default
         values, and
         - importable by other modules (more on that in the future).
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        ## 4. Running notebooks as apps
+
+        marimo notebooks can double as apps. Click the app window icon in the
+        bottom-left to see this notebook in "app view."
+
+        Serve a notebook as an app with `marimo run` at the command-line.
+        Of course, you can use marimo just to level-up your
+        notebooking, without ever making apps.
         """
     )
     return
@@ -282,22 +265,22 @@ def __(mo):
         marimo edit
         ```
 
-        in a terminal to create a new marimo program, or
+        in a terminal to create a new marimo notebook, or
 
         ```
-        marimo edit app.py
+        marimo edit notebook.py
         ```
 
-        to create/edit a program called `app.py`.
+        to create/edit a notebook called `notebook.py`.
 
-        **Running apps.** Use
+        **Running as apps.** Use
 
         ```
-        marimo run app.py
+        marimo run notebook.py
         ```
 
-        to start a webserver that serves your app in a read-only mode, with
-        code cells hidden.
+        to start a webserver that serves your notebook as an app in read-only mode,
+        with code cells hidden.
 
         **Convert a Jupyter notebook.** Convert a Jupyter notebook to a marimo
         notebook using `marimo convert`:

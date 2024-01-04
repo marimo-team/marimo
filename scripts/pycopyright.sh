@@ -14,7 +14,7 @@ do
         # Create a temporary file
         tmp_file=$(mktemp)
         # Prepend "# Copyright" followed by two new lines to the temporary file
-        echo -e "# Copyright 2023 Marimo. All rights reserved." > "$tmp_file"
+        echo -e "# Copyright 2024 Marimo. All rights reserved." > "$tmp_file"
         # Append the original file content to the temporary file
         cat "$file" >> "$tmp_file"
         # Replace the original file with the temporary file
