@@ -31,7 +31,11 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
         hasOutputs ? "p-5" : "p-3"
       )}
     >
-      {consoleOutputs.map((output) => formatOutput({ message: output }))}
+      {consoleOutputs.map((output, idx) => (
+        <React.Fragment key={idx}>
+          {formatOutput({ message: output })}
+        </React.Fragment>
+      ))}
       <NameCellContentEditable
         value={cellName}
         cellId={cellId}

@@ -51,6 +51,9 @@ export const CellActionsDropdown = ({ children, ...props }: Props) => {
             </div>
           </TooltipContent>
         )}
+        {/* This creates a warning in React due to nested <button> elements.
+        Adding asChild could fix this, but it also changes the styling (is hidden) of the button when
+        the Popover is open. */}
         <TooltipTrigger>
           <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>

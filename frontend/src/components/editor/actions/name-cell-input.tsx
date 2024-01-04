@@ -78,6 +78,7 @@ export const NameCellContentEditable: React.FC<{
           className
         )}
         contentEditable={true}
+        suppressContentEditableWarning={true}
         onChange={inputProps.onChange}
         onBlur={inputProps.onBlur}
         onKeyDown={Events.onEnter((e) => {
