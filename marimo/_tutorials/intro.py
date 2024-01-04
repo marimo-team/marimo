@@ -25,7 +25,7 @@ def __(mo, slider):
         f"""
         marimo is a **reactive** Python notebook.
 
-        That means that unlike traditional notebooks, marimo notebooks **run
+        This means that unlike traditional notebooks, marimo notebooks **run
         automatically** when you modify them or
         interact with UI elements, like this slider: {slider}.
 
