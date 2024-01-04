@@ -99,12 +99,12 @@ export const MarimoErrorOutput = ({
       case "delete-nonlocal":
         return (
           <Fragment key={idx}>
-            <p className="mt-4">
+            <div className="mt-4">
               {`The variable '${error.name}' can't be deleted because it was defined by another cell ` +
                 `(`}
               <CellLinkError cellId={error.cells[0]} />
               {")"}
-            </p>
+            </div>
             <Tip>
               Try refactoring so that you can delete '{error.name}' in the cell
               that creates it.
@@ -126,24 +126,24 @@ export const MarimoErrorOutput = ({
             <Tip>See the console area for a traceback.</Tip>
           </Fragment>
         ) : (
-          <p key={idx}>
+          <div key={idx}>
             {error.msg}
             <CellLinkError cellId={error.raising_cell} />
             <Tip>
               Fix the error in <CellLinkError cellId={error.raising_cell} />, or
               handle the exception in with a try/except block.
             </Tip>
-          </p>
+          </div>
         );
       case "ancestor-stopped":
         titleContents = "Ancestor stopped";
         alertVariant = "default";
         textColor = "text-secondary-foreground";
         return (
-          <p key={idx}>
+          <div key={idx}>
             {error.msg}
             <CellLinkError cellId={error.raising_cell} />
-          </p>
+          </div>
         );
 
       default:

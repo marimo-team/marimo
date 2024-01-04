@@ -4,6 +4,50 @@ import { CellId, HTMLCellId } from "./ids";
 
 export const DEFAULT_CELL_NAME = "__";
 
+// Generated with `python scripts/print_banned_cell_names.py`
+const DISALLOWED_NAMES = new Set([
+  "__*",
+  "marimo",
+  "app",
+  "False",
+  "None",
+  "True",
+  "__peg_parser__",
+  "and",
+  "as",
+  "assert",
+  "async",
+  "await",
+  "break",
+  "class",
+  "continue",
+  "def",
+  "del",
+  "elif",
+  "else",
+  "except",
+  "finally",
+  "for",
+  "from",
+  "global",
+  "if",
+  "import",
+  "in",
+  "is",
+  "lambda",
+  "nonlocal",
+  "not",
+  "or",
+  "pass",
+  "raise",
+  "return",
+  "try",
+  "while",
+  "with",
+  "yield",
+  "None",
+]);
+
 /**
  * Make's name pythonic - removes spaces, special characters and makes lowercase
  */
@@ -26,12 +70,16 @@ export function getValidName(name: string, existingNames: string[]): string {
   const set = new Set(existingNames);
   let result = name;
 
-  if (!set.has(name)) {
+  const isValid = (name: string) => {
+    return !set.has(name) && !DISALLOWED_NAMES.has(name);
+  };
+
+  if (isValid(name)) {
     return name;
   }
 
   let count = 1;
-  while (set.has(result)) {
+  while (!isValid(result)) {
     result = `${name}_${count}`;
     count++;
   }

@@ -34,6 +34,15 @@ describe("getValidName", () => {
     expect(getValidName("name", ["name"])).toBe("name_1");
     expect(getValidName("name", ["name_1", "name"])).toBe("name_2");
   });
+
+  it("should avoid names that are in the disallowed set", () => {
+    expect(getValidName("None", [])).toBe("None_1");
+    expect(getValidName("None", ["None_1"])).toBe("None_2");
+
+    expect(getValidName("marimo", [])).toBe("marimo_1");
+    expect(getValidName("app", [])).toBe("app_1");
+    expect(getValidName("continue", [])).toBe("continue_1");
+  });
 });
 
 describe("displayCellName", () => {
