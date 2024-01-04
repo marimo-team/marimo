@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import { CellData, CellStatus } from "@/core/cells/types";
+import { CellConfig, CellData, CellStatus } from "@/core/cells/types";
 import { CellId } from "@/core/cells/ids";
 import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
@@ -63,14 +63,14 @@ export function useCellActionButtons({
   };
 
   const toggleHideCode = async () => {
-    const newConfig = { hideCode: !config.hideCode };
+    const newConfig: CellConfig = { hide_code: !config.hide_code };
     await saveCellConfig({ configs: { [cellId]: newConfig } });
     updateCellConfig({ cellId, config: newConfig });
 
     // If we're hiding the code, we should blur the editor
     // otherwise, we should focus it
     if (editorView) {
-      if (newConfig.hideCode) {
+      if (newConfig.hide_code) {
         editorView.contentDOM.blur();
       } else {
         editorView.focus();
@@ -126,12 +126,12 @@ export function useCellActionButtons({
         },
       },
       {
-        icon: config.hideCode ? (
+        icon: config.hide_code ? (
           <EyeIcon size={13} strokeWidth={1.5} />
         ) : (
           <EyeOffIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.hideCode === true ? "Show code" : "Hide code",
+        label: config.hide_code === true ? "Show code" : "Hide code",
         handle: toggleHideCode,
         hotkey: "cell.hideCode",
       },

@@ -15,7 +15,7 @@ import { saveCellConfig, sendRun } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
-import { CellData, CellRuntimeState } from "../../core/cells/types";
+import { CellConfig, CellData, CellRuntimeState } from "../../core/cells/types";
 import { CellActions } from "../../core/cells/cells";
 import { derefNotNull } from "../../utils/dereference";
 import { OutputArea } from "./Output";
@@ -284,11 +284,11 @@ const CellComponent = (
     "cell.moveUp": () => moveCell({ cellId, before: true }),
     "cell.moveDown": () => moveCell({ cellId, before: false }),
     "cell.hideCode": () => {
-      const newConfig = { hideCode: !cellConfig.hideCode };
+      const newConfig: CellConfig = { hide_code: !cellConfig.hide_code };
       // Fire-and-forget
       void saveCellConfig({ configs: { [cellId]: newConfig } });
       updateCellConfig({ cellId, config: newConfig });
-      if (newConfig.hideCode) {
+      if (newConfig.hide_code) {
         // Move focus from the editor to the cell
         editorView.current?.contentDOM.blur();
         cellRef.current?.focus();
@@ -381,7 +381,7 @@ const CellComponent = (
             updateCellConfig={updateCellConfig}
             userConfig={userConfig}
             editorViewRef={editorView}
-            hidden={cellConfig.hideCode}
+            hidden={cellConfig.hide_code}
           />
           <div className="shoulder-right">
             <CellStatusComponent

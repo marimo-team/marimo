@@ -30,7 +30,17 @@ def _multiline_tuple(elems: Sequence[str]) -> str:
 
 
 def _to_decorator(config: Optional[CellConfig]) -> str:
-    if config is None or config == CellConfig():
+    if config is None:
+        return "@app.cell"
+
+    # Removed defaults. If the cell's config is the default config,
+    # don't include it in the decorator.
+    if config.disabled is False:
+        del config.disabled
+    if config.hide_code is False:
+        del config.hide_code
+
+    if config == CellConfig():
         return "@app.cell"
     else:
         return (

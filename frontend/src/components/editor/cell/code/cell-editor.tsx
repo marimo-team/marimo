@@ -15,7 +15,12 @@ import { setupCodeMirror } from "@/core/codemirror/cm";
 import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellActions, useCellActions } from "@/core/cells/cells";
-import { CellRuntimeState, CellData } from "@/core/cells/types";
+import {
+  CellRuntimeState,
+  CellData,
+  CellConfig,
+  CellConfig,
+} from "@/core/cells/types";
 import { SerializedEditorState } from "@/core/codemirror/types";
 import { UserConfig } from "@/core/config/config-schema";
 import { Theme } from "@/theme/useTheme";
@@ -124,11 +129,11 @@ const CellEditorInternal = ({
     [cellId, focusCell]
   );
   const toggleHideCode = useEvent(() => {
-    const newConfig = { hideCode: !hidden };
+    const newConfig: CellConfig = { hide_code: !hidden };
     // Fire-and-forget save
     void saveCellConfig({ configs: { [cellId]: newConfig } });
     updateCellConfig({ cellId, config: newConfig });
-    return newConfig.hideCode;
+    return newConfig.hide_code;
   });
 
   useEffect(() => {
@@ -273,8 +278,8 @@ const CellEditorInternal = ({
 
   const showCode = async () => {
     if (hidden) {
-      await saveCellConfig({ configs: { [cellId]: { hideCode: false } } });
-      updateCellConfig({ cellId, config: { hideCode: false } });
+      await saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
+      updateCellConfig({ cellId, config: { hide_code: false } });
       // Focus on the editor view
       editorViewRef.current?.focus();
     }

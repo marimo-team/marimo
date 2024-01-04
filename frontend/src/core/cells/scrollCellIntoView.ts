@@ -21,7 +21,7 @@ export function focusAndScrollCellIntoView(
   }
 
   // If the cell's code is hidden, just focus the cell and not the editor.
-  if (config.hideCode) {
+  if (config.hide_code) {
     element.focus();
   } else {
     cell.current?.editorView.focus();

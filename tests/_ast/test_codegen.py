@@ -336,6 +336,36 @@ class TestToFunctionDef:
         )
         assert fndef == expected
 
+    def test_with_all_config(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.configure(CellConfig(disabled=True, hide_code=True))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell(disabled=True, hide_code=True)",
+                "def foo():",
+                "    x = 0",
+                "    return x,",
+            ]
+        )
+        assert fndef == expected
+
+    def test_should_remove_defaults(self) -> None:
+        code = "x = 0"
+        cell = parse_cell(code)
+        cell = cell.configure(CellConfig(disabled=False, hide_code=False))
+        fndef = codegen.to_functiondef(cell, "foo")
+        expected = "\n".join(
+            [
+                "@app.cell",
+                "def foo():",
+                "    x = 0",
+                "    return x,",
+            ]
+        )
+        assert fndef == expected
+
 
 def test_recover() -> None:
     cells = {

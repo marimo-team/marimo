@@ -109,5 +109,5 @@ export interface CellConfig {
   /**
    * If true, the cell's code is hidden from the notebook.
    */
-  hideCode?: boolean;
+  hide_code?: boolean;
 }

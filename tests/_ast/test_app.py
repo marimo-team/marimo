@@ -275,3 +275,21 @@ class TestApp:
     def test_app_config_extra_args_ignored() -> None:
         app = App(width="full", fake_config="foo")
         assert app._config.asdict() == {"width": "full", "layout_file": None}
+
+    @staticmethod
+    def test_cell_config() -> None:
+        app = App()
+
+        @app.cell(disabled=True)
+        def _() -> tuple[int]:
+            __x__ = 0
+            return (__x__,)
+
+        @app.cell(hide_code=True)
+        def _(__x__: int) -> None:
+            assert __x__ == 0
+            return
+
+        configs = tuple(app._configs())
+        assert configs[0].disabled is True
+        assert configs[1].hide_code is True
