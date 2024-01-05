@@ -54,11 +54,13 @@ export function uniquifyColumnNames(csvData: string): string {
   return lines.join("\n");
 }
 
+export const ZERO_WIDTH_SPACE = "\u200B";
+
 function getUniqueKey(key: string, existingKeys: Set<string>): string {
   let result = key;
   let count = 1;
   while (existingKeys.has(result)) {
-    result = `${key}_${count}`;
+    result = `${key}${ZERO_WIDTH_SPACE.repeat(count)}`;
     count++;
   }
 

@@ -1,6 +1,11 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import { uniquifyColumnNames, vegaLoadData, vegaLoader } from "../loader";
+import {
+  ZERO_WIDTH_SPACE,
+  uniquifyColumnNames,
+  vegaLoadData,
+  vegaLoader,
+} from "../loader";
 
 describe("vega loader", () => {
   it("should parse csv data", async () => {
@@ -46,21 +51,22 @@ describe("uniquifyColumnNames", () => {
 
   it("should uniquify headers with some duplicates", () => {
     const csvData = "Name,Age,Location,Name\nAlice,30,New York,Bob";
-    const expectedResult = "Name,Age,Location,Name_1\nAlice,30,New York,Bob";
+    const expectedResult = `Name,Age,Location,Name${ZERO_WIDTH_SPACE}\nAlice,30,New York,Bob`;
     const result = uniquifyColumnNames(csvData);
     expect(result).toBe(expectedResult);
+    expect(result).not.toMatch(csvData);
   });
 
   it("should uniquify headers with all duplicates", () => {
-    const csvData = "Name,Name,Name,Name\nAlice,Bob,Charlie,David";
-    const expectedResult = "Name,Name_1,Name_2,Name_3\nAlice,Bob,Charlie,David";
+    const csvData = "Name,Name,Name\nAlice,Bob,Charlie";
+    const expectedResult = `Name,Name${ZERO_WIDTH_SPACE},Name${ZERO_WIDTH_SPACE}${ZERO_WIDTH_SPACE}\nAlice,Bob,Charlie`;
     const result = uniquifyColumnNames(csvData);
     expect(result).toBe(expectedResult);
   });
 
   it("should handle empty column names", () => {
     const csvData = "Name,,Location,Name\nAlice,30,New York,Bob";
-    const expectedResult = "Name,,Location,Name_1\nAlice,30,New York,Bob";
+    const expectedResult = `Name,,Location,Name${ZERO_WIDTH_SPACE}\nAlice,30,New York,Bob`;
     const result = uniquifyColumnNames(csvData);
     expect(result).toBe(expectedResult);
   });
@@ -74,8 +80,7 @@ describe("uniquifyColumnNames", () => {
 
   it("should handle commas in quoted column names", () => {
     const csvData = '"Name,Name",Name,Name,Name\nAlice,Bob,Charlie,David';
-    const expectedResult =
-      '"Name,Name",Name,Name_1,Name_2\nAlice,Bob,Charlie,David';
+    const expectedResult = `"Name,Name",Name,Name${ZERO_WIDTH_SPACE},Name${ZERO_WIDTH_SPACE}${ZERO_WIDTH_SPACE}\nAlice,Bob,Charlie,David`;
     const result = uniquifyColumnNames(csvData);
     expect(result).toBe(expectedResult);
   });
