@@ -1,54 +1,93 @@
 # Dataframes
 
-Dataframes are the most common way to display data and interact with data
-in Python. marimo makes it easy to interact with dataframes with visualizations
-and interactive UI elements.
+The dataframe is the most common tool for interacting with data
+in Python.
+
+**marimo makes you more productive when working with dataframes**:
+
+- display dataframes in a rich, interactive table and chart views
+- transform dataframes with filters, groupbys,
+  aggregations, and more with a UI element, no code required
 
 ## Usage
 
-marimo integrates with [Pandas](https://pandas.pydata.org/) dataframes natively without any
-additional configuration.
-
-### Creating dataframes
-
-To get started, import Pandas and create a dataframe:
-
-```python
-import pandas as pd
-pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
-```
+marimo integrates with [Pandas](https://pandas.pydata.org/) and
+[Polars](https://pola.rs) dataframes natively.
 
 ### Displaying dataframes
 
-You can display dataframes directly in the output area of a cell, by including them
-in th last expression of the cell.
+You can display dataframes directly in the output area of a cell, by including
+them in the last expression of the cell:
 
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-output.png"/>
+<figcaption>A raw dataframe output</figcaption>
 </figure>
 </div>
 
-You can also display dataframes in rich tables or charts using the [`mo.ui.table`](/api/inputs/table/)
-or [`mo.ui.altair_chart`](/api/plotting/) elements. Both of these elements will allow you to pass a Pandas
-dataframe directly without any transformation.
+
+```python
+import pandas as pd
+
+# polars works too
+df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+)
+df
+```
+
+**Rich displays.**
+You can display dataframes in rich tables or charts using the
+[`mo.ui.table`](/api/inputs/table/) or [`mo.ui.altair_chart`](/api/plotting/)
+elements.
 
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-visualizations.png"/>
+<figcaption>Rich, interactive displays</figcaption>
 </figure>
 </div>
 
-### Interacting with dataframes
 
-Additionally, when interacting with marimo elements that accept dataframes, the selection of the element value will be a Pandas dataframe.
+```python
+import marimo as mo
+import altair as alt
+import pandas as pd
+
+df = pd.read_json(
+    "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
+)[["Horsepower", "Miles_per_Gallon", "Origin"]]
+
+mo.hstack(
+    [
+        mo.ui.table(df),
+        mo.ui.altair_chart(
+            alt.Chart(df)
+            .mark_point()
+            .encode(x="Horsepower", y="Miles_per_Gallon", color="Origin")
+        ),
+    ],
+    widths="equal",
+)
+```
+
+### Selecting data in UI elements
+
+When interacting with marimo elements that accept dataframes, the selection of
+the element value is sent to Python as a Pandas dataframe.
 
 ```python
 # Cell 1 - display a dataframe
+import marimo as mo
+import pandas as pd
+
 df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
 table = mo.ui.table(df, selection="multi")
 table
+```
 
+```python
 # Cell 2 - display the selection
 table.value
 ```
