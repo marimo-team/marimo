@@ -27,31 +27,66 @@ productionize notebooks as pipelines or interactive web apps.
 - **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
 - **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
 - **reproducible**: no hidden state, deterministic execution order
+- **executable**: execute as a Python script
+- **shareable**: deploy as an app
 - **git-friendly**: stored as `.py` files
-- **deployable**: executable as a script, deployable as an app
 
 
 ```python
 pip install marimo && marimo tutorial intro
 ```
 
-![marimo](https://github.com/marimo-team/marimo/assets/1994308/59cecbb4-7c4c-4b9b-baae-e98ed209c3bb)
+_Jump to the [quickstart](#quickstart) for a primer on our CLI._
 
-_Watch the animated GIF as a video at [this link](https://marimo.io/videos/landing/full.mp4)._
+## A reactive programming environment
 
+
+**A reactive programming environment.** Run a cell and marimo _reacts_ by
+automatically running the cells that reference its variables, giving you instant feedback as
+you experiment with models. Delete a cell and marimo scrubs its variables from
+program memory, eliminating hidden state and hidden bugs.
+
+<img src="docs/_static/reactive.gif" width="700px" />
+
+Notebooks are executed in a deterministic order, based on variable references
+instead of cells' positions on the page. Organize notebooks
+however you like, and tell your stories the way they were meant to be told.
+
+
+**Synchronized UI elements.** Import `marimo` in your notebooks to use
+interactive elements, like sliders, dropdowns, tables, and more. Interact with
+an element and all cells that use it are automatically re-run with its
+latest value.
+
+<img src="docs/_static/readme-ui.gif" width="700px" />
+
+
+_Use UI elements like reactive plots and dataframe editors to make very interactive
+notebooks, like an [ embedding
+visualizer](https://marimo.io/videos/landing/full.mp4) that links
+scattered points to their original data._
+
+**Powered by static analysis.** marimo's reactive runtime is performant: it runs
+only those cells that need to be run by statically analyzing the variables
+declared and referenced by cells. If you're working on expensive
+experiments, we have
+ways to [help
+you avoid](https://docs.marimo.io/guides/reactivity.html#disabling-cells)
+accidentally triggering long-running cells.
+
+**Batteries-included.** marimo comes with GitHub Copilot, Black code
+formatting, HTML export, fast code completion, a [VS Code
+extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+and many more quality-of-life features.
 
 ## Quickstart
 
 **Installation.** In a terminal, run
 
 ```bash
-pip install marimo
+pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
-
-You should see a tutorial notebook in your browser.
-
-marimo is also available through Conda: `conda install -c conda-forge marimo`.
 
 **Create notebooks.**
 Create an empty notebook with
@@ -66,19 +101,6 @@ or create/edit a notebook with a given name with
 marimo edit your_notebook.py
 ```
 
-- marimo **reacts** to your code changes, like a spreadsheet! This rapid feedback
-ensures your code and outputs are always in sync. It
-also gives your notebook a deterministic execution order, making it reproducible.
-
-<img src="docs/_static/reactive.gif" width="700px" />
-
-- Import `marimo` in your notebooks to use
-**interactive** elements, like sliders, dropdowns, tables, and more.
-
-<img src="docs/_static/readme-ui.gif" width="700px" />
-
-_See our [docs](https://docs.marimo.io/api/index.html) to learn more, including
-how to layout outputs in tabs, rows, columns, and more._
 
 **Run apps.** Run your notebook as a web app, with Python
 code hidden and
@@ -92,7 +114,7 @@ marimo run your_notebook.py
 
 _This app is deployed on [marimo cloud](https://marimo.io/cloud)._
 
-**Execute as scripts.** marimo noteboooks can be executed as scripts at the
+**Execute as scripts.** marimo notebooks can be executed as scripts at the
 command line:
 
 ```bash
@@ -114,26 +136,10 @@ List all tutorials:
 marimo tutorial --help
 ```
 
-**GitHub Copilot.** The marimo editor natively supports [GitHub
-Copilot](https://copilot.github.com/). Enable it via the settings menu in the
-marimo editor.
-
-**VS Code extension.** If you prefer VS Code over terminal, try our
-[VS Code extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
-
 ## Learn more
 
-marimo is easy to get started with, with lots of room for power users. In
-addition to experimenting with code and models in a reproducible environment,
-marimo lets you build powerful tools like data labelers and
-embedding visualizers, with surprisingly little code.
-
-Examples are available in the `examples/` directory.
-We've deployed many of these examples at our [public
-gallery](https://marimo.io/@public); try them out!
-
-
-Ready to learn more? Check out our [docs](https://docs.marimo.io/guides/overview.html)!
+Ready to learn more? Check out our [docs](https://docs.marimo.io),
+the `examples/` folder, and our [gallery](https://marimo.io/@public).
 
 <table border="0">
   <tr>
