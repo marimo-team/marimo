@@ -162,17 +162,17 @@ the `examples/` folder, and our [gallery](https://marimo.io/@public).
 	  </a>
 	</td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
 	  Inputs
 	  </a>
 	</td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
 	  Plots
 	  </a>
 	</td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
+      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
 	  Layout
 	  </a>
 	</td>
