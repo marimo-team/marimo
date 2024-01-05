@@ -1,11 +1,11 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -34,7 +34,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         r""" 
@@ -69,7 +69,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -82,7 +82,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -98,7 +98,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(
     matplotlib_installed,
     missing_matplotlib_msg,
@@ -108,14 +108,15 @@ def __(
     numpy_installed,
     plt,
 ):
-    def _sine_plot(): 
+    def _sine_plot():
         if not numpy_installed:
             return missing_numpy_msg
         if not matplotlib_installed:
             return missing_matplotlib_msg
-        _x = np.linspace(start=0, stop=2*np.pi)
+        _x = np.linspace(start=0, stop=2 * np.pi)
         plt.plot(_x, np.sin(_x))
         return plt.gca()
+
 
     mo.md(
         f"""
@@ -135,7 +136,7 @@ def __(
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     leaves = mo.ui.slider(1, 32, label="🍃: ")
 
@@ -164,7 +165,7 @@ def __(leaves, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -183,16 +184,15 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
         try:
             import pandas as pd
         except ModuleNotFoundError:
-            return mo.md(
-                "`Oops! Looks like you don't have pandas installed.`"
-            )
+            return mo.md("`Oops! Looks like you don't have pandas installed.`")
 
         if not numpy_installed:
             return missing_numpy_msg
 
-        x = np.linspace(0, 2*np.pi, 10)
+        x = np.linspace(0, 2 * np.pi, 10)
         y = np.sin(x)
-        return pd.DataFrame({'x': x, 'sin(x)': y})
+        return pd.DataFrame({"x": x, "sin(x)": y})
+
 
     mo.md(
         f"""
@@ -215,7 +215,7 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
     return make_dataframe,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -229,7 +229,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -247,7 +247,12 @@ def __(mo):
 def __(math, mo):
     amplitude = mo.ui.slider(1, 2, step=0.1, label="amplitude: ")
     period = mo.ui.slider(
-        math.pi/4, 4*math.pi, value=2*math.pi, step=math.pi/8, label="period: ")
+        math.pi / 4,
+        4 * math.pi,
+        value=2 * math.pi,
+        step=math.pi / 8,
+        label="period: ",
+    )
     return amplitude, period
 
 
@@ -262,14 +267,15 @@ def __(
 ):
     import functools
 
+
     @functools.cache
     def plotsin(amplitude, period):
         if not numpy_installed:
             return missing_numpy_msg
         elif not matplotlib_installed:
             return missing_matplotlib_msg
-        x = np.linspace(0, 2*np.pi, 256)
-        plt.plot(x, amplitude * np.sin(2*np.pi / period * x))
+        x = np.linspace(0, 2 * np.pi, 256)
+        plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.ylim(-2.2, 2.2)
         return plt.gca()
     return functools, plotsin
@@ -277,13 +283,15 @@ def __(
 
 @app.cell
 def __(amplitude, mo, period):
-    mo.md(f"""
+    mo.md(
+        f"""
 
           **A sin curve.**
 
           - {amplitude}
           - {period}
-          """)
+          """
+    )
     return
 
 
@@ -305,23 +313,25 @@ def __(amplitude, mo, period, plotsin):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     matplotlib_installed = False
     numpy_installed = False
-    missing_numpy_msg = mo.md(
-        "`Oops! Looks like you don't have numpy installed.`")
+    missing_numpy_msg = mo.md("`Oops! Looks like you don't have numpy installed.`")
     missing_matplotlib_msg = mo.md(
-        "`Oops! Looks like you don't have matplotlib installed.`")
+        "`Oops! Looks like you don't have matplotlib installed.`"
+    )
 
     try:
         import matplotlib.pyplot as plt
+
         matplotlib_installed = True
     except ModuleNotFoundError:
         pass
 
     try:
         import numpy as np
+
         numpy_installed = True
     except ModuleNotFoundError:
         pass
@@ -335,7 +345,7 @@ def __(mo):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import math
 

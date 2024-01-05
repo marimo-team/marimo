@@ -5,7 +5,7 @@ __generated_with = "0.1.4"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -19,7 +19,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## `marimo.ui`")
     return
@@ -46,7 +46,7 @@ def __(mo, slider):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -64,7 +64,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, slider):
     mo.accordion(
         {
@@ -93,7 +93,7 @@ def __(mo, slider):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -103,7 +103,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(basic_ui_elements, mo):
     mo.md(
         f"""
@@ -132,7 +132,7 @@ def __(basic_ui_elements, documentation):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(composite_elements, mo):
     mo.md(
         f"""### Composite elements
@@ -174,7 +174,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -188,7 +188,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -216,7 +216,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -243,7 +243,7 @@ def __(mo):
     return get_counter, set_counter
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -277,7 +277,7 @@ def __(get_counter, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -299,7 +299,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -343,7 +343,7 @@ def __(get_counter, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -360,13 +360,13 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("### Tied elements")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -408,7 +408,7 @@ def __(x, x_plus_one):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -424,7 +424,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -513,7 +513,7 @@ def __(mo, task_list):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """

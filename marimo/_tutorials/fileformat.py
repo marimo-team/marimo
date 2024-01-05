@@ -1,17 +1,17 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(intro, mo):
     mo.md(intro)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -26,42 +26,42 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(example_program, mo):
     mo.md(example_program)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(file_contents, mo):
     mo.md(file_contents)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
         ## Properties
-        
+
         marimo's file format was designed to be easy to read and easy 
         to work with, while also serving the needs of the marimo library. You can 
         even edit the generated file's cells directly, using your favorite text 
         editor, and format the file with your favorite code formatter.
-        
+
         We explain some properties of marimo's file format below.
         """
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, properties):
     mo.accordion(properties)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     intro = """
     # File Format
@@ -78,7 +78,7 @@ def __():
     return intro,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     file_contents = f"""
         For the above example, marimo would generate the following file 
@@ -118,7 +118,7 @@ def __(mo):
     return file_contents,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     example_program = """
     ## Example
@@ -144,7 +144,7 @@ def __():
     return example_program,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     properties = {
         "Cells are functions": """

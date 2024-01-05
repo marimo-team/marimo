@@ -1,11 +1,11 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.11"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -18,7 +18,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -71,7 +71,7 @@ def __(mo):
     return grid,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -142,7 +142,7 @@ def __(mo, size):
     return boxes, create_box
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -153,7 +153,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -184,7 +184,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -196,7 +196,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -208,15 +208,7 @@ def __(mo):
     return
 
 
-@app.cell
-def __(mo):
-    mo.accordion(
-        {"This is an accordion about `mo.accordion`": mo.doc(mo.accordion)}
-    )
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -242,7 +234,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -281,7 +273,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion({"Documentation: `mo.tabs`": mo.doc(mo.tabs)})
     return
@@ -308,13 +300,13 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion({"Documentation: `mo.tree`": mo.doc(mo.tree)})
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -349,7 +341,7 @@ def __(callout_kind, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion({"Documentation: `mo.callout`": mo.doc(mo.callout)})
     return
