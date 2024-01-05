@@ -62,8 +62,8 @@ latest value.
 
 <img src="docs/_static/readme-ui.gif" width="700px" />
 
-**Powered by static analysis.** marimo's reactive runtime is performant: it uses static analysis to run
-only those cells that need to be run. 
+**Performant runtime.** marimo's runtime uses static analysis to run
+only those cells that need to be run. You can optionally disable expensive cells to prevent them from automatically running.
 
 **Batteries-included.** marimo comes with GitHub Copilot, Black code
 formatting, HTML export, fast code completion, a [VS Code
