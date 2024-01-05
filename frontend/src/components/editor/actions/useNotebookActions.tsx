@@ -40,12 +40,12 @@ export function useNotebookActions() {
       icon: <ImageIcon size={14} strokeWidth={1.5} />,
       label: "Export as PNG",
       handle: async () => {
-        await runDuringPresentMode(() => {
+        await runDuringPresentMode(async () => {
           const app = document.getElementById("App");
           if (!app) {
             return;
           }
-          downloadHTMLAsImage(app, filename || "screenshot.png");
+          await downloadHTMLAsImage(app, filename || "screenshot.png");
         });
       },
     },
