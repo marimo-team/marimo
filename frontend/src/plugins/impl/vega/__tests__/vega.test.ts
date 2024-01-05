@@ -32,6 +32,12 @@ active,username,id
 });
 
 describe("uniquifyColumnNames", () => {
+  it("should handle empty cases", () => {
+    expect(uniquifyColumnNames("")).toBe("");
+    expect(uniquifyColumnNames(" ")).toBe(" ");
+    expect(uniquifyColumnNames("\n")).toBe("\n");
+  });
+
   it("should return the same header if no duplicates exist", () => {
     const csvData = "Name,Age,Location\nAlice,30,New York";
     const result = uniquifyColumnNames(csvData);

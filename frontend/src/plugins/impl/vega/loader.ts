@@ -33,6 +33,10 @@ export function vegaLoadData(
 }
 
 export function uniquifyColumnNames(csvData: string): string {
+  if (!csvData || !csvData.includes(",")) {
+    return csvData;
+  }
+
   const lines = csvData.split("\n");
   const header = lines[0];
   const headerNames = header.split(",");
