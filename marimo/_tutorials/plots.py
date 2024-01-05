@@ -1,23 +1,23 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
-def __(check_dependencies):
-    check_dependencies()
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# Plotting")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __(check_dependencies):
+    check_dependencies()
+    return
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -31,13 +31,13 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## Matplotlib")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -60,7 +60,7 @@ def __(plt):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -85,13 +85,13 @@ def __(plt):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, plt_show_explainer):
     mo.accordion(plt_show_explainer)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -122,7 +122,7 @@ def __(plt, x):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -149,7 +149,7 @@ def __(axis, x):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -194,20 +194,20 @@ def __(exponent, mo, plt, x):
         f"""
 
         {_tex}
-        
+
         {mo.as_html(_plot(exponent.value))}
         """
     )
     return functools,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## Other libraries")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -227,7 +227,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(missing_packages, mo):
     module_not_found_explainer = mo.md(
         """
@@ -255,7 +255,7 @@ def __(missing_packages, mo):
     return check_dependencies, module_not_found_explainer
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     plt_show_explainer = {
         "Using `plt.show()`": """

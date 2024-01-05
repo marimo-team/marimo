@@ -1,36 +1,71 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
-def __(introduction, mo):
-    mo.md(introduction)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        # How marimo notebooks run
+
+        Reactive execution is based on a single rule: when a cell is run, all other
+        cells that reference any of the global variables it defines run
+        automatically.
+
+        To provide reactive execution, marimo creates a dataflow graph out of your
+        cells.
+    """
+    )
     return
 
 
-@app.cell
-def __(mo, references_and_definitions):
-    mo.md(references_and_definitions)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ## References and definitions
+
+        A marimo notebook is a directed acyclic graph in which nodes represent 
+        cells and edges represent data dependencies. marimo creates this graph by
+        analyzing each cell (without running it) to determine its
+        
+        - references ("refs*), the global variables it reads but doesn't define;
+        - definitions ("defs"), the global variables it defines.
+
+        There is an edge from one cell to another if the latter cell references any
+        global variables defined by the former cell.
+
+        The rule for reactive execution can be restated in terms of the graph: when
+        a cell is run, its descendants are run automatically.
+        """
+    )
     return
 
 
-@app.cell
-def __(example, mo):
-    mo.md(example)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ### Example
+        
+        The next four cells plot a sine wave with a given period and amplitude.
+        Each cell is labeled with its refs and defs.    
+        """ 
+    )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
             "Tip: inspecting refs and defs": f"""
             Use `mo.refs()` and `mo.defs()` to inspect the refs and defs of any
             given cell. This can help with debugging complex notebooks.
-            
+
             For example, here are the refs and defs of this cell:
 
             {mo.as_html({"refs": mo.refs(), "defs": mo.defs()})}
@@ -102,7 +137,6 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
         plt.gcf().set_size_inches(6.5, 2.4)
         return plt.gca()
 
-
     mo.md(
         f"""
         - `refs: {mo.refs()}`
@@ -112,7 +146,7 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
     return plot_wave,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -124,13 +158,37 @@ def __(mo):
     return
 
 
-@app.cell
-def __(dataflow_graph, mo):
-    mo.md(dataflow_graph)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        Here is the dataflow graph for the cells that make the sine wave plot, plus
+        the cells that import libraries. Each cell is labeled with its defs. 
+
+        ```
+                           +------+               +-----------+
+               +-----------| {mo} |-----------+   | {np, plt} |
+               |           +---+--+           |   +----+------+
+               |               |              |        |
+               |               |              |        |
+               v               v              v        v
+          +----------+   +-------------+   +--+----------+
+          | {period} |   | {amplitude} |   | {plot_wave} |
+          +---+------+   +-----+-------+   +------+------+
+              |                |                  |
+              |                v                  |
+              |              +----+               |
+              +------------> | {} | <-------------+
+                             +----+
+        ```
+        
+        The last cell, which doesn't define anything, produces the plot.
+        """
+    )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -144,7 +202,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -159,7 +217,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -190,18 +248,18 @@ def __():
     return planet,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
-        ** 🌊 Try it!** In the previous cell, change the name `planet` to `home`, 
+        **🌊 Try it!** In the previous cell, change the name `planet` to `home`, 
         then run the cell.
         """
     )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -228,7 +286,7 @@ def __():
     return count,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -266,7 +324,7 @@ def __():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -301,7 +359,7 @@ def __(to_be_deleted):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -325,7 +383,7 @@ def __(one):
     return two,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -363,7 +421,7 @@ def __():
     return namespace, state
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
@@ -377,7 +435,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
@@ -391,23 +449,39 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    mo.accordion({
-        "Tip (advanced): mutable state": (
-            """
+    mo.accordion(
+        {
+            "Tip (advanced): mutable state": (
+                """
             You can use the fact that marimo does not track attributes or 
             mutations to implement mutable state in marimo. An example of
             this is shown in the `ui` tutorial.
             """
-        )
-    })
+            )
+        }
+    )
     return
 
 
-@app.cell
-def __(best_practices, mo):
-    mo.md(best_practices)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ## Best practices
+
+        The constraints marimo puts on your notebooks are all natural consequences
+        of the fact that marimo programs are directed acyclic graphs. As long as 
+        you keep this fact in mind, you'll quickly adapt to the marimo way of
+        writing notebooks.
+
+        Ultimately, these constraints will enable you to create powerful notebooks
+        and apps, and they'll encourage you to write clean, reproducible code.
+
+        Follow these tips to stay on the marimo way:
+        """
+    )
     return
 
 
@@ -417,7 +491,7 @@ def __(mo, tips):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """## What's next?
@@ -432,106 +506,28 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     matplotlib_installed = False
     numpy_installed = False
 
     try:
         import matplotlib.pyplot as plt
+
         matplotlib_installed = True
     except ModuleNotFoundError:
         pass
 
     try:
         import numpy as np
+
         numpy_installed = True
     except ModuleNotFoundError:
         pass
     return matplotlib_installed, np, numpy_installed, plt
 
 
-@app.cell
-def __():
-    import marimo as mo
-    return mo,
-
-
-@app.cell
-def __():
-    introduction = """
-    # How marimo Apps Run
-
-    Reactive execution is based on a single rule: when a cell is run, all other cells that reference any of the global variables it defines run
-    automatically.
-
-    To provide reactive execution, marimo creates a dataflow graph out of your cells. 
-    """
-
-    references_and_definitions = """
-    ## References and definitions
-
-    A marimo notebook is a directed acyclic graph in which nodes represent cells and edges represent data dependencies. marimo creates this graph by analyzing each cell (without running it) to determine its
-
-    - references ("refs*), the global variables it reads but doesn't define;
-    - definitions ("defs"), the global variables it defines.
-
-    There is an edge from one cell to another if the latter cell references any global variables defined by the former cell.
-
-    The rule for reactive execution can be restated in terms of the graph: when
-    a cell is run, its descendants are run automatically.
-    """
-
-    example = """
-    ### Example
-
-    The next four cells plot a sine wave with a given period and amplitude.
-    Each cell is labeled with its refs and defs.
-    """
-
-    dataflow_graph = """
-    Here is the dataflow graph for the cells that make the sine wave plot, 
-    plus the cells that import libraries. Each cell is labeled with its defs. 
-
-    ```
-                       +------+               +-----------+
-           +-----------| {mo} |-----------+   | {np, plt} |
-           |           +---+--+           |   +----+------+
-           |               |              |        |
-           |               |              |        |
-           v               v              v        v
-      +----------+   +-------------+   +--+----------+
-      | {period} |   | {amplitude} |   | {plot_wave} |
-      +---+------+   +-----+-------+   +------+------+
-          |                |                  |
-          |                v                  |
-          |              +----+               |
-          +------------> | {} | <-------------+
-                         +----+
-    ```
-
-    The last cell, which doesn't define anything, produces the plot.
-    """
-
-    best_practices = """
-    ## Best practices
-
-    The constraints marimo puts on your notebooks are all natural consequences of the fact that marimo programs are directed acyclic graphs. As long as you keep this fact in mind, you'll quickly adapt to the marimo way of writing notebooks.
-
-    Ultimately, these constraints will enable you to create powerful notebooks and apps, and they'll encourage you to write clean, reproducible code.
-
-    Follow these tips to stay on the marimo way:
-    """
-    return (
-        best_practices,
-        dataflow_graph,
-        example,
-        introduction,
-        references_and_definitions,
-    )
-
-
-@app.cell
+@app.cell(hide_code=True)
 def __():
     tips = {
         "Use global variables sparingly": (
@@ -627,6 +623,12 @@ def __():
         ),
     }
     return tips,
+
+
+@app.cell
+def __():
+    import marimo as mo
+    return mo,
 
 
 if __name__ == "__main__":
