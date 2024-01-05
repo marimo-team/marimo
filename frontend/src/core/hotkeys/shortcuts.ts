@@ -42,12 +42,19 @@ export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
           satisfied &&= e.key.toLowerCase() === character.toLowerCase();
           break;
       }
+
       if (!satisfied) {
         return false;
       }
     }
     if (!keys.includes("Shift")) {
       satisfied &&= !e.shiftKey;
+    }
+    if (!keys.includes("Ctrl")) {
+      satisfied &&= !e.ctrlKey;
+    }
+    if (!keys.includes("Cmd")) {
+      satisfied &&= !e.metaKey;
     }
     return satisfied;
   };

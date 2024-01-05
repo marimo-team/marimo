@@ -1,11 +1,10 @@
-# Copyright 2023 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.1.69"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import seaborn as sns
 

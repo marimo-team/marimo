@@ -106,4 +106,8 @@ export interface CellConfig {
    * If true, the cell and its descendants are unable to run.
    */
   disabled?: boolean;
+  /**
+   * If true, the cell's code is hidden from the notebook.
+   */
+  hide_code?: boolean;
 }

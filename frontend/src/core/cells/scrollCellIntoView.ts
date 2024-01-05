@@ -3,25 +3,34 @@ import { RefObject } from "react";
 import { Logger } from "../../utils/Logger";
 import { CellId, HTMLCellId } from "./ids";
 import { CellHandle } from "@/components/editor/Cell";
+import { CellConfig } from "./types";
 
 export function focusAndScrollCellIntoView(
   cellId: CellId,
-  cell: RefObject<CellHandle>
+  cell: RefObject<CellHandle>,
+  config: CellConfig
 ) {
   if (!cell) {
     return;
   }
 
-  cell.current?.editorView.focus();
   const element = document.getElementById(HTMLCellId.create(cellId));
-  if (element) {
-    element.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
-  } else {
+  if (!element) {
     Logger.warn("scrollCellIntoView: element not found");
+    return;
   }
+
+  // If the cell's code is hidden, just focus the cell and not the editor.
+  if (config.hide_code) {
+    element.focus();
+  } else {
+    cell.current?.editorView.focus();
+  }
+
+  element.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
 }
 
 /**

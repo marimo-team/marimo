@@ -1,12 +1,14 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { EditorView, KeyBinding, keymap } from "@codemirror/view";
-import { CellId } from "@/core/cells/ids";
+import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
+import { clearTooltips } from "../completion/hints";
+import { closeCompletion } from "@codemirror/autocomplete";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
@@ -18,6 +20,7 @@ export interface MovementCallbacks
   moveDown: () => void;
   focusUp: () => void;
   focusDown: () => void;
+  toggleHideCode: () => boolean;
 }
 
 /**
@@ -39,12 +42,14 @@ export function cellMovementBundle(
     sendToTop,
     sendToBottom,
     moveToNextCell,
+    toggleHideCode,
   } = callbacks;
 
   const hotkeys: KeyBinding[] = [
     {
       key: HOTKEYS.getHotkey("cell.run").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         onRun();
         return true;
@@ -53,6 +58,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.runAndNewBelow").key,
       preventDefault: true,
+      stopPropagation: true,
       run: (ev) => {
         onRun();
         ev.contentDOM.blur();
@@ -63,6 +69,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.runAndNewAbove").key,
       preventDefault: true,
+      stopPropagation: true,
       run: (ev) => {
         onRun();
         ev.contentDOM.blur();
@@ -73,6 +80,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.delete").key,
       preventDefault: true,
+      stopPropagation: true,
       run: (cm) => {
         // Cannot delete non-empty cells for safety
         if (cm.state.doc.length === 0) {
@@ -89,6 +97,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.moveDown").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         moveDown();
         return true;
@@ -97,6 +106,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.moveUp").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         moveUp();
         return true;
@@ -105,6 +115,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.focusDown").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         focusDown();
         return true;
@@ -113,6 +124,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.focusUp").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         focusUp();
         return true;
@@ -121,6 +133,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.sendToBottom").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         sendToBottom({ cellId });
         return true;
@@ -129,6 +142,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.sendToTop").key,
       preventDefault: true,
+      stopPropagation: true,
       run: () => {
         sendToTop({ cellId });
         return true;
@@ -137,6 +151,7 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.createAbove").key,
       preventDefault: true,
+      stopPropagation: true,
       run: (ev) => {
         ev.contentDOM.blur();
         createAbove();
@@ -146,9 +161,29 @@ export function cellMovementBundle(
     {
       key: HOTKEYS.getHotkey("cell.createBelow").key,
       preventDefault: true,
+      stopPropagation: true,
       run: (ev) => {
         ev.contentDOM.blur();
         createBelow();
+        return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.hideCode").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        const isHidden = toggleHideCode();
+        closeCompletion(ev);
+        clearTooltips(ev);
+        // If we are newly hidden, blur the editor
+        if (isHidden) {
+          ev.contentDOM.blur();
+          // Focus on the parent element
+          document.getElementById(HTMLCellId.create(cellId))?.focus();
+        } else {
+          ev.contentDOM.focus();
+        }
         return true;
       },
     },

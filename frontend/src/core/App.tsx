@@ -42,7 +42,7 @@ import { Button } from "../components/ui/button";
 import { useEvent } from "../hooks/useEvent";
 import { Logger } from "../utils/Logger";
 import { useAutoSave } from "./saving/useAutoSave";
-import { useWindowEventListener } from "../hooks/useEventListener";
+import { useEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
 import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
 import { CellId, HTMLCellId } from "./cells/ids";
@@ -200,7 +200,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     config: userConfig,
   });
 
-  useWindowEventListener("beforeunload", (e: BeforeUnloadEvent) => {
+  useEventListener(window, "beforeunload", (e: BeforeUnloadEvent) => {
     if (isStaticNotebook()) {
       return;
     }

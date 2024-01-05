@@ -193,7 +193,11 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     const focusCellId = state.cellIds[focusIndex];
     // can scroll immediately, without setting scrollKey in state, because
     // CellArray won't need to re-render
-    focusAndScrollCellIntoView(focusCellId, state.cellHandles[focusCellId]);
+    focusAndScrollCellIntoView(
+      focusCellId,
+      state.cellHandles[focusCellId],
+      state.cellData[focusCellId].config
+    );
     return state;
   },
   focusTopCell: (state) => {
@@ -458,7 +462,11 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
     } else {
       const nextCellId = state.cellIds[nextCellIndex];
       // Just focus, no state change
-      focusAndScrollCellIntoView(nextCellId, state.cellHandles[nextCellId]);
+      focusAndScrollCellIntoView(
+        nextCellId,
+        state.cellHandles[nextCellId],
+        state.cellData[nextCellId].config
+      );
       return state;
     }
   },
@@ -478,7 +486,11 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
         scrollToBottom();
       } else {
         const nextCellId = state.cellIds[index];
-        focusAndScrollCellIntoView(nextCellId, state.cellHandles[nextCellId]);
+        focusAndScrollCellIntoView(
+          nextCellId,
+          state.cellHandles[nextCellId],
+          state.cellData[nextCellId].config
+        );
       }
 
       return {

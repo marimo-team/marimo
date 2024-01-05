@@ -20,6 +20,7 @@ import { useTheme } from "../../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
 import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
 import { useChromeActions } from "../chrome/state";
+import { Functions } from "@/utils/functions";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -42,6 +43,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     deleteCell,
     moveCell,
     moveToNextCell,
+    updateCellConfig,
     focusCell,
     createNewCell,
     focusBottomCell,
@@ -49,6 +51,8 @@ export const CellArray: React.FC<CellArrayProps> = ({
     scrollToTarget,
     foldAll,
     unfoldAll,
+    sendToBottom,
+    sendToTop,
   } = useCellActions();
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
@@ -64,6 +68,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
   useHotkey("global.formatAll", () => {
     formatAll(updateCellCode);
   });
+  // Catch all to avoid native OS behavior
+  // Otherwise a user might try to hide a cell and accidentally hide the OS window
+  useHotkey("cell.hideCode", Functions.NOOP);
 
   const onDeleteCell: typeof deleteCell = useEvent((payload) => {
     sendDeleteCell(payload.cellId);
@@ -101,15 +108,18 @@ export const CellArray: React.FC<CellArrayProps> = ({
           runStartTimestamp={cell.runStartTimestamp}
           runElapsedTimeMs={cell.runElapsedTimeMs}
           serializedEditorState={cell.serializedEditorState}
-          showDeleteButton={cells.length > 1}
+          showDeleteButton={cells.length > 1 && !cell.config.hide_code}
           createNewCell={createNewCell}
           deleteCell={onDeleteCell}
           focusCell={focusCell}
           moveToNextCell={moveToNextCell}
+          updateCellConfig={updateCellConfig}
           moveCell={moveCell}
           mode={mode}
           appClosed={connStatus.state !== WebSocketState.OPEN}
           ref={notebook.cellHandles[cell.id]}
+          sendToBottom={sendToBottom}
+          sendToTop={sendToTop}
           userConfig={userConfig}
           config={cell.config}
           name={cell.name}

@@ -16,10 +16,12 @@ import {
   ZapOffIcon,
   PlayIcon,
   TextCursorInputIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "lucide-react";
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import { CellData, CellStatus } from "@/core/cells/types";
+import { CellConfig, CellData, CellStatus } from "@/core/cells/types";
 import { CellId } from "@/core/cells/ids";
 import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
@@ -55,12 +57,24 @@ export function useCellActionButtons({
   const runCell = useRunCell(cellId);
 
   const toggleDisabled = async () => {
-    if (config.disabled) {
-      await saveCellConfig({ configs: { [cellId]: { disabled: false } } });
-      updateCellConfig({ cellId, config: { disabled: false } });
-    } else {
-      await saveCellConfig({ configs: { [cellId]: { disabled: true } } });
-      updateCellConfig({ cellId, config: { disabled: true } });
+    const newConfig = { disabled: !config.disabled };
+    await saveCellConfig({ configs: { [cellId]: newConfig } });
+    updateCellConfig({ cellId, config: newConfig });
+  };
+
+  const toggleHideCode = async () => {
+    const newConfig: CellConfig = { hide_code: !config.hide_code };
+    await saveCellConfig({ configs: { [cellId]: newConfig } });
+    updateCellConfig({ cellId, config: newConfig });
+
+    // If we're hiding the code, we should blur the editor
+    // otherwise, we should focus it
+    if (editorView) {
+      if (newConfig.hide_code) {
+        editorView.contentDOM.blur();
+      } else {
+        editorView.focus();
+      }
     }
   };
 
@@ -110,6 +124,16 @@ export function useCellActionButtons({
           }
           formatEditorViews({ [cellId]: editorView }, updateCellCode);
         },
+      },
+      {
+        icon: config.hide_code ? (
+          <EyeIcon size={13} strokeWidth={1.5} />
+        ) : (
+          <EyeOffIcon size={13} strokeWidth={1.5} />
+        ),
+        label: config.hide_code === true ? "Show code" : "Hide code",
+        handle: toggleHideCode,
+        hotkey: "cell.hideCode",
       },
       {
         icon: config.disabled ? (

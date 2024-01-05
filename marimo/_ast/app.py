@@ -103,6 +103,7 @@ class App:
         func: Optional[CellFuncTypeBound] = None,
         *,
         disabled: bool = False,
+        hide_code: bool = False,
         **kwargs: Any,
     ) -> Union[
         Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
@@ -134,6 +135,8 @@ class App:
         """
         del kwargs
 
+        cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
+
         if func is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
@@ -142,7 +145,7 @@ class App:
                 func: CellFuncTypeBound,
             ) -> CellFunction[CellFuncTypeBound]:
                 cell_function = cell_factory(func)
-                cell_function.cell.configure(CellConfig(disabled=disabled))
+                cell_function.cell.configure(cell_config)
                 self._register_cell(cell_function)
                 return cell_function
 
@@ -154,7 +157,7 @@ class App:
             # If the decorator was used without parentheses, func will be the
             # decorated function
             cell_function = cell_factory(func)
-            cell_function.cell.configure(CellConfig(disabled=disabled))
+            cell_function.cell.configure(cell_config)
             self._register_cell(cell_function)
             return cell_function
 

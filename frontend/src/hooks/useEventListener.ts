@@ -1,9 +1,19 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { useRef, useEffect } from "react";
 
-export function useEventListener<K extends keyof DocumentEventMap>(
-  type: K,
-  listener: (ev: DocumentEventMap[K]) => unknown,
+type Target = Document | HTMLElement | Window | null;
+type EventMap<T extends Target> = T extends Document
+  ? DocumentEventMap
+  : T extends HTMLElement
+  ? HTMLElementEventMap
+  : T extends Window
+  ? WindowEventMap
+  : never;
+
+export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
+  target: T,
+  type: K & string,
+  listener: (ev: EventMap<T>[K]) => unknown,
   options?: boolean | AddEventListenerOptions
 ): void {
   const savedListener = useRef(listener);
@@ -13,34 +23,16 @@ export function useEventListener<K extends keyof DocumentEventMap>(
   }, [listener]);
 
   useEffect(() => {
-    const eventListener = (event: DocumentEventMap[K]) =>
-      savedListener.current(event);
-    document.addEventListener(type, eventListener, options);
+    if (!target) {
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventListener = (event: any) => savedListener.current(event);
+    target.addEventListener(type, eventListener, options);
 
     return () => {
-      document.removeEventListener(type, eventListener, options);
+      target.removeEventListener(type, eventListener, options);
     };
-  }, [type, options]);
-}
-
-export function useWindowEventListener<K extends keyof WindowEventMap>(
-  type: K,
-  listener: (ev: WindowEventMap[K]) => unknown,
-  options?: boolean | AddEventListenerOptions
-): void {
-  const savedListener = useRef(listener);
-
-  useEffect(() => {
-    savedListener.current = listener;
-  }, [listener]);
-
-  useEffect(() => {
-    const eventListener = (event: WindowEventMap[K]) =>
-      savedListener.current(event);
-    window.addEventListener(type, eventListener, options);
-
-    return () => {
-      window.removeEventListener(type, eventListener, options);
-    };
-  }, [type, options]);
+  }, [type, target, options]);
 }

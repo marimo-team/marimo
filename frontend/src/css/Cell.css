@@ -182,25 +182,6 @@
   }
 
   /* -------------------------- Shoulders/Buttons ---------------------------- */
-  .shoulder-left {
-    position: absolute;
-    left: -34px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-    height: 100%;
-    z-index: 2;
-  }
-
-  .shoulder-elem-top {
-    margin-bottom: auto;
-  }
-
-  .shoulder-elem-bottom {
-    vertical-align: bottom;
-  }
-
   .shoulder-right {
     display: inline-flex;
     flex-direction: column;
