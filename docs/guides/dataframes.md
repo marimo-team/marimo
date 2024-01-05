@@ -1,20 +1,18 @@
 # Dataframes
 
-The dataframe is the most common tool for interacting with data
-in Python.
+**marimo makes you more productive when working with dataframes**, the most
+common Python tool for interacting with data.
 
-**marimo makes you more productive when working with dataframes**:
+- [Display dataframes](#displaying-dataframes) in a rich, interactive table and chart views
+- [Select data](#selecting-dataframes) from tables or charts and get selections back as dataframes
+- [Transform dataframes](#transforming-dataframes) with filters, groupbys,
+  aggregations, and more, **no code required**
 
-- display dataframes in a rich, interactive table and chart views
-- transform dataframes with filters, groupbys,
-  aggregations, and more with a UI element, no code required
+_marimo integrates with [Pandas](https://pandas.pydata.org/) and
+[Polars](https://pola.rs) dataframes natively. The examples on this page
+use Pandas, but Polars works too._
 
-## Usage
-
-marimo integrates with [Pandas](https://pandas.pydata.org/) and
-[Polars](https://pola.rs) dataframes natively.
-
-### Displaying dataframes
+## Displaying dataframes
 
 You can display dataframes directly in the output area of a cell, by including
 them in the last expression of the cell:
@@ -30,7 +28,6 @@ them in the last expression of the cell:
 ```python
 import pandas as pd
 
-# polars works too
 df = pd.read_json(
     "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json"
 )
@@ -72,10 +69,18 @@ mo.hstack(
 )
 ```
 
-### Selecting data in UI elements
+## Selecting dataframes
 
-When interacting with marimo elements that accept dataframes, the selection of
-the element value is sent to Python as a Pandas dataframe.
+Select data in a [table](#marimo.ui.table) or [Plotly](#marimo.ui.plotly)/[Altair](#marimo.ui.altair_chart) plot,
+and your selection is _automatically sent to Python as a Pandas dataframe_.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-dataframe-table.gif"/>
+<figcaption>Select rows in a table, get them back as a dataframe</figcaption>
+</figure>
+</div>
+
 
 ```python
 # Cell 1 - display a dataframe
@@ -92,42 +97,40 @@ table
 table.value
 ```
 
-### Transforming dataframes
+## Transforming dataframes
 
-Dataframes can be transformed via code and parameterized with other marimo elements, or you can use the [`mo.ui.dataframe`](/api/inputs/dataframe/) element to create a visual form that will allow you to interactively transform the dataframe.
 
-**1. In code with other elements**
+### No-code transformations
 
-```python
-# Cell 1 - create a dataframe
-df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
+Use [`mo.ui.dataframe`](/api/inputs/dataframe/) to interactively
+transform a dataframe with a GUI, no coding required!. When you're done, you
+can copy the code that the GUI generated for you and paste it into your
+notebook.
 
-# Cell 2 - create a filter
-age_filter = mo.ui.slider(start=0, stop=100, value=50, label="Max age")
-age_filter
 
-# Cell 3 - display the transformed dataframe
-filtered_df = df[df["age"] < age_filter.value]
-mo.ui.table(filtered_df)
-```
+<div align="center">
+<figure>
+<img src="/_static/docs-dataframe-transform.gif"/>
+<figcaption>Build transformations using a GUI</figcaption>
+</figure>
+</div>
 
-**2. Using the `mo.ui.dataframe` element**
 
 ```python
-# Cell 1 - create a dataframe
+# Cell 1
+import marimo as mo
+import pandas as pd
+
 df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
 transformed_df = mo.ui.dataframe(df)
 transformed_df
 ```
 
-<div align="center">
-<figure>
-<img src="/_static/docs-dataframe-transform.png"/>
-</figure>
-</div>
-
-The `mo.ui.dataframe` element will allow you to interactively transform the dataframe. You can add columns, remove columns, rename columns, filter rows, sort, sample, and more.
-The resulting dataframe will be available as the `value` attribute of the element and you can copy and paste the code to recreate the transformation in another cell.
+```python
+# Cell 2
+# transformed_df.value holds the transformed dataframe
+transformed_df.value
+```
 
 <div align="center">
 <figure>
@@ -136,42 +139,37 @@ The resulting dataframe will be available as the `value` attribute of the elemen
 </figure>
 </div>
 
-## Polars support
+### Custom filters
 
-marimo also supports [Polars](https://pola.rs/) dataframes. Polars can be used directly in [`mo.ui.table`](/api/inputs/table/). You will need to install the `polars` library to use Polars dataframes.
+Create custom filters with marimo UI elements, like sliders and dropdowns.
 
 ```python
 # Cell 1 - create a dataframe
-import marimo as mo
-import polars as pl
-import altair as alt
-
-df = pl.read_csv(
-    "https://gist.githubusercontent.com/ritchie46/cac6b337ea52281aa23c049250a4ff03/raw/89a957ff3919d90e6ef2d34235e6bf22304f3366/pokemon.csv"
-)
-
-# Cell 2 - visualize in a table
-mo.ui.table(df)
-
-# Cell 3 - visualize in a chart
-mo.ui.altair_chart(
-  alt.Chart(df.to_pandas())
-    .mark_circle()
-    .encode(
-        x="Attack",
-        y="Defense",
-        size="Total",
-        color="Type 1",
-        tooltip=["Name", "Total", "Type 1", "Type 2"],
-    )
-)
+df = pd.DataFrame({"person": ["Alice", "Bob", "Charlie"], "age": [20, 30, 40]})
 ```
 
-### Example
+```python
+# Cell 2 - create a filter
+age_filter = mo.ui.slider(start=0, stop=100, value=50, label="Max age")
+age_filter
+```
 
-Check out an full example [here](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars.py)
+```python
+# Cell 3 - display the transformed dataframe
+filtered_df = df[df["age"] < age_filter.value]
+mo.ui.table(filtered_df)
+```
 
-Or run it yourself:
+
+## Polars support
+
+marimo also supports [Polars](https://pola.rs/), a
+modern, faster alternative to Pandas.
+
+**Example.**
+
+Check out a full example [here](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars.py),
+or run it yourself:
 
 ```bash
 marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars.py
