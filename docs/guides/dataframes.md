@@ -26,7 +26,6 @@ in th last expression of the cell.
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-output.png"/>
-<figcaption>Display a dataframe in the output area of a cell</figcaption>
 </figure>
 </div>
 
@@ -37,7 +36,6 @@ dataframe directly without any transformation.
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-visualizations.png"/>
-<figcaption>Display a dataframe in a rich table or chart</figcaption>
 </figure>
 </div>
 
@@ -86,7 +84,6 @@ transformed_df
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-transform.png"/>
-<figcaption>Transform a dataframe with a visual form using the <code>mo.ui.dataframe</code></figcaption>
 </figure>
 </div>
 
