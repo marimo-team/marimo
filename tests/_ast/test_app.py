@@ -292,4 +292,4 @@ class TestApp:
 
         configs = tuple(app._configs())
         assert configs[0].disabled
-        assert configs[1].hide_code is True
+        assert configs[1].hide_code
