@@ -35,7 +35,7 @@ def _to_decorator(config: Optional[CellConfig]) -> str:
 
     # Removed defaults. If the cell's config is the default config,
     # don't include it in the decorator.
-    if config.disabled is False:
+    if not config.disabled:
         del config.disabled
     if config.hide_code is False:
         del config.hide_code
