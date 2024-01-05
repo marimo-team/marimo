@@ -8,12 +8,14 @@ import {
   ScrollTextIcon,
   NetworkIcon,
   FileTextIcon,
+  MessageCircleQuestionIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
+import { FeedbackButton } from "../footer/feedback-button";
 
 export const Footer: React.FC = () => {
   const { selectedPanel, panelLocation } = useChromeState();
@@ -77,6 +79,12 @@ export const Footer: React.FC = () => {
       >
         <PanelBottomIcon className="h-4 w-4" />
       </FooterItem>
+
+      <FeedbackButton>
+        <FooterItem tooltip="Send feedback!" selected={false}>
+          <MessageCircleQuestionIcon className="h-4 w-4" />
+        </FooterItem>
+      </FeedbackButton>
     </footer>
   );
 };
