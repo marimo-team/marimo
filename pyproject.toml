@@ -163,3 +163,6 @@ addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_
 testpaths = [
     "tests",
 ]
+
+[tool.coverage.run]
+omit = ["marimo/_tutorials/*"]
