@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import { vegaLoadData, vegaLoader } from "../loader";
+import { uniquifyColumnNames, vegaLoadData, vegaLoader } from "../loader";
 
 describe("vega loader", () => {
   it("should parse csv data", async () => {
@@ -28,5 +28,49 @@ active,username,id
         },
       ]
     `);
+  });
+});
+
+describe("uniquifyColumnNames", () => {
+  it("should return the same header if no duplicates exist", () => {
+    const csvData = "Name,Age,Location\nAlice,30,New York";
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(csvData);
+  });
+
+  it("should uniquify headers with some duplicates", () => {
+    const csvData = "Name,Age,Location,Name\nAlice,30,New York,Bob";
+    const expectedResult = "Name,Age,Location,Name_1\nAlice,30,New York,Bob";
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("should uniquify headers with all duplicates", () => {
+    const csvData = "Name,Name,Name,Name\nAlice,Bob,Charlie,David";
+    const expectedResult = "Name,Name_1,Name_2,Name_3\nAlice,Bob,Charlie,David";
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("should handle empty column names", () => {
+    const csvData = "Name,,Location,Name\nAlice,30,New York,Bob";
+    const expectedResult = "Name,,Location,Name_1\nAlice,30,New York,Bob";
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("should handle special characters in column names", () => {
+    const csvData = "Na!me,Na@me,Na#me,Na$me\nAlice,Bob,Charlie,David";
+    const expectedResult = "Na!me,Na@me,Na#me,Na$me\nAlice,Bob,Charlie,David";
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("should handle commas in quoted column names", () => {
+    const csvData = '"Name,Name",Name,Name,Name\nAlice,Bob,Charlie,David';
+    const expectedResult =
+      '"Name,Name",Name,Name_1,Name_2\nAlice,Bob,Charlie,David';
+    const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
   });
 });
