@@ -56,17 +56,21 @@ interface ViewState {
 
 export const initialMode = getInitialAppMode();
 
-export async function runDuringPresentMode(fn: () => void): Promise<void> {
+export async function runDuringPresentMode(
+  fn: () => void | Promise<void>
+): Promise<void> {
   const state = store.get(viewStateAtom);
   if (state.mode === "present") {
-    return fn();
+    return await fn();
   }
 
   store.set(viewStateAtom, { ...state, mode: "present" });
-  // wait 2 frames
+  // Wait 100ms to allow the page to render
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Wait 2 frames
   await new Promise((resolve) => requestAnimationFrame(resolve));
   await new Promise((resolve) => requestAnimationFrame(resolve));
-  fn();
+  await fn();
   store.set(viewStateAtom, { ...state, mode: "edit" });
   return undefined;
 }
