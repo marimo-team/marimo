@@ -40,30 +40,29 @@ _Jump to the [quickstart](#quickstart) for a primer on our CLI._
 
 ## A reactive programming environment
 
+marimo guarantees your notebook code, outputs, and program state are consistent.
 
-**A reactive programming environment.** Run a cell and marimo _reacts_ by
-automatically running the cells that reference its variables, giving you instant feedback as
-you experiment with models. Delete a cell and marimo scrubs its variables from
-program memory, eliminating hidden state. 
+**A reactive programming environment.**
+Run a cell and marimo _reacts_ by automatically running the cells that
+reference its variables, eliminating the error-prone task of manually
+re-running cells. Delete a cell and marimo scrubs its variables from program
+memory, eliminating hidden state.
 
 <img src="docs/_static/reactive.gif" width="700px" />
 
+**Deterministic execution order.** Notebooks are executed in a deterministic
+order, based on variable references instead of cells' positions on the page.
+Organize your notebooks to best fit the stories you'd like to tell.
 
-
-Notebooks are executed in a deterministic order, based on variable references
-instead of cells' positions on the page. Organize your notebook
-to best fit the story you're telling.
-
-
-**Synchronized UI elements.** Import `marimo` to use
-interactive elements like sliders, dropdowns, dataframe transformers, selectable plots, and more. Interact with
-an element and all cells that use it are automatically re-run with its
-latest value.
+**Synchronized UI elements.** Interact with UI elements like sliders,
+dropdowns, and dataframe transformers, and the cells that use them are
+automatically re-run with their latest values.
 
 <img src="docs/_static/readme-ui.gif" width="700px" />
 
-**Performant runtime.** marimo's runtime uses static analysis to run
-only those cells that need to be run. You can optionally disable expensive cells to prevent them from automatically running.
+**Performant runtime.** marimo runs only those cells that need to be run by
+statically analyzing your code. You can optionally disable expensive cells to
+prevent them from automatically running.
 
 **Batteries-included.** marimo comes with GitHub Copilot, Black code
 formatting, HTML export, fast code completion, a [VS Code
@@ -127,10 +126,21 @@ List all tutorials:
 marimo tutorial --help
 ```
 
+## Questions?
+
+See the [FAQ](https://docs.marimo.io/faq.html) at our docs.
+
+
 ## Learn more
 
-Ready to learn more? Check out our [docs](https://docs.marimo.io),
-the `examples/` folder, and our [gallery](https://marimo.io/@public).
+marimo is easy to get started with, with lots of room for power users.
+For example, here's an embedding visualizer made in marimo
+([video](https://marimo.io/videos/landing/full.mp4)):
+
+<img src="docs/_static/embedding.gif" width="700px" />
+
+Check out our [docs](https://docs.marimo.io),
+the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn more.
 
 <table border="0">
   <tr>
@@ -178,10 +188,6 @@ the `examples/` folder, and our [gallery](https://marimo.io/@public).
 	</td>
   </tr>
 </table>
-
-## FAQ
-
-See the [FAQ](https://docs.marimo.io/faq.html) at our docs.
 
 ## Contributing
 
