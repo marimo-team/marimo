@@ -21,16 +21,16 @@ import {
 interface DataTableColumnHeaderProps<TData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
-  title: string;
+  header: React.ReactNode;
 }
 
 export const DataTableColumnHeader = <TData, TValue>({
   column,
-  title,
+  header,
   className,
 }: DataTableColumnHeaderProps<TData, TValue>) => {
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    return <div className={cn(className)}>{header}</div>;
   }
 
   const sortFn = column.getSortingFn();
@@ -40,14 +40,18 @@ export const DataTableColumnHeader = <TData, TValue>({
     sortFn === sortingFns.basic ? ArrowDown10Icon : ArrowDownWideNarrowIcon;
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
-      <span>{title}</span>
+    <div className={cn("group flex items-center space-x-2", className)}>
+      <span className="flex-1">{header}</span>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild={true}>
           <Button
             variant="ghost"
             size="xs"
-            className="ml-3 h-5 data-[state=open]:bg-accent m-0 p-1"
+            className={cn(
+              "ml-3 h-5 data-[state=open]:bg-accent m-0 p-1",
+              !column.getIsSorted() &&
+                "invisible group-hover:visible data-[state=open]:visible"
+            )}
           >
             {column.getIsSorted() === "desc" ? (
               <DescIcon className="h-3 w-3" />
