@@ -68,7 +68,8 @@ export const ShareStaticNotebookModal: React.FC<{
               path: path,
             }),
           }).catch(() => {
-            prevToast.update({
+            prevToast.dismiss();
+            toast({
               title: "Error uploading static page",
               description: (
                 <div>
@@ -88,14 +89,14 @@ export const ShareStaticNotebookModal: React.FC<{
             });
           });
 
-          prevToast.update({
+          prevToast.dismiss();
+          toast({
             title: "Static page uploaded!",
             description: (
               <div>
-                You can access the page at{" "}
-                <a href={url} target="_blank" rel="noreferrer">
-                  {url}
-                </a>
+                The URL has been copied to your clipboard.
+                <br />
+                You can share it with anyone.
               </div>
             ),
           });
