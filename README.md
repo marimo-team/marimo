@@ -208,3 +208,30 @@ We're building a community. Come hang out with us!
 - ✏️  [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
+
+## Inspiration ✨
+
+marimo is a **reinvention** of the Python notebook as a reproducible, interactive,
+and shareable Python program, instead of an error-prone JSON scratchpad.
+
+We believe that the tools we use shape the way we think — better tools, for
+better minds. With marimo, we hope to provide the Python community with a
+better programming environment to do research and communicate it; to experiment
+with code and share it; to learn computational science and teach it.
+
+Our inspiration comes from many places and projects, especially
+[Pluto.jl](https://github.com/fonsp/Pluto.jl),
+[ObservableHQ](https://observablehq.com/tutorials), and
+[Bret Victor's essays](http://worrydream.com/). marimo is part of
+a greater movement toward reactive dataflow programming. From
+[Ipyflow](https://github.com/ipyflow/ipyflow), [streamlit](https://github.com/streamlit/streamlit),
+[TensorFlow](https://github.com/tensorflow/tensorflow),
+[PyTorch](https://github.com/pytorch/pytorch/tree/main),
+[JAX](https://github.com/google/jax), and even
+[ReactJS](https://github.com/facebook/react), the ideas of functional,
+declarative, and reactive programming are transforming a broad range of tools
+for the better.
+
+<p align="center">
+  <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-horizontal.svg">
+</p>
