@@ -17,8 +17,7 @@ const ENABLE_LOCAL_ASSETS = false;
 /**
  * Downloads the current notebook as an HTML file.
  */
-export async function downloadAsHTML(opts: { filename: string }) {
-  const { filename } = opts;
+export async function createStaticHTMLNotebook() {
   const notebook = getNotebook();
   const version = getMarimoVersion();
 
@@ -38,19 +37,28 @@ export async function downloadAsHTML(opts: { filename: string }) {
     throw error;
   });
 
-  const filenameWithoutPath = filename.split("/").pop() ?? "app.py";
-  const filenameWithoutExtension =
-    filenameWithoutPath.split(".").shift() ?? "app";
-
   const html = constructHTML({
     notebookState: notebook,
     version: version,
     assetUrl: assetUrl,
-    filename: filenameWithoutPath,
     existingDocument: document,
     files: await downloadVirtualFiles(),
     code: codeResponse.contents,
   });
+
+  return html;
+}
+
+/**
+ * Downloads the current notebook as an HTML file.
+ */
+export async function downloadAsHTML(opts: { filename: string }) {
+  const { filename } = opts;
+  const html = await createStaticHTMLNotebook();
+
+  const filenameWithoutPath = filename.split("/").pop() ?? "app.py";
+  const filenameWithoutExtension =
+    filenameWithoutPath.split(".").shift() ?? "app";
 
   downloadBlob(
     new Blob([html], { type: "text/html" }),
@@ -65,7 +73,6 @@ export function constructHTML(opts: {
   version: string;
   notebookState: Pick<NotebookState, "cellIds" | "cellData" | "cellRuntime">;
   assetUrl: string;
-  filename: string;
   files: StaticVirtualFiles;
   existingDocument: Document;
   code: string;
