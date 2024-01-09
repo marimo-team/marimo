@@ -10,6 +10,7 @@ import {
   BookMarkedIcon,
   FolderDownIcon,
   ClipboardCopyIcon,
+  Share2Icon,
 } from "lucide-react";
 import { commandPalletteAtom } from "../CommandPallette";
 import {
@@ -24,9 +25,12 @@ import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 
 export function useNotebookActions() {
   const [filename] = useFilename();
+  const { openModal, closeModal } = useImperativeModal();
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
@@ -62,6 +66,13 @@ export function useNotebookActions() {
           return;
         }
         await downloadAsHTML({ filename });
+      },
+    },
+    {
+      icon: <Share2Icon size={14} strokeWidth={1.5} />,
+      label: "Share as static notebook",
+      handle: async () => {
+        openModal(<ShareStaticNotebookModal onClose={closeModal} />);
       },
     },
     {
