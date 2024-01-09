@@ -232,6 +232,6 @@ a greater movement toward reactive dataflow programming. From
 declarative, and reactive programming are transforming a broad range of tools
 for the better.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png">
+<p align="right">
+  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">
 </p>
