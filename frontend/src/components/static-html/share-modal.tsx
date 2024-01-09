@@ -1,5 +1,4 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
   DialogFooter,
   DialogContent,
@@ -7,8 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Slot } from "@radix-ui/react-slot";
-import React, { PropsWithChildren, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Input } from "../ui/input";
@@ -18,21 +16,7 @@ import { Tooltip } from "../ui/tooltip";
 import { createStaticHTMLNotebook } from "@/core/static/download-html";
 import { Constants } from "@/core/constants";
 
-export const ShareStaticNotebookButton: React.FC<PropsWithChildren> = ({
-  children,
-}) => {
-  const { openModal, closeModal } = useImperativeModal();
-
-  return (
-    <Slot
-      onClick={() =>
-        openModal(<ShareStaticNotebookModal onClose={closeModal} />)
-      }
-    >
-      {children}
-    </Slot>
-  );
-};
+const BASE_URL = "https://marimo.io";
 
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
@@ -41,8 +25,9 @@ export const ShareStaticNotebookModal: React.FC<{
   // 4 character random string
   const randomHash = useRef(Math.random().toString(36).slice(2, 6)).current;
 
+  // Globally unique path
   const path = `${slug}-${randomHash}`;
-  const url = `https://marimo.io/static/${path}`;
+  const url = `${BASE_URL}/static/${path}`;
 
   return (
     <DialogContent className="w-fit">
@@ -58,7 +43,7 @@ export const ShareStaticNotebookModal: React.FC<{
             description: "Please wait.",
           });
 
-          await fetch("https://marimo.io/api/static", {
+          await fetch(`${BASE_URL}/api/static`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -107,8 +92,8 @@ export const ShareStaticNotebookModal: React.FC<{
           <DialogDescription>
             You can share a static, non-interactive version of this notebook. We
             will create a link for you that lives on{" "}
-            <a href="https://marimo.io" target="_blank" rel="noreferrer">
-              https://marimo.io
+            <a href={BASE_URL} target="_blank" rel="noreferrer">
+              {BASE_URL}
             </a>
             .
           </DialogDescription>
