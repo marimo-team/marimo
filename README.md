@@ -228,7 +228,7 @@ a greater movement toward reactive dataflow programming. From
 [TensorFlow](https://github.com/tensorflow/tensorflow),
 [PyTorch](https://github.com/pytorch/pytorch/tree/main),
 [JAX](https://github.com/google/jax), and even
-[ReactJS](https://github.com/facebook/react), the ideas of functional,
+[React](https://github.com/facebook/react), the ideas of functional,
 declarative, and reactive programming are transforming a broad range of tools
 for the better.
 
