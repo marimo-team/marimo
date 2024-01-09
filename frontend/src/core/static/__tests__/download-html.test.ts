@@ -87,6 +87,9 @@ describe("download-html", () => {
             id: cellId,
             name: "cell",
             code: "code",
+            config: {
+              hide_code: true,
+            },
           }),
         },
         cellRuntime: { [cellId]: createCellRuntimeState() },

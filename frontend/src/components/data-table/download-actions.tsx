@@ -1,7 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React from "react";
 import { Button } from "../ui/button";
-import { CaretDownIcon } from "@radix-ui/react-icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +9,7 @@ import {
 } from "../ui/dropdown-menu";
 import { toast } from "../ui/use-toast";
 import { downloadByURL } from "@/utils/download";
+import { ChevronDownIcon } from "lucide-react";
 
 export interface DownloadActionProps {
   downloadAs: (req: { format: "csv" | "json" }) => Promise<string>;
@@ -23,7 +23,7 @@ const options = [
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   const button = (
     <Button size="xs" variant="link">
-      Download <CaretDownIcon className="w-3 h-3 ml-1" />
+      Download <ChevronDownIcon className="w-3 h-3 ml-1" />
     </Button>
   );
 
