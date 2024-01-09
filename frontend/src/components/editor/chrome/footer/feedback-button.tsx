@@ -12,6 +12,7 @@ import React, { PropsWithChildren } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
+import { Constants } from "@/core/constants";
 
 export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
   const { openModal, closeModal } = useImperativeModal();
@@ -68,7 +69,7 @@ const FeedbackModal: React.FC<{
             Let us know what you think about marimo! If you have a bug that you
             would like to report, please use the{" "}
             <a
-              href="https://github.com/marimo-team/marimo/issues"
+              href={Constants.issuesPage}
               target="_blank"
               rel="noreferrer"
               className="underline"
