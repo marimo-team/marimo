@@ -70,7 +70,7 @@ export function generateColumns<T>(
         return (row as any)[info.key];
       },
       header: ({ column }) => {
-        return <DataTableColumnHeader title={info.key} column={column} />;
+        return <DataTableColumnHeader header={info.key} column={column} />;
       },
       cell: ({ renderValue, getValue }) => {
         const value = getValue();
@@ -130,7 +130,7 @@ export function generateIndexColumns<T>(
         return keys[idx];
       },
       header: ({ column }) => {
-        return <DataTableColumnHeader title={title} column={column} />;
+        return <DataTableColumnHeader header={title} column={column} />;
       },
       cell: ({ renderValue }) => {
         return <b>{String(renderValue())}</b>;
