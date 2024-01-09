@@ -90,7 +90,12 @@ export const Controls = ({
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown />
           <AppConfigButton />
-          <ShutdownButton onShutdown={onShutdown} />
+          <ShutdownButton
+            onShutdown={() => {
+              onShutdown();
+              window.close();
+            }}
+          />
         </div>
       )}
 
