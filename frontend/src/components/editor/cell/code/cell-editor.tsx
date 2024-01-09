@@ -27,8 +27,8 @@ import {
 import { derefNotNull } from "@/utils/dereference";
 import { LanguageToggle } from "./language-toggle";
 import { cn } from "@/utils/cn";
-import { EyeOpenIcon } from "@radix-ui/react-icons";
 import { saveCellConfig } from "@/core/network/requests";
+import { HideCodeButton } from "../../code/readonly-python-code";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -290,11 +290,7 @@ const CellEditorInternal = ({
           />
         </div>
       )}
-      {hidden && (
-        <div className="absolute inset-0 z-10" onClick={showCode}>
-          <EyeOpenIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100" />
-        </div>
-      )}
+      {hidden && <HideCodeButton onClick={showCode} />}
       <div
         className={cn("cm", hidden && "opacity-20 h-8 overflow-hidden")}
         ref={editorViewParentRef}

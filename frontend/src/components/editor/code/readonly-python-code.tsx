@@ -1,10 +1,10 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import { memo } from "react";
+import { memo, useState } from "react";
 import CodeMirror, {
   EditorView,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
-import { CopyIcon } from "lucide-react";
+import { CopyIcon, EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
@@ -13,18 +13,27 @@ import { cn } from "@/utils/cn";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 
 export const ReadonlyPythonCode = memo(
-  (props: { className?: string; code: string } & ReactCodeMirrorProps) => {
+  (
+    props: {
+      className?: string;
+      code: string;
+      initiallyHideCode?: boolean;
+    } & ReactCodeMirrorProps
+  ) => {
     const { theme } = useThemeForPlugin();
-    const { code, className, ...rest } = props;
+    const { code, className, initiallyHideCode, ...rest } = props;
+    const [hideCode, setHideCode] = useState(initiallyHideCode);
+
     return (
       <div className={cn("relative hover-actions-parent w-full", className)}>
-        <FloatingCopyButton text={code} />
+        {hideCode && <HideCodeButton onClick={() => setHideCode(false)} />}
+        {!hideCode && <FloatingCopyButton text={code} />}
         <CodeMirror
           {...rest}
-          className="cm"
+          className={cn("cm", hideCode && "opacity-20 h-8 overflow-hidden")}
           theme={theme === "dark" ? "dark" : "light"}
           height="100%"
-          editable={true}
+          editable={!hideCode}
           extensions={[customPythonLanguageSupport(), EditorView.lineWrapping]}
           value={code}
           readOnly={true}
@@ -50,5 +59,13 @@ const FloatingCopyButton = (props: { text: string }) => {
     >
       <CopyIcon size={14} strokeWidth={1.5} />
     </Button>
+  );
+};
+
+export const HideCodeButton = (props: { onClick: () => void }) => {
+  return (
+    <div className="absolute inset-0 z-10" onClick={props.onClick}>
+      <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100" />
+    </div>
   );
 };

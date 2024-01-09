@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import React, { memo, useRef, useState } from "react";
-import { CellRuntimeState } from "@/core/cells/types";
+import { CellConfig, CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { OutputArea } from "@/components/editor/Output";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -36,6 +36,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           output={cell.output}
           status={cell.status}
           code={cell.code}
+          config={cell.config}
           stopped={cell.stopped}
           showCode={showCode && canShowCode}
           errored={cell.errored}
@@ -79,6 +80,7 @@ interface VerticalCellProps
     | "runStartTimestamp"
   > {
   cellId: CellId;
+  config: CellConfig;
   code: string;
   mode: AppMode;
   showCode: boolean;
@@ -91,6 +93,7 @@ const VerticalCell = memo(
     status,
     stopped,
     errored,
+    config,
     interrupted,
     runStartTimestamp,
     code,
@@ -131,7 +134,10 @@ const VerticalCell = memo(
             stale={outputStale}
           />
           <div className="tray">
-            <ReadonlyPythonCode code={code} />
+            <ReadonlyPythonCode
+              initiallyHideCode={config.hide_code}
+              code={code}
+            />
           </div>
         </div>
       );
