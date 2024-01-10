@@ -224,7 +224,7 @@ Our inspiration comes from many places and projects, especially
 [ObservableHQ](https://observablehq.com/tutorials), and
 [Bret Victor's essays](http://worrydream.com/). marimo is part of
 a greater movement toward reactive dataflow programming. From
-[Ipyflow](https://github.com/ipyflow/ipyflow), [streamlit](https://github.com/streamlit/streamlit),
+[IPyflow](https://github.com/ipyflow/ipyflow), [streamlit](https://github.com/streamlit/streamlit),
 [TensorFlow](https://github.com/tensorflow/tensorflow),
 [PyTorch](https://github.com/pytorch/pytorch/tree/main),
 [JAX](https://github.com/google/jax), and
