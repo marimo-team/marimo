@@ -112,16 +112,30 @@ def _is_github_issue_url(url: str) -> bool:
 
 
 def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
-    if not is_url(url) or not url.endswith(".html"):
+    def download(url: str) -> tuple[bool, str]:
+        logging.info("Downloading %s", url)
+        request = urllib.request.Request(
+            url,
+            # User agent to avoid 403 Forbidden some bot protection
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        file_contents = urllib.request.urlopen(request).read().decode("utf-8")
+        return STATIC_HTML_CODE_PREFIX in file_contents, str(file_contents)
+
+    # Not a URL
+    if not is_url(url):
         return False, ""
-    logging.info("Downloading %s", url)
-    request = urllib.request.Request(
-        url,
-        # User agent to avoid 403 Forbidden some bot protection
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    file_contents = urllib.request.urlopen(request).read().decode("utf-8")
-    return STATIC_HTML_CODE_PREFIX in file_contents, str(file_contents)
+
+    # Ends with .html, try to download it
+    if url.endswith(".html"):
+        return download(url)
+
+    # Starts with https://marimo.io/static/, append /download
+    if url.startswith("https://marimo.io/static/"):
+        return download(os.path.join(url, "download"))
+
+    # Otherwise, not a static marimo notebook
+    return False, ""
 
 
 def _handle_github_issue(url: str, temp_dir: TemporaryDirectory[str]) -> str:
