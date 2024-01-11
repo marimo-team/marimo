@@ -128,6 +128,9 @@ export const UserConfigForm: React.FC = () => {
             render={({ field }) => (
               <FormItem className="mb-2">
                 <FormLabel>Line length</FormLabel>
+                <FormDescription>
+                  Maximum line length when formatting code.
+                </FormDescription>
                 <FormControl>
                   <span className="inline-flex mx-2">
                     <Input
