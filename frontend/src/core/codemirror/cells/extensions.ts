@@ -113,6 +113,35 @@ export function cellMovementBundle(
       },
     },
     {
+      key: "ArrowUp",
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        const main = ev.state.selection.main;
+        if (main.from === 0 && main.to === 0) {
+          focusUp();
+          return true;
+        }
+        return false;
+      },
+    },
+    {
+      key: "ArrowDown",
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        const main = ev.state.selection.main;
+        if (
+          main.from === ev.state.doc.length &&
+          main.to === ev.state.doc.length
+        ) {
+          focusDown();
+          return true;
+        }
+        return false;
+      },
+    },
+    {
       key: HOTKEYS.getHotkey("cell.focusDown").key,
       preventDefault: true,
       stopPropagation: true,

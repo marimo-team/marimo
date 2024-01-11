@@ -42,7 +42,7 @@ import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { useHotkeysOnElement } from "@/hooks/useHotkey";
+import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
 
 /**
  * Imperative interface of the cell.
@@ -301,6 +301,17 @@ const CellComponent = (
     "cell.focusUp": () => moveToNextCell({ cellId, before: true }),
     "cell.sendToBottom": () => sendToBottom({ cellId }),
     "cell.sendToTop": () => sendToTop({ cellId }),
+  });
+
+  useKeydownOnElement(editing ? cellRef.current : null, {
+    ArrowDown: () => {
+      moveToNextCell({ cellId, before: false, noCreate: true });
+      return true;
+    },
+    ArrowUp: () => {
+      moveToNextCell({ cellId, before: true, noCreate: true });
+      return true;
+    },
   });
 
   if (!editing) {

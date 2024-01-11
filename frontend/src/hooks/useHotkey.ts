@@ -69,3 +69,24 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
     }
   });
 }
+
+/**
+ * Registers a hotkey listener on a given element.
+ */
+export function useKeydownOnElement(
+  element: HTMLElement | null,
+  handlers: Record<string, HotkeyHandler>
+) {
+  useEventListener(element, "keydown", (e) => {
+    for (const [key, callback] of Objects.entries(handlers)) {
+      if (parseShortcut(key)(e)) {
+        const response = callback();
+        // Prevent default if the callback does not return false
+        if (response !== false) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }
+  });
+}
