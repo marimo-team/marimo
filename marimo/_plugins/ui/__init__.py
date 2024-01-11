@@ -10,6 +10,7 @@ __all__ = [
     "batch",
     "button",
     "checkbox",
+    "code_editor",
     "date",
     "dataframe",
     "dictionary",
@@ -38,6 +39,7 @@ from marimo._plugins.ui._impl.dictionary import dictionary
 from marimo._plugins.ui._impl.input import (
     button,
     checkbox,
+    code_editor,
     date,
     dropdown,
     file,
