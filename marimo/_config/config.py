@@ -83,6 +83,17 @@ class DisplayConfig(TypedDict, total=False):
 
     theme: Literal["light", "dark"]
 
+@mddoc
+class FormattingConfig(TypedDict, total=False):
+    """Configuration for code formatting.
+
+    **Keys.**
+
+    - `line_length`: max line length
+    """
+
+    line_length: int
+
 
 class ServerConfig(TypedDict, total=False):
     """Configuration for the server.
@@ -118,6 +129,7 @@ class MarimoConfig(TypedDict, total=False):
 
     completion: CompletionConfig
     display: DisplayConfig
+    formatting: FormattingConfig
     keymap: KeymapConfig
     runtime: RuntimeConfig
     save: SaveConfig
@@ -128,6 +140,7 @@ class MarimoConfig(TypedDict, total=False):
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
     "display": {"theme": "light"},
+    "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},
     "save": {

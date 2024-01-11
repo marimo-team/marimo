@@ -17,10 +17,11 @@ LOGGER = _loggers.marimo_logger()
 class Format:
     # map from cell id to code
     codes: Dict[cell.CellId_t, str]
+    line_length: int
 
 
 class FormatHandler(ValidatedHandler):
-    """Save an app to disk."""
+    """Format code."""
 
     @sessions.requires_edit
     def post(self) -> None:
@@ -37,7 +38,7 @@ class FormatHandler(ValidatedHandler):
         formatted_codes: dict[cell.CellId_t, str] = {}
         for key, code in codes.items():
             try:
-                mode = black.Mode(line_length=79)  # type: ignore
+                mode = black.Mode(line_length=args.line_length)  # type: ignore
                 formatted = black.format_str(code, mode=mode)
                 formatted_codes[key] = formatted.strip()
             except Exception:

@@ -124,6 +124,32 @@ export const UserConfigForm: React.FC = () => {
           </div>
           <FormField
             control={form.control}
+            name="formatting.line_length"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Line length</FormLabel>
+                <FormDescription>
+                  Maximum line length when formatting code.
+                </FormDescription>
+                <FormControl>
+                  <span className="inline-flex mx-2">
+                    <Input
+                      type="number"
+                      className="m-0 w-20 inline-flex"
+                      {...field}
+                      value={field.value}
+                      min={1}
+                      max={1000}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    />
+                  </span>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="completion.activate_on_typing"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">

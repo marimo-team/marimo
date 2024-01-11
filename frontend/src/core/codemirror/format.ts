@@ -13,6 +13,7 @@ import {
   updateEditorCodeFromPython,
 } from "./language/utils";
 import { StateEffect } from "@codemirror/state";
+import { getUserConfig } from "../config/config";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -26,7 +27,10 @@ export async function formatEditorViews(
 ) {
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 
-  const formatResponse = await sendFormat(codes);
+  const formatResponse = await sendFormat({
+    codes,
+    lineLength: getUserConfig().formatting.line_length,
+  });
 
   for (const [cellId, formattedCode] of Objects.entries(formatResponse)) {
     const originalCode = codes[cellId];
