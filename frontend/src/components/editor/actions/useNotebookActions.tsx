@@ -41,16 +41,10 @@ export function useNotebookActions() {
 
   const actions: ActionButton[] = [
     {
-      icon: <ImageIcon size={14} strokeWidth={1.5} />,
-      label: "Export as PNG",
+      icon: <Share2Icon size={14} strokeWidth={1.5} />,
+      label: "Publish as HTML",
       handle: async () => {
-        await runDuringPresentMode(async () => {
-          const app = document.getElementById("App");
-          if (!app) {
-            return;
-          }
-          await downloadHTMLAsImage(app, filename || "screenshot.png");
-        });
+        openModal(<ShareStaticNotebookModal onClose={closeModal} />);
       },
     },
     {
@@ -69,10 +63,16 @@ export function useNotebookActions() {
       },
     },
     {
-      icon: <Share2Icon size={14} strokeWidth={1.5} />,
-      label: "Share as static notebook",
+      icon: <ImageIcon size={14} strokeWidth={1.5} />,
+      label: "Export as PNG",
       handle: async () => {
-        openModal(<ShareStaticNotebookModal onClose={closeModal} />);
+        await runDuringPresentMode(async () => {
+          const app = document.getElementById("App");
+          if (!app) {
+            return;
+          }
+          await downloadHTMLAsImage(app, filename || "screenshot.png");
+        });
       },
     },
     {
