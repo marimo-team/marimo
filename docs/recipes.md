@@ -80,7 +80,7 @@ import marimo as mo
 2. Create a submittable form.
 
 ```python
-form = mo.text(label="Your name").form()
+form = mo.ui.text(label="Your name").form()
 form
 ```
 
@@ -106,7 +106,7 @@ import marimo as mo
 2. Create a submittable form.
 
 ```python
-form = mo.text(label="Your name").form()
+form = mo.ui.text(label="Your name").form()
 form
 ```
 
