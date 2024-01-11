@@ -22,6 +22,10 @@ export interface FormatRequest {
    * mapping of cell ids to code
    */
   codes: Record<CellId, string>;
+  /**
+   * line-length
+   */
+  lineLength: number;
 }
 
 export interface FormatResponse {
@@ -116,9 +120,7 @@ export interface EditRequests {
   sendRun: (cellIds: CellId[], codes: string[]) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
-  sendFormat: (
-    codes: Record<CellId, string>
-  ) => Promise<Record<CellId, string>>;
+  sendFormat: (request: FormatRequest) => Promise<Record<CellId, string>>;
   sendDeleteCell: (cellId: CellId) => Promise<null>;
   sendDirectoryAutocompleteRequest: (
     prefix: string

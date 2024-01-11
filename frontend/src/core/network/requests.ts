@@ -60,10 +60,11 @@ function createNetworkRequests(): EditRequests & RunRequests {
 
       return API.post<SaveKernelRequest>("/kernel/save/", request);
     },
-    sendFormat: (codes: Record<CellId, string>) => {
-      return API.post<FormatRequest, FormatResponse>("/kernel/format/", {
-        codes: codes,
-      }).then((res) => res.codes);
+    sendFormat: (request: FormatRequest) => {
+      return API.post<FormatRequest, FormatResponse>(
+        "/kernel/format/",
+        request
+      ).then((res) => res.codes);
     },
     sendInterrupt: () => {
       return API.post("/kernel/interrupt/", {});

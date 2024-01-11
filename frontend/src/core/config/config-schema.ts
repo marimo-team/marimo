@@ -22,6 +22,15 @@ export const UserConfigSchema = z
         .default(1000),
       format_on_save: z.boolean().default(false),
     }),
+    formatting: z
+      .object({
+        line_length: z
+          .number()
+          .nonnegative()
+          .default(79)
+          .transform((n) => Math.min(n, 1000)),
+      })
+      .default({ line_length: 79 }),
     keymap: z.object({
       preset: z.enum(["default", "vim"]).default("default"),
     }),
