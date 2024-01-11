@@ -4,15 +4,12 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Labeled } from "./common/labeled";
 import { Theme, getTheme } from "@/theme/useTheme";
-import ReactCodeMirror from "@uiw/react-codemirror";
-import { loadLanguage, langs } from "@uiw/codemirror-extensions-langs";
+import { lazy } from "react";
 
 type T = string;
 
-type Lang = keyof typeof langs;
-
 interface Data {
-  language: Lang;
+  language: string;
   placeholder: string;
   theme: Theme;
   label: string | null;
@@ -25,7 +22,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.string(),
-    language: z.enum(Object.keys(langs) as [Lang]),
+    language: z.string().default("python"),
     placeholder: z.string(),
     theme: z.enum(["light", "dark"]).default("light"),
     label: z.string().nullable(),
@@ -44,6 +41,10 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
   }
 }
 
+const LazyAnyLanguageCodeMirror = lazy(
+  () => import("./code/any-language-editor")
+);
+
 interface CodeEditorComponentProps extends Data {
   value: T;
   setValue: Setter<T>;
@@ -55,14 +56,14 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
 
   return (
     <Labeled label={props.label} align="top">
-      <ReactCodeMirror
+      <LazyAnyLanguageCodeMirror
         className={`cm [&>*]:outline-none border rounded overflow-hidden ${theme}`}
         theme={theme === "dark" ? "dark" : "light"}
         minHeight={minHeight}
         placeholder={props.placeholder}
         editable={!props.disabled}
         value={props.value}
-        extensions={[loadLanguage(props.language)].filter(Boolean)}
+        language={props.language}
         onChange={(value) => props.setValue(value)}
       />
     </Labeled>
