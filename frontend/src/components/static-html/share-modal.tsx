@@ -90,8 +90,8 @@ export const ShareStaticNotebookModal: React.FC<{
         <DialogHeader>
           <DialogTitle>Share static notebook</DialogTitle>
           <DialogDescription>
-            You can share a static, non-interactive version of this notebook. We
-            will create a link for you that lives on{" "}
+            You can publish a static, non-interactive version of this notebook
+            to the public web. We will create a link for you that lives on{" "}
             <a href={BASE_URL} target="_blank" rel="noreferrer">
               {BASE_URL}
             </a>
@@ -116,7 +116,7 @@ export const ShareStaticNotebookModal: React.FC<{
           />
 
           <div className="font-semibold text-sm text-muted-foreground gap-2 flex flex-col">
-            You will be able to access your notebook at this URL:
+            Anyone will be able to access your notebook at this URL:
             <div className="flex items-center gap-2">
               <CopyButton text={url} />
               <span className="text-primary">{url}</span>
