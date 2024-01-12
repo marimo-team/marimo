@@ -46,8 +46,8 @@ export async function formatEditorViews(
       continue;
     }
 
-    updateEditorCodeFromPython(view, formattedCode);
     updateCellCode({ cellId, code: formattedCode, formattingChange: true });
+    updateEditorCodeFromPython(view, formattedCode);
   }
 }
 
