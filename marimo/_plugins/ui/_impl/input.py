@@ -430,6 +430,67 @@ class text_area(UIElement[str, str]):
 
 
 @mddoc
+class code_editor(UIElement[str, str]):
+    """
+    A code editor.
+
+    **Example.**
+
+    ```python
+    code_editor = mo.ui.code_editor()
+    ```
+
+    **Attributes.**
+
+    - `value`: a string of the code editor contents
+
+    **Initialization Args.**
+
+    - `value`: initial value of the code editor
+    - `language`: language of the code editor, defaults to `"python"`; most
+        major languages are supported, including "sql", "javascript",
+        "typescript", "html", "css", "c", "cpp", "rust", and more
+    - `placeholder`: placeholder text to display when the code editor is empty
+    - `theme`: theme of the code editor, defaults to `"light"`
+    - `disabled`: whether the input is disabled
+    - `min_height`: minimum height of the code editor in pixels
+    - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
+    """
+
+    _name: Final[str] = "marimo-code-editor"
+
+    def __init__(
+        self,
+        value: str = "",
+        language: str = "python",
+        placeholder: str = "",
+        theme: Literal["light", "dark"] = "light",
+        disabled: bool = False,
+        min_height: Optional[int] = None,
+        *,
+        label: str = "",
+        on_change: Optional[Callable[[str], None]] = None,
+    ) -> None:
+        super().__init__(
+            component_name=code_editor._name,
+            initial_value=value,
+            label=label,
+            args={
+                "language": language,
+                "placeholder": placeholder,
+                "theme": theme,
+                "disabled": disabled,
+                "min-height": min_height,
+            },
+            on_change=on_change,
+        )
+
+    def _convert_value(self, value: str) -> str:
+        return value
+
+
+@mddoc
 class dropdown(UIElement[List[str], Any]):
     """
     A dropdown menu.

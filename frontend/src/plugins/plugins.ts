@@ -32,6 +32,7 @@ import { VegaPlugin } from "./impl/vega/VegaPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
 import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
+import { CodeEditorPlugin } from "./impl/CodeEditorPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -40,6 +41,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   DataTablePlugin,
   new DatePickerPlugin(),
   new DictPlugin(),
+  new CodeEditorPlugin(),
   new DropdownPlugin(),
   new FileUploadPlugin(),
   new FormPlugin(),

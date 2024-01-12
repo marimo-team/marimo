@@ -16,8 +16,8 @@ export const CodePanel: React.FC<Props> = ({ transforms, dataframeName }) => {
 
   return (
     <ReadonlyPythonCode
-      className="min-h-[200px]"
-      minHeight="200px"
+      minHeight="215px"
+      maxHeight="215px"
       code={pythonPrintTransforms(dataframeName, transforms.transforms)}
     />
   );
