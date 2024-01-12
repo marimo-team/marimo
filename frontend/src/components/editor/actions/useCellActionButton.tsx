@@ -110,7 +110,7 @@ export function useCellActionButtons({
       },
       {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,
-        label: "Export as PNG",
+        label: "Export output as PNG",
         hidden: !hasOutput,
         handle: () => downloadCellOutput(cellId),
       },

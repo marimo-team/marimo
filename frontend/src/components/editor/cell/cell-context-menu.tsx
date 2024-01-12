@@ -13,7 +13,12 @@ import {
 } from "@/components/ui/context-menu";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
 import { ActionButton } from "../actions/types";
-import { ClipboardPasteIcon, CopyIcon, ScissorsIcon } from "lucide-react";
+import {
+  ClipboardPasteIcon,
+  CopyIcon,
+  ImageIcon,
+  ScissorsIcon,
+} from "lucide-react";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -21,6 +26,8 @@ interface Props extends CellActionButtonProps {
 
 export const CellActionsContextMenu = ({ children, ...props }: Props) => {
   const actions = useCellActionButtons(props);
+  const [imageRightClicked, setImageRightClicked] =
+    React.useState<HTMLImageElement>();
 
   const DEFAULT_CONTEXT_MENU_ITEMS: ActionButton[] = [
     {
@@ -60,15 +67,42 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         }
       },
     },
+    {
+      icon: <ImageIcon size={13} strokeWidth={1.5} />,
+      label: "Download image",
+      hidden: !imageRightClicked,
+      handle: () => {
+        if (imageRightClicked) {
+          const link = document.createElement("a");
+          link.download = "image.png";
+          link.href = imageRightClicked.src;
+          link.click();
+        }
+      },
+    },
   ];
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild={true}>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger
+        onContextMenu={(evt) => {
+          if (evt.target instanceof HTMLImageElement) {
+            setImageRightClicked(evt.target);
+          } else {
+            setImageRightClicked(undefined);
+          }
+        }}
+        asChild={true}
+      >
+        {children}
+      </ContextMenuTrigger>
       <ContextMenuContent className="w-[300px]">
         {[DEFAULT_CONTEXT_MENU_ITEMS, ...actions].map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {
+              if (action.hidden) {
+                return null;
+              }
               return (
                 <ContextMenuItem
                   key={action.label}
