@@ -1,6 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 
 export function prettyError(error: unknown) {
+  if (typeof error === "string") {
+    return error;
+  }
   if (error instanceof Error) {
     return error.message;
   }

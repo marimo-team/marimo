@@ -7,6 +7,7 @@ import {
 } from "@uiw/codemirror-extensions-langs";
 import React from "react";
 import { Logger } from "@/utils/Logger";
+import { ErrorBanner } from "../common/error-banner";
 
 /**
  * A code editor that supports any language.
@@ -19,18 +20,29 @@ const AnyLanguageCodeMirror: React.FC<
     language: string;
   }
 > = ({ language, extensions = [], ...props }) => {
-  if (!(language in langs)) {
+  const isNotSupported = !(language in langs);
+  if (isNotSupported) {
     Logger.warn(`Language ${language} not found in CodeMirror.`);
   }
 
   return (
-    <ReactCodeMirror
-      {...props}
-      extensions={[
-        loadLanguage(language as LanguageName),
-        ...extensions,
-      ].filter(Boolean)}
-    />
+    <>
+      {isNotSupported && (
+        <ErrorBanner
+          className="mb-1 rounded-sm"
+          error={`Language ${language} not supported. \n\nSupported languages are: ${Object.keys(
+            langs
+          ).join(", ")}`}
+        />
+      )}
+      <ReactCodeMirror
+        {...props}
+        extensions={[
+          loadLanguage(language as LanguageName),
+          ...extensions,
+        ].filter(Boolean)}
+      />
+    </>
   );
 };
 
