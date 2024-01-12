@@ -14,6 +14,7 @@ import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
 import { AppChrome } from "../components/editor/chrome/wrapper/app-chrome";
 import { StaticBanner } from "../components/static-html/static-banner";
+import { CssVariables } from "@/theme/ThemeProvider";
 
 /**
  * The root component of the Marimo app.
@@ -45,7 +46,15 @@ export const MarimoApp: React.FC = () => {
     <ErrorBoundary>
       <TooltipProvider>
         <DayPickerProvider initialProps={{}}>
-          <ModalProvider>{body}</ModalProvider>
+          <ModalProvider>
+            <CssVariables
+              variables={{
+                "--marimo-api-code-editor-font-size": `${userConfig.display.code_editor_font_size}px`,
+              }}
+            >
+              {body}
+            </CssVariables>
+          </ModalProvider>
         </DayPickerProvider>
       </TooltipProvider>
     </ErrorBoundary>

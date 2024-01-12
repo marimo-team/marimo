@@ -220,6 +220,29 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="display.code_editor_font_size"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Code editor font size</FormLabel>
+                <FormControl>
+                  <span className="inline-flex mx-2">
+                    <Input
+                      type="number"
+                      className="m-0 w-20 inline-flex"
+                      {...field}
+                      value={field.value}
+                      min={8}
+                      max={20}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    />
+                  </span>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <div className="flex flex-col gap-3">
           <SettingSubtitle>Runtime</SettingSubtitle>

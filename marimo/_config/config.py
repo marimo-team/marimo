@@ -79,9 +79,12 @@ class DisplayConfig(TypedDict, total=False):
     **Keys.**
 
     - `theme`: `"light"` or `"dark"`
+    - `code_editor_font_size`: font size for the code editor
     """
 
     theme: Literal["light", "dark"]
+    code_editor_font_size: int
+
 
 @mddoc
 class FormattingConfig(TypedDict, total=False):
@@ -139,7 +142,10 @@ class MarimoConfig(TypedDict, total=False):
 
 DEFAULT_CONFIG: MarimoConfig = {
     "completion": {"activate_on_typing": True, "copilot": False},
-    "display": {"theme": "light"},
+    "display": {
+        "theme": "light",
+        "code_editor_font_size": 14,
+    },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},
     "runtime": {"auto_instantiate": True},

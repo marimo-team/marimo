@@ -42,8 +42,12 @@ export const UserConfigSchema = z
     display: z
       .object({
         theme: z.enum(["light", "dark"]).default("light"),
+        code_editor_font_size: z.number().nonnegative().default(14),
       })
-      .default({ theme: "light" }),
+      .default({
+        theme: "light",
+        code_editor_font_size: 14,
+      }),
     experimental: z
       .object({
         layouts: z.boolean().optional(),

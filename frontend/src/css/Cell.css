@@ -284,7 +284,7 @@
 }
 
 .cm-editor {
-  font-size: 0.875rem;
+  font-size: var(--marimo-api-code-editor-font-size);
   border: 1px solid transparent;
   padding: 3px;
 
@@ -318,7 +318,7 @@
   }
 
   .cm-content {
-    font-size: 0.875rem;
+    font-size: var(--marimo-api-code-editor-font-size);
     font-family: var(--monospace-font);
   }
 }
