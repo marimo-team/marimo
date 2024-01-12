@@ -40,7 +40,7 @@ _Jump to the [quickstart](#quickstart) for a primer on our CLI._
 
 ## A reactive programming environment
 
-marimo guarantees your notebook code, outputs, and program state are consistent.
+marimo guarantees your notebook code, outputs, and program state are consistent. This [solves many problems](https://docs.marimo.io/faq.html#faq-problems) associated with traditional notebooks like Jupyter.
 
 **A reactive programming environment.**
 Run a cell and marimo _reacts_ by automatically running the cells that
