@@ -16,7 +16,7 @@ import { Tooltip } from "../ui/tooltip";
 import { createStaticHTMLNotebook } from "@/core/static/download-html";
 import { Constants } from "@/core/constants";
 
-const BASE_URL = "https://marimo.io";
+const BASE_URL = "https://static.marimo.app";
 
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
