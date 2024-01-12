@@ -437,7 +437,7 @@ class code_editor(UIElement[str, str]):
     **Example.**
 
     ```python
-    code_editor = mo.ui.code()
+    code_editor = mo.ui.code_editor()
     ```
 
     **Attributes.**
@@ -447,7 +447,9 @@ class code_editor(UIElement[str, str]):
     **Initialization Args.**
 
     - `value`: initial value of the code editor
-    - `language`: language of the code editor, defaults to `"python"`
+    - `language`: language of the code editor, defaults to `"python"`; most
+        major languages are supported, including "sql", "javascript",
+        "typescript", "html", "css", "c", "cpp", "rust", and more
     - `placeholder`: placeholder text to display when the code editor is empty
     - `theme`: theme of the code editor, defaults to `"light"`
     - `disabled`: whether the input is disabled
