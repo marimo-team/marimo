@@ -21,7 +21,7 @@ export const ThemeProvider: React.FC<PropsWithChildren> = memo(
 ThemeProvider.displayName = "ThemeProvider";
 
 export const CssVariables: React.FC<{
-  variables: Record<`--marimo-api-${string}`, string>;
+  variables: Record<`--marimo-${string}`, string>;
   children: React.ReactNode;
 }> = ({ variables, children }) => {
   return (
