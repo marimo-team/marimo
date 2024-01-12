@@ -27,7 +27,7 @@ export const AppConfigButton = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80"
+        className="w-80 h-[90vh] overflow-auto"
         align="end"
         side="bottom"
         // prevent focus outside to hack around a bug in which
