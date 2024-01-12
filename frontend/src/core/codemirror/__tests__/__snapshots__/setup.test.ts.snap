@@ -5,6 +5,12 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
   "ArrowDown": [
     {
       "key": "ArrowDown",
+      "preventDefault": true,
+      "run": "run",
+      "stopPropagation": true,
+    },
+    {
+      "key": "ArrowDown",
       "run": "<no name>",
     },
     {
@@ -15,6 +21,12 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
   ],
   "ArrowUp": [
+    {
+      "key": "ArrowUp",
+      "preventDefault": true,
+      "run": "run",
+      "stopPropagation": true,
+    },
     {
       "key": "ArrowUp",
       "run": "<no name>",
@@ -117,6 +129,12 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
   "ArrowDown": [
     {
       "key": "ArrowDown",
+      "preventDefault": true,
+      "run": "run",
+      "stopPropagation": true,
+    },
+    {
+      "key": "ArrowDown",
       "run": "<no name>",
     },
     {
@@ -127,6 +145,12 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
   ],
   "ArrowUp": [
+    {
+      "key": "ArrowUp",
+      "preventDefault": true,
+      "run": "run",
+      "stopPropagation": true,
+    },
     {
       "key": "ArrowUp",
       "run": "<no name>",
