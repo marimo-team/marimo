@@ -130,8 +130,8 @@ def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
     if url.endswith(".html"):
         return download(url)
 
-    # Starts with https://marimo.io/static/, append /download
-    if url.startswith("https://marimo.io/static/"):
+    # Starts with https://marimo.app/static/, append /download
+    if url.startswith("https://marimo.app/static/"):
         return download(os.path.join(url, "download"))
 
     # Otherwise, not a static marimo notebook
