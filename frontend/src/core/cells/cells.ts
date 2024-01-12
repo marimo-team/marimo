@@ -415,13 +415,16 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
    *
    * Replicates Shift+Enter functionality of Jupyter
    */
-  moveToNextCell: (state, action: { cellId: CellId; before: boolean }) => {
-    const { cellId, before } = action;
+  moveToNextCell: (
+    state,
+    action: { cellId: CellId; before: boolean; noCreate?: boolean }
+  ) => {
+    const { cellId, before, noCreate = false } = action;
     const index = state.cellIds.indexOf(cellId);
     const nextCellIndex = before ? index - 1 : index + 1;
     // Create a new cell at the end; no need to update scrollKey,
     // because cell will be created with autoScrollIntoView
-    if (nextCellIndex === state.cellIds.length) {
+    if (nextCellIndex === state.cellIds.length && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -441,7 +444,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       };
       // Create a new cell at the beginning; again, no need to update
       // scrollKey
-    } else if (nextCellIndex === -1) {
+    } else if (nextCellIndex === -1 && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
