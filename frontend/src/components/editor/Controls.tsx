@@ -4,8 +4,8 @@ import {
   SaveIcon,
   EditIcon,
   PlayIcon,
-  RotateCcwIcon,
   SquareIcon,
+  Undo2Icon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
@@ -75,7 +75,7 @@ export const Controls = ({
           shape="circle"
           onClick={undoDeleteCell}
         >
-          <RotateCcwIcon size={16} strokeWidth={1.5} />
+          <Undo2Icon size={16} strokeWidth={1.5} />
         </Button>
       </Tooltip>
     );
