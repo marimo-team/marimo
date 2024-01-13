@@ -22,7 +22,7 @@ def __(mo, np):
 @app.cell
 def __(amplitude, mo, period):
     mo.md(
-        f"""
+        rf"""
         Here's a plot of
         $f(x) = {amplitude.value:.02f}\sin((2\pi/{period.value:.02f}) x)$:
         """
