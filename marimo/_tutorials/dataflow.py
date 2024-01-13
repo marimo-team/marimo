@@ -119,11 +119,11 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
     def plot_wave(amplitude, period):
         if not numpy_installed:
             return mo.md(
-                "> `Oops! It looks like you don't have `numpy` installed.`"
+                "> Oops! It looks like you don't have `numpy` installed."
             )
         if not matplotlib_installed:
             return mo.md(
-                "> `Oops! It looks like you dont' have `matplotlib` installed."
+                "> Oops! It looks like you don't have `matplotlib` installed."
             )
         x = np.linspace(0, 2 * np.pi, 256)
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
