@@ -184,7 +184,7 @@ def __(missing_numpy_msg, mo, np, numpy_installed):
         try:
             import pandas as pd
         except ModuleNotFoundError:
-            return mo.md("`Oops! Looks like you don't have pandas installed.`")
+            return mo.md("Oops! Looks like you don't have `pandas` installed.")
 
         if not numpy_installed:
             return missing_numpy_msg
@@ -317,9 +317,9 @@ def __(amplitude, mo, period, plotsin):
 def __(mo):
     matplotlib_installed = False
     numpy_installed = False
-    missing_numpy_msg = mo.md("`Oops! Looks like you don't have numpy installed.`")
+    missing_numpy_msg = mo.md("Oops! Looks like you don't have `numpy` installed.")
     missing_matplotlib_msg = mo.md(
-        "`Oops! Looks like you don't have matplotlib installed.`"
+        "Oops! Looks like you don't have `matplotlib` installed."
     )
 
     try:
