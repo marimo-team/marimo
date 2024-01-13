@@ -15,7 +15,7 @@ def __(array, ax, dictionary, mo, plots, table, text):
     tabs = mo.tabs(
         {
             "markdown": mo.md(
-                """
+                r"""
                 Use `mo.md` to write markdown, with support for LaTeX:
 
                 \[
