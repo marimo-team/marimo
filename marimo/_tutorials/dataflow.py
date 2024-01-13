@@ -131,7 +131,7 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
         plt.ylim(-2, 2)
         plt.xticks(
             [0, np.pi / 2, np.pi, 3 * np.pi / 2, 2 * np.pi],
-            [0, "$\pi/2$", "$\pi$", "$3\pi/2$", "$2\pi$"],
+            [0, r"$\pi/2$", r"$\pi$", r"$3\pi/2$", r"$2\pi$"],
         )
         plt.yticks([-2, -1, 0, 1, 2])
         plt.gcf().set_size_inches(6.5, 2.4)

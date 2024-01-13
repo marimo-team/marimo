@@ -298,7 +298,7 @@ def __(amplitude, mo, period):
 @app.cell
 def __(amplitude, mo, period, plotsin):
     mo.md(
-        f"""
+        rf"""
 
         You're viewing the graph of
 
