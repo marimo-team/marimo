@@ -322,7 +322,7 @@ def __(mo):
 @app.cell
 def __(mo):
     callout_kind = mo.ui.dropdown(
-        ["neutral", "alert", "warn", "success"], value="neutral"
+        ["neutral", "warn", "success", "info", "danger"], value="neutral"
     )
     return callout_kind,
 
