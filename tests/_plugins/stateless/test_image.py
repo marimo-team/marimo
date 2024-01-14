@@ -1,4 +1,8 @@
 # Copyright 2023 Marimo. All rights reserved.
+import sys
+
+import pytest
+
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -60,3 +64,22 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 0
+
+
+# TODO(akshayka): Debug on Windows
+@pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
+def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
+    # Just opens a file that exists, and make sure it gets registered
+    # in the virtual path registry
+    with open(__file__, encoding="utf-8") as f:
+        k.run(
+            [
+                exec_req.get(
+                    f"""
+                    import marimo as mo
+                    image = mo.image('{f.name}')
+                    """
+                ),
+            ]
+        )
+        assert len(get_context().virtual_file_registry.registry) == 1

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 from typing import Any, Optional, Union
 
 import marimo._output.data.data as mo_data
@@ -23,9 +24,15 @@ def image(
 ) -> Html:
     """Render an image as HTML.
 
-    **Example.**
+    **Examples.**
 
     ```python3
+    # Render an image from a local file
+    mo.image(src="path/to/image.png")
+    ```
+
+    ```python3
+    # Render an image from a URL
     mo.image(
         src="https://marimo.io/logo.png",
         alt="Marimo logo",
@@ -33,14 +40,12 @@ def image(
         height=100,
         rounded=True,
     )
-
-    with open("logo.png", "rb") as file:
-        mo.image(src=file)
     ```
 
     **Args.**
 
-    - `src`: the URL of the image or a file-like object
+    - `src`: a path or URL to an image, or a file-like object
+        (opened in binary mode)
     - `alt`: the alt text of the image
     - `width`: the width of the image in pixels
     - `height`: the height of the image in pixels
@@ -58,6 +63,11 @@ def image(
         resolved_src = mo_data.image(src.read()).url
     elif isinstance(src, bytes):
         resolved_src = mo_data.image(src).url
+    elif isinstance(src, str) and os.path.isfile(src):
+        with open(src, "rb") as f:
+            resolved_src = mo_data.image(
+                f.read(), ext=os.path.splitext(src)[1]
+            ).url
     else:
         resolved_src = io_to_data_url(src, fallback_mime_type="image/png")
 
