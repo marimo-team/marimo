@@ -25,6 +25,8 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+
     /* Radix light colors for reference: https://github.com/radix-ui/colors/blob/main/src/light.ts */
 
     --background: 0 0% 100%;
@@ -95,6 +97,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     /* Radix dark colors for reference: https://github.com/radix-ui/colors/blob/main/src/dark.ts */
 
     --background: 150 7.7% 10.2%; /* sage-2 */

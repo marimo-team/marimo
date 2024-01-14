@@ -32,7 +32,3 @@ body,
 code {
   font-family: var(--monospace-font);
 }
-
-select option {
-  @apply bg-background;
-}
