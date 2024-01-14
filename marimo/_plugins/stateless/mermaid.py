@@ -9,7 +9,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 @mddoc
 def mermaid(diagram: str) -> Html:
     """
-    A Mermaid diagram.
+    Render a diagram with Mermaid.
 
     **Examples.**
 
@@ -23,6 +23,10 @@ def mermaid(diagram: str) -> Html:
     '''
     mo.mermaid(diagram)
     ```
+
+    Mermaid is a tool for making diagrams such as flow charts and graphs. See
+    the [Mermaid documentation](https://github.com/mermaid-js/mermaid#readme)
+    for details.
 
     **Args.**
 
