@@ -1,9 +1,11 @@
 # Copyright 2023 Marimo. All rights reserved.
+import os
+import tempfile
+
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
-import tempfile
 
 
 def test_image() -> None:
@@ -64,7 +66,11 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
-    with tempfile.NamedTemporaryFile(suffix=".jpg") as tmp:
+    # In Windows, manual cleanup is required to support re-opening the file
+    # https://docs.python.org/3/library/tempfile.html#tempfile.NamedTemporaryFile  # noqa
+    tmp = None
+    try:
+        tmp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
         tmp.write(b"hello")
         tmp.seek(0)
         k.run(
@@ -78,3 +84,7 @@ def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
             ]
         )
         assert len(get_context().virtual_file_registry.registry) == 1
+    finally:
+        if tmp is not None:
+            tmp.close()
+            os.remove(tmp.name)
