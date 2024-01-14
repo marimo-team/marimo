@@ -15,7 +15,7 @@ import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
 import { useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ErrorBanner } from "../common/error-banner";
+import { Banner, ErrorBanner } from "../common/error-banner";
 
 /**
  * Arguments for a data table
@@ -33,6 +33,8 @@ interface Data {
 type PluginFunctions = {
   get_dataframe: (req: {}) => Promise<{
     url: string;
+    has_more: boolean;
+    total_rows: number;
     row_headers: Array<[string, string[]]>;
   }>;
   get_column_values: (req: { column: string }) => Promise<{
@@ -60,6 +62,8 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
     get_dataframe: rpc.input(z.object({})).output(
       z.object({
         url: z.string(),
+        has_more: z.boolean(),
+        total_rows: z.number(),
         row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
       })
     ),
@@ -102,7 +106,7 @@ export const DataFrameComponent = ({
     () => get_dataframe({}),
     [value?.transforms]
   );
-  const { url, row_headers } = data || {};
+  const { url, has_more, total_rows, row_headers } = data || {};
 
   const [internalValue, setInternalValue] = useState<Transformations>(
     value || EMPTY
@@ -145,6 +149,9 @@ export const DataFrameComponent = ({
         </TabsContent>
       </Tabs>
       {error && <ErrorBanner error={error} />}
+      {has_more && total_rows && (
+        <Banner>Result clipped. Total rows {prettyNumber(total_rows)}.</Banner>
+      )}
       <LoadingDataTableComponent
         label={null}
         className="rounded-b border-x border-b"
@@ -161,3 +168,7 @@ export const DataFrameComponent = ({
     </div>
   );
 };
+
+function prettyNumber(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
