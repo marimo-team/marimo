@@ -216,7 +216,7 @@ import marimo as mo
 
 2. Create an HTML template, and use [`Html.batch`](api/html.md#marimo.Html.batch)
 to interpolate UI elements into it to create a new UI element batching the
-consituent ones (like `mo.ui.dictionary`).
+constituent ones (like `mo.ui.dictionary`).
 
 ```python
 # n_items, checkboxes, and texts are just example data: replace them
@@ -285,7 +285,7 @@ import marimo as mo
 
 2. Create an HTML template, and use [`Html.batch`](api/html.md#marimo.Html.batch)
 to interpolate UI elements into it to create a new UI element batching the
-consituent ones (like `mo.ui.dictionary`).
+constituent ones (like `mo.ui.dictionary`).
 
 ```python
 import random
@@ -433,7 +433,7 @@ button
 mo.md("True!") if button.value else mo.md("False!")
 ```
 
-### Re-run a cell when a buton is pressed
+### Re-run a cell when a button is pressed
 
 **Use cases.** For example, you have a cell showing a random sample of data,
 and you want to resample on button press.

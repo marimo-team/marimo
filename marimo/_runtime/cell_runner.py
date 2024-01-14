@@ -85,7 +85,7 @@ class RunResult:
     exception: Optional[Exception | MarimoInterrupt | MarimoStopError]
 
     def success(self) -> bool:
-        """Whether the cell exected successfully"""
+        """Whether the cell expected successfully"""
         return self.exception is None
 
 
@@ -176,7 +176,7 @@ class Runner:
         (3) means that a state update in a given cell will never re-trigger
         the same cell to run. This is similar to how interacting with
         a UI element in the cell that created it won't re-trigger the cell,
-        and this behavior is useful when tieing UI elements together with a
+        and this behavior is useful when tying UI elements together with a
         state object.
 
         **Arguments.**

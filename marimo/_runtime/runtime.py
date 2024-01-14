@@ -563,7 +563,7 @@ class Kernel:
         LOGGER.debug("preparing to evaluate cells %s", cell_ids)
 
         # Status updates: cells transition to queued, except for
-        # cells that are disabled (explicity or implicitly).
+        # cells that are disabled (explicitly or implicitly).
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
                 self.graph.cells[cid].set_status(status="stale")

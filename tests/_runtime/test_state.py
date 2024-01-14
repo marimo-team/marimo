@@ -127,7 +127,7 @@ def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert "y" not in k.globals
 
 
-def test_set_state_with_overriden_eq(
+def test_set_state_with_overridden_eq(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
     create_class = """

@@ -25,7 +25,7 @@ export function getColumnInfo<T>(items: T[]): ColumnInfo[] {
     if (typeof item !== "object") {
       return;
     }
-    // We will be a bit defensive and assume values are not homogenous.
+    // We will be a bit defensive and assume values are not homogeneous.
     // If any is a mimetype, then we will treat it as a mimetype (i.e. not sortable)
     Object.entries(item as object).forEach(([key, value]) => {
       const currentValue = keys.get(key);

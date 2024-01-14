@@ -192,7 +192,7 @@ class TestParseRaw:
             parsed = parse_raw(serialize({"config": "invalid"}), Nested)
             assert "invalid" in str(e.value)
 
-    def test_descriminated_union(self) -> None:
+    def test_discriminated_union(self) -> None:
         @dataclass
         class Nested:
             config: Union[Dog, Cat]

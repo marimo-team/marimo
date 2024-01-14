@@ -105,7 +105,7 @@
 
 /* -- Completion Info -- */
 
-/* Compeltion Symbol */
+/* Compeletion Symbol */
 #App .cm-tooltip-autocomplete {
   /* CodeMirror's default is too wide. */
   max-width: 200px;
@@ -132,7 +132,7 @@
 
 #App .cm-completionInfo.cm-completionInfo-right-narrow {
   /* CodeMirror's default makes the completionInfo overlap with the
-   * compeltion symbol */
+   * compeletion symbol */
   left: 100%;
 }
 

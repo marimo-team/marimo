@@ -55,7 +55,7 @@
   padding-top: 2px;
   padding-bottom: 2px;
 
-  /* content-visiblity is set by material UI;
+  /* content-visibility is set by material UI;
    * when set on an element that has overflow auto, causes abrupt jumps when
    * scrolling in Chrome */
   content-visibility: unset;

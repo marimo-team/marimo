@@ -19,10 +19,10 @@ import { atom, useAtom } from "jotai";
 import { useNotebookActions } from "./actions/useNotebookActions";
 import { Objects } from "@/utils/objects";
 
-export const commandPalletteAtom = atom(false);
+export const commandPaletteAtom = atom(false);
 
-export const CommandPallette = () => {
-  const [open, setOpen] = useAtom(commandPalletteAtom);
+export const CommandPalette = () => {
+  const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
   const notebookActions = useNotebookActions();
   const notebookActionsWithoutHotkeys = notebookActions.filter(

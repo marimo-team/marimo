@@ -39,7 +39,7 @@ def set_level(level: str | int = logging.WARN) -> None:
         logging.ERROR,
         logging.CRITICAL,
     ]:
-        raise ValueError("Unrecongized log level %s" % level)
+        raise ValueError("Unrecognized log level %s" % level)
     else:
         _LOG_LEVEL = level
 

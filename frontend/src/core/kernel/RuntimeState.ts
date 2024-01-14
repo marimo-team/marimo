@@ -88,7 +88,7 @@ export class RuntimeState {
           })).filter((update) => update.value !== undefined)
         )
         .catch(() => {
-          // This happens if the run was failed ot register (401, 403, network error, etc.)
+          // This happens if the run was failed to register (401, 403, network error, etc.)
           // If the run fails, restore the components to update and finish the run
           // A run may fail if the kernel is restarted or the notebook is closed,
           // but if we don't restore registerRunEnd() will never be able to flush updates.

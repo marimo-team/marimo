@@ -13,7 +13,7 @@ from marimo._utils.parse_dataclass import parse_raw
 
 @dataclass
 class SetCellConfig:
-    # Map from Cell ID to (possibily partial) CellConfig
+    # Map from Cell ID to (possibly partial) CellConfig
     configs: Dict[CellId_t, Dict[str, object]]
 
 

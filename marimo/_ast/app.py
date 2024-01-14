@@ -220,7 +220,7 @@ class App:
             # ids of cells to add to the graph, in the order that they
             # were registered with the app
             self._cell_ids = [
-                # exclude unparseable cells from graph
+                # exclude unparsable cells from graph
                 cell_data.cell_id
                 for cell_data in self._cell_data.values()
                 if cell_data.cell_function is not None
@@ -294,7 +294,7 @@ class App:
             tuple(
                 outputs[cid]
                 for cid in self._registration_order
-                # exclude unparseable cells
+                # exclude unparsable cells
                 if cid in outputs
             ),
             {name: glbls[name] for name in self._defs},

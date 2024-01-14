@@ -18,7 +18,7 @@ import { useEvent } from "../../../hooks/useEvent";
 import { formatAll } from "../../../core/codemirror/format";
 import { useTheme } from "../../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
-import { useDelayVisibility } from "./vertical-layout/useDelayVisiblity";
+import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
 import { useChromeActions } from "../chrome/state";
 import { Functions } from "@/utils/functions";
 

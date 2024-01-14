@@ -19,7 +19,7 @@ def __(mo):
 
         Because UI elements must be assigned to global variables, 
         these functions are required when the set of elements to create is not
-        known unitl runtime.
+        known until runtime.
         """
     )
     return

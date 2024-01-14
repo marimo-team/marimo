@@ -273,7 +273,7 @@ describe("cell reducer", () => {
     expect(cell.runStartTimestamp).toBe(20);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
-    // Console messags shouldn't transition status
+    // Console messages shouldn't transition status
     actions.handleCellMessage({
       cellId: firstCellId,
       message: {

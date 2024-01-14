@@ -88,9 +88,9 @@ class TestGeneration:
         )
 
     @staticmethod
-    def test_generate_unparseable_cell() -> None:
+    def test_generate_unparsable_cell() -> None:
         code = "    error\n\\t"
-        raw = codegen.generate_unparseable_cell(code, None, CellConfig())
+        raw = codegen.generate_unparsable_cell(code, None, CellConfig())
         stringified = eval("\n".join(raw.split("\n")[1:5])).split("\n")
         # first line empty
         assert not stringified[0]
@@ -370,7 +370,7 @@ class TestToFunctionDef:
 def test_recover() -> None:
     cells = {
         "cells": [
-            {"name": "a", "code": '"santa"\n\n"claus"\n\n\n'},
+            {"name": "a", "code": '"santa"\n\n"clause"\n\n\n'},
             {"name": "b", "code": ""},
             {"name": "c", "code": "\n123"},
         ]
@@ -390,7 +390,7 @@ def test_recover() -> None:
         os.remove(tempfile_name)
 
     codes = [
-        "\n".join(['"santa"', "", '"claus"', "", "", ""]),
+        "\n".join(['"santa"', "", '"clause"', "", "", ""]),
         "",
         "\n".join(["", "123"]),
     ]
