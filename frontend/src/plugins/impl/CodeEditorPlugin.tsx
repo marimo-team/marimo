@@ -56,7 +56,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
   const minHeight = props.minHeight ? `${props.minHeight}px` : "70px";
 
   return (
-    <Labeled label={props.label} align="top">
+    <Labeled label={props.label} align="top" fullWidth={true}>
       <LazyAnyLanguageCodeMirror
         className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
         theme={finalTheme === "dark" ? "dark" : "light"}

@@ -30,6 +30,7 @@ __all__ = [
     "image",
     "left",
     "md",
+    "mermaid",
     "mpl",
     "output",
     "plain_text",
@@ -65,6 +66,7 @@ from marimo._plugins.stateless.callout import callout
 from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.stat import stat

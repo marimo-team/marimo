@@ -9,6 +9,7 @@
   callout
   image
   justify
+  mermaid
   stacks
   stat
   tabs
@@ -28,6 +29,7 @@ certain way.
   marimo.center
   marimo.hstack
   marimo.left
+  marimo.mermaid
   marimo.right
   marimo.stat
   marimo.tabs
