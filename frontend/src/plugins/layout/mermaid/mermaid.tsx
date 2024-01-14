@@ -4,6 +4,7 @@ import mermaid from "mermaid";
 import type { MermaidConfig } from "mermaid";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Logger } from "@/utils/Logger";
+import { useThemeForPlugin } from "@/theme/useTheme";
 
 interface Props {
   diagram: string;
@@ -50,8 +51,6 @@ const DEFAULT_CONFIG: MermaidConfig = {
   },
 };
 
-mermaid.initialize({ ...DEFAULT_CONFIG });
-
 function randomAlpha() {
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
   const length = 6;
@@ -64,6 +63,13 @@ function randomAlpha() {
 const Mermaid: React.FC<Props> = ({ diagram }) => {
   // eslint-disable-next-line react/hook-use-state
   const [id] = useState(() => randomAlpha());
+
+  const darkMode = useThemeForPlugin().theme === "dark";
+  mermaid.initialize({
+    ...DEFAULT_CONFIG,
+    theme: darkMode ? "dark" : "forest",
+    darkMode: darkMode,
+  });
 
   const { data: svg } = useAsyncData(async () => {
     const result = await mermaid
