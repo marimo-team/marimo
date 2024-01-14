@@ -197,7 +197,7 @@ def test_handle_filter_rows_multiple_conditions_2() -> None:
     assert result["B"].tolist() == [5, 3, 2, 1]
 
 
-def test_handle_fitler_rows_boolean() -> None:
+def test_handle_filter_rows_boolean() -> None:
     df = pd.DataFrame({"A": [True, False, True, False]})
     transform = FilterRowsTransform(
         type=TransformType.FILTER_ROWS,

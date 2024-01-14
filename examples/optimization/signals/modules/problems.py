@@ -142,7 +142,7 @@ class MaunaLoa(OSDProblem):
                         data that captures the seasonality and trend.
 
                         Seasonal-trend decompositions are widely used
-                        in weather and evironment-related applications,
+                        in weather and environment-related applications,
                         as well as in economics.
                         """
                     ).callout(kind="success")
@@ -391,7 +391,7 @@ class ChangePoint(OSDProblem):
                     f"""
                     🎉 **You did it!**
 
-                    You just deteced some change points. Every time the non-noise
+                    You just detected some change points. Every time the non-noise
                     component jumps is a change point. (If the component doesn't
                     look piecewise-constant, you may need to adjust the weights.)
 

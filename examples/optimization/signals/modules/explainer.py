@@ -46,7 +46,7 @@ def explainer(component: str) -> Optional[str]:
         LIB.AVERAGE_EQUAL: (
             f"""
             The **{component}** class creates a component that has a given
-            average value (which you specifiy). Typically used as part of
+            average value (which you specify). Typically used as part of
             an aggregate.
             """
         ),

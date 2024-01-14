@@ -58,7 +58,7 @@ def __(mo, plot):
 
 @app.cell
 def __(mo):
-    mo.md("#Example: Image with overlayed trace")
+    mo.md("#Example: Image with overlaid trace")
     return
 
 

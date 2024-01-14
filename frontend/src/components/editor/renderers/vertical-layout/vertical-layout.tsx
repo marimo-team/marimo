@@ -6,7 +6,7 @@ import { OutputArea } from "@/components/editor/Output";
 import { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
 import { z } from "zod";
-import { useDelayVisibility } from "./useDelayVisiblity";
+import { useDelayVisibility } from "./useDelayVisibility";
 import { AppMode } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
 import { Code2Icon } from "lucide-react";

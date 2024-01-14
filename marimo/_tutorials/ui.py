@@ -57,7 +57,7 @@ def __(mo):
         bound to the UI element, but don't define it, will run.
 
         This simple rule lets you use UI elements to
-        drive the exectution of your program, letting you build
+        drive the execution of your program, letting you build
         interactive notebooks and tools for yourselves and others.
         """
     )
@@ -270,7 +270,7 @@ def __(mo):
 def __(get_counter, mo):
     mo.md(
         f"""
-        Acccess the value of the state via its getter: `get_counter()` 
+        Access the value of the state via its getter: `get_counter()` 
         returned **{get_counter()}**
         """
     )

@@ -99,7 +99,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
     def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
         # Remove the file if the refcount is 0, or if the cell is being
         # deleted. (We can't rely on when the refcount will be decremented, so
-        # we need to check for deletion explictly to prevent leaks.)
+        # we need to check for deletion explicitly to prevent leaks.)
         if deletion or (
             context.virtual_file_registry.refcount(self.virtual_file.filename)
             <= 0
@@ -172,7 +172,7 @@ class VirtualFileRegistry:
         # Immediately writes the contents of the file to an in-memory
         # buffer; not lazy.
         #
-        # To retrieve the buffer from another proces, use:
+        # To retrieve the buffer from another process, use:
         #
         # ```
         # try:
@@ -195,7 +195,7 @@ class VirtualFileRegistry:
             # (destroys) the shared_memory:
             # https://stackoverflow.com/questions/63713241/segmentation-fault-using-python-shared-memory/63717188#63717188
             shm.close()
-        # We hav to keep a reference to the shared memory to prevent it from
+        # We have to keep a reference to the shared memory to prevent it from
         # being destroyed on Windows
         self.registry[key] = VirtualFileRegistryItem(shm=shm, refcount=0)
 

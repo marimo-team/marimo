@@ -12,7 +12,7 @@ import {
   ClipboardCopyIcon,
   Share2Icon,
 } from "lucide-react";
-import { commandPalletteAtom } from "../CommandPallette";
+import { commandPaletteAtom } from "../CommandPalette";
 import {
   disabledCellIds,
   enabledCellIds,
@@ -34,7 +34,7 @@ export function useNotebookActions() {
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
-  const setCommandPalletteOpen = useSetAtom(commandPalletteAtom);
+  const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
 
   const disabledCells = disabledCellIds(notebook);
   const enabledCells = enabledCellIds(notebook);
@@ -128,7 +128,7 @@ export function useNotebookActions() {
       icon: <CommandIcon size={14} strokeWidth={1.5} />,
       label: "Command palette",
       hotkey: "global.commandPalette",
-      handle: () => setCommandPalletteOpen((open) => !open),
+      handle: () => setCommandPaletteOpen((open) => !open),
     },
 
     {

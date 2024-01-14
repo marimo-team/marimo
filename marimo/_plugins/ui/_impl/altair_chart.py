@@ -166,7 +166,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         `"point"`, `"interval"`, or a bool; defaults to `True` which will
         automatically detect the best selection type
     - `legend_selection`: optional list of legend fields (columns) for which to
-        enable selecton, `True` to enable selection for all fields, or
+        enable selection, `True` to enable selection for all fields, or
         `False` to disable selection entirely
     - `label`: optional text label for the element
     - `on_change`: optional callback to run when this element's value changes

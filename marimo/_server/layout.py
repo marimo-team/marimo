@@ -27,7 +27,7 @@ def save_layout_config(
     at the given directory.
 
     The layout is saved as a JSON file under
-        <directory>/layouts/<app_nam>.{type}.json
+        <directory>/layouts/<app_name>.{type}.json
     This allows:
         - all layouts to be saved in the same directory
         - multiple layouts to be saved for the same app

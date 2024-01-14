@@ -166,3 +166,11 @@ testpaths = [
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
+
+[tool.typos.default.extend-words]
+wheres = "wheres"
+
+[tool.typos.files]
+extend-exclude = [
+    "MultiSelectPlugin.test.ts"
+]

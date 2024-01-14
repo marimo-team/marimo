@@ -99,7 +99,7 @@ class Cell:
     # Mutable fields
     # config: explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
-    # staus: status, inferred at runtime
+    # status: status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> Cell:

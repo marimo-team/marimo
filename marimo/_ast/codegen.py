@@ -56,7 +56,7 @@ def to_functiondef(
     cell: Cell, name: str, unshadowed_builtins: Optional[set[Name]] = None
 ) -> str:
     # unshadowed builtins is the set of builtins that haven't been
-    # overriden (shadowed) by other cells in the app. These names
+    # overridden (shadowed) by other cells in the app. These names
     # should not be taken as args by a cell's functiondef (since they are
     # already in globals)
     if unshadowed_builtins is None:
@@ -90,7 +90,7 @@ def to_functiondef(
     return fndef
 
 
-def generate_unparseable_cell(
+def generate_unparsable_cell(
     code: str, name: Optional[str], config: CellConfig
 ) -> str:
     # escape double quotes to not interfere with string
@@ -162,7 +162,7 @@ def generate_filecontents(
             fndefs.append(to_functiondef(data, name, unshadowed_builtins))
         else:
             fndefs.append(
-                generate_unparseable_cell(
+                generate_unparsable_cell(
                     code=data[0], config=data[1], name=name
                 )
             )
