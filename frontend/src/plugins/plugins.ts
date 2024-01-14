@@ -33,6 +33,7 @@ import { StatPlugin } from "./layout/StatPlugin";
 import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
 import { CodeEditorPlugin } from "./impl/CodeEditorPlugin";
+import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -69,6 +70,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new StatPlugin(),
   new TabsPlugin(),
   new TexPlugin(),
+  new MermaidPlugin(),
 ];
 
 export function initializePlugins() {

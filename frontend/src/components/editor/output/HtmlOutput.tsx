@@ -16,22 +16,23 @@ export const HtmlOutput: React.FC<Props> = memo(
     const nodeRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
-      if (nodeRef.current === null) {
+      const outputNode = nodeRef.current;
+
+      if (!outputNode) {
         Logger.error("Output is not initialized");
         return;
       }
 
       // Cache script sources and run inline script tags
-      async function runScripts() {
-        const outputNode = nodeRef.current;
-        if (outputNode === null) {
-          return;
-        }
+      async function runScripts(outputNode: HTMLDivElement) {
         // eslint-disable-next-line unicorn/prefer-spread
         const scriptNodes = Array.from(outputNode.querySelectorAll("script"));
+
         for (const scriptNode of scriptNodes) {
           if (scriptNode.src != null && scriptNode.src !== "") {
             let cachedScript = lookupScript(scriptNode.src);
+
+            // Cache script
             if (cachedScript === null) {
               const scriptElement = document.createElement("script");
               scriptElement.src = scriptNode.src;
@@ -39,6 +40,8 @@ export const HtmlOutput: React.FC<Props> = memo(
               cachedScript = { element: scriptElement, loaded: false };
               updateScriptCache(scriptNode.src, cachedScript);
             }
+
+            // Handle load state
             if (!cachedScript?.loaded) {
               const scriptElement = cachedScript.element;
               await new Promise((resolve) => {
@@ -62,12 +65,7 @@ export const HtmlOutput: React.FC<Props> = memo(
         }
       }
 
-      if (nodeRef.current === null) {
-        Logger.error("Output is not initialized");
-        return;
-      } else {
-        runScripts();
-      }
+      runScripts(outputNode);
     }, [html, nodeRef]);
 
     if (!html) {
@@ -76,10 +74,7 @@ export const HtmlOutput: React.FC<Props> = memo(
 
     return (
       <div
-        className={cn(className, {
-          "inline-flex": inline,
-          block: !inline,
-        })}
+        className={cn(className, { "inline-flex": inline, block: !inline })}
         ref={nodeRef}
       >
         {renderHTML({ html })}

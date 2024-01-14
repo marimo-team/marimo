@@ -86,6 +86,7 @@
     "katex": "^0.16.9",
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.307.0",
+    "mermaid": "^10.6.1",
     "partysocket": "0.0.20",
     "plotly.js": "^2.28.0",
     "react-day-picker": "^8.10.0",
