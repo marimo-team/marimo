@@ -23,9 +23,10 @@ def image(
 ) -> Html:
     """Render an image as HTML.
 
-    **Example.**
+    **Examples.**
 
     ```python3
+    # Render an image from a url
     mo.image(
         src="https://marimo.io/logo.png",
         alt="Marimo logo",
@@ -33,14 +34,19 @@ def image(
         height=100,
         rounded=True,
     )
+    ```
 
+    ```python3
+    # Render an image from a local file
     with open("logo.png", "rb") as file:
-        mo.image(src=file)
+        image = mo.image(src=file)
+    # show the image by outputting it in the last expression of the cell
+    image
     ```
 
     **Args.**
 
-    - `src`: the URL of the image or a file-like object
+    - `src`: the URL of the image or a file-like object (opened in binary mode)
     - `alt`: the alt text of the image
     - `width`: the width of the image in pixels
     - `height`: the height of the image in pixels
