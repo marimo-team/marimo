@@ -18,7 +18,7 @@ def convert_from_path(ipynb_path: str) -> str:
             .decode("utf-8")
         )
     else:
-        with open(ipynb_path, "r") as f:
+        with open(ipynb_path, "r", encoding="utf-8") as f:
             notebook = json.loads(f.read())
 
     return convert(notebook)

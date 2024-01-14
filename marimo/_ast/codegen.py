@@ -220,7 +220,7 @@ RECOVERY_CELL_MARKER = "ↁ"
 
 def recover(filename: str) -> str:
     """Generate a module for code recovered from a disconnected frontend"""
-    with open(filename, "r") as f:
+    with open(filename, "r", encoding="utf-8") as f:
         contents = f.read()
     cells = json.loads(contents)["cells"]
     codes, names, configs = tuple(
