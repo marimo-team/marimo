@@ -65,7 +65,7 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
 def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
     # Just opens a file that exists, and make sure it gets registered
     # in the virtual path registry
-    with open(__file__) as f:
+    with open(__file__, encoding="utf-8") as f:
         k.run(
             [
                 exec_req.get(
