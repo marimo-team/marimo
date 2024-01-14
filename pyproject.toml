@@ -65,6 +65,7 @@ dev = [
     "pytest-codecov~=0.5.1",
     "mypy~=1.7.0",
     "ruff~=0.0.275",
+    "typos~=1.17.1",
     # For docs
     "pypandoc~=1.11",
     "autoclasstoc~=1.6.0",
