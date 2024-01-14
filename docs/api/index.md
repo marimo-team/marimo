@@ -10,6 +10,7 @@
   layouts/index
   plotting
   media/index
+  diagrams
   status
   outputs
   control_flow
