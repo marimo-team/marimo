@@ -1,8 +1,9 @@
 /* Copyright 2023 Marimo. All rights reserved. */
-import React, { useRef } from "react";
+import React, { useState } from "react";
 import mermaid from "mermaid";
 import type { MermaidConfig } from "mermaid";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { Logger } from "@/utils/Logger";
 
 interface Props {
   diagram: string;
@@ -51,16 +52,28 @@ const DEFAULT_CONFIG: MermaidConfig = {
 
 mermaid.initialize({ ...DEFAULT_CONFIG });
 
+function randomAlpha() {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz";
+  const length = 6;
+  return Array.from(
+    { length },
+    () => alphabet[Math.floor(Math.random() * alphabet.length)]
+  ).join("");
+}
+
 const Mermaid: React.FC<Props> = ({ diagram }) => {
-  const id = useRef(Math.random().toString(36).slice(2, 6)).current;
+  // eslint-disable-next-line react/hook-use-state
+  const [id] = useState(() => randomAlpha());
 
   const { data: svg } = useAsyncData(async () => {
     const result = await mermaid
       .render(id, diagram, undefined)
       .catch((error) => {
         document.getElementById(id)?.remove();
+        Logger.warn("Failed to render mermaid diagram", error);
         throw error;
       });
+
     return result.svg;
   }, [diagram, id]);
 
