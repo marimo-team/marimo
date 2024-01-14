@@ -3,7 +3,7 @@ import React, { PropsWithChildren } from "react";
 import {
   PanelBottomIcon,
   PanelLeftIcon,
-  CircleEqualIcon,
+  FunctionSquareIcon,
   XCircleIcon,
   ScrollTextIcon,
   NetworkIcon,
@@ -41,14 +41,7 @@ export const Footer: React.FC = () => {
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
-        <CircleEqualIcon className={cn("h-5 w-5 ")} />
-      </FooterItem>
-      <FooterItem
-        tooltip="View outline"
-        selected={selectedPanel === "outline"}
-        onClick={() => openApplication("outline")}
-      >
-        <ScrollTextIcon className={cn("h-5 w-5")} />
+        <FunctionSquareIcon className={cn("h-5 w-5 ")} />
       </FooterItem>
       <FooterItem
         tooltip="Explore dependencies"
@@ -56,6 +49,13 @@ export const Footer: React.FC = () => {
         onClick={() => openApplication("dependencies")}
       >
         <NetworkIcon className={cn("h-5 w-5")} />
+      </FooterItem>
+      <FooterItem
+        tooltip="View outline"
+        selected={selectedPanel === "outline"}
+        onClick={() => openApplication("outline")}
+      >
+        <ScrollTextIcon className={cn("h-5 w-5")} />
       </FooterItem>
       <FooterItem
         tooltip="Notebook logs"
