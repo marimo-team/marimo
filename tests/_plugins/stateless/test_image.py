@@ -1,9 +1,10 @@
 # Copyright 2023 Marimo. All rights reserved.
+import os
+
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
-import tempfile
 
 
 def test_image() -> None:
@@ -64,15 +65,15 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
-    with tempfile.NamedTemporaryFile(suffix=".jpg") as tmp:
-        tmp.write(b"hello")
-        tmp.seek(0)
+    # Just opens a file that exists, and make sure it gets registered
+    # in the virtual path registry
+    with open(os.path.abspath(__file__)) as f:
         k.run(
             [
                 exec_req.get(
                     f"""
                     import marimo as mo
-                    image = mo.image('{tmp.name}')
+                    image = mo.image('{f.name}')
                     """
                 ),
             ]
