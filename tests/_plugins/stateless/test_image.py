@@ -1,6 +1,4 @@
 # Copyright 2023 Marimo. All rights reserved.
-import os
-
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -67,7 +65,7 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
 def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
     # Just opens a file that exists, and make sure it gets registered
     # in the virtual path registry
-    with open(os.path.abspath(__file__)) as f:
+    with open(__file__) as f:
         k.run(
             [
                 exec_req.get(
