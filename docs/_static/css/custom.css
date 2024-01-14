@@ -15,6 +15,13 @@ body .page {
   line-height: 1.5rem;
 }
 
+body {
+  color-scheme: light;
+}
+body[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 h1,
 h2 {
   font-family: "CalSans";
