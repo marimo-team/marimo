@@ -5,8 +5,8 @@ Adapted from https://github.com/ericmjl/pyflatten/tree/master; changed
 to handle generic leaf data types and minimize recursion stack depth.
 
 TODO(akshayka): if this becomes a bottleneck, use a library like dm-tree
-(this implementation will be slow large structures); as of writing, installation
-of dm-tree on macOS is buggy
+(this implementation will be slow large structures); as of writing,
+installation of dm-tree on macOS is buggy
 """
 from __future__ import annotations
 
