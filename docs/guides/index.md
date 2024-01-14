@@ -9,6 +9,7 @@
   reactivity
   interactivity
   outputs
+  editor_features
   dataframes
   plotting
   state
@@ -25,6 +26,7 @@ These guides cover marimo's core concepts.
 | {doc}`reactivity`     | How reactive execution works              |
 | {doc}`interactivity`  | Using interactive UI elements             |
 | {doc}`outputs`        | Markdown, plots, and other visual outputs |
+| {doc}`editor_features`| View variables, cell dependencies, errors, and more |
 | {doc}`dataframes`     | Working with dataframes                   |
 | {doc}`plotting`       | Interactive and reactive plots            |
 | {doc}`state`          | Mutable, reactive state                   |

@@ -227,6 +227,8 @@ Access the last submitted value of the text area with `form.value`.
 ### How do I write markdown?
 
 Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
+Learn more in the [outputs guide](/guides/outputs.md#markdown)
+or by running `marimo tutorial markdown`.
 
 
 <a name="faq-plots" ></a>
