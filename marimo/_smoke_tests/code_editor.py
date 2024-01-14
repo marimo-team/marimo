@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.73"
+__generated_with = "0.1.76"
 app = marimo.App()
 
 
@@ -12,7 +12,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.ui.code_editor("SELECT * FROM table;", language="sql")
+    mo.ui.code_editor("SELECT * FROM table;", language="sql", theme="light")
     return
 
 

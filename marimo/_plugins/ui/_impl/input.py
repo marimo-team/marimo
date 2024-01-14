@@ -451,7 +451,7 @@ class code_editor(UIElement[str, str]):
         major languages are supported, including "sql", "javascript",
         "typescript", "html", "css", "c", "cpp", "rust", and more
     - `placeholder`: placeholder text to display when the code editor is empty
-    - `theme`: theme of the code editor, defaults to `"light"`
+    - `theme`: theme of the code editor, defaults to the editor's default
     - `disabled`: whether the input is disabled
     - `min_height`: minimum height of the code editor in pixels
     - `label`: text label for the element
@@ -465,7 +465,7 @@ class code_editor(UIElement[str, str]):
         value: str = "",
         language: str = "python",
         placeholder: str = "",
-        theme: Literal["light", "dark"] = "light",
+        theme: Optional[Literal["light", "dark"]] = None,
         disabled: bool = False,
         min_height: Optional[int] = None,
         *,
