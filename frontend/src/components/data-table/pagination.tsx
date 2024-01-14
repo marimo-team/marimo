@@ -55,6 +55,12 @@ export const DataTablePagination = <TData,>({
     return `${count} items`;
   };
 
+  const currentPage = Math.min(
+    table.getState().pagination.pageIndex + 1,
+    table.getPageCount()
+  );
+  const totalPages = table.getPageCount();
+
   return (
     <div className="flex flex-1 items-center justify-between px-2">
       <div className="text-sm text-muted-foreground">{renderTotal()}</div>
@@ -79,13 +85,20 @@ export const DataTablePagination = <TData,>({
           <span className="sr-only">Go to previous page</span>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="flex w-[100px] items-center justify-center text-xs font-medium">
-          Page{" "}
-          {Math.min(
-            table.getState().pagination.pageIndex + 1,
-            table.getPageCount()
-          )}{" "}
-          of {table.getPageCount()}
+        <div className="flex items-center justify-center text-xs font-medium gap-1">
+          <span>Page</span>
+          <select
+            className="cursor-pointer border rounded"
+            value={currentPage}
+            onChange={(e) => table.setPageIndex(Number(e.target.value) - 1)}
+          >
+            {Array.from({ length: totalPages }, (_, i) => (
+              <option key={i} value={i + 1}>
+                {i + 1}
+              </option>
+            ))}
+          </select>
+          <span className="flex-shrink-0">of {prettyNumber(totalPages)}</span>
         </div>
         <Button
           size="xs"
@@ -111,3 +124,7 @@ export const DataTablePagination = <TData,>({
     </div>
   );
 };
+
+function prettyNumber(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}

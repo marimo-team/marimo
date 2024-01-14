@@ -24,6 +24,8 @@ from .transforms import Transformations
 @dataclass
 class GetDataFrameResponse:
     url: str
+    has_more: bool
+    total_rows: int
     row_headers: List[tuple[str, List[str | int | float]]]
 
 
@@ -111,12 +113,19 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         )
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+        # Only get the first 100 (for performance reasons)
+        # Could make this configurable in the arguments later if desired.
+        LIMIT = 100
+
         if self._error is not None:
             raise Exception(self._error)
 
-        url = mo_data.csv(self._value).url
+        url = mo_data.csv(self._value.head(LIMIT)).url
+        total_rows = len(self._value)
         return GetDataFrameResponse(
             url=url,
+            total_rows=total_rows,
+            has_more=total_rows > LIMIT,
             row_headers=get_row_headers(self._value),
         )
 
