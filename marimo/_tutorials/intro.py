@@ -371,8 +371,8 @@ def __():
                 the plus button to the left of the cell, which appears on
                 mouse hover.
 
-            2. _Move_ a cell up or down by clicking the arrow buttons to
-                the left.
+            2. _Move_ a cell up or down by dragging on the handle to the 
+                right of the cell, which appears on mouse hover.
 
             3. _Delete_ a cell by clicking the trash bin icon. Bring it
                 back by clicking the undo button on the bottom right of the
