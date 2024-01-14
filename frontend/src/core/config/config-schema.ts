@@ -41,7 +41,7 @@ export const UserConfigSchema = z
       .default({ auto_instantiate: true }),
     display: z
       .object({
-        theme: z.enum(["light", "dark"]).default("light"),
+        theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
       })
       .default({

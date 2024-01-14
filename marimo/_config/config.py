@@ -78,11 +78,11 @@ class DisplayConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `theme`: `"light"` or `"dark"`
+    - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
     """
 
-    theme: Literal["light", "dark"]
+    theme: Literal["light", "dark", "system"]
     code_editor_font_size: int
 
 

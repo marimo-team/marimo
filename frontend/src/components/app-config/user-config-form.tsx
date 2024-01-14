@@ -21,6 +21,7 @@ import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { Switch } from "../ui/switch";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
+import { THEMES } from "@/theme/useTheme";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -201,22 +202,22 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="display.theme"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+              <FormItem>
+                <FormLabel>Theme</FormLabel>
                 <FormControl>
-                  <Checkbox
-                    checked={field.value === "dark"}
-                    onCheckedChange={(checked) => {
-                      return field.onChange(
-                        checked === true ? "dark" : "light"
-                      );
-                    }}
-                  />
+                  <NativeSelect
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    className="inline-flex mx-2"
+                  >
+                    {THEMES.map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
                 </FormControl>
-                <FormLabel className="font-normal">
-                  {/* Spooky mode in October */}
-                  {new Date().getMonth() === 9 ? "👻 " : undefined}
-                  Dark mode
-                </FormLabel>
+                <FormMessage />
               </FormItem>
             )}
           />

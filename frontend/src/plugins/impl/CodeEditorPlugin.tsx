@@ -3,7 +3,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Labeled } from "./common/labeled";
-import { Theme, getTheme } from "@/theme/useTheme";
+import { Theme, useThemeForPlugin } from "@/theme/useTheme";
 import { lazy } from "react";
 
 type T = string;
@@ -11,7 +11,7 @@ type T = string;
 interface Data {
   language: string;
   placeholder: string;
-  theme: Theme;
+  theme?: Theme;
   label: string | null;
   disabled?: boolean;
   minHeight?: number;
@@ -24,7 +24,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     initialValue: z.string(),
     language: z.string().default("python"),
     placeholder: z.string(),
-    theme: z.enum(["light", "dark"]).default("light"),
+    theme: z.enum(["light", "dark"]).optional(),
     label: z.string().nullable(),
     disabled: z.boolean().optional(),
     minHeight: z.number().optional(),
@@ -51,14 +51,15 @@ interface CodeEditorComponentProps extends Data {
 }
 
 const CodeEditorComponent = (props: CodeEditorComponentProps) => {
-  const theme = props.theme || getTheme();
+  const { theme } = useThemeForPlugin();
+  const finalTheme = props.theme || theme;
   const minHeight = props.minHeight ? `${props.minHeight}px` : "70px";
 
   return (
     <Labeled label={props.label} align="top">
       <LazyAnyLanguageCodeMirror
-        className={`cm [&>*]:outline-none border rounded overflow-hidden ${theme}`}
-        theme={theme === "dark" ? "dark" : "light"}
+        className={`cm [&>*]:outline-none border rounded overflow-hidden ${finalTheme}`}
+        theme={finalTheme === "dark" ? "dark" : "light"}
         minHeight={minHeight}
         placeholder={props.placeholder}
         editable={!props.disabled}
