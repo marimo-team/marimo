@@ -9,9 +9,7 @@
   callout
   image
   justify
-  mermaid
   stacks
-  stat
   tabs
   tree
 ```
@@ -29,9 +27,7 @@ certain way.
   marimo.center
   marimo.hstack
   marimo.left
-  marimo.mermaid
   marimo.right
-  marimo.stat
   marimo.tabs
   marimo.tree
   marimo.vstack

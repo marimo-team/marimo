@@ -10,6 +10,7 @@
   layouts/index
   plotting
   media/index
+  diagrams
   status
   outputs
   control_flow
@@ -33,6 +34,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`layouts/index` | Customize outputs with accordions, tabs, stacks, and more |
 | {doc}`plotting`      | Output interactive plots                                  |
 | {doc}`media/index`   | Output media like images, audio, PDFs, and plain text     |
+| {doc}`diagrams`      | Flow charts, graphs, statistic cards, and more            |
 | {doc}`status`        | Display progress indicators                               |
 | {doc}`outputs`       | Modify cell outputs, redirect console output              |
 | {doc}`control_flow`  | Control how cells execute                                 |
