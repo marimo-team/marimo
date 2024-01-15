@@ -18,6 +18,7 @@ import { HOTKEYS, HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom } from "jotai";
 import { useNotebookActions } from "./actions/useNotebookActions";
 import { Objects } from "@/utils/objects";
+import { parseShortcut } from "@/core/hotkeys/shortcuts";
 
 export const commandPaletteAtom = atom(false);
 
@@ -38,7 +39,7 @@ export const CommandPalette = () => {
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && e.metaKey && !e.shiftKey) {
+      if (parseShortcut(HOTKEYS.getHotkey("global.commandPalette").key)(e)) {
         e.preventDefault();
         setOpen((open) => !open);
       }
