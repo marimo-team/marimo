@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { IPlugin, IPluginProps } from "@/plugins/types";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/utils/cn";
 
 /**
  * Arguments for a radio group
@@ -16,6 +17,7 @@ import { Labeled } from "./common/labeled";
  */
 interface Data {
   label: string | null;
+  inline: boolean;
   options: string[];
 }
 
@@ -27,6 +29,7 @@ export class RadioPlugin implements IPlugin<S, Data> {
 
   validator = z.object({
     initialValue: z.string().nullable(),
+    inline: z.boolean().default(false),
     label: z.string().nullable(),
     options: z.array(z.string()),
   });
@@ -43,18 +46,19 @@ interface RadioProps extends Data {
   setValue: (value: S) => void;
 }
 
-const Radio = (props: RadioProps): JSX.Element => {
+export const Radio = (props: RadioProps): JSX.Element => {
   const id = useId();
 
   return (
-    <Labeled label={props.label} id={id} align="top">
+    <Labeled label={props.label} id={id} align={props.inline ? "left" : "top"}>
       <RadioGroup
         value={props.value ?? ""}
         onValueChange={props.setValue}
+        className={cn(props.inline && "grid-flow-col gap-4")}
         aria-label="Radio Group"
       >
         {props.options.map((option, i) => (
-          <div className="flex items-center space-x-3" key={i}>
+          <div className="flex items-center space-x-2" key={i}>
             <RadioGroupItem value={option} id={`${id}-${i.toString()}`} />
             <Label
               htmlFor={`${id}-${i.toString()}`}

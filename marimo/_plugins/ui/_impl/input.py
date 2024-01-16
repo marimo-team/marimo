@@ -285,6 +285,7 @@ class radio(UIElement[Optional[str], Any]):
         self,
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
+        inline: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
@@ -300,6 +301,7 @@ class radio(UIElement[Optional[str], Any]):
             label=label,
             args={
                 "options": list(options.keys()),
+                "inline": inline,
             },
             on_change=on_change,
         )
