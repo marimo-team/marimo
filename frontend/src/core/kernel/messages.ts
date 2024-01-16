@@ -58,6 +58,12 @@ export type OutputMessage =
       mimetype: "application/json";
       data: unknown;
       timestamp: number;
+    }
+  | {
+      channel: "stdin";
+      mimetype: "text/plain";
+      data: string;
+      timestamp: number;
     };
 
 /**

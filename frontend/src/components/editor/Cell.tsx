@@ -11,7 +11,7 @@ import {
   useRef,
 } from "react";
 
-import { saveCellConfig, sendRun } from "@/core/network/requests";
+import { saveCellConfig, sendRun, sendStdIn } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
@@ -442,6 +442,7 @@ const CellComponent = (
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}
           cellName={name}
+          onSubmitDebugger={(text) => sendStdIn({ text })}
           cellId={cellId}
         />
       </SortableCell>
