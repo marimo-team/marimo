@@ -27,6 +27,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
+      data-testid="console-output-area"
       className={cn(
         "console-output-area overflow-hidden rounded-b-lg",
         stale && "marimo-output-stale",
@@ -43,7 +44,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
                   type="text"
                   autoComplete="off"
                   autoFocus={true}
-                  className="w-full"
+                  className="m-0"
                   placeholder="stdin"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
