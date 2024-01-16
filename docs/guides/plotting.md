@@ -49,14 +49,13 @@ _Reactive plots are just one way that marimo **makes your data tangible**._
 ```python
 import marimo as mo
 import altair as alt
+import vega_datasets
 
 # Load some data
-cars = alt.load_dataset('cars')
+cars = vega_datasets.data.cars()
 
 # Create an Altair chart
-chart = alt.Chart(cars)
-  .mark_point() # Mark type
-  .encode(
+chart = alt.Chart(cars).mark_point().encode(
     x='Horsepower', # Encoding along the x-axis
     y='Miles_per_Gallon', # Encoding along the y-axis
     color='Origin', # Category encoding by color
