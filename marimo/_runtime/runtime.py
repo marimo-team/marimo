@@ -15,7 +15,7 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
-from typing import Any, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t, parse_cell
@@ -40,7 +40,7 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
-from marimo._messaging.streams import Stderr, Stdout, Stream
+from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -54,6 +54,7 @@ from marimo._runtime.context import (
     initialize_context,
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.input_override import input_override
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     CompletionRequest,
@@ -155,10 +156,12 @@ class Kernel:
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        input_override: Callable[[Any], str] = input_override,
     ) -> None:
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
+            "input": input_override,
         }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
@@ -985,7 +988,8 @@ class Kernel:
 
 
 def launch_kernel(
-    execution_queue: mp.Queue[Request] | queue.Queue[Request],
+    control_queue: mp.Queue[Request] | queue.Queue[Request],
+    input_queue: mp.Queue[str] | queue.Queue[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
@@ -1006,18 +1010,22 @@ def launch_kernel(
         return
 
     # Create communication channels
-    stream = Stream(pipe)
+    stream = Stream(pipe=pipe, input_queue=input_queue)
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = Stdout(stream) if is_edit_mode else None
     stderr = Stderr(stream) if is_edit_mode else None
+    # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
+    # isn't currently available in run mode.
+    stdin = Stdin(stream) if is_edit_mode else None
 
-    kernel = Kernel(cell_configs=configs)
+    kernel = Kernel(cell_configs=configs, input_override=input_override)
     initialize_context(
         kernel=kernel,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
+        stdin=stdin,
     )
 
     if is_edit_mode:
@@ -1092,7 +1100,7 @@ def launch_kernel(
 
     while True:
         try:
-            request = execution_queue.get()
+            request = control_queue.get()
         except Exception as e:
             # triggered on Windows when quit with Ctrl+C
             LOGGER.debug("kernel queue.get() failed %s", e)

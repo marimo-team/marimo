@@ -1,7 +1,10 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
+import multiprocessing as mp
 import os
+import queue
 import sys
 import threading
 from collections import deque
@@ -43,12 +46,18 @@ STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 class Stream:
     """A thread-safe wrapper around a pipe."""
 
-    def __init__(self, pipe: Connection, cell_id: Optional[CellId_t] = None):
+    def __init__(
+        self,
+        pipe: Connection,
+        input_queue: mp.Queue[str] | queue.Queue[str],
+        cell_id: Optional[CellId_t] = None,
+    ):
         self.pipe = pipe
         self.cell_id = cell_id
         # A single stream is shared by the kernel and the code completion
         # worker. The lock should almost always be uncontended.
         self.stream_lock = threading.Lock()
+
         # Console outputs are buffered
         self.console_msg_cv = threading.Condition(threading.Lock())
         self.console_msg_queue: deque[ConsoleMsg] = deque()
@@ -57,6 +66,9 @@ class Stream:
             args=(self.console_msg_queue, self, self.console_msg_cv),
         )
         self.buffered_console_thread.start()
+
+        # Stdin messages come are pulled from this queue
+        self.input_queue = input_queue
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
@@ -136,6 +148,58 @@ class Stderr:
 
     def readable(self) -> bool:
         return False
+
+    def seekable(self) -> bool:
+        return False
+
+
+class Stdin:
+    """Implements a subset of stdin."""
+
+    def __init__(self, stream: Stream):
+        self.stream = stream
+
+    def _readline_with_prompt(self, prompt: str = "", size: int = -1) -> str:
+        """Read input from the standard in stream, with an optional prompt."""
+        assert self.stream.cell_id is not None
+        if not isinstance(prompt, str):
+            raise TypeError(
+                "prompt must be a str, not %s" % type(prompt).__name__
+            )
+        if sys.getsizeof(prompt) > STD_STREAM_MAX_BYTES:
+            prompt = (
+                "Warning: marimo truncated a very large console output.\n"
+                + prompt[: int(STD_STREAM_MAX_BYTES)]
+                + " ... "
+            )
+
+        with self.stream.console_msg_cv:
+            # This sends a prompt request to the frontend
+            self.stream.console_msg_queue.append(
+                ConsoleMsg(
+                    stream="stdin", cell_id=self.stream.cell_id, data=prompt
+                )
+            )
+            self.stream.console_msg_cv.notify()
+
+        return self.stream.input_queue.get()[:size]
+
+    def readline(self, size: int = -1) -> str:
+        return self._readline_with_prompt(prompt="", size=size)
+
+    def write(self, data: str) -> None:
+        # stdin is not writable in Python
+        del data
+        raise io.UnsupportedOperation("not writable")
+
+    def flush(self) -> None:
+        return
+
+    def writable(self) -> bool:
+        return False
+
+    def readable(self) -> bool:
+        return True
 
     def seekable(self) -> bool:
         return False

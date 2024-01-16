@@ -54,6 +54,8 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
             ctx.stream.cell_id = None
         return
 
+    # Redirect file descriptors for writable streams (stdout, stderr).
+    #
     # All six of these file descriptors will need to be closed later
     stdout_duped, stdout_read_fd, stdout_fd = dup2newfd(sys.stdout.fileno())
     stderr_duped, stderr_read_fd, stderr_fd = dup2newfd(sys.stderr.fileno())
@@ -72,10 +74,13 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         target=forward_os_stream, args=(ctx.stderr, stderr_read_fd)
     )
 
+    # TODO(akshayka): Redirect fd for stdin?
+
     py_stdout = sys.stdout
     py_stderr = sys.stderr
     sys.stdout = ctx.stdout  # type: ignore
     sys.stderr = ctx.stderr  # type: ignore
+    sys.stdin = ctx.stdin  # type: ignore
 
     stdout_thread.start()
     stderr_thread.start()

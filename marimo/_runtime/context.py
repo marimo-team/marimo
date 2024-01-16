@@ -18,7 +18,7 @@ from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
-    from marimo._messaging.streams import Stderr, Stdout, Stream
+    from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -57,6 +57,7 @@ class RuntimeContext:
     stream: Stream
     stdout: Optional[Stdout]
     stderr: Optional[Stderr]
+    stdin: Optional[Stdin]
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -105,6 +106,7 @@ def initialize_context(
     stream: Stream,
     stdout: Optional[Stdout],
     stderr: Optional[Stderr],
+    stdin: Optional[Stdin],
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -127,6 +129,7 @@ def initialize_context(
             stream=stream,
             stdout=stdout,
             stderr=stderr,
+            stdin=stdin,
         )
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 

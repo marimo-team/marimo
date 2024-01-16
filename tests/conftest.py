@@ -49,6 +49,7 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
             stdout=self.stdout,  # type: ignore
             stderr=self.stderr,  # type: ignore
+            stdin=None,  # TODO(akshayka): test stidn ...
         )
 
     def __del__(self) -> None:

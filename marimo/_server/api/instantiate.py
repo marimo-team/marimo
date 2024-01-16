@@ -50,4 +50,4 @@ class InstantiateHandler(ValidatedHandler):
                 zip(args.object_ids, args.values)
             ),
         )
-        session.queue.put(request)
+        session.control_queue.put(request)
