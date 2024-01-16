@@ -228,4 +228,12 @@ export type OperationMessage =
         description: string;
         variant?: "danger";
       };
+    }
+  | {
+      op: "banner";
+      data: {
+        title: string;
+        description: string;
+        variant?: "danger";
+      };
     };
