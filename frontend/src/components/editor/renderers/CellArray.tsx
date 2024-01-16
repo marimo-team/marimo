@@ -71,6 +71,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
   useHotkey("cell.hideCode", Functions.NOOP);
+  useHotkey("cell.format", Functions.NOOP);
 
   const onDeleteCell: typeof deleteCell = useEvent((payload) => {
     sendDeleteCell(payload.cellId);
