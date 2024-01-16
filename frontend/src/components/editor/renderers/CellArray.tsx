@@ -53,6 +53,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     unfoldAll,
     sendToBottom,
     sendToTop,
+    setStdinResponse,
   } = useCellActions();
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
@@ -113,6 +114,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           deleteCell={onDeleteCell}
           focusCell={focusCell}
           moveToNextCell={moveToNextCell}
+          setStdinResponse={setStdinResponse}
           updateCellConfig={updateCellConfig}
           moveCell={moveCell}
           mode={mode}

@@ -21,7 +21,7 @@ import {
   SendFunctionRequest,
   RunRequests,
   EditRequests,
-  SendStdIn,
+  SendStdin,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -131,8 +131,8 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendFunctionRequest: (request) => {
       return API.post<SendFunctionRequest>("/kernel/function_call/", request);
     },
-    sendStdIn: (request) => {
-      return API.post<SendStdIn>("/kernel/stdin/", request);
+    sendStdin: (request) => {
+      return API.post<SendStdin>("/kernel/stdin/", request);
     },
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code/", {});
@@ -144,7 +144,7 @@ export const {
   sendComponentValues,
   sendRename,
   sendSave,
-  sendStdIn,
+  sendStdin,
   sendFormat,
   sendInterrupt,
   sendShutdown,

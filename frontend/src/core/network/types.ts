@@ -97,7 +97,7 @@ export interface SendFunctionRequest {
   functionName: string;
 }
 
-export interface SendStdIn {
+export interface SendStdin {
   text: string;
 }
 
@@ -121,7 +121,7 @@ export interface RunRequests {
 export interface EditRequests {
   sendRename: (filename: string | null) => Promise<null>;
   sendSave: (request: SaveKernelRequest) => Promise<null>;
-  sendStdIn: (request: SendStdIn) => Promise<null>;
+  sendStdin: (request: SendStdin) => Promise<null>;
   sendRun: (cellIds: CellId[], codes: string[]) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;

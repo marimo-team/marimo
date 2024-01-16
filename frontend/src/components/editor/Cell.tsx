@@ -11,7 +11,7 @@ import {
   useRef,
 } from "react";
 
-import { saveCellConfig, sendRun, sendStdIn } from "@/core/network/requests";
+import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
@@ -81,6 +81,7 @@ export interface CellProps
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
+      | "setStdinResponse"
       | "sendToBottom"
       | "sendToTop"
     > {
@@ -125,6 +126,7 @@ const CellComponent = (
     deleteCell,
     focusCell,
     moveCell,
+    setStdinResponse,
     moveToNextCell,
     updateCellConfig,
     sendToBottom,
@@ -442,7 +444,10 @@ const CellComponent = (
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}
           cellName={name}
-          onSubmitDebugger={(text) => sendStdIn({ text })}
+          onSubmitDebugger={(text, index) => {
+            setStdinResponse({ cellId, response: text, outputIndex: index });
+            sendStdin({ text });
+          }}
           cellId={cellId}
         />
       </SortableCell>

@@ -13,7 +13,7 @@ interface Props {
   cellName: string;
   consoleOutputs: OutputMessage[];
   stale: boolean;
-  onSubmitDebugger: (text: string) => void;
+  onSubmitDebugger: (text: string, index: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
@@ -35,21 +35,29 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     >
       {consoleOutputs.map((output, idx) => {
         if (output.channel === "stdin") {
+          if (output.response == null) {
+            return (
+              <div key={idx} className="flex gap-2 items-center">
+                <span>{output.data}</span>
+                <Input
+                  type="text"
+                  autoComplete="off"
+                  autoFocus={true}
+                  className="w-full"
+                  placeholder="stdin"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      onSubmitDebugger(e.currentTarget.value, idx);
+                    }
+                  }}
+                />
+              </div>
+            );
+          }
           return (
             <div key={idx} className="flex gap-2 items-center">
-              {output.data}
-              <Input
-                type="text"
-                autoComplete="off"
-                autoFocus={true}
-                className="w-full"
-                placeholder="stdin"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    onSubmitDebugger(e.currentTarget.value);
-                  }
-                }}
-              />
+              <span>{output.data}</span>
+              <span className="text-[var(--sky-11)]">{output.response}</span>
             </div>
           );
         }
