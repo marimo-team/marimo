@@ -13,7 +13,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 
 @mddoc
-class data_voyager(UIElement[Dict[str, Any], "pd.DataFrame"]):
+class data_voyager(UIElement[Dict[str, Any], Dict[str, Any]]):
     """
     Quickly explore a DataFrame.
 
@@ -37,7 +37,7 @@ class data_voyager(UIElement[Dict[str, Any], "pd.DataFrame"]):
     def __init__(
         self,
         df: pd.DataFrame,
-        on_change: Optional[Callable[[pd.DataFrame], None]] = None,
+        on_change: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self._data = df
 
