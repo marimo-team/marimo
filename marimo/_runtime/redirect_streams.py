@@ -78,6 +78,7 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
 
     py_stdout = sys.stdout
     py_stderr = sys.stderr
+    py_stdin = sys.stdin
     sys.stdout = ctx.stdout  # type: ignore
     sys.stderr = ctx.stderr  # type: ignore
     sys.stdin = ctx.stdin  # type: ignore
@@ -108,8 +109,9 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         os.close(stdout_read_fd)
         os.close(stderr_read_fd)
 
-        # Restore Python stdout/stderr
+        # Restore Python stdout/stderr/stdin
         sys.stdout = py_stdout
         sys.stderr = py_stderr
+        sys.stdin = py_stdin
 
         ctx.stream.cell_id = None
