@@ -159,7 +159,7 @@ class Stdin:
     def __init__(self, stream: Stream):
         self.stream = stream
 
-    def _readline_with_prompt(self, prompt: str = "", size: int = -1) -> str:
+    def _readline_with_prompt(self, prompt: str = "") -> str:
         """Read input from the standard in stream, with an optional prompt."""
         assert self.stream.cell_id is not None
         if not isinstance(prompt, str):
@@ -182,10 +182,13 @@ class Stdin:
             )
             self.stream.console_msg_cv.notify()
 
-        return self.stream.input_queue.get()[:size]
+        return self.stream.input_queue.get()
 
     def readline(self, size: int = -1) -> str:
-        return self._readline_with_prompt(prompt="", size=size)
+        # size only included for compatibility with sys.stdin.readline API;
+        # we don't support it.
+        del size
+        return self._readline_with_prompt(prompt="")
 
     def write(self, data: str) -> None:
         # stdin is not writable in Python

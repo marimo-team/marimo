@@ -1,6 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
 import functools
-from typing import Any
 
 from marimo._runtime.context import get_context
 
