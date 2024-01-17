@@ -18,6 +18,8 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._cli.upgrade import check_for_updates
 from marimo._server.server import start_server
+from marimo._server.sessions import SessionMode
+from marimo._server2.start import start
 
 DEVELOPMENT_MODE = False
 QUIET = False
@@ -345,12 +347,21 @@ Recommended sequence:
         ]
     ),
 )
+@click.option(
+    "--next",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Use the new server.",
+)
 def tutorial(
     port: Optional[int],
     headless: bool,
     name: Literal[
         "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat"
     ],
+    next: Optional[bool] = False,
 ) -> None:
     from marimo._tutorials import (
         dataflow,
@@ -377,17 +388,27 @@ def tutorial(
     with open(fname, "w", encoding="utf-8") as f:
         f.write(source)
 
-    asyncio.run(
-        start_server(
+    if next:
+        start(
             development_mode=DEVELOPMENT_MODE,
             quiet=QUIET,
-            port=port,
-            headless=headless,
+            port=port or 8000,
+            mode=SessionMode.RUN,
             filename=fname,
-            run=False,
             include_code=True,
         )
-    )
+    else:
+        asyncio.run(
+            start_server(
+                development_mode=DEVELOPMENT_MODE,
+                quiet=QUIET,
+                port=port,
+                headless=headless,
+                filename=fname,
+                run=False,
+                include_code=True,
+            )
+        )
 
 
 @main.command()
