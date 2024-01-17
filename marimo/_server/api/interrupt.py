@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.validated_handler import ValidatedHandler
 
 

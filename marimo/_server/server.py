@@ -32,26 +32,18 @@ from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._config.utils import load_config
 from marimo._server import api, sessions
-from marimo._server.utils import TAB, print_tabbed
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files as importlib_files
-else:
-    from importlib.resources import files as importlib_files
+from marimo._server.model import SessionMode
+from marimo._server.print import print_shutdown, print_startup
+from marimo._server.server_handler import IOSocketHandler
+from marimo._server.server_utils import requires_edit
+from marimo._server.utils import (
+    TAB,
+    import_files,
+    initialize_mimetypes,
+)
 
 DEFAULT_PORT = 2718
-UTF8_SUPPORTED = False
 ORIGINAL_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
-
-try:
-    "🌊🍃".encode(sys.stdout.encoding)
-    UTF8_SUPPORTED = True
-except Exception:
-    pass
-
-
-def _utf8(msg: str) -> str:
-    return msg if UTF8_SUPPORTED else ""
 
 
 def shutdown(with_error: bool = False) -> None:
@@ -61,11 +53,7 @@ def shutdown(with_error: bool = False) -> None:
         logger = _loggers.marimo_logger()
         logger.fatal("marimo shut down with an error.")
     elif not mgr.quiet:
-        print()
-        print_tabbed(
-            "\033[32mThanks for using marimo!\033[0m %s" % _utf8("🌊🍃")
-        )
-        print()
+        print_shutdown()
     mgr.shutdown()
     # TODO(akshayka): This method raises an exception sometimes.
     # debug, or just wrap in a try/except since we're on our way out anyway ...
@@ -125,7 +113,7 @@ class MainHandler(tornado.web.RequestHandler):
             "index.html",
             title=title,
             filename=mgr.filename if mgr.filename is not None else "",
-            mode="read" if mgr.mode == sessions.SessionMode.RUN else "edit",
+            mode="read" if mgr.mode == SessionMode.RUN else "edit",
             version=__version__,
             user_config=json.dumps(user_config),
             app_config=json.dumps(app_config),
@@ -136,7 +124,7 @@ class MainHandler(tornado.web.RequestHandler):
 class ShutdownHandler(tornado.web.RequestHandler):
     """Shutdown the server and all sessions."""
 
-    @sessions.requires_edit
+    @requires_edit
     def post(self) -> None:
         shutdown()
 
@@ -155,7 +143,7 @@ def construct_app(
     return tornado.web.Application(
         [
             (r"/", MainHandler),
-            (r"/iosocket", sessions.IOSocketHandler),
+            (r"/iosocket", IOSocketHandler),
             (
                 r"/api/kernel/shutdown/",
                 ShutdownHandler,
@@ -294,16 +282,6 @@ def connect_app(app: tornado.web.Application, port: Optional[int]) -> int:
     return port
 
 
-def initialize_mimetypes() -> None:
-    import mimetypes
-
-    # Fixes an issue with invalid mimetypes on windows:
-    # https://github.com/encode/starlette/issues/829#issuecomment-587163696
-    mimetypes.add_type("application/javascript", ".js")
-    mimetypes.add_type("text/css", ".css")
-    mimetypes.add_type("image/svg+xml", ".svg")
-
-
 async def start_server(
     port: Optional[int] = None,
     headless: bool = False,
@@ -332,14 +310,12 @@ async def start_server(
     _loggers.initialize_tornado_loggers(development_mode)
     signal.signal(signal.SIGINT, interrupt_handler)
 
-    root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
+    root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
     app = construct_app(root=root, development_mode=development_mode)
     port = connect_app(app, port)
     session_mgr = sessions.initialize_manager(
         filename=filename,
-        mode=(
-            sessions.SessionMode.EDIT if not run else sessions.SessionMode.RUN
-        ),
+        mode=(SessionMode.EDIT if not run else SessionMode.RUN),
         port=port,
         development_mode=development_mode,
         quiet=quiet,
@@ -383,25 +359,7 @@ async def start_server(
             controller.open(url)  # type:ignore[attr-defined]
 
     if not session_mgr.quiet:
-        print()
-        if session_mgr.filename is not None and not run:
-            print_tabbed(
-                f"\033[1;32mEdit {os.path.basename(session_mgr.filename)} "
-                "in your browser\033[0m " + _utf8("📝")
-            )
-        elif session_mgr.filename is not None and run:
-            print_tabbed(
-                f"\033[1;32mRunning {os.path.basename(session_mgr.filename)}"
-                "\033[0m " + _utf8("⚡")
-            )
-        else:
-            print_tabbed(
-                "\033[1;32mCreate a new marimo app in your browser\033[0m "
-                + _utf8("🛠")
-            )
-        print()
-        print_tabbed(f"\033[32mURL\033[0m: \033[1m{url}\033[0m")
-        print()
+        print_startup(filename, url, run)
 
     if development_mode:
         tornado.autoreload.start()

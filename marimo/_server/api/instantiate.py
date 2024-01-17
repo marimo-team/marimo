@@ -6,8 +6,9 @@ from typing import Any, List
 
 from marimo._ast.app import App
 from marimo._runtime import requests
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server.sessions import get_manager
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -28,7 +29,7 @@ class InstantiateHandler(ValidatedHandler):
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, Instantiate)
-        mgr = sessions.get_manager()
+        mgr = get_manager()
         app = mgr.load_app()
 
         execution_requests: tuple[requests.ExecutionRequest, ...]

@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 from marimo import _loggers
 from marimo._runtime import requests
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._utils.parse_dataclass import parse_raw
 
