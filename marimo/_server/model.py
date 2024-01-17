@@ -25,7 +25,7 @@ class SessionHandler(metaclass=abc.ABCMeta):
     """
     Handler for a session
 
-    This allows communicate with the session with different
+    This allows use to communicate with a session via different
     connection types.
     """
 
