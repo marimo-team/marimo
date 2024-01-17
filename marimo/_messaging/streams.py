@@ -9,7 +9,7 @@ import sys
 import threading
 from collections import deque
 from multiprocessing.connection import Connection
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
@@ -67,7 +67,7 @@ class Stream:
         )
         self.buffered_console_thread.start()
 
-        # Stdin messages come are pulled from this queue
+        # stdin messages are pulled from this queue
         self.input_queue = input_queue
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
@@ -80,11 +80,26 @@ class Stream:
                 LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
 
 
-class Stdout:
+class Stdout(io.TextIOBase):
+    name = "stdout"
+
     def __init__(self, stream: Stream):
         self.stream = stream
 
-    def write(self, data: str) -> None:
+    def writable(self) -> bool:
+        return True
+
+    def readable(self) -> bool:
+        return False
+
+    def seekable(self) -> bool:
+        return False
+
+    def flush(self) -> None:
+        # TODO(akshayka): maybe force the buffered writer to write
+        return
+
+    def write(self, data: str) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -100,10 +115,19 @@ class Stdout:
         )
         with self.stream.console_msg_cv:
             self.stream.console_msg_cv.notify()
+        return len(data)
 
-    def flush(self) -> None:
-        # TODO(akshayka): maybe force the buffered writer to write
-        return
+    # Buffer type not available python < 3.12, hence type ignore
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        for line in sequence:
+            self.write(line)
+
+
+class Stderr(io.TextIOBase):
+    name = "stderr"
+
+    def __init__(self, stream: Stream):
+        self.stream = stream
 
     def writable(self) -> bool:
         return True
@@ -114,12 +138,11 @@ class Stdout:
     def seekable(self) -> bool:
         return False
 
+    def flush(self) -> None:
+        # TODO(akshayka): maybe force the buffered writer to write
+        return
 
-class Stderr:
-    def __init__(self, stream: Stream):
-        self.stream = stream
-
-    def write(self, data: str) -> None:
+    def write(self, data: str) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -139,25 +162,26 @@ class Stderr:
                 )
             )
             self.stream.console_msg_cv.notify()
+        return len(data)
 
-    def flush(self) -> None:
-        return
-
-    def writable(self) -> bool:
-        return True
-
-    def readable(self) -> bool:
-        return False
-
-    def seekable(self) -> bool:
-        return False
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        for line in sequence:
+            self.write(line)
 
 
-class Stdin:
+class Stdin(io.TextIOBase):
     """Implements a subset of stdin."""
+
+    name = "stdin"
 
     def __init__(self, stream: Stream):
         self.stream = stream
+
+    def writable(self) -> bool:
+        return False
+
+    def readable(self) -> bool:
+        return True
 
     def _readline_with_prompt(self, prompt: str = "") -> str:
         """Read input from the standard in stream, with an optional prompt."""
@@ -174,7 +198,7 @@ class Stdin:
             )
 
         with self.stream.console_msg_cv:
-            # This sends a prompt request to the frontend
+            # This sends a prompt request to the frontend.
             self.stream.console_msg_queue.append(
                 ConsoleMsg(
                     stream="stdin", cell_id=self.stream.cell_id, data=prompt
@@ -184,25 +208,16 @@ class Stdin:
 
         return self.stream.input_queue.get()
 
-    def readline(self, size: int = -1) -> str:
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
         # size only included for compatibility with sys.stdin.readline API;
         # we don't support it.
         del size
         return self._readline_with_prompt(prompt="")
 
-    def write(self, data: str) -> None:
-        # stdin is not writable in Python
-        del data
-        raise io.UnsupportedOperation("not writable")
-
-    def flush(self) -> None:
-        return
-
-    def writable(self) -> bool:
-        return False
-
-    def readable(self) -> bool:
-        return True
-
-    def seekable(self) -> bool:
-        return False
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]  # noqa: E501
+        # Just an alias for readline.
+        #
+        # hint only included for compatibility with sys.stdin.readlines API;
+        # we don't support it.
+        del hint
+        return self._readline_with_prompt(prompt="").split("\n")

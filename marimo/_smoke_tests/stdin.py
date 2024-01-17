@@ -1,4 +1,3 @@
-# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.77"
@@ -20,6 +19,18 @@ def __():
 @app.cell
 def __(mo, value):
     mo.md(f"## 👋 Hi {value}")
+    return
+
+
+@app.cell
+def __():
+    print('hi')
+    return
+
+
+@app.cell
+def __():
+    print('there')
     return
 
 

@@ -276,7 +276,7 @@ class Session:
             # with a SIGINT; we don't mind the additional memory consumption,
             # since there's only one client session
             self.control_queue = mpctx.Queue()
-            self.input_queue = mpctx.Queue()
+            self.input_queue = mpctx.Queue(maxsize=1)
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(
@@ -296,7 +296,7 @@ class Session:
             # launching a process would copy the entire program state,
             # which (as of writing) is around 150MB
             self.control_queue = queue.Queue()
-            self.input_queue = queue.Queue()
+            self.input_queue = queue.Queue(maxsize=1)
             loop = tornado.ioloop.IOLoop.current()
 
             # We can't terminate threads, so we have to wait until they

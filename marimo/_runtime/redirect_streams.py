@@ -74,8 +74,8 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         target=forward_os_stream, args=(ctx.stderr, stderr_read_fd)
     )
 
-    # TODO(akshayka): Redirect fd for stdin?
-
+    # NB: Python doesn't allow monkey patching methods builtins, so
+    # we replace these streams outright
     py_stdout = sys.stdout
     py_stderr = sys.stderr
     py_stdin = sys.stdin

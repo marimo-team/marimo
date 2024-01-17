@@ -153,6 +153,14 @@ class CellMetadata:
 
 
 class Kernel:
+    """Kernel that manages the dependency graph and its execution.
+
+    Args:
+
+    - cell_configs: initial configuration for each cell
+    - input_override: a function that overrides the builtin input() function
+    """
+
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],

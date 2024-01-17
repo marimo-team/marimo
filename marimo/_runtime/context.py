@@ -111,6 +111,9 @@ def initialize_context(
     """Initializes thread-local/session-specific context.
 
     Must be called exactly once for each client thread.
+
+    stdout, stderr, and stdin are optional because in `run` mode the
+    standard streams are not redirected/replaced.
     """
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry

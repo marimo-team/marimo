@@ -8,6 +8,7 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
+from marimo._messaging.streams import Stderr, Stdin, Stdout
 from marimo._runtime.context import (
     initialize_context,
     teardown_context,
@@ -18,6 +19,8 @@ from marimo._runtime.runtime import Kernel
 
 @dataclasses.dataclass
 class _MockStream:
+    """Captures the ops sent through the stream"""
+
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
         default_factory=list
     )
@@ -27,11 +30,33 @@ class _MockStream:
 
 
 @dataclasses.dataclass
-class _MockStdStream:
+class MockStdout(Stdout):
+    """Captures the output sent through the stream"""
+
     messages: list[str] = dataclasses.field(default_factory=list)
 
-    def write(self, msg: str) -> None:
-        self.messages.append(msg)
+    def write(self, data: str) -> int:
+        self.messages.append(data)
+        return len(data)
+
+
+@dataclasses.dataclass
+class MockStderr(Stderr):
+    """Captures the output sent through the stream"""
+
+    messages: list[str] = dataclasses.field(default_factory=list)
+
+    def write(self, data: str) -> int:
+        self.messages.append(data)
+        return len(data)
+
+
+@dataclasses.dataclass
+class MockStdin(Stdin):
+    """Echoes the prompt."""
+
+    def _readline_with_prompt(self, prompt: str = "") -> str:
+        return prompt
 
 
 @dataclasses.dataclass
@@ -40,16 +65,17 @@ class MockedKernel:
         default_factory=lambda: Kernel(cell_configs={})
     )
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
-    stdout: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
-    stderr: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
+    stdout: MockStdout = dataclasses.field(default_factory=MockStdout)
+    stderr: MockStderr = dataclasses.field(default_factory=MockStderr)
+    stdin: MockStdin = dataclasses.field(default_factory=MockStdin)
 
     def __post_init__(self) -> None:
         initialize_context(
             kernel=self.k,
             stream=self.stream,  # type: ignore
-            stdout=self.stdout,  # type: ignore
-            stderr=self.stderr,  # type: ignore
-            stdin=None,  # TODO(akshayka): test stidn ...
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
         )
 
     def __del__(self) -> None:
