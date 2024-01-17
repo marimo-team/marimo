@@ -11,6 +11,7 @@ export type OutputChannel =
   | "console"
   | "media"
   | "marimo-error"
+  | "pdb"
   | "stderr"
   | "stdout";
 
@@ -57,6 +58,12 @@ export type OutputMessage =
       channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
+      timestamp: number;
+    }
+  | {
+      channel: "pdb";
+      mimetype: "application/json";
+      data: { type: "start" } | { type: "stop" };
       timestamp: number;
     }
   | {

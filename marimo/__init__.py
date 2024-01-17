@@ -38,6 +38,7 @@ __all__ = [
     "redirect_stderr",
     "redirect_stdout",
     "refs",
+    "pdb",
     "right",
     "stat",
     "state",
@@ -82,5 +83,6 @@ from marimo._runtime.capture import (
     redirect_stdout,
 )
 from marimo._runtime.control_flow import MarimoStopError, stop
+from marimo._runtime.marimo_pdb import pdb
 from marimo._runtime.runtime import defs, refs
 from marimo._runtime.state import state

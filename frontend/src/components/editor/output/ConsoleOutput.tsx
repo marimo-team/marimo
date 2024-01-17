@@ -6,6 +6,7 @@ import { cn } from "@/utils/cn";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
+import { Debugger } from "@/components/debugger/debugger-code";
 import { Input } from "@/components/ui/input";
 
 interface Props {
@@ -13,11 +14,31 @@ interface Props {
   cellName: string;
   consoleOutputs: OutputMessage[];
   stale: boolean;
-  onSubmitDebugger: (text: string, index: number) => void;
+  debuggerActive: boolean;
+  onSubmitDebugger: (text: string, index?: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
-  const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
+  const {
+    consoleOutputs,
+    stale,
+    cellName,
+    cellId,
+    onSubmitDebugger,
+    debuggerActive,
+  } = props;
+
+  if (!debuggerActive) {
+    return (
+      <Debugger
+        code={consoleOutputs
+          .map((output) => JSON.stringify(output.data))
+          .join("\n")}
+        onSubmit={onSubmitDebugger}
+      />
+    );
+  }
+
   const hasOutputs = consoleOutputs.length > 0;
 
   if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {

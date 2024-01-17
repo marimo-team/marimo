@@ -36,6 +36,7 @@ const props: CellProps = {
   appClosed: false,
   showDeleteButton: true,
   allowFocus: false,
+  debuggerActive: false,
   createNewCell: Logger.log,
   deleteCell: Logger.log,
   focusCell: Logger.log,

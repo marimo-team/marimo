@@ -43,6 +43,21 @@ def _write_console_output(
     ).broadcast(stream)
 
 
+def _write_pdb_output(
+    stream: Stream, cell_id: CellId_t, data: Literal["start", "stop"]
+) -> None:
+    from marimo._messaging.ops import CellOp
+
+    CellOp(
+        cell_id=cell_id,
+        console=CellOutput(
+            channel="pdb",
+            mimetype="text/plain",
+            data=data,
+        ),
+    ).broadcast(stream)
+
+
 def _add_output_to_buffer(
     console_output: ConsoleMsg,
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]],

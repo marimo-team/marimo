@@ -31,6 +31,7 @@ import tornado.websocket
 from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._config.utils import load_config
+from marimo._runtime.marimo_pdb import patch_pdb_with_marimo
 from marimo._server import api, sessions
 from marimo._server.model import SessionMode
 from marimo._server.print import print_shutdown, print_startup
@@ -328,6 +329,9 @@ async def start_server(
         logger.fatal("Error parsing the marimo configuration file: ")
         logger.fatal(type(e).__name__ + ": " + str(e))
         shutdown(with_error=True)
+
+    # Patch pdb to work with marimo
+    patch_pdb_with_marimo()
 
     user_config = get_configuration()
     if not run and user_config["completion"]["copilot"]:

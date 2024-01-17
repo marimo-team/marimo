@@ -29,7 +29,6 @@ import { renderShortcut } from "../shortcuts/renderShortcut";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
-import { SerializedEditorState } from "../../core/codemirror/types";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { HTMLCellId } from "../../core/cells/ids";
 import { Theme } from "../../theme/useTheme";
@@ -69,8 +68,12 @@ export interface CellProps
       | "stopped"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
+      | "debuggerActive"
     >,
-    Pick<CellData, "id" | "code" | "edited" | "config" | "name">,
+    Pick<
+      CellData,
+      "id" | "code" | "edited" | "config" | "name" | "serializedEditorState"
+    >,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -87,7 +90,6 @@ export interface CellProps
     > {
   theme: Theme;
   showPlaceholder: boolean;
-  serializedEditorState: SerializedEditorState | null;
   mode: AppMode;
   appClosed: boolean;
   showDeleteButton: boolean;
@@ -118,6 +120,7 @@ const CellComponent = (
     stopped,
     serializedEditorState,
     mode,
+    debuggerActive,
     appClosed,
     showDeleteButton,
     updateCellCode,
@@ -445,10 +448,13 @@ const CellComponent = (
           stale={consoleOutputStale}
           cellName={name}
           onSubmitDebugger={(text, index) => {
-            setStdinResponse({ cellId, response: text, outputIndex: index });
+            if (index !== undefined) {
+              setStdinResponse({ cellId, response: text, outputIndex: index });
+            }
             sendStdin({ text });
           }}
           cellId={cellId}
+          debuggerActive={debuggerActive}
         />
       </SortableCell>
     </CellActionsContextMenu>

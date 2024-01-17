@@ -1,6 +1,6 @@
 /* Copyright 2023 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import { CellMessage } from "../kernel/messages";
+import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
@@ -85,6 +85,19 @@ export function transitionCell(
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output
   nextCell.outline = parseOutline(nextCell.output);
+
+  // Transition PDB
+  const pdbOutputs = nextCell.consoleOutputs.filter(
+    (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
+      output.channel === "pdb"
+  );
+  if (pdbOutputs.some((output) => output.data.type === "start")) {
+    nextCell.debuggerActive = true;
+  }
+  if (pdbOutputs.some((output) => output.data.type === "stop")) {
+    nextCell.debuggerActive = false;
+  }
+
   return nextCell;
 }
 
