@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import tornado.web
 
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server.sessions import get_manager
 
 
 class ReadCodeHandler(ValidatedHandler):
@@ -13,7 +14,7 @@ class ReadCodeHandler(ValidatedHandler):
 
     @sessions.requires_edit
     def post(self) -> None:
-        mgr = sessions.get_manager()
+        mgr = get_manager()
         if mgr.filename is None:
             raise tornado.web.HTTPError(
                 HTTPStatus.METHOD_NOT_ALLOWED,

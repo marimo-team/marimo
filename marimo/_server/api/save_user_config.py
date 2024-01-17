@@ -12,9 +12,10 @@ from marimo import _loggers
 from marimo._config.config import MarimoConfig, configure
 from marimo._config.utils import get_config_path
 from marimo._runtime import requests
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.validated_handler import ValidatedHandler
+from marimo._server.sessions import get_manager
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -73,7 +74,7 @@ class SaveUserConfigurationHandler(ValidatedHandler):
         config = configure(args.config)
         if config["completion"]["copilot"]:
             LOGGER.debug("Starting copilot server")
-            sessions.get_manager().start_lsp_server()
+            get_manager().start_lsp_server()
         # Update the kernel's view of the config
         session.control_queue.put(
             requests.ConfigurationRequest(str(args.config))
