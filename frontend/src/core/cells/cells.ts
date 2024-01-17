@@ -407,7 +407,10 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       }
 
       consoleOutputs[outputIndex] = {
-        ...stdinOutput,
+        channel: "stdin",
+        mimetype: stdinOutput.mimetype,
+        data: stdinOutput.data,
+        timestamp: stdinOutput.timestamp,
         response,
       };
 

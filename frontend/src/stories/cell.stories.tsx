@@ -44,6 +44,7 @@ const props: CellProps = {
   sendToBottom: Logger.log,
   sendToTop: Logger.log,
   updateCellConfig: Logger.log,
+  setStdinResponse: Logger.log,
   config: {},
   userConfig: {
     completion: {

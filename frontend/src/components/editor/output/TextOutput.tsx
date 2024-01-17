@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 
 interface Props {
   text: string;
-  channel?: OutputChannel;
+  channel?: OutputChannel | "stdin";
 }
 
 export const TextOutput = ({ text, channel }: Props): JSX.Element => {
