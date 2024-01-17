@@ -4,6 +4,7 @@ from __future__ import annotations
 import builtins
 import contextlib
 import dataclasses
+import functools
 import io
 import itertools
 import multiprocessing as mp
@@ -45,7 +46,7 @@ from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._runtime import cell_runner, dataflow
+from marimo._runtime import cell_runner, dataflow, marimo_pdb
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -161,11 +162,32 @@ class Kernel:
     - input_override: a function that overrides the builtin input() function
     """
 
+    def patch_pdb(self, debugger: marimo_pdb.MarimoPdb) -> None:
+        import pdb
+
+        pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
+        pdb.set_trace = functools.partial(
+            marimo_pdb.set_trace, debugger=debugger
+        )
+
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        stream: Stream,
+        stdout: Stdout | None,
+        stderr: Stderr | None,
+        stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
     ) -> None:
+        self.stream = stream
+        self.stdout = stdout
+        self.stderr = stderr
+        self.stdin = stdin
+        self._debugger = marimo_pdb.MarimoPdb(
+            stdout=self.stdout, stdin=self.stdin
+        )
+        self.patch_pdb(self._debugger)
+
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
@@ -201,7 +223,11 @@ class Kernel:
             cell_id, setting_element_value
         )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
-            cell_id
+            cell_id,
+            stream=self.stream,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
         ):
             try:
                 yield self.execution_context
@@ -1027,13 +1053,17 @@ def launch_kernel(
     # isn't currently available in run mode.
     stdin = Stdin(stream) if is_edit_mode else None
 
-    kernel = Kernel(cell_configs=configs, input_override=input_override)
-    initialize_context(
-        kernel=kernel,
+    kernel = Kernel(
+        cell_configs=configs,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
+        input_override=input_override,
+    )
+    initialize_context(
+        kernel=kernel,
+        stream=stream,
     )
 
     if is_edit_mode:

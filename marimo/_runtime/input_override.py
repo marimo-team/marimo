@@ -1,10 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 import functools
-
-from marimo._runtime.context import get_context
+import sys
 
 
 @functools.wraps(input)
 def input_override(prompt: str = "") -> str:
-    assert (stdin := get_context().stdin) is not None
-    return stdin._readline_with_prompt(prompt)
+    # sys.stdin is overriden
+    return sys.stdin._readline_with_prompt(prompt)  # type: ignore[attr-defined, no-any-return]  # noqa: E501
