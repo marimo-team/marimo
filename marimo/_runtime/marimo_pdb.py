@@ -19,7 +19,6 @@ class MarimoPdb(Pdb):
         LOGGER.debug("MarimoPdb.__init__")
         self.use_rawinput = stdin is None
 
-    # TODO: catch bdbquit somewhere
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
