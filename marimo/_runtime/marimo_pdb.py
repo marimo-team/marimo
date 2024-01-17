@@ -43,10 +43,22 @@ class MarimoPdb(Pdb):
     # TODO: catch bdbquit somewhere
     def cmdloop(self, intro: Any | None = None) -> None:
         """Run the command loop until a `quit` command is issued."""
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            LOGGER.warn("Context not initialized")
+            return
+
         LOGGER.debug("cmdloop: %s", intro)
         try:
             return super().cmdloop(intro)
         finally:
+            _write_pdb_output(
+                ctx.stream,
+                ctx.cell_id,
+                "stop",
+            )
+
             # Restore stdout after the debugger loop is finished
             ...
             # sys.stdout = self.original_stdout
