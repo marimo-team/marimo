@@ -2,7 +2,7 @@
 import os
 import pathlib
 import sys
-from importlib.abc import Traversable
+from typing import Any
 
 # use spaces instead of a tab to play well with carriage returns;
 # \r\t doesn't appear to overwrite characters at the start of a line,
@@ -20,7 +20,7 @@ def canonicalize_filename(filename: str) -> str:
     return os.path.expanduser(filename)
 
 
-def import_files(filename: str) -> Traversable:
+def import_files(filename: str) -> Any:
     if sys.version_info < (3, 9):
         from importlib_resources import files as importlib_files
     else:
