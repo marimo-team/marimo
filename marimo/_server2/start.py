@@ -4,6 +4,7 @@ import uvicorn
 
 from marimo._server.print import print_startup
 from marimo._server.sessions import SessionMode, initialize_manager
+from marimo._server2.main import app
 
 
 def start(
@@ -27,7 +28,7 @@ def start(
         port=port,
     )
 
-    uvicorn.run("marimo._server2.main:app", port=port, reload=True)
+    uvicorn.run(app, port=port)
 
     if not quiet:
         print_startup(
