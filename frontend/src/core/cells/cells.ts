@@ -393,6 +393,33 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
   },
+  setStdinResponse: (
+    state,
+    action: { cellId: CellId; response: string; outputIndex: number }
+  ) => {
+    const { cellId, response, outputIndex } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => {
+      const consoleOutputs = [...cell.consoleOutputs];
+      const stdinOutput = consoleOutputs[outputIndex];
+      if (stdinOutput.channel !== "stdin") {
+        Logger.warn("Expected stdin output");
+        return cell;
+      }
+
+      consoleOutputs[outputIndex] = {
+        channel: "stdin",
+        mimetype: stdinOutput.mimetype,
+        data: stdinOutput.data,
+        timestamp: stdinOutput.timestamp,
+        response,
+      };
+
+      return {
+        ...cell,
+        consoleOutputs,
+      };
+    });
+  },
   setCells: (state, cells: CellData[]) => {
     return {
       ...state,

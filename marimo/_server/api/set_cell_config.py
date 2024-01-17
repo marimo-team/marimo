@@ -21,4 +21,4 @@ class SetCellConfigHandler(ValidatedHandler):
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, SetCellConfig)
-        session.queue.put(requests.SetCellConfigRequest(args.configs))
+        session.control_queue.put(requests.SetCellConfigRequest(args.configs))

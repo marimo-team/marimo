@@ -249,7 +249,16 @@ class Session:
         mgr = get_manager()
         self.socket = socket_handler
         self.cancel_close_handle: Optional[object] = None
-        self.queue: mp.Queue[requests.Request] | queue.Queue[requests.Request]
+
+        # Control messages for the kernel (run, autocomplete,
+        # set UI element, set config, etc ) are sent through the control queue
+        self.control_queue: mp.Queue[requests.Request] | queue.Queue[
+            requests.Request
+        ]
+        # Input messages for the user's Python code are sent through the
+        # input queue
+        self.input_queue: mp.Queue[str] | queue.Queue[str]
+
         self.kernel_task: threading.Thread | mp.Process
         self.read_conn: connection.Connection
 
@@ -266,10 +275,17 @@ class Session:
             # We use a process in edit mode so that we can interrupt the app
             # with a SIGINT; we don't mind the additional memory consumption,
             # since there's only one client session
-            self.queue = mpctx.Queue()
+            self.control_queue = mpctx.Queue()
+            self.input_queue = mpctx.Queue(maxsize=1)
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
-                args=(self.queue, listener.address, is_edit_mode, configs),
+                args=(
+                    self.control_queue,
+                    self.input_queue,
+                    listener.address,
+                    is_edit_mode,
+                    configs,
+                ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
                 # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
@@ -279,7 +295,8 @@ class Session:
             # We use threads in run mode to minimize memory consumption;
             # launching a process would copy the entire program state,
             # which (as of writing) is around 150MB
-            self.queue = queue.Queue()
+            self.control_queue = queue.Queue()
+            self.input_queue = queue.Queue(maxsize=1)
             loop = tornado.ioloop.IOLoop.current()
 
             # We can't terminate threads, so we have to wait until they
@@ -298,7 +315,13 @@ class Session:
             # down all client sessions
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
-                args=(self.queue, listener.address, is_edit_mode, configs),
+                args=(
+                    self.control_queue,
+                    self.input_queue,
+                    listener.address,
+                    is_edit_mode,
+                    configs,
+                ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
                 daemon=True,
@@ -352,10 +375,12 @@ class Session:
             # guaranteed to be a multiprocessing Queue; annoying to assert
             # this, because mp.Queue appears to be a function
             #
-            # don't care if queue still has things in it; don't make the
+            # don't care if the queues still have things in it; don't make the
             # child process wait for it to empty.
-            self.queue.cancel_join_thread()  # type: ignore
-            self.queue.close()  # type: ignore
+            self.control_queue.cancel_join_thread()  # type: ignore
+            self.control_queue.close()  # type: ignore
+            self.input_queue.cancel_join_thread()  # type: ignore
+            self.input_queue.close()  # type: ignore
             if self.kernel_task.is_alive():
                 # Explicitly terminate the process
                 self.kernel_task.terminate()
@@ -366,7 +391,7 @@ class Session:
         elif self.kernel_task.is_alive():
             # kernel thread cleans up read/write conn and IOloop handler on
             # exit; we don't join the thread because we don't want to block
-            self.queue.put(requests.StopRequest())
+            self.control_queue.put(requests.StopRequest())
         # 1000 - normal closure
         self.socket.close(1000, "MARIMO_SHUTDOWN")
 

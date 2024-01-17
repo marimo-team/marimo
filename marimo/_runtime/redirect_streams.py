@@ -54,6 +54,8 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
             ctx.stream.cell_id = None
         return
 
+    # Redirect file descriptors for writable streams (stdout, stderr).
+    #
     # All six of these file descriptors will need to be closed later
     stdout_duped, stdout_read_fd, stdout_fd = dup2newfd(sys.stdout.fileno())
     stderr_duped, stderr_read_fd, stderr_fd = dup2newfd(sys.stderr.fileno())
@@ -72,10 +74,14 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         target=forward_os_stream, args=(ctx.stderr, stderr_read_fd)
     )
 
+    # NB: Python doesn't allow monkey patching methods builtins, so
+    # we replace these streams outright
     py_stdout = sys.stdout
     py_stderr = sys.stderr
+    py_stdin = sys.stdin
     sys.stdout = ctx.stdout  # type: ignore
     sys.stderr = ctx.stderr  # type: ignore
+    sys.stdin = ctx.stdin  # type: ignore
 
     stdout_thread.start()
     stderr_thread.start()
@@ -103,8 +109,9 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         os.close(stdout_read_fd)
         os.close(stderr_read_fd)
 
-        # Restore Python stdout/stderr
+        # Restore Python stdout/stderr/stdin
         sys.stdout = py_stdout
         sys.stderr = py_stderr
+        sys.stdin = py_stdin
 
         ctx.stream.cell_id = None

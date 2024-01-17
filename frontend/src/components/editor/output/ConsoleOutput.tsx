@@ -6,16 +6,18 @@ import { cn } from "@/utils/cn";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   cellId: CellId;
   cellName: string;
   consoleOutputs: OutputMessage[];
   stale: boolean;
+  onSubmitDebugger: (text: string, index: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
-  const { consoleOutputs, stale, cellName, cellId } = props;
+  const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
   const hasOutputs = consoleOutputs.length > 0;
 
   if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {
@@ -25,17 +27,48 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
+      data-testid="console-output-area"
       className={cn(
         "console-output-area overflow-hidden rounded-b-lg",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3"
       )}
     >
-      {consoleOutputs.map((output, idx) => (
-        <React.Fragment key={idx}>
-          {formatOutput({ message: output })}
-        </React.Fragment>
-      ))}
+      {consoleOutputs.map((output, idx) => {
+        if (output.channel === "stdin") {
+          if (output.response == null) {
+            return (
+              <div key={idx} className="flex gap-2 items-center">
+                <span>{output.data}</span>
+                <Input
+                  type="text"
+                  autoComplete="off"
+                  autoFocus={true}
+                  className="m-0"
+                  placeholder="stdin"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      onSubmitDebugger(e.currentTarget.value, idx);
+                    }
+                  }}
+                />
+              </div>
+            );
+          }
+          return (
+            <div key={idx} className="flex gap-2 items-center">
+              <span>{output.data}</span>
+              <span className="text-[var(--sky-11)]">{output.response}</span>
+            </div>
+          );
+        }
+
+        return (
+          <React.Fragment key={idx}>
+            {formatOutput({ message: output })}
+          </React.Fragment>
+        );
+      })}
       <NameCellContentEditable
         value={cellName}
         cellId={cellId}

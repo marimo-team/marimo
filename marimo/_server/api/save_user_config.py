@@ -75,4 +75,6 @@ class SaveUserConfigurationHandler(ValidatedHandler):
             LOGGER.debug("Starting copilot server")
             sessions.get_manager().start_lsp_server()
         # Update the kernel's view of the config
-        session.queue.put(requests.ConfigurationRequest(str(args.config)))
+        session.control_queue.put(
+            requests.ConfigurationRequest(str(args.config))
+        )

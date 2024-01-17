@@ -22,7 +22,7 @@ class SetUIElementValueHandler(ValidatedHandler):
     def post(self) -> None:
         session = sessions.require_session_from_header(self.request.headers)
         args = parse_raw(self.request.body, SetUIElementValue)
-        session.queue.put(
+        session.control_queue.put(
             requests.SetUIElementValueRequest(
                 zip(
                     args.object_ids,

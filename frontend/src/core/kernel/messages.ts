@@ -58,6 +58,17 @@ export type OutputMessage =
       mimetype: "application/json";
       data: unknown;
       timestamp: number;
+    }
+  | {
+      channel: "stdin";
+      mimetype: "text/plain";
+      data: string;
+      /**
+       * This is not saved to the server, but we update this field
+       * after sending the message to the kernel.
+       */
+      response?: string;
+      timestamp: number;
     };
 
 /**
