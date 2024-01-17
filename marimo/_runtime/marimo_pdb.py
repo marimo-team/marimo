@@ -4,7 +4,6 @@ from __future__ import annotations
 import sys
 from pdb import Pdb
 from types import FrameType
-from typing import Any
 
 from marimo import _loggers
 from marimo._messaging.console_output_worker import _write_pdb_output
@@ -20,6 +19,7 @@ class MarimoPdb(Pdb):
         LOGGER.debug("MarimoPdb.__init__")
         self.use_rawinput = stdin is None
 
+    # TODO: catch bdbquit somewhere
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
@@ -38,30 +38,6 @@ class MarimoPdb(Pdb):
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
-
-    # TODO: break out of cmd loop when cell not executing
-    # TODO: catch bdbquit somewhere
-    def cmdloop(self, intro: Any | None = None) -> None:
-        """Run the command loop until a `quit` command is issued."""
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            LOGGER.warn("Context not initialized")
-            return
-
-        LOGGER.debug("cmdloop: %s", intro)
-        try:
-            return super().cmdloop(intro)
-        finally:
-            _write_pdb_output(
-                ctx.stream,
-                ctx.cell_id,
-                "stop",
-            )
-
-            # Restore stdout after the debugger loop is finished
-            ...
-            # sys.stdout = self.original_stdout
 
 
 def set_trace(
