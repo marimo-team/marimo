@@ -229,9 +229,6 @@ class TornadoWebsocketSessionHandler(SessionHandler):
         check_alive: Callable[[], None],
     ) -> None:
         self.mode = mode
-        if mode == SessionMode.RUN:
-            loop = tornado.ioloop.IOLoop.current()
-            loop.remove_handler(connection.fileno())
 
         def reader(fd: int, events: int) -> None:
             del fd
