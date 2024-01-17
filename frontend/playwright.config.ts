@@ -36,6 +36,7 @@ const appToOptions = {
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "output.py//run": { port: port(), command: "run" },
   "kitchen_sink.py//edit": { port: port(), command: "edit" },
+  "stdin.py//edit": { port: port(), command: "edit" },
 } satisfies Record<string, ServerOptions>;
 
 export type ApplicationNames = keyof typeof appToOptions;

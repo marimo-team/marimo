@@ -24,7 +24,7 @@ class CodeCompleteHandler(ValidatedHandler):
     def post(self) -> None:
         args = parse_raw(self.request.body, CodeComplete)
         session = sessions.require_session_from_header(self.request.headers)
-        session.queue.put(
+        session.control_queue.put(
             requests.CompletionRequest(
                 completion_id=args.id,
                 document=args.document,

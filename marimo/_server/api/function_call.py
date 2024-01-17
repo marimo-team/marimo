@@ -34,4 +34,4 @@ class FunctionHandler(ValidatedHandler):
             function_name=args.function_name,
             args=args.args,
         )
-        session.queue.put(request)
+        session.control_queue.put(request)

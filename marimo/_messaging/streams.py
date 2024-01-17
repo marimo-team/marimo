@@ -1,12 +1,15 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
+import multiprocessing as mp
 import os
+import queue
 import sys
 import threading
 from collections import deque
 from multiprocessing.connection import Connection
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
@@ -43,12 +46,18 @@ STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 class Stream:
     """A thread-safe wrapper around a pipe."""
 
-    def __init__(self, pipe: Connection, cell_id: Optional[CellId_t] = None):
+    def __init__(
+        self,
+        pipe: Connection,
+        input_queue: mp.Queue[str] | queue.Queue[str],
+        cell_id: Optional[CellId_t] = None,
+    ):
         self.pipe = pipe
         self.cell_id = cell_id
         # A single stream is shared by the kernel and the code completion
         # worker. The lock should almost always be uncontended.
         self.stream_lock = threading.Lock()
+
         # Console outputs are buffered
         self.console_msg_cv = threading.Condition(threading.Lock())
         self.console_msg_queue: deque[ConsoleMsg] = deque()
@@ -57,6 +66,9 @@ class Stream:
             args=(self.console_msg_queue, self, self.console_msg_cv),
         )
         self.buffered_console_thread.start()
+
+        # stdin messages are pulled from this queue
+        self.input_queue = input_queue
 
     def write(self, op: str, data: dict[Any, Any]) -> None:
         with self.stream_lock:
@@ -68,11 +80,26 @@ class Stream:
                 LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
 
 
-class Stdout:
+class Stdout(io.TextIOBase):
+    name = "stdout"
+
     def __init__(self, stream: Stream):
         self.stream = stream
 
-    def write(self, data: str) -> None:
+    def writable(self) -> bool:
+        return True
+
+    def readable(self) -> bool:
+        return False
+
+    def seekable(self) -> bool:
+        return False
+
+    def flush(self) -> None:
+        # TODO(akshayka): maybe force the buffered writer to write
+        return
+
+    def write(self, data: str) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -88,10 +115,19 @@ class Stdout:
         )
         with self.stream.console_msg_cv:
             self.stream.console_msg_cv.notify()
+        return len(data)
 
-    def flush(self) -> None:
-        # TODO(akshayka): maybe force the buffered writer to write
-        return
+    # Buffer type not available python < 3.12, hence type ignore
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        for line in sequence:
+            self.write(line)
+
+
+class Stderr(io.TextIOBase):
+    name = "stderr"
+
+    def __init__(self, stream: Stream):
+        self.stream = stream
 
     def writable(self) -> bool:
         return True
@@ -102,12 +138,11 @@ class Stdout:
     def seekable(self) -> bool:
         return False
 
+    def flush(self) -> None:
+        # TODO(akshayka): maybe force the buffered writer to write
+        return
 
-class Stderr:
-    def __init__(self, stream: Stream):
-        self.stream = stream
-
-    def write(self, data: str) -> None:
+    def write(self, data: str) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -127,15 +162,62 @@ class Stderr:
                 )
             )
             self.stream.console_msg_cv.notify()
+        return len(data)
 
-    def flush(self) -> None:
-        return
+    def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
+        for line in sequence:
+            self.write(line)
+
+
+class Stdin(io.TextIOBase):
+    """Implements a subset of stdin."""
+
+    name = "stdin"
+
+    def __init__(self, stream: Stream):
+        self.stream = stream
 
     def writable(self) -> bool:
-        return True
+        return False
 
     def readable(self) -> bool:
-        return False
+        return True
 
-    def seekable(self) -> bool:
-        return False
+    def _readline_with_prompt(self, prompt: str = "") -> str:
+        """Read input from the standard in stream, with an optional prompt."""
+        assert self.stream.cell_id is not None
+        if not isinstance(prompt, str):
+            raise TypeError(
+                "prompt must be a str, not %s" % type(prompt).__name__
+            )
+        if sys.getsizeof(prompt) > STD_STREAM_MAX_BYTES:
+            prompt = (
+                "Warning: marimo truncated a very large console output.\n"
+                + prompt[: int(STD_STREAM_MAX_BYTES)]
+                + " ... "
+            )
+
+        with self.stream.console_msg_cv:
+            # This sends a prompt request to the frontend.
+            self.stream.console_msg_queue.append(
+                ConsoleMsg(
+                    stream="stdin", cell_id=self.stream.cell_id, data=prompt
+                )
+            )
+            self.stream.console_msg_cv.notify()
+
+        return self.stream.input_queue.get()
+
+    def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
+        # size only included for compatibility with sys.stdin.readline API;
+        # we don't support it.
+        del size
+        return self._readline_with_prompt(prompt="")
+
+    def readlines(self, hint: int | None = -1) -> list[str]:  # type: ignore[override]  # noqa: E501
+        # Just an alias for readline.
+        #
+        # hint only included for compatibility with sys.stdin.readlines API;
+        # we don't support it.
+        del hint
+        return self._readline_with_prompt(prompt="").split("\n")

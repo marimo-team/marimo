@@ -38,4 +38,4 @@ class RunHandler(ValidatedHandler):
                 for cid, code in zip(args.cell_ids, args.codes)
             )
         )
-        session.queue.put(request)
+        session.control_queue.put(request)

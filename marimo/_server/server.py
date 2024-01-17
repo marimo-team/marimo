@@ -217,6 +217,10 @@ def construct_app(
                 api.SaveAppConfigurationHandler,
             ),
             (
+                r"/api/kernel/stdin/",
+                api.StdinHandler,
+            ),
+            (
                 r"/api/kernel/read_code/",
                 api.ReadCodeHandler,
             ),

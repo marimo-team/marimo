@@ -24,4 +24,4 @@ class DeleteHandler(ValidatedHandler):
         args = parse_raw(self.request.body, Delete)
         cell_id = CellId_t(args.cell_id)
         request = requests.DeleteRequest(cell_id=cell_id)
-        session.queue.put(request)
+        session.control_queue.put(request)
