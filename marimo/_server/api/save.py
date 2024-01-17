@@ -10,10 +10,11 @@ import tornado.web
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._server.layout import LayoutConfig, save_layout_config
+from marimo._server.sessions import get_manager
 from marimo._server.utils import canonicalize_filename
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -39,7 +40,7 @@ class SaveHandler(ValidatedHandler):
 
     @sessions.requires_edit
     def post(self) -> None:
-        mgr = sessions.get_manager()
+        mgr = get_manager()
         args = parse_raw(self.request.body, Save)
         codes, names, filename, layout = (
             args.codes,

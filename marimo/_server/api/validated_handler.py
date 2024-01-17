@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import tornado.web
 
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 
 
 class ValidatedHandler(tornado.web.RequestHandler):
