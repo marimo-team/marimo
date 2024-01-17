@@ -7,6 +7,7 @@ import { useEvent } from "./useEvent";
 import { useSetRegisteredAction } from "../core/hotkeys/actions";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
+import { Logger } from "@/utils/Logger";
 
 type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
 
@@ -58,7 +59,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
     for (const [shortcut, callback] of Objects.entries(handlers)) {
       const key = HOTKEYS.getHotkey(shortcut).key;
       if (parseShortcut(key)(e)) {
-        console.log("Satisfied", key, e);
+        Logger.debug("Satisfied", key, e);
         const response = callback();
         // Prevent default if the callback does not return false
         if (response !== false) {
@@ -80,6 +81,7 @@ export function useKeydownOnElement(
   useEventListener(element, "keydown", (e) => {
     for (const [key, callback] of Objects.entries(handlers)) {
       if (parseShortcut(key)(e)) {
+        Logger.debug("Satisfied", key, e);
         const response = callback();
         // Prevent default if the callback does not return false
         if (response !== false) {
