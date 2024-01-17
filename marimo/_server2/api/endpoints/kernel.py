@@ -8,8 +8,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._server import sessions
-from marimo._server2.api.deps import SessionDep
+from marimo._server2.api.deps import SessionDep, SessionManagerDep
 from marimo._server2.models.models import (
     BaseResponse,
     InstantiateRequest,
@@ -52,12 +51,12 @@ def instantiate(
     *,
     request: InstantiateRequest,
     session: SessionDep,
+    manager: SessionManagerDep,
 ) -> BaseResponse:
     """
     Instantiate the kernel.
     """
-    mgr = sessions.get_manager()
-    app = mgr.load_app()
+    app = manager.load_app()
 
     execution_requests: tuple[ExecutionRequest, ...]
     if app is None:
