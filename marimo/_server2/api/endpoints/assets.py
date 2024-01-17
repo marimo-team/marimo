@@ -4,7 +4,7 @@ import re
 from importlib.resources import files as importlib_files
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from marimo import __version__
@@ -48,7 +48,7 @@ async def index(state: SessionManagerStateDep):
             json.dumps("read" if state.mode == SessionMode.RUN else "edit"),
         )
 
-    return html
+    return HTMLResponse(html)
 
 
 STATIC_FILES = [
