@@ -1,8 +1,9 @@
-import uvicorn
-from altair import Optional
+from typing import Optional
 
+import uvicorn
+
+from marimo._server.print import print_startup
 from marimo._server.sessions import SessionMode, initialize_manager
-from marimo._server2.utils.print import print_startup
 
 
 def start(

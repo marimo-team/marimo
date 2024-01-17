@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import os
-
-from altair import Optional
+from typing import Optional
 
 
 def require_header(header: list[str] | None) -> str:
