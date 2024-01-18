@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Any, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,9 +10,14 @@ from marimo._server2.main import app
 
 
 @pytest.fixture(scope="module")
-def client() -> Generator[TestClient, None, None]:
+def client_with_lifespans() -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(scope="module")
+def client() -> TestClient:
+    return TestClient(app)
 
 
 @pytest.fixture(scope="module")
@@ -22,12 +27,14 @@ def state() -> SessionManagerState:
         filename="test_app.py",
         mode=SessionMode.RUN,
         app_config=None,
+        development_mode=False,
+        quiet=False,
     )
 
 
 @pytest.fixture(scope="module")
-def session_manager() -> SessionManager:
-    return None
+def LIFESPANS() -> Any:
+    return []
 
 
 @pytest.fixture(scope="module")

@@ -6,4 +6,6 @@ MOCK_MANAGER_STATE = SessionManagerState(
     filename="test_app.py",
     mode=SessionMode.RUN,
     app_config=None,
+    quiet=False,
+    development_mode=False,
 )
