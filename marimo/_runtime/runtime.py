@@ -166,6 +166,7 @@ class Kernel:
     def patch_pdb(self, debugger: marimo_pdb.MarimoPdb) -> None:
         import pdb
 
+        # Patch Pdb so manually instantiated debuggers create our debugger
         pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
         pdb.set_trace = functools.partial(
             marimo_pdb.set_trace, debugger=debugger

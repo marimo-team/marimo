@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import sys
 from pdb import Pdb
 from types import FrameType
@@ -46,4 +47,8 @@ def set_trace(
     frame: FrameType | None = None,
     header: str | None = None,
 ) -> None:
+    if frame is None:
+        # make sure the frame points to user code
+        current_frame = inspect.currentframe()
+        frame = current_frame.f_back if current_frame is not None else None
     debugger.set_trace(frame, header=header)
