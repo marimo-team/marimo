@@ -7,7 +7,6 @@ from multiprocessing import shared_memory
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-
 from marimo._ast.app import App
 from marimo._config.utils import LOGGER
 from marimo._runtime import requests
@@ -17,8 +16,6 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
-from marimo._server.api.status import HTTPStatus
-from marimo._server.print import print_shutdown
 from marimo._server2.api.deps import SessionDep, SessionManagerDep
 from marimo._server2.models.models import (
     BaseResponse,
@@ -28,6 +25,8 @@ from marimo._server2.models.models import (
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
+from marimo._server.api.status import HTTPStatus
+from marimo._server.print import print_shutdown
 
 # Router for execution endpoints
 router = APIRouter()
@@ -70,11 +69,11 @@ def instantiate(
         # Instantiating an empty app
         # TODO(akshayka): In this case, don't need to run anything ...
         execution_requests = (
-            ExecutionRequest(App()._create_cell_id(None), ""),
+            ExecutionRequest(cell_id=App()._create_cell_id(None), code=""),
         )
     else:
         execution_requests = tuple(
-            ExecutionRequest(cell_data.cell_id, cell_data.code)
+            ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
             for cell_data in app._cell_data.values()
         )
 
@@ -136,7 +135,7 @@ def run_cell(
     session.control_queue.put(
         requests.ExecuteMultipleRequest(
             tuple(
-                requests.ExecutionRequest(cid, code)
+                requests.ExecutionRequest(cell_id=cid, code=code)
                 for cid, code in zip(request.cell_ids, request.codes)
             )
         )

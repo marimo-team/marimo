@@ -1,19 +1,26 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import Depends, Header
-from pydantic import BaseModel
-
-from marimo._ast.app import _AppConfig
 from marimo._config.config import MarimoConfig, get_configuration
+from marimo._server2.api.utils import require_header
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager, get_manager
-from marimo._server2.api.utils import require_header
+from pydantic import BaseModel
 
 # Dependency for getting the current session manager
 SessionManagerDep = Annotated[SessionManager, Depends(get_manager)]
+
+
+# Duplicating _AppConfig because Pydantic complains in Python 3.10 when
+# it isn't a Pydantic model
+class _AppConfig(BaseModel):
+    width: Literal["normal", "full"] = "normal"
+
+    # The file path of the layout file, relative to the app file.
+    layout_file: Optional[str] = None
 
 
 class SessionManagerState(BaseModel):

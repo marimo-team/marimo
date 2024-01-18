@@ -50,7 +50,9 @@ def start(
         # reload=development_mode,
         reload_dirs=[
             os.path.realpath(str(import_files("marimo").joinpath("_static")))
-        ],
+        ]
+        if development_mode
+        else None,
         log_level=log_level,
         # ping the websocket once a second to prevent intermittent
         # disconnections

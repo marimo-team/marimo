@@ -1,15 +1,11 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, cast
-
+from typing import Any, Dict, cast, Literal, Optional
 from typing_extensions import TypedDict
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
-
-if TYPE_CHECKING:
-    from typing import Literal, Optional
 
 
 @mddoc

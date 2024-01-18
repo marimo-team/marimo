@@ -7,9 +7,14 @@ from typing import Any, Union
 
 from marimo._ast.cell import CellId_t
 
+from pydantic import BaseModel
 
-@dataclass
-class ExecutionRequest:
+
+# Some of the requests are pydantic models because they are
+# used in the API ...
+#
+# TODO: Maybe make all of them pydantic models?
+class ExecutionRequest(BaseModel):
     cell_id: CellId_t
     code: str
 
@@ -33,8 +38,7 @@ class FunctionCallRequest:
     args: dict[str, Any]
 
 
-@dataclass
-class SetCellConfigRequest:
+class SetCellConfigRequest(BaseModel):
     configs: dict[CellId_t, dict[str, object]]
 
 
@@ -45,7 +49,7 @@ class CreationRequest:
 
 
 @dataclass
-class DeleteRequest:
+class DeleteRequest(BaseModel):
     cell_id: CellId_t
 
 
@@ -54,8 +58,7 @@ class StopRequest:
     pass
 
 
-@dataclass
-class CompletionRequest:
+class CompletionRequest(BaseModel):
     completion_id: str
     document: str
     cell_id: CellId_t

@@ -15,7 +15,7 @@ from marimo._server.model import SessionMode
 from marimo._server.print import print_shutdown, print_startup
 from marimo._server.sessions import get_manager
 from marimo._server.utils import initialize_mimetypes
-from marimo._server2.api.interupt import InterruptHandler
+from marimo._server2.api.interrupt import InterruptHandler
 from marimo._server2.api.utils import open_url_in_browser
 
 LifespanList: TypeAlias = Sequence[

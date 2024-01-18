@@ -27,6 +27,8 @@ dependencies = [
     "pydantic > 1.0",
     # web server
     "uvicorn",
+    # websockets for use with fastapi
+    "websockets",
     # web framework
     "fastapi",
     # python <=3.12 compatibility (required by pydantic)

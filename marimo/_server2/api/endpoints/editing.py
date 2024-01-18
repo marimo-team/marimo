@@ -83,7 +83,9 @@ def set_cell_config(
     session: SessionDep,
 ) -> BaseResponse:
     """Set the config for a cell."""
-    session.control_queue.put(requests.SetCellConfigRequest(request.configs))
+    session.control_queue.put(
+        requests.SetCellConfigRequest(configs=request.configs)
+    )
 
     return SuccessResponse()
 
