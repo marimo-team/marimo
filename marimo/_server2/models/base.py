@@ -1,5 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
-from pydantic import BaseModel
+import pydantic
 
 
 def to_camel_case(snake_str: str) -> str:
@@ -13,8 +13,10 @@ def to_camel_case(snake_str: str) -> str:
     return snake_str[0].lower() + pascal_case[1:]
 
 
-class CamelModel(BaseModel):
+class CamelModel(pydantic.BaseModel):
     class Config:
         alias_generator = to_camel_case
-        # allow_population_by_field_name = True
-        populate_by_name = True
+        if pydantic.__version__[0] == "1":
+            allow_population_by_field_name = True
+        else:
+            populate_by_name = True
