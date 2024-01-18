@@ -295,7 +295,7 @@ class TestApp:
         assert configs[1].hide_code
 
     @staticmethod
-    def test_condition_definition() -> None:
+    def test_conditional_definition() -> None:
         app = App()
 
         @app.cell
@@ -309,3 +309,19 @@ class TestApp:
 
         # x should not be in the defs dictionary
         assert defs == {"y": 1}
+
+    @staticmethod
+    def test_empty_iteration_conditional_definition() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> tuple[int]:
+            objects = iter([])
+            for obj in objects:
+                pass
+            return (obj, objects)
+
+        _, defs = app.run()
+
+        # obj should not be in the defs dictionary
+        assert "obj" not in defs
