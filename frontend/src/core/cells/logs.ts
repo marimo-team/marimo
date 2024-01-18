@@ -17,7 +17,6 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
   for (const output of outputs) {
     if (output.mimetype === "text/plain") {
       switch (output.channel) {
-        case "console":
         case "stdout":
           logs.push({
             timestamp: output.timestamp,

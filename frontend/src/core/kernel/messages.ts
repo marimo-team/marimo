@@ -8,7 +8,6 @@ import { RequestId } from "../network/DeferredRequestRegistry";
 
 export type OutputChannel =
   | "output"
-  | "console"
   | "media"
   | "marimo-error"
   | "pdb"

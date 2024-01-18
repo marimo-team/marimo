@@ -27,6 +27,10 @@ export function transitionCell(
       if (cell.stopped) {
         nextCell.output = null;
       }
+      // If it transitioned from queued to running, remove previous console outputs
+      if (nextCell.status === "queued") {
+        nextCell.consoleOutputs = [];
+      }
       nextCell.stopped = false;
       nextCell.runStartTimestamp = message.timestamp;
       break;
@@ -48,6 +52,7 @@ export function transitionCell(
     default:
       logNever(message.status);
   }
+
   nextCell.output = message.output ?? nextCell.output;
   nextCell.status = message.status ?? nextCell.status;
 
@@ -96,6 +101,16 @@ export function transitionCell(
   }
   if (pdbOutputs.some((output) => output.data.type === "stop")) {
     nextCell.debuggerActive = false;
+  }
+  // If interrupted, remove the debugger and resolve all stdin
+  if (nextCell.interrupted || nextCell.errored) {
+    nextCell.debuggerActive = false;
+    nextCell.consoleOutputs = nextCell.consoleOutputs.map((output) => {
+      if (output.channel === "stdin") {
+        return { ...output, response: output.response ?? "" };
+      }
+      return output;
+    });
   }
 
   return nextCell;
