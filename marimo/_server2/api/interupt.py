@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import asyncio
 import signal
 from typing import Any, Callable

@@ -1,11 +1,12 @@
+# Copyright 2024 Marimo. All rights reserved.
 import asyncio
 import contextlib
 import sys
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
-from typing import TypeAlias
 
 from fastapi import FastAPI
+from typing_extensions import TypeAlias
 
 from marimo import _loggers
 from marimo._config.config import get_configuration

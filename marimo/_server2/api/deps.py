@@ -1,6 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends, Header
 from pydantic import BaseModel
@@ -17,9 +18,9 @@ SessionManagerDep = Annotated[SessionManager, Depends(get_manager)]
 
 class SessionManagerState(BaseModel):
     server_token: str
-    filename: str | None
+    filename: Optional[str]
     mode: SessionMode
-    app_config: _AppConfig | None
+    app_config: Optional[_AppConfig]
     quiet: bool
     development_mode: bool
 
@@ -47,7 +48,7 @@ SessionManagerStateDep = Annotated[
 
 async def get_current_session(
     session_manager: SessionManagerDep,
-    marimo_session_id: Annotated[list[str] | None, Header()] = None,
+    marimo_session_id: Annotated[Optional[list[str]], Header()] = None,
 ) -> Session:
     header = require_header(marimo_session_id)
 

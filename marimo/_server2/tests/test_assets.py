@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from fastapi.testclient import TestClient
 
 from marimo._server.sessions import get_manager

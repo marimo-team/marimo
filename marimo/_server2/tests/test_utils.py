@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._server2.api.utils import parse_title, require_header
 
 

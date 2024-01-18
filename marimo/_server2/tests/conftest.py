@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from typing import Any, Generator
 
 import pytest

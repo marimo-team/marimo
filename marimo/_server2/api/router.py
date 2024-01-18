@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from fastapi import APIRouter
 
 from marimo._server2.api.endpoints.assets import router as assets_router
