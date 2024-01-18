@@ -21,10 +21,16 @@ dependencies = [
     "pygments>=2.13,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
-    # web server
+    # web server TODO: remove dependency on tornado.logging
     "tornado>=6.1,<7",
-    # python <=3.9 compatibility
-    "typing_extensions>=4.4.0; python_version < \"3.10\"",
+    # server models
+    "pydantic > 1.0",
+    # web server
+    "uvicorn",
+    # web framework
+    "fastapi",
+    # python <=3.12 compatibility (required by pydantic)
+    "typing_extensions>=4.4.0; python_version < \"3.12\"",
     # for cell formatting; if user version is not compatible, no-op
     "black",
 ]
