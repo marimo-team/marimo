@@ -96,3 +96,22 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert "cannot rename" in response.text
+
+
+def test_save_app_config(client: TestClient) -> None:
+    filename = get_mock_session_manager().filename
+    assert filename
+
+    file_contents = open(filename).read()
+    assert 'marimo.App(width="full"' not in file_contents
+
+    response = client.post(
+        "/api/kernel/save_app_config",
+        json={
+            "config": {"width": "full"},
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    file_contents = open(filename).read()
+    assert 'marimo.App(width="full"' in file_contents
