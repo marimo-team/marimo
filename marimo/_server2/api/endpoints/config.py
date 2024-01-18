@@ -5,8 +5,9 @@ import os
 import tomlkit
 from fastapi import APIRouter, HTTPException
 
+from marimo import _loggers
 from marimo._config.config import configure
-from marimo._config.utils import LOGGER, get_config_path
+from marimo._config.utils import get_config_path
 from marimo._runtime import requests
 from marimo._server.api.status import HTTPStatus
 from marimo._server2.api.deps import SessionDep, SessionManagerDep
@@ -15,6 +16,8 @@ from marimo._server2.models.models import (
     SaveUserConfigurationRequest,
     SuccessResponse,
 )
+
+LOGGER = _loggers.marimo_logger()
 
 # Router for config endpoints
 router = APIRouter()

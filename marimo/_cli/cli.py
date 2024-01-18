@@ -17,7 +17,6 @@ from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._cli.upgrade import check_for_updates
-from marimo._server.server import start_server
 from marimo._server.sessions import SessionMode
 from marimo._server2.start import start
 
@@ -343,21 +342,12 @@ Recommended sequence:
         ]
     ),
 )
-@click.option(
-    "--next",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    type=bool,
-    help="Use the new server.",
-)
 def tutorial(
     port: Optional[int],
     headless: bool,
     name: Literal[
         "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat"
     ],
-    next: Optional[bool] = False,
 ) -> None:
     from marimo._tutorials import (
         dataflow,
@@ -388,7 +378,7 @@ def tutorial(
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         port=port,
-        mode=SessionMode.RUN,
+        mode=SessionMode.EDIT,
         filename=fname,
         include_code=True,
         headless=headless,

@@ -144,45 +144,6 @@ def run_cell(
     return SuccessResponse()
 
 
-@router.post("/@file/{filename_and_length:path}")
-def virtual_file(
-    *,
-    filename_and_length: str,
-) -> Response:
-    """Handler for virtual files."""
-
-    LOGGER.debug("Getting virtual file: %s", filename_and_length)
-    if filename_and_length == EMPTY_VIRTUAL_FILE.filename:
-        return Response(content=b"", media_type="application/octet-stream")
-
-    byte_length, filename = filename_and_length.split("-", 1)
-    key = filename
-    shm = None
-    try:
-        # NB: this can't be collapsed into a one-liner!
-        # doing it in one line yields a 'released memoryview ...'
-        # because shared_memory has built in ref-tracking + GC
-        shm = shared_memory.SharedMemory(name=key)
-        buffer_contents = bytes(shm.buf)[: int(byte_length)]
-    except FileNotFoundError as err:
-        LOGGER.debug(
-            "Error retrieving shared memory for virtual file: %s", err
-        )
-        raise HTTPException(
-            HTTPStatus.NOT_FOUND,
-            detail="File not found",
-        ) from err
-    finally:
-        if shm is not None:
-            shm.close()
-    mimetype, _ = mimetypes.guess_type(filename)
-    return Response(
-        content=buffer_contents,
-        media_type=mimetype,
-        headers={"Cache-Control": "max-age=86400"},
-    )
-
-
 @router.post("/shutdown", response_model=BaseResponse)
 def shutdown(
     *,
