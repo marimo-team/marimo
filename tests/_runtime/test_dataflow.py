@@ -1,8 +1,12 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._ast.cell import parse_cell
+from functools import partial
+
+from marimo._ast import compiler
 from marimo._runtime import dataflow
+
+parse_cell = partial(compiler.compile_cell, cell_id="0")
 
 
 def test_graph_single_node() -> None:

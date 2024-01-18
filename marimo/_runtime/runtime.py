@@ -19,7 +19,8 @@ from collections.abc import Iterable, Sequence
 from typing import Any, Callable, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, parse_cell
+from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.compiler import compile_cell
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -246,9 +247,7 @@ class Kernel:
         """
         error: Optional[Error] = None
         try:
-            cell = parse_cell(
-                code, cell_runner.cell_filename(cell_id), cell_id
-            )
+            cell = compile_cell(code, cell_id=cell_id)
         except Exception as e:
             cell = None
             if isinstance(e, SyntaxError):

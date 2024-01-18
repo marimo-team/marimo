@@ -17,6 +17,8 @@ class MarimoPdb(Pdb):
     def __init__(self, stdout: Stdout | None, stdin: Stdin | None):
         super().__init__(stdout=stdout, stdin=stdin)  # type: ignore[arg-type]
         LOGGER.debug("MarimoPdb.__init__")
+        # it's fine to use input() since marimo overrides it, but disable
+        # it anyway -- stdin is fine too ...
         self.use_rawinput = stdin is None
 
     def set_trace(
