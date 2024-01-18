@@ -73,7 +73,7 @@ export default defineConfig({
         target: `http://localhost:${SERVER_PORT}`,
         changeOrigin: true,
       },
-      "/iosocket": {
+      "/ws": {
         target: `ws://localhost:${SERVER_PORT}`,
         ws: true,
         changeOrigin: true,

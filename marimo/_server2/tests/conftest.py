@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from marimo._server.model import SessionMode
-from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions import Session
 from marimo._server2.api.deps import SessionManagerState
 from marimo._server2.main import app
 

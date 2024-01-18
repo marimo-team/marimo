@@ -8,7 +8,6 @@ from shutil import which
 from typing import Optional
 
 
-# TODO: test
 def require_header(header: list[str] | None) -> str:
     """
     Require exactly one value in header and return it.
@@ -23,7 +22,6 @@ def require_header(header: list[str] | None) -> str:
     return header[0]
 
 
-# TODO: test
 def parse_title(filename: Optional[str]) -> str:
     """
     Parse a filename into a (name, extension) tuple.

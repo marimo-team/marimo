@@ -7,7 +7,7 @@ import { Logger } from "../utils/Logger";
 export function createMockServer() {
   const fakeURL = `ws://${
     window.location.host
-  }/iosocket?kernel_id=${getKernelId()}&uuid=${UUID}`;
+  }/ws?kernel_id=${getKernelId()}&uuid=${UUID}`;
   const mockServer = new Server(fakeURL);
 
   mockServer.on("connection", (socket) => {

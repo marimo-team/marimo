@@ -207,16 +207,14 @@ def edit(
             except OSError:
                 raise
 
-    asyncio.run(
-        start_server(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            headless=headless,
-            filename=name,
-            run=False,
-            include_code=True,
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        headless=headless,
+        filename=name,
+        mode=SessionMode.EDIT,
+        include_code=True,
     )
 
 
@@ -268,16 +266,14 @@ def run(
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
 
-    asyncio.run(
-        start_server(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            headless=headless,
-            filename=name,
-            run=True,
-            include_code=include_code,
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        headless=headless,
+        filename=name,
+        mode=SessionMode.RUN,
+        include_code=include_code,
     )
 
 
@@ -388,28 +384,15 @@ def tutorial(
     with open(fname, "w", encoding="utf-8") as f:
         f.write(source)
 
-    if next:
-        start(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            mode=SessionMode.RUN,
-            filename=fname,
-            include_code=True,
-            headless=headless,
-        )
-    else:
-        asyncio.run(
-            start_server(
-                development_mode=DEVELOPMENT_MODE,
-                quiet=QUIET,
-                port=port,
-                headless=headless,
-                filename=fname,
-                run=False,
-                include_code=True,
-            )
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        mode=SessionMode.RUN,
+        filename=fname,
+        include_code=True,
+        headless=headless,
+    )
 
 
 @main.command()

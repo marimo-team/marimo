@@ -29,7 +29,7 @@ class WebSocketCodes(Enum):
     NORMAL_CLOSE = 1000
 
 
-@router.websocket("/iosocket")
+@router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
     manager: SessionManagerDep,

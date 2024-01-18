@@ -1,8 +1,13 @@
 from pydantic import BaseModel
 
 
-# TODO: test
 def to_camel_case(snake_str: str) -> str:
+    if snake_str == "":
+        return ""
+
+    if "_" not in snake_str:
+        return snake_str
+
     pascal_case = "".join(x.capitalize() for x in snake_str.lower().split("_"))
     return snake_str[0].lower() + pascal_case[1:]
 
