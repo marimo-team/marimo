@@ -297,5 +297,10 @@ class App:
                 # exclude unparsable cells
                 if cid in outputs
             ),
-            {name: glbls[name] for name in self._defs},
+            # omit defs that were never defined at runtime, eg due to
+            # conditional definitions like
+            #
+            # if cond:
+            #   x = 0
+            {name: glbls[name] for name in self._defs if name in glbls},
         )
