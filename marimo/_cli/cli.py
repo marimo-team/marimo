@@ -392,10 +392,11 @@ def tutorial(
         start(
             development_mode=DEVELOPMENT_MODE,
             quiet=QUIET,
-            port=port or 8000,
+            port=port,
             mode=SessionMode.RUN,
             filename=fname,
             include_code=True,
+            headless=headless,
         )
     else:
         asyncio.run(

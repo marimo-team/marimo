@@ -6,6 +6,7 @@ from fastapi import Depends, Header
 from pydantic import BaseModel
 
 from marimo._ast.app import _AppConfig
+from marimo._config.config import MarimoConfig, get_configuration
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager, get_manager
 from marimo._server2.api.utils import require_header
@@ -19,6 +20,8 @@ class SessionManagerState(BaseModel):
     filename: str | None
     mode: SessionMode
     app_config: _AppConfig | None
+    quiet: bool
+    development_mode: bool
 
 
 def get_session_manager_state(
@@ -29,6 +32,8 @@ def get_session_manager_state(
         filename=session_manager.filename,
         mode=session_manager.mode,
         app_config=session_manager.app_config,
+        quiet=session_manager.quiet,
+        development_mode=session_manager.development_mode,
     )
 
 
@@ -52,3 +57,6 @@ async def get_current_session(
 # Dependency for getting the current session
 # This uses the marimo_session_id header to get the current session
 SessionDep = Annotated[Session, Depends(get_current_session)]
+
+# Dependency for getting the user config
+UserConfigDep = Annotated[MarimoConfig, Depends(get_configuration)]

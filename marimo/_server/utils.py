@@ -4,10 +4,14 @@ import pathlib
 import sys
 from typing import Any
 
+from marimo import _loggers
+
 # use spaces instead of a tab to play well with carriage returns;
 # \r\t doesn't appear to overwrite characters at the start of a line,
 # but \r{TAB} does ...
 TAB = "        "
+
+LOGGER = _loggers.marimo_logger()
 
 
 def print_tabbed(string: str, n_tabs: int = 1) -> None:
@@ -37,3 +41,21 @@ def initialize_mimetypes() -> None:
     mimetypes.add_type("application/javascript", ".js")
     mimetypes.add_type("text/css", ".css")
     mimetypes.add_type("image/svg+xml", ".svg")
+
+
+def find_free_port(port: int, attempts: int = 100) -> int:
+    """Find a free port or move to the next one recursively"""
+
+    import socket
+
+    if attempts == 0:
+        raise RuntimeError("Could not find a free port")
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(("localhost", port))
+        sock.close()
+        return port
+    except OSError:
+        LOGGER.debug(f"Port {port} is already in use")
+        return find_free_port(port + 1, attempts - 1)

@@ -199,7 +199,7 @@ class WebsocketHandler(SessionHandler):
                         cls=WebComponentEncoder,
                     )
                 )
-            except EOFError:
+            except (EOFError, asyncio.CancelledError):
                 break
 
     def on_close(self) -> None:
