@@ -293,3 +293,19 @@ class TestApp:
         configs = tuple(app._configs())
         assert configs[0].disabled
         assert configs[1].hide_code
+
+    @staticmethod
+    def test_condition_definition() -> None:
+        app = App()
+
+        @app.cell
+        def _() -> tuple[int]:
+            if False:
+                x = 0
+            y = 1
+            return (x, y)
+
+        _, defs = app.run()
+
+        # x should not be in the defs dictionary
+        assert defs == {"y": 1}
