@@ -94,15 +94,13 @@ export function transitionCell(
   nextCell.outline = parseOutline(nextCell.output);
 
   // Transition PDB
-  const pdbOutputs = nextCell.consoleOutputs.filter(
+  const newConsoleOutputs = [message.console].flat().filter(Boolean);
+  const pdbOutputs = newConsoleOutputs.filter(
     (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
       output.channel === "pdb"
   );
-  if (pdbOutputs.some((output) => output.data.type === "start")) {
+  if (pdbOutputs.some((output) => output.data === "start")) {
     nextCell.debuggerActive = true;
-  }
-  if (pdbOutputs.some((output) => output.data.type === "stop")) {
-    nextCell.debuggerActive = false;
   }
   // If interrupted, remove the debugger and resolve all stdin
   if (nextCell.interrupted || nextCell.errored) {

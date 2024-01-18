@@ -28,7 +28,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     // debuggerActive,
   } = props;
 
-  // if (!debuggerActive) {
+  // if (debuggerActive) {
   //   return (
   //     <Debugger
   //       code={consoleOutputs.map((output) => output.data).join("\n")}

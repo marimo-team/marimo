@@ -62,7 +62,7 @@ export type OutputMessage =
   | {
       channel: "pdb";
       mimetype: "application/json";
-      data: { type: "start" } | { type: "stop" };
+      data: "start" | "stop";
       timestamp: number;
     }
   | {
