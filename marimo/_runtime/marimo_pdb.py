@@ -17,7 +17,6 @@ LOGGER = _loggers.marimo_logger()
 class MarimoPdb(Pdb):
     def __init__(self, stdout: Stdout | None, stdin: Stdin | None):
         super().__init__(stdout=stdout, stdin=stdin)  # type: ignore[arg-type]
-        LOGGER.debug("MarimoPdb.__init__")
         # it's fine to use input() since marimo overrides it, but disable
         # it anyway -- stdin is fine too ...
         self.use_rawinput = stdin is None
@@ -28,10 +27,13 @@ class MarimoPdb(Pdb):
         try:
             ctx = get_context()
         except ContextNotInitializedError:
-            LOGGER.warn("Context not initialized")
+            LOGGER.error("Context not initialized")
             return
 
-        assert ctx.cell_id is not None
+        if ctx.cell_id is None:
+            LOGGER.error("No cell appears to be executing")
+            return
+
         _write_pdb_output(
             ctx.stream,
             ctx.cell_id,
