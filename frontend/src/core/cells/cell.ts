@@ -18,6 +18,7 @@ export function transitionCell(
       nextCell.interrupted = false;
       nextCell.errored = false;
       nextCell.runElapsedTimeMs = null;
+      nextCell.debuggerActive = false;
       // We intentionally don't update lastCodeRun, since the kernel queues
       // whatever code was last registered with it, which might not match
       // the cell's current code if the user modified it.
@@ -40,6 +41,7 @@ export function transitionCell(
           (message.timestamp - cell.runStartTimestamp) * 1000;
         nextCell.runStartTimestamp = null;
       }
+      nextCell.debuggerActive = false;
       break;
     case null:
       break;
@@ -126,6 +128,7 @@ export function prepareCellForExecution(
   nextCell.interrupted = false;
   nextCell.errored = false;
   nextCell.runElapsedTimeMs = null;
+  nextCell.debuggerActive = false;
 
   return nextCell;
 }
