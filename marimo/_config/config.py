@@ -1,7 +1,7 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, cast, Literal, Optional
+from typing import Any, Dict, cast, Literal, Optional, Union
 from typing_extensions import TypedDict
 
 from marimo._output.rich_help import mddoc
@@ -105,7 +105,7 @@ class ServerConfig(TypedDict, total=False):
         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
     """
 
-    browser: Literal["default"] | str
+    browser: Union[Literal["default"], str]
 
 
 @mddoc
