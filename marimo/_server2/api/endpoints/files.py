@@ -6,18 +6,16 @@ from fastapi import APIRouter, HTTPException
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._runtime import requests
+from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, save_layout_config
 from marimo._server.utils import canonicalize_filename
 from marimo._server2.api.deps import (
-    SessionDep,
     SessionManagerDep,
-    SessionManagerState,
+    SessionManagerStateDep,
 )
 from marimo._server2.models.models import (
     BaseResponse,
-    DeleteCellRequest,
     DirectoryAutocompleteRequest,
     DirectoryAutocompleteResponse,
     ReadCodeResponse,
@@ -62,22 +60,10 @@ def directory_autocomplete(
     )
 
 
-@router.post("/delete", response_model=BaseResponse)
-def delete_cell(
-    *,
-    request: DeleteCellRequest,
-    session: SessionDep,
-) -> BaseResponse:
-    """Complete a code fragment."""
-    session.control_queue.put(requests.DeleteRequest(cell_id=request.cell_id))
-
-    return SuccessResponse()
-
-
 @router.post("/read_code", response_model=ReadCodeResponse)
 def read_code(
     *,
-    state: SessionManagerState,
+    state: SessionManagerStateDep,
 ) -> ReadCodeResponse:
     """Handler for reading code from the server."""
     if state.filename is None:
@@ -180,7 +166,12 @@ def save(
 
         # try to save the app under the name `filename`
         contents = codegen.generate_filecontents(
-            codes, names, cell_configs=request.configs, config=mgr.app_config
+            codes,
+            names,
+            cell_configs=[
+                CellConfig(**config.dict()) for config in request.configs
+            ],
+            config=mgr.app_config,
         )
         LOGGER.debug("Saving app to %s", filename)
         try:

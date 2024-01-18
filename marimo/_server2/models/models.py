@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional, Union
 
-from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
 from marimo._server2.models.base import CamelModel
 
@@ -75,6 +75,15 @@ class RunRequest(CamelModel):
     cell_ids: list[CellId_t]
     # code to register/run for each cell
     codes: list[str]
+
+
+class CellConfig(CamelModel):
+    # If True, the cell and its descendants cannot be executed,
+    # but they can still be added to the graph.
+    disabled: bool = False
+
+    # If True, the cell is hidden from the editor.
+    hide_code: bool = False
 
 
 class SaveRequest(CamelModel):
