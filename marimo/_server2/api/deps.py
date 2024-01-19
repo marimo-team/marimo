@@ -43,7 +43,9 @@ def get_session_manager_state(
         app_config=_AppConfig(
             width=session_manager.app_config.width,
             layout_file=session_manager.app_config.layout_file,
-        ),
+        )
+        if session_manager.app_config is not None
+        else _AppConfig(width="normal", layout_file=None),
         quiet=session_manager.quiet,
         development_mode=session_manager.development_mode,
     )
