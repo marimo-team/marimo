@@ -107,10 +107,10 @@ class ExecReqProvider:
     def get(self, code: str) -> ExecutionRequest:
         key = str(self.counter)
         self.counter += 1
-        return ExecutionRequest(key, textwrap.dedent(code))
+        return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
 
     def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:
-        return ExecutionRequest(cell_id, textwrap.dedent(code))
+        return ExecutionRequest(cell_id=cell_id, code=textwrap.dedent(code))
 
 
 # fixture that provides an ExecReqProvider
