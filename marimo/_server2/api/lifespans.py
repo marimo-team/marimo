@@ -31,15 +31,9 @@ async def _shutdown(app: FastAPI, with_error: bool = False) -> None:
 
     if with_error:
         LOGGER.fatal("marimo shut down with an error.")
-    elif not mgr.quiet:
-        print_shutdown()
     mgr.shutdown()
     if with_error:
         await close_uvicorn(app.state.server)
-        # sys.exit(1)
-    else:
-        await close_uvicorn(app.state.server)
-        # sys.exit(0)
 
 
 # Compound lifespans
@@ -131,7 +125,6 @@ async def signal_handler(app: FastAPI) -> AsyncIterator[None]:
     # Interrupt handler
     def shutdown() -> None:
         manager.shutdown()
-        print_shutdown()
         asyncio.create_task(close_uvicorn(app.state.server))
 
     InterruptHandler(

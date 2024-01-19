@@ -37,7 +37,7 @@ def start(
         port=port,
     )
 
-    log_level = "debug" if development_mode else "error"
+    log_level = "info" if development_mode else "error"
 
     app.state.headless = headless
 

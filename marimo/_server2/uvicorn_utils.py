@@ -1,5 +1,4 @@
 import signal
-import sys
 
 import uvicorn
 
@@ -15,4 +14,3 @@ async def close_uvicorn(server: uvicorn.Server) -> None:
         await s.wait_closed()
     server.handle_exit(signal.SIGINT, None)
     LOGGER.debug("Uvicorn shut down")
-    sys.exit(0)

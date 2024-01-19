@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from marimo import _loggers
 from marimo._ast.app import App
 from marimo._runtime import requests
 from marimo._runtime.requests import (
@@ -10,7 +11,6 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._server.print import print_shutdown
 from marimo._server2.api.deps import SessionDep, SessionManagerDep
 from marimo._server2.models.models import (
     BaseResponse,
@@ -21,6 +21,8 @@ from marimo._server2.models.models import (
     UpdateComponentValuesRequest,
 )
 from marimo._server2.uvicorn_utils import close_uvicorn
+
+LOGGER = _loggers.marimo_logger()
 
 # Router for execution endpoints
 router = APIRouter()
@@ -145,8 +147,7 @@ async def shutdown(
     request: Request,
 ) -> BaseResponse:
     """Shutdown the kernel."""
-    if not mgr.quiet:
-        print_shutdown()
+    LOGGER.debug("Received shutdown request")
     mgr.shutdown()
 
     await close_uvicorn(request.app.state.server)

@@ -58,7 +58,7 @@ class WebsocketHandler(SessionHandler):
     """
 
     status: ConnectionState
-    cancel_close_handle: Optional[object] = None
+    cancel_close_handle: Optional[asyncio.TimerHandle] = None
     heartbeat_task: Optional[asyncio.Task[None]] = None
     # Messages from the kernel are put in this queue
     # to be sent to the frontend
@@ -166,7 +166,8 @@ class WebsocketHandler(SessionHandler):
             # socket, but keep its kernel
             LOGGER.debug("Reconnecting session %s", session_id)
             # Cancel previous close handle
-            self.cancel_close_handle = None
+            if self.cancel_close_handle is not None:
+                self.cancel_close_handle.cancel()
             self._reconnect_session(session)
         # Create a new session
         else:
@@ -215,6 +216,10 @@ class WebsocketHandler(SessionHandler):
                 if self.manager.mode == SessionMode.RUN:
 
                     def _close() -> None:
+                        # Close and cancel all tasks
+                        self.message_queue.task_done()
+                        # Stop listen_for_messages
+                        listen_for_messages_task.cancel()
                         if self.status != ConnectionState.OPEN:
                             LOGGER.debug(
                                 "Closing session %s (TTL EXPIRED)",
@@ -229,13 +234,21 @@ class WebsocketHandler(SessionHandler):
                     if session is not None:
                         self.cancel_close_handle = cancellation_handle
 
-                # Close and cancel all tasks
-                self.message_queue.task_done()
+                if self.manager.mode == SessionMode.EDIT:
+                    # Close and cancel all tasks
+                    self.message_queue.task_done()
+                    # Stop listen_for_messages
+                    listen_for_messages_task.cancel()
+
+        listen_for_messages_task = asyncio.create_task(listen_for_messages())
+        listen_for_disconnect_task = asyncio.create_task(
+            listen_for_disconnect()
+        )
 
         try:
             await asyncio.gather(
-                listen_for_messages(),
-                listen_for_disconnect(),
+                listen_for_messages_task,
+                listen_for_disconnect_task,
             )
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
