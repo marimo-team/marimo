@@ -55,6 +55,7 @@ export function createCellRuntimeState(): CellRuntimeState {
     stopped: false,
     runElapsedTimeMs: null,
     runStartTimestamp: null,
+    debuggerActive: false,
   };
 }
 
@@ -99,6 +100,8 @@ export interface CellRuntimeState {
   runStartTimestamp: number | null;
   /** run elapsed time, in milliseconds */
   runElapsedTimeMs: number | null;
+  /** debugger active */
+  debuggerActive: boolean;
 }
 
 export interface CellConfig {

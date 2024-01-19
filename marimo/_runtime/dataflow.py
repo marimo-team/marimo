@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from typing import Tuple
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellId_t, code_key
+from marimo._ast.cell import Cell, CellId_t
+from marimo._ast.compiler import code_key
 
 Edge = Tuple[CellId_t, CellId_t]
 

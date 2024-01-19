@@ -6,16 +6,17 @@ import { OutputMessage } from "@/core/kernel/messages";
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[]
 ): OutputMessage[] {
-  // Array.at() not supported in older-but-still-recent versions of Safari
   let nextOutput = consoleOutputs[consoleOutputs.length - 1];
   if (nextOutput.mimetype !== "text/plain") {
     return consoleOutputs;
   }
 
+  // Skip stdin
   if (
     consoleOutputs.length >= 2 &&
     consoleOutputs[consoleOutputs.length - 2].mimetype === "text/plain" &&
-    consoleOutputs[consoleOutputs.length - 2].channel === nextOutput.channel
+    consoleOutputs[consoleOutputs.length - 2].channel === nextOutput.channel &&
+    nextOutput.channel !== "stdin"
   ) {
     consoleOutputs.pop();
     consoleOutputs[consoleOutputs.length - 1].data += nextOutput.data;

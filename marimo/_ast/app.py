@@ -11,9 +11,9 @@ from marimo._ast.cell import (
     CellFuncType,
     CellFuncTypeBound,
     CellId_t,
-    cell_factory,
     execute_cell,
 )
+from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -144,7 +144,9 @@ class App:
             def decorator(
                 func: CellFuncTypeBound,
             ) -> CellFunction[CellFuncTypeBound]:
-                cell_function = cell_factory(func)
+                cell_function = cell_factory(
+                    func, cell_id=str(self._cell_id_counter)
+                )
                 cell_function.cell.configure(cell_config)
                 self._register_cell(cell_function)
                 return cell_function
@@ -156,7 +158,9 @@ class App:
         else:
             # If the decorator was used without parentheses, func will be the
             # decorated function
-            cell_function = cell_factory(func)
+            cell_function = cell_factory(
+                func, cell_id=str(self._cell_id_counter)
+            )
             cell_function.cell.configure(cell_config)
             self._register_cell(cell_function)
             return cell_function

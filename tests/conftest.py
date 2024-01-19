@@ -61,21 +61,23 @@ class MockStdin(Stdin):
 
 @dataclasses.dataclass
 class MockedKernel:
-    k: Kernel = dataclasses.field(
-        default_factory=lambda: Kernel(cell_configs={})
-    )
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
     stdout: MockStdout = dataclasses.field(default_factory=MockStdout)
     stderr: MockStderr = dataclasses.field(default_factory=MockStderr)
     stdin: MockStdin = dataclasses.field(default_factory=MockStdin)
 
     def __post_init__(self) -> None:
-        initialize_context(
-            kernel=self.k,
-            stream=self.stream,  # type: ignore
+        self.k = Kernel(
+            stream=self.stream,
             stdout=self.stdout,
             stderr=self.stderr,
             stdin=self.stdin,
+            cell_configs={},
+        )
+
+        initialize_context(
+            kernel=self.k,
+            stream=self.stream,  # type: ignore
         )
 
     def __del__(self) -> None:
