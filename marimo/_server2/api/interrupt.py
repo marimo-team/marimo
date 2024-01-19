@@ -7,8 +7,6 @@ from marimo._server.utils import (
     TAB,
 )
 
-ORIGINAL_SIGINT_HANDLER = signal.getsignal(signal.SIGINT)
-
 
 class InterruptHandler:
     def __init__(self, quiet: bool, shutdown: Callable[[], None]) -> None:
@@ -31,12 +29,12 @@ class InterruptHandler:
                 "\033[1m(y/n)\033[0m: "
             )
             if response.lower().strip() == "y":
-                # self.loop.stop()
                 self.shutdown()
+                return
         except (KeyboardInterrupt, EOFError, asyncio.CancelledError):
             print()
-            # self.loop.stop()
             self.shutdown()
+            return
 
         # Program is still alive: restore the interrupt handler
         self.loop.add_signal_handler(signal.SIGINT, self._interrupt_handler)

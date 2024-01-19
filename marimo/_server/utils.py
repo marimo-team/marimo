@@ -51,11 +51,12 @@ def find_free_port(port: int, attempts: int = 100) -> int:
     if attempts == 0:
         raise RuntimeError("Could not find a free port")
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.bind(("localhost", port))
-        sock.close()
-        return port
-    except OSError:
-        LOGGER.debug(f"Port {port} is already in use")
-        return find_free_port(port + 1, attempts - 1)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        try:
+            in_use = sock.connect_ex(("localhost", port)) == 0
+            if not in_use:
+                return port
+        except OSError:
+            LOGGER.debug(f"Port {port} is already in use")
+            pass
+    return find_free_port(port + 1, attempts - 1)
