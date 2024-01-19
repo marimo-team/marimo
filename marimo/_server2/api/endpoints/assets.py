@@ -38,7 +38,7 @@ async def index(state: SessionManagerStateDep):
     title = parse_title(state.filename)
     user_config = get_configuration()
     app_config = (
-        state.app_config.asdict() if state.app_config is not None else {}
+        state.app_config.dict() if state.app_config is not None else {}
     )
 
     index_html = os.path.join(root, "index.html")

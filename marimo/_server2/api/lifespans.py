@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import asyncio
 import contextlib
-import sys
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
 
@@ -17,6 +16,7 @@ from marimo._server.sessions import get_manager
 from marimo._server.utils import initialize_mimetypes
 from marimo._server2.api.interrupt import InterruptHandler
 from marimo._server2.api.utils import open_url_in_browser
+from marimo._server2.uvicorn_utils import close_uvicorn
 
 LifespanList: TypeAlias = Sequence[
     Callable[[FastAPI], AbstractAsyncContextManager[None]]
@@ -25,7 +25,7 @@ LifespanList: TypeAlias = Sequence[
 LOGGER = _loggers.marimo_logger()
 
 
-def _shutdown(with_error: bool = False) -> None:
+async def _shutdown(app: FastAPI, with_error: bool = False) -> None:
     """Shutdown the server."""
     mgr = get_manager()
 
@@ -35,9 +35,11 @@ def _shutdown(with_error: bool = False) -> None:
         print_shutdown()
     mgr.shutdown()
     if with_error:
-        sys.exit(1)
+        await close_uvicorn(app.state.server)
+        # sys.exit(1)
     else:
-        sys.exit(0)
+        await close_uvicorn(app.state.server)
+        # sys.exit(0)
 
 
 # Compound lifespans
@@ -75,7 +77,7 @@ async def user_configuration(app: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         LOGGER.fatal("Error parsing the marimo configuration file: ")
         LOGGER.fatal(type(e).__name__ + ": " + str(e))
-        _shutdown(with_error=True)
+        await _shutdown(app, with_error=True)
 
     yield
 
@@ -130,7 +132,7 @@ async def signal_handler(app: FastAPI) -> AsyncIterator[None]:
     def shutdown() -> None:
         manager.shutdown()
         print_shutdown()
-        sys.exit(0)
+        asyncio.create_task(close_uvicorn(app.state.server))
 
     InterruptHandler(
         quiet=manager.quiet,

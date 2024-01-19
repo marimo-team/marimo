@@ -4,11 +4,12 @@ from __future__ import annotations
 from typing import Annotated, Literal, Optional
 
 from fastapi import Depends, Header
+from pydantic import BaseModel
+
 from marimo._config.config import MarimoConfig, get_configuration
-from marimo._server2.api.utils import require_header
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager, get_manager
-from pydantic import BaseModel
+from marimo._server2.api.utils import require_header
 
 # Dependency for getting the current session manager
 SessionManagerDep = Annotated[SessionManager, Depends(get_manager)]
@@ -39,7 +40,10 @@ def get_session_manager_state(
         server_token=session_manager.server_token,
         filename=session_manager.filename,
         mode=session_manager.mode,
-        app_config=session_manager.app_config,
+        app_config=_AppConfig(
+            width=session_manager.app_config.width,
+            layout_file=session_manager.app_config.layout_file,
+        ),
         quiet=session_manager.quiet,
         development_mode=session_manager.development_mode,
     )
@@ -49,7 +53,7 @@ def get_session_manager_state(
 # Just a slimmed down SessionManager that is less leaky
 # TODO: is there better naming for this?
 SessionManagerStateDep = Annotated[
-    SessionManager, Depends(get_session_manager_state)
+    SessionManagerState, Depends(get_session_manager_state)
 ]
 
 

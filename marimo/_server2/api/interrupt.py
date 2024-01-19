@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 import asyncio
 import signal
-from typing import Any, Callable
+from typing import Callable
 
 from marimo._server.utils import (
     TAB,
@@ -20,7 +20,7 @@ class InterruptHandler:
         # Restore the original signal handler so re-entering Ctrl+C raises a
         # keyboard interrupt instead of calling this function again (input is not
         # re-entrant, so it's not safe to call this function again)
-        signal.signal(signal.SIGINT, ORIGINAL_SIGINT_HANDLER)
+        self.loop.remove_signal_handler(signal.SIGINT)
         if self.quiet:
             # self.loop.stop()
             self.shutdown()

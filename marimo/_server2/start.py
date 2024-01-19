@@ -37,26 +37,34 @@ def start(
         port=port,
     )
 
-    log_level = "info" if development_mode else "error"
+    log_level = "debug" if development_mode else "error"
 
     app.state.headless = headless
 
-    uvicorn.run(
-        app,
-        port=port,
-        # TODO: cannot use reload unless the app is an import string
-        # although cannot use import string because it breaks the
-        # session manager
-        # reload=development_mode,
-        reload_dirs=[
-            os.path.realpath(str(import_files("marimo").joinpath("_static")))
-        ]
-        if development_mode
-        else None,
-        log_level=log_level,
-        # ping the websocket once a second to prevent intermittent
-        # disconnections
-        ws_ping_interval=1,
-        # close the websocket if we don't receive a pong after 60 seconds
-        ws_ping_timeout=60,
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            port=port,
+            # TODO: cannot use reload unless the app is an import string
+            # although cannot use import string because it breaks the
+            # session manager
+            # reload=development_mode,
+            reload_dirs=[
+                os.path.realpath(
+                    str(import_files("marimo").joinpath("_static"))
+                )
+            ]
+            if development_mode
+            else None,
+            log_level=log_level,
+            # ping the websocket once a second to prevent intermittent
+            # disconnections
+            ws_ping_interval=1,
+            # close the websocket if we don't receive a pong after 60 seconds
+            ws_ping_timeout=60,
+            timeout_graceful_shutdown=1,
+        )
     )
+
+    app.state.server = server
+    server.run()

@@ -1,21 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import mimetypes
-import sys
-from multiprocessing import shared_memory
+from fastapi import APIRouter, Request
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response
 from marimo._ast.app import App
-from marimo._config.utils import LOGGER
 from marimo._runtime import requests
 from marimo._runtime.requests import (
     CreationRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
+from marimo._server.print import print_shutdown
 from marimo._server2.api.deps import SessionDep, SessionManagerDep
 from marimo._server2.models.models import (
     BaseResponse,
@@ -25,8 +20,7 @@ from marimo._server2.models.models import (
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
-from marimo._server.api.status import HTTPStatus
-from marimo._server.print import print_shutdown
+from marimo._server2.uvicorn_utils import close_uvicorn
 
 # Router for execution endpoints
 router = APIRouter()
@@ -145,12 +139,15 @@ def run_cell(
 
 
 @router.post("/shutdown", response_model=BaseResponse)
-def shutdown(
+async def shutdown(
     *,
     mgr: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """Shutdown the kernel."""
     if not mgr.quiet:
         print_shutdown()
     mgr.shutdown()
-    sys.exit(0)
+
+    await close_uvicorn(request.app.state.server)
+    return SuccessResponse()

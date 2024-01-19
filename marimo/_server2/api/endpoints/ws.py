@@ -9,6 +9,7 @@ from multiprocessing.connection import Connection
 from typing import Any, Callable, Optional, Tuple
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -231,10 +232,14 @@ class WebsocketHandler(SessionHandler):
                 # Close and cancel all tasks
                 self.message_queue.task_done()
 
-        await asyncio.gather(
-            listen_for_messages(),
-            listen_for_disconnect(),
-        )
+        try:
+            await asyncio.gather(
+                listen_for_messages(),
+                listen_for_disconnect(),
+            )
+        except asyncio.CancelledError:
+            LOGGER.debug("Websocket terminated with CancelledError")
+            pass
 
     def on_start(
         self,
@@ -272,11 +277,12 @@ class WebsocketHandler(SessionHandler):
 
         # If the websocket is open, send a close message
         if self.status == ConnectionState.OPEN:
-            asyncio.create_task(
-                self.websocket.close(
-                    WebSocketCodes.NORMAL_CLOSE.value, "MARIMO_SHUTDOWN"
+            if self.websocket.application_state == WebSocketState.CONNECTED:
+                asyncio.create_task(
+                    self.websocket.close(
+                        WebSocketCodes.NORMAL_CLOSE.value, "MARIMO_SHUTDOWN"
+                    )
                 )
-            )
 
     def connection_state(self) -> ConnectionState:
         return self.status
