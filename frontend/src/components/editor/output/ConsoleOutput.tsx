@@ -15,7 +15,7 @@ interface Props {
   consoleOutputs: OutputMessage[];
   stale: boolean;
   debuggerActive: boolean;
-  onSubmitDebugger: (text: string, index?: number) => void;
+  onSubmitDebugger: (text: string, index: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
@@ -25,17 +25,17 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     cellName,
     cellId,
     onSubmitDebugger,
-    // debuggerActive,
+    debuggerActive,
   } = props;
 
-  // if (debuggerActive) {
-  //   return (
-  //     <Debugger
-  //       code={consoleOutputs.map((output) => output.data).join("\n")}
-  //       onSubmit={onSubmitDebugger}
-  //     />
-  //   );
-  // }
+  if (debuggerActive) {
+    return (
+      <Debugger
+        code={consoleOutputs.map((output) => output.data).join("\n")}
+        onSubmit={(text) => onSubmitDebugger(text, consoleOutputs.length - 1)}
+      />
+    );
+  }
 
   const hasOutputs = consoleOutputs.length > 0;
 

@@ -99,7 +99,8 @@ export function transitionCell(
     (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
       output.channel === "pdb"
   );
-  if (pdbOutputs.some((output) => output.data === "start")) {
+  const hasPdbOutput = pdbOutputs.length > 0;
+  if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {
     nextCell.debuggerActive = true;
   }
   // If interrupted, remove the debugger and resolve all stdin

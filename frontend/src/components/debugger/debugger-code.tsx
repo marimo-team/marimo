@@ -6,11 +6,9 @@ import ReactCodeMirror, {
   ReactCodeMirrorRef,
   keymap,
 } from "@uiw/react-codemirror";
-import React, { useEffect } from "react";
+import React, { memo } from "react";
 import { Tooltip } from "../ui/tooltip";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   HelpCircleIcon,
   LayersIcon,
   PlayIcon,
@@ -18,6 +16,9 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/utils/cn";
+import "./debugger-code.css";
+import { useKeydownOnElement } from "@/hooks/useHotkey";
+import { Functions } from "@/utils/functions";
 
 interface Props {
   code: string;
@@ -36,82 +37,104 @@ export const Debugger: React.FC<Props> = ({ code, onSubmit }) => {
 
 const DebuggerOutput: React.FC<{
   code: string;
-}> = (props) => {
+}> = memo((props) => {
   const ref = React.useRef<ReactCodeMirrorRef>({});
-
-  // Whenever code changes, scroll to the bottom
-  useEffect(() => {
-    if (ref.current.view) {
-      const view = ref.current.view;
-      const lastLine = view.state.doc.line(view.state.doc.lines - 1);
-      const rect = view.coordsAtPos(lastLine.to);
-      if (rect) {
-        view.scrollDOM.scrollTo({ top: rect.top, behavior: "smooth" });
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.code, ref]);
 
   return (
     <ReactCodeMirror
-      height="200px"
+      minHeight="200px"
+      maxHeight="200px"
       ref={ref}
       theme="dark"
-      className={`[&>*]:outline-none [&>.cm-editor]:pr-0 overflow-hidden dark`}
       value={props.code}
+      className={`[&>*]:outline-none [&>.cm-editor]:pr-0 overflow-hidden dark`}
       readOnly={true}
       editable={false}
       basicSetup={{
         lineNumbers: false,
       }}
-      extensions={[langs.shell()]}
+      extensions={[
+        langs.shell(),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            ref.current.view?.dispatch({
+              selection: {
+                anchor: update.state.doc.length,
+                head: update.state.doc.length,
+              },
+              scrollIntoView: true,
+            });
+          }
+        }),
+      ]}
     />
   );
-};
+});
+DebuggerOutput.displayName = "DebuggerOutput";
 
 const DebuggerInput: React.FC<{
   onSubmit: (code: string) => void;
 }> = ({ onSubmit }) => {
   const [value, setValue] = React.useState("");
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  // Capture some events to prevent default behavior
+  useKeydownOnElement(ref.current, {
+    ArrowUp: Functions.NOOP,
+    ArrowDown: Functions.NOOP,
+  });
 
   return (
-    <ReactCodeMirror
-      minHeight="18px"
-      theme="dark"
-      className={`[&>*]:outline-none cm-focused [&>.cm-editor]:pr-0 overflow-hidden dark border-t-4`}
-      value={value}
-      autoFocus={true}
-      basicSetup={{
-        lineNumbers: false,
-      }}
-      extensions={[
-        langs.python(),
-        Prec.highest(
-          keymap.of([
-            {
-              key: "Enter",
-              preventDefault: true,
-              stopPropagation: true,
-              run: (view: EditorView) => {
-                const v = value.trim().replaceAll("\n", "\\n");
-                onSubmit(v);
-                setValue("");
-                return true;
+    <div ref={ref}>
+      <ReactCodeMirror
+        minHeight="18px"
+        theme="dark"
+        className={`debugger-input [&>*]:outline-none cm-focused [&>.cm-editor]:pr-0 overflow-hidden dark border-t-4`}
+        value={value}
+        autoFocus={true}
+        basicSetup={{
+          lineNumbers: false,
+        }}
+        extensions={[
+          langs.python(),
+          Prec.highest(
+            keymap.of([
+              {
+                key: "Enter",
+                preventDefault: true,
+                stopPropagation: true,
+                run: (view: EditorView) => {
+                  const v = value.trim().replaceAll("\n", "\\n");
+                  if (!v) {
+                    return true;
+                  }
+                  onSubmit(v);
+                  setValue("");
+                  return true;
+                },
               },
-            },
-            {
-              key: "Shift-Enter",
-              preventDefault: true,
-              stopPropagation: true,
-              run: (view: EditorView) => {
-                return true;
+              {
+                key: "Shift-Enter",
+                preventDefault: true,
+                stopPropagation: true,
+                run: (view: EditorView) => {
+                  // Insert newline and move cursor to end of line
+                  view.dispatch({
+                    changes: {
+                      from: view.state.selection.main.to,
+                      insert: "\n",
+                    },
+                  });
+
+                  return true;
+                },
               },
-            },
-          ])
-        ),
-      ]}
-      onChange={(value) => setValue(value)}
-    />
+            ])
+          ),
+        ]}
+        onChange={(value) => setValue(value)}
+      />
+    </div>
   );
 };
 
@@ -128,7 +151,7 @@ const DebuggerControls: React.FC<{
         <Button
           variant="text"
           size="icon"
-          className={buttonClasses}
+          className={cn(buttonClasses, "rounded-bl-lg")}
           onClick={() => onSubmit("n")}
         >
           <SkipForwardIcon fontSize={36} className={iconClasses} />
@@ -145,26 +168,6 @@ const DebuggerControls: React.FC<{
           )}
         >
           <PlayIcon fontSize={36} className={iconClasses} />
-        </Button>
-      </Tooltip>
-      <Tooltip content="To upper frame">
-        <Button
-          variant="text"
-          size="icon"
-          className={buttonClasses}
-          onClick={() => onSubmit("u")}
-        >
-          <ArrowUpIcon fontSize={36} className={iconClasses} />
-        </Button>
-      </Tooltip>
-      <Tooltip content="To lower frame">
-        <Button
-          variant="text"
-          size="icon"
-          className={buttonClasses}
-          onClick={() => onSubmit("d")}
-        >
-          <ArrowDownIcon fontSize={36} className={iconClasses} />
         </Button>
       </Tooltip>
       <Tooltip content="Print stack trace">

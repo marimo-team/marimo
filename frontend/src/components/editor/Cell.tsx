@@ -448,9 +448,7 @@ const CellComponent = (
           stale={consoleOutputStale}
           cellName={name}
           onSubmitDebugger={(text, index) => {
-            if (index !== undefined) {
-              setStdinResponse({ cellId, response: text, outputIndex: index });
-            }
+            setStdinResponse({ cellId, response: text, outputIndex: index });
             sendStdin({ text });
           }}
           cellId={cellId}
