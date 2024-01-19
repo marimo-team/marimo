@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime import requests
-from marimo._server import sessions
+from marimo._server import server_utils as sessions
 from marimo._server.api.validated_handler import ValidatedHandler
 from marimo._server.server_utils import requires_edit
 from marimo._utils.parse_dataclass import parse_raw

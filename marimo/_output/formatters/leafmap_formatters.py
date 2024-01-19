@@ -17,7 +17,7 @@ class LeafmapFormatter(FormatterFactory):
         from marimo._output import formatting
 
         @formatting.formatter(leafmap.Map)
-        def _show_dataframe(lmap: leafmap.Map) -> tuple[str, str]:
+        def _show_map(lmap: leafmap.Map) -> tuple[str, str]:
             # 540px is the pixel height that makes the map fit in the
             # notebook without scrolling
             height = lmap.layout.height or "540px"

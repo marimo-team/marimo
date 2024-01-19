@@ -21,7 +21,7 @@ describe("collapseConsoleOutputs", () => {
       },
     ];
     const result = collapseConsoleOutputs(consoleOutputs);
-    expect(result[0].data).toMatchInlineSnapshot('"Hello World"');
+    expect(result[0].data).toMatchInlineSnapshot(`"Hello World"`);
   });
 
   it("should not collapse outputs on different channels", () => {
@@ -34,7 +34,7 @@ describe("collapseConsoleOutputs", () => {
       },
       {
         mimetype: "text/plain",
-        channel: "console",
+        channel: "stdout",
         data: "World",
         timestamp: 0,
       },

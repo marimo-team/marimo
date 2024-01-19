@@ -8,8 +8,7 @@ import threading
 from typing import Iterator
 
 from marimo._ast.cell import CellId_t
-from marimo._messaging.streams import Stderr, Stdout
-from marimo._runtime.context import get_context
+from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
@@ -42,16 +41,21 @@ def dup2newfd(fd: int) -> tuple[int, int, int]:
     return fd_dup, read_fd, fd
 
 
-# Redirect stdout/stderr, if they have been installed
+# Redirect output stream and stdout/stderr/stdin (if they have been installed)
 @contextlib.contextmanager
-def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
-    ctx = get_context()
-    ctx.stream.cell_id = cell_id
-    if ctx.stdout is None or ctx.stderr is None:
+def redirect_streams(
+    cell_id: CellId_t,
+    stream: Stream,
+    stdout: Stdout | None,
+    stderr: Stderr | None,
+    stdin: Stdin | None,
+) -> Iterator[None]:
+    stream.cell_id = cell_id
+    if stdout is None or stderr is None:
         try:
             yield
         finally:
-            ctx.stream.cell_id = None
+            stream.cell_id = None
         return
 
     # Redirect file descriptors for writable streams (stdout, stderr).
@@ -68,10 +72,10 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
     # - using a multiprocessing ThreadPool
     # - using a concurrent.futures.ThreadPool/ProcessPool
     stdout_thread = threading.Thread(
-        target=forward_os_stream, args=(ctx.stdout, stdout_read_fd)
+        target=forward_os_stream, args=(stdout, stdout_read_fd)
     )
     stderr_thread = threading.Thread(
-        target=forward_os_stream, args=(ctx.stderr, stderr_read_fd)
+        target=forward_os_stream, args=(stderr, stderr_read_fd)
     )
 
     # NB: Python doesn't allow monkey patching methods builtins, so
@@ -79,9 +83,9 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
     py_stdout = sys.stdout
     py_stderr = sys.stderr
     py_stdin = sys.stdin
-    sys.stdout = ctx.stdout  # type: ignore
-    sys.stderr = ctx.stderr  # type: ignore
-    sys.stdin = ctx.stdin  # type: ignore
+    sys.stdout = stdout  # type: ignore
+    sys.stderr = stderr  # type: ignore
+    sys.stdin = stdin  # type: ignore
 
     stdout_thread.start()
     stderr_thread.start()
@@ -114,4 +118,4 @@ def redirect_streams(cell_id: CellId_t) -> Iterator[None]:
         sys.stderr = py_stderr
         sys.stdin = py_stdin
 
-        ctx.stream.cell_id = None
+        stream.cell_id = None

@@ -124,6 +124,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           sendToBottom={sendToBottom}
           sendToTop={sendToTop}
           userConfig={userConfig}
+          debuggerActive={cell.debuggerActive}
           config={cell.config}
           name={cell.name}
         />

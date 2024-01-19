@@ -24,25 +24,6 @@ def canonicalize_filename(filename: str) -> str:
     return os.path.expanduser(filename)
 
 
-def import_files(filename: str) -> Any:
-    if sys.version_info < (3, 9):
-        from importlib_resources import files as importlib_files
-    else:
-        from importlib.resources import files as importlib_files
-
-    return importlib_files(filename)
-
-
-def initialize_mimetypes() -> None:
-    import mimetypes
-
-    # Fixes an issue with invalid mimetypes on windows:
-    # https://github.com/encode/starlette/issues/829#issuecomment-587163696
-    mimetypes.add_type("application/javascript", ".js")
-    mimetypes.add_type("text/css", ".css")
-    mimetypes.add_type("image/svg+xml", ".svg")
-
-
 def find_free_port(port: int, attempts: int = 100) -> int:
     """Find a free port or move to the next one recursively"""
 
@@ -60,3 +41,22 @@ def find_free_port(port: int, attempts: int = 100) -> int:
             LOGGER.debug(f"Port {port} is already in use")
             pass
     return find_free_port(port + 1, attempts - 1)
+
+
+def import_files(filename: str) -> Any:
+    if sys.version_info < (3, 9):
+        from importlib_resources import files as importlib_files
+    else:
+        from importlib.resources import files as importlib_files
+
+    return importlib_files(filename)
+
+
+def initialize_mimetypes() -> None:
+    import mimetypes
+
+    # Fixes an issue with invalid mimetypes on windows:
+    # https://github.com/encode/starlette/issues/829#issuecomment-587163696
+    mimetypes.add_type("application/javascript", ".js")
+    mimetypes.add_type("text/css", ".css")
+    mimetypes.add_type("image/svg+xml", ".svg")

@@ -18,7 +18,7 @@ from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
-    from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
+    from marimo._messaging.streams import Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -55,9 +55,6 @@ class RuntimeContext:
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
     stream: Stream
-    stdout: Optional[Stdout]
-    stderr: Optional[Stderr]
-    stdin: Optional[Stdin]
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -104,16 +101,10 @@ _THREAD_LOCAL_CONTEXT = _ThreadLocalContext()
 def initialize_context(
     kernel: Kernel,
     stream: Stream,
-    stdout: Optional[Stdout],
-    stderr: Optional[Stderr],
-    stdin: Optional[Stdin],
 ) -> None:
     """Initializes thread-local/session-specific context.
 
     Must be called exactly once for each client thread.
-
-    stdout, stderr, and stdin are optional because in `run` mode the
-    standard streams are not redirected/replaced.
     """
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -130,9 +121,6 @@ def initialize_context(
             cell_lifecycle_registry=CellLifecycleRegistry(),
             virtual_file_registry=VirtualFileRegistry(),
             stream=stream,
-            stdout=stdout,
-            stderr=stderr,
-            stdin=stdin,
         )
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 

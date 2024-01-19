@@ -4,12 +4,15 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from functools import partial
 from inspect import cleandoc
 from typing import Optional
 
 from marimo import __version__
-from marimo._ast import codegen
-from marimo._ast.cell import CellConfig, parse_cell
+from marimo._ast import codegen, compiler
+from marimo._ast.cell import CellConfig
+
+compile_cell = partial(compiler.compile_cell, cell_id="0")
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -254,7 +257,7 @@ class TestApp:
 class TestToFunctionDef:
     def test_tofunctiondef_one_def(self) -> None:
         code = "x = 0"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             ["@app.cell", "def foo():", "    x = 0", "    return x,"]
@@ -263,7 +266,7 @@ class TestToFunctionDef:
 
     def test_tofunctiondef_one_ref(self) -> None:
         code = "y + 1"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             ["@app.cell", "def foo(y):", "    y + 1", "    return"]
@@ -272,12 +275,12 @@ class TestToFunctionDef:
 
     def test_tofunctiondef_empty_cells(self) -> None:
         code = ""
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(["@app.cell", "def foo():", "    return"])
 
         code = "\n #\n"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = cleandoc(
             """
@@ -293,7 +296,7 @@ class TestToFunctionDef:
 
     def test_tofunctiondef_builtin_not_a_ref(self) -> None:
         code = "print(y)"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             ["@app.cell", "def foo(y):", "    print(y)", "    return"]
@@ -302,7 +305,7 @@ class TestToFunctionDef:
 
     def test_tofunctiondef_refs_and_defs(self) -> None:
         code = "\n".join(["y = x", "z = x", "z = w + y"])
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
             ["@app.cell", "def foo(w, x):"]
@@ -313,7 +316,7 @@ class TestToFunctionDef:
 
     def test_with_empty_config(self) -> None:
         code = "x = 0"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         cell = cell.configure(CellConfig())
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
@@ -323,7 +326,7 @@ class TestToFunctionDef:
 
     def test_with_some_config(self) -> None:
         code = "x = 0"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True))
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
@@ -338,7 +341,7 @@ class TestToFunctionDef:
 
     def test_with_all_config(self) -> None:
         code = "x = 0"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=True, hide_code=True))
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
@@ -353,7 +356,7 @@ class TestToFunctionDef:
 
     def test_should_remove_defaults(self) -> None:
         code = "x = 0"
-        cell = parse_cell(code)
+        cell = compile_cell(code)
         cell = cell.configure(CellConfig(disabled=False, hide_code=False))
         fndef = codegen.to_functiondef(cell, "foo")
         expected = "\n".join(
