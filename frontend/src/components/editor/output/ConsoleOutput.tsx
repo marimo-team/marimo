@@ -7,7 +7,6 @@ import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
-import { Debugger } from "@/components/debugger/debugger-code";
 
 interface Props {
   cellId: CellId;
@@ -19,23 +18,18 @@ interface Props {
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
-  const {
-    consoleOutputs,
-    stale,
-    cellName,
-    cellId,
-    onSubmitDebugger,
-    debuggerActive,
-  } = props;
+  const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
 
-  if (debuggerActive) {
+  /* The debugger UI needs some work. For now just use the regular
+  /* console output. */
+  /* if (debuggerActive) {
     return (
       <Debugger
         code={consoleOutputs.map((output) => output.data).join("\n")}
         onSubmit={(text) => onSubmitDebugger(text, consoleOutputs.length - 1)}
       />
     );
-  }
+  } */
 
   const hasOutputs = consoleOutputs.length > 0;
 
