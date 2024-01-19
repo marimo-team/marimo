@@ -8,9 +8,9 @@ import { RequestId } from "../network/DeferredRequestRegistry";
 
 export type OutputChannel =
   | "output"
-  | "console"
   | "media"
   | "marimo-error"
+  | "pdb"
   | "stderr"
   | "stdout";
 
@@ -57,6 +57,12 @@ export type OutputMessage =
       channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
+      timestamp: number;
+    }
+  | {
+      channel: "pdb";
+      mimetype: "application/json";
+      data: "start" | "stop";
       timestamp: number;
     }
   | {

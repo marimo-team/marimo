@@ -13,11 +13,24 @@ interface Props {
   cellName: string;
   consoleOutputs: OutputMessage[];
   stale: boolean;
+  debuggerActive: boolean;
   onSubmitDebugger: (text: string, index: number) => void;
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
   const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
+
+  /* The debugger UI needs some work. For now just use the regular
+  /* console output. */
+  /* if (debuggerActive) {
+    return (
+      <Debugger
+        code={consoleOutputs.map((output) => output.data).join("\n")}
+        onSubmit={(text) => onSubmitDebugger(text, consoleOutputs.length - 1)}
+      />
+    );
+  } */
+
   const hasOutputs = consoleOutputs.length > 0;
 
   if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {
@@ -35,6 +48,10 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
       )}
     >
       {consoleOutputs.map((output, idx) => {
+        if (output.channel === "pdb") {
+          return null;
+        }
+
         if (output.channel === "stdin") {
           if (output.response == null) {
             return (
