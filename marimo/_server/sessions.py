@@ -149,6 +149,8 @@ class Session:
                 print()
                 sys.exit()
 
+        self.check_alive = check_alive
+
         session_handler.on_start(
             mode=mgr.mode, connection=self.read_conn, check_alive=check_alive
         )

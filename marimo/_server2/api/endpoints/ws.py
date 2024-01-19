@@ -40,16 +40,22 @@ async def websocket_endpoint(
         websocket=websocket,
         manager=manager,
         session_id=session_id,
+        mode=manager.mode,
     ).start()
 
 
 class WebsocketHandler(SessionHandler):
     def __init__(
-        self, websocket: WebSocket, manager: SessionManager, session_id: str
+        self,
+        websocket: WebSocket,
+        manager: SessionManager,
+        session_id: str,
+        mode: SessionMode,
     ):
         self.websocket = websocket
         self.manager = manager
         self.session_id = session_id
+        self.mode = mode
 
     """WebSocket that sessions use to send messages to frontends.
 
@@ -127,11 +133,20 @@ class WebsocketHandler(SessionHandler):
         A websocket can be closed when a user's computer goes to sleep,
         spurious network issues, etc.
         """
+        # Cancel previous close handle
+        if self.cancel_close_handle is not None:
+            self.cancel_close_handle.cancel()
+
         session_handler = session.session_handler
         assert isinstance(session_handler, WebsocketHandler)
         assert session_handler.status == ConnectionState.CLOSED
         self.status = ConnectionState.OPEN
-        session_handler = self
+        session.session_handler = self
+        self.on_start(
+            mode=self.mode,
+            connection=session.read_conn,
+            check_alive=session.check_alive,
+        )
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -165,9 +180,6 @@ class WebsocketHandler(SessionHandler):
             # goes to sleep and wakes later. Just replace the session's
             # socket, but keep its kernel
             LOGGER.debug("Reconnecting session %s", session_id)
-            # Cancel previous close handle
-            if self.cancel_close_handle is not None:
-                self.cancel_close_handle.cancel()
             self._reconnect_session(session)
         # Create a new session
         else:
@@ -216,10 +228,6 @@ class WebsocketHandler(SessionHandler):
                 if self.manager.mode == SessionMode.RUN:
 
                     def _close() -> None:
-                        # Close and cancel all tasks
-                        self.message_queue.task_done()
-                        # Stop listen_for_messages
-                        listen_for_messages_task.cancel()
                         if self.status != ConnectionState.OPEN:
                             LOGGER.debug(
                                 "Closing session %s (TTL EXPIRED)",
@@ -234,11 +242,10 @@ class WebsocketHandler(SessionHandler):
                     if session is not None:
                         self.cancel_close_handle = cancellation_handle
 
-                if self.manager.mode == SessionMode.EDIT:
-                    # Close and cancel all tasks
-                    self.message_queue.task_done()
-                    # Stop listen_for_messages
-                    listen_for_messages_task.cancel()
+                # Close and cancel all tasks
+                self.message_queue.task_done()
+                # Stop listen_for_messages
+                listen_for_messages_task.cancel()
 
         listen_for_messages_task = asyncio.create_task(listen_for_messages())
         listen_for_disconnect_task = asyncio.create_task(
@@ -260,8 +267,6 @@ class WebsocketHandler(SessionHandler):
         connection: Connection,
         check_alive: Callable[[], None],
     ) -> None:
-        self.mode = mode
-
         # Add a reader to the connection
         asyncio.get_event_loop().add_reader(
             connection.fileno(),
@@ -285,17 +290,19 @@ class WebsocketHandler(SessionHandler):
             self.heartbeat_task.cancel()
 
         # Remove the reader
-        if self.mode == SessionMode.RUN:
+        if self.mode == SessionMode.RUN and not connection.closed:
             asyncio.get_event_loop().remove_reader(connection.fileno())
 
         # If the websocket is open, send a close message
-        if self.status == ConnectionState.OPEN:
-            if self.websocket.application_state == WebSocketState.CONNECTED:
-                asyncio.create_task(
-                    self.websocket.close(
-                        WebSocketCodes.NORMAL_CLOSE.value, "MARIMO_SHUTDOWN"
-                    )
+        if (
+            self.status == ConnectionState.OPEN
+            and self.websocket.application_state == WebSocketState.CONNECTED
+        ):
+            asyncio.create_task(
+                self.websocket.close(
+                    WebSocketCodes.NORMAL_CLOSE.value, "MARIMO_SHUTDOWN"
                 )
+            )
 
     def connection_state(self) -> ConnectionState:
         return self.status
