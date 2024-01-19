@@ -7,9 +7,7 @@ from pdb import Pdb
 from types import FrameType
 
 from marimo import _loggers
-from marimo._messaging.console_output_worker import _write_pdb_output
 from marimo._messaging.streams import Stdin, Stdout
-from marimo._runtime.context import ContextNotInitializedError, get_context
 
 LOGGER = _loggers.marimo_logger()
 
@@ -24,21 +22,6 @@ class MarimoPdb(Pdb):
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            LOGGER.error("Context not initialized")
-            return
-
-        if ctx.cell_id is None:
-            LOGGER.error("No cell appears to be executing")
-            return
-
-        _write_pdb_output(
-            ctx.stream,
-            ctx.cell_id,
-            "start",
-        )
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
