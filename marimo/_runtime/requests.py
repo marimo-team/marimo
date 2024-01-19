@@ -48,7 +48,6 @@ class CreationRequest:
     set_ui_element_value_request: SetUIElementValueRequest
 
 
-@dataclass
 class DeleteRequest(BaseModel):
     cell_id: CellId_t
 
