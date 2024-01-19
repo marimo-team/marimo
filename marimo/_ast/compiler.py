@@ -4,6 +4,7 @@ import inspect
 import io
 import linecache
 import os
+import sys
 import textwrap
 import token as token_types
 from collections.abc import Iterator
@@ -74,10 +75,12 @@ def compile_cell(
     body_filename = get_filename(basename)
     last_expr_filename = get_filename(basename + "_output")
     cache(body_filename, code)
-    cache(
-        last_expr_filename,
-        ast.unparse(expr) if not isinstance(expr, str) else "None",
-    )
+    if sys.version_info >= (3, 9):
+        # ast.unparse only available >= 3.9
+        cache(
+            last_expr_filename,
+            ast.unparse(expr) if not isinstance(expr, str) else "None",
+        )
 
     body = compile(module, body_filename, mode="exec")
     last_expr = compile(expr, last_expr_filename, mode="eval")
