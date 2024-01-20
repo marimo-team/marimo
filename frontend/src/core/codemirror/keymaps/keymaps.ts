@@ -3,8 +3,8 @@ import { KeymapConfig } from "@/core/config/config-schema";
 import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";
 import { Extension, Prec } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
-import { vim, Vim } from "@replit/codemirror-vim";
+import { EditorView, ViewPlugin, keymap } from "@codemirror/view";
+import { CodeMirror, getCM, vim, Vim } from "@replit/codemirror-vim";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
@@ -35,9 +35,8 @@ export function keymapBundle(
         callbacks.deleteCell();
       });
       return [
-        // delete the cell on double press of "d", if the cell is empty
-        Prec.highest(
-          doubleCharacterListener(
+        ViewPlugin.define((view) => {
+          const listener = doubleCharacterListener(
             "d",
             (view) => view.state.doc.toString() === "",
             (view) => {
@@ -47,8 +46,12 @@ export function keymapBundle(
               }
               return false;
             }
-          )
-        ),
+          );
+          getCM(view)?.on("vim-keypress", (key: string) => {
+            listener(key, view);
+          });
+          return {};
+        }),
         vim({ status: false }),
         keymap.of(defaultKeymap),
       ];
@@ -65,38 +68,33 @@ function doubleCharacterListener(
   character: string,
   predicate: (view: EditorView) => boolean,
   onDoubleCharacter: (view: EditorView) => boolean
-): Extension {
+): (key: string, view: EditorView) => boolean {
   let lastKey = "";
   let lastKeyTime = 0;
-  return keymap.of([
-    {
-      any: (view, event) => {
-        const key = event.key;
-        const time = event.timeStamp;
+  return (key: string, view: EditorView) => {
+    const time = Date.now();
 
-        // Different key or false predicate
-        if (key !== character || !predicate(view)) {
-          lastKey = "";
-          lastKeyTime = 0;
-          return false;
-        }
+    // Different key or false predicate
+    if (key !== character || !predicate(view)) {
+      lastKey = "";
+      lastKeyTime = 0;
+      return false;
+    }
 
-        // Second keypress
-        if (lastKey === character && time - lastKeyTime < 500) {
-          const result = onDoubleCharacter(view);
-          // Was handled
-          if (result) {
-            lastKey = "";
-            lastKeyTime = 0;
-            return true;
-          }
-        }
+    // Second keypress
+    if (lastKey === character && time - lastKeyTime < 500) {
+      const result = onDoubleCharacter(view);
+      // Was handled
+      if (result) {
+        lastKey = "";
+        lastKeyTime = 0;
+        return true;
+      }
+    }
 
-        // Track keypress
-        lastKey = key;
-        lastKeyTime = time;
-        return false;
-      },
-    },
-  ]);
+    // Track keypress
+    lastKey = key;
+    lastKeyTime = time;
+    return false;
+  };
 }
