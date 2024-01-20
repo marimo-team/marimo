@@ -6,10 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "marimo"
 description = "A library for making reactive notebooks and apps"
 dynamic = ["version"]
+# We try to keep dependencies to a minimum, to avoid conflicts with
+# user environments;we need a very compelling reason for each dependency added.
+# Dependencies should have lower bounds, which should be as loose as possible.
 dependencies = [
-    # cli
+    # For maintainable cli
     "click>=8.0,<9",
-    # python 3.8 compatibility
+    # For python 3.8 compatibility
     "importlib_resources>=5.10.2; python_version < \"3.9\"",
     # code completion
     "jedi>=0.18.0",
@@ -25,9 +28,9 @@ dependencies = [
     "tornado>=6.1,<7",
     # web server
     "uvicorn",
-    # web framework; FastAPI dropped support for Python 3.6 in 0.84.0,
-    # so seems like a reasonable lower bound
-    "fastapi >= 0.84.0",
+    # web framework; we use FastAPI's support for `Annotated`, introduced
+    # in 0.95.0
+    "fastapi >= 0.95.0",
     # server models, for use with fastapi
     "pydantic >= 1.0.0",
     # websockets for use with fastapi
@@ -35,6 +38,7 @@ dependencies = [
     # python <=3.12 compatibility (required by pydantic)
     "typing_extensions>=4.4.0; python_version < \"3.12\"",
     # for cell formatting; if user version is not compatible, no-op
+    # so no lower bound needed
     "black",
 ]
 readme = "README.md"
