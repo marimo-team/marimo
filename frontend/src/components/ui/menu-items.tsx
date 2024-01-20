@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { cn } from "@/utils/cn";
 import { cva } from "class-variance-authority";
 import React from "react";

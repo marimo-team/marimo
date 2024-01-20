@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { ZodError } from "zod";
 import { Alert } from "../../components/ui/alert";
 import { AlertTitle } from "../../components/ui/alert";

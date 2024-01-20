@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import { Dialog } from "../components/ui/dialog";
 import { TooltipProvider } from "../components/ui/tooltip";

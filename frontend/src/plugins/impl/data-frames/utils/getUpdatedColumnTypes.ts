@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { TransformType } from "../schema";
 import { Objects } from "@/utils/objects";

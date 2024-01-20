@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect, useRef } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
 import { IReconnectingWebSocket } from "./types";

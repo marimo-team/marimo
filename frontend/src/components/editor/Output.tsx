@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { OutputMessage } from "@/core/kernel/messages";

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { EditorView, KeyBinding, keymap } from "@codemirror/view";
 import { CellId, HTMLCellId } from "@/core/cells/ids";

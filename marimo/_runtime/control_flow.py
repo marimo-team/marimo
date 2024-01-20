@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from typing import Optional
 
 from marimo._output.rich_help import mddoc

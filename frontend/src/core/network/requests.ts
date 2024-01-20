@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { CellId } from "../cells/ids";
 import { isStaticNotebook } from "../static/static-state";
 import { API } from "./api";

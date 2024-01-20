@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { TransformType } from "@/plugins/impl/data-frames/schema";
 import { logNever } from "@/utils/assertNever";
 import { OperatorType } from "../utils/operators";

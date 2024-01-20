@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, TypedDict, cast

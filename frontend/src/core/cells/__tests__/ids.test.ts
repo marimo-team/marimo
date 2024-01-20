@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { expect, describe, test } from "vitest";
 import { CellId, HTMLCellId } from "../ids";

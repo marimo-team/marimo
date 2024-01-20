@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { createReducer } from "@/utils/createReducer";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";

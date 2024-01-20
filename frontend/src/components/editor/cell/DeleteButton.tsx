@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
 import { Tooltip } from "../../ui/tooltip";
 import { CellStatus } from "../../../core/cells/types";
