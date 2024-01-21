@@ -6,6 +6,7 @@ import "tailwindcss/tailwind.css";
 import React, { useEffect } from "react";
 import { cn } from "../src/utils/cn";
 import { TooltipProvider } from "../src/components/ui/tooltip";
+import { Toaster } from "../src/components/ui/toaster";
 import { TailwindIndicator } from "../src/components/ui/tailwind-indicator";
 
 const withTheme: Decorator = (Story, context) => {
@@ -19,6 +20,7 @@ const withTheme: Decorator = (Story, context) => {
     <div className={cn(theme, "p-5")}>
       <TooltipProvider>
         <Story />
+        <Toaster />
         <TailwindIndicator />
       </TooltipProvider>
     </div>
