@@ -310,14 +310,16 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         - `loading`: whether the form should be in a loading state
         - `submit_button_label`: the label of the submit button
         - `submit_button_tooltip`: the tooltip of the submit button
-        - `submit_button_disabled`: whether the submit button should be disabled
+        - `submit_button_disabled`: whether the submit button should be
+          disabled
         - `clear_on_submit`: whether the form should clear its contents after
             submitting
         - `show_clear_button`: whether the form should show a clear button
         - `clear_button_label`: the label of the clear button
         - `clear_button_tooltip`: the tooltip of the clear button
-        - `validate`: a function that takes the form's value and returns an error
-            message if the value is invalid, or `None` if the value is valid
+        - `validate`: a function that takes the form's value and returns an
+            error message if the value is invalid,
+            or `None` if the value is valid
         """
         from marimo._plugins.ui._impl.input import form as form_plugin
 
