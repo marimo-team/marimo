@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
-import { getUIElementObjectId } from "../../core/dom/UIElement";
+import { getUIElementObjectId, isUIElement } from "../../core/dom/UIElement";
 import {
   marimoValueInputEvent,
   MarimoValueInputEventType,
@@ -264,27 +264,11 @@ function withTooltip(element: JSX.Element, tooltip?: string) {
 }
 
 /**
- * Clear all inputs within a form, including those in Shadow DOM
+ * Traverse the input elements and find all IUIElement instances and reset them.
  */
 function clearInputs(element: Element) {
   if (!(element instanceof HTMLElement)) {
     return;
-  }
-
-  // If the element is an input reset its value
-  if (element instanceof HTMLInputElement) {
-    if (element.type === "checkbox" || element.type === "radio") {
-      element.checked = false;
-    } else {
-      element.value = "";
-    }
-  }
-  // If the element is an textarea or select reset its value
-  if (
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
-  ) {
-    element.value = "";
   }
 
   // If the element has a shadowRoot, traverse its children
@@ -294,4 +278,8 @@ function clearInputs(element: Element) {
 
   // Traverse the children of the element in the light DOM
   [...element.children].forEach(clearInputs);
+
+  if (isUIElement(element)) {
+    element.reset();
+  }
 }
