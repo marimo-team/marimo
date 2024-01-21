@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { ProgressComponent } from "@/plugins/layout/ProgressPlugin";
 import type { Meta, StoryFn } from "@storybook/react";
 

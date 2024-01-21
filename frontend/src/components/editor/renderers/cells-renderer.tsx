@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { flattenNotebookCells, useNotebook } from "@/core/cells/cells";
 import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";

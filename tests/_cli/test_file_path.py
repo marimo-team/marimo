@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import tempfile
 from typing import Any
 from unittest.mock import mock_open, patch

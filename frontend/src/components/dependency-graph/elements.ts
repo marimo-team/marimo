@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { CellData } from "@/core/cells/types";
 import { CellId } from "@/core/cells/ids";
@@ -17,7 +17,7 @@ export function getNodeHeight(linesOfCode: number) {
   return Math.min(linesOfCode * LINE_HEIGHT + 35, 200);
 }
 
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 function createEdge(source: CellId, target: CellId, direction: string): Edge {
   return {
     type: "smoothstep",

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Base64String } from "./json/base64";
 
 export function serializeBlob(blob: Blob): Promise<Base64String> {

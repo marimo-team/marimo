@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";

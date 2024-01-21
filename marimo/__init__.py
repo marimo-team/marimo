@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """The marimo library.
 
 marimo is a Python library for making reactive notebooks that double as apps.

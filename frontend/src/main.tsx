@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { worker } from "./mocks/browser";

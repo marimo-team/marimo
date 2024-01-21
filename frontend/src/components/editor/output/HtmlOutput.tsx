@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { memo, useLayoutEffect, useRef } from "react";
 import { lookupScript, updateScriptCache } from "./scripts";
 import { Logger } from "../../../utils/Logger";

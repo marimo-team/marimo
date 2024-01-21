@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
 import { languageServerWithTransport } from "codemirror-languageserver";
 import { CopilotLanguageServerClient } from "./language-server";

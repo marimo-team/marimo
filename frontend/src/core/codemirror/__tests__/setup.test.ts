@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, test, vi } from "vitest";
 import { CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
 import { EditorState, Extension } from "@codemirror/state";

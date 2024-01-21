@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """The marimo server: serves a marimo app.
 
 A marimo server can be created in edit (read-write) or run (read-only) mode.

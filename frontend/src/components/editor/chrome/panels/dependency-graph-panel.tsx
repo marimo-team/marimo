@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useCellDataAtoms, useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";
 import React from "react";

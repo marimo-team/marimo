@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._cli.envinfo import (
     _get_node_version,
     _get_pip_list,

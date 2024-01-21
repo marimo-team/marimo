@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MenuIcon } from "lucide-react";
 import React from "react";

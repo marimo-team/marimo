@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { AppConfig } from "@/core/config/config-schema";
 import { CellData, CellRuntimeState } from "@/core/cells/types";
 import { ZodType, ZodTypeDef } from "zod";

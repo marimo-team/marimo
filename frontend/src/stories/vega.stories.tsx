@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { VegaComponent } from "@/plugins/impl/vega/VegaPlugin";
 import { Meta } from "@storybook/react";
 import {

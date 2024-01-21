@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
 
 import { parseShortcut } from "../core/hotkeys/shortcuts";

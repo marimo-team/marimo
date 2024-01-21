@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._config.config import DEFAULT_CONFIG, MarimoConfig, configure
 
 

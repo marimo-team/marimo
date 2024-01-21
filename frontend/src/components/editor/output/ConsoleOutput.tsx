@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
 import { OutputMessage } from "@/core/kernel/messages";
 import { formatOutput } from "../Output";

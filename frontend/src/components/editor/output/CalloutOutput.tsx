@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { memo } from "react";
 import { HtmlOutput } from "./HtmlOutput";
 import { calloutStyles } from "./CalloutOutput.styles";

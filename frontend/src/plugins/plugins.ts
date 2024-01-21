@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { initializeUIElement } from "../core/dom/UIElement";
 import { registerReactComponent } from "./core/registerReactComponent";
