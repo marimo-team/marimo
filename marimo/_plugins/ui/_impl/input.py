@@ -1032,7 +1032,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     ''').batch(
         name=mo.ui.text(label='name'),
         date=mo.ui.date(label='date'),
-    ).form()
+    ).form(show_clear_button=True, bordered=False)
     ```
 
     ```python
@@ -1049,6 +1049,18 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     **Initialization Args.**
 
     - `element`: the element to wrap
+    - `bordered`: whether the form should have a border
+    - `loading`: whether the form should be in a loading state
+    - `submit_button_label`: the label of the submit button
+    - `submit_button_tooltip`: the tooltip of the submit button
+    - `submit_button_disabled`: whether the submit button should be disabled
+    - `clear_on_submit`: whether the form should clear its contents after
+        submitting
+    - `show_clear_button`: whether the form should show a clear button
+    - `clear_button_label`: the label of the clear button
+    - `clear_button_tooltip`: the tooltip of the clear button
+    - `validate`: a function that takes the form's value and returns an error
+        message if the value is invalid, or `None` if the value is valid
     - `label`: text label for the form
     - `on_change`: optional callback to run when this element's value changes
     """
