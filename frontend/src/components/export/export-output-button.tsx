@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { downloadHTMLAsImage } from "@/utils/download";
 import { CellId } from "@/core/cells/ids";
 

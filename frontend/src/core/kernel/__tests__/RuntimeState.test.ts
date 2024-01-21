@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { marimoValueReadyEvent } from "@/core/dom/events";
 import { UIElementRegistry } from "@/core/dom/uiregistry";
 import { describe, beforeEach, expect, vi, test, MockedFunction } from "vitest";

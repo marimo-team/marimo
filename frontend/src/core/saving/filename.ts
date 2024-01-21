@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom, useAtom } from "jotai";
 import { getFilenameFromDOM } from "../dom/htmlUtils";

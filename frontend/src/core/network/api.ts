@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
 import { Logger } from "../../utils/Logger";
 import { UUID } from "../../utils/uuid";

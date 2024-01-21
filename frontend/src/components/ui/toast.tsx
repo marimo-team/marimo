@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import * as ToastPrimitives from "@radix-ui/react-toast";
 import { VariantProps, cva } from "class-variance-authority";

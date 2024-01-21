@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useState, useRef, useEffect } from "react";
 import { useTimer } from "./useTimer";
 import useEvent from "react-use-event-hook";

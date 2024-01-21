@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
 import { Button } from "components/ui/button";
 import { useHotkey } from "../../hooks/useHotkey";

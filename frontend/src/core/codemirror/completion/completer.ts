@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";

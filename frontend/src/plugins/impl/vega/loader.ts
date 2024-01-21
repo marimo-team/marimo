@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 // @ts-expect-error - no types
 import { loader as createLoader, read, typeParsers } from "vega-loader";
 import { DataFormat } from "./types";

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 

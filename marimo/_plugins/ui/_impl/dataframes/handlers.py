@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from typing import TYPE_CHECKING, Any, List, NoReturn, cast
 
 from .transforms import (

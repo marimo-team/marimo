@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 import pandas as pd
 
 from marimo._plugins.ui._impl.dataframes.handlers import (

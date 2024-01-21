@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { Tooltip } from "../../ui/tooltip";

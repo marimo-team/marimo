@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { LayoutType } from "@/components/editor/renderers/types";
 import { CellConfig, CellStatus } from "../cells/types";

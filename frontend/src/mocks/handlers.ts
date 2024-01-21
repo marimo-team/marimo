@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { rest } from "msw";
 import { SaveKernelRequest } from "../core/network/types";
 

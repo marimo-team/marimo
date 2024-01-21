@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";

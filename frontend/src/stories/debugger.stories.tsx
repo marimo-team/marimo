@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Debugger } from "@/components/debugger/debugger-code";
 import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";

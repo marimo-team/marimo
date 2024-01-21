@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
 

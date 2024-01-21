@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useRef, useState } from "react";
 import { CellConfig, CellRuntimeState } from "@/core/cells/types";
 import { CellId, HTMLCellId } from "@/core/cells/ids";

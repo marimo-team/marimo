@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl, startServer } from "../playwright.config";
 import { takeScreenshot } from "./helper";

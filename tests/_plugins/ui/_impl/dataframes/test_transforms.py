@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._plugins.ui._impl.dataframes.transforms import Transformations
 from marimo._utils.parse_dataclass import parse_raw
 
