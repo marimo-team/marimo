@@ -26,13 +26,10 @@ dependencies = [
     "tomlkit>= 0.12.0",
     # TODO: remove dependency on tornado.logging, and in mpl.interactive
     "tornado>=6.1,<7",
-    # web server
+    # web server TODO: lower bound
     "uvicorn",
-    # web framework; we use FastAPI's support for `Annotated`, introduced
-    # in 0.95.0
-    "fastapi >= 0.95.0",
-    # server models, for use with fastapi
-    "pydantic >= 1.0.0",
+    # web framework TODO: lower bound
+    "starlette",
     # websockets for use with fastapi
     "websockets",
     # python <=3.12 compatibility (required by pydantic)

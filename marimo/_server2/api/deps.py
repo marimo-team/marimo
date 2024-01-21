@@ -3,13 +3,17 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Optional
 
-from fastapi import Depends, Header
-from pydantic import BaseModel
-
 from marimo._config.config import MarimoConfig, get_configuration
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager, get_manager
-from marimo._server2.api.utils import require_header
+from starlette.requests import Request
+
+
+def get_current_session(request: Request) -> Session:
+    """Get the current session."""
+    session_id = request.headers["Marimo-Session-Id"]
+    return get_manager().sessions[session_id]
+
 
 # Dependency for getting the current session manager
 SessionManagerDep = Annotated[SessionManager, Depends(get_manager)]
@@ -57,15 +61,6 @@ def get_session_manager_state(
 SessionManagerStateDep = Annotated[
     SessionManagerState, Depends(get_session_manager_state)
 ]
-
-
-async def get_current_session(
-    session_manager: SessionManagerDep,
-    marimo_session_id: Annotated[Optional[list[str]], Header()] = None,
-) -> Session:
-    header = require_header(marimo_session_id)
-
-    return session_manager.sessions[header]
 
 
 # Dependency for getting the current session

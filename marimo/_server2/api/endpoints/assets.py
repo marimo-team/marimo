@@ -7,16 +7,16 @@ from http import HTTPStatus
 from importlib.resources import files as importlib_files
 from multiprocessing import shared_memory
 
-from fastapi import APIRouter, HTTPException, Response
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-
 from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
-from marimo._server.model import SessionMode
 from marimo._server2.api.deps import SessionManagerStateDep
 from marimo._server2.api.utils import parse_title
+from marimo._server2.router import APIRouter
+from marimo._server.model import SessionMode
+from starlette.exceptions import HTTPException
+from starlette.responses import FileResponse, HTMLResponse, Response
+from starlette.staticfiles import StaticFiles
 
 LOGGER = _loggers.marimo_logger()
 
@@ -28,7 +28,7 @@ root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
 
 router.mount(
     "/assets",
-    StaticFiles(directory=os.path.join(root, "assets")),
+    app=StaticFiles(directory=os.path.join(root, "assets")),
     name="assets",
 )
 

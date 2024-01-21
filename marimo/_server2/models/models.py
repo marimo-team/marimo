@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Optional, Union
+from dataclasses import dataclass
 
 from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
@@ -27,10 +28,12 @@ class FunctionCallRequest(CamelModel):
     args: dict[str, Any]
 
 
-class BaseResponse(CamelModel):
+@dataclass
+class BaseResponse:
     success: bool
 
 
+@dataclass
 class SuccessResponse(BaseResponse):
     success: bool = True
 
