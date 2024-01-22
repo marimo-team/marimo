@@ -41,7 +41,9 @@ async def index(request: Request):
     title = parse_title(app_state.filename)
     user_config = get_configuration()
     app_config = (
-        app_state.app_config.dict() if app_state.app_config is not None else {}
+        app_state.app_config.asdict()
+        if app_state.app_config is not None
+        else {}
     )
 
     index_html = os.path.join(root, "index.html")
