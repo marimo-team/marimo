@@ -53,13 +53,11 @@ async def index(request: Request) -> HTMLResponse:
         html = html.replace("{{ user_config }}", json.dumps(user_config))
         html = html.replace("{{ app_config }}", json.dumps(app_config))
         html = html.replace("{{ server_token }}", app_state.server_token)
-        html = html.replace("{{ version }}", json.dumps(__version__))
+        html = html.replace("{{ version }}", __version__)
         html = html.replace("{{ filename }}", app_state.filename or "")
         html = html.replace(
             "{{ mode }}",
-            json.dumps(
-                "read" if app_state.mode == SessionMode.RUN else "edit"
-            ),
+            "read" if app_state.mode == SessionMode.RUN else "edit",
         )
 
     return HTMLResponse(html)
