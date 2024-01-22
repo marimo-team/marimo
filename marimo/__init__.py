@@ -27,6 +27,7 @@ __all__ = [
     "download",
     "hstack",
     "Html",
+    "icon",
     "image",
     "left",
     "md",
@@ -65,6 +66,7 @@ from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout import callout
 from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
+from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.pdf import pdf
