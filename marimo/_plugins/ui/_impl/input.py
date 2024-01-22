@@ -1076,7 +1076,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         submit_button_label: str = "Submit",
         submit_button_tooltip: Optional[str] = None,
         submit_button_disabled: bool = False,
-        clear_on_submit: bool = True,
+        clear_on_submit: bool = False,
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
