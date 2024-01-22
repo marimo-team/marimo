@@ -81,6 +81,7 @@
     "html-react-parser": "^5.1.1",
     "html-to-image": "^1.11.11",
     "humanize-duration": "^3.31.0",
+    "iconify-icon": "^1.0.8",
     "jotai": "^2.6.2",
     "js-cookie": "^3.0.5",
     "katex": "^0.16.9",

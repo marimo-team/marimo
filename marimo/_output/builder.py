@@ -11,7 +11,7 @@ class _HTMLBuilder:
             [children] if isinstance(children, str) else children
         )
 
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if style:
             params.append(("style", style))
 
@@ -28,7 +28,7 @@ class _HTMLBuilder:
         alt: Optional[str] = None,
         style: Optional[str] = None,
     ) -> str:
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if alt:
@@ -50,7 +50,7 @@ class _HTMLBuilder:
         loop: bool = False,
         style: Optional[str] = None,
     ) -> str:
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -74,7 +74,7 @@ class _HTMLBuilder:
         src: Optional[str] = None,
         controls: bool = True,
     ) -> str:
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if controls:
@@ -92,7 +92,7 @@ class _HTMLBuilder:
         height: Optional[str] = None,
         style: Optional[str] = None,
     ) -> str:
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
         if width:
@@ -109,7 +109,7 @@ class _HTMLBuilder:
 
     @staticmethod
     def pre(child: str, style: Optional[str] = None) -> str:
-        params: List[Tuple[str, str]] = []
+        params: List[Tuple[str, Union[str, None]]] = []
         if style is not None:
             params.append(("style", style))
 
@@ -118,8 +118,23 @@ class _HTMLBuilder:
         else:
             return f"<pre {_join_params(params)}>{child}</pre>"
 
+    @staticmethod
+    def component(
+        component_name: str,
+        params: List[Tuple[str, Union[str, None]]],
+    ) -> str:
+        if len(params) == 0:
+            return f"<{component_name}></{component_name}>"
+        else:
+            return (
+                f"<{component_name} {_join_params(params)}></{component_name}>"
+            )
 
-def _join_params(params: List[Tuple[str, str]]) -> str:
+
+def _join_params(params: List[Tuple[str, Union[str, None]]]) -> str:
+    # Filter None
+    params = [(k, v) for k, v in params if v is not None]
+
     return " ".join([f"{k}='{v}'" if v != "" else f"{k}" for k, v in params])
 
 

@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import "../css/index.css";
+import "iconify-icon";
 
 import { useEffect } from "react";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
