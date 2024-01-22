@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from enum import Enum
+from enum import Enum, IntEnum
 from multiprocessing.connection import Connection
 from typing import Any, Callable, Optional, Tuple
 
@@ -25,7 +25,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-class WebSocketCodes(Enum):
+class WebSocketCodes(IntEnum):
     ALREADY_CONNECTED = 1003
     NORMAL_CLOSE = 1000
 
@@ -35,7 +35,13 @@ async def websocket_endpoint(
     websocket: WebSocket,
 ) -> None:
     app_state = AppState(websocket)
-    session_id = app_state.require_query_params("session_id")
+    session_id = app_state.query_params("session_id")
+    if session_id is None:
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
+        )
+        return
+
     await WebsocketHandler(
         websocket=websocket,
         manager=app_state.session_manager,
@@ -147,6 +153,8 @@ class WebsocketHandler(SessionHandler):
             connection=session.read_conn,
             check_alive=session.check_alive,
         )
+        # Write reconnected message
+        self.write_operation("reconnected", None)
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -168,7 +176,7 @@ class WebsocketHandler(SessionHandler):
                 "Refusing connection; a frontend is already connected."
             )
             await self.websocket.close(
-                WebSocketCodes.ALREADY_CONNECTED.value,
+                WebSocketCodes.ALREADY_CONNECTED,
                 "MARIMO_ALREADY_CONNECTED",
             )
             return
@@ -242,8 +250,6 @@ class WebsocketHandler(SessionHandler):
                     if session is not None:
                         self.cancel_close_handle = cancellation_handle
 
-                # Close and cancel all tasks
-                self.message_queue.task_done()
                 # Stop listen_for_messages
                 listen_for_messages_task.cancel()
 
@@ -301,7 +307,7 @@ class WebsocketHandler(SessionHandler):
         ):
             asyncio.create_task(
                 self.websocket.close(
-                    WebSocketCodes.NORMAL_CLOSE.value, "MARIMO_SHUTDOWN"
+                    WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
                 )
             )
 

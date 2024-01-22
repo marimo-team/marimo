@@ -93,3 +93,9 @@ class AppState:
         if not value:
             raise ValueError(f"Missing query parameter: {param}")
         return value
+
+    def query_params(self, param: str) -> Optional[str]:
+        """Get a query parameter."""
+        if param not in self.request.query_params:
+            return None
+        return self.request.query_params[param]
