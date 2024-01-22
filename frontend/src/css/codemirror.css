@@ -111,6 +111,10 @@
   max-width: 200px;
 }
 
+#App .cm-tooltip.cm-tooltip-autocomplete > ul {
+  min-width: unset;
+}
+
 #App .cm-tooltip-autocomplete ul li[aria-selected] {
   background: #1177ccb0;
   max-width: 200px;

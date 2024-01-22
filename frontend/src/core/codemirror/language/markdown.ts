@@ -7,6 +7,12 @@ import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
 import dedent from "dedent";
 import { logNever } from "@/utils/assertNever";
+import {
+  Completion,
+  CompletionSource,
+  autocompletion,
+} from "@codemirror/autocomplete";
+import { once } from "lodash-es";
 
 const prefixKinds = ["", "f", "r", "fr", "rf"] as const;
 type PrefixKind = (typeof prefixKinds)[number];
@@ -128,6 +134,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
           },
         ],
       }),
+      autocompletion({
+        activateOnTyping: true,
+        override: [emojiCompletionSource],
+      }),
       python().support,
     ];
   }
@@ -178,3 +188,37 @@ function indentOneTab(code: string): string {
     .map((line) => (line.trim() === "" ? line : `    ${line}`))
     .join("\n");
 }
+
+const emojiCompletionSource: CompletionSource = async (context) => {
+  // Check if the cursor is at a position where an emoji can be inserted
+  if (!context.explicit && !context.matchBefore(/:\w*$/)) {
+    return null;
+  }
+
+  const emojiList = await getEmojiList();
+  const filter = context.matchBefore(/:\w*$/)?.text.slice(1) ?? "";
+
+  return {
+    from: context.pos - filter.length - 1,
+    options: emojiList,
+    validFor: /^[\w:]*$/,
+  };
+};
+
+// This loads emojis from a CDN
+// This only happens for searching for emojis, so when you are not connected to the internet,
+// everything works fine, except for autocompletion of emojis
+const getEmojiList = once(async (): Promise<Completion[]> => {
+  const emojiList = await fetch(
+    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json"
+  ).then((res) => res.json() as unknown as Record<string, string[]>);
+
+  return Object.entries(emojiList).map(([emoji, names]) => ({
+    shortcode: names[0],
+    label: names.map((d) => `:${d}`).join(" "),
+    emoji,
+    displayLabel: `${emoji} ${names[0].replaceAll("_", " ")}`,
+    apply: emoji,
+    type: "emoji",
+  }));
+});
