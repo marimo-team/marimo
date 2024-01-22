@@ -1,12 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from fastapi import APIRouter
+from starlette.requests import Request
 
 from marimo._ast.cell import CellId_t
 from marimo._config.utils import LOGGER
 from marimo._runtime import requests
-from marimo._server2.api.deps import SessionDep
+from marimo._server2.api.deps import AppState
+from marimo._server2.api.utils import parse_request
 from marimo._server2.models.models import (
     BaseResponse,
     CodeCompleteRequest,
@@ -16,46 +17,42 @@ from marimo._server2.models.models import (
     StdinRequest,
     SuccessResponse,
 )
+from marimo._server2.router import APIRouter
 
 # Router for editing endpoints
 router = APIRouter()
 
 
-@router.post("/code_autocomplete", response_model=BaseResponse)
-def code_complete(
-    *,
-    request: CodeCompleteRequest,
-    session: SessionDep,
-) -> BaseResponse:
+@router.post("/code_autocomplete")
+async def code_complete(request: Request) -> BaseResponse:
     """Complete a code fragment."""
-    session.control_queue.put(
+    app_state = AppState(request)
+    body = await parse_request(request, cls=CodeCompleteRequest)
+    app_state.require_current_session().control_queue.put(
         requests.CompletionRequest(
-            completion_id=request.id,
-            document=request.document,
-            cell_id=request.cell_id,
+            completion_id=body.id,
+            document=body.document,
+            cell_id=body.cell_id,
         )
     )
 
     return SuccessResponse()
 
 
-@router.post("/delete", response_model=BaseResponse)
-def delete_cell(
-    *,
-    request: DeleteCellRequest,
-    session: SessionDep,
-) -> BaseResponse:
+@router.post("/delete")
+async def delete_cell(request: Request) -> BaseResponse:
     """Complete a code fragment."""
-    session.control_queue.put(requests.DeleteRequest(cell_id=request.cell_id))
+    app_state = AppState(request)
+    body = await parse_request(request, cls=DeleteCellRequest)
+    app_state.require_current_session().control_queue.put(
+        requests.DeleteRequest(cell_id=body.cell_id)
+    )
 
     return SuccessResponse()
 
 
-@router.post("/format", response_model=FormatResponse)
-def format_cell(
-    *,
-    request: FormatRequest,
-) -> FormatResponse:
+@router.post("/format")
+async def format_cell(request: Request) -> FormatResponse:
     """Complete a code fragment."""
     try:
         import black
@@ -65,10 +62,11 @@ def format_cell(
         )
         return FormatResponse(codes={})
 
+    body = await parse_request(request, cls=FormatRequest)
     formatted_codes: dict[CellId_t, str] = {}
-    for key, code in request.codes.items():
+    for key, code in body.codes.items():
         try:
-            mode = black.Mode(line_length=request.line_length)  # type: ignore
+            mode = black.Mode(line_length=body.line_length)  # type: ignore
             formatted = black.format_str(code, mode=mode)
             formatted_codes[key] = formatted.strip()
         except Exception:
@@ -76,27 +74,23 @@ def format_cell(
     return FormatResponse(codes=formatted_codes)
 
 
-@router.post("/set_cell_config", response_model=BaseResponse)
-def set_cell_config(
-    *,
-    request: requests.SetCellConfigRequest,
-    session: SessionDep,
-) -> BaseResponse:
+@router.post("/set_cell_config")
+async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
-    session.control_queue.put(
-        requests.SetCellConfigRequest(configs=request.configs)
+    app_state = AppState(request)
+    body = await parse_request(request, cls=requests.SetCellConfigRequest)
+    app_state.require_current_session().control_queue.put(
+        requests.SetCellConfigRequest(configs=body.configs)
     )
 
     return SuccessResponse()
 
 
-@router.post("/stdin", response_model=BaseResponse)
-def stdin(
-    *,
-    request: StdinRequest,
-    session: SessionDep,
-) -> BaseResponse:
+@router.post("/stdin")
+async def stdin(request: Request) -> BaseResponse:
     """Send input to the stdin stream."""
-    session.input_queue.put(request.text)
+    app_state = AppState(request)
+    body = await parse_request(request, cls=StdinRequest)
+    app_state.require_current_session().input_queue.put(body.text)
 
     return SuccessResponse()

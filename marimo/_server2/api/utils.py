@@ -6,9 +6,14 @@ import subprocess
 import sys
 import webbrowser
 from shutil import which
-from typing import Optional
+from typing import Optional, Type, TypeVar
+
+from starlette.requests import Request
+
+from marimo._utils.parse_dataclass import parse_raw
 
 
+# TODO still needed?
 def require_header(header: list[str] | None) -> str:
     """
     Require exactly one value in header and return it.
@@ -21,6 +26,11 @@ def require_header(header: list[str] | None) -> str:
             f"Expected exactly one value in header, got {len(header)} values: {header}"
         )
     return header[0]
+
+
+async def parse_request(request: Request, cls: Type[T]) -> T:
+    """Parse the request body as a dataclass of type `cls`"""
+    return parse_raw(await request.body(), cls=cls)
 
 
 def parse_title(filename: Optional[str]) -> str:
@@ -58,3 +68,6 @@ def open_url_in_browser(browser: str, url: str) -> None:
             webbrowser.open(url)
         else:
             webbrowser.get(browser).open(url)
+
+
+T = TypeVar("T")

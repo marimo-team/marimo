@@ -4,7 +4,7 @@ import contextlib
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
 
-from fastapi import FastAPI
+from starlette.applications import Starlette
 from typing_extensions import TypeAlias
 
 from marimo import _loggers
@@ -19,13 +19,13 @@ from marimo._server2.api.utils import open_url_in_browser
 from marimo._server2.uvicorn_utils import close_uvicorn
 
 LifespanList: TypeAlias = Sequence[
-    Callable[[FastAPI], AbstractAsyncContextManager[None]]
+    Callable[[Starlette], AbstractAsyncContextManager[None]]
 ]
 
 LOGGER = _loggers.marimo_logger()
 
 
-async def _shutdown(app: FastAPI, with_error: bool = False) -> None:
+async def _shutdown(app: Starlette, with_error: bool = False) -> None:
     """Shutdown the server."""
     mgr = get_manager()
 
@@ -47,7 +47,7 @@ class Lifespans:
     @contextlib.asynccontextmanager
     async def _manager(
         self,
-        app: FastAPI,
+        app: Starlette,
         lifespans: LifespanList,
     ) -> AsyncIterator[None]:
         exit_stack = contextlib.AsyncExitStack()
@@ -60,12 +60,12 @@ class Lifespans:
         except asyncio.CancelledError:
             pass
 
-    def __call__(self, app: FastAPI) -> AbstractAsyncContextManager[None]:
+    def __call__(self, app: Starlette) -> AbstractAsyncContextManager[None]:
         return self._manager(app, lifespans=self.lifespans)
 
 
 @contextlib.asynccontextmanager
-async def user_configuration(app: FastAPI) -> AsyncIterator[None]:
+async def user_configuration(app: Starlette) -> AsyncIterator[None]:
     try:
         load_config()
     except Exception as e:
@@ -77,7 +77,7 @@ async def user_configuration(app: FastAPI) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def lsp(app: FastAPI) -> AsyncIterator[None]:
+async def lsp(app: Starlette) -> AsyncIterator[None]:
     user_config = get_configuration()
     session_mgr = get_manager()
     run = session_mgr.mode == SessionMode.RUN
@@ -88,7 +88,7 @@ async def lsp(app: FastAPI) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def open_browser(app: FastAPI) -> AsyncIterator[None]:
+async def open_browser(app: Starlette) -> AsyncIterator[None]:
     session_mgr = get_manager()
     url = f"http://localhost:{session_mgr.port}"
     user_config = get_configuration()
@@ -100,7 +100,7 @@ async def open_browser(app: FastAPI) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def logging(app: FastAPI) -> AsyncIterator[None]:
+async def logging(app: Starlette) -> AsyncIterator[None]:
     manager = get_manager()
 
     # Startup message
@@ -119,7 +119,7 @@ async def logging(app: FastAPI) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def signal_handler(app: FastAPI) -> AsyncIterator[None]:
+async def signal_handler(app: Starlette) -> AsyncIterator[None]:
     manager = get_manager()
 
     # Interrupt handler
@@ -135,7 +135,7 @@ async def signal_handler(app: FastAPI) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
-async def etc(app: FastAPI) -> AsyncIterator[None]:
+async def etc(app: Starlette) -> AsyncIterator[None]:
     # Mimetypes
     initialize_mimetypes()
     yield

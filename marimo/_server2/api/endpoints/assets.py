@@ -7,16 +7,18 @@ from http import HTTPStatus
 from importlib.resources import files as importlib_files
 from multiprocessing import shared_memory
 
-from fastapi import APIRouter, HTTPException, Response
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
+from starlette.requests import Request
+from starlette.responses import FileResponse, HTMLResponse, Response
+from starlette.staticfiles import StaticFiles
 
 from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
 from marimo._server.model import SessionMode
-from marimo._server2.api.deps import SessionManagerStateDep
+from marimo._server2.api.deps import AppState
 from marimo._server2.api.utils import parse_title
+from marimo._server2.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 
@@ -28,17 +30,18 @@ root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
 
 router.mount(
     "/assets",
-    StaticFiles(directory=os.path.join(root, "assets")),
+    app=StaticFiles(directory=os.path.join(root, "assets")),
     name="assets",
 )
 
 
 @router.get("/")
-async def index(state: SessionManagerStateDep):
-    title = parse_title(state.filename)
+async def index(request: Request):
+    app_state = AppState(request)
+    title = parse_title(app_state.filename)
     user_config = get_configuration()
     app_config = (
-        state.app_config.dict() if state.app_config is not None else {}
+        app_state.app_config.dict() if app_state.app_config is not None else {}
     )
 
     index_html = os.path.join(root, "index.html")
@@ -47,12 +50,14 @@ async def index(state: SessionManagerStateDep):
         html = html.replace("{{ title }}", title)
         html = html.replace("{{ user_config }}", json.dumps(user_config))
         html = html.replace("{{ app_config }}", json.dumps(app_config))
-        html = html.replace("{{ server_token }}", state.server_token)
+        html = html.replace("{{ server_token }}", app_state.server_token)
         html = html.replace("{{ version }}", json.dumps(__version__))
-        html = html.replace("{{ filename }}", state.filename or "")
+        html = html.replace("{{ filename }}", app_state.filename or "")
         html = html.replace(
             "{{ mode }}",
-            json.dumps("read" if state.mode == SessionMode.RUN else "edit"),
+            json.dumps(
+                "read" if app_state.mode == SessionMode.RUN else "edit"
+            ),
         )
 
     return HTMLResponse(html)
@@ -108,7 +113,8 @@ def virtual_file(
 
 # Catch all for serving static files
 @router.get("/{path:path}")
-async def serve_static(path: str) -> FileResponse:
+async def serve_static(request: Request) -> FileResponse:
+    path = request.path_params["path"]
     if any(re.match(pattern, path) for pattern in STATIC_FILES):
         return FileResponse(os.path.join(root, path))
 

@@ -1,93 +1,99 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Optional, Union
 
-from marimo._ast.cell import CellId_t
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._config.config import MarimoConfig
-from marimo._server2.models.base import CamelModel
 
 UIElementId = str
 
 
-class UpdateComponentValuesRequest(CamelModel):
+@dataclass
+class UpdateComponentValuesRequest:
     object_ids: list[UIElementId]
     values: list[Union[str, bool, int, float, None]]
 
 
-class InstantiateRequest(CamelModel):
+@dataclass
+class InstantiateRequest:
     object_ids: list[UIElementId]
     values: list[Union[str, bool, int, float, None]]
 
 
-class FunctionCallRequest(CamelModel):
+@dataclass
+class FunctionCallRequest:
     function_call_id: str
     namespace: str
     function_name: str
     args: dict[str, Any]
 
 
-class BaseResponse(CamelModel):
+@dataclass
+class BaseResponse:
     success: bool
 
 
+@dataclass
 class SuccessResponse(BaseResponse):
     success: bool = True
 
 
-class CodeCompleteRequest(CamelModel):
+@dataclass
+class CodeCompleteRequest:
     id: str
     document: str
     cell_id: CellId_t
 
 
-class DeleteCellRequest(CamelModel):
+@dataclass
+class DeleteCellRequest:
     cell_id: CellId_t
 
 
-class DirectoryAutocompleteRequest(CamelModel):
+@dataclass
+class DirectoryAutocompleteRequest:
     prefix: str
 
 
-class DirectoryAutocompleteResponse(CamelModel):
+@dataclass
+class DirectoryAutocompleteResponse:
     directories: list[str]
     files: list[str]
 
 
-class FormatRequest(CamelModel):
+@dataclass
+class FormatRequest:
     codes: dict[CellId_t, str]
     line_length: int
 
 
-class FormatResponse(CamelModel):
+@dataclass
+class FormatResponse:
     codes: dict[CellId_t, str]
 
 
-class ReadCodeResponse(CamelModel):
+@dataclass
+class ReadCodeResponse:
     contents: str
 
 
-class RenameFileRequest(CamelModel):
+@dataclass
+class RenameFileRequest:
     filename: str
 
 
-class RunRequest(CamelModel):
+@dataclass
+class RunRequest:
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
     codes: list[str]
 
 
-class CellConfig(CamelModel):
-    # If True, the cell and its descendants cannot be executed,
-    # but they can still be added to the graph.
-    disabled: bool = False
-
-    # If True, the cell is hidden from the editor.
-    hide_code: bool = False
-
-
-class SaveRequest(CamelModel):
+@dataclass
+class SaveRequest:
     # code for each cell
     codes: list[str]
     # name of each cell
@@ -100,20 +106,24 @@ class SaveRequest(CamelModel):
     layout: Optional[dict[str, Any]] = None
 
 
-class SaveAppConfigurationRequest(CamelModel):
+@dataclass
+class SaveAppConfigurationRequest:
     # partial app config
     config: dict[str, Any]
 
 
-class SaveUserConfigurationRequest(CamelModel):
+@dataclass
+class SaveUserConfigurationRequest:
     # user configuration
     config: MarimoConfig
 
 
-class SetCellConfigRequest(CamelModel):
+@dataclass
+class SetCellConfigRequest:
     # Map from Cell ID to (possibly partial) CellConfig
     configs: dict[CellId_t, dict[str, object]]
 
 
-class StdinRequest(CamelModel):
+@dataclass
+class StdinRequest:
     text: str

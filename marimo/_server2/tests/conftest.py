@@ -2,12 +2,12 @@
 from typing import Any, Generator
 
 import pytest
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 
-from marimo._server.model import SessionMode
+from marimo._config.config import get_configuration
 from marimo._server.sessions import Session
-from marimo._server2.api.deps import SessionManagerState
 from marimo._server2.main import app
+from marimo._server2.tests.mocks import get_mock_session_manager
 
 
 @pytest.fixture(scope="module")
@@ -18,19 +18,11 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
-    return TestClient(app)
-
-
-@pytest.fixture(scope="module")
-def state() -> SessionManagerState:
-    return SessionManagerState(
-        server_token="test-server-token",
-        filename="test_app.py",
-        mode=SessionMode.RUN,
-        app_config=None,
-        development_mode=False,
-        quiet=False,
-    )
+    app.state.session_manager = get_mock_session_manager()
+    app.state.user_config = get_configuration()
+    server = TestClient(app)
+    app.state.server = server
+    return server
 
 
 @pytest.fixture(scope="module")

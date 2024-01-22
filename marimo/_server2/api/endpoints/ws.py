@@ -8,8 +8,8 @@ from enum import Enum
 from multiprocessing.connection import Connection
 from typing import Any, Callable, Optional, Tuple
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.websockets import WebSocketState
+from starlette.requests import Request
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
@@ -18,7 +18,8 @@ from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.model import ConnectionState, SessionHandler, SessionMode
 from marimo._server.sessions import Session, SessionManager
-from marimo._server2.api.deps import SessionManagerDep
+from marimo._server2.api.deps import AppState
+from marimo._server2.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 
@@ -33,14 +34,14 @@ class WebSocketCodes(Enum):
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    manager: SessionManagerDep,
-    session_id: str,
 ) -> None:
+    app_state = AppState(websocket)
+    session_id = app_state.require_query_params("session_id")
     await WebsocketHandler(
         websocket=websocket,
-        manager=manager,
+        manager=app_state.session_manager,
         session_id=session_id,
-        mode=manager.mode,
+        mode=app_state.mode,
     ).start()
 
 
