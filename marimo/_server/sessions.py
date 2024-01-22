@@ -140,7 +140,7 @@ class Session:
         self.read_conn = listener.accept()
 
         def check_alive() -> None:
-            if not self.kernel_task.is_alive():
+            if not self.kernel_task.is_alive() and not self.read_conn.closed:
                 self.close()
                 print()
                 print_tabbed(
@@ -165,6 +165,8 @@ class Session:
 
     def close(self) -> None:
         """Close kernel, sockets, and pipes."""
+        self.session_handler.on_stop(self.read_conn)
+
         if isinstance(self.kernel_task, mp.Process):
             # type ignores:
             # guaranteed to be a multiprocessing Queue; annoying to assert
@@ -184,8 +186,6 @@ class Session:
             # kernel thread cleans up read/write conn and IOloop handler on
             # exit; we don't join the thread because we don't want to block
             self.control_queue.put(requests.StopRequest())
-
-        self.session_handler.on_stop(self.read_conn)
 
 
 class SessionManager:

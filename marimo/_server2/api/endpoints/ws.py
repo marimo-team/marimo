@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from enum import Enum, IntEnum
+from enum import IntEnum
 from multiprocessing.connection import Connection
 from typing import Any, Callable, Optional, Tuple
 
@@ -143,9 +143,8 @@ class WebsocketHandler(SessionHandler):
         if self.cancel_close_handle is not None:
             self.cancel_close_handle.cancel()
 
-        session_handler = session.session_handler
-        assert isinstance(session_handler, WebsocketHandler)
-        assert session_handler.status == ConnectionState.CLOSED
+        assert isinstance(session.session_handler, WebsocketHandler)
+        assert session.session_handler.status == ConnectionState.CLOSED
         self.status = ConnectionState.OPEN
         session.session_handler = self
         self.on_start(
@@ -293,7 +292,7 @@ class WebsocketHandler(SessionHandler):
 
     def on_stop(self, connection: Connection) -> None:
         # Cancel the heartbeat task
-        if self.heartbeat_task:
+        if self.heartbeat_task and not self.heartbeat_task.cancelled():
             self.heartbeat_task.cancel()
 
         # Remove the reader
