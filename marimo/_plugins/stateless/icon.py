@@ -1,9 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Union
-
-from altair import Optional
+from typing import Literal, Optional, Union
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
