@@ -54,10 +54,11 @@ class Session:
     def __init__(
         self,
         session_handler: SessionHandler,
+        mode: SessionMode,
+        app: Optional[App],
     ) -> None:
         """Initialize kernel and client connection to it."""
         mpctx = mp.get_context("spawn")
-        mgr: SessionManager = get_manager()
         self.session_handler = session_handler
 
         # Control messages for the kernel (run, autocomplete,
@@ -72,7 +73,6 @@ class Session:
         self.kernel_task: threading.Thread | mp.Process
         self.read_conn: connection.Connection
 
-        app = mgr.load_app()
         configs = (
             {cell_id: data.config for cell_id, data in app._cell_data.items()}
             if app is not None
@@ -80,7 +80,7 @@ class Session:
         )
         # Need to use a socket for windows compatibility
         listener = connection.Listener(family="AF_INET")
-        is_edit_mode = mgr.mode == SessionMode.EDIT
+        is_edit_mode = mode == SessionMode.EDIT
         if is_edit_mode:
             # We use a process in edit mode so that we can interrupt the app
             # with a SIGINT; we don't mind the additional memory consumption,
@@ -152,7 +152,7 @@ class Session:
         self.check_alive = check_alive
 
         session_handler.on_start(
-            mode=mgr.mode, connection=self.read_conn, check_alive=check_alive
+            mode=mode, connection=self.read_conn, check_alive=check_alive
         )
 
     def try_interrupt(self) -> None:
@@ -261,7 +261,11 @@ class SessionManager:
         """Create a new session"""
         LOGGER.debug("creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            s = Session(session_handler=session_handler)
+            s = Session(
+                session_handler=session_handler,
+                mode=self.mode,
+                app=self.load_app(),
+            )
             self.sessions[session_id] = s
             return s
         else:

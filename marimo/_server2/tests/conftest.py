@@ -2,6 +2,7 @@
 from typing import Any, Generator
 
 import pytest
+import uvicorn
 from starlette.testclient import TestClient
 
 from marimo._config.config import get_configuration
@@ -20,9 +21,14 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 def client() -> TestClient:
     app.state.session_manager = get_mock_session_manager()
     app.state.user_config = get_configuration()
-    server = TestClient(app)
-    app.state.server = server
-    return server
+    client = TestClient(app)
+
+    # Mock out the server
+    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
+    uvicorn_server.servers = []
+
+    app.state.server = uvicorn_server
+    return client
 
 
 @pytest.fixture(scope="module")
