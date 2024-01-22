@@ -23,7 +23,8 @@ def require_header(header: list[str] | None) -> str:
         raise ValueError("Expected exactly one value in header, got None")
     if len(header) != 1:
         raise ValueError(
-            f"Expected exactly one value in header, got {len(header)} values: {header}"
+            "Expected exactly one value in header, "
+            f"got {len(header)} values: {header}"
         )
     return header[0]
 

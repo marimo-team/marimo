@@ -15,7 +15,8 @@ def test_require_header() -> None:
     except ValueError as e:
         assert str(e) == "Expected exactly one value in header, got None"
 
-    # Test case 3: ValueError is raised when an empty list is passed as the header
+    # Test case 3: ValueError is raised when an empty list is passed as the
+    # header
     try:
         require_header([])
         raise AssertionError()

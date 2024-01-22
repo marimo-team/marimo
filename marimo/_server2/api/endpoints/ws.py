@@ -8,7 +8,6 @@ from enum import Enum
 from multiprocessing.connection import Connection
 from typing import Any, Callable, Optional, Tuple
 
-from starlette.requests import Request
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
@@ -268,6 +267,7 @@ class WebsocketHandler(SessionHandler):
         connection: Connection,
         check_alive: Callable[[], None],
     ) -> None:
+        del mode
         # Add a reader to the connection
         asyncio.get_event_loop().add_reader(
             connection.fileno(),

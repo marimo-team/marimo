@@ -36,7 +36,7 @@ router.mount(
 
 
 @router.get("/")
-async def index(request: Request):
+async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     title = parse_title(app_state.filename)
     user_config = get_configuration()

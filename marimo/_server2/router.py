@@ -1,19 +1,21 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import dataclasses
 import json
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Callable, Optional, TypeVar
 
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Router
-from starlette.websockets import WebSocket
 
 from marimo import _loggers
 from marimo._server2.models.base import deep_to_camel_case
 
 LOGGER = _loggers.marimo_logger()
+
+DecoratedCallable = TypeVar("DecoratedCallable", bound=Callable[..., Any])
 
 
 @dataclass
@@ -33,10 +35,12 @@ class APIRouter(Router):
                 "/"
             ), "Path prefix must not end with '/'"
 
-    def post(self, path: str):
+    def post(
+        self, path: str
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Post method that returns a JSON response"""
 
-        def decorator(func: Callable[..., Awaitable[Response]]) -> None:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
             async def wrapper_func(request: Request) -> Response:
                 response = await func(request=request)
                 if isinstance(response, FileResponse):
@@ -57,14 +61,16 @@ class APIRouter(Router):
                 methods=["POST"],
             )
 
-            return
+            return wrapper_func  # type: ignore[return-value]
 
         return decorator
 
-    def get(self, path: str):
+    def get(
+        self, path: str
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Get method."""
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_route(
                 path=self.prefix + path, endpoint=func, methods=["GET"]
             )
@@ -72,18 +78,20 @@ class APIRouter(Router):
 
         return decorator
 
-    def websocket(self, path: str):
+    def websocket(
+        self, path: str
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Websocket method."""
 
-        def decorator(func: Callable[[WebSocket], Awaitable[None]]) -> None:
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_websocket_route(path=self.prefix + path, endpoint=func)
-            return
+            return func
 
         return decorator
 
     def include_router(
         self, router: APIRouter, prefix: str = "", name: Optional[str] = None
-    ):
+    ) -> None:
         """Include another router in this one."""
         # Merge Mounts with the same path
         for route in self.routes:

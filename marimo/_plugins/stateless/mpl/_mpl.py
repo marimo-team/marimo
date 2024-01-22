@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Optional, Tuple
 
 import uvicorn
-from matplotlib.figure import Figure
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, Response

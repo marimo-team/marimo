@@ -1,7 +1,6 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
 import os
@@ -17,7 +16,7 @@ from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._cli.upgrade import check_for_updates
-from marimo._server.sessions import SessionMode
+from marimo._server.model import SessionMode
 from marimo._server2.start import start
 
 DEVELOPMENT_MODE = False

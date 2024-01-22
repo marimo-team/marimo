@@ -16,8 +16,8 @@ class InterruptHandler:
 
     def _interrupt_handler(self) -> None:
         # Restore the original signal handler so re-entering Ctrl+C raises a
-        # keyboard interrupt instead of calling this function again (input is not
-        # re-entrant, so it's not safe to call this function again)
+        # keyboard interrupt instead of calling this function again (input is
+        # not re-entrant, so it's not safe to call this function again)
         self.loop.remove_signal_handler(signal.SIGINT)
         if self.quiet:
             # self.loop.stop()

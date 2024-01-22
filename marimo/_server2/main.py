@@ -6,7 +6,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
 
 from marimo._server2.api.lifespans import LIFESPANS
 from marimo._server2.api.router import ROUTES
@@ -24,7 +24,8 @@ middleware = [
 
 
 # Convert exceptions to JSON responses
-async def handle_error(request: Request, response: Any):
+async def handle_error(request: Request, response: Any) -> Any:
+    del request
     if isinstance(response, HTTPException):
         return JSONResponse(
             {"detail": response.detail}, status_code=response.status_code

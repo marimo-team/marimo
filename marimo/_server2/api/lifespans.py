@@ -78,6 +78,7 @@ async def user_configuration(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def lsp(app: Starlette) -> AsyncIterator[None]:
+    del app
     user_config = get_configuration()
     session_mgr = get_manager()
     run = session_mgr.mode == SessionMode.RUN
@@ -101,6 +102,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
+    del app
     manager = get_manager()
 
     # Startup message
@@ -136,6 +138,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def etc(app: Starlette) -> AsyncIterator[None]:
+    del app
     # Mimetypes
     initialize_mimetypes()
     yield

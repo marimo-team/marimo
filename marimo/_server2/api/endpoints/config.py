@@ -5,12 +5,15 @@ import os
 
 import tomlkit
 from starlette.exceptions import HTTPException
+from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._config.config import configure
 from marimo._config.utils import get_config_path
 from marimo._runtime import requests
 from marimo._server.api.status import HTTPStatus
+from marimo._server2.api.deps import AppState
+from marimo._server2.api.utils import parse_request
 from marimo._server2.models.models import (
     BaseResponse,
     SaveUserConfigurationRequest,
@@ -25,11 +28,9 @@ router = APIRouter()
 
 
 @router.post("/save_user_config")
-def save_user_config(
+async def save_user_config(
     *,
-    request: SaveUserConfigurationRequest,
-    session: SessionDep,
-    manager: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """Run multiple cells (and their descendants).
 
@@ -38,6 +39,8 @@ def save_user_config(
 
     Only allowed in edit mode.
     """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=SaveUserConfigurationRequest)
     config_path = get_config_path()
     config_dir = (
         os.path.dirname(config_path)
@@ -48,7 +51,7 @@ def save_user_config(
     config_path = os.path.join(config_dir, ".marimo.toml")
     try:
         with open(config_path, "w", encoding="utf-8") as f:
-            tomlkit.dump(request.config, f)
+            tomlkit.dump(body.config, f)
     except Exception as e:
         raise HTTPException(
             HTTPStatus.SERVER_ERROR,
@@ -56,13 +59,13 @@ def save_user_config(
         ) from e
 
     # Update the server's view of the config
-    config = configure(request.config)
+    config = configure(body.config)
     if config["completion"]["copilot"]:
         LOGGER.debug("Starting copilot server")
-        manager.start_lsp_server()
+        app_state.session_manager.start_lsp_server()
     # Update the kernel's view of the config
-    session.control_queue.put(
-        requests.ConfigurationRequest(str(request.config))
+    app_state.require_current_session().control_queue.put(
+        requests.ConfigurationRequest(str(body.config))
     )
 
     return SuccessResponse()
