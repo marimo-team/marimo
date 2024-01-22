@@ -1,10 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from starlette.requests import Request
+
 from marimo._ast.cell import CellId_t
 from marimo._config.utils import LOGGER
 from marimo._runtime import requests
-from marimo._server2.api.deps import get_current_session
+from marimo._server2.api.deps import AppState
 from marimo._server2.api.utils import parse_request
 from marimo._server2.models.models import (
     BaseResponse,
@@ -16,7 +18,6 @@ from marimo._server2.models.models import (
     SuccessResponse,
 )
 from marimo._server2.router import APIRouter
-from starlette.requests import Request
 
 # Router for editing endpoints
 router = APIRouter()
@@ -25,8 +26,9 @@ router = APIRouter()
 @router.post("/code_autocomplete")
 async def code_complete(request: Request) -> BaseResponse:
     """Complete a code fragment."""
+    app_state = AppState(request)
     body = await parse_request(request, cls=CodeCompleteRequest)
-    get_current_session(request).control_queue.put(
+    app_state.require_current_session().control_queue.put(
         requests.CompletionRequest(
             completion_id=body.id,
             document=body.document,
@@ -40,8 +42,9 @@ async def code_complete(request: Request) -> BaseResponse:
 @router.post("/delete")
 async def delete_cell(request: Request) -> BaseResponse:
     """Complete a code fragment."""
+    app_state = AppState(request)
     body = await parse_request(request, cls=DeleteCellRequest)
-    get_current_session(request).control_queue.put(
+    app_state.require_current_session().control_queue.put(
         requests.DeleteRequest(cell_id=body.cell_id)
     )
 
@@ -74,8 +77,9 @@ async def format_cell(request: Request) -> FormatResponse:
 @router.post("/set_cell_config")
 async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
+    app_state = AppState(request)
     body = await parse_request(request, cls=requests.SetCellConfigRequest)
-    request.app.session().control_queue.put(
+    app_state.require_current_session().control_queue.put(
         requests.SetCellConfigRequest(configs=body.configs)
     )
 
@@ -85,7 +89,8 @@ async def set_cell_config(request: Request) -> BaseResponse:
 @router.post("/stdin")
 async def stdin(request: Request) -> BaseResponse:
     """Send input to the stdin stream."""
+    app_state = AppState(request)
     body = await parse_request(request, cls=StdinRequest)
-    request.app.session().input_queue.put(body.text)
+    app_state.require_current_session().input_queue.put(body.text)
 
     return SuccessResponse()

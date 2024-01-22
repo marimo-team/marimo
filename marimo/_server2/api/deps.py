@@ -1,71 +1,95 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Annotated, Literal, Optional
+from typing import Optional, Union
 
-from marimo._config.config import MarimoConfig, get_configuration
-from marimo._server.model import SessionMode
-from marimo._server.sessions import Session, SessionManager, get_manager
 from starlette.requests import Request
+from starlette.websockets import WebSocket
+from uvicorn import Server
+
+from marimo._ast.app import _AppConfig
+from marimo._config.config import MarimoConfig
+from marimo._server.model import SessionMode
+from marimo._server.sessions import Session, SessionManager
 
 
-def get_current_session(request: Request) -> Session:
-    """Get the current session."""
-    session_id = request.headers["Marimo-Session-Id"]
-    return get_manager().sessions[session_id]
+def app_state(request: Request) -> AppState:
+    """Get the app state."""
+    return AppState(request.app)
 
 
-# Dependency for getting the current session manager
-SessionManagerDep = Annotated[SessionManager, Depends(get_manager)]
+class AppState:
+    """The app state."""
 
+    def __init__(self, request: Union[Request, WebSocket]) -> None:
+        """Initialize the app state."""
+        self.request = request
 
-# Duplicating _AppConfig because Pydantic complains in Python 3.10 when
-# it isn't a Pydantic model
-class _AppConfig(BaseModel):
-    width: Literal["normal", "full"] = "normal"
+        assert (
+            request.app.state.session_manager is not None
+        ), "Session manager not initialized"
+        assert (
+            request.app.state.user_config is not None
+        ), "User config not initialized"
 
-    # The file path of the layout file, relative to the app file.
-    layout_file: Optional[str] = None
-
-
-class SessionManagerState(BaseModel):
-    server_token: str
-    filename: Optional[str]
-    mode: SessionMode
-    app_config: Optional[_AppConfig]
-    quiet: bool
-    development_mode: bool
-
-
-def get_session_manager_state(
-    session_manager: SessionManagerDep,
-) -> SessionManagerState:
-    return SessionManagerState(
-        server_token=session_manager.server_token,
-        filename=session_manager.filename,
-        mode=session_manager.mode,
-        app_config=_AppConfig(
-            width=session_manager.app_config.width,
-            layout_file=session_manager.app_config.layout_file,
+        self.session_manager: SessionManager = (
+            request.app.state.session_manager
         )
-        if session_manager.app_config is not None
-        else _AppConfig(width="normal", layout_file=None),
-        quiet=session_manager.quiet,
-        development_mode=session_manager.development_mode,
-    )
+        self.user_config: MarimoConfig = request.app.state.user_config
+        self._server: Server = request.app.state.server
 
+    def get_current_session(self) -> Optional[Session]:
+        """Get the current session."""
+        session_id = self.request.headers.get("Marimo-Session-Id")
+        if session_id is None:
+            return None
+        return self.session_manager.get_session(session_id)
 
-# Dependency session manager state
-# Just a slimmed down SessionManager that is less leaky
-# TODO: is there better naming for this?
-SessionManagerStateDep = Annotated[
-    SessionManagerState, Depends(get_session_manager_state)
-]
+    def require_current_session(self) -> Session:
+        """Get the current session or raise an error."""
+        session_id = self.request.headers.get("Marimo-Session-Id")
+        if session_id is None:
+            raise ValueError("Missing Marimo-Session-Id header")
+        session = self.session_manager.get_session(session_id)
+        if session is None:
+            raise ValueError(f"Invalid session id: {session_id}")
+        return session
 
+    @property
+    def filename(self) -> Optional[str]:
+        return self.session_manager.filename
 
-# Dependency for getting the current session
-# This uses the marimo_session_id header to get the current session
-SessionDep = Annotated[Session, Depends(get_current_session)]
+    @property
+    def mode(self) -> SessionMode:
+        return self.session_manager.mode
 
-# Dependency for getting the user config
-UserConfigDep = Annotated[MarimoConfig, Depends(get_configuration)]
+    @property
+    def app_config(self) -> Optional[_AppConfig]:
+        return self.session_manager.app_config
+
+    @property
+    def quiet(self) -> bool:
+        return self.session_manager.quiet
+
+    @property
+    def development_mode(self) -> bool:
+        return self.session_manager.development_mode
+
+    @property
+    def port(self) -> int:
+        return self.session_manager.port
+
+    @property
+    def server_token(self) -> str:
+        return self.session_manager.server_token
+
+    @property
+    def server(self) -> Server:
+        return self._server
+
+    def require_query_params(self, param: str) -> str:
+        """Get a query parameter or raise an error."""
+        value = self.request.query_params[param]
+        if not value:
+            raise ValueError(f"Missing query parameter: {param}")
+        return value

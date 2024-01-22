@@ -8,8 +8,9 @@ import webbrowser
 from shutil import which
 from typing import Optional, Type, TypeVar
 
-from marimo._utils.parse_dataclass import parse_raw
 from starlette.requests import Request
+
+from marimo._utils.parse_dataclass import parse_raw
 
 
 # TODO still needed?

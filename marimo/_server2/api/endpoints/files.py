@@ -3,18 +3,16 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from starlette.exceptions import HTTPException
+from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPStatus
 from marimo._server.layout import LayoutConfig, save_layout_config
 from marimo._server.utils import canonicalize_filename
-from marimo._server2.api.deps import (
-    SessionManagerDep,
-    SessionManagerStateDep,
-)
+from marimo._server2.api.deps import AppState
+from marimo._server2.api.utils import parse_request
 from marimo._server2.models.models import (
     BaseResponse,
     DirectoryAutocompleteRequest,
@@ -25,6 +23,7 @@ from marimo._server2.models.models import (
     SaveRequest,
     SuccessResponse,
 )
+from marimo._server2.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 
@@ -32,16 +31,14 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-@router.post(
-    "/directory_autocomplete", response_model=DirectoryAutocompleteResponse
-)
-def directory_autocomplete(
+@router.post("/directory_autocomplete")
+async def directory_autocomplete(
     *,
-    request: DirectoryAutocompleteRequest,
+    request: Request,
 ) -> DirectoryAutocompleteResponse:
     """Complete a path to subdirectories and Python files."""
-
-    directory = os.path.dirname(request.prefix)
+    body = await parse_request(request, cls=DirectoryAutocompleteRequest)
+    directory = os.path.dirname(body.prefix)
     if not directory:
         directory = "."
 
@@ -50,7 +47,7 @@ def directory_autocomplete(
     except StopIteration:
         return DirectoryAutocompleteResponse(directories=[], files=[])
 
-    basename = os.path.basename(request.prefix)
+    basename = os.path.basename(body.prefix)
     directories = sorted([d for d in subdirectories if d.startswith(basename)])
     files = sorted(
         [f for f in files if f.startswith(basename) and f.endswith(".py")]
@@ -61,19 +58,20 @@ def directory_autocomplete(
     )
 
 
-@router.post("/read_code", response_model=ReadCodeResponse)
-def read_code(
+@router.post("/read_code")
+async def read_code(
     *,
-    state: SessionManagerStateDep,
+    request: Request,
 ) -> ReadCodeResponse:
+    app_state = AppState(request)
     """Handler for reading code from the server."""
-    if state.filename is None:
+    if app_state.filename is None:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail="Cannot read code from an unnamed notebook",
         )
     try:
-        with open(state.filename, "r", encoding="utf-8") as f:
+        with open(app_state.filename, "r", encoding="utf-8") as f:
             contents = f.read().strip()
     except Exception as e:
         raise HTTPException(
@@ -86,14 +84,16 @@ def read_code(
     )
 
 
-@router.post("/rename", response_model=BaseResponse)
-def rename_file(
+@router.post("/rename")
+async def rename_file(
     *,
-    request: RenameFileRequest,
-    mgr: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """Rename the current app."""
-    filename = request.filename
+    body = await parse_request(request, cls=RenameFileRequest)
+    app_state = AppState(request)
+    mgr = app_state.session_manager
+    filename = body.filename
     LOGGER.debug("Renaming from %s to %s", mgr.filename, filename)
     filename = canonicalize_filename(filename)
 
@@ -131,18 +131,20 @@ def rename_file(
     return SuccessResponse()
 
 
-@router.post("/save", response_model=BaseResponse)
-def save(
+@router.post("/save")
+async def save(
     *,
-    request: SaveRequest,
-    mgr: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """Save the current app."""
+    app_state = AppState(request)
+    mgr = app_state.session_manager
+    body = await parse_request(request, cls=SaveRequest)
     codes, names, filename, layout = (
-        request.codes,
-        request.names,
-        request.filename,
-        request.layout,
+        body.codes,
+        body.names,
+        body.filename,
+        body.layout,
     )
     filename = canonicalize_filename(filename)
     if mgr.filename is not None and mgr.filename != filename:
@@ -169,9 +171,7 @@ def save(
         contents = codegen.generate_filecontents(
             codes,
             names,
-            cell_configs=[
-                CellConfig(**config.dict()) for config in request.configs
-            ],
+            cell_configs=body.configs,
             config=mgr.app_config,
         )
         LOGGER.debug("Saving app to %s", filename)
@@ -189,14 +189,16 @@ def save(
     return SuccessResponse()
 
 
-@router.post("/save_app_config", response_model=BaseResponse)
-def save_app_config(
+@router.post("/save_app_config")
+async def save_app_config(
     *,
-    request: SaveAppConfigurationRequest,
-    mgr: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """Save the current app."""
-    mgr.update_app_config(request.config)
+    app_state = AppState(request)
+    body = await parse_request(request, cls=SaveAppConfigurationRequest)
+    mgr = app_state.session_manager
+    mgr.update_app_config(body.config)
     # Update the file with the latest app config
     # TODO(akshayka): Only change the `app = marimo.App` line (at top level
     # of file), instead of overwriting the whole file.

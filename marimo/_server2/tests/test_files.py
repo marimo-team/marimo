@@ -2,14 +2,9 @@
 import os
 import random
 
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 
-from marimo._server.sessions import get_manager
-from marimo._server2.main import app
-from marimo._server2.models.models import CellConfig, SaveRequest
 from marimo._server2.tests.mocks import get_mock_session_manager
-
-app.dependency_overrides[get_manager] = get_mock_session_manager
 
 
 def test_directory_autocomplete(client: TestClient) -> None:
@@ -67,7 +62,7 @@ def test_save_file(client: TestClient) -> None:
             "names": ["my_cell"],
             "configs": [
                 {
-                    "hide_code": True,
+                    "hideCode": True,
                     "disabled": False,
                 }
             ],
@@ -83,17 +78,17 @@ def test_save_file(client: TestClient) -> None:
 def test_save_file_cannot_rename(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/save",
-        json=SaveRequest(
-            filename="random_filename.py",
-            codes=["import marimo as mo"],
-            names=["my_cell"],
-            configs=[
-                CellConfig(
-                    hide_code=True,
-                    disabled=False,
-                )
+        json={
+            "filename": "random_filename.py",
+            "codes": ["import marimo as mo"],
+            "names": ["my_cell"],
+            "configs": [
+                {
+                    "hideCode": True,
+                    "disabled": False,
+                }
             ],
-        ).dict(),
+        },
     )
     assert response.status_code == 400
     assert "cannot rename" in response.text

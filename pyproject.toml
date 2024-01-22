@@ -30,7 +30,7 @@ dependencies = [
     "uvicorn",
     # web framework TODO: lower bound
     "starlette",
-    # websockets for use with fastapi
+    # websockets for use with starlette
     "websockets",
     # python <=3.12 compatibility (required by pydantic)
     "typing_extensions>=4.4.0; python_version < \"3.12\"",

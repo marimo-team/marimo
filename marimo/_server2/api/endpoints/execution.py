@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._ast.app import App
@@ -11,7 +11,8 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._server2.api.deps import SessionDep, SessionManagerDep
+from marimo._server2.api.deps import AppState
+from marimo._server2.api.utils import parse_request
 from marimo._server2.models.models import (
     BaseResponse,
     FunctionCallRequest,
@@ -20,6 +21,7 @@ from marimo._server2.models.models import (
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
+from marimo._server2.router import APIRouter
 from marimo._server2.uvicorn_utils import close_uvicorn
 
 LOGGER = _loggers.marimo_logger()
@@ -28,40 +30,41 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-@router.post("/set_ui_element_value", response_model=BaseResponse)
-def set_ui_element_values(
+@router.post("/set_ui_element_value")
+async def set_ui_element_values(
     *,
-    request: UpdateComponentValuesRequest,
-    session: SessionDep,
+    request: Request,
 ) -> BaseResponse:
     """
     Set UI element values.
     """
-    session.control_queue.put(
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateComponentValuesRequest)
+    app_state.require_current_session().control_queue.put(
         SetUIElementValueRequest(
             zip(
-                request.object_ids,
-                request.values,
+                body.object_ids,
+                body.values,
             )
         )
     )
     return SuccessResponse()
 
 
-@router.post("/instantiate", response_model=BaseResponse)
-def instantiate(
+@router.post("/instantiate")
+async def instantiate(
     *,
-    request: InstantiateRequest,
-    session: SessionDep,
-    manager: SessionManagerDep,
+    request: Request,
 ) -> BaseResponse:
     """
     Instantiate the kernel.
     """
-    app = manager.load_app()
+    app_state = AppState(request)
+    notebook = app_state.session_manager.load_app()
+    body = await parse_request(request, cls=InstantiateRequest)
 
     execution_requests: tuple[ExecutionRequest, ...]
-    if app is None:
+    if notebook is None:
         # Instantiating an empty app
         # TODO(akshayka): In this case, don't need to run anything ...
         execution_requests = (
@@ -70,14 +73,14 @@ def instantiate(
     else:
         execution_requests = tuple(
             ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
-            for cell_data in app._cell_data.values()
+            for cell_data in notebook._cell_data.values()
         )
 
-    session.control_queue.put(
+    app_state.require_current_session().control_queue.put(
         CreationRequest(
             execution_requests=execution_requests,
             set_ui_element_value_request=SetUIElementValueRequest(
-                zip(request.object_ids, request.values)
+                zip(body.object_ids, body.values)
             ),
         )
     )
@@ -85,41 +88,42 @@ def instantiate(
     return SuccessResponse()
 
 
-@router.post("/function_call", response_model=BaseResponse)
-def function_call(
+@router.post("/function_call")
+async def function_call(
     *,
-    request: FunctionCallRequest,
-    session: SessionDep,
+    request: Request,
 ) -> BaseResponse:
     """Invoke an RPC"""
-    session.control_queue.put(
+    app_state = AppState(request)
+    body = await parse_request(request, cls=FunctionCallRequest)
+    app_state.require_current_session().control_queue.put(
         requests.FunctionCallRequest(
-            function_call_id=request.function_call_id,
-            namespace=request.namespace,
-            function_name=request.function_name,
-            args=request.args,
+            function_call_id=body.function_call_id,
+            namespace=body.namespace,
+            function_name=body.function_name,
+            args=body.args,
         )
     )
 
     return SuccessResponse()
 
 
-@router.post("/interrupt", response_model=BaseResponse)
-def interrupt(
+@router.post("/interrupt")
+async def interrupt(
     *,
-    session: SessionDep,
+    request: Request,
 ) -> BaseResponse:
     """Interrupt the kernel's execution."""
-    session.try_interrupt()
+    app_state = AppState(request)
+    app_state.require_current_session().try_interrupt()
 
     return SuccessResponse()
 
 
-@router.post("/run", response_model=BaseResponse)
-def run_cell(
+@router.post("/run")
+async def run_cell(
     *,
-    request: RunRequest,
-    session: SessionDep,
+    request: Request,
 ) -> BaseResponse:
     """Run multiple cells (and their descendants).
 
@@ -128,11 +132,13 @@ def run_cell(
 
     Only allowed in edit mode.
     """
-    session.control_queue.put(
+    app_state = AppState(request)
+    body = await parse_request(request, cls=RunRequest)
+    app_state.require_current_session().control_queue.put(
         requests.ExecuteMultipleRequest(
             tuple(
                 requests.ExecutionRequest(cell_id=cid, code=code)
-                for cid, code in zip(request.cell_ids, request.codes)
+                for cid, code in zip(body.cell_ids, body.codes)
             )
         )
     )
@@ -140,15 +146,15 @@ def run_cell(
     return SuccessResponse()
 
 
-@router.post("/shutdown", response_model=BaseResponse)
+@router.post("/shutdown")
 async def shutdown(
     *,
-    mgr: SessionManagerDep,
     request: Request,
 ) -> BaseResponse:
     """Shutdown the kernel."""
     LOGGER.debug("Received shutdown request")
-    mgr.shutdown()
+    app_state = AppState(request)
+    app_state.session_manager.shutdown()
 
-    await close_uvicorn(request.app.state.server)
+    await close_uvicorn(app_state.server)
     return SuccessResponse()

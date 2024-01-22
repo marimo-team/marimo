@@ -1,16 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
+from typing import Any
+
 from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
-from starlette.routing import Route, Mount, WebsSocketRoute
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from marimo._server2.api.lifespans import LIFESPANS
 from marimo._server2.api.router import ROUTES
-
-
-# def custom_generate_unique_id(route: APIRoute) -> str:
-#    return f"{route.tags[0]}-{route.name}"
-
 
 # CORS
 middleware = [
@@ -24,17 +23,26 @@ middleware = [
 ]
 
 
+# Convert exceptions to JSON responses
+async def handle_error(request: Request, response: Any):
+    if isinstance(response, HTTPException):
+        return JSONResponse(
+            {"detail": response.detail}, status_code=response.status_code
+        )
+    if isinstance(response, TypeError):
+        return JSONResponse({"detail": str(response)}, status_code=500)
+    if isinstance(response, Exception):
+        return JSONResponse({"detail": str(response)}, status_code=500)
+    return response
+
+
+# Create app
 app = Starlette(
     routes=ROUTES,
     middleware=middleware,
     lifespan=LIFESPANS,
+    exception_handlers={
+        Exception: handle_error,
+        HTTPException: handle_error,
+    },
 )
-# Create app
-# app = FastAPI(
-#    title="marimo",
-#    openapi_url="/api/openapi.json",
-#    lifespan=LIFESPANS,
-#    generate_unique_id_function=custom_generate_unique_id,
-# )
-# Router
-# app.include_router(app_router)

@@ -1,16 +1,28 @@
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from __future__ import annotations
 
-from starlette.responses import JSONResponse
-from starlette.routing import Mount, Route
-from starlette.types import ASGIApp
+import dataclasses
+import json
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable, Optional
+
+from starlette.requests import Request
+from starlette.responses import FileResponse, JSONResponse, Response
+from starlette.routing import Mount, Router
+from starlette.websockets import WebSocket
+
+from marimo import _loggers
+from marimo._server2.models.base import deep_to_camel_case
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
-class APIRouter:
+class APIRouter(Router):
     # Prefix to append to routes
     prefix: str = ""
-    routes: list[Mount | Route] = field(default_factory=list)
+
+    def __init__(self) -> None:
+        super().__init__()
 
     def __post_init__(self) -> None:
         if self.prefix:
@@ -24,16 +36,28 @@ class APIRouter:
     def post(self, path: str):
         """Post method that returns a JSON response"""
 
-        def decorator(func: Callable[..., Any]) -> Callable[..., JSONResponse]:
-            self.routes.append(
-                Route(path=self.prefix + path, endpoint=func, methods=["POST"])
+        def decorator(func: Callable[..., Awaitable[Response]]) -> None:
+            async def wrapper_func(request: Request) -> Response:
+                response = await func(request=request)
+                if isinstance(response, FileResponse):
+                    return response
+
+                if dataclasses.is_dataclass(response):
+                    return JSONResponse(
+                        content=deep_to_camel_case(
+                            dataclasses.asdict(response)
+                        )
+                    )
+
+                return JSONResponse(content=json.dumps(response))
+
+            self.add_route(
+                path=self.prefix + path,
+                endpoint=wrapper_func,
+                methods=["POST"],
             )
 
-            def wrapper(*args, **kwargs) -> JSONResponse:
-                dataclass_instance = func(*args, **kwargs)
-                return JSONResponse(content=dataclass_instance.asdict())
-
-            return wrapper
+            return
 
         return decorator
 
@@ -41,12 +65,32 @@ class APIRouter:
         """Get method."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self.routes.append(
-                Route(path=self.prefix + path, endpoint=func, methods=["GET"])
+            self.add_route(
+                path=self.prefix + path, endpoint=func, methods=["GET"]
             )
             return func
 
         return decorator
 
-    def mount(self, path: str, app: ASGIApp, name: str) -> None:
-        self.routes.append(Mount(self.prefix + path, app=app, name=name))
+    def websocket(self, path: str):
+        """Websocket method."""
+
+        def decorator(func: Callable[[WebSocket], Awaitable[None]]) -> None:
+            self.add_websocket_route(path=self.prefix + path, endpoint=func)
+            return
+
+        return decorator
+
+    def include_router(
+        self, router: APIRouter, prefix: str = "", name: Optional[str] = None
+    ):
+        """Include another router in this one."""
+        # Merge Mounts with the same path
+        for route in self.routes:
+            if isinstance(route, Mount) and route.path == prefix:
+                # NOTE: We don't merge middleware here, because it's not
+                # clear what the correct behavior is.
+                route.routes.extend(router.routes)
+                return
+
+        self.mount(path=prefix, app=router, name=name)

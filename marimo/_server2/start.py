@@ -4,6 +4,7 @@ from typing import Optional
 
 import uvicorn
 
+from marimo._config.config import get_configuration
 from marimo._server.sessions import SessionMode, initialize_manager
 from marimo._server.utils import find_free_port, import_files
 from marimo._server2.main import app
@@ -28,7 +29,7 @@ def start(
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
 
-    initialize_manager(
+    session_manager = initialize_manager(
         filename=filename,
         mode=mode,
         development_mode=development_mode,
@@ -40,6 +41,8 @@ def start(
     log_level = "info" if development_mode else "error"
 
     app.state.headless = headless
+    app.state.session_manager = session_manager
+    app.state.user_config = get_configuration()
 
     server = uvicorn.Server(
         uvicorn.Config(
