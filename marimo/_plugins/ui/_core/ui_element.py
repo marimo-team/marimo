@@ -249,7 +249,24 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         return self._value
 
     @mddoc
-    def form(self, label: str = "") -> form_plugin[S, T]:
+    def form(
+        self,
+        label: str = "",
+        *,
+        bordered: bool = True,
+        loading: bool = False,
+        submit_button_label: str = "Submit",
+        submit_button_tooltip: Optional[str] = None,
+        submit_button_disabled: bool = False,
+        clear_on_submit: bool = False,
+        show_clear_button: bool = False,
+        clear_button_label: str = "Clear",
+        clear_button_tooltip: Optional[str] = None,
+        validate: Optional[
+            Callable[[Optional[JSONType]], Optional[str]]
+        ] = None,
+        on_change: Optional[Callable[[Optional[T]], None]] = None,
+    ) -> form_plugin[S, T]:
         """Create a submittable form out of this `UIElement`.
 
         Use this method to create a form that gates the submission
@@ -289,10 +306,38 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         **Args.**
 
         - `label`: A text label for the form.
+        - `bordered`: whether the form should have a border
+        - `loading`: whether the form should be in a loading state
+        - `submit_button_label`: the label of the submit button
+        - `submit_button_tooltip`: the tooltip of the submit button
+        - `submit_button_disabled`: whether the submit button should be
+          disabled
+        - `clear_on_submit`: whether the form should clear its contents after
+            submitting
+        - `show_clear_button`: whether the form should show a clear button
+        - `clear_button_label`: the label of the clear button
+        - `clear_button_tooltip`: the tooltip of the clear button
+        - `validate`: a function that takes the form's value and returns an
+            error message if the value is invalid,
+            or `None` if the value is valid
         """
         from marimo._plugins.ui._impl.input import form as form_plugin
 
-        return form_plugin(element=self, label=label)
+        return form_plugin(
+            element=self,
+            label=label,
+            bordered=bordered,
+            loading=loading,
+            submit_button_label=submit_button_label,
+            submit_button_tooltip=submit_button_tooltip,
+            submit_button_disabled=submit_button_disabled,
+            clear_on_submit=clear_on_submit,
+            show_clear_button=show_clear_button,
+            clear_button_label=clear_button_label,
+            clear_button_tooltip=clear_button_tooltip,
+            validate=validate,
+            on_change=on_change,
+        )
 
     def _update(self, value: S) -> None:
         """Update value, given a value from the frontend

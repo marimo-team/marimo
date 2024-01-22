@@ -45,7 +45,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CodeEditorPlugin(),
   new DropdownPlugin(),
   new FileUploadPlugin(),
-  new FormPlugin(),
+  FormPlugin,
   new MicrophonePlugin(),
   new MultiselectPlugin(),
   new NumberPlugin(),

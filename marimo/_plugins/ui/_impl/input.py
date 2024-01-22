@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import dataclasses
 import datetime as dt
 import traceback
 from dataclasses import dataclass
@@ -21,8 +22,10 @@ from typing import (
 
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
@@ -709,6 +712,7 @@ class button(UIElement[Any, Any]):
         value: Optional[Any] = None,
         kind: Literal["neutral", "success", "warn", "danger"] = "neutral",
         disabled: bool = False,
+        tooltip: Optional[str] = None,
         *,
         label: str = "click here",
         on_change: Optional[Callable[[Any], None]] = None,
@@ -724,6 +728,7 @@ class button(UIElement[Any, Any]):
             args={
                 "kind": kind,
                 "disabled": disabled,
+                "tooltip": tooltip,
                 "full-width": full_width,
             },
             on_change=on_change,
@@ -993,6 +998,11 @@ class date(UIElement[str, dt.date]):
 T = TypeVar("T")
 
 
+@dataclasses.dataclass
+class ValueArgs:
+    value: Optional[JSONType] = None
+
+
 @mddoc
 class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     """
@@ -1022,7 +1032,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     ''').batch(
         name=mo.ui.text(label='name'),
         date=mo.ui.date(label='date'),
-    ).form()
+    ).form(show_clear_button=True, bordered=False)
     ```
 
     ```python
@@ -1039,6 +1049,18 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
     **Initialization Args.**
 
     - `element`: the element to wrap
+    - `bordered`: whether the form should have a border
+    - `loading`: whether the form should be in a loading state
+    - `submit_button_label`: the label of the submit button
+    - `submit_button_tooltip`: the tooltip of the submit button
+    - `submit_button_disabled`: whether the submit button should be disabled
+    - `clear_on_submit`: whether the form should clear its contents after
+        submitting
+    - `show_clear_button`: whether the form should show a clear button
+    - `clear_button_label`: the label of the clear button
+    - `clear_button_tooltip`: the tooltip of the clear button
+    - `validate`: a function that takes the form's value and returns an error
+        message if the value is invalid, or `None` if the value is valid
     - `label`: text label for the form
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -1049,18 +1071,55 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         self,
         element: UIElement[JSONTypeBound, T],
         *,
+        bordered: bool = True,
+        loading: bool = False,
+        submit_button_label: str = "Submit",
+        submit_button_tooltip: Optional[str] = None,
+        submit_button_disabled: bool = False,
+        clear_on_submit: bool = False,
+        show_clear_button: bool = False,
+        clear_button_label: str = "Clear",
+        clear_button_tooltip: Optional[str] = None,
+        validate: Optional[
+            Callable[[Optional[JSONType]], Optional[str]]
+        ] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
         self.element = element._clone()
+        self.validate = validate
         super().__init__(
             component_name=form._name,
             initial_value=None,
             label=label,
-            args={"element-id": self.element._id},
+            args={
+                "element-id": self.element._id,
+                "loading": loading,
+                "bordered": bordered,
+                "submit-button-label": submit_button_label,
+                "submit-button-tooltip": submit_button_tooltip,
+                "submit-button-disabled": submit_button_disabled,
+                "clear-on-submit": clear_on_submit,
+                "show-clear-button": show_clear_button,
+                "clear-button-label": clear_button_label,
+                "clear-button-tooltip": clear_button_tooltip,
+                "should-validate": validate is not None,
+            },
             slotted_html=self.element.text,
             on_change=on_change,
+            functions=(
+                Function(
+                    name="validate",
+                    arg_cls=ValueArgs,
+                    function=self._validate,
+                ),
+            ),
         )
+
+    def _validate(self, value: ValueArgs) -> Optional[str]:
+        if self.validate is None:
+            return None
+        return self.validate(value.value)
 
     def _convert_value(self, value: Optional[JSONTypeBound]) -> Optional[T]:
         if value is None:
