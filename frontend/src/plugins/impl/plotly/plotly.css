@@ -3,13 +3,13 @@
 .js-plotly-plot .plotly,
 .js-plotly-plot .plotly div {
   direction: ltr;
-  font-family: "Open Sans", verdana, arial, sans-serif;
+  font-family: var(--text-font);
   margin: 0;
   padding: 0;
 }
 .js-plotly-plot .plotly input,
 .js-plotly-plot .plotly button {
-  font-family: "Open Sans", verdana, arial, sans-serif;
+  font-family: var(--text-font);
 }
 .js-plotly-plot .plotly input:focus,
 .js-plotly-plot .plotly button:focus {
@@ -237,7 +237,7 @@
 }
 
 .plotly-notifier {
-  font-family: "Open Sans", verdana, arial, sans-serif;
+  font-family: var(--text-font);
   position: fixed;
   top: 50px;
   right: 20px;
