@@ -317,7 +317,7 @@ class TestApp:
         @app.cell
         def _() -> tuple[int]:
             objects = iter([])
-            for obj in objects:
+            for obj in objects:  # noqa: B007
                 pass
             return (obj, objects)
 

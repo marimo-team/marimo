@@ -1021,7 +1021,7 @@ class Kernel:
             self.reset_ui_initializers()
 
 
-def restore_signals():
+def restore_signals() -> None:
     # Restore the system default signal handlers.
     #
     # The server process may register signal handlers (uvicorn does this),

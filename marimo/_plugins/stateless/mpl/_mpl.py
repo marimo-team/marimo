@@ -40,7 +40,7 @@ def create_application(
     port: int,
 ) -> Starlette:
     import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    from matplotlib.backends.backend_webagg import (
+    from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]
         FigureManagerWebAgg,
         new_figure_manager_given_figure,
     )
@@ -48,7 +48,8 @@ def create_application(
     # Figure Manager, Any type because matplotlib doesn't have typings
     manager: Any = new_figure_manager_given_figure(id(figure), figure)
 
-    async def main_page(request: Request):
+    async def main_page(request: Request) -> HTMLResponse:
+        del request
         ws_uri = f"ws://{host}:{port}/ws"
 
         content = html_content % {
@@ -59,20 +60,21 @@ def create_application(
         # return HTMLResponse(content="Hello World")
         return HTMLResponse(content=content)
 
-    async def mpl_js(request: Request):
+    async def mpl_js(request: Request) -> Response:
+        del request
         return Response(
             content=FigureManagerWebAgg.get_javascript(),
             media_type="application/javascript",
         )
 
-    async def download(request: Request):
+    async def download(request: Request) -> Response:
         fmt = request.path_params["fmt"]
         mime_type = mimetypes.types_map.get(fmt, "binary")
         buff = io.BytesIO()
         manager.canvas.figure.savefig(buff, format=fmt)
         return Response(content=buff.getvalue(), media_type=mime_type)
 
-    async def websocket_endpoint(websocket: WebSocket):
+    async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
 
         queue = asyncio.Queue[Tuple[Any, str]]()
