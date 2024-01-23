@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import { DialogProps } from "@radix-ui/react-dialog";
 import { Command as CommandPrimitive } from "cmdk";

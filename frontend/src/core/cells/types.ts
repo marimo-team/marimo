@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { OutputMessage } from "../kernel/messages";
 import { SerializedEditorState } from "../codemirror/types";
 import { Outline } from "./outline";

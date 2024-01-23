@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { initializeUIElement } from "../core/dom/UIElement";
 import { registerReactComponent } from "./core/registerReactComponent";
@@ -45,7 +45,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CodeEditorPlugin(),
   new DropdownPlugin(),
   new FileUploadPlugin(),
-  new FormPlugin(),
+  FormPlugin,
   new MicrophonePlugin(),
   new MultiselectPlugin(),
   new NumberPlugin(),

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { PropsWithChildren, useMemo } from "react";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";

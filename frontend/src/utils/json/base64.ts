@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { TypedString } from "../typed";
 
 export type Base64String = TypedString<"Base64">;

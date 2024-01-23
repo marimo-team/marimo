@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { CellId } from "../cells/ids";
 import { formatEditorViews } from "./format";

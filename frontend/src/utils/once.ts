@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 export function once<T extends (...args: unknown[]) => unknown>(fn: T): T {
   let result: ReturnType<T>;
   let called = false;

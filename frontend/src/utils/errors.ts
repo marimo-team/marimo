@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 export function prettyError(error: unknown) {
   if (typeof error === "string") {

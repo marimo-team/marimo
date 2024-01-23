@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { outputIsStale } from "../cell";
 import { CellStatus } from "../types";

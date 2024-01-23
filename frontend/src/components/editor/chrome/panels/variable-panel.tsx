@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
 import { useVariables } from "@/core/variables/state";

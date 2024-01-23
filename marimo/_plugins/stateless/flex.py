@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -48,7 +48,7 @@ def _flex(
         }
     )
 
-    def create_style_for_item(idx: int) -> str:
+    def create_style_for_item(idx: int) -> Optional[str]:
         if widths is None:
             return ""
         width = widths[idx]

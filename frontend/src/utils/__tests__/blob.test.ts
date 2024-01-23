@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { beforeEach, expect, describe, test } from "vitest";
 import { serializeBlob, deserializeBlob } from "../blob";
 

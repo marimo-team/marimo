@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Page, expect } from "@playwright/test";
 import { HotkeyProvider, HotkeyAction } from "../src/core/hotkeys/hotkeys";
 import path from "node:path";

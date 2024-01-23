@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """The marimo library.
 
 marimo is a Python library for making reactive notebooks that double as apps.
@@ -27,6 +27,7 @@ __all__ = [
     "download",
     "hstack",
     "Html",
+    "icon",
     "image",
     "left",
     "md",
@@ -50,7 +51,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.1.78"
+__version__ = "0.1.80"
 
 from marimo._ast.app import App
 from marimo._output.doc import doc
@@ -65,6 +66,7 @@ from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout import callout
 from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
+from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.pdf import pdf

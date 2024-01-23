@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "./column-header";
 import { Checkbox } from "../ui/checkbox";

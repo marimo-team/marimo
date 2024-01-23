@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
 import {
   ZERO_WIDTH_SPACE,

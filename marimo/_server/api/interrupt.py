@@ -1,7 +1,15 @@
+<<<<<<< HEAD
 # Copyright 2024 Marimo. All rights reserved.
 import asyncio
 import signal
 from typing import Callable
+||||||| c6869861
+# Copyright 2023 Marimo. All rights reserved.
+from __future__ import annotations
+=======
+# Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+>>>>>>> main
 
 from marimo._server.utils import (
     TAB,

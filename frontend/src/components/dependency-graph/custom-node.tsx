@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { AppMode } from "@/core/mode";
 import { getAllEditorViews } from "@/core/cells/cells";
 import { useState, useEffect } from "react";

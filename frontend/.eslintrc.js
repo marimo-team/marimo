@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /**
  * @type {import('eslint').Linter.Config}
  */
@@ -23,7 +23,7 @@ module.exports = {
     "header/header": [
       "error",
       "block",
-      " Copyright 2023 Marimo. All rights reserved. ",
+      " Copyright 2024 Marimo. All rights reserved. ",
     ],
 
     // These rules don't require type information and have autofixes

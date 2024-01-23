@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ReducerWithoutAction, createRef, useMemo } from "react";
 import { CellMessage } from "../kernel/messages";

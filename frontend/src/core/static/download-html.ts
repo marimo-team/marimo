@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Objects } from "@/utils/objects";
 import { NotebookState, getNotebook } from "../cells/cells";
 import { getMarimoVersion } from "../dom/marimo-tag";

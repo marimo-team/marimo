@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """Client session management
 
 This module encapsulates session management: each client gets a unique session,

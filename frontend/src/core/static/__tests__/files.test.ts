@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, afterEach, expect, it, vi } from "vitest";
 import { patchFetch, patchVegaLoader } from "../files";
 import { Base64String } from "@/utils/json/base64";

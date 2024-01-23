@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 type NoInfer<T> = [T][T extends any ? 0 : never];

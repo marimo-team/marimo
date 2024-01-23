@@ -1,4 +1,5 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
+import { isCustomMarimoElement } from "@/plugins/core/registerReactComponent";
 import { Logger } from "../../utils/Logger";
 import { Functions } from "../../utils/functions";
 import { UIElementId } from "../cells/ids";
@@ -7,6 +8,10 @@ import { MarimoValueInputEventType, marimoValueInputEvent } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 
 const UI_ELEMENT_TAG_NAME = "MARIMO-UI-ELEMENT";
+
+interface IUIElement extends HTMLElement {
+  reset(): void;
+}
 
 /**
  * Lazily initialize the UIElement component.
@@ -72,7 +77,7 @@ export function initializeUIElement() {
    *      events and updating their value internally.
    *
    */
-  class UIElement extends HTMLElement {
+  class UIElement extends HTMLElement implements IUIElement {
     private initialized = false;
     private inputListener: (e: MarimoValueInputEventType) => void =
       Functions.NOOP;
@@ -145,6 +150,20 @@ export function initializeUIElement() {
       }
     }
 
+    /**
+     * Reset the value of the child element to its initial value.
+     */
+    reset() {
+      const child = this.firstElementChild;
+      if (isCustomMarimoElement(child)) {
+        child.reset();
+      } else {
+        Logger.error(
+          "[marimo-ui-element] first child must have a reset method"
+        );
+      }
+    }
+
     // We look for changes to the random-id attribute, which is effectively
     // used like a React key. If the random-id changes, we need to unmount and
     // remount its child.
@@ -165,9 +184,8 @@ export function initializeUIElement() {
           // remove and re-add its child to force it to re-render; note that
           // this doesn't reconstruct the UI element, only its child
           const child = this.firstElementChild;
-          if (child && "rerender" in child) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (child as any).rerender();
+          if (isCustomMarimoElement(child)) {
+            child.rerender();
           } else {
             Logger.error(
               "[marimo-ui-element] first child must have a rerender method"
@@ -203,4 +221,8 @@ export function getUIElementObjectId(target: HTMLElement): UIElementId | null {
   }
 
   return null;
+}
+
+export function isUIElement(target: HTMLElement): target is IUIElement {
+  return target.tagName === UI_ELEMENT_TAG_NAME;
 }
