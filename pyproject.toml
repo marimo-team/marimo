@@ -28,8 +28,10 @@ dependencies = [
     "tornado>=6.1,<7",
     # web server TODO: lower bound
     "uvicorn",
-    # web framework; 0.26.1 introduced lifespans, which we use
-    "starlette >= 0.26.1",
+    # web framework
+    # - 0.26.1 introduced lifespans, which we use
+    # - starlette 0.36.0 introduced a bug
+    "starlette >= 0.26.1, starlette != 0.36.0",
     # websockets for use with starlette TODO: lower bound
     "websockets",
     # python <=3.12 compatibility (required by pydantic)
