@@ -8,8 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pytest
 
-from marimo._server import api
-from marimo._server.api.set_cell_config import SetCellConfig
+from marimo._runtime.requests import SetCellConfigRequest
 from marimo._utils.parse_dataclass import build_dataclass, parse_raw
 
 
@@ -148,12 +147,10 @@ class TestParseRaw:
         assert parsed == nested
 
     def test_set_cell_config(self) -> None:
-        config = SetCellConfig(
+        config = SetCellConfigRequest(
             {"0": {"disabled": True}, "1": {"disabled": False}}
         )
-        parsed = parse_raw(
-            serialize(config), api.set_cell_config.SetCellConfig
-        )
+        parsed = parse_raw(serialize(config), SetCellConfigRequest)
         assert parsed == config
 
     def test_unions(self) -> None:

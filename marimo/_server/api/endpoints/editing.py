@@ -6,9 +6,9 @@ from starlette.requests import Request
 from marimo._ast.cell import CellId_t
 from marimo._config.utils import LOGGER
 from marimo._runtime import requests
-from marimo._server2.api.deps import AppState
-from marimo._server2.api.utils import parse_request
-from marimo._server2.models.models import (
+from marimo._server.api.deps import AppState
+from marimo._server.api.utils import parse_request
+from marimo._server.models.models import (
     BaseResponse,
     CodeCompleteRequest,
     DeleteCellRequest,
@@ -17,7 +17,7 @@ from marimo._server2.models.models import (
     StdinRequest,
     SuccessResponse,
 )
-from marimo._server2.router import APIRouter
+from marimo._server.router import APIRouter
 
 # Router for editing endpoints
 router = APIRouter()

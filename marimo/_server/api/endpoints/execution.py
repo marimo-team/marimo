@@ -11,9 +11,9 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
 )
-from marimo._server2.api.deps import AppState
-from marimo._server2.api.utils import parse_request
-from marimo._server2.models.models import (
+from marimo._server.api.deps import AppState
+from marimo._server.api.utils import parse_request
+from marimo._server.models.models import (
     BaseResponse,
     FunctionCallRequest,
     InstantiateRequest,
@@ -21,8 +21,8 @@ from marimo._server2.models.models import (
     SuccessResponse,
     UpdateComponentValuesRequest,
 )
-from marimo._server2.router import APIRouter
-from marimo._server2.uvicorn_utils import close_uvicorn
+from marimo._server.router import APIRouter
+from marimo._server.uvicorn_utils import close_uvicorn
 
 LOGGER = _loggers.marimo_logger()
 

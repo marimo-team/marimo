@@ -11,7 +11,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
-from marimo._server2.models.base import deep_to_camel_case
+from marimo._server.models.base import deep_to_camel_case
 
 LOGGER = _loggers.marimo_logger()
 

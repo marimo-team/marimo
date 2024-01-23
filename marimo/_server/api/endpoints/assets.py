@@ -15,10 +15,10 @@ from starlette.staticfiles import StaticFiles
 from marimo import __version__, _loggers
 from marimo._config.config import get_configuration
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
+from marimo._server.api.deps import AppState
+from marimo._server.api.utils import parse_title
 from marimo._server.model import SessionMode
-from marimo._server2.api.deps import AppState
-from marimo._server2.api.utils import parse_title
-from marimo._server2.router import APIRouter
+from marimo._server.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 

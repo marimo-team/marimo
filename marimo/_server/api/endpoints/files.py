@@ -8,12 +8,11 @@ from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
+from marimo._server.api.utils import parse_request
 from marimo._server.layout import LayoutConfig, save_layout_config
-from marimo._server.utils import canonicalize_filename
-from marimo._server2.api.deps import AppState
-from marimo._server2.api.utils import parse_request
-from marimo._server2.models.models import (
+from marimo._server.models.models import (
     BaseResponse,
     DirectoryAutocompleteRequest,
     DirectoryAutocompleteResponse,
@@ -23,7 +22,8 @@ from marimo._server2.models.models import (
     SaveRequest,
     SuccessResponse,
 )
-from marimo._server2.router import APIRouter
+from marimo._server.router import APIRouter
+from marimo._server.utils import canonicalize_filename
 
 LOGGER = _loggers.marimo_logger()
 

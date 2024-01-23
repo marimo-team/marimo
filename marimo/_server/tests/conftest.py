@@ -6,8 +6,8 @@ import uvicorn
 from starlette.testclient import TestClient
 
 from marimo._config.config import get_configuration
-from marimo._server2.main import app
-from marimo._server2.tests.mocks import get_mock_session_manager
+from marimo._server.main import app
+from marimo._server.tests.mocks import get_mock_session_manager
 
 
 @pytest.fixture(scope="module")

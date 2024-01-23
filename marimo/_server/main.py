@@ -8,8 +8,8 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from marimo._server2.api.lifespans import LIFESPANS
-from marimo._server2.api.router import ROUTES
+from marimo._server.api.lifespans import LIFESPANS
+from marimo._server.api.router import ROUTES
 
 # CORS
 middleware = [

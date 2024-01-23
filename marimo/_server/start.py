@@ -5,10 +5,10 @@ from typing import Optional
 import uvicorn
 
 from marimo._config.config import get_configuration
+from marimo._server.main import app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import initialize_manager
 from marimo._server.utils import find_free_port, import_files
-from marimo._server2.main import app
 
 DEFAULT_PORT = 2718
 

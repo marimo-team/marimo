@@ -10,13 +10,13 @@ from typing_extensions import TypeAlias
 from marimo import _loggers
 from marimo._config.config import get_configuration
 from marimo._config.utils import load_config
+from marimo._server.api.interrupt import InterruptHandler
+from marimo._server.api.utils import open_url_in_browser
 from marimo._server.model import SessionMode
 from marimo._server.print import print_shutdown, print_startup
 from marimo._server.sessions import get_manager
 from marimo._server.utils import initialize_mimetypes
-from marimo._server2.api.interrupt import InterruptHandler
-from marimo._server2.api.utils import open_url_in_browser
-from marimo._server2.uvicorn_utils import close_uvicorn
+from marimo._server.uvicorn_utils import close_uvicorn
 
 LifespanList: TypeAlias = Sequence[
     Callable[[Starlette], AbstractAsyncContextManager[None]]

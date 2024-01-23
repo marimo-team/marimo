@@ -11,15 +11,15 @@ from marimo import _loggers
 from marimo._config.config import configure
 from marimo._config.utils import get_config_path
 from marimo._runtime import requests
+from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
-from marimo._server2.api.deps import AppState
-from marimo._server2.api.utils import parse_request
-from marimo._server2.models.models import (
+from marimo._server.api.utils import parse_request
+from marimo._server.models.models import (
     BaseResponse,
     SaveUserConfigurationRequest,
     SuccessResponse,
 )
-from marimo._server2.router import APIRouter
+from marimo._server.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 

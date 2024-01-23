@@ -1,5 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
-from marimo._server2.models.base import to_camel_case
+from marimo._server.models.base import to_camel_case
 
 
 def test_camel_case() -> None:

@@ -14,11 +14,11 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._messaging.ops import KernelReady, serialize
 from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._server.api.deps import AppState
 from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.model import ConnectionState, SessionHandler, SessionMode
+from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
-from marimo._server2.api.deps import AppState
-from marimo._server2.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
 
