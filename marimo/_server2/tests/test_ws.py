@@ -1,17 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
-from typing import cast
-
 import pytest
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
-
-from marimo._server.sessions import SessionManager
 
 KERNEL_READY_RESPONSE = '{"op": "kernel-ready", "data": {"codes": ["import marimo as mo"], "names": ["my_cell"], "layout": null, "configs": [{"disabled": false, "hide_code": true}]}}'  # noqa: E501
 
 
 def test_ws(client: TestClient) -> None:
-    cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE
@@ -27,7 +22,6 @@ def test_without_session(client: TestClient) -> None:
 
 
 def test_refresh(client: TestClient) -> None:
-    cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE
@@ -38,7 +32,6 @@ def test_refresh(client: TestClient) -> None:
 
 
 def test_disconnect_and_reconnect(client: TestClient) -> None:
-    cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE
@@ -52,7 +45,6 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
-    cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE
@@ -70,7 +62,6 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
 def test_fails_on_multiple_connections_with_other_sessions(
     client: TestClient,
 ) -> None:
-    cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE

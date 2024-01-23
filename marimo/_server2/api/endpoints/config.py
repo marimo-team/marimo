@@ -64,7 +64,7 @@ async def save_user_config(
         LOGGER.debug("Starting copilot server")
         app_state.session_manager.start_lsp_server()
     # Update the kernel's view of the config
-    app_state.require_current_session().control_queue.put(
+    app_state.require_current_session().put_request(
         requests.ConfigurationRequest(str(body.config))
     )
 

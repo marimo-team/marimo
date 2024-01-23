@@ -32,7 +32,6 @@ class SessionHandler(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def on_start(
         self,
-        mode: SessionMode,
         connection: Connection,
         check_alive: Callable[[], None],
     ) -> None:

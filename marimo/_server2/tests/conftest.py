@@ -1,12 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
-from typing import Any, Generator
+from typing import Generator
 
 import pytest
 import uvicorn
 from starlette.testclient import TestClient
 
 from marimo._config.config import get_configuration
-from marimo._server.sessions import Session
 from marimo._server2.main import app
 from marimo._server2.tests.mocks import get_mock_session_manager
 
@@ -29,13 +28,3 @@ def client() -> TestClient:
 
     app.state.server = uvicorn_server
     return client
-
-
-@pytest.fixture(scope="module")
-def LIFESPANS() -> Any:
-    return []
-
-
-@pytest.fixture(scope="module")
-def session() -> Session:
-    return None

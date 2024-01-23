@@ -148,8 +148,7 @@ class WebsocketHandler(SessionHandler):
         self.status = ConnectionState.OPEN
         session.session_handler = self
         self.on_start(
-            mode=self.mode,
-            connection=session.read_conn,
+            connection=session.kernel_manager.kernel_connection,
             check_alive=session.check_alive,
         )
         # Write reconnected message
@@ -269,11 +268,9 @@ class WebsocketHandler(SessionHandler):
 
     def on_start(
         self,
-        mode: SessionMode,
         connection: Connection,
         check_alive: Callable[[], None],
     ) -> None:
-        del mode
         # Add a reader to the connection
         asyncio.get_event_loop().add_reader(
             connection.fileno(),
