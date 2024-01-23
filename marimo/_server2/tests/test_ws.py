@@ -26,6 +26,17 @@ def test_without_session(client: TestClient) -> None:
     assert exc_info.value.reason == "MARIMO_NO_SESSION_ID"
 
 
+def test_refresh(client: TestClient) -> None:
+    cast(SessionManager, client.app.state.session_manager)
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_text()
+        assert data == KERNEL_READY_RESPONSE
+    # New session with new ID (simulates refresh)
+    with client.websocket_connect("/ws?session_id=455") as websocket:
+        data = websocket.receive_text()
+        assert data == KERNEL_READY_RESPONSE
+
+
 def test_disconnect_and_reconnect(client: TestClient) -> None:
     cast(SessionManager, client.app.state.session_manager)
     with client.websocket_connect("/ws?session_id=123") as websocket:
@@ -38,6 +49,22 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
         assert data == '{"op": "reconnected", "data": null}'  # noqa: E501
 
         client.post("/api/kernel/shutdown")
+
+
+def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
+    cast(SessionManager, client.app.state.session_manager)
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_text()
+        assert data == KERNEL_READY_RESPONSE
+        websocket.close()
+    # Connect by the same session id
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_text()
+        assert data == '{"op": "reconnected", "data": null}'  # noqa: E501
+    # New session with new ID (simulates refresh)
+    with client.websocket_connect("/ws?session_id=455") as websocket:
+        data = websocket.receive_text()
+        assert data == KERNEL_READY_RESPONSE
 
 
 def test_fails_on_multiple_connections_with_other_sessions(
