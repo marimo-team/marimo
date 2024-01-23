@@ -40,7 +40,7 @@ async def set_ui_element_values(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
-    app_state.require_current_session().control_queue.put(
+    app_state.require_current_session().put_request(
         SetUIElementValueRequest(
             zip(
                 body.object_ids,
@@ -76,7 +76,7 @@ async def instantiate(
             for cell_data in notebook._cell_data.values()
         )
 
-    app_state.require_current_session().control_queue.put(
+    app_state.require_current_session().put_request(
         CreationRequest(
             execution_requests=execution_requests,
             set_ui_element_value_request=SetUIElementValueRequest(
@@ -96,7 +96,7 @@ async def function_call(
     """Invoke an RPC"""
     app_state = AppState(request)
     body = await parse_request(request, cls=FunctionCallRequest)
-    app_state.require_current_session().control_queue.put(
+    app_state.require_current_session().put_request(
         requests.FunctionCallRequest(
             function_call_id=body.function_call_id,
             namespace=body.namespace,
@@ -134,7 +134,7 @@ async def run_cell(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
-    app_state.require_current_session().control_queue.put(
+    app_state.require_current_session().put_request(
         requests.ExecuteMultipleRequest(
             tuple(
                 requests.ExecutionRequest(cell_id=cid, code=code)
