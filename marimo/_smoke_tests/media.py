@@ -1,7 +1,6 @@
-# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.33"
+__generated_with = "0.1.80"
 app = marimo.App()
 
 
@@ -11,7 +10,19 @@ def __():
     import requests
     from io import BytesIO
     import base64
-    return BytesIO, base64, mo, requests
+    import wave
+    return BytesIO, base64, mo, requests, wave
+
+
+@app.cell
+def __(mo, os, wave):
+    cwd = os.getcwd()
+    with wave.open(
+        os.path.join(cwd, "./marimo/_smoke_tests/data/noise.wav"), "rb"
+    ) as _f:
+        noise = _f.readframes(_f.getnframes())
+    mo.audio(src=noise)
+    return cwd, noise
 
 
 @app.cell
