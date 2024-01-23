@@ -38,6 +38,7 @@ def test_kernel_manager() -> None:
     kernel_manager.close_kernel()
 
     # Assert shutdown
+    kernel_manager.kernel_task.join()
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
@@ -61,6 +62,8 @@ def test_session() -> None:
     session.close()
 
     # Assert shutdown
+    assert kernel_manager.kernel_task is not None
+    kernel_manager.kernel_task.join()
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
