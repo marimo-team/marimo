@@ -34,30 +34,44 @@ from marimo._runtime.context import (
 from marimo._server.utils import find_free_port
 
 
+class FigureManagers:
+    def __init__(self):
+        self.figure_managers: dict[str, Any] = {}
+
+    def add(self, manager: Any):
+        self.figure_managers[str(manager.num)] = manager
+
+    def get(self, figure_id: str):
+        if figure_id not in self.figure_managers:
+            raise RuntimeError(f"Figure {figure_id} not found.")  # noqa: E501
+        return self.figure_managers[str(figure_id)]
+
+    def remove(self, manager: Any):
+        del self.figure_managers[str(manager.num)]
+
+
+figure_managers = FigureManagers()
+
+
 def create_application(
-    figure: Any,
     host: str,
     port: int,
 ) -> Starlette:
     import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
     from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]
         FigureManagerWebAgg,
-        new_figure_manager_given_figure,
     )
 
-    # Figure Manager, Any type because matplotlib doesn't have typings
-    manager: Any = new_figure_manager_given_figure(id(figure), figure)
-
-    async def main_page(request: Request) -> HTMLResponse:
-        del request
-        ws_uri = f"ws://{host}:{port}/ws"
+    async def main_page(request: Request):
+        figure_id = request.query_params.get("figure")
+        assert figure_id is not None
+        ws_uri = f"ws://{host}:{port}/ws?figure={figure_id}"
 
         content = html_content % {
             "ws_uri": ws_uri,
-            "fig_id": manager.num,
+            "fig_id": figure_id,
             "custom_css": css_content,
         }
-        # return HTMLResponse(content="Hello World")
         return HTMLResponse(content=content)
 
     async def mpl_js(request: Request) -> Response:
@@ -67,11 +81,14 @@ def create_application(
             media_type="application/javascript",
         )
 
-    async def download(request: Request) -> Response:
+    async def download(request: Request):
+        figure_id = request.query_params.get("figure")
+        assert figure_id is not None
         fmt = request.path_params["fmt"]
         mime_type = mimetypes.types_map.get(fmt, "binary")
         buff = io.BytesIO()
-        manager.canvas.figure.savefig(buff, format=fmt)
+        figure_manager = figure_managers.get(figure_id)
+        figure_manager.canvas.figure.savefig(buff, format=fmt)
         return Response(content=buff.getvalue(), media_type=mime_type)
 
     async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -86,13 +103,22 @@ def create_application(
             def send_binary(self, blob: Any) -> None:
                 queue.put_nowait((blob, "binary"))
 
-        manager.add_web_socket(SyncWebSocket())
+        figure_id = websocket.query_params.get("figure")
+        assert figure_id is not None
+        figure_manager = figure_managers.get(figure_id)
+        figure_manager.add_web_socket(SyncWebSocket())
 
         async def receive() -> None:
             try:
                 while True:
                     data = await websocket.receive_json()
-                    manager.handle_json(data)
+                    if data["type"] == "supports_binary":
+                        # We always support binary
+                        # and we don't need to pass this message
+                        # to the figure manager
+                        pass
+                    else:
+                        figure_manager.handle_json(data)
             except Exception:
                 pass
             finally:
@@ -131,29 +157,41 @@ def create_application(
                 StaticFiles(directory=Path(mpl.get_data_path(), "images")),
                 name="images",
             ),
-        ]
+        ],
     )
 
 
-class CleanupHandle(CellLifecycleItem):
-    """Handle to shutdown a figure server."""
+_app: Optional[Starlette] = None
 
-    shutdown_event: Optional[asyncio.Event] = None
 
-    def create(self, context: RuntimeContext) -> None:
-        del context
-        pass
+def get_or_create_application() -> Starlette:
+    global _app
 
-    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
-        del context
-        del deletion
-        if self.shutdown_event is not None:
-            self.shutdown_event.set()
-        # TODO: if Html containing server is cached, disposal still trashes
-        # it, which is a bug ... fix this. Use `deletion` flag to make
-        # sure shutdown happens on cell deletion, otherwise need to
-        # find a way to keep server alive if its Html is cached.
-        return True
+    if _app is None:
+        host = "localhost"
+        port = find_free_port(10_000)
+        app = create_application(host, port)
+        app.state.host = host
+        app.state.port = port
+        _app = app
+
+        def start_server() -> None:
+            uvicorn.Server(
+                uvicorn.Config(
+                    app=app,
+                    port=port,
+                    host=host,
+                    log_level="critical",
+                )
+            ).run()
+
+        threading.Thread(target=start_server).start()
+
+        # arbitrary wait 100ms for the server to start
+        # this only happens once per session
+        asyncio.run(asyncio.sleep(0.02))
+
+    return _app
 
 
 @mddoc
@@ -184,6 +222,9 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         Axes,
     )
+    from matplotlib.backends.backend_webagg import (
+        new_figure_manager_given_figure,
+    )
 
     if isinstance(figure, Axes):
         figure = figure.get_figure()
@@ -195,31 +236,36 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             "marimo.mpl.interactive can't be used when running as a script."
         ) from err
 
-    host = "localhost"
-    port = find_free_port(10_000)
+    # Figure Manager, Any type because matplotlib doesn't have typings
+    figure_manager = new_figure_manager_given_figure(id(figure), figure)
 
     # TODO(akshayka): Proxy this server through the marimo server to help with
     # deployment.
-    application = create_application(figure, host, port)
-    cleanup_handle = CleanupHandle()
+    application = get_or_create_application()
+    host = application.state.host
+    port = application.state.port
 
-    def start_server() -> None:
-        uvicorn.Server(
-            uvicorn.Config(
-                app=application,
-                port=port,
-                host=host,
-            )
-        ).run()
+    class CleanupHandle(CellLifecycleItem):
+        def create(self, context: RuntimeContext) -> None:
+            del context
 
+        def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+            del context
+            del deletion
+            figure_managers.remove(figure_manager)
+            return True
+
+    figure_managers.add(figure_manager)
     assert ctx.kernel.execution_context is not None
-    ctx.cell_lifecycle_registry.add(cleanup_handle)
-    threading.Thread(target=start_server).start()
+    ctx.cell_lifecycle_registry.add(CleanupHandle())
+    ctx.stream.cell_id = ctx.kernel.execution_context.cell_id
+
     return Html(
         h.iframe(
-            src=f"http://{host}:{port}/",
+            src=f"http://{host}:{port}?figure={figure_manager.num}",
             width="100%",
-            height="550px",
+            height="450px",
+            onload="__resizeIframe(this)",
         )
     )
 
@@ -239,7 +285,7 @@ html_content = """
 
     <script>
       function ondownload(figure, format) {
-        window.open('download.' + format, '_blank');
+        window.open('download.' + format + '?figure=' + figure.id, '_blank');
       };
 
       function ready(fn) {
@@ -284,11 +330,9 @@ html_content = """
 css_content = """
 body {
     background-color: transparent;
-    height: 400px;
     width: 100%;
 }
 #figure, mlp-canvas {
-    height: 400px;
     width: 100%;
 }
 .ui-dialog-titlebar + div {
