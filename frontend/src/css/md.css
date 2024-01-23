@@ -5,7 +5,7 @@
 .markdown span:not(.arithmatex *, code *, .MuiBox-root) {
   /* the not selector makes sure we don't change katex/LaTeX styles */
   line-height: 1.5rem;
-  font-family: "PT Sans", sans-serif;
+  font-family: var(--text-font);
 }
 
 .markdown p:first-child,
@@ -96,7 +96,7 @@
 .markdown h4,
 .markdown h5,
 .markdown h6 {
-  font-family: Lora, serif;
+  font-family: var(--heading-font);
 }
 
 .markdown pre {
