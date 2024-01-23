@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, serialize
 from marimo._output.formatters.formatters import register_formatters
@@ -198,9 +198,9 @@ class Session:
         cls,
         session_handler: SessionHandler,
         mode: SessionMode,
-        app: Optional[App],
+        app: InternalApp,
     ) -> Session:
-        configs = app._cell_configs() if app else {}
+        configs = app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
         kernel_manager = KernelManager(queue_manager, mode, configs)
@@ -278,13 +278,11 @@ class SessionManager:
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
-        self.app_config: Optional[_AppConfig]
+        self.app_config: _AppConfig
         self.include_code = include_code
 
-        if (app := self.load_app()) is not None:
-            self.app_config = app._config
-        else:
-            self.app_config = None
+        app = self.load_app()
+        self.app_config = app.config
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -296,17 +294,27 @@ class SessionManager:
             # the frontend's app matches the server's app.
             assert app is not None
             self.server_token = str(
-                hash("".join(code for code in app._codes()))
+                hash("".join(code for code in app.cell_manager.codes()))
             )
 
-    def load_app(self) -> Optional[App]:
-        return codegen.get_app(self.filename)
+    def load_app(self) -> InternalApp:
+        """
+        Load the app from the current file.
+        Otherwise, return an empty app.
+        """
+
+        app = codegen.get_app(self.filename)
+        if app is None:
+            empty_app = InternalApp(App())
+            empty_app.cell_manager.register_cell(
+                code="",
+                config=CellConfig(),
+            )
+            return empty_app
+        return InternalApp(app)
 
     def update_app_config(self, config: dict[str, Any]) -> None:
-        if self.app_config is not None:
-            self.app_config.update(config)
-        else:
-            self.app_config = _AppConfig(**config)
+        self.app_config.update(config)
 
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.

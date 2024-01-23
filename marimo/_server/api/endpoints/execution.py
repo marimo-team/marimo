@@ -5,7 +5,6 @@ from starlette.authentication import requires
 from starlette.requests import Request
 
 from marimo import _loggers
-from marimo._ast.app import App
 from marimo._runtime import requests
 from marimo._runtime.requests import (
     CreationRequest,
@@ -65,17 +64,10 @@ async def instantiate(
     body = await parse_request(request, cls=InstantiateRequest)
 
     execution_requests: tuple[ExecutionRequest, ...]
-    if notebook is None:
-        # Instantiating an empty app
-        # TODO(akshayka): In this case, don't need to run anything ...
-        execution_requests = (
-            ExecutionRequest(cell_id=App()._create_cell_id(None), code=""),
-        )
-    else:
-        execution_requests = tuple(
-            ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
-            for cell_data in notebook._cell_data.values()
-        )
+    execution_requests = tuple(
+        ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
+        for cell_data in notebook.cell_manager.cell_data()
+    )
 
     app_state.require_current_session().put_request(
         CreationRequest(

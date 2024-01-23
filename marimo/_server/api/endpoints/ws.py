@@ -87,16 +87,12 @@ class WebsocketHandler(SessionHandler):
         configs: tuple[CellConfig, ...]
         app = mgr.load_app()
         layout: Optional[LayoutConfig] = None
-        if app is None:
-            codes = ("",)
-            names = ("__",)
-            configs = (CellConfig(),)
-        elif mgr.should_send_code_to_frontend():
+        if mgr.should_send_code_to_frontend():
             codes, names, configs = tuple(
                 zip(
                     *tuple(
                         (cell_data.code, cell_data.name, cell_data.config)
-                        for cell_data in app._cell_data.values()
+                        for cell_data in app.cell_manager.cell_data()
                     )
                 )
             )
@@ -106,18 +102,18 @@ class WebsocketHandler(SessionHandler):
                     *tuple(
                         # Don't send code to frontend in run mode
                         ("", "", cell_data.config)
-                        for cell_data in app._cell_data.values()
+                        for cell_data in app.cell_manager.cell_data()
                     )
                 )
             )
 
         if (
             app
-            and app._config.layout_file is not None
+            and app.config.layout_file is not None
             and isinstance(mgr.filename, str)
         ):
             app_dir = os.path.dirname(mgr.filename)
-            layout = read_layout_config(app_dir, app._config.layout_file)
+            layout = read_layout_config(app_dir, app.config.layout_file)
 
         await self.message_queue.put(
             (
