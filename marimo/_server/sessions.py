@@ -57,13 +57,20 @@ class QueueManager:
 
     def __init__(self, use_multiprocessing: bool):
         context = mp.get_context("spawn") if use_multiprocessing else None
-        self.control_queue = context.Queue() if context else queue.Queue()
+        self.control_queue = (
+            context.Queue() if context is not None else queue.Queue()
+        )
         self.input_queue = (
-            context.Queue(maxsize=1) if context else queue.Queue(maxsize=1)
+            context.Queue(maxsize=1)
+            if context is not None
+            else queue.Queue(maxsize=1)
         )
 
     def close_queues(self) -> None:
         if isinstance(self.control_queue, MPQueue):
+            # cancel join thread because we don't care if the queues still have
+            # things in it: don't want to make the child process wait for the
+            # queues to empty
             self.control_queue.cancel_join_thread()
             self.control_queue.close()
         else:
@@ -72,6 +79,7 @@ class QueueManager:
             self.control_queue.put(requests.StopRequest())
 
         if isinstance(self.input_queue, MPQueue):
+            # again, don't make the child process wait for the queues to empty
             self.input_queue.cancel_join_thread()
             self.input_queue.close()
 
@@ -154,7 +162,10 @@ class KernelManager:
         return self.kernel_task is not None and self.kernel_task.is_alive()
 
     def interrupt_kernel(self) -> None:
-        if isinstance(self.kernel_task, mp.Process) and self.kernel_task.pid:
+        if (
+            isinstance(self.kernel_task, mp.Process)
+            and self.kernel_task.pid is not None
+        ):
             LOGGER.debug("Sending SIGINT to kernel")
             os.kill(self.kernel_task.pid, signal.SIGINT)
 
@@ -167,8 +178,9 @@ class KernelManager:
                 self.kernel_task.terminate()
             self.kernel_connection.close()
         elif self.kernel_task.is_alive():
+            # We don't join the kernel thread because we don't want to server
+            # to block on it finishing
             self.queue_manager.control_queue.put(requests.StopRequest())
-            self.kernel_task.join()
 
     @property
     def kernel_connection(self) -> connection.Connection:

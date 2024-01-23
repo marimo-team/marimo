@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from unittest.mock import Mock, patch
 
 from marimo._server.api.interrupt import InterruptHandler

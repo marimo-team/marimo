@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 # Adapted from tornado.log (Apache 2.0 License)
+from __future__ import annotations
 
 import logging
 import logging.handlers
@@ -112,7 +113,7 @@ class LogFormatter(logging.Formatter):
         else:
             self._normal = ""
 
-    def format(self, record: Any) -> str:
+    def format(self, record: Any) -> str | Any:
         try:
             message = record.getMessage()
             assert isinstance(message, str)  # guaranteed by logging
