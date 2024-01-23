@@ -35,10 +35,6 @@ class LogFormatter(logging.Formatter):
     * Timestamps on every log line.
     * Robust against str/bytes encoding problems.
 
-    This formatter is enabled automatically by
-    `tornado.options.parse_command_line` or `tornado.options.parse_config_file`
-    (unless ``--logging=none`` is used).
-
     Color support on Windows versions that do not support ANSI color codes is
     enabled by use of the colorama__ library. Applications that wish to use
     this must first initialize colorama with a call to ``colorama.init``.
