@@ -15,12 +15,25 @@ class InterruptHandler:
         self.quiet = quiet
         self.shutdown = shutdown
         self.loop = asyncio.get_event_loop()
+        self.original_interrupt_handler = signal.getsignal(signal.SIGINT)
+
+    def _add_interrupt_handler(self) -> None:
+        try:
+            self.loop.add_signal_handler(signal.SIGINT, self._interrupt_handler)
+        except NotImplementedError:
+            # Windows
+            signal.signal(signal.SIGINT, self._interrupt_handler)
 
     def _interrupt_handler(self) -> None:
         # Restore the original signal handler so re-entering Ctrl+C raises a
         # keyboard interrupt instead of calling this function again (input is
         # not re-entrant, so it's not safe to call this function again)
-        self.loop.remove_signal_handler(signal.SIGINT)
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+        except NotImplementedError:
+            # Windows
+            signal.signal(signal.SIGINT, self.original_signal_handler)
+
         if self.quiet:
             # self.loop.stop()
             self.shutdown()
@@ -39,7 +52,7 @@ class InterruptHandler:
             return
 
         # Program is still alive: restore the interrupt handler
-        self.loop.add_signal_handler(signal.SIGINT, self._interrupt_handler)
+        self._add_interrupt_handler()
 
     def register(self) -> None:
-        self.loop.add_signal_handler(signal.SIGINT, self._interrupt_handler)
+        self._add_interrupt_handler()

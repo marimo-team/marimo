@@ -8,7 +8,7 @@ from marimo._config.config import get_configuration
 from marimo._server.main import app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import initialize_manager
-from marimo._server.utils import find_free_port, import_files
+from marimo._server.utils import find_free_port, import_files, initialize_asyncio
 
 DEFAULT_PORT = 2718
 
@@ -71,4 +71,5 @@ def start(
     )
 
     app.state.server = server
+    initialize_asyncio()
     server.run()

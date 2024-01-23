@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+import asyncio
 import os
 import pathlib
 import sys
@@ -60,3 +61,7 @@ def initialize_mimetypes() -> None:
     mimetypes.add_type("application/javascript", ".js")
     mimetypes.add_type("text/css", ".css")
     mimetypes.add_type("image/svg+xml", ".svg")
+
+def initialize_asyncio() -> None:
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
