@@ -140,6 +140,7 @@ class Session:
         self.read_conn = listener.accept()
 
         def check_alive() -> None:
+            # TODO(akshayka): why are we checking that read_conn is closed?
             if not self.kernel_task.is_alive() and not self.read_conn.closed:
                 self.close()
                 print()
@@ -179,7 +180,7 @@ class Session:
             self.input_queue.cancel_join_thread()  # type: ignore
             self.input_queue.close()  # type: ignore
             if self.kernel_task.is_alive():
-                # Explicitly terminate the process
+                # Terminate the kernel process
                 self.kernel_task.terminate()
             self.read_conn.close()
         elif self.kernel_task.is_alive():
@@ -349,7 +350,7 @@ class SessionManager:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
         for session in self.sessions.values():
             session.close()
-        LOGGER.debug("All sessions closed.")
+        LOGGER.debug("Closed all sessions.")
         self.sessions = {}
 
     def shutdown(self) -> None:

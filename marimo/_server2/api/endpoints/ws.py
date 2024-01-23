@@ -220,10 +220,11 @@ class WebsocketHandler(SessionHandler):
         async def listen_for_disconnect() -> None:
             try:
                 await self.websocket.receive_text()
-            except WebSocketDisconnect:
+            except WebSocketDisconnect as e:
                 LOGGER.debug(
-                    "Websocket disconnected for session %s",
+                    "Websocket disconnected for session %s with exception %s",
                     self.session_id,
+                    str(e),
                 )
 
                 # Change the status
@@ -296,7 +297,10 @@ class WebsocketHandler(SessionHandler):
             self.heartbeat_task.cancel()
 
         # Remove the reader
+        # TODO(akshayka): Why are we checking `not connection.closed`?
         if self.mode == SessionMode.RUN and not connection.closed:
+            asyncio.get_event_loop().remove_reader(connection.fileno())
+        elif self.mode == SessionMode.EDIT:
             asyncio.get_event_loop().remove_reader(connection.fileno())
 
         # If the websocket is open, send a close message

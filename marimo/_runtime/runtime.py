@@ -1021,6 +1021,20 @@ class Kernel:
             self.reset_ui_initializers()
 
 
+def restore_signals():
+    # Restore the system default signal handlers.
+    #
+    # The server process may register signal handlers (uvicorn does this),
+    # which we definitely don't want! Otherwise a SIGTERM to this process
+    # would be rerouted to the server.
+    #
+    # See https://github.com/tiangolo/fastapi/discussions/7442#discussioncomment-5141007  # noqa: E501
+    signal.set_wakeup_fd(-1)
+
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+
 def launch_kernel(
     control_queue: mp.Queue[Request] | queue.Queue[Request],
     input_queue: mp.Queue[str] | queue.Queue[str],
@@ -1029,6 +1043,8 @@ def launch_kernel(
     configs: dict[CellId_t, CellConfig],
 ) -> None:
     LOGGER.debug("Launching kernel")
+    if is_edit_mode:
+        restore_signals()
 
     n_tries = 0
     while n_tries < 100:
