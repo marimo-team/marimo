@@ -1,3 +1,5 @@
+import sys
+
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -5,6 +7,10 @@ from tests.conftest import ExecReqProvider, MockedKernel
 # Make sure that standard in is installed; stdin is not writable so we
 # just check that its methods are callable and return mocked values.
 class TestStdin:
+    @staticmethod
+    def test_encoding(mocked_kernel: MockedKernel) -> None:
+        assert mocked_kernel.stdin.encoding == sys.stdin.encoding
+
     @staticmethod
     def test_input_installed(k: Kernel, exec_req: ExecReqProvider) -> None:
         k.run([exec_req.get("output = input('hello')")])
@@ -22,6 +28,15 @@ class TestStdin:
 
 
 class TestStdout:
+    @staticmethod
+    def test_encoding(mocked_kernel: MockedKernel) -> None:
+        assert mocked_kernel.stdout.encoding == sys.stdout.encoding
+
+    @staticmethod
+    def test_fileno(k: Kernel, exec_req: ExecReqProvider) -> None:
+        k.run([exec_req.get("fileno = sys.stdout.fileno()")])
+        assert k.globals["fileno"] is not None
+
     @staticmethod
     def test_print(
         mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -53,6 +68,15 @@ class TestStdout:
 
 
 class TestStderr:
+    @staticmethod
+    def test_encoding(mocked_kernel: MockedKernel) -> None:
+        assert mocked_kernel.stderr.encoding == sys.stderr.encoding
+
+    @staticmethod
+    def test_fileno(k: Kernel, exec_req: ExecReqProvider) -> None:
+        k.run([exec_req.get("fileno = sys.stderr.fileno()")])
+        assert k.globals["fileno"] is not None
+
     @staticmethod
     def test_write(
         mocked_kernel: MockedKernel, exec_req: ExecReqProvider
