@@ -68,16 +68,15 @@ STATIC_FILES = [
     r"(manifest\.json)",
     r"(android-chrome-(192x192|512x512)\.png)",
     r"(apple-touch-icon\.png)",
-    r"(assets\/.*)",
 ]
 
 
 @router.get("/@file/{filename_and_length:path}")
 def virtual_file(
-    *,
-    filename_and_length: str,
+    request: Request,
 ) -> Response:
     """Handler for virtual files."""
+    filename_and_length = request.path_params["filename_and_length"]
 
     LOGGER.debug("Getting virtual file: %s", filename_and_length)
     if filename_and_length == EMPTY_VIRTUAL_FILE.filename:
