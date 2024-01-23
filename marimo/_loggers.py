@@ -4,13 +4,13 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-import tornado.log
+from marimo._utils.log_formatter import LogFormatter
 
 # Global log level for loggers
 _LOG_LEVEL = logging.WARN
 
 # Tornado has a great log formatter
-_LOG_FORMATTER = tornado.log.LogFormatter()
+_LOG_FORMATTER = LogFormatter()
 
 # Cache of initialized loggers
 _LOGGERS: dict[str, logging.Logger] = {}
