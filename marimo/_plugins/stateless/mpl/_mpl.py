@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import io
 import mimetypes
+import signal
 import threading
 from pathlib import Path
 from typing import Any, Optional, Tuple
@@ -32,6 +33,7 @@ from marimo._runtime.context import (
     get_context,
 )
 from marimo._server.utils import find_free_port
+from marimo._utils.signals import get_signals
 
 
 class FigureManagers:
@@ -176,6 +178,7 @@ def get_or_create_application() -> Starlette:
         _app = app
 
         def start_server() -> None:
+            signal_handlers = get_signals()
             uvicorn.Server(
                 uvicorn.Config(
                     app=app,
@@ -184,6 +187,8 @@ def get_or_create_application() -> Starlette:
                     log_level="critical",
                 )
             ).run()
+            for signo, handler in signal_handlers:
+                signal.signal(signo, handler)
 
         threading.Thread(target=start_server).start()
 
