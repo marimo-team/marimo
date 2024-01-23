@@ -44,11 +44,20 @@ class GetColumnValuesResponse:
 class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     """
     Run transformations on a DataFrame or series.
+    Currently only Pandas DataFrames are supported.
+
+    For Polars DataFrames, you can convert to a Pandas DataFrame.
+    However the returned DataFrame will still be a Pandas DataFrame,
+    so you will need to convert back to a Polars DataFrame if you want.
 
     **Example.**
 
     ```python
     dataframe = mo.ui.dataframe(data)
+    ```
+
+    ```python
+    dataframe = mo.ui.dataframe(polars_df.to_pandas())
     ```
 
     **Attributes.**

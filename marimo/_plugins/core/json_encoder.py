@@ -37,6 +37,8 @@ class WebComponentEncoder(JSONEncoder):
                 return obj.to_list()
             elif isinstance(obj, pd.Timestamp):
                 return str(obj)
+            elif isinstance(obj, pd.DatetimeTZDtype):
+                return str(obj)
 
         # Handle MIME objects
         if hasattr(obj, "_mime_"):
