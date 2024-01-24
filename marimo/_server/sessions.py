@@ -48,19 +48,16 @@ SESSION_MANAGER: Optional["SessionManager"] = None
 class QueueManager:
     """Manages queues for a session."""
 
-    # Control messages for the kernel (run, autocomplete,
-    # set UI element, set config, etc ) are sent through the control queue
-    control_queue: QueueType[requests.Request]
-    # Input messages for the user's Python code are sent through the
-    # input queue
-    input_queue: QueueType[str]
-
     def __init__(self, use_multiprocessing: bool):
         context = mp.get_context("spawn") if use_multiprocessing else None
-        self.control_queue = (
+        # Control messages for the kernel (run, autocomplete,
+        # set UI element, set config, etc ) are sent through the control queue
+        self.control_queue: QueueType[requests.Request] = (
             context.Queue() if context is not None else queue.Queue()
         )
-        self.input_queue = (
+        # Input messages for the user's Python code are sent through the
+        # input queue
+        self.input_queue: QueueType[str] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
@@ -85,14 +82,13 @@ class QueueManager:
 
 
 class KernelManager:
-    kernel_task: Optional[threading.Thread] | Optional[mp.Process]
-
     def __init__(
         self,
         queue_manager: QueueManager,
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
     ) -> None:
+        self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -153,7 +149,7 @@ class KernelManager:
                 daemon=True,
             )
 
-        self.kernel_task.start()
+        self.kernel_task.start()  # type: ignore
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
         self._read_conn = listener.accept()
@@ -197,8 +193,6 @@ class Session:
 
     TTL_SECONDS = 120
 
-    _queue_manager: QueueManager
-
     @classmethod
     def create(
         cls,
@@ -219,6 +213,7 @@ class Session:
         kernel_manager: KernelManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
+        self._queue_manager: QueueManager
         self.session_handler = session_handler
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
