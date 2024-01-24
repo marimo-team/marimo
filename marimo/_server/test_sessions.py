@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 
 from marimo._server.model import SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
-
 from marimo._server.utils import initialize_asyncio
 
 initialize_asyncio()

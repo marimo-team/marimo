@@ -62,6 +62,7 @@ def initialize_mimetypes() -> None:
     mimetypes.add_type("text/css", ".css")
     mimetypes.add_type("image/svg+xml", ".svg")
 
+
 def initialize_asyncio() -> None:
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

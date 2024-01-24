@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-import asyncio
 from typing import Generator
 
 import pytest
@@ -14,7 +13,8 @@ from marimo._server.utils import initialize_asyncio
 
 @pytest.fixture(scope="session", autouse=True)
 def init():
-	initialize_asyncio()
+    initialize_asyncio()
+
 
 @pytest.fixture(scope="module")
 def client_with_lifespans() -> Generator[TestClient, None, None]:

@@ -19,10 +19,15 @@ class InterruptHandler:
 
     def _add_interrupt_handler(self) -> None:
         try:
-            self.loop.add_signal_handler(signal.SIGINT, self._interrupt_handler)
+            self.loop.add_signal_handler(
+                signal.SIGINT, self._interrupt_handler
+            )
         except NotImplementedError:
             # Windows
-            signal.signal(signal.SIGINT, lambda signum, frame: self._interrupt_handler())
+            signal.signal(
+                signal.SIGINT,
+                lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005,E501
+            )
 
     def _interrupt_handler(self) -> None:
         # Restore the original signal handler so re-entering Ctrl+C raises a
