@@ -10,7 +10,7 @@ from typing import Any, Dict, cast
 try:
     import curses
 except ImportError:
-    curses = None  # type: ignore
+    curses: Any = None  # type: ignore
 
 
 def _stderr_supports_color() -> bool:
