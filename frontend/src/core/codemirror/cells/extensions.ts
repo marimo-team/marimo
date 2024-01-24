@@ -7,7 +7,6 @@ import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
-import { clearTooltips } from "../completion/hints";
 import { closeCompletion } from "@codemirror/autocomplete";
 
 export interface MovementCallbacks
@@ -204,7 +203,6 @@ export function cellMovementBundle(
       run: (ev) => {
         const isHidden = toggleHideCode();
         closeCompletion(ev);
-        clearTooltips(ev);
         // If we are newly hidden, blur the editor
         if (isHidden) {
           ev.contentDOM.blur();

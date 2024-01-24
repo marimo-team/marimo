@@ -75,7 +75,7 @@ export const Autocompleter = {
     limitToType?: "tooltip";
     excludeTypes?: string[];
     exactName?: string;
-  }): Tooltip | undefined {
+  }): (Tooltip & { html?: string }) | undefined {
     const firstOption = getFirstOption(message.options, exactName);
     if (!firstOption) {
       return undefined;
@@ -97,6 +97,7 @@ export const Autocompleter = {
 
     return {
       pos: from,
+      html: firstOption.completion_info,
       end: from + firstOption.name.length,
       above: true,
       create: () => ({ dom, resize: false }),

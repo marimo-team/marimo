@@ -1,134 +1,61 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { HTMLCellId } from "@/core/cells/ids";
-import {
-  EditorView,
-  Tooltip,
-  hasHoverTooltips,
-  hoverTooltip,
-  keymap,
-  showTooltip,
-} from "@codemirror/view";
+import { EditorView, hoverTooltip } from "@codemirror/view";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
 import { Logger } from "@/utils/Logger";
-import { StateField, StateEffect, Prec, Text } from "@codemirror/state";
+import { EditorState, Text } from "@codemirror/state";
+import { debounce } from "lodash-es";
+import { documentationAtom } from "@/core/documentation/state";
+import { store } from "@/core/state/jotai";
 
 export function hintTooltip() {
   return [
     hoverTooltip(
       async (view, pos) => {
-        const cellContainer = HTMLCellId.findElement(view.dom);
-        if (!cellContainer) {
-          Logger.error("Failed to find active cell.");
+        const result = await requestDocumentation(view, pos, ["tooltip"]);
+        if (result === null || result === "cancelled") {
           return null;
         }
-
-        const cellId = HTMLCellId.parse(cellContainer.id);
-
-        const { startToken, endToken } = getPositionAtWordBounds(
-          view.state.doc,
-          pos
-        );
-
-        const result = await AUTOCOMPLETER.request({
-          document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
-          cellId: cellId,
-        });
-        if (!result) {
-          return null;
-        }
-
-        const fullWord = view.state.doc.slice(startToken, endToken).toString();
-        const tooltip = Autocompleter.asHoverTooltip({
-          position: endToken,
-          message: result,
-          exactName: fullWord,
-          excludeTypes: ["tooltip"],
-        });
-        return tooltip ?? null;
+        return result;
       },
-      {
-        hideOnChange: true,
-      }
+      { hideOnChange: true }
     ),
-    Prec.highest(
-      keymap.of([
-        {
-          key: "Escape",
-          run: clearTooltips,
-        },
-      ])
-    ),
-    Prec.highest(
-      keymap.of([
-        {
-          key: "Backspace",
-          run: (view) => {
-            clearTooltips(view);
-            return false; // don't stop propagation
-          },
-        },
-      ])
-    ),
-    // Removing tooltips (and completion) on blur is handled by cell editor, so
-    // that text is selectable
+    cursorPositionDocumentation,
   ];
 }
 
-/**
- * Dispatch an effect that shows a tooltip
- */
-export function dispatchShowTooltip(
+async function requestDocumentation(
   view: EditorView,
-  tooltip: Tooltip | undefined
-): void {
-  view.dispatch({
-    effects: TooltipFromCompletionApi.of([tooltip].filter(Boolean)),
+  pos: number,
+  excludeTypes?: string[]
+) {
+  const cellContainer = HTMLCellId.findElement(view.dom);
+  if (!cellContainer) {
+    Logger.error("Failed to find active cell.");
+    return null;
+  }
+
+  const cellId = HTMLCellId.parse(cellContainer.id);
+
+  const { startToken, endToken } = getPositionAtWordBounds(view.state.doc, pos);
+
+  const result = await AUTOCOMPLETER.request({
+    document: view.state.doc.slice(0, endToken).toString(), // convert Text to string
+    cellId: cellId,
   });
+  if (!result) {
+    return "cancelled" as const;
+  }
+
+  const fullWord = view.state.doc.slice(startToken, endToken).toString();
+  const tooltip = Autocompleter.asHoverTooltip({
+    position: endToken,
+    message: result,
+    exactName: fullWord,
+    excludeTypes: excludeTypes,
+  });
+  return tooltip ?? null;
 }
-
-export function clearTooltips(view: EditorView): boolean {
-  // We stopped showing cursorTooltipField
-  // const hasCompletionTooltip = view.state.field(cursorTooltipField).length > 0;
-  // if (hasCompletionTooltip) {
-  //   view.dispatch({
-  //     effects: TooltipFromCompletionApi.of([]),
-  //   });
-  //   return true;
-  // }
-  return false;
-}
-
-// Effect that dispatches a tooltip
-const TooltipFromCompletionApi = StateEffect.define<Tooltip[]>();
-
-// Field that stores the current tooltips
-export const cursorTooltipField = StateField.define<Tooltip[]>({
-  create: () => {
-    return [];
-  },
-  update(tooltips, tr) {
-    // If the effect is a tooltip, return it
-    for (const effect of tr.effects) {
-      if (effect.is(TooltipFromCompletionApi)) {
-        return effect.value;
-      }
-    }
-
-    // Hide if hover tooltips are enabled
-    if (hasHoverTooltips(tr.state)) {
-      return [];
-    }
-
-    // Otherwise, return the current tooltips
-    return tooltips;
-  },
-
-  provide: (field) => {
-    return showTooltip.computeN([field], (state) => {
-      return state.field(field);
-    });
-  },
-});
 
 export function getPositionAtWordBounds(doc: Text, pos: number) {
   let startToken = pos;
@@ -156,3 +83,33 @@ export function getPositionAtWordBounds(doc: Text, pos: number) {
 
   return { startToken, endToken };
 }
+
+// Checks if the cursor is in a text element
+function isCursorInText(state: EditorState) {
+  const { head } = state.selection.main;
+  const text = state.doc.sliceString(head - 1, head);
+  return /\w/.test(text);
+}
+
+// Debounce the request to avoid spamming the server
+const debouncedAutocomplete = debounce(
+  async (view: EditorView, position: number) => {
+    const tooltip = await requestDocumentation(view, position);
+    // If cancelled, don't update the documentation
+    if (tooltip === "cancelled") {
+      return;
+    }
+    store.set(documentationAtom, {
+      documentation: tooltip?.html ?? null,
+    });
+  },
+  300
+);
+
+// Listen to cursor movement and send documentation requests
+const cursorPositionDocumentation = EditorView.updateListener.of((update) => {
+  if (update.selectionSet && isCursorInText(update.state)) {
+    const cursorPos = update.state.selection.main.head;
+    debouncedAutocomplete(update.view, cursorPos);
+  }
+});

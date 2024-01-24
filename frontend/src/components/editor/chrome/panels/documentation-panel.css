@@ -1,0 +1,6 @@
+.docs-panel pre,
+code {
+  white-space: break-spaces;
+  font-size: 0.875rem;
+  line-height: 150%;
+}

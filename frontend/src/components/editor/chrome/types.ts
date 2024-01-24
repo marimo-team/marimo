@@ -4,4 +4,5 @@ export type PanelType =
   | "variables"
   | "outline"
   | "dependencies"
+  | "documentation"
   | "logs";

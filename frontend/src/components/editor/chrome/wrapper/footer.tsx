@@ -9,6 +9,7 @@ import {
   NetworkIcon,
   FileTextIcon,
   MessageCircleQuestionIcon,
+  BookMarkedIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
@@ -56,6 +57,13 @@ export const Footer: React.FC = () => {
         onClick={() => openApplication("outline")}
       >
         <ScrollTextIcon className={cn("h-5 w-5")} />
+      </FooterItem>
+      <FooterItem
+        tooltip="View documentation"
+        selected={selectedPanel === "documentation"}
+        onClick={() => openApplication("documentation")}
+      >
+        <BookMarkedIcon className={cn("h-5 w-5")} />
       </FooterItem>
       <FooterItem
         tooltip="Notebook logs"
