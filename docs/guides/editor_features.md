@@ -62,7 +62,6 @@ Hit `Cmd/Ctrl+K` to open the command palette.
 </figure>
 </div>
 
-
 _Missing a command? File a
 [GitHub issue](https://github.com/marimo-team/marimo/issues)._
 
@@ -91,6 +90,15 @@ You can also enable GitHub Copilot from this menu.
 </figure>
 </div>
 
+A non-exhausted list of settings (for searchability):
+
+- Vim keymaps
+- Dark mode
+- Auto-save
+- Auto-complete
+- Editor font-size
+- Formatting rules
+- GitHub Copilot
 
 ## Send feedback
 
