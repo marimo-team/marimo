@@ -24,14 +24,15 @@ dependencies = [
     "pygments>=2.13,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
-    # web server TODO: lower bound
-    "uvicorn",
+    # web server
+    # - 0.22.0 introduced timeout-graceful-shutdown, which we use
+    "uvicorn >= 0.22.0",
     # web framework
     # - 0.26.1 introduced lifespans, which we use
     # - starlette 0.36.0 introduced a bug
     "starlette>=0.26.1,!=0.36.0",
-    # websockets for use with starlette TODO: lower bound
-    "websockets",
+    # websockets for use with starlette
+    "websockets >= 10.0.0,<=13.0.0",
     # python <=3.12 compatibility (required by pydantic)
     "typing_extensions>=4.4.0; python_version < \"3.12\"",
     # for cell formatting; if user version is not compatible, no-op
