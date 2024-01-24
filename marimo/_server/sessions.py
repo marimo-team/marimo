@@ -280,7 +280,6 @@ class SessionManager:
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
         self.include_code = include_code
-        # token uniquely identifying this server
 
         if (app := self.load_app()) is not None:
             self.app_config = app._config
