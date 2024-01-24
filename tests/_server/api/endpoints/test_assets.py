@@ -23,7 +23,11 @@ def test_index(client: TestClient) -> None:
 def test_favicon(client: TestClient) -> None:
     response = client.get("/favicon.ico")
     assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "image/x-icon"
+    content_type = response.headers["content-type"]
+    assert (
+        content_type == "image/x-icon"
+        or content_type == "image/vnd.microsoft.icon"
+    )
 
 
 def test_unknown_file(client: TestClient) -> None:
