@@ -5,6 +5,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { JSDOM } from "jsdom";
 
 const SERVER_PORT = process.env.SERVER_PORT || 2718;
+const HOST = process.env.HOST || "127.0.0.1";
+const TARGET = `http://${HOST}:${SERVER_PORT}`;
 const isDev = process.env.NODE_ENV === "development";
 const isStorybook = process.env.npm_lifecycle_script?.includes("storybook");
 
@@ -18,9 +20,8 @@ const htmlDevPlugin = (): Plugin => {
       }
 
       // fetch html from server
-      const serverHtml = await fetch(`http://localhost:${SERVER_PORT}/`).then(
-        (res) => res.text()
-      );
+      const serverHtmlResponse = await fetch(TARGET);
+      const serverHtml = await serverHtmlResponse.text();
 
       const serverDoc = new JSDOM(serverHtml).window.document;
       const devDoc = new JSDOM(html).window.document;
@@ -66,19 +67,19 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        target: `http://localhost:${SERVER_PORT}`,
+        target: TARGET,
         changeOrigin: true,
       },
       "/@file": {
-        target: `http://localhost:${SERVER_PORT}`,
+        target: TARGET,
         changeOrigin: true,
       },
       "/ws": {
-        target: `ws://localhost:${SERVER_PORT}`,
+        target: `ws://${HOST}:${SERVER_PORT}`,
         ws: true,
         changeOrigin: true,
         headers: {
-          origin: `http://localhost:${SERVER_PORT}`,
+          origin: TARGET,
         },
       },
     },
