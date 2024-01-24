@@ -229,17 +229,19 @@ class WebsocketHandler(SessionHandler):
                 # Change the status
                 self.status = ConnectionState.CLOSED
 
-                # When the websocket is closed, we wait TTL_SECONDS before
-                # closing the session. This is to prevent the session from
-                # being closed if the during an intermittent network issue.
                 if self.manager.mode == SessionMode.RUN:
-
+                    # When the websocket is closed, we wait TTL_SECONDS before
+                    # closing the session. This is to prevent the session from
+                    # being closed if the during an intermittent network issue.
                     def _close() -> None:
                         if self.status != ConnectionState.OPEN:
                             LOGGER.debug(
                                 "Closing session %s (TTL EXPIRED)",
                                 self.session_id,
                             )
+                            # wait until TTL is expired before canceling the
+                            # listener task
+                            listen_for_messages_task.cancel()
                             self.manager.close_session(self.session_id)
 
                     session = self.manager.get_session(self.session_id)
@@ -248,9 +250,9 @@ class WebsocketHandler(SessionHandler):
                     )
                     if session is not None:
                         self.cancel_close_handle = cancellation_handle
-
-                # Stop listen_for_messages
-                listen_for_messages_task.cancel()
+                else:
+                    # Stop listening for messages -- kernel will be torn down
+                    listen_for_messages_task.cancel()
 
         listen_for_messages_task = asyncio.create_task(listen_for_messages())
         listen_for_disconnect_task = asyncio.create_task(
