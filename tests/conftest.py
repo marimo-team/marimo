@@ -29,31 +29,38 @@ class _MockStream:
         self.messages.append((op, data))
 
 
-@dataclasses.dataclass
 class MockStdout(Stdout):
     """Captures the output sent through the stream"""
 
-    messages: list[str] = dataclasses.field(default_factory=list)
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
 
     def write(self, data: str) -> int:
         self.messages.append(data)
         return len(data)
 
 
-@dataclasses.dataclass
 class MockStderr(Stderr):
     """Captures the output sent through the stream"""
 
     messages: list[str] = dataclasses.field(default_factory=list)
 
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
+
     def write(self, data: str) -> int:
         self.messages.append(data)
         return len(data)
 
 
-@dataclasses.dataclass
 class MockStdin(Stdin):
     """Echoes the prompt."""
+
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
 
     def _readline_with_prompt(self, prompt: str = "") -> str:
         return prompt
@@ -62,11 +69,12 @@ class MockStdin(Stdin):
 @dataclasses.dataclass
 class MockedKernel:
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
-    stdout: MockStdout = dataclasses.field(default_factory=MockStdout)
-    stderr: MockStderr = dataclasses.field(default_factory=MockStderr)
-    stdin: MockStdin = dataclasses.field(default_factory=MockStdin)
 
     def __post_init__(self) -> None:
+        self.stdout = MockStdout(self.stream)
+        self.stderr = MockStderr(self.stream)
+        self.stdin = MockStdin(self.stream)
+
         self.k = Kernel(
             stream=self.stream,
             stdout=self.stdout,
