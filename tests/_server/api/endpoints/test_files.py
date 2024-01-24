@@ -4,7 +4,7 @@ import random
 
 from starlette.testclient import TestClient
 
-from marimo._server.tests.mocks import get_mock_session_manager
+from tests._server.mocks import get_mock_session_manager
 
 
 def test_directory_autocomplete(client: TestClient) -> None:

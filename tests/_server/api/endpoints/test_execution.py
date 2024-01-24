@@ -3,7 +3,7 @@
 
 from starlette.testclient import TestClient
 
-from marimo._server.tests.mocks import with_read_session, with_session
+from tests._server.mocks import with_read_session, with_session
 
 SESSION_ID = "session-123"
 HEADERS = {

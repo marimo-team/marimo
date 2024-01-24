@@ -83,9 +83,9 @@ def with_read_session(
                 assert data
                 # Just change the mode here, otherwise our tests will run,
                 # in threads
-                client.app.state.session_manager.mode = SessionMode.RUN  # type: ignore
+                client.app.state.session_manager.mode = SessionMode.RUN  # type: ignore  # noqa: E501
                 func(client)
-                client.app.state.session_manager.mode = SessionMode.EDIT  # type: ignore
+                client.app.state.session_manager.mode = SessionMode.EDIT  # type: ignore  # noqa: E501
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
             client.post("/api/kernel/shutdown")
