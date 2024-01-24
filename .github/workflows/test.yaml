@@ -96,7 +96,8 @@ jobs:
       - name: Create assets directory, copy over index.html
         run: |
           mkdir -p marimo/_static/assets
-          cp frontend/index.html marimo/_static/assets/index.html
+          cp frontend/index.html marimo/_static/index.html
+          cp frontend/public/favicon.ico marimo/_static/favicon.ico
       - name: Test
         run: |
           pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
