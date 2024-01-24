@@ -291,16 +291,10 @@ class WebsocketHandler(SessionHandler):
         self.message_queue.put_nowait((op, data))
 
     def on_stop(self, connection: Connection) -> None:
-        # Cancel the heartbeat task
+        # Cancel the heartbeat task, reader
         if self.heartbeat_task and not self.heartbeat_task.cancelled():
             self.heartbeat_task.cancel()
-
-        # Remove the reader
-        # TODO(akshayka): Why are we checking `not connection.closed`?
-        if self.mode == SessionMode.RUN and not connection.closed:
-            asyncio.get_event_loop().remove_reader(connection.fileno())
-        elif self.mode == SessionMode.EDIT:
-            asyncio.get_event_loop().remove_reader(connection.fileno())
+        asyncio.get_event_loop().remove_reader(connection.fileno())
 
         # If the websocket is open, send a close message
         if (
