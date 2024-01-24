@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-/* eslint-disable jest/no-conditional-expect */
 
 import { expect, describe, it } from "vitest";
 import {

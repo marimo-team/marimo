@@ -5,15 +5,16 @@
 module.exports = {
   root: true,
   extends: [
-    "react-app",
-    "react-app/jest",
     "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jsx-a11y/recommended",
+    "plugin:react-hooks/recommended",
     "plugin:react/recommended",
     "plugin:react/jsx-runtime",
-    "plugin:@typescript-eslint/recommended",
     "plugin:ssr-friendly/recommended",
     "plugin:storybook/recommended",
     "plugin:unicorn/recommended",
+    "plugin:vitest/recommended",
     // This removes rules that conflict with prettier.
     "prettier",
   ],
@@ -50,6 +51,11 @@ module.exports = {
         extendDefaults: true,
       },
     ],
+    "@typescript-eslint/no-unused-vars": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
     // Turn of unicorn rules that don't have autofixes or that we don't want
     "unicorn/consistent-function-scoping": "off",
     "unicorn/expiring-todo-comments": "off",
