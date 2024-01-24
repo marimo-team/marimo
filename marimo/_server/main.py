@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 from marimo._server.api.lifespans import LIFESPANS
 from marimo._server.api.middleware import (
     AuthBackend,
+    ValidateServerTokensMiddleware,
 )
 from marimo._server.api.router import ROUTES
 
@@ -25,6 +26,7 @@ middleware = [
         allow_headers=["*"],
     ),
     Middleware(AuthenticationMiddleware, backend=AuthBackend()),
+    Middleware(ValidateServerTokensMiddleware),
 ]
 
 

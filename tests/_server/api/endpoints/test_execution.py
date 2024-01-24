@@ -8,6 +8,7 @@ from tests._server.mocks import with_read_session, with_session
 SESSION_ID = "session-123"
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
+    "Marimo-Server-Token": "fake-token",
 }
 
 

@@ -10,9 +10,7 @@ from marimo._server.sessions import SessionManager
 
 
 @functools.lru_cache()
-def get_mock_session_manager(
-    mode: SessionMode = SessionMode.EDIT,
-) -> SessionManager:
+def get_mock_session_manager() -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
@@ -26,7 +24,6 @@ app = marimo.App()
 @app.cell
 def __():
     import marimo as mo
-    mo.md("# Hello Marimo!")
     return mo,
 
 
@@ -37,14 +34,16 @@ if __name__ == "__main__":
 
     temp_file.close()
 
-    return SessionManager(
+    sm = SessionManager(
         filename=temp_file.name,
-        mode=mode,
+        mode=SessionMode.EDIT,
         port=1001,
         development_mode=False,
         quiet=False,
         include_code=True,
     )
+    sm.server_token = "fake-token"
+    return sm
 
 
 def with_session(
@@ -62,7 +61,11 @@ def with_session(
                 func(client)
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            client.post("/api/kernel/shutdown")
+            server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
+            client.post(
+                "/api/kernel/shutdown",
+                headers={"Marimo-Server-Token": server_token},
+            )
 
         return wrapper
 
@@ -88,7 +91,11 @@ def with_read_session(
                 client.app.state.session_manager.mode = SessionMode.EDIT  # type: ignore  # noqa: E501
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            client.post("/api/kernel/shutdown")
+            server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
+            client.post(
+                "/api/kernel/shutdown",
+                headers={"Marimo-Server-Token": server_token},
+            )
 
         return wrapper
 

@@ -3,7 +3,11 @@ import pytest
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-KERNEL_READY_RESPONSE = '{"op": "kernel-ready", "data": {"codes": ["import marimo as mo"], "names": ["my_cell"], "layout": null, "configs": [{"disabled": false, "hide_code": true}]}}'  # noqa: E501
+KERNEL_READY_RESPONSE = '{"op": "kernel-ready", "data": {"codes": ["import marimo as mo"], "names": ["__"], "layout": null, "configs": [{"disabled": false, "hide_code": false}]}}'  # noqa: E501
+
+HEADERS = {
+    "Marimo-Server-Token": "fake-token",
+}
 
 
 def test_ws(client: TestClient) -> None:
@@ -12,7 +16,7 @@ def test_ws(client: TestClient) -> None:
         assert data == KERNEL_READY_RESPONSE
     # shut down after websocket context manager exists, otherwise
     # the test fails on windows (event loop closed twice)
-    client.post("/api/kernel/shutdown")
+    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_without_session(client: TestClient) -> None:
@@ -42,7 +46,7 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == '{"op": "reconnected", "data": null}'  # noqa: E501
-    client.post("/api/kernel/shutdown")
+    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
@@ -74,4 +78,4 @@ def test_fails_on_multiple_connections_with_other_sessions(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-    client.post("/api/kernel/shutdown")
+    client.post("/api/kernel/shutdown", headers=HEADERS)

@@ -9,7 +9,9 @@ from starlette.authentication import (
     BaseUser,
     SimpleUser,
 )
-from starlette.requests import HTTPConnection
+from starlette.exceptions import HTTPException
+from starlette.requests import HTTPConnection, Request
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.model import SessionMode
 
@@ -26,3 +28,34 @@ class AuthBackend(AuthenticationBackend):
         elif mode == SessionMode.EDIT:
             return AuthCredentials(["read", "edit"]), SimpleUser("user")
         return None
+
+
+class ValidateServerTokensMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope)
+
+        # If not POST request, then skip
+        if request.method != "POST":
+            return await self.app(scope, receive, send)
+        # If ws, skip
+        if request.url.path.startswith("/ws"):
+            return await self.app(scope, receive, send)
+
+        expected_server_token = request.app.state.session_manager.server_token
+        if expected_server_token is None:
+            return await self.app(scope, receive, send)
+
+        server_token = request.headers.get("Marimo-Server-Token")
+        if server_token != expected_server_token:
+            raise HTTPException(401, "Invalid server token")
+
+        # Passed
+        return await self.app(scope, receive, send)

@@ -6,10 +6,15 @@ from starlette.testclient import TestClient
 
 from tests._server.mocks import get_mock_session_manager
 
+HEADERS = {
+    "Marimo-Server-Token": "fake-token",
+}
+
 
 def test_directory_autocomplete(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/directory_autocomplete",
+        headers=HEADERS,
         json={
             "prefix": "",
         },
@@ -31,6 +36,7 @@ def test_rename(client: TestClient) -> None:
 
     response = client.post(
         "/api/kernel/rename",
+        headers=HEADERS,
         json={
             "filename": new_filename,
         },
@@ -44,6 +50,7 @@ def test_rename(client: TestClient) -> None:
 def test_read_code(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/read_code",
+        headers=HEADERS,
         json={},
     )
     assert response.status_code == 200, response.text
@@ -56,6 +63,7 @@ def test_save_file(client: TestClient) -> None:
 
     response = client.post(
         "/api/kernel/save",
+        headers=HEADERS,
         json={
             "filename": filename,
             "codes": ["import marimo as mo"],
@@ -73,11 +81,29 @@ def test_save_file(client: TestClient) -> None:
     file_contents = open(filename).read()
     assert "import marimo as mo" in file_contents
     assert "@app.cell(hide_code=True)" in file_contents
+    assert "my_cell" in file_contents
+
+    # save back
+    response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "filename": filename,
+            "codes": ["import marimo as mo"],
+            "names": ["__"],
+            "configs": [
+                {
+                    "hideCode": False,
+                }
+            ],
+        },
+    )
 
 
 def test_save_file_cannot_rename(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/save",
+        headers=HEADERS,
         json={
             "filename": "random_filename.py",
             "codes": ["import marimo as mo"],
@@ -103,6 +129,7 @@ def test_save_app_config(client: TestClient) -> None:
 
     response = client.post(
         "/api/kernel/save_app_config",
+        headers=HEADERS,
         json={
             "config": {"width": "full"},
         },
