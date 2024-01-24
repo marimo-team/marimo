@@ -1,8 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator, Callable, Sequence
-from contextlib import AbstractAsyncContextManager
+import sys
+
+if sys.version_info < (3, 9):
+    from typing import AsyncContextManager as AbstractAsyncContextManager
+    from typing import AsyncIterator, Callable, Sequence
+else:
+    from collections.abc import AsyncIterator, Callable, Sequence
+    from contextlib import AbstractAsyncContextManager
 
 from starlette.applications import Starlette
 from typing_extensions import TypeAlias

@@ -4,7 +4,6 @@ import mimetypes
 import os
 import re
 from http import HTTPStatus
-from importlib.resources import files as importlib_files
 from multiprocessing import shared_memory
 
 from starlette.exceptions import HTTPException
@@ -19,6 +18,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_title
 from marimo._server.model import SessionMode
 from marimo._server.router import APIRouter
+from marimo._server.utils import import_files
 
 LOGGER = _loggers.marimo_logger()
 
@@ -26,7 +26,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = os.path.realpath(str(importlib_files("marimo").joinpath("_static")))
+root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
 router.mount(
     "/assets",

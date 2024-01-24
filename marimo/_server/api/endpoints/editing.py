@@ -15,6 +15,7 @@ from marimo._server.models.models import (
     DeleteCellRequest,
     FormatRequest,
     FormatResponse,
+    SetCellConfigRequest,
     StdinRequest,
     SuccessResponse,
 )
@@ -83,7 +84,7 @@ async def format_cell(request: Request) -> FormatResponse:
 async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
     app_state = AppState(request)
-    body = await parse_request(request, cls=requests.SetCellConfigRequest)
+    body = await parse_request(request, cls=SetCellConfigRequest)
     app_state.require_current_session().put_request(
         requests.SetCellConfigRequest(configs=body.configs)
     )
