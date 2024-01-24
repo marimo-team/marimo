@@ -218,6 +218,29 @@ def complete(
                 # Don't complete ...
                 completions = []
 
+                # Get docstring in function context. A bit of a hack, since
+                # this isn't actually a completion, just a tooltip.
+                #
+                # If no completions, we might be getting a signature ...
+                # for example, if the document is "mo.ui.slider(start=1,
+                signatures = script.get_signatures()
+                if signatures:
+                    _write_completion_result(
+                        stream=stream,
+                        completion_id=request.completion_id,
+                        prefix_length=0,
+                        options=[
+                            CompletionOption(
+                                name=signatures[0].name,
+                                type="tooltip",
+                                completion_info=_get_completion_info(
+                                    signatures[0]
+                                ),
+                            )
+                        ],
+                    )
+                    continue
+
             if not completions:
                 # If there are still no completions, then bail.
                 _write_no_completions(stream, request.completion_id)

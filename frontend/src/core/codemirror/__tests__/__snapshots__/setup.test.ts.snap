@@ -41,10 +41,6 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
   "Backspace": [
     {
       "key": "Backspace",
-      "run": "run",
-    },
-    {
-      "key": "Backspace",
       "run": "deleteBracketPair",
     },
     {
@@ -64,10 +60,6 @@ exports[`snapshot all duplicate keymaps > default keymaps 2`] = `
     },
   ],
   "Escape": [
-    {
-      "key": "Escape",
-      "run": "clearTooltips",
-    },
     {
       "key": "Escape",
       "run": "closeCompletion",
@@ -165,10 +157,6 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
   "Backspace": [
     {
       "key": "Backspace",
-      "run": "run",
-    },
-    {
-      "key": "Backspace",
       "run": "deleteBracketPair",
     },
     {
@@ -188,10 +176,6 @@ exports[`snapshot all duplicate keymaps > vim keymaps 2`] = `
     },
   ],
   "Escape": [
-    {
-      "key": "Escape",
-      "run": "clearTooltips",
-    },
     {
       "key": "Escape",
       "run": "closeCompletion",

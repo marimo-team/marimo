@@ -13,7 +13,6 @@ import {
 
 import { saveCellConfig, sendRun } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
-import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
 import { CellConfig, CellData, CellRuntimeState } from "../../core/cells/types";
 import { CellActions } from "../../core/cells/cells";
@@ -208,7 +207,6 @@ const CellComponent = (
       editorView.current !== null
     ) {
       closeCompletion(editorView.current);
-      clearTooltips(editorView.current);
     }
   }, []);
 
