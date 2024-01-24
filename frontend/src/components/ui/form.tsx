@@ -159,7 +159,7 @@ const FormMessage = React.forwardRef<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
   const { error, formMessageId } = useFormField();
-  const body = error && error?.message ? String(error?.message) : children;
+  const body = error?.message ? String(error?.message) : children;
 
   if (!body) {
     return null;
@@ -180,7 +180,7 @@ FormMessage.displayName = "FormMessage";
 
 const FormMessageTooltip = ({ className }: { className: string }) => {
   const { error } = useFormField();
-  const body = error && error?.message ? String(error?.message) : null;
+  const body = error?.message ? String(error?.message) : null;
 
   if (!body) {
     return null;

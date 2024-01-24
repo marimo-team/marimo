@@ -31,6 +31,6 @@ test("shutdown shows disconnected text", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
-test.afterAll(async () => {
+test.afterAll(() => {
   startServer("shutdown.py"); // restart the server
 });

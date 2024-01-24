@@ -896,7 +896,7 @@ const MultiSelectFormField = ({
   itemLabel,
   showSwitchable,
 }: {
-  schema: z.ZodEnum<any> | z.ZodString | z.ZodEnum<any> | z.ZodArray<any>;
+  schema: z.ZodEnum<any> | z.ZodString | z.ZodArray<any>;
   form: UseFormReturn<any>;
   path: Path<any>;
   itemLabel?: string;

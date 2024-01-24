@@ -22,7 +22,7 @@ export const renderHTML = ({ html }: Options) => {
       ) {
         const element = document.createElement("iframe");
         Object.entries(domNode.attribs).forEach(([key, value]) => {
-          element.setAttribute(key, value as string);
+          element.setAttribute(key, value);
         });
         return <div dangerouslySetInnerHTML={{ __html: element.outerHTML }} />;
       }

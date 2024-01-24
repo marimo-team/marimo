@@ -37,7 +37,7 @@ export const HTMLCellId = {
   create(cellId: CellId): HTMLCellId {
     invariant(cellId != null, "cellId is required");
 
-    return `cell-${cellId}` as HTMLCellId;
+    return `cell-${cellId}`;
   },
   parse(htmlCellId: HTMLCellId): CellId {
     return htmlCellId.slice(5) as CellId;

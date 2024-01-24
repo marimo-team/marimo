@@ -46,14 +46,14 @@ describe("getOperatorForDtype", () => {
 describe("getSchemaForOperator", () => {
   it("should return the correct schema for the given dtype and operator", () => {
     expect(getSchemaForOperator("bool", "is true")).toEqual(
-      BOOLEAN_OPERATORS["is_true"]
+      BOOLEAN_OPERATORS.is_true
     );
     expect(getSchemaForOperator("int", "==")).toEqual(NUMERIC_OPERATORS["=="]);
     expect(getSchemaForOperator("datetime64[ns]", "!=")).toEqual(
       DATE_OPERATORS["!="]
     );
     expect(getSchemaForOperator("string", "contains")).toEqual(
-      STRING_OPERATORS["contains"]
+      STRING_OPERATORS.contains
     );
   });
 

@@ -19,6 +19,7 @@ export function collapseConsoleOutputs(
     nextOutput.channel !== "stdin"
   ) {
     consoleOutputs.pop();
+    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
     consoleOutputs[consoleOutputs.length - 1].data += nextOutput.data;
     nextOutput = consoleOutputs[consoleOutputs.length - 1];
   }

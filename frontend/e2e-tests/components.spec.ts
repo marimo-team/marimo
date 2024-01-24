@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }, info) => {
   }
 });
 
-const pageHelper = async (page: Page) => {
+const pageHelper = (page: Page) => {
   return {
     selectBasicComponent: async (type: string) => {
       const select = await page.locator("#cell-1").locator("select");
@@ -42,7 +42,7 @@ test("page renders read only view in read mode", async ({ page }) => {
 });
 
 test("button", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("button");
   const element = page.locator("button").getByText("click me");
 
@@ -59,7 +59,7 @@ test("button", async ({ page }) => {
 });
 
 test("checkbox", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("checkbox");
   const element = page.getByText("check me");
 
@@ -80,7 +80,7 @@ test("checkbox", async ({ page }) => {
 });
 
 test("date", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("date");
   const element = page.getByRole("textbox");
 
@@ -94,7 +94,7 @@ test("date", async ({ page }) => {
 });
 
 test("dropdown", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("dropdown");
   const element = page.locator("#cell-2").getByRole("combobox");
 
@@ -112,7 +112,7 @@ test("dropdown", async ({ page }) => {
 });
 
 test("file button", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("file button");
 
   const element = page.getByRole("button", { name: "Upload", exact: true });
@@ -125,7 +125,7 @@ test("file button", async ({ page }) => {
 });
 
 test("file area", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("file area");
   const element = page.getByText("Drag and drop files here");
   // Verify is visible
@@ -137,7 +137,7 @@ test("file area", async ({ page }) => {
 });
 
 test("multiselect", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("multiselect");
   let element = page.locator("marimo-multiselect div svg").last();
 
@@ -161,7 +161,7 @@ test("multiselect", async ({ page }) => {
 });
 
 test("number", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("number");
   const element = page.getByRole("spinbutton");
 
@@ -178,7 +178,7 @@ test("number", async ({ page }) => {
 });
 
 test("radio", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("radio");
   const element = page.getByRole("radiogroup").getByText("a");
 
@@ -196,7 +196,7 @@ test("radio", async ({ page }) => {
 });
 
 test("slider", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("slider");
   const element = page.getByRole("slider");
 
@@ -213,7 +213,7 @@ test("slider", async ({ page }) => {
 });
 
 test("switch", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("switch");
   const element = page.getByRole("switch");
 
@@ -234,7 +234,7 @@ test("switch", async ({ page }) => {
 });
 
 test("table", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("table");
   const element = page.getByText("Michael");
 
@@ -280,7 +280,7 @@ test("table", async ({ page }) => {
 });
 
 test("text", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("text");
   const element = page.getByRole("textbox");
 
@@ -295,7 +295,7 @@ test("text", async ({ page }) => {
 });
 
 test("text_area", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectBasicComponent("text_area");
   const element = page.getByRole("textbox");
 
@@ -310,7 +310,7 @@ test("text_area", async ({ page }) => {
 });
 
 test("complex - array", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("array");
 
   // Check the elements
@@ -343,7 +343,7 @@ test("complex - array", async ({ page }) => {
 });
 
 test("complex - batch", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("batch");
 
   // Check the elements
@@ -372,7 +372,7 @@ test("complex - batch", async ({ page }) => {
 });
 
 test("complex - dictionary", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("dictionary");
 
   // Check the elements
@@ -410,7 +410,7 @@ test("complex - dictionary", async ({ page }) => {
 });
 
 test("complex - form", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("form");
 
   // Check the elements
@@ -433,7 +433,7 @@ test("complex - form", async ({ page }) => {
 });
 
 test("complex - reused in json", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("reused-in-json");
 
   // Check the elements
@@ -461,7 +461,7 @@ test("complex - reused in json", async ({ page }) => {
 });
 
 test("complex - reused in markdown", async ({ page }) => {
-  const helper = await pageHelper(page);
+  const helper = pageHelper(page);
   await helper.selectComplexComponent("reused-in-markdown");
 
   // Check the elements
