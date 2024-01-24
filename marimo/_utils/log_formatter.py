@@ -10,15 +10,15 @@ from typing import Any, Dict, cast
 try:
     import curses
 except ImportError:
-    curses: Any = None  # type: ignore
+    curses = None  # type: ignore
 
 
 def _stderr_supports_color() -> bool:
     try:
         if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
             if curses:
-                curses.setupterm()
-                if curses.tigetnum("colors") > 0:
+                curses.setupterm()  # type: ignore[attr-defined]
+                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined]
                     return True
     except Exception:
         # Very broad exception handling because it's always better to
@@ -89,7 +89,7 @@ class LogFormatter(logging.Formatter):
         if color and _stderr_supports_color():
             if curses is not None:
                 fg_color = (
-                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""
+                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""  # type: ignore[attr-defined]
                 )
 
                 for levelno, code in colors.items():
@@ -97,9 +97,9 @@ class LogFormatter(logging.Formatter):
                     # bytes to unicode strings for easier use with the
                     # logging module.
                     self._colors[levelno] = str(
-                        curses.tparm(fg_color, code), "ascii"
+                        curses.tparm(fg_color, code), "ascii"  # type: ignore[attr-defined]
                     )
-                normal = curses.tigetstr("sgr0")
+                normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined]
                 if normal is not None:
                     self._normal = str(normal, "ascii")
                 else:
