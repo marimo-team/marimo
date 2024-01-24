@@ -10,7 +10,9 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == KERNEL_READY_RESPONSE
-        client.post("/api/kernel/shutdown")
+    # shut down after websocket context manager exists, otherwise
+    # the test fails on windows (event loop closed twice)
+    client.post("/api/kernel/shutdown")
 
 
 def test_without_session(client: TestClient) -> None:
@@ -40,8 +42,7 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_text()
         assert data == '{"op": "reconnected", "data": null}'  # noqa: E501
-
-        client.post("/api/kernel/shutdown")
+    client.post("/api/kernel/shutdown")
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
@@ -73,4 +74,4 @@ def test_fails_on_multiple_connections_with_other_sessions(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-        client.post("/api/kernel/shutdown")
+    client.post("/api/kernel/shutdown")

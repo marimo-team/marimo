@@ -56,7 +56,9 @@ def with_session(
                 data = websocket.receive_text()
                 assert data
                 func(client)
-                client.post("/api/kernel/shutdown")
+            # shutdown after websocket exits, otherwise
+            # test fails on Windows (loop closed twice)
+            client.post("/api/kernel/shutdown")
 
         return wrapper
 

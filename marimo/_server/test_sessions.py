@@ -7,6 +7,10 @@ from unittest.mock import MagicMock
 from marimo._server.model import SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
 
+from marimo._server.utils import initialize_asyncio
+
+initialize_asyncio()
+
 
 def test_queue_manager() -> None:
     # Test with multiprocessing queues
@@ -56,7 +60,7 @@ def test_session() -> None:
     assert session.session_handler == session_handler
     assert session._queue_manager == queue_manager
     assert session.kernel_manager == kernel_manager
-    assert session_handler.on_start.called_once()
+    session_handler.on_start.assert_called_once()
     assert session_handler.on_stop.call_count == 0
 
     session.close()
@@ -67,5 +71,5 @@ def test_session() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
-    assert session_handler.on_start.called_once()
-    assert session_handler.on_stop.called_once()
+    session_handler.on_start.assert_called_once()
+    session_handler.on_stop.assert_called_once()
