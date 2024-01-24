@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { FieldQueryBase } from "compassql/build/src/query/encoding";
 
 type AggregateOp = Extract<FieldQueryBase["aggregate"], string>;

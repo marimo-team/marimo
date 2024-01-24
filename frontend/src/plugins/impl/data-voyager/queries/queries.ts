@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Query } from "compassql/build/src/query";
 import { SpecQuery } from "compassql/build/src/query/spec";
 import { contains } from "vega-lite";

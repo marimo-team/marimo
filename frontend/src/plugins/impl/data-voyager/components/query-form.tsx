@@ -1,4 +1,5 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-base-to-string */
 import { PrimitiveType, Schema } from "compassql/build/src/schema";
 import React from "react";
 import { Label } from "@/components/ui/label";

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { Schema } from "compassql/build/src/schema";
 import type { SpecificEncoding } from "../encoding";
 import type { SpecQuery } from "compassql/build/src/query/spec";

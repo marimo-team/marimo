@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
 import { DataVoyagerComponent } from "@/plugins/impl/data-voyager/DataVoyagerPlugin";
 import { SpecificEncoding } from "@/plugins/impl/data-voyager/encoding";

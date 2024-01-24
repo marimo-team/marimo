@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Query } from "compassql/build/src/query";
 import { VisualizationSpec } from "react-vega";
 import { FieldDefinition, EncodingChannel } from "../encoding";

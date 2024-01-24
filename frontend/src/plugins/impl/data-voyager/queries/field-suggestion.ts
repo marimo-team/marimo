@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { FieldQuery } from "compassql/build/src/query/encoding";
 import { Query } from "compassql/build/src/query/query";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";

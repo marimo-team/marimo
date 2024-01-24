@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { BarChartBigIcon } from "lucide-react";
 import React, { useState } from "react";
 import { PRIMITIVE_TYPE_ICON } from "./icons";

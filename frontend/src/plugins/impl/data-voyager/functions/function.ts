@@ -1,4 +1,5 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-base-to-string */
 import { FieldQuery } from "compassql/build/src/query/encoding";
 import { isAggregateOp } from "vega-lite/build/src/aggregate";
 import { FieldFunction, TimeUnitOp } from "./types";

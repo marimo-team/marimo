@@ -1,4 +1,5 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-base-to-string */
 import { z } from "zod";
 import "../vega/vega.css";
 
@@ -241,7 +242,7 @@ function makeResponsive(spec: any) {
   // https://vega.github.io/vega-lite/docs/size.html#width-and-height-of-multi-view-displays
   const hasRowOrColumn = Boolean(spec.encoding?.row || spec.encoding?.column);
   if (!hasRowOrColumn) {
-    spec["width"] = "container";
+    spec.width = "container";
   }
   return spec;
 }

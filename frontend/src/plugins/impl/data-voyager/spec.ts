@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { EncodingQuery } from "compassql/build/src/query/encoding";
 import { SpecQuery } from "compassql/build/src/query/spec";
 import { SpecificEncoding, toFieldQuery, EncodingChannel } from "./encoding";

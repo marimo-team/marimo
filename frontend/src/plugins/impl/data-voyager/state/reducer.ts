@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { SpecificEncoding } from "../encoding";
 import { createReducer } from "@/utils/createReducer";
 import { ChartSpec } from "./types";
