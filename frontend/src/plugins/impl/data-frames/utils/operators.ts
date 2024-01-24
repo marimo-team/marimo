@@ -17,16 +17,6 @@ const Schema = {
     .min(1)
     .describe(FieldOptions.of({ label: "Value", special: "column_values" })),
   date: z.coerce.date().describe(FieldOptions.of({ label: "Value" })),
-  stringArray: z
-    .array(z.string())
-    .min(1)
-    .describe(
-      FieldOptions.of({
-        label: "Values",
-        description: "New-line separated",
-        special: "text_area_multiline",
-      })
-    ),
 };
 
 export const BOOLEAN_OPERATORS = {

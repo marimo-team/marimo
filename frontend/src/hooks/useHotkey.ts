@@ -9,6 +9,7 @@ import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
 
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
 
 /**
@@ -17,10 +18,7 @@ type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
  * @param callback The callback to run when the shortcut is pressed. It does not need to be memoized as this hook will always use the latest callback.
  * If the callback returns false, preventDefault will not be called on the event.
  */
-export function useHotkey(
-  shortcut: HotkeyAction,
-  callback: () => boolean | void | undefined
-) {
+export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const { registerAction, unregisterAction } = useSetRegisteredAction();
 
   const memoizeCallback = useEvent(() => callback());

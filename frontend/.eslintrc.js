@@ -7,17 +7,24 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:jsx-a11y/recommended",
+    "plugin:@typescript-eslint/stylistic",
+    "plugin:@typescript-eslint/strict",
+    "plugin:jsx-a11y/strict",
     "plugin:react-hooks/recommended",
     "plugin:react/recommended",
     "plugin:react/jsx-runtime",
     "plugin:ssr-friendly/recommended",
     "plugin:storybook/recommended",
-    "plugin:unicorn/recommended",
+    "plugin:unicorn/all",
     "plugin:vitest/recommended",
     // This removes rules that conflict with prettier.
     "prettier",
   ],
+  settings: {
+    react: {
+      version: "detect",
+    },
+  },
   parser: "@typescript-eslint/parser",
   plugins: ["@typescript-eslint", "header"],
   rules: {
@@ -52,6 +59,7 @@ module.exports = {
       },
     ],
     "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/consistent-indexed-object-style": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off",
@@ -66,6 +74,7 @@ module.exports = {
     "unicorn/no-array-reduce": "off",
     "unicorn/no-await-expression-member": "off",
     "unicorn/no-null": "off",
+    "unicorn/no-keyword-prefix": "off",
     "unicorn/no-useless-undefined": "off",
     "unicorn/prefer-add-event-listener": "off",
     "unicorn/prefer-at": "off",
