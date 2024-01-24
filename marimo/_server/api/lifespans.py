@@ -96,7 +96,11 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
     headless = app.state.headless
     if not headless:
         browser = user_config["server"]["browser"]
-        open_url_in_browser(browser, url)
+        # Wait 20ms for the server to start and then open the browser, but this
+        # function must complete
+        asyncio.get_running_loop().call_later(
+            0.02, open_url_in_browser, browser, url
+        )
     yield
 
 
@@ -145,5 +149,5 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 
 LIFESPANS = Lifespans(
-    [user_configuration, lsp, open_browser, etc, signal_handler, logging]
+    [user_configuration, lsp, etc, signal_handler, logging, open_browser]
 )
