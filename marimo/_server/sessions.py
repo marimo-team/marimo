@@ -22,12 +22,14 @@ import subprocess
 import sys
 import threading
 from multiprocessing import connection
+from multiprocessing.queues import Queue as MPQueue
 from typing import Any, Optional
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, _AppConfig
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
@@ -36,65 +38,79 @@ from marimo._server.model import (
     SessionHandler,
     SessionMode,
 )
+from marimo._server.types import QueueType
 from marimo._server.utils import import_files, print_tabbed
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
 
 
-class Session:
-    """A client session.
+class QueueManager:
+    """Manages queues for a session."""
 
-    Each session has its own Python kernel, for editing and running the app,
-    and its own websocket, for sending messages to the client.
-    """
-
-    TTL_SECONDS = 120
-
-    def __init__(
-        self,
-        session_handler: SessionHandler,
-    ) -> None:
-        """Initialize kernel and client connection to it."""
-        mpctx = mp.get_context("spawn")
-        mgr: SessionManager = get_manager()
-        self.session_handler = session_handler
-
+    def __init__(self, use_multiprocessing: bool):
+        context = mp.get_context("spawn") if use_multiprocessing else None
         # Control messages for the kernel (run, autocomplete,
         # set UI element, set config, etc ) are sent through the control queue
-        self.control_queue: mp.Queue[requests.Request] | queue.Queue[
-            requests.Request
-        ]
+        self.control_queue: QueueType[requests.Request] = (
+            context.Queue() if context is not None else queue.Queue()
+        )
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: mp.Queue[str] | queue.Queue[str]
-
-        self.kernel_task: threading.Thread | mp.Process
-        self.read_conn: connection.Connection
-
-        app = mgr.load_app()
-        configs = (
-            {cell_id: data.config for cell_id, data in app._cell_data.items()}
-            if app is not None
-            else {}
+        self.input_queue: QueueType[str] = (
+            context.Queue(maxsize=1)
+            if context is not None
+            else queue.Queue(maxsize=1)
         )
+
+    def close_queues(self) -> None:
+        if isinstance(self.control_queue, MPQueue):
+            # cancel join thread because we don't care if the queues still have
+            # things in it: don't want to make the child process wait for the
+            # queues to empty
+            self.control_queue.cancel_join_thread()
+            self.control_queue.close()
+        else:
+            # kernel thread cleans up read/write conn and IOloop handler on
+            # exit; we don't join the thread because we don't want to block
+            self.control_queue.put(requests.StopRequest())
+
+        if isinstance(self.input_queue, MPQueue):
+            # again, don't make the child process wait for the queues to empty
+            self.input_queue.cancel_join_thread()
+            self.input_queue.close()
+
+
+class KernelManager:
+    def __init__(
+        self,
+        queue_manager: QueueManager,
+        mode: SessionMode,
+        configs: dict[CellId_t, CellConfig],
+    ) -> None:
+        self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
+        self.queue_manager = queue_manager
+        self.mode = mode
+        self.configs = configs
+        self._read_conn: Optional[connection.Connection] = None
+
+    def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
         listener = connection.Listener(family="AF_INET")
-        is_edit_mode = mgr.mode == SessionMode.EDIT
+
+        # We use a process in edit mode so that we can interrupt the app
+        # with a SIGINT; we don't mind the additional memory consumption,
+        # since there's only one client sess
+        is_edit_mode = self.mode == SessionMode.EDIT
         if is_edit_mode:
-            # We use a process in edit mode so that we can interrupt the app
-            # with a SIGINT; we don't mind the additional memory consumption,
-            # since there's only one client session
-            self.control_queue = mpctx.Queue()
-            self.input_queue = mpctx.Queue(maxsize=1)
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(
-                    self.control_queue,
-                    self.input_queue,
+                    self.queue_manager.control_queue,
+                    self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
-                    configs,
+                    self.configs,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -105,14 +121,12 @@ class Session:
             # We use threads in run mode to minimize memory consumption;
             # launching a process would copy the entire program state,
             # which (as of writing) is around 150MB
-            self.control_queue = queue.Queue()
-            self.input_queue = queue.Queue(maxsize=1)
 
             # We can't terminate threads, so we have to wait until they
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
                 runtime.launch_kernel(*args)
-                self.read_conn.close()
+                self.kernel_connection.close()
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
@@ -124,23 +138,89 @@ class Session:
             self.kernel_task = threading.Thread(
                 target=launch_kernel_with_cleanup,
                 args=(
-                    self.control_queue,
-                    self.input_queue,
+                    self.queue_manager.control_queue,
+                    self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
-                    configs,
+                    self.configs,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
                 daemon=True,
             )
-        self.kernel_task.start()
+
+        self.kernel_task.start()  # type: ignore
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
-        self.read_conn = listener.accept()
+        self._read_conn = listener.accept()
+
+    def is_alive(self) -> bool:
+        return self.kernel_task is not None and self.kernel_task.is_alive()
+
+    def interrupt_kernel(self) -> None:
+        if (
+            isinstance(self.kernel_task, mp.Process)
+            and self.kernel_task.pid is not None
+        ):
+            LOGGER.debug("Sending SIGINT to kernel")
+            os.kill(self.kernel_task.pid, signal.SIGINT)
+
+    def close_kernel(self) -> None:
+        assert self.kernel_task is not None, "kernel not started"
+
+        if isinstance(self.kernel_task, mp.Process):
+            self.queue_manager.close_queues()
+            if self.kernel_task.is_alive():
+                self.kernel_task.terminate()
+            self.kernel_connection.close()
+        elif self.kernel_task.is_alive():
+            # We don't join the kernel thread because we don't want to server
+            # to block on it finishing
+            self.queue_manager.control_queue.put(requests.StopRequest())
+
+    @property
+    def kernel_connection(self) -> connection.Connection:
+        assert self._read_conn is not None, "connection not started"
+        return self._read_conn
+
+
+class Session:
+    """A client session.
+
+    Each session has its own Python kernel, for editing and running the app,
+    and its own websocket, for sending messages to the client.
+    """
+
+    TTL_SECONDS = 120
+
+    @classmethod
+    def create(
+        cls,
+        session_handler: SessionHandler,
+        mode: SessionMode,
+        app: Optional[App],
+    ) -> Session:
+        configs = app._cell_configs() if app else {}
+        use_multiprocessing = mode == SessionMode.EDIT
+        queue_manager = QueueManager(use_multiprocessing)
+        kernel_manager = KernelManager(queue_manager, mode, configs)
+        return cls(session_handler, queue_manager, kernel_manager)
+
+    def __init__(
+        self,
+        session_handler: SessionHandler,
+        queue_manager: QueueManager,
+        kernel_manager: KernelManager,
+    ) -> None:
+        """Initialize kernel and client connection to it."""
+        self._queue_manager: QueueManager
+        self.session_handler = session_handler
+        self._queue_manager = queue_manager
+        self.kernel_manager = kernel_manager
+        self.kernel_manager.start_kernel()
 
         def check_alive() -> None:
-            if not self.kernel_task.is_alive():
+            if not self.kernel_manager.is_alive():
                 self.close()
                 print()
                 print_tabbed(
@@ -149,41 +229,24 @@ class Session:
                 print()
                 sys.exit()
 
-        session_handler.on_start(
-            mode=mgr.mode, connection=self.read_conn, check_alive=check_alive
+        self.check_alive = check_alive
+        self.session_handler.on_start(
+            connection=self.kernel_manager.kernel_connection,
+            check_alive=check_alive,
         )
 
     def try_interrupt(self) -> None:
-        if (
-            isinstance(self.kernel_task, mp.Process)
-            and self.kernel_task.pid is not None
-        ):
-            LOGGER.debug("Sending SIGINT to kernel")
-            os.kill(self.kernel_task.pid, signal.SIGINT)
+        self.kernel_manager.interrupt_kernel()
+
+    def put_request(self, request: requests.Request) -> None:
+        self._queue_manager.control_queue.put(request)
+
+    def put_input(self, text: str) -> None:
+        self._queue_manager.input_queue.put(text)
 
     def close(self) -> None:
-        """Close kernel, sockets, and pipes."""
-        if isinstance(self.kernel_task, mp.Process):
-            # type ignores:
-            # guaranteed to be a multiprocessing Queue; annoying to assert
-            # this, because mp.Queue appears to be a function
-            #
-            # don't care if the queues still have things in it; don't make the
-            # child process wait for it to empty.
-            self.control_queue.cancel_join_thread()  # type: ignore
-            self.control_queue.close()  # type: ignore
-            self.input_queue.cancel_join_thread()  # type: ignore
-            self.input_queue.close()  # type: ignore
-            if self.kernel_task.is_alive():
-                # Explicitly terminate the process
-                self.kernel_task.terminate()
-            self.read_conn.close()
-        elif self.kernel_task.is_alive():
-            # kernel thread cleans up read/write conn and IOloop handler on
-            # exit; we don't join the thread because we don't want to block
-            self.control_queue.put(requests.StopRequest())
-
-        self.session_handler.on_stop(self.read_conn)
+        self.session_handler.on_stop(self.kernel_manager.kernel_connection)
+        self.kernel_manager.close_kernel()
 
 
 class SessionManager:
@@ -217,7 +280,6 @@ class SessionManager:
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
         self.include_code = include_code
-        # token uniquely identifying this server
 
         if (app := self.load_app()) is not None:
             self.app_config = app._config
@@ -259,7 +321,11 @@ class SessionManager:
         """Create a new session"""
         LOGGER.debug("creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            s = Session(session_handler=session_handler)
+            s = Session.create(
+                session_handler=session_handler,
+                mode=self.mode,
+                app=self.load_app(),
+            )
             self.sessions[session_id] = s
             return s
         else:
@@ -343,7 +409,7 @@ class SessionManager:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
         for session in self.sessions.values():
             session.close()
-        LOGGER.debug("All sessions closed.")
+        LOGGER.debug("Closed all sessions.")
         self.sessions = {}
 
     def shutdown(self) -> None:

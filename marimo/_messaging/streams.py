@@ -3,9 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import io
-import multiprocessing as mp
 import os
-import queue
 import sys
 import threading
 from collections import deque
@@ -15,6 +13,7 @@ from typing import Any, Iterable, Iterator, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._server.types import QueueType
 
 LOGGER = _loggers.marimo_logger()
 
@@ -50,7 +49,7 @@ class Stream:
     def __init__(
         self,
         pipe: Connection,
-        input_queue: mp.Queue[str] | queue.Queue[str],
+        input_queue: QueueType[str],
         cell_id: Optional[CellId_t] = None,
     ):
         self.pipe = pipe

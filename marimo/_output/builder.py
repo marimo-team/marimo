@@ -91,6 +91,7 @@ class _HTMLBuilder:
         width: Optional[str] = None,
         height: Optional[str] = None,
         style: Optional[str] = None,
+        onload: Optional[str] = None,
     ) -> str:
         params: List[Tuple[str, Union[str, None]]] = []
         if src:
@@ -101,6 +102,8 @@ class _HTMLBuilder:
             params.append(("height", height))
         if style:
             params.append(("style", style))
+        if onload:
+            params.append(("onload", onload))
 
         if len(params) == 0:
             return "<iframe />"

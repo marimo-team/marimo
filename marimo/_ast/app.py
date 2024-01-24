@@ -89,6 +89,9 @@ class App:
         self._unparsable = False
         self._initialized = False
 
+    def _cell_configs(self) -> dict[CellId_t, CellConfig]:
+        return {cid: cd.config for cid, cd in self._cell_data.items()}
+
     def _create_cell_id(
         self, cell_function: Optional[CellFunction[CellFuncTypeBound]]
     ) -> CellId_t:

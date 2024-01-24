@@ -16,8 +16,8 @@ test("it can clear and append output", async ({ page }) => {
 
   // Test the end state of the output
   await expect(page.getByText("Appended!")).toBeVisible();
-  await expect(page.getByText("Loading 0/5")).toBeVisible();
-  await expect(page.getByText("Loading 4/5")).toBeVisible();
+  await expect(page.getByText("Loading 0/5").first()).toBeVisible();
+  await expect(page.getByText("Loading 4/5").first()).toBeVisible();
 
   // Test that Cleared does not exist
   await expect(page.getByText("Cleared!")).not.toBeVisible();

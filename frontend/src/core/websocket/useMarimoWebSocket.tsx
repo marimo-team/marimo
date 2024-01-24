@@ -270,5 +270,5 @@ export function useMarimoWebSocket(opts: {
 function createWsUrl(sessionId: string): string {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 
-  return `${protocol}://${window.location.host}/iosocket?session_id=${sessionId}`;
+  return `${protocol}://${window.location.host}/ws?session_id=${sessionId}`;
 }

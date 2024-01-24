@@ -73,6 +73,8 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
+from marimo._server.types import QueueType
+from marimo._utils.signals import restore_signals
 
 LOGGER = _loggers.marimo_logger()
 
@@ -1022,13 +1024,15 @@ class Kernel:
 
 
 def launch_kernel(
-    control_queue: mp.Queue[Request] | queue.Queue[Request],
-    input_queue: mp.Queue[str] | queue.Queue[str],
+    control_queue: QueueType[Request],
+    input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
 ) -> None:
     LOGGER.debug("Launching kernel")
+    if is_edit_mode:
+        restore_signals()
 
     n_tries = 0
     while n_tries < 100:

@@ -36,7 +36,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
       }
 
       return API.post<SetComponentValuesRequest>(
-        "/kernel/set_ui_element_value/",
+        "/kernel/set_ui_element_value",
         {
           objectIds: objectIds,
           values: values,
@@ -44,7 +44,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
       );
     },
     sendRename: (filename: string | null) => {
-      return API.post<RenameRequest>("/kernel/rename/", {
+      return API.post<RenameRequest>("/kernel/rename", {
         filename: filename,
       });
     },
@@ -59,25 +59,25 @@ function createNetworkRequests(): EditRequests & RunRequests {
         "cell codes and configs must be the same length"
       );
 
-      return API.post<SaveKernelRequest>("/kernel/save/", request);
+      return API.post<SaveKernelRequest>("/kernel/save", request);
     },
     sendFormat: (request: FormatRequest) => {
       return API.post<FormatRequest, FormatResponse>(
-        "/kernel/format/",
+        "/kernel/format",
         request
       ).then((res) => res.codes);
     },
     sendInterrupt: () => {
-      return API.post("/kernel/interrupt/", {});
+      return API.post("/kernel/interrupt", {});
     },
     sendShutdown: () => {
-      return API.post("/kernel/shutdown/", {});
+      return API.post("/kernel/shutdown", {});
     },
     sendRun: (cellIds: CellId[], codes: string[]) => {
       // Validate same length
       invariant(cellIds.length === codes.length, "must be the same length");
 
-      return API.post<RunRequest>("/kernel/run/", {
+      return API.post<RunRequest>("/kernel/run", {
         cellIds: cellIds,
         codes: codes,
       });
@@ -89,10 +89,10 @@ function createNetworkRequests(): EditRequests & RunRequests {
         "must be the same length"
       );
 
-      return API.post<InstantiateRequest>("/kernel/instantiate/", request);
+      return API.post<InstantiateRequest>("/kernel/instantiate", request);
     },
     sendDeleteCell: (cellId) => {
-      return API.post<DeleteRequest>("/kernel/delete/", {
+      return API.post<DeleteRequest>("/kernel/delete", {
         cellId: cellId,
       });
     },
@@ -100,42 +100,39 @@ function createNetworkRequests(): EditRequests & RunRequests {
       return API.post<
         SendDirectoryAutocompleteRequest,
         SendDirectoryAutocompleteResponse
-      >("/kernel/directory_autocomplete/", {
+      >("/kernel/directory_autocomplete", {
         prefix: prefix,
       });
     },
     sendCodeCompletionRequest: (request) => {
       return API.post<CodeCompletionRequest>(
-        "/kernel/code_autocomplete/",
+        "/kernel/code_autocomplete",
         request
       );
     },
     saveUserConfig: (request) => {
       return API.post<SaveUserConfigRequest>(
-        "/kernel/save_user_config/",
+        "/kernel/save_user_config",
         request
       );
     },
     saveAppConfig: (request) => {
-      return API.post<SaveAppConfigRequest>(
-        "/kernel/save_app_config/",
-        request
-      );
+      return API.post<SaveAppConfigRequest>("/kernel/save_app_config", request);
     },
     saveCellConfig: (request) => {
       return API.post<SaveCellConfigRequest>(
-        "/kernel/set_cell_config/",
+        "/kernel/set_cell_config",
         request
       );
     },
     sendFunctionRequest: (request) => {
-      return API.post<SendFunctionRequest>("/kernel/function_call/", request);
+      return API.post<SendFunctionRequest>("/kernel/function_call", request);
     },
     sendStdin: (request) => {
-      return API.post<SendStdin>("/kernel/stdin/", request);
+      return API.post<SendStdin>("/kernel/stdin", request);
     },
     readCode: () => {
-      return API.post<{}, { contents: string }>("/kernel/read_code/", {});
+      return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
   };
 }

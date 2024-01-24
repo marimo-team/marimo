@@ -93,7 +93,10 @@ export const Controls = ({
           <ShutdownButton
             onShutdown={() => {
               onShutdown();
-              window.close();
+              // Let the shutdown process start before closing the window.
+              setTimeout(() => {
+                window.close();
+              }, 200);
             }}
           />
         </div>
