@@ -229,9 +229,8 @@ class CellManager:
     provides methods to access them.
     """
 
-    _cell_data: dict[CellId_t, CellData]
-
     def __init__(self) -> None:
+        self._cell_data: dict[CellId_t, CellData] = {}
         self._cell_data = OrderedDict()
         self._cell_id_counter = 0
         self.unparsable = False
