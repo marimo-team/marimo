@@ -17,8 +17,8 @@ def _stderr_supports_color() -> bool:
     try:
         if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
             if curses:
-                curses.setupterm()  # type: ignore[attr-defined]
-                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined]
+                curses.setupterm()  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                if curses.tigetnum("colors") > 0:  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                     return True
     except Exception:
         # Very broad exception handling because it's always better to
@@ -89,7 +89,7 @@ class LogFormatter(logging.Formatter):
         if color and _stderr_supports_color():
             if curses is not None:
                 fg_color = (
-                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""  # type: ignore[attr-defined]
+                    curses.tigetstr("setaf") or curses.tigetstr("setf") or b""  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                 )
 
                 for levelno, code in colors.items():
@@ -97,9 +97,9 @@ class LogFormatter(logging.Formatter):
                     # bytes to unicode strings for easier use with the
                     # logging module.
                     self._colors[levelno] = str(
-                        curses.tparm(fg_color, code), "ascii"  # type: ignore[attr-defined]
+                        curses.tparm(fg_color, code), "ascii"  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                     )
-                normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined]
+                normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                 if normal is not None:
                     self._normal = str(normal, "ascii")
                 else:
