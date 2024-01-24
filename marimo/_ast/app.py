@@ -3,8 +3,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Iterable, Literal, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Literal,
+    Optional,
+    OrderedDict,
+    Union,
+    cast,
+)
 
+from marimo import _loggers
 from marimo._ast.cell import (
     CellConfig,
     CellFunction,
@@ -22,6 +32,8 @@ from marimo._ast.errors import (
 )
 from marimo._output.rich_help import mddoc
 from marimo._runtime.dataflow import DirectedGraph, topological_sort
+
+LOGGER = _loggers.marimo_logger()
 
 
 @dataclass
@@ -82,24 +94,11 @@ class App:
             if key in kwargs:
                 self._config.__setattr__(key, kwargs.pop(key))
 
-        self._cell_data: dict[CellId_t, CellData] = {}
-        self._registration_order: list[CellId_t] = []
+        self._cell_manager = CellManager()
+        self._graph = DirectedGraph()
 
-        self._cell_id_counter = 0
         self._unparsable = False
         self._initialized = False
-
-    def _cell_configs(self) -> dict[CellId_t, CellConfig]:
-        return {cid: cd.config for cid, cd in self._cell_data.items()}
-
-    def _create_cell_id(
-        self, cell_function: Optional[CellFunction[CellFuncTypeBound]]
-    ) -> CellId_t:
-        del cell_function
-        cell_id = str(self._cell_id_counter)
-        self._registration_order.append(cell_id)
-        self._cell_id_counter += 1
-        return str(cell_id)
 
     def cell(
         self,
@@ -138,6 +137,118 @@ class App:
         """
         del kwargs
 
+        return self._cell_manager.cell_decorator(func, disabled, hide_code)
+
+    def _unparsable_cell(
+        self,
+        code: str,
+        name: Optional[str] = None,
+        **config: Any,
+    ) -> None:
+        self._cell_manager.register_unparsable_cell(
+            code,
+            name,
+            CellConfig.from_dict(config),
+        )
+        self._unparsable = True
+
+    def _maybe_initialize(self) -> None:
+        assert not self._unparsable
+
+        if self._initialized:
+            LOGGER.warning(
+                "App was initialized twice. This is probably a bug in marimo."
+            )
+            return
+
+        # Add cells to graph
+        for cell_id, cell_fn in self._cell_manager.valid_cells():
+            self._graph.register_cell(cell_id, cell_fn.cell)
+        self._defs = self._graph.definitions.keys()
+
+        try:
+            # Check for cycles, multiply defined names, and deleted nonlocal
+            if self._graph.cycles:
+                raise CycleError(
+                    "This app can't be run because it has cycles."
+                )
+            name = self._graph.get_multiply_defined()
+            if name is not None:
+                raise MultipleDefinitionError(
+                    "This app can't be run because it has multiple "
+                    f"definitions of the name {name}"
+                )
+            ref = self._graph.get_deleted_nonlocal_ref()
+            if ref is not None:
+                raise DeleteNonlocalError(
+                    "This app can't be run because at least one cell "
+                    f"deletes one of its refs (the ref's name is {ref})"
+                )
+            self._execution_order = topological_sort(
+                self._graph, list(self._cell_manager.valid_cell_ids())
+            )
+        finally:
+            self._initialized = True
+
+    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        if self._unparsable:
+            raise UnparsableError(
+                "This app can't be run because it has unparsable cells."
+            )
+
+        self._maybe_initialize()
+        glbls: dict[Any, Any] = {}
+
+        # Execute cells and collect outputs
+        outputs: dict[CellId_t, Any] = {}
+        for cid in self._execution_order:
+            cell_function = self._cell_manager.cell_data_at(cid).cell_function
+            if cell_function is not None:
+                outputs[cid] = execute_cell(cell_function.cell, glbls)
+
+        # Return
+        # - the outputs, sorted in the order that cells were added to the
+        #   graph
+        # - dict of defs -> values
+        return (
+            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids()),
+            # omit defs that were never defined at runtime, eg due to
+            # conditional definitions like
+            #
+            # if cond:
+            #   x = 0
+            {name: glbls[name] for name in self._defs if name in glbls},
+        )
+
+
+class CellManager:
+    """
+    A manager for cells.
+
+    This holds the cells that have been registered with the app, and
+    provides methods to access them.
+    """
+
+    def __init__(self) -> None:
+        self._cell_data: dict[CellId_t, CellData] = {}
+        self._cell_data = OrderedDict()
+        self._cell_id_counter = 0
+        self.unparsable = False
+
+    def create_cell_id(self) -> CellId_t:
+        cell_id = str(self._cell_id_counter)
+        self._cell_id_counter += 1
+        return cell_id
+
+    def cell_decorator(
+        self,
+        func: Optional[CellFuncTypeBound],
+        disabled: bool,
+        hide_code: bool,
+    ) -> Union[
+        Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
+        CellFunction[CellFuncTypeBound],
+    ]:
         cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
 
         if func is None:
@@ -151,59 +262,53 @@ class App:
                     func, cell_id=str(self._cell_id_counter)
                 )
                 cell_function.cell.configure(cell_config)
-                self._register_cell(cell_function)
+                self._register_cell_function(cell_function)
                 return cell_function
 
             return cast(
                 Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
                 decorator,
             )
-        else:
-            # If the decorator was used without parentheses, func will be the
-            # decorated function
-            cell_function = cell_factory(
-                func, cell_id=str(self._cell_id_counter)
-            )
-            cell_function.cell.configure(cell_config)
-            self._register_cell(cell_function)
-            return cell_function
 
-    def _register_cell(
+        # If the decorator was used without parentheses, func will be the
+        # decorated function
+        cell_function = cell_factory(func, cell_id=str(self._cell_id_counter))
+        cell_function.cell.configure(cell_config)
+        self._register_cell_function(cell_function)
+        return cell_function
+
+    def _register_cell_function(
         self, cell_function: CellFunction[CellFuncTypeBound]
     ) -> None:
-        cell_id = self._create_cell_id(cell_function)
-        self._cell_data[cell_id] = CellData(
-            cell_id=cell_id,
+        self.register_cell(
             code=cell_function.cell.code,
             name=cell_function.__name__,
             config=cell_function.cell.config,
             cell_function=cast(CellFunction[CellFuncType], cell_function),
         )
 
-    def _names(self) -> Iterable[str]:
-        return (cell_data.name for cell_data in self._cell_data.values())
-
-    def _codes(self) -> Iterable[str]:
-        return (cell_data.code for cell_data in self._cell_data.values())
-
-    def _configs(self) -> Iterable[CellConfig]:
-        return (cell_data.config for cell_data in self._cell_data.values())
-
-    def _cell_functions(
-        self,
-    ) -> Iterable[Optional[CellFunction[CellFuncType]]]:
-        return (
-            cell_data.cell_function for cell_data in self._cell_data.values()
-        )
-
-    def _unparsable_cell(
+    def register_cell(
         self,
         code: str,
-        name: Optional[str] = None,
-        **config: Any,
+        config: Optional[CellConfig],
+        name: str = "__",
+        cell_function: Optional[CellFunction[CellFuncType]] = None,
     ) -> None:
-        cell_id = self._create_cell_id(None)
-        name = name if name is not None else "__"
+        cell_id = self.create_cell_id()
+        self._cell_data[cell_id] = CellData(
+            cell_id=cell_id,
+            code=code,
+            name=name,
+            config=config or CellConfig(),
+            cell_function=cell_function,
+        )
+
+    def register_unparsable_cell(
+        self,
+        code: str,
+        name: Optional[str],
+        cell_config: CellConfig,
+    ) -> None:
         # - code.split("\n")[1:-1] disregards first and last lines, which are
         #   empty
         # - line[4:] removes leading indent in multiline string
@@ -212,102 +317,74 @@ class App:
         code = "\n".join(
             [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
         )
-        self._cell_data[cell_id] = CellData(
-            cell_id=cell_id,
-            code=code,
-            name=name,
-            config=CellConfig.from_dict(config),
+
+        self.register_cell(
+            code,
+            cell_config,
+            name or "__",
             cell_function=None,
         )
-        self._unparsable = True
 
-    def _maybe_initialize(self) -> None:
-        assert not self._unparsable
-        if not self._initialized:
-            # ids of cells to add to the graph, in the order that they
-            # were registered with the app
-            self._cell_ids = [
-                # exclude unparsable cells from graph
-                cell_data.cell_id
-                for cell_data in self._cell_data.values()
-                if cell_data.cell_function is not None
-            ]
-            self._graph = DirectedGraph()
-            for cell_id in self._cell_ids:
-                cell_function = self._cell_data[cell_id].cell_function
-                assert cell_function is not None
-                self._graph.register_cell(cell_id, cell_function.cell)
-            self._defs = self._graph.definitions.keys()
+    def names(self) -> Iterable[str]:
+        for cell_data in self._cell_data.values():
+            yield cell_data.name
 
-            # these two helper functions could be written as concise
-            # `any` expressions using assignment expressions, but
-            # that's a silly reason to make Python < 3.8 incompatible
-            # with marimo.
-            def get_multiply_defined() -> Optional[str]:
-                for name, definers in self._graph.definitions.items():
-                    if len(definers) > 1:
-                        return name
-                return None
+    def codes(self) -> Iterable[str]:
+        for cell_data in self._cell_data.values():
+            yield cell_data.code
 
-            def get_deleted_nonlocal_ref() -> Optional[str]:
-                for cell in self._graph.cells.values():
-                    for ref in cell.deleted_refs:
-                        if ref in self._graph.definitions:
-                            return ref
-                return None
+    def configs(self) -> Iterable[CellConfig]:
+        for cell_data in self._cell_data.values():
+            yield cell_data.config
 
-            try:
-                if self._graph.cycles:
-                    raise CycleError(
-                        "This app can't be run because it has cycles."
-                    )
-                name = get_multiply_defined()
-                if name is not None:
-                    raise MultipleDefinitionError(
-                        "This app can't be run because it has multiple "
-                        f"definitions of the name {name}"
-                    )
-                ref = get_deleted_nonlocal_ref()
-                if ref is not None:
-                    raise DeleteNonlocalError(
-                        "This app can't be run because at least one cell "
-                        f"deletes one of its refs (the ref's name is {ref})"
-                    )
-                self._execution_order = topological_sort(
-                    self._graph, self._cell_ids
-                )
-            finally:
-                self._initialized = True
+    def valid_cells(
+        self,
+    ) -> Iterable[tuple[CellId_t, CellFunction[CellFuncType]]]:
+        """Return cells and functions for each valid cell."""
+        for cell_data in self._cell_data.values():
+            if cell_data.cell_function is not None:
+                yield (cell_data.cell_id, cell_data.cell_function)
 
-    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
-        if self._unparsable:
-            raise UnparsableError(
-                "This app can't be run because it has unparsable cells."
-            )
+    def valid_cell_ids(self) -> Iterable[CellId_t]:
+        for cell_data in self._cell_data.values():
+            if cell_data.cell_function is not None:
+                yield cell_data.cell_id
 
-        self._maybe_initialize()
-        glbls: dict[Any, Any] = {}
-        outputs = {
-            cid: execute_cell(cell_function.cell, glbls)
-            for cid in self._execution_order
-            if (cell_function := self._cell_data[cid].cell_function)
-            is not None
-        }
-        # Return
-        # - the outputs, sorted in the order that cells were added to the
-        #   graph
-        # - dict of defs -> values
-        return (
-            tuple(
-                outputs[cid]
-                for cid in self._registration_order
-                # exclude unparsable cells
-                if cid in outputs
-            ),
-            # omit defs that were never defined at runtime, eg due to
-            # conditional definitions like
-            #
-            # if cond:
-            #   x = 0
-            {name: glbls[name] for name in self._defs if name in glbls},
-        )
+    def cell_ids(self) -> Iterable[CellId_t]:
+        """Cell IDs in the order they were registered."""
+        return self._cell_data.keys()
+
+    def cell_functions(
+        self,
+    ) -> Iterable[Optional[CellFunction[CellFuncType]]]:
+        for cell_data in self._cell_data.values():
+            yield cell_data.cell_function
+
+    def config_map(self) -> dict[CellId_t, CellConfig]:
+        return {cid: cd.config for cid, cd in self._cell_data.items()}
+
+    def cell_data(self) -> Iterable[CellData]:
+        return self._cell_data.values()
+
+    def cell_data_at(self, cell_id: CellId_t) -> CellData:
+        return self._cell_data[cell_id]
+
+
+class InternalApp:
+    """
+    Internal representation of an app.
+
+    This exposes private APIs that are used by the server and other
+    internal components.
+    """
+
+    def __init__(self, app: App) -> None:
+        self._app = app
+
+    @property
+    def config(self) -> _AppConfig:
+        return self._app._config
+
+    @property
+    def cell_manager(self) -> CellManager:
+        return self._app._cell_manager

@@ -205,14 +205,16 @@ async def save_app_config(
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     mgr = app_state.session_manager
     mgr.update_app_config(body.config)
+
     # Update the file with the latest app config
     # TODO(akshayka): Only change the `app = marimo.App` line (at top level
     # of file), instead of overwriting the whole file.
     app = mgr.load_app()
-    if app is not None and mgr.filename is not None:
-        codes = list(app._codes())
-        names = list(app._names())
-        configs = list(app._configs())
+
+    if mgr.filename is not None:
+        codes = list(app.cell_manager.codes())
+        names = list(app.cell_manager.names())
+        configs = list(app.cell_manager.configs())
 
         # Try to save the app under the name `mgr.filename`
         contents = codegen.generate_filecontents(
