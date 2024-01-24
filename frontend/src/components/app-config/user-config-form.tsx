@@ -66,9 +66,7 @@ export const UserConfigForm: React.FC = () => {
                     <Checkbox
                       checked={field.value === "after_delay"}
                       onCheckedChange={(checked) => {
-                        return field.onChange(
-                          checked === true ? "after_delay" : "off"
-                        );
+                        field.onChange(checked ? "after_delay" : "off");
                       }}
                     />
                   </FormControl>
@@ -114,7 +112,7 @@ export const UserConfigForm: React.FC = () => {
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={(checked) => {
-                        return field.onChange(checked);
+                        field.onChange(checked);
                       }}
                     />
                   </FormControl>
@@ -159,7 +157,7 @@ export const UserConfigForm: React.FC = () => {
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={(checked) => {
-                        return field.onChange(Boolean(checked));
+                        field.onChange(Boolean(checked));
                       }}
                     />
                   </FormControl>
@@ -278,7 +276,7 @@ export const UserConfigForm: React.FC = () => {
                       size={"sm"}
                       checked={field.value}
                       onCheckedChange={(checked) => {
-                        return field.onChange(Boolean(checked));
+                        field.onChange(Boolean(checked));
                       }}
                     />
                   </FormControl>

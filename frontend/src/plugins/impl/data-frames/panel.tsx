@@ -116,7 +116,7 @@ export const TransformPanel: React.FC<Props> = ({
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {
-    const next = getDefaults(transform) as TransformType;
+    const next: TransformType = getDefaults(transform);
     const nextIdx = transformsField.fields.length;
     transformsField.append(next);
     setSelectedTransform(nextIdx);

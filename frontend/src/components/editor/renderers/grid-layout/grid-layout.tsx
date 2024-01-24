@@ -282,6 +282,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
             <div
               key={cell.id}
               draggable={true}
+              // eslint-disable-next-line react/no-unknown-property
               unselectable="on"
               data-cell-id={cell.id}
               // Firefox requires some kind of initialization which we can do by adding this attribute

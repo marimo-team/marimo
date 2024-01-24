@@ -55,7 +55,7 @@ export const HtmlOutput: React.FC<Props> = memo(
             const code = scriptNode.innerText;
             const fnbody = `"use strict"; return (async () => {${code}})()`;
             try {
-              // eslint-disable-next-line no-new-func
+              // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
               await new Function(fnbody)();
             } catch (error) {
               Logger.error("Failed to execute script ", scriptNode);

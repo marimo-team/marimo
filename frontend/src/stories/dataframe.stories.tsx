@@ -33,7 +33,7 @@ export const DataFrame: StoryObj = {
           console.log(v);
           setValue(v);
         }}
-        get_dataframe={() => Promise.reject({})}
+        get_dataframe={() => Promise.reject(new Error("not implemented"))}
       />
     );
   },

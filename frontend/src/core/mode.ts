@@ -61,7 +61,8 @@ export async function runDuringPresentMode(
 ): Promise<void> {
   const state = store.get(viewStateAtom);
   if (state.mode === "present") {
-    return await fn();
+    await fn();
+    return;
   }
 
   store.set(viewStateAtom, { ...state, mode: "present" });

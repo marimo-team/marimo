@@ -3,7 +3,7 @@ import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { useLocalStorage } from "./useLocalStorage";
 
 const MAX_RECENT_COMMANDS = 3;
-type RecentCommandId = HotkeyAction | string;
+type RecentCommandId = HotkeyAction | (string & {});
 
 export function useRecentCommands() {
   const [commands, setCommands] = useLocalStorage<RecentCommandId[]>(

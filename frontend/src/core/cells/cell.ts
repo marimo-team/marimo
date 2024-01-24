@@ -64,11 +64,11 @@ export function transitionCell(
     message.output !== null &&
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
-    if (message.output.data.some((error) => error["type"] === "interruption")) {
+    if (message.output.data.some((error) => error.type === "interruption")) {
       // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
     } else if (
-      message.output.data.some((error) => error["type"] === "ancestor-stopped")
+      message.output.data.some((error) => error.type === "ancestor-stopped")
     ) {
       // The cell didn't run, but it was intentional, so don't count as
       // errored.

@@ -121,9 +121,7 @@ export const WithCustomFilterFn = () => (
     <Combobox
       placeholder="Select favorite frameworks"
       displayValue={(framework: Framework) => framework.label}
-      filterFn={(value, search) =>
-        value.charAt(0) === search.charAt(0) ? 1 : 0
-      }
+      filterFn={(value, search) => (value.startsWith(search) ? 1 : 0)}
     >
       {frameworks.map((framework) => (
         <ComboboxItem key={framework.value} value={framework}>

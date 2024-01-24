@@ -50,9 +50,9 @@ export const MarimoApp: React.FC = () => {
           <ModalProvider>
             <CssVariables
               variables={{
-                "--marimo-code-editor-font-size": `${toRem(
+                "--marimo-code-editor-font-size": toRem(
                   userConfig.display.code_editor_font_size
-                )}`,
+                ),
               }}
             >
               {body}

@@ -21,7 +21,7 @@ export function useIsDragging() {
     if (mouseIsDown) {
       const dx = event.clientX - initialPosition.x;
       const dy = event.clientY - initialPosition.y;
-      setIsDragging(Math.sqrt(dx * dx + dy * dy) > OFFSET);
+      setIsDragging(Math.hypot(dx, dy) > OFFSET);
     }
   };
 

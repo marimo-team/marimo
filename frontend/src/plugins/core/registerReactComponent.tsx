@@ -354,7 +354,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         // Support for styles with Vite
         if (
           sheet.ownerNode instanceof HTMLElement &&
-          sheet.ownerNode.dataset["viteDevId"]
+          sheet.ownerNode.dataset.viteDevId
         ) {
           return true;
         }
@@ -365,7 +365,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         const sheetUniqueKey =
           sheet.href ??
           (sheet.ownerNode instanceof HTMLElement
-            ? sheet.ownerNode.dataset["viteDevId"]
+            ? sheet.ownerNode.dataset.viteDevId
             : undefined);
         if (!sheetUniqueKey) {
           continue;

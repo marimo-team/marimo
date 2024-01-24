@@ -19,9 +19,7 @@ export function parseStaticState(): StaticNotebookState {
 }
 
 export function isStaticNotebook(): boolean {
-  return (
-    typeof window !== "undefined" && window.__MARIMO_STATIC__ !== undefined
-  );
+  return window?.__MARIMO_STATIC__ !== undefined;
 }
 
 export function getStaticNotebookAssetUrl(): string {

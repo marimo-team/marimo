@@ -37,7 +37,7 @@ export function createPlugin<S>(tagName: string) {
         /**
          * Render the plugin.
          */
-        renderer(renderer: Renderer<S, D, unknown>): IPlugin<S, D, {}> {
+        renderer(renderer: Renderer<S, D, unknown>): IPlugin<S, D> {
           return {
             tagName,
             validator,
