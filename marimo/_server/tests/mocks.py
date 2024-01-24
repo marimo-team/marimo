@@ -48,8 +48,8 @@ def with_session(
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
     """Decorator to create a session and close it after the test"""
 
-    def decorator(func: Callable[..., None]):
-        def wrapper(client: TestClient):
+    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+        def wrapper(client: TestClient) -> None:
             with client.websocket_connect(
                 f"/ws?session_id={session_id}"
             ) as websocket:

@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from marimo._server.api.interrupt import InterruptHandler
 
 
-def test_interrupt_handler():
+def test_interrupt_handler() -> None:
     shutdown_mock = Mock()
 
     # Create an instance of InterruptHandler with quiet mode disabled
