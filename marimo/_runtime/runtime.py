@@ -21,6 +21,7 @@ from typing import Any, Callable, Iterator, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
+from marimo._ast.visitor import is_local
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -884,7 +885,7 @@ class Kernel:
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
-                    # Don't run descendants
+                    # Don't run referring elements of this UI element
                     continue
                 except Exception:
                     # User's on_change handler an exception ...
@@ -898,8 +899,12 @@ class Kernel:
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
 
-            bound_names = get_context().ui_element_registry.bound_names(
-                object_id
+            bound_names = (
+                name
+                for name in get_context().ui_element_registry.bound_names(
+                    object_id
+                )
+                if not is_local(name)
             )
 
             variable_values: list[VariableValue] = []
@@ -909,10 +914,27 @@ class Kernel:
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
-                referring_cells.update(
-                    self.graph.get_referring_cells(name)
-                    - self.graph.definitions[name]
-                )
+                try:
+                    referring_cells.update(
+                        self.graph.get_referring_cells(name)
+                        - self.graph.definitions[name]
+                    )
+                except Exception:
+                    # Internal marimo error
+                    sys.stderr.write(
+                        "An exception was raised when finding cells that "
+                        f"refer to a UIElement value, for bound name {name}. "
+                        "This is a bug in marimo. "
+                        "Please copy the below traceback and paste it in an "
+                        "issue: https://github.com/marimo-team/marimo/issues\n"
+                    )
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    sys.stderr.write(tmpio.read())
+                    # Entering undefined behavior territory ...
+                    continue
+
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
         self._run_cells(

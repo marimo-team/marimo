@@ -84,6 +84,18 @@ def test_set_ui_element_value(k: Kernel) -> None:
     assert k.globals["x"] == 6
 
 
+def test_set_local_var_ui_element_value(k: Kernel) -> None:
+    k.run([ExecutionRequest("0", "import marimo as mo")])
+    k.run([ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")])
+    # _s's name is mangled to _cell_1_s because it is local
+    assert k.globals["_cell_1_s"].value == 1
+
+    element_id = k.globals["_cell_1_s"]._id
+    # This shouldn't crash the kernel, and s's value should still be updated
+    k.set_ui_element_value(SetUIElementValueRequest([(element_id, 5)]))
+    assert k.globals["_cell_1_s"].value == 5
+
+
 def test_creation_with_ui_element_value(k: Kernel) -> None:
     id_provider = IDProvider(prefix="1")
     k.instantiate(
