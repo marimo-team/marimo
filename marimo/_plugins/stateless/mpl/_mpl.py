@@ -37,18 +37,18 @@ from marimo._utils.signals import get_signals
 
 
 class FigureManagers:
-    def __init__(self):
+    def __init__(self) -> None:
         self.figure_managers: dict[str, Any] = {}
 
-    def add(self, manager: Any):
+    def add(self, manager: Any) -> None:
         self.figure_managers[str(manager.num)] = manager
 
-    def get(self, figure_id: str):
+    def get(self, figure_id: str) -> Any:
         if figure_id not in self.figure_managers:
             raise RuntimeError(f"Figure {figure_id} not found.")  # noqa: E501
         return self.figure_managers[str(figure_id)]
 
-    def remove(self, manager: Any):
+    def remove(self, manager: Any) -> None:
         del self.figure_managers[str(manager.num)]
 
 
@@ -60,11 +60,11 @@ def create_application(
     port: int,
 ) -> Starlette:
     import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]
+    from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]  # noqa: E501
         FigureManagerWebAgg,
     )
 
-    async def main_page(request: Request):
+    async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
         assert figure_id is not None
         ws_uri = f"ws://{host}:{port}/ws?figure={figure_id}"
@@ -83,7 +83,7 @@ def create_application(
             media_type="application/javascript",
         )
 
-    async def download(request: Request):
+    async def download(request: Request) -> Response:
         figure_id = request.query_params.get("figure")
         assert figure_id is not None
         fmt = request.path_params["fmt"]
@@ -187,7 +187,7 @@ def get_or_create_application() -> Starlette:
                     log_level="critical",
                 )
             ).run()
-            for signo, handler in signal_handlers:
+            for signo, handler in signal_handlers.items():
                 signal.signal(signo, handler)
 
         threading.Thread(target=start_server).start()
