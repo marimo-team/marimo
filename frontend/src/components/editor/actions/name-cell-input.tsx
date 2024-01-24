@@ -104,12 +104,13 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
 
     // Empty
     if (!newValue || newValue === DEFAULT_CELL_NAME) {
-      return onChange(newValue);
+      onChange(newValue);
+      return;
     }
 
     // Get unique name
     const validName = getValidName(newValue, getCellNames());
-    return onChange(validName);
+    onChange(validName);
   };
 
   return {
@@ -117,7 +118,7 @@ function useCellNameInput(value: string, onChange: (newName: string) => void) {
     onChange: (evt: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = evt.target.value;
       const normalized = normalizeName(newValue);
-      return setInternalValue(normalized);
+      setInternalValue(normalized);
     },
     onBlur: (evt: Pick<Event, "target">) => {
       if (evt.target instanceof HTMLInputElement) {

@@ -23,9 +23,9 @@ async function tryConnection(url: string) {
       ws.close();
       resolve(url);
     };
-    ws.onerror = (err) => {
+    ws.onerror = (evt) => {
       ws.close();
-      reject(err);
+      reject(new Error(`Failed to connect to ${url}: ${evt.type}`));
     };
   });
 }

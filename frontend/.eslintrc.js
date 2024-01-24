@@ -60,6 +60,7 @@ module.exports = {
     "ssr-friendly/no-dom-globals-in-constructor": "off",
     "react/prop-types": "off",
     "react/no-unescaped-entities": "off",
+    "@typescript-eslint/no-unnecessary-condition": "off",
     "@typescript-eslint/ban-types": [
       "error",
       {
@@ -69,6 +70,10 @@ module.exports = {
         },
         extendDefaults: true,
       },
+    ],
+    "@typescript-eslint/no-confusing-void-expression": [
+      "error",
+      { ignoreArrowShorthand: true },
     ],
     "@typescript-eslint/prefer-nullish-coalescing": "off", // Throws an error: TypeError: Cannot read properties of undefined (reading 'some')
     "@typescript-eslint/no-unused-vars": "off",

@@ -63,7 +63,7 @@ import {
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
-  schema: z.ZodType<any>;
+  schema: z.ZodType;
   path?: Path<T>;
 }
 

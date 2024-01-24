@@ -61,7 +61,7 @@ export const AppConfigForm: React.FC = () => {
                   checked={field.value === "full"}
                   size="sm"
                   onCheckedChange={(checked) => {
-                    field.onChange(checked === true ? "full" : "normal");
+                    field.onChange(checked ? "full" : "normal");
                   }}
                 />
               </FormControl>

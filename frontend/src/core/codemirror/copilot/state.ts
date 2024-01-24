@@ -27,6 +27,6 @@ export function isCopilotEnabled() {
 
 export function waitForEnabledCopilot() {
   return waitFor(userConfigAtom, (value) => {
-    return value.completion.copilot === true;
+    return value.completion.copilot;
   });
 }

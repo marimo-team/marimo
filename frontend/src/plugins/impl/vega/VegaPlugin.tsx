@@ -173,7 +173,7 @@ const LoadedVegaComponent = ({
 
   const signalListeners = useMemo(
     () =>
-      names.reduce((acc, name) => {
+      names.reduce<SignalListeners>((acc, name) => {
         // Debounce each signal listener, otherwise we may create expensive requests
         acc[name] = debounce((signalName, signalValue) => {
           Logger.debug("[Vega signal]", signalName, signalValue);
@@ -186,7 +186,7 @@ const LoadedVegaComponent = ({
           });
         }, 100);
         return acc;
-      }, {} as SignalListeners),
+      }, {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [useDeepCompareMemoize(names), setValue]
   );
