@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
 import { EditorView } from "@codemirror/view";
 import { atomWithReducer } from "jotai/utils";

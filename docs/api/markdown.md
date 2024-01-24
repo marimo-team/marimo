@@ -7,3 +7,11 @@ elements.
 ```{eval-rst}
 .. autofunction:: marimo.md
 ```
+
+## Icons
+
+You can render icons from [Iconify](https://icon-sets.iconify.design/) with `mo.icon`.
+
+```{eval-rst}
+.. autofunction:: marimo.icon
+```

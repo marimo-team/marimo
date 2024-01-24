@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
 import { NoInfer } from "@tanstack/react-table";
@@ -12,9 +12,7 @@ interface ReducerAction<T> {
 type Dispatch = (action: ReducerAction<any>) => void;
 type IfUnknown<T, Y, N> = unknown extends T ? Y : N;
 
-interface ReducerHandler<State, Payload> {
-  (state: State, payload: Payload): State;
-}
+type ReducerHandler<State, Payload> = (state: State, payload: Payload) => State;
 
 interface ReducerHandlers<State> {
   [K: string]: ReducerHandler<State, any>;

@@ -92,6 +92,12 @@ jobs:
         if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
         run: |
           mypy --config-file pyproject.toml marimo/
+      # This step is needed since some of our tests rely on the index.html file
+      - name: Create assets directory, copy over index.html
+        run: |
+          mkdir -p marimo/_static/assets
+          cp frontend/index.html marimo/_static/index.html
+          cp frontend/public/favicon.ico marimo/_static/favicon.ico
       - name: Test
         run: |
           pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
@@ -106,4 +112,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: crate-ci/typos@v1.17.1
+      - uses: crate-ci/typos@v1.17.2

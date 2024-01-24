@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";

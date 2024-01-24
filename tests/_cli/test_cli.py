@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """
 Crude CLI tests
 
@@ -72,9 +72,9 @@ def test_cli_edit() -> None:
     port = _get_port()
     p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode=edit", contents)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version={__version__}".encode(), contents
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
     _check_contents(p, b"marimo-server-token", contents)
 
@@ -93,9 +93,9 @@ def test_cli_run() -> None:
         ["marimo", "run", path, "-p", str(port), "--headless"]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode=read", contents)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version={__version__}".encode(), contents
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
 
 
@@ -121,9 +121,9 @@ def test_cli_run_with_show_code() -> None:
         ]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode=read", contents)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
     _check_contents(
-        p, f"marimo-version data-version={__version__}".encode(), contents
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
 
 
@@ -133,8 +133,8 @@ def test_cli_tutorial() -> None:
         ["marimo", "tutorial", "intro", "-p", str(port), "--headless"]
     )
     contents = _try_fetch(port)
-    _check_contents(p, b"marimo-mode data-mode=edit", contents)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
-        p, f"marimo-version data-version={__version__}".encode(), contents
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
     _check_contents(p, b"intro.py", contents)

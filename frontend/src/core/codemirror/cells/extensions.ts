@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { EditorView, KeyBinding, keymap } from "@codemirror/view";
 import { CellId, HTMLCellId } from "@/core/cells/ids";
@@ -7,7 +7,6 @@ import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
-import { clearTooltips } from "../completion/hints";
 import { closeCompletion } from "@codemirror/autocomplete";
 
 export interface MovementCallbacks
@@ -204,7 +203,6 @@ export function cellMovementBundle(
       run: (ev) => {
         const isHidden = toggleHideCode();
         closeCompletion(ev);
-        clearTooltips(ev);
         // If we are newly hidden, blur the editor
         if (isHidden) {
           ev.contentDOM.blur();

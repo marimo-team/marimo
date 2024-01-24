@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendFunctionRequest } from "@/core/network/requests";

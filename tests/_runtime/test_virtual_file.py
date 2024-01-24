@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from marimo._runtime.context import get_context
@@ -42,7 +42,7 @@ def test_virtual_file_deletion(k: Kernel, exec_req: ExecReqProvider) -> None:
     for fname, _ in get_context().virtual_file_registry.registry.items():
         assert fname.endswith(".pdf")
 
-    k.delete(DeleteRequest(er.cell_id))
+    k.delete(DeleteRequest(cell_id=er.cell_id))
     assert not get_context().virtual_file_registry.registry
 
 
@@ -82,8 +82,8 @@ def test_cached_virtual_file_not_deleted(
     assert len(get_context().virtual_file_registry.registry) == 2
 
     # Remove the cells that create the vfiles
-    k.delete(DeleteRequest(create_vfile_1.cell_id))
-    k.delete(DeleteRequest(create_vfile_2.cell_id))
+    k.delete(DeleteRequest(cell_id=create_vfile_1.cell_id))
+    k.delete(DeleteRequest(cell_id=create_vfile_2.cell_id))
 
     # Reset the vfile cache
     k.run([vfile_cache])
@@ -116,7 +116,7 @@ def test_cell_deletion_clears_vfiles(
     assert len(get_context().virtual_file_registry.registry) == 1
 
     # Delete the vfile cache: virtual file registry should be empty
-    k.delete(DeleteRequest(vfile_cache.cell_id))
+    k.delete(DeleteRequest(cell_id=vfile_cache.cell_id))
     assert len(get_context().virtual_file_registry.registry) == 0
 
 

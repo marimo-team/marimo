@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { test } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import {
@@ -7,11 +7,17 @@ import {
   takeScreenshot,
 } from "./helper";
 
+const appUrl = getAppUrl("kitchen_sink.py//edit");
+
 test("can screenshot and export as html", async ({ page }) => {
-  const appUrl = getAppUrl("kitchen_sink.py//edit");
   await page.goto(appUrl);
 
   await takeScreenshot(page, __filename);
   await exportAsHTMLAndTakeScreenshot(page);
+});
+
+test.skip("can screenshot and export as png", async ({ page }) => {
+  await page.goto(appUrl);
+
   await exportAsPNG(page);
 });

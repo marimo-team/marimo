@@ -1,9 +1,10 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import builtins
 import contextlib
 import dataclasses
+import functools
 import io
 import itertools
 import multiprocessing as mp
@@ -15,10 +16,12 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
-from typing import Any, Iterator, Optional
+from typing import Any, Callable, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, parse_cell
+from marimo._ast.cell import CellConfig, CellId_t
+from marimo._ast.compiler import compile_cell
+from marimo._ast.visitor import is_local
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -40,12 +43,12 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
-from marimo._messaging.streams import Stderr, Stdout, Stream
+from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._runtime import cell_runner, dataflow
+from marimo._runtime import cell_runner, dataflow, marimo_pdb
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -54,6 +57,7 @@ from marimo._runtime.context import (
     initialize_context,
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.input_override import input_override
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     CompletionRequest,
@@ -70,6 +74,8 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
+from marimo._server.types import QueueType
+from marimo._utils.signals import restore_signals
 
 LOGGER = _loggers.marimo_logger()
 
@@ -152,13 +158,45 @@ class CellMetadata:
 
 
 class Kernel:
+    """Kernel that manages the dependency graph and its execution.
+
+    Args:
+
+    - cell_configs: initial configuration for each cell
+    - input_override: a function that overrides the builtin input() function
+    """
+
+    def patch_pdb(self, debugger: marimo_pdb.MarimoPdb) -> None:
+        import pdb
+
+        # Patch Pdb so manually instantiated debuggers create our debugger
+        pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
+        pdb.set_trace = functools.partial(
+            marimo_pdb.set_trace, debugger=debugger
+        )
+
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        stream: Stream,
+        stdout: Stdout | None,
+        stderr: Stderr | None,
+        stdin: Stdin | None,
+        input_override: Callable[[Any], str] = input_override,
     ) -> None:
+        self.stream = stream
+        self.stdout = stdout
+        self.stderr = stderr
+        self.stdin = stdin
+        self._debugger = marimo_pdb.MarimoPdb(
+            stdout=self.stdout, stdin=self.stdin
+        )
+        self.patch_pdb(self._debugger)
+
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
+            "input": input_override,
         }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
@@ -190,7 +228,11 @@ class Kernel:
             cell_id, setting_element_value
         )
         with get_context().provide_ui_ids(str(cell_id)), redirect_streams(
-            cell_id
+            cell_id,
+            stream=self.stream,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
         ):
             try:
                 yield self.execution_context
@@ -209,9 +251,7 @@ class Kernel:
         """
         error: Optional[Error] = None
         try:
-            cell = parse_cell(
-                code, cell_runner.cell_filename(cell_id), cell_id
-            )
+            cell = compile_cell(code, cell_id=cell_id)
         except Exception as e:
             cell = None
             if isinstance(e, SyntaxError):
@@ -845,7 +885,7 @@ class Kernel:
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
-                    # Don't run descendants
+                    # Don't run referring elements of this UI element
                     continue
                 except Exception:
                     # User's on_change handler an exception ...
@@ -859,8 +899,12 @@ class Kernel:
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
 
-            bound_names = get_context().ui_element_registry.bound_names(
-                object_id
+            bound_names = (
+                name
+                for name in get_context().ui_element_registry.bound_names(
+                    object_id
+                )
+                if not is_local(name)
             )
 
             variable_values: list[VariableValue] = []
@@ -870,10 +914,27 @@ class Kernel:
                 variable_values.append(
                     VariableValue(name=name, value=component)
                 )
-                referring_cells.update(
-                    self.graph.get_referring_cells(name)
-                    - self.graph.definitions[name]
-                )
+                try:
+                    referring_cells.update(
+                        self.graph.get_referring_cells(name)
+                        - self.graph.definitions[name]
+                    )
+                except Exception:
+                    # Internal marimo error
+                    sys.stderr.write(
+                        "An exception was raised when finding cells that "
+                        f"refer to a UIElement value, for bound name {name}. "
+                        "This is a bug in marimo. "
+                        "Please copy the below traceback and paste it in an "
+                        "issue: https://github.com/marimo-team/marimo/issues\n"
+                    )
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    sys.stderr.write(tmpio.read())
+                    # Entering undefined behavior territory ...
+                    continue
+
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
         self._run_cells(
@@ -985,12 +1046,15 @@ class Kernel:
 
 
 def launch_kernel(
-    execution_queue: mp.Queue[Request] | queue.Queue[Request],
+    control_queue: QueueType[Request],
+    input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
 ) -> None:
     LOGGER.debug("Launching kernel")
+    if is_edit_mode:
+        restore_signals()
 
     n_tries = 0
     while n_tries < 100:
@@ -1006,18 +1070,26 @@ def launch_kernel(
         return
 
     # Create communication channels
-    stream = Stream(pipe)
+    stream = Stream(pipe=pipe, input_queue=input_queue)
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
     stdout = Stdout(stream) if is_edit_mode else None
     stderr = Stderr(stream) if is_edit_mode else None
+    # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
+    # isn't currently available in run mode.
+    stdin = Stdin(stream) if is_edit_mode else None
 
-    kernel = Kernel(cell_configs=configs)
-    initialize_context(
-        kernel=kernel,
+    kernel = Kernel(
+        cell_configs=configs,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
+        stdin=stdin,
+        input_override=input_override,
+    )
+    initialize_context(
+        kernel=kernel,
+        stream=stream,
     )
 
     if is_edit_mode:
@@ -1092,7 +1164,7 @@ def launch_kernel(
 
     while True:
         try:
-            request = execution_queue.get()
+            request = control_queue.get()
         except Exception as e:
             # triggered on Windows when quit with Ctrl+C
             LOGGER.debug("kernel queue.get() failed %s", e)

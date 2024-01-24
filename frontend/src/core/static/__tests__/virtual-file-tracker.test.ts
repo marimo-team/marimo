@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { VirtualFileTracker, findVirtualFiles } from "../virtual-file-tracker";
 import { CellId } from "@/core/cells/ids";

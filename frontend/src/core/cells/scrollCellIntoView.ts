@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { RefObject } from "react";
 import { Logger } from "../../utils/Logger";
 import { CellId, HTMLCellId } from "./ids";

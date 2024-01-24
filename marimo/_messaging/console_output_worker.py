@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import time
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from marimo._messaging.streams import Stream
 
-StreamT = Literal["stdout", "stderr"]
+StreamT = Literal["stdout", "stderr", "stdin"]
 
 # Flush console outputs every 10ms
 TIMEOUT_S = 0.01

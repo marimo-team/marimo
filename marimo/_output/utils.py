@@ -1,7 +1,7 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Dict, Union
+from typing import Optional, Union
 
 
 def build_data_url(mimetype: str, data: bytes) -> str:
@@ -13,5 +13,10 @@ def flatten_string(text: str) -> str:
     return "".join([line.strip() for line in text.split("\n")])
 
 
-def create_style(pairs: Dict[str, Union[str, int, float, None]]) -> str:
+def create_style(
+    pairs: dict[str, Union[str, int, float, None]]
+) -> Optional[str]:
+    if not pairs:
+        return None
+
     return ";".join([f"{k}: {v}" for k, v in pairs.items() if v is not None])

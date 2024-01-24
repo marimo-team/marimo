@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
 
 import { parseShortcut } from "../core/hotkeys/shortcuts";
@@ -7,7 +7,9 @@ import { useEvent } from "./useEvent";
 import { useSetRegisteredAction } from "../core/hotkeys/actions";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
+import { Logger } from "@/utils/Logger";
 
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
 
 /**
@@ -16,10 +18,7 @@ type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
  * @param callback The callback to run when the shortcut is pressed. It does not need to be memoized as this hook will always use the latest callback.
  * If the callback returns false, preventDefault will not be called on the event.
  */
-export function useHotkey(
-  shortcut: HotkeyAction,
-  callback: () => boolean | void | undefined
-) {
+export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const { registerAction, unregisterAction } = useSetRegisteredAction();
 
   const memoizeCallback = useEvent(() => callback());
@@ -58,7 +57,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
     for (const [shortcut, callback] of Objects.entries(handlers)) {
       const key = HOTKEYS.getHotkey(shortcut).key;
       if (parseShortcut(key)(e)) {
-        console.log("Satisfied", key, e);
+        Logger.debug("Satisfied", key, e);
         const response = callback();
         // Prevent default if the callback does not return false
         if (response !== false) {
@@ -80,6 +79,7 @@ export function useKeydownOnElement(
   useEventListener(element, "keydown", (e) => {
     for (const [key, callback] of Objects.entries(handlers)) {
       if (parseShortcut(key)(e)) {
+        Logger.debug("Satisfied", key, e);
         const response = callback();
         // Prevent default if the callback does not return false
         if (response !== false) {

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { getUserConfig, userConfigAtom } from "@/core/config/config";
 import { waitFor } from "@/core/state/jotai";
 import { atomWithStorage } from "jotai/utils";
@@ -27,6 +27,6 @@ export function isCopilotEnabled() {
 
 export function waitForEnabledCopilot() {
   return waitFor(userConfigAtom, (value) => {
-    return value.completion.copilot === true;
+    return value.completion.copilot;
   });
 }

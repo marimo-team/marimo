@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
 import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "@/components/editor/Cell";
@@ -53,6 +53,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     unfoldAll,
     sendToBottom,
     sendToTop,
+    setStdinResponse,
   } = useCellActions();
   const { theme } = useTheme();
   const { togglePanel } = useChromeActions();
@@ -71,6 +72,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   // Catch all to avoid native OS behavior
   // Otherwise a user might try to hide a cell and accidentally hide the OS window
   useHotkey("cell.hideCode", Functions.NOOP);
+  useHotkey("cell.format", Functions.NOOP);
 
   const onDeleteCell: typeof deleteCell = useEvent((payload) => {
     sendDeleteCell(payload.cellId);
@@ -113,6 +115,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           deleteCell={onDeleteCell}
           focusCell={focusCell}
           moveToNextCell={moveToNextCell}
+          setStdinResponse={setStdinResponse}
           updateCellConfig={updateCellConfig}
           moveCell={moveCell}
           mode={mode}
@@ -121,6 +124,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           sendToBottom={sendToBottom}
           sendToTop={sendToTop}
           userConfig={userConfig}
+          debuggerActive={cell.debuggerActive}
           config={cell.config}
           name={cell.name}
         />

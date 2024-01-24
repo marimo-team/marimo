@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { LayoutType } from "@/components/editor/renderers/types";
 import { CellConfig, CellStatus } from "../cells/types";
@@ -8,9 +8,9 @@ import { RequestId } from "../network/DeferredRequestRegistry";
 
 export type OutputChannel =
   | "output"
-  | "console"
   | "media"
   | "marimo-error"
+  | "pdb"
   | "stderr"
   | "stdout";
 
@@ -57,6 +57,23 @@ export type OutputMessage =
       channel: OutputChannel;
       mimetype: "application/json";
       data: unknown;
+      timestamp: number;
+    }
+  | {
+      channel: "pdb";
+      mimetype: "application/json";
+      data: "start" | "stop";
+      timestamp: number;
+    }
+  | {
+      channel: "stdin";
+      mimetype: "text/plain";
+      data: string;
+      /**
+       * This is not saved to the server, but we update this field
+       * after sending the message to the kernel.
+       */
+      response?: string;
       timestamp: number;
     };
 

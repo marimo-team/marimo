@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import "../css/App.css";
 
 import { HourglassIcon, UnlinkIcon } from "lucide-react";
@@ -391,6 +391,7 @@ const DisconnectedIcon = () => (
 const RunningIcon = () => (
   <div
     className={topLeftStatus}
+    data-testid="loading-indicator"
     title={"Marimo is busy computing. Hang tight!"}
   >
     <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />

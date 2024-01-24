@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -61,7 +61,7 @@ export const AppConfigForm: React.FC = () => {
                   checked={field.value === "full"}
                   size="sm"
                   onCheckedChange={(checked) => {
-                    field.onChange(checked === true ? "full" : "normal");
+                    field.onChange(checked ? "full" : "normal");
                   }}
                 />
               </FormControl>

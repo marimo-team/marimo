@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import {
   EditRequests,
@@ -48,6 +48,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     saveUserConfig: throwNotInEditMode,
     saveAppConfig: throwNotInEditMode,
     saveCellConfig: throwNotInEditMode,
+    sendStdin: throwNotInEditMode,
     readCode: throwNotInEditMode,
   };
 }

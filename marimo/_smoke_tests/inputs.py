@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.76"
+__generated_with = "0.1.77"
 app = marimo.App()
 
 
@@ -41,6 +41,18 @@ def __(mo):
         ]
     )
     return options,
+
+
+@app.cell
+def __(mo, options):
+    mo.ui.radio(options, label="Radio buttons")
+    return
+
+
+@app.cell
+def __(mo, options):
+    mo.ui.radio(options, label="Radio buttons", inline=True)
+    return
 
 
 if __name__ == "__main__":

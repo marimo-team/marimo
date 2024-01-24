@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 export const Sets = {
   merge<T>(...sets: Array<Set<T>>): Set<T> {
     const result = new Set<T>();

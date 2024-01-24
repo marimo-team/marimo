@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useRef, useEffect } from "react";
 
 type Target = Document | HTMLElement | Window | null;

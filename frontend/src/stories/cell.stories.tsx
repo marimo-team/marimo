@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react";
 import { Cell, CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
@@ -36,6 +36,7 @@ const props: CellProps = {
   appClosed: false,
   showDeleteButton: true,
   allowFocus: false,
+  debuggerActive: false,
   createNewCell: Logger.log,
   deleteCell: Logger.log,
   focusCell: Logger.log,
@@ -44,6 +45,7 @@ const props: CellProps = {
   sendToBottom: Logger.log,
   sendToTop: Logger.log,
   updateCellConfig: Logger.log,
+  setStdinResponse: Logger.log,
   config: {},
   userConfig: {
     completion: {

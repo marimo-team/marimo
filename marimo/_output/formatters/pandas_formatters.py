@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any
@@ -26,7 +26,16 @@ class PandasFormatter(FormatterFactory):
             max_rows = pd.get_option("display.max_rows")
             max_columns = pd.get_option("display.max_columns")
             show_dimensions_option = pd.get_option("display.show_dimensions")
+
             if show_dimensions_option == "truncate":
+                # Handle None for max_rows
+                if max_rows is None:
+                    max_rows = len(df.index)
+
+                # Handle None for max_columns
+                if max_columns is None:
+                    max_columns = len(df.columns)
+
                 show_dimensions = (
                     len(df.index) > max_rows or len(df.columns) > max_columns
                 )

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Base64String } from "./json/base64";
 
 export function serializeBlob(blob: Blob): Promise<Base64String> {
@@ -7,8 +7,8 @@ export function serializeBlob(blob: Blob): Promise<Base64String> {
     reader.onload = (event) => {
       resolve(event.target?.result as Base64String);
     };
-    reader.onerror = (error) => {
-      reject(error);
+    reader.onerror = (evt) => {
+      reject(new Error(`Failed to read blob: ${evt.type}`));
     };
     reader.readAsDataURL(blob);
   });
@@ -32,7 +32,14 @@ export function deserializeBlob(serializedBlob: Base64String): Promise<Blob> {
       const blob = new Blob([bytes], { type: mimeType });
       resolve(blob);
     } catch (error) {
-      reject(error);
+      reject(ensureError(error));
     }
   });
+}
+
+function ensureError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(`${error}`);
 }

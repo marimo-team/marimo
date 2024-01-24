@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -10,7 +10,7 @@ from uuid import uuid4
 Name = str
 
 
-def _is_local(name: str) -> bool:
+def is_local(name: str) -> bool:
     return name.startswith("_") and not name.startswith("__")
 
 
@@ -62,7 +62,7 @@ class ScopedVisitor(ast.NodeVisitor):
         self, name: str, ignore_scope: bool = False
     ) -> str:
         """Mangle local variable name declared at top-level scope."""
-        if _is_local(name) and (len(self.block_stack) == 1 or ignore_scope):
+        if is_local(name) and (len(self.block_stack) == 1 or ignore_scope):
             return f"_{self.id}{name}"
         else:
             return name
@@ -279,16 +279,16 @@ class ScopedVisitor(ast.NodeVisitor):
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
-            and not _is_local(node.id)
+            and not is_local(node.id)
         ):
             self._add_ref(node.id, deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
-            and not _is_local(node.id)
+            and not is_local(node.id)
         ):
             self._add_ref(node.id, deleted=True)
-        elif _is_local(node.id):
+        elif is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )

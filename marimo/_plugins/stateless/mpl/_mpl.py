@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """
 Interactive matplotlib plots, based on WebAgg.
 
@@ -9,19 +9,19 @@ from __future__ import annotations
 
 import asyncio
 import io
-import json
 import mimetypes
-import socket
+import signal
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
-import tornado
-import tornado.httpserver
-import tornado.ioloop
-import tornado.netutil
-import tornado.web
-import tornado.websocket
+import uvicorn
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, Response
+from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.staticfiles import StaticFiles
+from starlette.websockets import WebSocket
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -32,181 +32,171 @@ from marimo._runtime.context import (
     RuntimeContext,
     get_context,
 )
+from marimo._server.utils import find_free_port
+from marimo._utils.signals import get_signals
 
 
-class MplApplication(tornado.web.Application):
-    # Figure Manager, Any type because matplotlib doesn't have typings
-    manager: Any
+class FigureManagers:
+    def __init__(self) -> None:
+        self.figure_managers: dict[str, Any] = {}
 
-    class MainPage(tornado.web.RequestHandler):
-        """
-        Serves the main HTML page.
-        """
+    def add(self, manager: Any) -> None:
+        self.figure_managers[str(manager.num)] = manager
 
-        application: MplApplication
+    def get(self, figure_id: str) -> Any:
+        if figure_id not in self.figure_managers:
+            raise RuntimeError(f"Figure {figure_id} not found.")  # noqa: E501
+        return self.figure_managers[str(figure_id)]
 
-        def get(self) -> None:
-            manager = self.application.manager
-            ws_uri = f"ws://{self.request.host}/"
-            content = html_content % {
-                "ws_uri": ws_uri,
-                "fig_id": manager.num,
-                "custom_css": css_content,
-            }
-            self.write(content)
+    def remove(self, manager: Any) -> None:
+        del self.figure_managers[str(manager.num)]
 
-    class MplJs(tornado.web.RequestHandler):
-        """
-        Serves the generated matplotlib javascript file.  The content
-        is dynamically generated based on which toolbar functions the
-        user has defined.  Call `FigureManagerWebAgg` to get its
-        content.
-        """
 
-        application: MplApplication
+figure_managers = FigureManagers()
 
-        def get(self) -> None:
-            from matplotlib.backends.backend_webagg import (  # type: ignore
-                FigureManagerWebAgg,
-            )
 
-            self.set_header("Content-Type", "application/javascript")
-            js_content = FigureManagerWebAgg.get_javascript()
+def create_application(
+    host: str,
+    port: int,
+) -> Starlette:
+    import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]  # noqa: E501
+        FigureManagerWebAgg,
+    )
 
-            self.write(js_content)
+    async def main_page(request: Request) -> HTMLResponse:
+        figure_id = request.query_params.get("figure")
+        assert figure_id is not None
+        ws_uri = f"ws://{host}:{port}/ws?figure={figure_id}"
 
-    class Download(tornado.web.RequestHandler):
-        """
-        Handles downloading of the figure in various file formats.
-        """
+        content = html_content % {
+            "ws_uri": ws_uri,
+            "fig_id": figure_id,
+            "custom_css": css_content,
+        }
+        return HTMLResponse(content=content)
 
-        application: MplApplication
-
-        def get(self, fmt: str) -> None:
-            manager = self.application.manager
-            self.set_header(
-                "Content-Type", mimetypes.types_map.get(fmt, "binary")
-            )
-            buff = io.BytesIO()
-            manager.canvas.figure.savefig(buff, format=fmt)
-            self.write(buff.getvalue())
-
-    class WebSocket(tornado.websocket.WebSocketHandler):
-        """
-        A websocket for interactive communication between the plot in
-        the browser and the server.
-
-        In addition to the methods required by tornado, it is required to
-        have two callback methods:
-
-            - ``send_json(json_content)`` is called by matplotlib when
-              it needs to send json to the browser.  `json_content` is
-              a JSON tree (Python dictionary), and it is the responsibility
-              of this implementation to encode it as a string to send over
-              the socket.
-
-            - ``send_binary(blob)`` is called to send binary image data
-              to the browser.
-        """
-
-        application: MplApplication
-        supports_binary = True
-
-        def open(self, *args: str, **kwargs: str) -> None:
-            del args
-            del kwargs
-            # Register the websocket with the FigureManager.
-            manager = self.application.manager
-            manager.add_web_socket(self)
-            if hasattr(self, "set_nodelay"):
-                self.set_nodelay(True)
-
-        def on_close(self) -> None:
-            # When the socket is closed, deregister the websocket with
-            # the FigureManager.
-            manager = self.application.manager
-            manager.remove_web_socket(self)
-
-        def on_message(self, message: Any) -> None:
-            # The 'supports_binary' message is relevant to the
-            # websocket itself.  The other messages get passed along
-            # to matplotlib as-is.
-
-            # Every message has a "type" and a "figure_id".
-            message = json.loads(message)
-            if message["type"] == "supports_binary":
-                self.supports_binary = message["value"]
-            else:
-                manager = self.application.manager
-                manager.handle_json(message)
-
-        def send_json(self, content: str) -> None:
-            self.write_message(json.dumps(content))
-
-        def send_binary(self, blob: Any) -> None:
-            if self.supports_binary:
-                self.write_message(blob, binary=True)
-            else:
-                data_uri = "data:image/png;base64," + blob.encode(
-                    "base64"
-                ).replace("\n", "")
-                self.write_message(data_uri)
-
-    def __init__(self, figure: Any) -> None:
-        import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        from matplotlib.backends.backend_webagg import (
-            FigureManagerWebAgg,
-            new_figure_manager_given_figure,
+    async def mpl_js(request: Request) -> Response:
+        del request
+        return Response(
+            content=FigureManagerWebAgg.get_javascript(),
+            media_type="application/javascript",
         )
 
-        self.figure = figure
-        self.manager = new_figure_manager_given_figure(id(figure), figure)
+    async def download(request: Request) -> Response:
+        figure_id = request.query_params.get("figure")
+        assert figure_id is not None
+        fmt = request.path_params["fmt"]
+        mime_type = mimetypes.types_map.get(fmt, "binary")
+        buff = io.BytesIO()
+        figure_manager = figure_managers.get(figure_id)
+        figure_manager.canvas.figure.savefig(buff, format=fmt)
+        return Response(content=buff.getvalue(), media_type=mime_type)
 
-        super().__init__(
-            [
-                # Static files for the CSS and JS
-                (
-                    r"/mpl/_static/(.*)",
-                    tornado.web.StaticFileHandler,
-                    {"path": FigureManagerWebAgg.get_static_file_path()},
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+
+        queue = asyncio.Queue[Tuple[Any, str]]()
+
+        class SyncWebSocket:
+            def send_json(self, content: str) -> None:
+                queue.put_nowait((content, "json"))
+
+            def send_binary(self, blob: Any) -> None:
+                queue.put_nowait((blob, "binary"))
+
+        figure_id = websocket.query_params.get("figure")
+        assert figure_id is not None
+        figure_manager = figure_managers.get(figure_id)
+        figure_manager.add_web_socket(SyncWebSocket())
+
+        async def receive() -> None:
+            try:
+                while True:
+                    data = await websocket.receive_json()
+                    if data["type"] == "supports_binary":
+                        # We always support binary
+                        # and we don't need to pass this message
+                        # to the figure manager
+                        pass
+                    else:
+                        figure_manager.handle_json(data)
+            except Exception:
+                pass
+            finally:
+                await websocket.close()
+
+        async def send() -> None:
+            try:
+                while True:
+                    (data, mode) = await queue.get()
+                    if mode == "json":
+                        await websocket.send_json(data)
+                    else:
+                        await websocket.send_bytes(data)
+            except Exception:
+                pass
+            finally:
+                await websocket.close()
+
+        await asyncio.gather(receive(), send())
+
+    return Starlette(
+        routes=[
+            Route("/", main_page, methods=["GET"]),
+            Route("/mpl/mpl.js", mpl_js, methods=["GET"]),
+            Route("/download.{fmt}", download, methods=["GET"]),
+            WebSocketRoute("/ws", websocket_endpoint),
+            Mount(
+                "/mpl/_static",
+                StaticFiles(
+                    directory=FigureManagerWebAgg.get_static_file_path()
                 ),
-                # Static images for the toolbar
-                (
-                    r"/_images/(.*)",
-                    tornado.web.StaticFileHandler,
-                    {"path": Path(mpl.get_data_path(), "images")},
-                ),
-                # The page that contains all of the pieces
-                ("/", self.MainPage),
-                ("/mpl/mpl.js", self.MplJs),
-                # Sends images and events to the browser, and receives
-                # events from the browser
-                ("/ws", self.WebSocket),
-                # Handles the downloading (i.e., saving) of static images
-                (r"/download.([a-z0-9.]+)", self.Download),
-            ]
-        )
+                name="mpl_static",
+            ),
+            Mount(
+                "/_images",
+                StaticFiles(directory=Path(mpl.get_data_path(), "images")),
+                name="images",
+            ),
+        ],
+    )
 
 
-class CleanupHandle(CellLifecycleItem):
-    """Handle to shutdown a figure server."""
+_app: Optional[Starlette] = None
 
-    shutdown_event: Optional[asyncio.Event] = None
 
-    def create(self, context: RuntimeContext) -> None:
-        del context
-        pass
+def get_or_create_application() -> Starlette:
+    global _app
 
-    def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
-        del context
-        del deletion
-        if self.shutdown_event is not None:
-            self.shutdown_event.set()
-        # TODO: if Html containing server is cached, disposal still trashes
-        # it, which is a bug ... fix this. Use `deletion` flag to make
-        # sure shutdown happens on cell deletion, otherwise need to
-        # find a way to keep server alive if its Html is cached.
-        return True
+    if _app is None:
+        host = "localhost"
+        port = find_free_port(10_000)
+        app = create_application(host, port)
+        app.state.host = host
+        app.state.port = port
+        _app = app
+
+        def start_server() -> None:
+            signal_handlers = get_signals()
+            uvicorn.Server(
+                uvicorn.Config(
+                    app=app,
+                    port=port,
+                    host=host,
+                    log_level="critical",
+                )
+            ).run()
+            for signo, handler in signal_handlers.items():
+                signal.signal(signo, handler)
+
+        threading.Thread(target=start_server).start()
+
+        # arbitrary wait 100ms for the server to start
+        # this only happens once per session
+        asyncio.run(asyncio.sleep(0.02))
+
+    return _app
 
 
 @mddoc
@@ -237,6 +227,9 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         Axes,
     )
+    from matplotlib.backends.backend_webagg import (
+        new_figure_manager_given_figure,
+    )
 
     if isinstance(figure, Axes):
         figure = figure.get_figure()
@@ -248,41 +241,36 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             "marimo.mpl.interactive can't be used when running as a script."
         ) from err
 
+    # Figure Manager, Any type because matplotlib doesn't have typings
+    figure_manager = new_figure_manager_given_figure(id(figure), figure)
+
     # TODO(akshayka): Proxy this server through the marimo server to help with
     # deployment.
-    application = MplApplication(figure)
-    cleanup_handle = CleanupHandle()
-    sockets = tornado.netutil.bind_sockets(0, "")
+    application = get_or_create_application()
+    host = application.state.host
+    port = application.state.port
 
-    async def main() -> None:
-        # create the shutdown event in the coroutine for py3.8, 3.9 compat
-        cleanup_handle.shutdown_event = asyncio.Event()
-        http_server = tornado.httpserver.HTTPServer(application)
-        http_server.add_sockets(sockets)
-        await cleanup_handle.shutdown_event.wait()
-        http_server.stop()
-        await http_server.close_all_connections()
+    class CleanupHandle(CellLifecycleItem):
+        def create(self, context: RuntimeContext) -> None:
+            del context
 
-    def start_server() -> None:
-        asyncio.run(main())
+        def dispose(self, context: RuntimeContext, deletion: bool) -> bool:
+            del context
+            del deletion
+            figure_managers.remove(figure_manager)
+            return True
 
-    addr: Optional[str] = None
-    port: Optional[int] = None
-    for s in sockets:
-        addr, port = s.getsockname()[:2]
-        if s.family is socket.AF_INET6:
-            addr = f"[{addr}]"
-    if addr is None or port is None:
-        raise RuntimeError("Failed to create sockets for mpl.interactive.")
-
+    figure_managers.add(figure_manager)
     assert ctx.kernel.execution_context is not None
-    ctx.cell_lifecycle_registry.add(cleanup_handle)
-    threading.Thread(target=start_server).start()
+    ctx.cell_lifecycle_registry.add(CleanupHandle())
+    ctx.stream.cell_id = ctx.kernel.execution_context.cell_id
+
     return Html(
         h.iframe(
-            src=f"http://{addr}:{port}/",
+            src=f"http://{host}:{port}?figure={figure_manager.num}",
             width="100%",
-            height="550px",
+            height="450px",
+            onload="__resizeIframe(this)",
         )
     )
 
@@ -302,7 +290,7 @@ html_content = """
 
     <script>
       function ondownload(figure, format) {
-        window.open('download.' + format, '_blank');
+        window.open('download.' + format + '?figure=' + figure.id, '_blank');
       };
 
       function ready(fn) {
@@ -316,7 +304,7 @@ html_content = """
       ready(
         function() {
           var websocket_type = mpl.get_websocket_type();
-          var websocket = new websocket_type("%(ws_uri)sws");
+          var websocket = new websocket_type("%(ws_uri)s");
 
           // mpl.figure creates a new figure on the webpage.
           var fig = new mpl.figure(
@@ -347,6 +335,10 @@ html_content = """
 css_content = """
 body {
     background-color: transparent;
+    width: 100%;
+}
+#figure, mlp-canvas {
+    width: 100%;
 }
 .ui-dialog-titlebar + div {
     border-radius: 4px;

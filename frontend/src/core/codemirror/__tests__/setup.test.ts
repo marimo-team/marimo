@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, test, vi } from "vitest";
 import { CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
 import { EditorState, Extension } from "@codemirror/state";
@@ -89,7 +89,7 @@ describe("snapshot all duplicate keymaps", () => {
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting
-    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`22`);
+    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`20`);
     expect(duplicates).toMatchSnapshot();
   });
 
@@ -102,7 +102,7 @@ describe("snapshot all duplicate keymaps", () => {
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting
-    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`21`);
+    expect(Object.values(duplicates).flat().length).toMatchInlineSnapshot(`19`);
     expect(duplicates).toMatchSnapshot();
   });
 });

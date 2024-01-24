@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/view";
 import {
@@ -11,9 +11,8 @@ import {
   useRef,
 } from "react";
 
-import { saveCellConfig, sendRun } from "@/core/network/requests";
+import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
-import { clearTooltips } from "@/core/codemirror/completion/hints";
 import { UserConfig } from "../../core/config/config-schema";
 import { CellConfig, CellData, CellRuntimeState } from "../../core/cells/types";
 import { CellActions } from "../../core/cells/cells";
@@ -29,7 +28,6 @@ import { renderShortcut } from "../shortcuts/renderShortcut";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
-import { SerializedEditorState } from "../../core/codemirror/types";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { HTMLCellId } from "../../core/cells/ids";
 import { Theme } from "../../theme/useTheme";
@@ -69,8 +67,12 @@ export interface CellProps
       | "stopped"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
+      | "debuggerActive"
     >,
-    Pick<CellData, "id" | "code" | "edited" | "config" | "name">,
+    Pick<
+      CellData,
+      "id" | "code" | "edited" | "config" | "name" | "serializedEditorState"
+    >,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -81,12 +83,12 @@ export interface CellProps
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
+      | "setStdinResponse"
       | "sendToBottom"
       | "sendToTop"
     > {
   theme: Theme;
   showPlaceholder: boolean;
-  serializedEditorState: SerializedEditorState | null;
   mode: AppMode;
   appClosed: boolean;
   showDeleteButton: boolean;
@@ -117,6 +119,7 @@ const CellComponent = (
     stopped,
     serializedEditorState,
     mode,
+    debuggerActive,
     appClosed,
     showDeleteButton,
     updateCellCode,
@@ -125,6 +128,7 @@ const CellComponent = (
     deleteCell,
     focusCell,
     moveCell,
+    setStdinResponse,
     moveToNextCell,
     updateCellConfig,
     sendToBottom,
@@ -208,7 +212,6 @@ const CellComponent = (
       editorView.current !== null
     ) {
       closeCompletion(editorView.current);
-      clearTooltips(editorView.current);
     }
   }, []);
 
@@ -442,7 +445,12 @@ const CellComponent = (
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}
           cellName={name}
+          onSubmitDebugger={(text, index) => {
+            setStdinResponse({ cellId, response: text, outputIndex: index });
+            sendStdin({ text });
+          }}
           cellId={cellId}
+          debuggerActive={debuggerActive}
         />
       </SortableCell>
     </CellActionsContextMenu>

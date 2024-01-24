@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import dataclasses
@@ -8,6 +8,7 @@ from typing import Any, Generator
 import pytest
 
 from marimo._ast.cell import CellId_t
+from marimo._messaging.streams import Stderr, Stdin, Stdout
 from marimo._runtime.context import (
     initialize_context,
     teardown_context,
@@ -18,6 +19,8 @@ from marimo._runtime.runtime import Kernel
 
 @dataclasses.dataclass
 class _MockStream:
+    """Captures the ops sent through the stream"""
+
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
         default_factory=list
     )
@@ -26,29 +29,63 @@ class _MockStream:
         self.messages.append((op, data))
 
 
-@dataclasses.dataclass
-class _MockStdStream:
+class MockStdout(Stdout):
+    """Captures the output sent through the stream"""
+
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
+
+    def write(self, data: str) -> int:
+        self.messages.append(data)
+        return len(data)
+
+
+class MockStderr(Stderr):
+    """Captures the output sent through the stream"""
+
     messages: list[str] = dataclasses.field(default_factory=list)
 
-    def write(self, msg: str) -> None:
-        self.messages.append(msg)
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
+
+    def write(self, data: str) -> int:
+        self.messages.append(data)
+        return len(data)
+
+
+class MockStdin(Stdin):
+    """Echoes the prompt."""
+
+    def __init__(self, stream: _MockStream) -> None:
+        super().__init__(stream)
+        self.messages: list[str] = []
+
+    def _readline_with_prompt(self, prompt: str = "") -> str:
+        return prompt
 
 
 @dataclasses.dataclass
 class MockedKernel:
-    k: Kernel = dataclasses.field(
-        default_factory=lambda: Kernel(cell_configs={})
-    )
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
-    stdout: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
-    stderr: _MockStdStream = dataclasses.field(default_factory=_MockStdStream)
 
     def __post_init__(self) -> None:
+        self.stdout = MockStdout(self.stream)
+        self.stderr = MockStderr(self.stream)
+        self.stdin = MockStdin(self.stream)
+
+        self.k = Kernel(
+            stream=self.stream,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            stdin=self.stdin,
+            cell_configs={},
+        )
+
         initialize_context(
             kernel=self.k,
             stream=self.stream,  # type: ignore
-            stdout=self.stdout,  # type: ignore
-            stderr=self.stderr,  # type: ignore
         )
 
     def __del__(self) -> None:
@@ -78,10 +115,10 @@ class ExecReqProvider:
     def get(self, code: str) -> ExecutionRequest:
         key = str(self.counter)
         self.counter += 1
-        return ExecutionRequest(key, textwrap.dedent(code))
+        return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
 
     def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:
-        return ExecutionRequest(cell_id, textwrap.dedent(code))
+        return ExecutionRequest(cell_id=cell_id, code=textwrap.dedent(code))
 
 
 # fixture that provides an ExecReqProvider

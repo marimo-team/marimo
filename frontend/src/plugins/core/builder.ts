@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { ZodType, ZodTypeDef } from "zod";
 import { IPluginProps, IPlugin } from "../types";
 import { FunctionSchemas, PluginFunctions } from "./rpc";
@@ -37,7 +37,7 @@ export function createPlugin<S>(tagName: string) {
         /**
          * Render the plugin.
          */
-        renderer(renderer: Renderer<S, D, unknown>): IPlugin<S, D, {}> {
+        renderer(renderer: Renderer<S, D, unknown>): IPlugin<S, D> {
           return {
             tagName,
             validator,

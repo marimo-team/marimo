@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, {
   PropsWithChildren,
   memo,
@@ -282,6 +282,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
             <div
               key={cell.id}
               draggable={true}
+              // eslint-disable-next-line react/no-unknown-property
               unselectable="on"
               data-cell-id={cell.id}
               // Firefox requires some kind of initialization which we can do by adding this attribute

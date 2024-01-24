@@ -1,9 +1,10 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import partial
 from typing import cast
 
-from marimo._ast.cell import parse_cell
+from marimo._ast import compiler
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -11,6 +12,8 @@ from marimo._messaging.errors import (
 )
 from marimo._runtime import dataflow
 from marimo._runtime.validate_graph import check_for_errors
+
+parse_cell = partial(compiler.compile_cell, cell_id="0")
 
 
 def test_multiple_definition_error() -> None:

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, { useState } from "react";
 
 const OFFSET = 10;
@@ -21,7 +21,7 @@ export function useIsDragging() {
     if (mouseIsDown) {
       const dx = event.clientX - initialPosition.x;
       const dy = event.clientY - initialPosition.y;
-      setIsDragging(Math.sqrt(dx * dx + dy * dy) > OFFSET);
+      setIsDragging(Math.hypot(dx, dy) > OFFSET);
     }
   };
 

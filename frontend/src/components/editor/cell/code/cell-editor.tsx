@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
@@ -16,7 +16,6 @@ import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellActions, useCellActions } from "@/core/cells/cells";
 import { CellRuntimeState, CellData, CellConfig } from "@/core/cells/types";
-import { SerializedEditorState } from "@/core/codemirror/types";
 import { UserConfig } from "@/core/config/config-schema";
 import { Theme } from "@/theme/useTheme";
 import {
@@ -32,7 +31,7 @@ import { HideCodeButton } from "../../code/readonly-python-code";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
-    Pick<CellData, "id" | "code">,
+    Pick<CellData, "id" | "code" | "serializedEditorState">,
     Pick<
       CellActions,
       | "updateCellCode"
@@ -46,7 +45,6 @@ export interface CellEditorProps
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
-  serializedEditorState: SerializedEditorState | null;
   mode: AppMode;
   editorViewRef: React.MutableRefObject<EditorView | null>;
   /**

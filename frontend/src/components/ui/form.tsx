@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
@@ -124,7 +124,7 @@ const FormControl = React.forwardRef<
       ref={ref}
       id={formItemId}
       aria-describedby={
-        error ? `${formDescriptionId} ${formMessageId}` : `${formDescriptionId}`
+        error ? `${formDescriptionId} ${formMessageId}` : formDescriptionId
       }
       aria-invalid={!!error}
       {...props}
@@ -159,7 +159,7 @@ const FormMessage = React.forwardRef<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
   const { error, formMessageId } = useFormField();
-  const body = error && error?.message ? String(error?.message) : children;
+  const body = error?.message ? String(error?.message) : children;
 
   if (!body) {
     return null;
@@ -180,7 +180,7 @@ FormMessage.displayName = "FormMessage";
 
 const FormMessageTooltip = ({ className }: { className: string }) => {
   const { error } = useFormField();
-  const body = error && error?.message ? String(error?.message) : null;
+  const body = error?.message ? String(error?.message) : null;
 
   if (!body) {
     return null;

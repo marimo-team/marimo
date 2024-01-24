@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
 import { VirtualFileTracker } from "./virtual-file-tracker";
@@ -46,6 +46,7 @@ export function patchFetch(
 
   // Override the global fetch so when /@file/ is used, it returns the blob data
   window.fetch = async (input, init) => {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const urlString = input instanceof Request ? input.url : input.toString();
 
     const url = urlString.startsWith("/")

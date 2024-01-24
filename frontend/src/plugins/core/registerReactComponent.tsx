@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable unicorn/prefer-spread */
 /**
  * WebComponent Factory for React Components
@@ -58,6 +58,17 @@ export interface PluginSlotHandle {
    * Set the plugin's children.
    */
   setChildren: (children: ReactNode) => void;
+}
+
+export interface IMarimoHTMLElement extends HTMLElement {
+  /**
+   * Reset the plugin initial value and data.
+   */
+  reset: () => void;
+  /**
+   * Re-render the plugin.
+   */
+  rerender: () => void;
 }
 
 interface PluginSlotProps<T> {
@@ -203,6 +214,8 @@ const PluginSlot: React.ForwardRefExoticComponent<
 
 const styleSheetCache = new Map<string, CSSStyleSheet>();
 
+const customElementLocator = "__custom_marimo_element__";
+
 /**
  * Register a React component as a custom element
  *
@@ -225,11 +238,12 @@ const styleSheetCache = new Map<string, CSSStyleSheet>();
  * and the React component to render
  */
 export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
-  const WebComponent = class extends HTMLElement {
+  const WebComponent = class extends HTMLElement implements IMarimoHTMLElement {
     private observer: MutationObserver;
     private root?: Root;
     private mounted = false;
     private pluginRef = createRef<PluginSlotHandle>();
+    protected __type__ = customElementLocator;
 
     constructor() {
       super();
@@ -277,6 +291,20 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       }
     }
 
+    /**
+     * Reset the plugin initial value and data.
+     * And then re-render the plugin.
+     */
+    reset() {
+      this.dispatchEvent(
+        createInputEvent(parseAttrValue(this.dataset.initialValue), this)
+      );
+      this.rerender();
+    }
+
+    /**
+     * Re-render the plugin.
+     */
     rerender() {
       this.pluginRef.current?.reset();
     }
@@ -326,7 +354,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         // Support for styles with Vite
         if (
           sheet.ownerNode instanceof HTMLElement &&
-          sheet.ownerNode.dataset["viteDevId"]
+          sheet.ownerNode.dataset.viteDevId
         ) {
           return true;
         }
@@ -337,7 +365,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         const sheetUniqueKey =
           sheet.href ??
           (sheet.ownerNode instanceof HTMLElement
-            ? sheet.ownerNode.dataset["viteDevId"]
+            ? sheet.ownerNode.dataset.viteDevId
             : undefined);
         if (!sheetUniqueKey) {
           continue;
@@ -411,4 +439,17 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
   }
 
   return sheet.href.startsWith(window.location.origin);
+}
+
+export function isCustomMarimoElement(
+  element: Element | null
+): element is IMarimoHTMLElement {
+  if (!element) {
+    return false;
+  }
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  return "__type__" in element && element.__type__ === customElementLocator;
 }

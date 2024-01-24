@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { get } from "lodash-es";
 
@@ -46,10 +46,13 @@ export function createParser(hovertemplate: string): PlotlyTemplateParser {
       return createParser(newTemplate);
     },
     parse(data: Plotly.PlotDatum) {
-      return Object.entries(keySelectorPairs).reduce((acc, [key, selector]) => {
-        acc[key] = get(data, selector);
-        return acc;
-      }, {} as Record<string, string>);
+      return Object.entries(keySelectorPairs).reduce<Record<string, string>>(
+        (acc, [key, selector]) => {
+          acc[key] = get(data, selector);
+          return acc;
+        },
+        {}
+      );
     },
   };
 }

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { expect, describe, it } from "vitest";
 import { parseShortcut } from "../shortcuts";
 
@@ -81,5 +81,16 @@ describe("parseShortcut", () => {
 
     expect(parseShortcut("Shift-Enter")(event)).toBe(false);
     expect(parseShortcut("Cmd-Shift-Enter")(event)).toBe(true);
+  });
+
+  it("should not recognize shortcuts when Alt is not part of the shortcut but is pressed", () => {
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      shiftKey: true,
+      altKey: true,
+    });
+
+    expect(parseShortcut("Shift-Enter")(event)).toBe(false);
+    expect(parseShortcut("Alt-Shift-Enter")(event)).toBe(true);
   });
 });

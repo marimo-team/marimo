@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { PropsWithChildren, memo, useLayoutEffect } from "react";
 import { useTheme } from "./useTheme";
 

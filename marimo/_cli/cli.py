@@ -1,7 +1,6 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
 import os
@@ -17,7 +16,8 @@ from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._cli.upgrade import check_for_updates
-from marimo._server.server import start_server
+from marimo._server.model import SessionMode
+from marimo._server.start import start
 
 DEVELOPMENT_MODE = False
 QUIET = False
@@ -205,16 +205,14 @@ def edit(
             except OSError:
                 raise
 
-    asyncio.run(
-        start_server(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            headless=headless,
-            filename=name,
-            run=False,
-            include_code=True,
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        headless=headless,
+        filename=name,
+        mode=SessionMode.EDIT,
+        include_code=True,
     )
 
 
@@ -266,16 +264,14 @@ def run(
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
 
-    asyncio.run(
-        start_server(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            headless=headless,
-            filename=name,
-            run=True,
-            include_code=include_code,
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        headless=headless,
+        filename=name,
+        mode=SessionMode.RUN,
+        include_code=include_code,
     )
 
 
@@ -377,16 +373,14 @@ def tutorial(
     with open(fname, "w", encoding="utf-8") as f:
         f.write(source)
 
-    asyncio.run(
-        start_server(
-            development_mode=DEVELOPMENT_MODE,
-            quiet=QUIET,
-            port=port,
-            headless=headless,
-            filename=fname,
-            run=False,
-            include_code=True,
-        )
+    start(
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        port=port,
+        mode=SessionMode.EDIT,
+        filename=fname,
+        include_code=True,
+        headless=headless,
     )
 
 

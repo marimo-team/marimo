@@ -1,16 +1,16 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import logging
 from typing import Optional
 
-import tornado.log
+from marimo._utils.log_formatter import LogFormatter
 
 # Global log level for loggers
 _LOG_LEVEL = logging.WARN
 
-# Tornado has a great log formatter
-_LOG_FORMATTER = tornado.log.LogFormatter()
+# Custom log formatter
+_LOG_FORMATTER = LogFormatter()
 
 # Cache of initialized loggers
 _LOGGERS: dict[str, logging.Logger] = {}
@@ -45,16 +45,6 @@ def set_level(level: str | int = logging.WARN) -> None:
 
     for logger in _LOGGERS.values():
         logger.setLevel(_LOG_LEVEL)
-
-
-def initialize_tornado_loggers(development_mode: bool) -> None:
-    tornado_log_level = logging.DEBUG if development_mode else logging.ERROR
-    for logger_name in (
-        "tornado.access",
-        "tornado.application",
-        "tornado.general",
-    ):
-        get_logger(logger_name, tornado_log_level)
 
 
 def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:

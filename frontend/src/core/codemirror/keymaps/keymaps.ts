@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { KeymapConfig } from "@/core/config/config-schema";
 import { logNever } from "@/utils/assertNever";
 import { defaultKeymap } from "@codemirror/commands";

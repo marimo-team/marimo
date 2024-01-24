@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import sys
@@ -130,6 +130,10 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     Use `mo.ui.altair_chart` to make Altair charts reactive: select chart data
     with your cursor on the frontend, get them as a Pandas dataframe in Python!
+
+    For Polars DataFrames, you can convert to a Pandas DataFrame.
+    However the returned DataFrame will still be a Pandas DataFrame,
+    so you will need to convert back to a Polars DataFrame if you want.
 
     **Example.**
 

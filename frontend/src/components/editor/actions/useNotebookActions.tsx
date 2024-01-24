@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { runDuringPresentMode } from "@/core/mode";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { useSetAtom } from "jotai";

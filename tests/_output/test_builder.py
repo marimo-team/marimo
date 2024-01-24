@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._output.builder import _join_params, h
 
 
@@ -45,7 +45,19 @@ def test_pre() -> None:
 
 def test_join_params() -> None:
     assert (
-        _join_params([("style", "color:red"), ("class", "myClass")])
-        == "style='color:red' class='myClass'"
+        _join_params([("style", "color:red"), ("class", "my-class")])
+        == "style='color:red' class='my-class'"
     )
     assert _join_params([]) == ""
+
+
+def test_component() -> None:
+    assert (
+        h.component(
+            "my-comp",
+            [("style", "color:red"), ("class", "my-class")],
+        )
+        == "<my-comp style='color:red' class='my-class'></my-comp>"
+    )
+
+    assert h.component("my-comp", []) == "<my-comp></my-comp>"

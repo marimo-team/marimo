@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellId } from "./ids";
 import { fromUnixTime } from "date-fns";
@@ -17,7 +17,6 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
   for (const output of outputs) {
     if (output.mimetype === "text/plain") {
       switch (output.channel) {
-        case "console":
         case "stdout":
           logs.push({
             timestamp: output.timestamp,

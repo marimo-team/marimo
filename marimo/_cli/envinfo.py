@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -55,7 +55,9 @@ def _get_pip_list() -> dict[str, str]:
         "pymdown-extensions",
         "pygments",
         "tomlkit",
-        "tornado",
+        "uvicorn",
+        "starlette",
+        "websocket",
         "typing_extensions",
         "black",
     ]

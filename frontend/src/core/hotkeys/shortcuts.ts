@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
 
@@ -35,6 +35,9 @@ export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
         case "Shift":
           satisfied &&= e.shiftKey;
           break;
+        case "Alt":
+          satisfied &&= e.altKey;
+          break;
         case "Space":
           satisfied &&= e.code === "Space";
           break;
@@ -55,6 +58,9 @@ export function parseShortcut(shortcut: string): (e: KeyboardEvent) => boolean {
     }
     if (!keys.includes("Cmd")) {
       satisfied &&= !e.metaKey;
+    }
+    if (!keys.includes("Alt")) {
+      satisfied &&= !e.altKey;
     }
     return satisfied;
   };

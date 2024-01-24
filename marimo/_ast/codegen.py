@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import builtins
@@ -9,7 +9,8 @@ from typing import Any, List, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
-from marimo._ast.cell import Cell, CellConfig, parse_cell
+from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
 
 INDENT = "    "
@@ -147,13 +148,17 @@ def generate_filecontents(
     cell_function_data: list[Union[Cell, tuple[str, CellConfig]]] = []
     defs: set[Name] = set()
 
+    cell_id = 0
     for code, cell_config in zip(codes, cell_configs):
         try:
-            cell = parse_cell(code).configure(cell_config)
+            cell = compile_cell(code, cell_id=str(cell_id)).configure(
+                cell_config
+            )
             defs |= cell.defs
             cell_function_data.append(cell)
         except SyntaxError:
             cell_function_data.append((code, cell_config))
+        cell_id += 1
 
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []

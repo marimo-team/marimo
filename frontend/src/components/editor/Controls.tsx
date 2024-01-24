@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import {
   LayoutTemplateIcon,
   SaveIcon,
@@ -93,7 +93,10 @@ export const Controls = ({
           <ShutdownButton
             onShutdown={() => {
               onShutdown();
-              window.close();
+              // Let the shutdown process start before closing the window.
+              setTimeout(() => {
+                window.close();
+              }, 200);
             }}
           />
         </div>

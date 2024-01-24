@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 """Client session management
 
 This module encapsulates session management: each client gets a unique session,
@@ -13,9 +13,6 @@ even if its socket is closed.
 """
 from __future__ import annotations
 
-import asyncio
-import functools
-import json
 import multiprocessing as mp
 import os
 import queue
@@ -24,214 +21,167 @@ import signal
 import subprocess
 import sys
 import threading
-from enum import Enum
 from multiprocessing import connection
-from typing import Any, Callable, Optional
+from multiprocessing.queues import Queue as MPQueue
+from typing import Any, Optional
 from uuid import uuid4
-
-import tornado.httputil
-import tornado.ioloop
-import tornado.web
-import tornado.websocket
 
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, _AppConfig
-from marimo._ast.cell import CellConfig
-from marimo._messaging.ops import Alert, KernelReady, serialize
+from marimo._ast.cell import CellConfig, CellId_t
+from marimo._messaging.ops import Alert, serialize
 from marimo._output.formatters.formatters import register_formatters
-from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._runtime import requests, runtime
-from marimo._server.api.status import HTTPStatus
-from marimo._server.layout import LayoutConfig, read_layout_config
-from marimo._server.utils import print_tabbed
-
-if sys.version_info < (3, 9):
-    from importlib_resources import files as importlib_files
-else:
-    from importlib.resources import files as importlib_files
+from marimo._server.model import (
+    ConnectionState,
+    SessionHandler,
+    SessionMode,
+)
+from marimo._server.types import QueueType
+from marimo._server.utils import import_files, print_tabbed
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
 
 
-class ConnectionState(Enum):
-    OPEN = 0
-    CLOSED = 1
+class QueueManager:
+    """Manages queues for a session."""
+
+    def __init__(self, use_multiprocessing: bool):
+        context = mp.get_context("spawn") if use_multiprocessing else None
+        # Control messages for the kernel (run, autocomplete,
+        # set UI element, set config, etc ) are sent through the control queue
+        self.control_queue: QueueType[requests.Request] = (
+            context.Queue() if context is not None else queue.Queue()
+        )
+        # Input messages for the user's Python code are sent through the
+        # input queue
+        self.input_queue: QueueType[str] = (
+            context.Queue(maxsize=1)
+            if context is not None
+            else queue.Queue(maxsize=1)
+        )
+
+    def close_queues(self) -> None:
+        if isinstance(self.control_queue, MPQueue):
+            # cancel join thread because we don't care if the queues still have
+            # things in it: don't want to make the child process wait for the
+            # queues to empty
+            self.control_queue.cancel_join_thread()
+            self.control_queue.close()
+        else:
+            # kernel thread cleans up read/write conn and IOloop handler on
+            # exit; we don't join the thread because we don't want to block
+            self.control_queue.put(requests.StopRequest())
+
+        if isinstance(self.input_queue, MPQueue):
+            # again, don't make the child process wait for the queues to empty
+            self.input_queue.cancel_join_thread()
+            self.input_queue.close()
 
 
-class IOSocketHandler(tornado.websocket.WebSocketHandler):
-    """WebSocket that sessions use to send messages to frontends.
+class KernelManager:
+    def __init__(
+        self,
+        queue_manager: QueueManager,
+        mode: SessionMode,
+        configs: dict[CellId_t, CellConfig],
+    ) -> None:
+        self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
+        self.queue_manager = queue_manager
+        self.mode = mode
+        self.configs = configs
+        self._read_conn: Optional[connection.Connection] = None
 
-    Each new socket gets a unique session. At most one session can exist when
-    in edit mode.
-    """
+    def start_kernel(self) -> None:
+        # Need to use a socket for windows compatibility
+        listener = connection.Listener(family="AF_INET")
 
-    status: ConnectionState
-
-    def write_op(self, op: str, data: Any) -> asyncio.Future[None]:
-        """Send a message to the client.
-
-        Args:
-        ----
-        op: name of the operation
-        data: JSON-serializable operation data
-        """
-        try:
-            return self.write_message(
-                json.dumps(
-                    {
-                        "op": op,
-                        "data": data,
-                    },
-                    cls=WebComponentEncoder,
-                )
-            )
-        except tornado.websocket.WebSocketClosedError:
-            LOGGER.info(
-                "Failed to send operation to frontend because the socket "
-                f"was closed; op: {op}"
-            )
-
-            async def return_none() -> None:
-                pass
-
-            return asyncio.ensure_future(return_none())
-
-    def write_kernel_ready(self) -> None:
-        """Communicates to the client that the kernel is ready.
-
-        Sends cell code and other metadata to client.
-        """
-        mgr = get_manager()
-        codes: tuple[str, ...]
-        names: tuple[str, ...]
-        configs: tuple[CellConfig, ...]
-        app = mgr.load_app()
-        layout: Optional[LayoutConfig] = None
-        if app is None:
-            codes = ("",)
-            names = ("__",)
-            configs = (CellConfig(),)
-        elif mgr.should_send_code_to_frontend():
-            codes, names, configs = tuple(
-                zip(
-                    *tuple(
-                        (cell_data.code, cell_data.name, cell_data.config)
-                        for cell_data in app._cell_data.values()
-                    )
-                )
+        # We use a process in edit mode so that we can interrupt the app
+        # with a SIGINT; we don't mind the additional memory consumption,
+        # since there's only one client sess
+        is_edit_mode = self.mode == SessionMode.EDIT
+        if is_edit_mode:
+            self.kernel_task = mp.Process(
+                target=runtime.launch_kernel,
+                args=(
+                    self.queue_manager.control_queue,
+                    self.queue_manager.input_queue,
+                    listener.address,
+                    is_edit_mode,
+                    self.configs,
+                ),
+                # The process can't be a daemon, because daemonic processes
+                # can't create children
+                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
+                daemon=False,
             )
         else:
-            codes, names, configs = tuple(
-                zip(
-                    *tuple(
-                        # Don't send code to frontend in run mode
-                        ("", "", cell_data.config)
-                        for cell_data in app._cell_data.values()
-                    )
-                )
+            # We use threads in run mode to minimize memory consumption;
+            # launching a process would copy the entire program state,
+            # which (as of writing) is around 150MB
+
+            # We can't terminate threads, so we have to wait until they
+            # naturally exit before cleaning up resources
+            def launch_kernel_with_cleanup(*args: Any) -> None:
+                runtime.launch_kernel(*args)
+                self.kernel_connection.close()
+
+            # install formatter import hooks, which will be shared by all
+            # threads (in edit mode, the single kernel process installs
+            # formatters ...)
+            register_formatters()
+
+            # Make threads daemons so killing the server immediately brings
+            # down all client sessions
+            self.kernel_task = threading.Thread(
+                target=launch_kernel_with_cleanup,
+                args=(
+                    self.queue_manager.control_queue,
+                    self.queue_manager.input_queue,
+                    listener.address,
+                    is_edit_mode,
+                    self.configs,
+                ),
+                # daemon threads can create child processes, unlike
+                # daemon processes
+                daemon=True,
             )
 
+        self.kernel_task.start()  # type: ignore
+        # First thing kernel does is connect to the socket, so it's safe to
+        # call accept
+        self._read_conn = listener.accept()
+
+    def is_alive(self) -> bool:
+        return self.kernel_task is not None and self.kernel_task.is_alive()
+
+    def interrupt_kernel(self) -> None:
         if (
-            app
-            and app._config.layout_file is not None
-            and isinstance(mgr.filename, str)
+            isinstance(self.kernel_task, mp.Process)
+            and self.kernel_task.pid is not None
         ):
-            app_dir = os.path.dirname(mgr.filename)
-            layout = read_layout_config(app_dir, app._config.layout_file)
+            LOGGER.debug("Sending SIGINT to kernel")
+            os.kill(self.kernel_task.pid, signal.SIGINT)
 
-        self.write_op(
-            op=KernelReady.name,
-            data=serialize(
-                KernelReady(
-                    codes=codes, names=names, configs=configs, layout=layout
-                )
-            ),
-        )
+    def close_kernel(self) -> None:
+        assert self.kernel_task is not None, "kernel not started"
 
-    def reconnect_session(self, session: "Session") -> None:
-        """Reconnect to an existing session (kernel).
+        if isinstance(self.kernel_task, mp.Process):
+            self.queue_manager.close_queues()
+            if self.kernel_task.is_alive():
+                self.kernel_task.terminate()
+            self.kernel_connection.close()
+        elif self.kernel_task.is_alive():
+            # We don't join the kernel thread because we don't want to server
+            # to block on it finishing
+            self.queue_manager.control_queue.put(requests.StopRequest())
 
-        A websocket can be closed when a user's computer goes to sleep,
-        spurious network issues, etc.
-        """
-        assert session.socket.status == ConnectionState.CLOSED
-        self.status = ConnectionState.OPEN
-        session.socket = self
-
-    def open(self, *args: str, **kwargs: str) -> None:
-        del args
-        del kwargs
-        try:
-            session_id = self.get_query_argument("session_id")
-            if session_id is None:
-                raise tornado.web.MissingArgumentError("session_id is None")
-        except tornado.web.MissingArgumentError:
-            LOGGER.error("Malformed connection URL, missing session_id")
-            self.close(1003, "MARIMO_MALFORMED_QUERY")
-            return
-        self.session_id = session_id
-
-        mgr = get_manager()
-        session = mgr.get_session(session_id)
-        LOGGER.debug(
-            "websocket open request for session with id %s", session_id
-        )
-        LOGGER.debug("existing sessions: %s", mgr.sessions)
-        if mgr.mode == SessionMode.EDIT:
-            if mgr.any_clients_connected():
-                LOGGER.debug(
-                    "refusing connection; a frontend is already connected."
-                )
-                self.close(1003, "MARIMO_ALREADY_CONNECTED")
-            elif session is not None:
-                # The session already exists, but it was disconnected.
-                # This can happen in local development when the client
-                # goes to sleep and wakes later. Just replace the session's
-                # socket, but keep its kernel
-                LOGGER.debug("Reconnecting session %s", session_id)
-                self.reconnect_session(session)
-            else:
-                # No clients are connected, and we haven't seen this session id
-                # before. Create a session.
-                #
-                # If the client refreshed their page, there will be one
-                # existing session with a closed socket for a different session
-                # id; that's why we call `close_all_sessions`.
-                mgr.close_all_sessions()
-                mgr.create_session(session_id=session_id, socket_handler=self)
-                self.status = ConnectionState.OPEN
-                self.write_kernel_ready()
-        elif session is not None:
-            LOGGER.debug("Reconnecting session %s", session_id)
-            session.cancel_close()
-            self.reconnect_session(session)
-        else:
-            mgr.create_session(session_id=session_id, socket_handler=self)
-            self.status = ConnectionState.OPEN
-            # Let the frontend know it can instantiate the app.
-            self.write_kernel_ready()
-
-    def on_close(self) -> None:
-        LOGGER.debug("websocket connection for %s closed", self.session_id)
-        self.status = ConnectionState.CLOSED
-        mgr = get_manager()
-        if mgr.mode == SessionMode.RUN:
-
-            def _close() -> None:
-                if self.status != ConnectionState.OPEN:
-                    LOGGER.debug(
-                        "Closing session %s (TTL EXPIRED)", self.session_id
-                    )
-                    mgr.close_session(self.session_id)
-
-            session = mgr.get_session(self.session_id)
-            cancellation_handle = tornado.ioloop.IOLoop.current().call_later(
-                Session.TTL_SECONDS, _close
-            )
-            if session is not None:
-                session.cancel_close_handle = cancellation_handle
+    @property
+    def kernel_connection(self) -> connection.Connection:
+        assert self._read_conn is not None, "connection not started"
+        return self._read_conn
 
 
 class Session:
@@ -243,85 +193,34 @@ class Session:
 
     TTL_SECONDS = 120
 
-    def __init__(self, socket_handler: IOSocketHandler) -> None:
+    @classmethod
+    def create(
+        cls,
+        session_handler: SessionHandler,
+        mode: SessionMode,
+        app: Optional[App],
+    ) -> Session:
+        configs = app._cell_configs() if app else {}
+        use_multiprocessing = mode == SessionMode.EDIT
+        queue_manager = QueueManager(use_multiprocessing)
+        kernel_manager = KernelManager(queue_manager, mode, configs)
+        return cls(session_handler, queue_manager, kernel_manager)
+
+    def __init__(
+        self,
+        session_handler: SessionHandler,
+        queue_manager: QueueManager,
+        kernel_manager: KernelManager,
+    ) -> None:
         """Initialize kernel and client connection to it."""
-        mpctx = mp.get_context("spawn")
-        mgr = get_manager()
-        self.socket = socket_handler
-        self.cancel_close_handle: Optional[object] = None
-        self.queue: mp.Queue[requests.Request] | queue.Queue[requests.Request]
-        self.kernel_task: threading.Thread | mp.Process
-        self.read_conn: connection.Connection
-
-        app = mgr.load_app()
-        configs = (
-            {cell_id: data.config for cell_id, data in app._cell_data.items()}
-            if app is not None
-            else {}
-        )
-        # Need to use a socket for windows compatibility
-        listener = connection.Listener(family="AF_INET")
-        is_edit_mode = mgr.mode == SessionMode.EDIT
-        if is_edit_mode:
-            # We use a process in edit mode so that we can interrupt the app
-            # with a SIGINT; we don't mind the additional memory consumption,
-            # since there's only one client session
-            self.queue = mpctx.Queue()
-            self.kernel_task = mp.Process(
-                target=runtime.launch_kernel,
-                args=(self.queue, listener.address, is_edit_mode, configs),
-                # The process can't be a daemon, because daemonic processes
-                # can't create children
-                # https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Process.daemon  # noqa: E501
-                daemon=False,
-            )
-        else:
-            # We use threads in run mode to minimize memory consumption;
-            # launching a process would copy the entire program state,
-            # which (as of writing) is around 150MB
-            self.queue = queue.Queue()
-            loop = tornado.ioloop.IOLoop.current()
-
-            # We can't terminate threads, so we have to wait until they
-            # naturally exit before cleaning up resources
-            def launch_kernel_with_cleanup(*args: Any) -> None:
-                runtime.launch_kernel(*args)
-                loop.remove_handler(self.read_conn.fileno())
-                self.read_conn.close()
-
-            # install formatter import hooks, which will be shared by all
-            # threads (in edit mode, the single kernel process installs
-            # formatters ...)
-            register_formatters()
-
-            # Make threads daemons so killing the server immediately brings
-            # down all client sessions
-            self.kernel_task = threading.Thread(
-                target=launch_kernel_with_cleanup,
-                args=(self.queue, listener.address, is_edit_mode, configs),
-                # daemon threads can create child processes, unlike
-                # daemon processes
-                daemon=True,
-            )
-        self.kernel_task.start()
-        # First thing kernel does is connect to the socket, so it's safe to
-        # call accept
-        self.read_conn = listener.accept()
-
-        def reader(fd: int, events: int) -> None:
-            del fd
-            del events
-            (op, data) = self.read_conn.recv()
-            self.socket.write_op(op=op, data=data)
-
-        tornado.ioloop.IOLoop.current().add_handler(
-            self.read_conn.fileno(),
-            reader,
-            events=(tornado.ioloop.IOLoop.READ),
-        )
+        self._queue_manager: QueueManager
+        self.session_handler = session_handler
+        self._queue_manager = queue_manager
+        self.kernel_manager = kernel_manager
+        self.kernel_manager.start_kernel()
 
         def check_alive() -> None:
-            if not self.kernel_task.is_alive():
+            if not self.kernel_manager.is_alive():
                 self.close()
                 print()
                 print_tabbed(
@@ -330,58 +229,24 @@ class Session:
                 print()
                 sys.exit()
 
-        self.kernel_heartbeat = tornado.ioloop.PeriodicCallback(
-            check_alive, callback_time=1000.0
+        self.check_alive = check_alive
+        self.session_handler.on_start(
+            connection=self.kernel_manager.kernel_connection,
+            check_alive=check_alive,
         )
-        self.kernel_heartbeat.start()
 
     def try_interrupt(self) -> None:
-        if (
-            isinstance(self.kernel_task, mp.Process)
-            and self.kernel_task.pid is not None
-        ):
-            LOGGER.debug("Sending SIGINT to kernel")
-            os.kill(self.kernel_task.pid, signal.SIGINT)
+        self.kernel_manager.interrupt_kernel()
+
+    def put_request(self, request: requests.Request) -> None:
+        self._queue_manager.control_queue.put(request)
+
+    def put_input(self, text: str) -> None:
+        self._queue_manager.input_queue.put(text)
 
     def close(self) -> None:
-        """Close kernel, sockets, and pipes."""
-        if self.kernel_heartbeat.is_running():
-            self.kernel_heartbeat.stop()
-        if isinstance(self.kernel_task, mp.Process):
-            # type ignores:
-            # guaranteed to be a multiprocessing Queue; annoying to assert
-            # this, because mp.Queue appears to be a function
-            #
-            # don't care if queue still has things in it; don't make the
-            # child process wait for it to empty.
-            self.queue.cancel_join_thread()  # type: ignore
-            self.queue.close()  # type: ignore
-            if self.kernel_task.is_alive():
-                # Explicitly terminate the process
-                self.kernel_task.terminate()
-            tornado.ioloop.IOLoop.current().remove_handler(
-                self.read_conn.fileno()
-            )
-            self.read_conn.close()
-        elif self.kernel_task.is_alive():
-            # kernel thread cleans up read/write conn and IOloop handler on
-            # exit; we don't join the thread because we don't want to block
-            self.queue.put(requests.StopRequest())
-        # 1000 - normal closure
-        self.socket.close(1000, "MARIMO_SHUTDOWN")
-
-    def cancel_close(self) -> None:
-        if self.cancel_close_handle is not None:
-            tornado.ioloop.IOLoop.current().remove_timeout(
-                self.cancel_close_handle
-            )
-
-
-class SessionMode(Enum):
-    # read-write
-    EDIT = 0
-    # read-only
-    RUN = 1
+        self.session_handler.on_stop(self.kernel_manager.kernel_connection)
+        self.kernel_manager.close_kernel()
 
 
 class SessionManager:
@@ -415,7 +280,6 @@ class SessionManager:
         self.sessions: dict[str, Session] = {}
         self.app_config: Optional[_AppConfig]
         self.include_code = include_code
-        # token uniquely identifying this server
 
         if (app := self.load_app()) is not None:
             self.app_config = app._config
@@ -452,15 +316,16 @@ class SessionManager:
         self.filename = filename
 
     def create_session(
-        self, session_id: str, socket_handler: IOSocketHandler
+        self, session_id: str, session_handler: SessionHandler
     ) -> Session:
-        """Create a new session
-
-        The `socket_handler` should already be open.
-        """
+        """Create a new session"""
         LOGGER.debug("creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            s = Session(socket_handler=socket_handler)
+            s = Session.create(
+                session_handler=session_handler,
+                mode=self.mode,
+                app=self.load_app(),
+            )
             self.sessions[session_id] = s
             return s
         else:
@@ -474,7 +339,10 @@ class SessionManager:
     def any_clients_connected(self) -> bool:
         """Returns True if at least one client has an open socket."""
         for session in self.sessions.values():
-            if session.socket.status == ConnectionState.OPEN:
+            if (
+                session.session_handler.connection_state()
+                == ConnectionState.OPEN
+            ):
                 return True
         return False
 
@@ -491,7 +359,7 @@ class SessionManager:
         if binpath is None:
             LOGGER.error("Node.js not found; cannot start LSP server.")
             for _, session in self.sessions.items():
-                session.socket.write_op(
+                session.session_handler.write_operation(
                     Alert.name,
                     serialize(
                         Alert(
@@ -503,10 +371,11 @@ class SessionManager:
                 )
             return
 
+        cmd = None
         try:
             LOGGER.debug("Starting LSP server at port %s...", self.lsp_port)
             lsp_bin = os.path.join(
-                str(importlib_files("marimo").joinpath("_lsp")),
+                str(import_files("marimo").joinpath("_lsp")),
                 "index.js",
             )
             cmd = f"node {lsp_bin} --port {self.lsp_port}"
@@ -524,7 +393,9 @@ class SessionManager:
             LOGGER.debug("Started LSP server at port %s", self.lsp_port)
         except Exception as e:
             LOGGER.error(
-                "When starting language server (%s), got error: %s", cmd, e
+                "When starting language server (%s), got error: %s",
+                cmd,
+                e,
             )
 
     def close_session(self, session_id: str) -> None:
@@ -538,7 +409,7 @@ class SessionManager:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
         for session in self.sessions.values():
             session.close()
-        LOGGER.debug("All sessions closed.")
+        LOGGER.debug("Closed all sessions.")
         self.sessions = {}
 
     def shutdown(self) -> None:
@@ -550,24 +421,6 @@ class SessionManager:
     def should_send_code_to_frontend(self) -> bool:
         """Returns True if the server can send messages to the frontend."""
         return self.mode == SessionMode.EDIT or self.include_code
-
-
-def requires_edit(handler: Callable[..., Any]) -> Callable[..., Any]:
-    """Mark a function as requiring edit permissions.
-
-    Raises:
-    ------
-    tornado.web.HTTPError: if session manager is not in edit mode.
-    """
-
-    @functools.wraps(handler)
-    def _throw_if_not_edit(*args: Any, **kwargs: Any) -> Any:
-        if get_manager().mode != SessionMode.EDIT:
-            raise tornado.web.HTTPError(HTTPStatus.FORBIDDEN)
-        else:
-            return handler(*args, **kwargs)
-
-    return _throw_if_not_edit
 
 
 def initialize_manager(
@@ -595,78 +448,3 @@ def get_manager() -> SessionManager:
     """Cannot be called until manager has been initialized."""
     assert SESSION_MANAGER is not None
     return SESSION_MANAGER
-
-
-def server_token_from_header(
-    headers: tornado.httputil.HTTPHeaders,
-) -> str:
-    """Extracts session ID from request header.
-
-    All endpoints require a session ID to be in the request header.
-    """
-    server_token = headers.get_list("Marimo-Server-Token")
-    if not server_token:
-        LOGGER.error("Invalid headers (Marimo-Server-Token not found)")
-        raise tornado.web.HTTPError(
-            HTTPStatus.FORBIDDEN,
-            "Invalid headers (Marimo-Server-Token not found)\n\n"
-            + str(headers),
-        )
-    elif len(server_token) > 1:
-        LOGGER.error("Invalid headers (> 1 Marimo-Server-Token)")
-        raise tornado.web.HTTPError(
-            HTTPStatus.FORBIDDEN,
-            "Invalid headers (> 1 Marimo-Server-Token)\n\n" + str(headers),
-        )
-    return server_token[0]
-
-
-def check_server_token(headers: tornado.httputil.HTTPHeaders) -> None:
-    """Throws an HTTPError if no Session is found."""
-    server_token = server_token_from_header(headers)
-    if server_token != get_manager().server_token:
-        LOGGER.error("Mismatched server token: %s", server_token)
-        raise tornado.web.HTTPError(
-            HTTPStatus.FORBIDDEN, "Invalid server token."
-        )
-
-
-def session_id_from_header(
-    headers: tornado.httputil.HTTPHeaders,
-) -> str:
-    """Extracts session ID from request header.
-
-    All endpoints require a session ID to be in the request header.
-    """
-    session_id = headers.get_list("Marimo-Session-Id")
-    if not session_id:
-        raise RuntimeError(
-            "Invalid headers (Marimo-Session-Id not found)\n\n" + str(headers)
-        )
-    elif len(session_id) > 1:
-        raise RuntimeError(
-            "Invalid headers (> 1 Marimo-Session-Id)\n\n" + str(headers)
-        )
-    return session_id[0]
-
-
-def session_from_header(
-    headers: tornado.httputil.HTTPHeaders,
-) -> Optional[Session]:
-    """Get the Session implied by the request header, if any."""
-    session_id = session_id_from_header(headers)
-    mgr = get_manager()
-    session = mgr.get_session(session_id)
-    if session is None:
-        LOGGER.error("Session with id %s not found", session_id)
-    return session
-
-
-def require_session_from_header(
-    headers: tornado.httputil.HTTPHeaders,
-) -> Session:
-    """Throws an HTTPError if no Session is found."""
-    session = session_from_header(headers)
-    if session is None:
-        raise tornado.web.HTTPError(HTTPStatus.NOT_FOUND, "Session not found.")
-    return session

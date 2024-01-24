@@ -1,6 +1,6 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
-import { CellMessage } from "../kernel/messages";
+import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
@@ -18,6 +18,7 @@ export function transitionCell(
       nextCell.interrupted = false;
       nextCell.errored = false;
       nextCell.runElapsedTimeMs = null;
+      nextCell.debuggerActive = false;
       // We intentionally don't update lastCodeRun, since the kernel queues
       // whatever code was last registered with it, which might not match
       // the cell's current code if the user modified it.
@@ -26,6 +27,10 @@ export function transitionCell(
       // If was previously stopped, clear the outputs
       if (cell.stopped) {
         nextCell.output = null;
+      }
+      // If it transitioned from queued to running, remove previous console outputs
+      if (nextCell.status === "queued") {
+        nextCell.consoleOutputs = [];
       }
       nextCell.stopped = false;
       nextCell.runStartTimestamp = message.timestamp;
@@ -36,6 +41,7 @@ export function transitionCell(
           (message.timestamp - cell.runStartTimestamp) * 1000;
         nextCell.runStartTimestamp = null;
       }
+      nextCell.debuggerActive = false;
       break;
     case null:
       break;
@@ -48,6 +54,7 @@ export function transitionCell(
     default:
       logNever(message.status);
   }
+
   nextCell.output = message.output ?? nextCell.output;
   nextCell.status = message.status ?? nextCell.status;
 
@@ -57,11 +64,11 @@ export function transitionCell(
     message.output !== null &&
     message.output.mimetype === "application/vnd.marimo+error"
   ) {
-    if (message.output.data.some((error) => error["type"] === "interruption")) {
+    if (message.output.data.some((error) => error.type === "interruption")) {
       // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
     } else if (
-      message.output.data.some((error) => error["type"] === "ancestor-stopped")
+      message.output.data.some((error) => error.type === "ancestor-stopped")
     ) {
       // The cell didn't run, but it was intentional, so don't count as
       // errored.
@@ -85,6 +92,28 @@ export function transitionCell(
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output
   nextCell.outline = parseOutline(nextCell.output);
+
+  // Transition PDB
+  const newConsoleOutputs = [message.console].flat().filter(Boolean);
+  const pdbOutputs = newConsoleOutputs.filter(
+    (output): output is Extract<OutputMessage, { channel: "pdb" }> =>
+      output.channel === "pdb"
+  );
+  const hasPdbOutput = pdbOutputs.length > 0;
+  if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {
+    nextCell.debuggerActive = true;
+  }
+  // If interrupted, remove the debugger and resolve all stdin
+  if (nextCell.interrupted || nextCell.errored) {
+    nextCell.debuggerActive = false;
+    nextCell.consoleOutputs = nextCell.consoleOutputs.map((output) => {
+      if (output.channel === "stdin") {
+        return { ...output, response: output.response ?? "" };
+      }
+      return output;
+    });
+  }
+
   return nextCell;
 }
 
@@ -98,6 +127,7 @@ export function prepareCellForExecution(
   nextCell.interrupted = false;
   nextCell.errored = false;
   nextCell.runElapsedTimeMs = null;
+  nextCell.debuggerActive = false;
 
   return nextCell;
 }

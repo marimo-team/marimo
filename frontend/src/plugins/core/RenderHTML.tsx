@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import parse, { Element } from "html-react-parser";
 
 interface Options {
@@ -22,7 +22,7 @@ export const renderHTML = ({ html }: Options) => {
       ) {
         const element = document.createElement("iframe");
         Object.entries(domNode.attribs).forEach(([key, value]) => {
-          element.setAttribute(key, value as string);
+          element.setAttribute(key, value);
         });
         return <div dangerouslySetInnerHTML={{ __html: element.outerHTML }} />;
       }

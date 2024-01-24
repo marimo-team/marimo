@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod";
 import {
@@ -63,7 +63,7 @@ import {
 
 interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
-  schema: z.ZodType<any>;
+  schema: z.ZodType;
   path?: Path<T>;
 }
 
@@ -896,7 +896,7 @@ const MultiSelectFormField = ({
   itemLabel,
   showSwitchable,
 }: {
-  schema: z.ZodEnum<any> | z.ZodString | z.ZodEnum<any> | z.ZodArray<any>;
+  schema: z.ZodEnum<any> | z.ZodString | z.ZodArray<any>;
   form: UseFormReturn<any>;
   path: Path<any>;
   itemLabel?: string;

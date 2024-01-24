@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { repl } from "../../utils/repl";
 import { CellId, UIElementId } from "../cells/ids";
 import {
@@ -107,7 +107,7 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @returns the value for `objectId`, or `undefined` if the object was not found.
    */
-  lookupValue(objectId: string): ValueType | undefined {
+  lookupValue(objectId: string): ValueType {
     const entry = this.entries.get(objectId);
     return entry === undefined ? undefined : entry.value;
   }

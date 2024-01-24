@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
@@ -24,8 +24,8 @@ test("can run Grid layout", async ({ page }) => {
   // Verify text 1 have the same y coordinate as text 2, but text 2 is further left
   const bb1 = await bbForText(page, "text 1");
   const bb2 = await bbForText(page, "text 2");
-  await expect(bb1.y).toBe(bb2.y);
-  await expect(bb1.x).toBeGreaterThan(bb2.x);
+  expect(bb1.y).toBe(bb2.y);
+  expect(bb1.x).toBeGreaterThan(bb2.x);
 
   await takeScreenshot(page, __filename);
 });
@@ -47,7 +47,7 @@ test("can edit Grid layout", async ({ page }) => {
   // Verify text 1 bounding box is above text 2
   let bb1 = await bbForText(page, "text 1");
   let bb2 = await bbForText(page, "text 2");
-  await expect(bb1.y).toBeLessThan(bb2.y);
+  expect(bb1.y).toBeLessThan(bb2.y);
 
   // Toggle preview-button
   await page.locator("#preview-button").click();
@@ -57,8 +57,8 @@ test("can edit Grid layout", async ({ page }) => {
   // Verify text 1 have the same y coordinate as text 2, but text 2 is further left
   bb1 = await bbForText(page, "text 1");
   bb2 = await bbForText(page, "text 2");
-  await expect(bb1.y).toBe(bb2.y);
-  await expect(bb1.x).toBeGreaterThan(bb2.x);
+  expect(bb1.y).toBe(bb2.y);
+  expect(bb1.x).toBeGreaterThan(bb2.x);
 
   // Can still use interactive elements
   await page.getByRole("textbox").last().fill("hello");
@@ -75,8 +75,8 @@ test("can edit Grid layout", async ({ page }) => {
   // Verify bounding boxes are back to vertical
   bb1 = await bbForText(page, "text 1");
   bb2 = await bbForText(page, "text 2");
-  await expect(bb1.x).toBe(bb2.x);
-  await expect(bb1.y).toBeLessThan(bb2.y);
+  expect(bb1.x).toBe(bb2.x);
+  expect(bb1.y).toBeLessThan(bb2.y);
 
   await takeScreenshot(page, __filename);
 });

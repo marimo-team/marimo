@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
 import { CellId } from "./cells/ids";
@@ -61,7 +61,8 @@ export async function runDuringPresentMode(
 ): Promise<void> {
   const state = store.get(viewStateAtom);
   if (state.mode === "present") {
-    return await fn();
+    await fn();
+    return;
   }
 
   store.set(viewStateAtom, { ...state, mode: "present" });

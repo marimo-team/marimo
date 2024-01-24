@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
@@ -33,7 +33,7 @@ export const DataFrame: StoryObj = {
           console.log(v);
           setValue(v);
         }}
-        get_dataframe={() => Promise.reject({})}
+        get_dataframe={() => Promise.reject(new Error("not implemented"))}
       />
     );
   },

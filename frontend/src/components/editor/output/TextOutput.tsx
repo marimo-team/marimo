@@ -1,11 +1,11 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 
 import { OutputChannel } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 
 interface Props {
   text: string;
-  channel?: OutputChannel;
+  channel?: OutputChannel | "stdin";
 }
 
 export const TextOutput = ({ text, channel }: Props): JSX.Element => {

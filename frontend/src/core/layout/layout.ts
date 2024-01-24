@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { GridLayout } from "@/components/editor/renderers/grid-layout/types";
 import { LayoutType } from "@/components/editor/renderers/types";
 import { cellRendererPlugins } from "@/components/editor/renderers/plugins";

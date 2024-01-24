@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from json import JSONEncoder
 from typing import Any
 
@@ -36,6 +36,8 @@ class WebComponentEncoder(JSONEncoder):
             elif isinstance(obj, pd.Series):
                 return obj.to_list()
             elif isinstance(obj, pd.Timestamp):
+                return str(obj)
+            elif isinstance(obj, pd.DatetimeTZDtype):
                 return str(obj)
 
         # Handle MIME objects

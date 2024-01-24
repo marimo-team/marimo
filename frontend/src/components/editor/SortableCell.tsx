@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo, useContext } from "react";
 import { mergeRefs } from "../../utils/mergeRefs";
 import { useSortable } from "@dnd-kit/sortable";

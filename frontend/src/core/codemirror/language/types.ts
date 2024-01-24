@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { CompletionConfig } from "@/core/config/config-schema";
 import { Extension } from "@codemirror/state";
 

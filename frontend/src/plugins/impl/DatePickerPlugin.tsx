@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { useId, useRef } from "react";
 import { z } from "zod";
 
@@ -48,10 +48,11 @@ interface DatePickerProps extends Data {
 const DatePicker = (props: DatePickerProps): JSX.Element => {
   const inputRef = useRef<HTMLInputElement>(null);
   const handleInput = () => {
-    if (inputRef.current !== null && inputRef.current.valueAsDate !== null) {
+    const input = inputRef.current;
+    if (input?.valueAsDate) {
       // basic bounds validation; browser validation is lacking
       // when the input's value changes due to keyboard events
-      let valueAsDate = inputRef.current.valueAsDate;
+      let valueAsDate = input.valueAsDate;
       const minDate = new Date(props.start);
       valueAsDate = valueAsDate < minDate ? minDate : valueAsDate;
       const maxDate = new Date(props.stop);

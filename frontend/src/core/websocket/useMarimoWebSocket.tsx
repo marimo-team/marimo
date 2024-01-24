@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { WebSocketClosedReason, WebSocketState } from "./types";
 import { useAtom, useSetAtom } from "jotai";
 import { connectionAtom } from "../network/connection";
@@ -270,5 +270,5 @@ export function useMarimoWebSocket(opts: {
 function createWsUrl(sessionId: string): string {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 
-  return `${protocol}://${window.location.host}/iosocket?session_id=${sessionId}`;
+  return `${protocol}://${window.location.host}/ws?session_id=${sessionId}`;
 }

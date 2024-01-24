@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 interface ILogger {
   debug: (typeof console)["debug"];
   log: (typeof console)["log"];

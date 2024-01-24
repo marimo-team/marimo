@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from marimo._cli.envinfo import (
     _get_node_version,
     _get_pip_list,
@@ -15,7 +15,7 @@ def test_get_pip_list() -> None:
     pip_list = _get_pip_list()
     assert isinstance(pip_list, dict)
     assert "click" in pip_list
-    assert "tornado" in pip_list
+    assert "starlette" in pip_list
 
 
 def test_get_system_info() -> None:

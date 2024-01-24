@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { exportAsHTMLAndTakeScreenshot, pressShortcut } from "./helper";
@@ -32,7 +32,7 @@ test("keeps re-renders from growing", async ({ page }) => {
   // unexpectedly, it is a sign that something is causing cells to re-render.
   // It is also ok to decrease the count if we find a way to reduce the number
   // of renders.
-  await expect(cellRenderCount).toBe("8");
+  expect(cellRenderCount).toBe("8");
 });
 
 /**

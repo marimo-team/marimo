@@ -1,4 +1,4 @@
-# Copyright 2023 Marimo. All rights reserved.
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from marimo._runtime import cell_runner, control_flow
@@ -12,9 +12,10 @@ def test_stop_false(k: Kernel) -> None:
     k.run(
         [
             ExecutionRequest(
-                "0", "import marimo as mo; x = 0; mo.stop(False); y = 1"
+                cell_id="0",
+                code="import marimo as mo; x = 0; mo.stop(False); y = 1",
             ),
-            ExecutionRequest("1", "z = y + 1"),
+            ExecutionRequest(cell_id="1", code="z = y + 1"),
         ]
     )
     assert k.globals["x"] == 0
@@ -26,8 +27,8 @@ def test_stop_true(k: Kernel) -> None:
     # Populate the kernel and its globals
     k.run(
         [
-            ExecutionRequest("0", "x = 0; y = 1"),
-            ExecutionRequest("1", "z = y + 1"),
+            ExecutionRequest(cell_id="0", code="x = 0; y = 1"),
+            ExecutionRequest(cell_id="1", code="z = y + 1"),
         ]
     )
     assert k.globals["x"] == 0
@@ -38,7 +39,8 @@ def test_stop_true(k: Kernel) -> None:
     k.run(
         [
             ExecutionRequest(
-                "0", "import marimo as mo; x = 0; mo.stop(True); y = 1"
+                cell_id="0",
+                code="import marimo as mo; x = 0; mo.stop(True); y = 1",
             ),
         ]
     )
@@ -55,8 +57,8 @@ def test_stop_output(k: Kernel) -> None:
     k.run(
         [
             ExecutionRequest(
-                "0",
-                "import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",
+                cell_id="0",
+                code="import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",  # noqa: E501
             ),
         ]
     )

@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { Logger } from "../../utils/Logger";
 
 /**
@@ -8,7 +8,7 @@ export function defineCustomElement(
   name: string,
   clazz: CustomElementConstructor
 ) {
-  if (typeof window === "undefined" || !window.customElements) {
+  if (!window?.customElements) {
     Logger.warn("Custom elements not supported");
     return;
   }

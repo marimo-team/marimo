@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ReducerWithoutAction, createRef, useMemo } from "react";
 import { CellMessage } from "../kernel/messages";
@@ -392,6 +392,33 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       ...nextState,
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
+  },
+  setStdinResponse: (
+    state,
+    action: { cellId: CellId; response: string; outputIndex: number }
+  ) => {
+    const { cellId, response, outputIndex } = action;
+    return updateCellRuntimeState(state, cellId, (cell) => {
+      const consoleOutputs = [...cell.consoleOutputs];
+      const stdinOutput = consoleOutputs[outputIndex];
+      if (stdinOutput.channel !== "stdin") {
+        Logger.warn("Expected stdin output");
+        return cell;
+      }
+
+      consoleOutputs[outputIndex] = {
+        channel: "stdin",
+        mimetype: stdinOutput.mimetype,
+        data: stdinOutput.data,
+        timestamp: stdinOutput.timestamp,
+        response,
+      };
+
+      return {
+        ...cell,
+        consoleOutputs,
+      };
+    });
   },
   setCells: (state, cells: CellData[]) => {
     return {

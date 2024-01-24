@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { invariant } from "@/utils/invariant";
 import {
   MarimoStaticState,
@@ -19,9 +19,7 @@ export function parseStaticState(): StaticNotebookState {
 }
 
 export function isStaticNotebook(): boolean {
-  return (
-    typeof window !== "undefined" && window.__MARIMO_STATIC__ !== undefined
-  );
+  return window?.__MARIMO_STATIC__ !== undefined;
 }
 
 export function getStaticNotebookAssetUrl(): string {

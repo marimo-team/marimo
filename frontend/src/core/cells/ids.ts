@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-redeclare */
 
 import { invariant } from "@/utils/invariant";
@@ -37,7 +37,7 @@ export const HTMLCellId = {
   create(cellId: CellId): HTMLCellId {
     invariant(cellId != null, "cellId is required");
 
-    return `cell-${cellId}` as HTMLCellId;
+    return `cell-${cellId}`;
   },
   parse(htmlCellId: HTMLCellId): CellId {
     return htmlCellId.slice(5) as CellId;

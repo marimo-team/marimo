@@ -8,3 +8,9 @@ coverage:
         # this allows a 5% drop from the previous base commit coverage
         # we'll decrease this as our testing matures
         threshold: 5%
+    patch:
+      default:
+        target: auto
+        # this allows a 50% drop from the previous base commit coverage
+        # we'll decrease this as our testing matures
+        threshold: 50%

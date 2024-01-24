@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { OutputMessage } from "@/core/kernel/messages";
 
 // collapses the last text/plain cells with the preceding one on the same
@@ -6,18 +6,20 @@ import { OutputMessage } from "@/core/kernel/messages";
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[]
 ): OutputMessage[] {
-  // Array.at() not supported in older-but-still-recent versions of Safari
   let nextOutput = consoleOutputs[consoleOutputs.length - 1];
   if (nextOutput.mimetype !== "text/plain") {
     return consoleOutputs;
   }
 
+  // Skip stdin
   if (
     consoleOutputs.length >= 2 &&
     consoleOutputs[consoleOutputs.length - 2].mimetype === "text/plain" &&
-    consoleOutputs[consoleOutputs.length - 2].channel === nextOutput.channel
+    consoleOutputs[consoleOutputs.length - 2].channel === nextOutput.channel &&
+    nextOutput.channel !== "stdin"
   ) {
     consoleOutputs.pop();
+    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
     consoleOutputs[consoleOutputs.length - 1].data += nextOutput.data;
     nextOutput = consoleOutputs[consoleOutputs.length - 1];
   }

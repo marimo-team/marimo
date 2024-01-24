@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppChrome } from "@/components/editor/chrome/wrapper/app-chrome";
 import type { Meta, StoryObj } from "@storybook/react";

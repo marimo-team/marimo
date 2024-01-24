@@ -1,4 +1,4 @@
-/* Copyright 2023 Marimo. All rights reserved. */
+/* Copyright 2024 Marimo. All rights reserved. */
 import React, { useState } from "react";
 import { Textarea } from "../ui/textarea";
 import { Combobox, ComboboxItem } from "../ui/combobox";
