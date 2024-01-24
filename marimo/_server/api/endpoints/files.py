@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
@@ -32,6 +33,7 @@ router = APIRouter()
 
 
 @router.post("/directory_autocomplete")
+@requires("edit")
 async def directory_autocomplete(
     *,
     request: Request,
@@ -59,6 +61,7 @@ async def directory_autocomplete(
 
 
 @router.post("/read_code")
+@requires("edit")
 async def read_code(
     *,
     request: Request,
@@ -85,6 +88,7 @@ async def read_code(
 
 
 @router.post("/rename")
+@requires("edit")
 async def rename_file(
     *,
     request: Request,
@@ -132,6 +136,7 @@ async def rename_file(
 
 
 @router.post("/save")
+@requires("edit")
 async def save(
     *,
     request: Request,
@@ -190,6 +195,7 @@ async def save(
 
 
 @router.post("/save_app_config")
+@requires("edit")
 async def save_app_config(
     *,
     request: Request,

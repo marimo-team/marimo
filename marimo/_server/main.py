@@ -4,11 +4,15 @@ from typing import Any
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
+from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from marimo._server.api.lifespans import LIFESPANS
+from marimo._server.api.middleware import (
+    AuthBackend,
+)
 from marimo._server.api.router import ROUTES
 
 # CORS
@@ -19,7 +23,8 @@ middleware = [
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
+    Middleware(AuthenticationMiddleware, backend=AuthBackend()),
 ]
 
 

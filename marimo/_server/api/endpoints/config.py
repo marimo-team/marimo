@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 
 import tomlkit
+from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
@@ -28,6 +29,7 @@ router = APIRouter()
 
 
 @router.post("/save_user_config")
+@requires("edit")
 async def save_user_config(
     *,
     request: Request,

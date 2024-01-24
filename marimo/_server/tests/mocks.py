@@ -10,7 +10,9 @@ from marimo._server.sessions import SessionManager
 
 
 @functools.lru_cache()
-def get_mock_session_manager() -> SessionManager:
+def get_mock_session_manager(
+    mode: SessionMode = SessionMode.EDIT,
+) -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
@@ -33,9 +35,11 @@ if __name__ == "__main__":
 """.encode()
     )
 
+    temp_file.close()
+
     return SessionManager(
         filename=temp_file.name,
-        mode=SessionMode.EDIT,
+        mode=mode,
         port=1001,
         development_mode=False,
         quiet=False,
@@ -56,6 +60,32 @@ def with_session(
                 data = websocket.receive_text()
                 assert data
                 func(client)
+            # shutdown after websocket exits, otherwise
+            # test fails on Windows (loop closed twice)
+            client.post("/api/kernel/shutdown")
+
+        return wrapper
+
+    return decorator
+
+
+def with_read_session(
+    session_id: str,
+) -> Callable[[Callable[..., None]], Callable[..., None]]:
+    """Decorator to create a session and close it after the test"""
+
+    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+        def wrapper(client: TestClient) -> None:
+            with client.websocket_connect(
+                f"/ws?session_id={session_id}"
+            ) as websocket:
+                data = websocket.receive_text()
+                assert data
+                # Just change the mode here, otherwise our tests will run,
+                # in threads
+                client.app.state.session_manager.mode = SessionMode.RUN  # type: ignore
+                func(client)
+                client.app.state.session_manager.mode = SessionMode.EDIT  # type: ignore
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
             client.post("/api/kernel/shutdown")

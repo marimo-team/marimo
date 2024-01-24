@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from starlette.authentication import requires
 from starlette.requests import Request
 
 from marimo import _loggers
@@ -109,6 +110,7 @@ async def function_call(
 
 
 @router.post("/interrupt")
+@requires("edit")
 async def interrupt(
     *,
     request: Request,
@@ -121,6 +123,7 @@ async def interrupt(
 
 
 @router.post("/run")
+@requires("edit")
 async def run_cell(
     *,
     request: Request,
@@ -147,6 +150,7 @@ async def run_cell(
 
 
 @router.post("/shutdown")
+@requires("edit")
 async def shutdown(
     *,
     request: Request,

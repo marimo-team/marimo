@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from starlette.authentication import requires
 from starlette.requests import Request
 
 from marimo._ast.cell import CellId_t
@@ -24,6 +25,7 @@ router = APIRouter()
 
 
 @router.post("/code_autocomplete")
+@requires("edit")
 async def code_complete(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
@@ -40,6 +42,7 @@ async def code_complete(request: Request) -> BaseResponse:
 
 
 @router.post("/delete")
+@requires("edit")
 async def delete_cell(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
@@ -52,6 +55,7 @@ async def delete_cell(request: Request) -> BaseResponse:
 
 
 @router.post("/format")
+@requires("edit")
 async def format_cell(request: Request) -> FormatResponse:
     """Complete a code fragment."""
     try:
@@ -75,6 +79,7 @@ async def format_cell(request: Request) -> FormatResponse:
 
 
 @router.post("/set_cell_config")
+@requires("edit")
 async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
     app_state = AppState(request)
@@ -87,6 +92,7 @@ async def set_cell_config(request: Request) -> BaseResponse:
 
 
 @router.post("/stdin")
+@requires("edit")
 async def stdin(request: Request) -> BaseResponse:
     """Send input to the stdin stream."""
     app_state = AppState(request)

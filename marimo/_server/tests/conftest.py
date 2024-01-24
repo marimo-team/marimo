@@ -12,7 +12,7 @@ from marimo._server.utils import initialize_asyncio
 
 
 @pytest.fixture(scope="session", autouse=True)
-def init():
+def init() -> None:
     initialize_asyncio()
 
 
