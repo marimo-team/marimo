@@ -86,8 +86,8 @@ def buffered_writer(
             # We wait for messages until the timer (if any) expires
             while timer is None or timer > 0:
                 time_started_waiting = time.time()
-                # if the timer or if the message queue is empty, wait;
-                # otherwise, no timer is set but the we received a message, so
+                # if the timer is set or if the message queue is empty, wait;
+                # otherwise, no timer is set but we received a message, so
                 # process it
                 if timer is not None or not msg_queue:
                     cv.wait(timeout=timer)
