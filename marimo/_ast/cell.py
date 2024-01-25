@@ -164,7 +164,7 @@ def cell_function(
             n_args += 1
 
     parameters = list(signature.parameters.keys())
-    return_names = sorted(cell.defs)
+    return_names = sorted(defn.name for defn in cell.defs)
 
     @functools.wraps(f)
     def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
@@ -203,7 +203,7 @@ def cell_function(
         #       to the defs, which might be weird because that doesn't
         #       match the function signature
         _ = execute_cell(cell, glbls)
-        return tuple(glbls[str(name)] for name in return_names)
+        return tuple(glbls[name] for name in return_names)
 
     cell_func = cast(CellFunction[CellFuncTypeBound], func)
     cell_func.cell = cell

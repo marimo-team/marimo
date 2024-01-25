@@ -126,12 +126,12 @@ def refs() -> tuple[str, ...]:
     if ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
-                str(defn)
+                defn.name
                 for defn in ctx.kernel.graph.cells[
                     ctx.kernel.execution_context.cell_id
                 ].refs
                 # exclude builtins that have not been shadowed
-                if defn not in unshadowed_builtins
+                if defn.name not in unshadowed_builtins
             )
         )
     return tuple()
@@ -904,7 +904,7 @@ class Kernel:
                 for name in get_context().ui_element_registry.bound_names(
                     object_id
                 )
-                if not is_local(name)
+                if not is_local(str(name))
             )
 
             variable_values: list[VariableValue] = []
@@ -912,7 +912,7 @@ class Kernel:
                 # subtracting self.graph.definitions[name]: never rerun the
                 # cell that created the name
                 variable_values.append(
-                    VariableValue(name=name, value=component)
+                    VariableValue(name=str(name), value=component)
                 )
                 try:
                     referring_cells.update(

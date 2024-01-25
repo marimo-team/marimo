@@ -6,6 +6,7 @@ from typing import Any, Iterable
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
+from marimo._ast.visitor import Name
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 
@@ -18,7 +19,7 @@ class UIElementRegistry:
         # mapping from object id to UIElement object that has that id
         self._objects: dict[UIElementId, weakref.ref[UIElement[Any, Any]]] = {}
         # mapping from object id to set of names that are bound to it
-        self._bindings: dict[UIElementId, set[str]] = {}
+        self._bindings: dict[UIElementId, set[Name]] = {}
         # mapping from object id to cell that created it
         self._constructing_cells: dict[UIElementId, CellId_t] = {}
 
@@ -42,13 +43,14 @@ class UIElementRegistry:
             # cleaned up
             del self._bindings[object_id]
 
-    def bound_names(self, object_id: UIElementId) -> Iterable[str]:
+    def bound_names(self, object_id: UIElementId) -> Iterable[Name]:
         if object_id not in self._bindings:
             self._register_bindings(object_id)
         return self._bindings[object_id]
 
     def _register_bindings(self, object_id: UIElementId) -> None:
         kernel = get_context().kernel
+        # Get all variable names that are bound to this UI element
         names = set(
             [
                 name
@@ -58,6 +60,10 @@ class UIElementRegistry:
                     and kernel.globals[name]._id == object_id
                 )
             ]
+        )
+        # Filter to the graph's definitions only, excluding local variables
+        names = set(
+            defn for defn in kernel.graph.definitions if defn.name in names
         )
         self._bindings[object_id] = names
 

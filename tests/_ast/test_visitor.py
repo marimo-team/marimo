@@ -619,7 +619,8 @@ def test_function_kind() -> None:
     mod = ast.parse(code)
     v.visit(mod)
     assert_names_equal(v.defs, set([Name("foo", kind="function")]))
-    
+
+
 def test_async_function_kind() -> None:
     code = "async def foo(): ..."
     v = visitor.ScopedVisitor()

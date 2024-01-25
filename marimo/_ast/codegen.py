@@ -62,7 +62,9 @@ def to_functiondef(
     if unshadowed_builtins is None:
         unshadowed_builtins = set(builtins.__dict__.keys())
     refs = [
-        str(ref) for ref in sorted(cell.refs) if ref not in unshadowed_builtins
+        str(ref)
+        for ref in sorted(cell.refs)
+        if ref.name not in unshadowed_builtins
     ]
     args = ", ".join(refs)
 

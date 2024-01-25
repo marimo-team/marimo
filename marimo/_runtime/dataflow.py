@@ -56,10 +56,10 @@ class DirectedGraph:
             cell_id in self.cells and code_key(code) == self.cells[cell_id].key
         )
 
-    def get_defining_cells(self, name: Name | str) -> set[CellId_t]:
-        return self.definitions[Name(str(name))]
+    def get_defining_cells(self, name: Name) -> set[CellId_t]:
+        return self.definitions[name]
 
-    def get_referring_cells(self, name: Name | str) -> set[CellId_t]:
+    def get_referring_cells(self, name: Name) -> set[CellId_t]:
         """Get all cells that have a ref to `name`."""
         return set([cid for cid in self.cells if name in self.cells[cid].refs])
 

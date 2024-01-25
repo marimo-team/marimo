@@ -17,26 +17,17 @@ class Name:
     def __hash__(self) -> int:
         return hash(self.name)
 
-    def __eq__(self, other: object) -> bool:
-        return str(other) == self.name
-
-    def __neq__(self, other: object) -> bool:
-        return not other == self
-
-    def __str__(self) -> str:
-        return self.name
-
     def __lt__(self, other: object) -> bool:
-        return str(self) < str(other)
+        return self.name < str(other)
 
     def __le__(self, other: object) -> bool:
-        return str(self) <= str(other)
+        return self.name <= str(other)
 
     def __gt__(self, other: object) -> bool:
-        return str(self) > str(other)
+        return self.name > str(other)
 
     def __ge__(self, other: object) -> bool:
-        return str(self) >= str(other)
+        return self.name >= str(other)
 
 
 def is_local(name: str) -> bool:
@@ -53,6 +44,9 @@ class Block:
     global_names: set[Name] = field(default_factory=set)
     # Comprehensions have special scoping rules
     is_comprehension: bool = False
+
+    def contains_identifier(self, identifier: str) -> bool:
+        return any(identifier == defn.name for defn in self.defs)
 
 
 @dataclass
@@ -126,7 +120,9 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
-        return any(identifier in block.defs for block in self.block_stack)
+        return any(
+            block.contains_identifier(identifier) for block in self.block_stack
+        )
 
     def _add_ref(self, name: Name, deleted: bool) -> None:
         """Register a referenced name."""
@@ -350,9 +346,11 @@ class ScopedVisitor(ast.NodeVisitor):
                 node.id, ignore_scope=True
             )
             for block in reversed(self.block_stack):
-                if block == self.block_stack[0] and mangled_name in block.defs:
+                if block == self.block_stack[0] and block.contains_identifier(
+                    mangled_name
+                ):
                     node.id = mangled_name
-                elif node.id in block.defs:
+                elif block.contains_identifier(node.id):
                     break
 
         self.generic_visit(node)
