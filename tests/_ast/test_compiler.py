@@ -97,3 +97,10 @@ class TestCellFactory:
         cf = compiler.cell_factory(f, cell_id="0")
         assert cf.cell.defs == {"x"}
         assert cf.cell.refs == {"y"}
+
+
+def test_cell_id_from_filename() -> None:
+    assert compiler.cell_id_from_filename(compiler.get_filename("0")) == "0"
+    assert compiler.cell_id_from_filename(compiler.get_filename("2")) == "2"
+    assert compiler.cell_id_from_filename(compiler.get_filename("23")) == "23"
+    assert compiler.cell_id_from_filename("random_file.py") is None

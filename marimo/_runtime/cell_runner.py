@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import sys
 import traceback
 from collections.abc import Container
@@ -9,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell
+from marimo._ast.compiler import cell_id_from_filename
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 
@@ -19,14 +19,6 @@ if TYPE_CHECKING:
 def cell_filename(cell_id: CellId_t) -> str:
     """Filename to use when running cells through exec."""
     return f"<cell-{cell_id}>"
-
-
-def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
-    """Parses cell id from filename."""
-    matches = re.findall(r"<cell-([0-9]+)>", filename)
-    if matches:
-        return str(matches[0])
-    return None
 
 
 def format_traceback(graph: dataflow.DirectedGraph) -> str:
