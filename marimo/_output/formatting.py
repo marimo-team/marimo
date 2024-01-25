@@ -28,6 +28,7 @@ from html import escape
 from typing import Any, Callable, Optional, Tuple, Type, TypeVar
 
 from marimo import _loggers as loggers
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
@@ -36,7 +37,7 @@ from marimo._plugins.stateless.json_output import json_output
 T = TypeVar("T")
 
 # we use Tuple instead of the builtin tuple for py3.8 compatibility
-Formatter = Callable[[T], Tuple[str, str]]
+Formatter = Callable[[T], Tuple[KnownMimeType, str]]
 FORMATTERS: dict[Type[Any], Formatter[Any]] = {}
 LOGGER = loggers.marimo_logger()
 
@@ -111,7 +112,7 @@ def get_formatter(obj: T) -> Optional[Formatter[T]]:
 
 @dataclass
 class FormattedOutput:
-    mimetype: str
+    mimetype: KnownMimeType
     data: str
     traceback: Optional[str] = None
 

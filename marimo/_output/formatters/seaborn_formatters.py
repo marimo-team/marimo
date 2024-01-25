@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
@@ -35,15 +36,17 @@ class SeabornFormatter(FormatterFactory):
         @formatting.formatter(seaborn.axisgrid.FacetGrid)
         def _show_facet_grid(
             fg: seaborn.axisgrid.FacetGrid,
-        ) -> tuple[str, str]:
+        ) -> tuple[KnownMimeType, str]:
             return _show_ax_or_subplots(fg)
 
         @formatting.formatter(seaborn.axisgrid.PairGrid)
-        def _show_pair_grid(pg: seaborn.axisgrid.PairGrid) -> tuple[str, str]:
+        def _show_pair_grid(
+            pg: seaborn.axisgrid.PairGrid,
+        ) -> tuple[KnownMimeType, str]:
             return _show_ax_or_subplots(pg)
 
         @formatting.formatter(seaborn.axisgrid.JointGrid)
         def _show_joint_grid(
             jg: seaborn.axisgrid.JointGrid,
-        ) -> tuple[str, str]:
+        ) -> tuple[KnownMimeType, str]:
             return _show_ax_or_subplots(jg)

@@ -23,9 +23,10 @@ from typing import (
 
 from marimo import _loggers as loggers
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES, Stream
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
@@ -76,7 +77,9 @@ class CellOp(Op):
     timestamp: float = field(default_factory=lambda: time.time())
 
     @staticmethod
-    def maybe_truncate_output(mimetype: str, data: str) -> tuple[str, str]:
+    def maybe_truncate_output(
+        mimetype: KnownMimeType, data: str
+    ) -> tuple[KnownMimeType, str]:
         if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
@@ -111,8 +114,8 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_output(
-        channel: str,
-        mimetype: str,
+        channel: CellChannel,
+        mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
@@ -144,7 +147,7 @@ class CellOp(Op):
         CellOp(
             cell_id=cell_id,
             output=CellOutput(
-                channel="output",
+                channel=CellChannel.OUTPUT,
                 mimetype="text/plain",
                 data="",
             ),
@@ -153,8 +156,8 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_console_output(
-        channel: str,
-        mimetype: str,
+        channel: CellChannel,
+        mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
@@ -193,7 +196,7 @@ class CellOp(Op):
         CellOp(
             cell_id=cell_id,
             output=CellOutput(
-                channel="marimo-error",
+                channel=CellChannel.MARIMO_ERROR,
                 mimetype="application/vnd.marimo+error",
                 data=data,
             ),
@@ -254,6 +257,10 @@ class KernelReady(Op):
     names: tuple[str, ...]
     layout: Optional[LayoutConfig]
     configs: tuple[CellConfig, ...]
+    # Whether the kernel was resumed from a previous session
+    resumed: bool
+    # If the kernel was resumed, the values of the UI elements
+    ui_values: Optional[dict[str, JSONType]]
 
 
 @dataclass
@@ -276,6 +283,16 @@ class Alert(Op):
 
 
 @dataclass
+class Banner(Op):
+    name: ClassVar[str] = "banner"
+    title: str
+    # description may be HTML
+    description: str
+    variant: Optional[Literal["danger"]] = None
+    action: Optional[Literal["restart"]] = None
+
+
+@dataclass
 class VariableDeclaration:
     name: str
     declared_by: list[CellId_t]
@@ -288,7 +305,9 @@ class VariableValue:
     datatype: Optional[str]
     value: Optional[str]
 
-    def __init__(self, name: str, value: object):
+    def __init__(
+        self, name: str, value: object, datatype: Optional[str] = None
+    ) -> None:
         self.name = name
 
         # Defensively try-catch attribute accesses, which could raise
@@ -296,7 +315,7 @@ class VariableValue:
         try:
             self.datatype = type(value).__name__ if value is not None else None
         except Exception:
-            self.datatype = None
+            self.datatype = datatype
 
         try:
             self.value = self._format_value(value)
@@ -331,3 +350,19 @@ class VariableValues(Op):
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
+
+
+MessageOperation = Union[
+    CellOp,
+    HumanReadableStatus,
+    FunctionCallResult,
+    RemoveUIElements,
+    Interrupted,
+    CompletedRun,
+    KernelReady,
+    CompletionResult,
+    Alert,
+    Banner,
+    Variables,
+    VariableValues,
+]

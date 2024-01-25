@@ -46,7 +46,7 @@ export function createReducer<
   RH extends ReducerHandlers<NoInfer<State>>
 >(initialState: () => State, reducers: RH): ReducerCreatorResult<State, RH> {
   return {
-    reducer: (state, action: ReducerAction<any>) => {
+    reducer: (state, action: ReducerAction<RH>) => {
       state = state || initialState();
       if (action.type in reducers) {
         return reducers[action.type](state, action.payload);

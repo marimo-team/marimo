@@ -9,5 +9,3 @@ export function generateUUID() {
     }
   );
 }
-
-export const UUID = generateUUID();

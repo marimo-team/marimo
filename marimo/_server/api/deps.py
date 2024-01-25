@@ -10,7 +10,7 @@ from uvicorn import Server
 from marimo._ast.app import _AppConfig
 from marimo._config.config import MarimoConfig
 from marimo._server.model import SessionMode
-from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions import Session, SessionId, SessionManager
 
 
 def app_state(request: Request) -> AppState:
@@ -38,18 +38,27 @@ class AppState:
         self.user_config: MarimoConfig = request.app.state.user_config
         self._server: Server = request.app.state.server
 
+    def get_current_session_id(self) -> Optional[SessionId]:
+        """Get the current session."""
+        return self.request.headers.get("Marimo-Session-Id")
+
+    def require_current_session_id(self) -> SessionId:
+        """Get the current session or raise an error."""
+        session_id = self.get_current_session_id()
+        if session_id is None:
+            raise ValueError("Missing Marimo-Session-Id header")
+        return session_id
+
     def get_current_session(self) -> Optional[Session]:
         """Get the current session."""
-        session_id = self.request.headers.get("Marimo-Session-Id")
+        session_id = self.get_current_session_id()
         if session_id is None:
             return None
         return self.session_manager.get_session(session_id)
 
     def require_current_session(self) -> Session:
         """Get the current session or raise an error."""
-        session_id = self.request.headers.get("Marimo-Session-Id")
-        if session_id is None:
-            raise ValueError("Missing Marimo-Session-Id header")
+        session_id = self.require_current_session_id()
         session = self.session_manager.get_session(session_id)
         if session is None:
             raise ValueError(f"Invalid session id: {session_id}")

@@ -141,6 +141,25 @@ async def run_cell(
     return SuccessResponse()
 
 
+@router.post("/restart_session")
+@requires("edit")
+async def restart_session(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    Restart a session. This does not restart the
+    kernel or affect other sessions
+    """
+    app_state = AppState(request)
+    # This just closes the session, and the frontend will
+    # do a full reload, which will restart the session.
+    session_id = app_state.require_current_session_id()
+    app_state.session_manager.close_session(session_id)
+
+    return SuccessResponse()
+
+
 @router.post("/shutdown")
 @requires("edit")
 async def shutdown(

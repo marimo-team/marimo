@@ -7,13 +7,14 @@ import os
 import sys
 import threading
 from collections import deque
-from multiprocessing.connection import Connection
 from typing import Any, Iterable, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._server.model import KernelMessage
 from marimo._server.types import QueueType
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -48,7 +49,7 @@ class Stream:
 
     def __init__(
         self,
-        pipe: Connection,
+        pipe: TypedConnection[KernelMessage],
         input_queue: QueueType[str],
         cell_id: Optional[CellId_t] = None,
     ):

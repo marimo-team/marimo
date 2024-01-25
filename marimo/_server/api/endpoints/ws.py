@@ -5,18 +5,23 @@ import asyncio
 import json
 import os
 from enum import IntEnum
-from multiprocessing.connection import Connection
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
-from marimo._messaging.ops import KernelReady, serialize
+from marimo._messaging.ops import Banner, KernelReady, serialize
 from marimo._plugins.core.json_encoder import WebComponentEncoder
+from marimo._plugins.core.web_component import JSONType
 from marimo._server.api.deps import AppState
 from marimo._server.layout import LayoutConfig, read_layout_config
-from marimo._server.model import ConnectionState, SessionHandler, SessionMode
+from marimo._server.model import (
+    ConnectionState,
+    KernelMessage,
+    SessionConsumer,
+    SessionMode,
+)
 from marimo._server.router import APIRouter
 from marimo._server.sessions import Session, SessionManager
 
@@ -50,7 +55,7 @@ async def websocket_endpoint(
     ).start()
 
 
-class WebsocketHandler(SessionHandler):
+class WebsocketHandler(SessionConsumer):
     """WebSocket that sessions use to send messages to frontends.
 
     Each new socket gets a unique session. At most one session can exist when
@@ -73,9 +78,13 @@ class WebsocketHandler(SessionHandler):
         self.heartbeat_task: Optional[asyncio.Task[None]] = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
-        self.message_queue: asyncio.Queue[Tuple[str, Any]]
+        self.message_queue: asyncio.Queue[KernelMessage]
 
-    async def _write_kernel_ready(self) -> None:
+    async def _write_kernel_ready(
+        self,
+        resumed: bool,
+        ui_values: dict[str, JSONType],
+    ) -> None:
         """Communicates to the client that the kernel is ready.
 
         Sends cell code and other metadata to client.
@@ -129,12 +138,14 @@ class WebsocketHandler(SessionHandler):
                         configs=configs,
                         layout=layout,
                         cell_ids=cell_ids,
+                        resumed=resumed,
+                        ui_values=ui_values,
                     )
                 ),
             )
         )
 
-    def _reconnect_session(self, session: "Session") -> None:
+    async def _reconnect_session(self, session: "Session") -> None:
         """Reconnect to an existing session (kernel).
 
         A websocket can be closed when a user's computer goes to sleep,
@@ -144,16 +155,34 @@ class WebsocketHandler(SessionHandler):
         if self.cancel_close_handle is not None:
             self.cancel_close_handle.cancel()
 
-        assert isinstance(session.session_handler, WebsocketHandler)
-        assert session.session_handler.status == ConnectionState.CLOSED
-        self.status = ConnectionState.OPEN
-        session.session_handler = self
-        self.on_start(
-            connection=session.kernel_manager.kernel_connection,
-            check_alive=session.check_alive,
-        )
         # Write reconnected message
+        self.status = ConnectionState.OPEN
+        session.connect_consumer(self)
+
         self.write_operation("reconnected", None)
+        operations = session.get_current_state().operations
+        # Replay the current session view
+        LOGGER.debug(
+            f"Replaying {len(operations)} operations to the consumer",
+        )
+
+        await self._write_kernel_ready(
+            resumed=True, ui_values=session.get_current_state().ui_values
+        )
+        self.write_operation(
+            Banner.name,
+            serialize(
+                Banner(
+                    title="Reconnected",
+                    description="You have reconnected to an existing session.",
+                    action="restart",
+                )
+            ),
+        )
+
+        for op in operations:
+            LOGGER.debug("Replaying operation %s", serialize(op))
+            self.write_operation(op.name, serialize(op))
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -163,7 +192,6 @@ class WebsocketHandler(SessionHandler):
 
         session_id = self.session_id
         mgr = self.manager
-        session = mgr.get_session(session_id)
         LOGGER.debug(
             "Websocket open request for session with id %s", session_id
         )
@@ -180,14 +208,19 @@ class WebsocketHandler(SessionHandler):
             )
             return
 
+        # Get resumable possible resumable session
+        resumable_session = mgr.maybe_resume_session(session_id)
+
         # Handle reconnection
-        if session is not None:
+        if resumable_session is not None:
+            # TODO: test read mode
+
             # The session already exists, but it was disconnected.
             # This can happen in local development when the client
             # goes to sleep and wakes later. Just replace the session's
             # socket, but keep its kernel
             LOGGER.debug("Reconnecting session %s", session_id)
-            self._reconnect_session(session)
+            await self._reconnect_session(resumable_session)
         # Create a new session
         else:
             # If the client refreshed their page, there will be one
@@ -198,11 +231,11 @@ class WebsocketHandler(SessionHandler):
 
             mgr.create_session(
                 session_id=session_id,
-                session_handler=self,
+                session_consumer=self,
             )
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
-            await self._write_kernel_ready()
+            await self._write_kernel_ready(resumed=False, ui_values={})
 
         async def listen_for_messages() -> None:
             while True:
@@ -229,6 +262,10 @@ class WebsocketHandler(SessionHandler):
 
                 # Change the status
                 self.status = ConnectionState.CLOSED
+                # Disconnect the consumer
+                session = self.manager.get_session(self.session_id)
+                if session:
+                    session.disconnect_consumer()
 
                 if self.manager.mode == SessionMode.RUN:
                     # When the websocket is closed, we wait TTL_SECONDS before
@@ -271,15 +308,8 @@ class WebsocketHandler(SessionHandler):
 
     def on_start(
         self,
-        connection: Connection,
         check_alive: Callable[[], None],
-    ) -> None:
-        # Add a reader to the connection
-        asyncio.get_event_loop().add_reader(
-            connection.fileno(),
-            lambda: self.message_queue.put_nowait(connection.recv()),
-        )
-
+    ) -> Callable[[KernelMessage], None]:
         # Start a heartbeat task
         async def _heartbeat() -> None:
             while True:
@@ -288,14 +318,18 @@ class WebsocketHandler(SessionHandler):
 
         self.heartbeat_task = asyncio.create_task(_heartbeat())
 
+        def listener(response: KernelMessage) -> None:
+            self.message_queue.put_nowait(response)
+
+        return listener
+
     def write_operation(self, op: str, data: Any) -> None:
         self.message_queue.put_nowait((op, data))
 
-    def on_stop(self, connection: Connection) -> None:
+    def on_stop(self) -> None:
         # Cancel the heartbeat task, reader
         if self.heartbeat_task and not self.heartbeat_task.cancelled():
             self.heartbeat_task.cancel()
-        asyncio.get_event_loop().remove_reader(connection.fileno())
 
         # If the websocket is open, send a close message
         if (

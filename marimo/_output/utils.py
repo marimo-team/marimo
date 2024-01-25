@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from typing import Optional, Union
 
+from marimo._messaging.mimetypes import KnownMimeType
 
-def build_data_url(mimetype: str, data: bytes) -> str:
+
+def build_data_url(mimetype: KnownMimeType, data: bytes) -> str:
     str_repr = data.decode("utf-8").replace("\n", "")
     return f"data:{mimetype};base64,{str_repr}"
 

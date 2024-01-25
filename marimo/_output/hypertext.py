@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, final
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
@@ -110,7 +111,7 @@ class Html(MIME):
         return self._text
 
     @final
-    def _mime_(self) -> tuple[str, str]:
+    def _mime_(self) -> tuple[KnownMimeType, str]:
         return ("text/html", self.text)
 
     def __format__(self, spec: str) -> str:

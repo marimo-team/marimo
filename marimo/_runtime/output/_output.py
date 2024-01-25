@@ -2,6 +2,7 @@
 import sys
 
 from marimo._ast.cell import CellId_t
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import CellOp
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
@@ -14,7 +15,7 @@ def write_internal(cell_id: CellId_t, value: object) -> None:
     if output.traceback is not None:
         sys.stderr.write(output.traceback)
     CellOp.broadcast_output(
-        channel="output",
+        channel=CellChannel.OUTPUT,
         mimetype=output.mimetype,
         data=output.data,
         cell_id=cell_id,

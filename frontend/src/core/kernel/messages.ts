@@ -2,7 +2,7 @@
 
 import { LayoutType } from "@/components/editor/renderers/types";
 import { CellConfig, CellStatus } from "../cells/types";
-import { CellId } from "../cells/ids";
+import { CellId, UIElementId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";
 
@@ -193,6 +193,15 @@ export type OperationMessage =
          * The cell configs.
          */
         configs: CellConfig[];
+        /**
+         * Whether the notebook was resumed from a previous session
+         */
+        resumed: boolean;
+        /**
+         * UI element values from the previous session.
+         * If the notebook was not resumed, this will be undefined.
+         */
+        ui_values: Record<UIElementId, unknown> | undefined;
       };
     }
   | {
@@ -256,5 +265,6 @@ export type OperationMessage =
         title: string;
         description: string;
         variant?: "danger";
+        action?: "restart";
       };
     };

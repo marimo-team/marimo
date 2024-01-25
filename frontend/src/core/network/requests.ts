@@ -43,6 +43,9 @@ function createNetworkRequests(): EditRequests & RunRequests {
         }
       );
     },
+    sendRestart: () => {
+      return API.post("/kernel/restart_session", {});
+    },
     sendRename: (filename: string | null) => {
       return API.post<RenameRequest>("/kernel/rename", {
         filename: filename,
@@ -140,6 +143,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
 export const {
   sendComponentValues,
   sendRename,
+  sendRestart,
   sendSave,
   sendStdin,
   sendFormat,

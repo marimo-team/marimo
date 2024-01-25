@@ -42,6 +42,17 @@ export class UIElementRegistry {
     return this.entries.has(objectId);
   }
 
+  set(objectId: UIElementId, value: ValueType): void {
+    if (this.entries.has(objectId)) {
+      throw new Error(`UIElement ${objectId} already registered`);
+    }
+    this.entries.set(objectId, {
+      objectId: objectId,
+      value: value,
+      elements: new Set(),
+    });
+  }
+
   /**
    * Register an instance of a UIElement
    *

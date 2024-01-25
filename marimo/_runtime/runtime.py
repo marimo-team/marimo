@@ -23,6 +23,7 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import configure
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
     MarimoAncestorStoppedError,
@@ -510,7 +511,7 @@ class Kernel:
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
             CellOp.broadcast_output(
-                channel="output",
+                channel=CellChannel.OUTPUT,
                 mimetype="text/plain",
                 data="",
                 cell_id=cid,
@@ -682,7 +683,7 @@ class Kernel:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 CellOp.broadcast_output(
-                    channel="output",
+                    channel=CellChannel.OUTPUT,
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
