@@ -17,7 +17,7 @@ from typing import (
     cast,
 )
 
-from marimo._ast.visitor import Name
+from marimo._ast.visitor import Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
@@ -79,6 +79,8 @@ class Cell:
     mod: ast.Module
     defs: set[Name]
     refs: set[Name]
+    # metadata about definitions
+    variable_data: dict[Name, VariableData]
     deleted_refs: set[Name]
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
@@ -110,6 +112,15 @@ class Cell:
     @property
     def disabled_transitively(self) -> bool:
         return self.status == "disabled-transitively"
+
+    @property
+    def imported_modules(self) -> set[Name]:
+        """Return a set of the modules imported by this cell."""
+        return set(
+            data.module
+            for _, data in self.variable_data.items()
+            if data.module is not None
+        )
 
     def set_status(self, status: CellStatusType) -> None:
         from marimo._messaging.ops import CellOp

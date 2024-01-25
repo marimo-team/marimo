@@ -13,7 +13,10 @@ Name = str
 @dataclass
 class VariableData:
     kind: Literal["function", "class", "import", "variable"] = "variable"
+
+    # For kind == import
     module: Optional[str] = None
+    import_level: Optional[int] = None
 
 
 def is_local(name: str) -> bool:
@@ -390,7 +393,12 @@ class ScopedVisitor(ast.NodeVisitor):
         # we don't recurese into the alias nodes, since we define the
         # aliases here
         for name in imported_names:
-            self._define(name, VariableData(kind="import", module=module))
+            self._define(
+                name,
+                VariableData(
+                    kind="import", module=module, import_level=node.level
+                ),
+            )
 
     if sys.version_info >= (3, 10):
         # Match statements were introduced in Python 3.10

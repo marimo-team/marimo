@@ -660,7 +660,21 @@ def test_from_import() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
-    assert v.variable_data["d"] == VariableData(kind="import", module="a")
+    assert v.variable_data["d"] == VariableData(
+        kind="import", module="a", import_level=0
+    )
+
+
+def test_relative_from_import() -> None:
+    expr = "from ..a.b.c import d"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["d"])
+    assert v.refs == set()
+    assert v.variable_data["d"] == VariableData(
+        kind="import", module="a", import_level=2
+    )
 
 
 def test_from_import_star() -> None:
