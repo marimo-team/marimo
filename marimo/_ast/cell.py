@@ -164,7 +164,7 @@ def cell_function(
             n_args += 1
 
     parameters = list(signature.parameters.keys())
-    return_names = sorted(defn.name for defn in cell.defs)
+    return_names = sorted(defn for defn in cell.defs)
 
     @functools.wraps(f)
     def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:

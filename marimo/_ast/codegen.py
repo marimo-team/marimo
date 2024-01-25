@@ -61,11 +61,7 @@ def to_functiondef(
     # already in globals)
     if unshadowed_builtins is None:
         unshadowed_builtins = set(builtins.__dict__.keys())
-    refs = [
-        str(ref)
-        for ref in sorted(cell.refs)
-        if ref.name not in unshadowed_builtins
-    ]
+    refs = [ref for ref in sorted(cell.refs) if ref not in unshadowed_builtins]
     args = ", ".join(refs)
 
     decorator = _to_decorator(cell.config)
@@ -78,7 +74,7 @@ def to_functiondef(
         fndef += body + "\n"
 
     if cell.defs:
-        defs = tuple(str(name) for name in sorted(cell.defs))
+        defs = tuple(name for name in sorted(cell.defs))
         returns = INDENT + "return "
         if len(cell.defs) == 1:
             returns += f"{defs[0]},"
@@ -157,7 +153,7 @@ def generate_filecontents(
             cell = compile_cell(code, cell_id=str(cell_id)).configure(
                 cell_config
             )
-            defs |= {str(name) for name in cell.defs}
+            defs |= {name for name in cell.defs}
             cell_function_data.append(cell)
         except SyntaxError:
             cell_function_data.append((code, cell_config))

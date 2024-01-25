@@ -7,27 +7,13 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+Name = str
+
 
 @dataclass
-class Name:
-    name: str
+class VariableData:
     kind: Literal["function", "class", "import", "variable"] = "variable"
     module: Optional[str] = None
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-    def __lt__(self, other: object) -> bool:
-        return self.name < str(other)
-
-    def __le__(self, other: object) -> bool:
-        return self.name <= str(other)
-
-    def __gt__(self, other: object) -> bool:
-        return self.name > str(other)
-
-    def __ge__(self, other: object) -> bool:
-        return self.name >= str(other)
 
 
 def is_local(name: str) -> bool:
@@ -42,11 +28,13 @@ class Block:
     defs: set[Name] = field(default_factory=set)
     # Names defined with the global keyword
     global_names: set[Name] = field(default_factory=set)
+    # Map from defined names to metadata about their variables
+    variable_data: dict[Name, VariableData] = field(default_factory=dict)
     # Comprehensions have special scoping rules
     is_comprehension: bool = False
 
-    def contains_identifier(self, identifier: str) -> bool:
-        return any(identifier == defn.name for defn in self.defs)
+    def is_defined(self, name: str) -> bool:
+        return any(name == defn for defn in self.defs)
 
 
 @dataclass
@@ -63,13 +51,23 @@ class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
         # Mapping from referenced names to their metadata
-        self._refs: dict[Name, RefData] = {}
+        self._refs: dict[str, RefData] = {}
         # Unique prefix used to mangle cell-local variable names
         self.id = (
             str(uuid4()).replace("-", "_")
             if mangle_prefix is None
             else mangle_prefix
         )
+
+    @property
+    def defs(self) -> set[Name]:
+        """Get all global defs."""
+        return self.block_stack[0].defs
+
+    @property
+    def variable_data(self) -> dict[Name, VariableData]:
+        """Get data accompanying globals."""
+        return self.block_stack[0].variable_data
 
     @property
     def refs(self) -> set[Name]:
@@ -120,9 +118,7 @@ class ScopedVisitor(ast.NodeVisitor):
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
-        return any(
-            block.contains_identifier(identifier) for block in self.block_stack
-        )
+        return any(block.is_defined(identifier) for block in self.block_stack)
 
     def _add_ref(self, name: Name, deleted: bool) -> None:
         """Register a referenced name."""
@@ -135,12 +131,13 @@ class ScopedVisitor(ast.NodeVisitor):
         """Remove a referenced name."""
         del self._refs[name]
 
-    def _define(self, name: Name) -> None:
-        """Define a name in the current block.
+    def _define_in_block(
+        self, name: Name, variable_data: VariableData, block_idx: int
+    ) -> None:
+        """Define a name in a given block."""
 
-        Names created with the global keyword are added to the top-level
-        (global scope) block.
-        """
+        self.block_stack[block_idx].defs.add(name)
+        self.block_stack[block_idx].variable_data[name] = variable_data
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -150,14 +147,21 @@ class ScopedVisitor(ast.NodeVisitor):
         #   print(x)
         # x = 0
         # ```
-        block_idx = 0 if name in self.block_stack[-1].global_names else -1
-        self.block_stack[block_idx].defs.add(name)
         if (
             name in self._refs
             and self.block_stack[block_idx] in self._refs[name].parent_blocks
         ):
             # `name` was used as a capture, not a reference
             self._remove_ref(name)
+
+    def _define(self, name: Name, variable_data: VariableData) -> None:
+        """Define a name in the current block.
+
+        Names created with the global keyword are added to the top-level
+        (global scope) block.
+        """
+        block_idx = 0 if name in self.block_stack[-1].global_names else -1
+        self._define_in_block(name, variable_data, block_idx=block_idx)
 
     def _push_block(self, is_comprehension: bool) -> None:
         """Push a block onto the block stack."""
@@ -166,11 +170,6 @@ class ScopedVisitor(ast.NodeVisitor):
     def _pop_block(self) -> None:
         """Pop a block from the block stack."""
         self.block_stack.pop()
-
-    @property
-    def defs(self) -> set[Name]:
-        """Get all global defs."""
-        return self.block_stack[0].defs
 
     def generic_visit(self, node: ast.AST) -> None:
         """Visits the children of node and manages the block stack.
@@ -233,22 +232,22 @@ class ScopedVisitor(ast.NodeVisitor):
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(Name(node.name, kind="class"))
+        self._define(node.name, VariableData(kind="class"))
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(Name(node.name, kind="function"))
+        self._define(node.name, VariableData(kind="function"))
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(Name(node.name, kind="function"))
+        self._define(node.name, VariableData(kind="function"))
         self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg) -> None:
         node.arg = self._if_local_then_mangle(node.arg)
-        self._define(Name(node.arg, kind="variable"))
+        self._define(node.arg, VariableData(kind="variable"))
         if node.annotation is not None:
             self.visit(node.annotation)
 
@@ -301,13 +300,21 @@ class ScopedVisitor(ast.NodeVisitor):
         if self.block_stack[-1].is_comprehension and isinstance(
             node.target, ast.Name
         ):
-            for block in reversed(self.block_stack):
+            for block_idx, block in reversed(
+                list(enumerate(self.block_stack))
+            ):
+                # go up the block stack until we find the first
+                # non-comprehension block
                 if not block.is_comprehension:
                     node.target.id = self._if_local_then_mangle(
                         node.target.id,
                         ignore_scope=(block == self.block_stack[0]),
                     )
-                    block.defs.add(Name(node.target.id, kind="variable"))
+                    self._define_in_block(
+                        node.target.id,
+                        VariableData(kind="variable"),
+                        block_idx=block_idx,
+                    )
                     break
         else:
             self.generic_visit(node)
@@ -328,29 +335,29 @@ class ScopedVisitor(ast.NodeVisitor):
         # generates a ref to foo if foo has not been def'd).
         if isinstance(node.ctx, ast.Store):
             node.id = self._if_local_then_mangle(node.id)
-            self._define(Name(node.id, kind="variable"))
+            self._define(node.id, VariableData(kind="variable"))
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
             and not is_local(node.id)
         ):
-            self._add_ref(Name(node.id, kind="variable"), deleted=False)
+            self._add_ref(node.id, deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
             and not is_local(node.id)
         ):
-            self._add_ref(Name(node.id, kind="variable"), deleted=True)
+            self._add_ref(node.id, deleted=True)
         elif is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
             )
             for block in reversed(self.block_stack):
-                if block == self.block_stack[0] and block.contains_identifier(
+                if block == self.block_stack[0] and block.is_defined(
                     mangled_name
                 ):
                     node.id = mangled_name
-                elif block.contains_identifier(node.id):
+                elif block.is_defined(node.id):
                     break
 
         self.generic_visit(node)
@@ -361,7 +368,7 @@ class ScopedVisitor(ast.NodeVisitor):
             for name in node.names
         ]
         for name in node.names:
-            self.block_stack[-1].global_names.add(Name(name, kind="variable"))
+            self.block_stack[-1].global_names.add(name)
 
     # TODO(akshayka): can we find a way around tracking imports as state
     # that needs to be tracked?
@@ -369,16 +376,21 @@ class ScopedVisitor(ast.NodeVisitor):
     def visit_alias(self, node: ast.alias) -> None:
         """Visiting names in import statements"""
         name = self._get_alias_name(node)
-        self._define(Name(name, kind="import", module=name))
+        # Extract module name
+        # - import a.b.c as d: module name a is different from the alias name d
+        # - import a.b.c: module name a is equal to the alias name a
+        module = node.name.split(".")[0] if node.asname is not None else name
+        self._define(name, VariableData(kind="import", module=module))
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        module = node.module
+        # module should not be None here, but appease the type checker
+        module = node.module.split(".")[0] if node.module is not None else None
         imported_names = [self._get_alias_name(alias) for alias in node.names]
         # we don't recurese into the alias nodes, since we define the
         # aliases here
         for name in imported_names:
-            self._define(Name(name, kind="import", module=module))
+            self._define(name, VariableData(kind="import", module=module))
 
     if sys.version_info >= (3, 10):
         # Match statements were introduced in Python 3.10
@@ -391,7 +403,7 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchAs(self, node: ast.MatchAs) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(Name(node.name, kind="variable"))
+                self._define(node.name, VariableData(kind="variable"))
             if node.pattern is not None:
                 # pattern may contain additional MatchAs statements in it
                 self.visit(node.pattern)
@@ -399,7 +411,7 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
             if node.rest is not None:
                 node.rest = self._if_local_then_mangle(node.rest)
-                self._define(Name(node.rest, kind="variable"))
+                self._define(node.rest, VariableData(kind="variable"))
             for key in node.keys:
                 self.visit(key)
             for pattern in node.patterns:
@@ -408,13 +420,13 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchStar(self, node: ast.MatchStar) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(Name(node.name, kind="variable"))
+                self._define(node.name, VariableData(kind="variable"))
 
     if sys.version_info >= (3, 12):
 
         def visit_TypeVar(self, node: ast.TypeVar) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(Name(node.name, kind="variable"))
+            self._define(node.name, VariableData(kind="variable"))
             if isinstance(node.bound, tuple):
                 for name in node.bound:
                     self.visit(name)
@@ -423,8 +435,8 @@ class ScopedVisitor(ast.NodeVisitor):
 
         def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(Name(node.name, kind="variable"))
+            self._define(node.name, VariableData(kind="variable"))
 
         def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(Name(node.name, kind="variable"))
+            self._define(node.name, VariableData(kind="variable"))

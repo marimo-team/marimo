@@ -96,7 +96,7 @@ def defs() -> tuple[str, ...]:
     if ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
-                str(defn)
+                defn
                 for defn in ctx.kernel.graph.cells[
                     ctx.kernel.execution_context.cell_id
                 ].defs
@@ -126,12 +126,12 @@ def refs() -> tuple[str, ...]:
     if ctx.kernel.execution_context is not None:
         return tuple(
             sorted(
-                defn.name
+                defn
                 for defn in ctx.kernel.graph.cells[
                     ctx.kernel.execution_context.cell_id
                 ].refs
                 # exclude builtins that have not been shadowed
-                if defn.name not in unshadowed_builtins
+                if defn not in unshadowed_builtins
             )
         )
     return tuple()
@@ -328,13 +328,13 @@ class Kernel:
                 continue
 
             if name in self.globals:
-                del self.globals[str(name)]
+                del self.globals[name]
 
             if (
                 "__annotations__" in self.globals
                 and name in self.globals["__annotations__"]
             ):
-                del self.globals["__annotations__"][str(name)]
+                del self.globals["__annotations__"][name]
 
     def _invalidate_cell_state(
         self,
@@ -577,7 +577,7 @@ class Kernel:
         Variables(
             variables=[
                 VariableDeclaration(
-                    name=variable.name,
+                    name=variable,
                     declared_by=list(declared_by),
                     used_by=list(self.graph.get_referring_cells(variable)),
                 )
@@ -652,7 +652,7 @@ class Kernel:
 
             values = [
                 VariableValue(
-                    name=variable.name,
+                    name=variable,
                     value=(
                         self.globals[variable]
                         if variable in self.globals
@@ -904,7 +904,7 @@ class Kernel:
                 for name in get_context().ui_element_registry.bound_names(
                     object_id
                 )
-                if not is_local(str(name))
+                if not is_local(name)
             )
 
             variable_values: list[VariableValue] = []
@@ -912,7 +912,7 @@ class Kernel:
                 # subtracting self.graph.definitions[name]: never rerun the
                 # cell that created the name
                 variable_values.append(
-                    VariableValue(name=str(name), value=component)
+                    VariableValue(name=name, value=component)
                 )
                 try:
                     referring_cells.update(

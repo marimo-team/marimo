@@ -57,6 +57,10 @@ class DirectedGraph:
         )
 
     def get_defining_cells(self, name: Name) -> set[CellId_t]:
+        """Get all cells that define name.
+
+        This is a singleton for well-formed graphs.
+        """
         return self.definitions[name]
 
     def get_referring_cells(self, name: Name) -> set[CellId_t]:
