@@ -188,10 +188,10 @@ class Kernel:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-        self._debugger = marimo_pdb.MarimoPdb(
+        self.debugger = marimo_pdb.MarimoPdb(
             stdout=self.stdout, stdin=self.stdin
         )
-        self.patch_pdb(self._debugger)
+        self.patch_pdb(self.debugger)
 
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
@@ -613,6 +613,7 @@ class Kernel:
             cell_ids=cell_ids,
             graph=self.graph,
             glbls=self.globals,
+            debugger=self.debugger,
         )
 
         # I/O
