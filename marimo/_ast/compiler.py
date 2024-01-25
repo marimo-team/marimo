@@ -55,6 +55,7 @@ def compile_cell(
             mod=module,
             defs=set(),
             refs=set(),
+            variable_data={},
             deleted_refs=set(),
             body=None,
             last_expr=None,
@@ -93,6 +94,11 @@ def compile_cell(
         mod=module,
         defs=glbls,
         refs=v.refs,
+        variable_data={
+            name: v.variable_data[name]
+            for name in glbls
+            if name in v.variable_data
+        },
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,

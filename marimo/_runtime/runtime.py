@@ -21,7 +21,7 @@ from typing import Any, Callable, Iterator, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import is_local
+from marimo._ast.visitor import Name, is_local
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -320,7 +320,7 @@ class Kernel:
         return previous_children, error
 
     def _delete_names(
-        self, names: Iterable[str], exclude_defs: set[str]
+        self, names: Iterable[Name], exclude_defs: set[Name]
     ) -> None:
         """Delete `names` from kernel, except for `exclude_defs`"""
         for name in names:
@@ -339,7 +339,7 @@ class Kernel:
     def _invalidate_cell_state(
         self,
         cell_id: CellId_t,
-        exclude_defs: Optional[set[str]] = None,
+        exclude_defs: Optional[set[Name]] = None,
         deletion: bool = False,
     ) -> None:
         """Cleanup state associated with this cell.
@@ -463,7 +463,7 @@ class Kernel:
         )
 
         # defs that we shouldn't remove from the graph
-        keep_alive_defs: set[str] = set()
+        keep_alive_defs: set[Name] = set()
         for cid in list(semantic_errors.keys()):
             # If a cell was previously valid, don't invalidate it unless
             # we have to, ie, unless it is a descendant of a just-registered
@@ -917,7 +917,7 @@ class Kernel:
                 try:
                     referring_cells.update(
                         self.graph.get_referring_cells(name)
-                        - self.graph.definitions[name]
+                        - self.graph.get_defining_cells(name)
                     )
                 except Exception:
                     # Internal marimo error

@@ -49,6 +49,7 @@ class UIElementRegistry:
 
     def _register_bindings(self, object_id: UIElementId) -> None:
         kernel = get_context().kernel
+        # Get all variable names that are bound to this UI element
         names = set(
             [
                 name
