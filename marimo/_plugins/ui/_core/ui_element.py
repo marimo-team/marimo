@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -39,6 +40,12 @@ S = TypeVar("S", bound=JSONType)
 T = TypeVar("T")
 
 LOGGER = _loggers.marimo_logger()
+
+
+@dataclass
+class Lens:
+    parent_id: str
+    key: str
 
 
 class MarimoConvertValueException(Exception):
@@ -125,10 +132,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         Split out from __init__ so _clone() typechecks
         """
-        # ID of the parent UIElement of this object, if any.
-        # Set with self._set_parent() after initialization, since parents
+        # A UIElement may be a child ("lens") of another UI element.
+        #
+        # Set with self._register_as_lens() after initialization, since parents
         # are usually created after the child is created
-        self._parent_id: str | None = None
+        self._lens: Lens | None = None
 
         # Random token
         #
@@ -230,9 +238,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         """
         pass
 
-    def _set_parent(self, parent: UIElement[Any, Any]) -> None:
+    def _register_as_lens(self, parent: UIElement[Any, Any], key: str) -> None:
         """Register `parent` as a parent of this UI element."""
-        self._parent_id = parent._id
+        self._lens = Lens(parent_id=parent._id, key=key)
 
     @property
     def value(self) -> T:

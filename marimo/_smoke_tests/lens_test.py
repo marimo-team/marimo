@@ -31,7 +31,7 @@ def __(mo):
             for i in range(3)
         }
     )
-    x.text
+    #x
     return append, data, partial, x
 
 

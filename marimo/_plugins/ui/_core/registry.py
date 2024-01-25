@@ -49,46 +49,57 @@ class UIElementRegistry:
             self._register_bindings(object_id)
         return self._bindings[object_id]
 
-    def _find_bindings(
-        self, object_id: UIElementId, glbls: dict[str, Any]
-    ) -> set[str]:
+    def _register_bindings(self, object_id: UIElementId) -> None:
+        kernel = get_context().kernel
         # Get all variable names that are bound to this UI element
-        return set(
+        names = set(
             [
                 name
-                for name in glbls
+                for name in kernel.globals
                 if (
-                    isinstance(glbls[name], UIElement)
-                    and glbls[name]._id == object_id
+                    isinstance(kernel.globals[name], UIElement)
+                    and kernel.globals[name]._id == object_id
                 )
             ]
         )
+        self._bindings[object_id] = names
 
-    def _register_bindings(self, object_id: UIElementId) -> None:
-        kernel = get_context().kernel
-        # Get all variable names that are bound to this UI element or its
-        # parents
-        bindings = set()
-        seen = set()
-        queue = [object_id]
-        while queue:
-            current_object_id = queue.pop()
-            seen.add(current_object_id)
-            bindings |= self._find_bindings(current_object_id, kernel.globals)
-            ui_element = (
-                self._objects[object_id]()
-                if object_id in self._objects
-                else None
-            )
-            if (
-                ui_element is not None
-                and ui_element._parent_id is not None
-                and ui_element._parent_id not in seen
-            ):
-                queue.append(ui_element._parent_id)
-                seen.add(ui_element._parent_id)
+    def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
+        if object_id not in self._objects:
+            raise KeyError(f"UIElement with id {object_id} not found")
+        # UI elements are only updated if a global is bound to it. This ensures
+        # that the UI element update triggers reactivity, but also means that
+        # elements stored as, say, attributes on an object won't be updated.
+        if not self.bound_names(object_id):
+            raise NameError(f"UIElement with id {object_id} has no bindings")
+        obj = self._objects[object_id]()
+        assert obj is not None
+        return obj
 
-        self._bindings[object_id] = bindings
+    def get_cell(self, object_id: UIElementId) -> CellId_t:
+        return self._constructing_cells[object_id]
+
+    def resolve_lens(
+        self, object_id: UIElementId, value: Any
+    ) -> tuple[str, Any]:
+        """Resolve a lens, if any, to an object id and value update
+
+        Returns (resolved object id, resolved value)
+        """
+        if object_id not in self._objects:
+            raise KeyError(f"UIElement with id {object_id} not found")
+        obj = self._objects[object_id]()
+        if obj is None:
+            raise RuntimeError(f"UIElement with id {object_id} was deleted")
+
+        lens = obj._lens
+        if lens is None:
+            # Base case: the element has no lens, so the resolved
+            # update is the same as what was passed in.
+            return (object_id, value)
+
+        value = {lens.key: value}
+        return self.resolve_lens(lens.parent_id, value)
 
     def delete(self, object_id: UIElementId, python_id: int) -> None:
         if object_id not in self._objects:
@@ -105,7 +116,10 @@ class UIElementRegistry:
             # guards against UIElement's destructor racing against
             # registration of another element when a cell re-runs
             LOGGER.debug(
-                "Python id mismatch when deleting UI element %s (%s registered, %s provided)",
+                (
+                    "Python id mismatch when deleting UI element "
+                    "%s (%s registered, %s provided)"
+                ),
                 object_id,
                 registered_python_id,
                 python_id,
@@ -119,18 +133,3 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
-
-    def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
-        if object_id not in self._objects:
-            raise KeyError(f"UIElement with id {object_id} not found")
-        # UI elements are only updated if a global is bound to it. This ensures
-        # that the UI element update triggers reactivity, but also means that
-        # elements stored as, say, attributes on an object won't be updated.
-        if not self.bound_names(object_id):
-            raise NameError(f"UIElement with id {object_id} has no bindings")
-        obj = self._objects[object_id]()
-        assert obj is not None
-        return obj
-
-    def get_cell(self, object_id: UIElementId) -> CellId_t:
-        return self._constructing_cells[object_id]

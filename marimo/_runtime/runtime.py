@@ -850,12 +850,20 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
-        referring_cells = set()
+        # Resolve lenses on request, if any
+        resolved_requests: dict[str, Any] = {}
+        ui_element_registry = get_context().ui_element_registry
         for object_id, value in request.ids_and_values:
+            resolved_id, resolved_value = ui_element_registry.resolve_lens(
+                object_id, value
+            )
+            resolved_requests[resolved_id] = resolved_value
+        del request
+
+        referring_cells = set()
+        for object_id, value in resolved_requests.items():
             try:
-                component = get_context().ui_element_registry.get_object(
-                    object_id
-                )
+                component = ui_element_registry.get_object(object_id)
                 LOGGER.debug(
                     "Setting value on UIElement with id %s, value %s",
                     object_id,
@@ -868,9 +876,8 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            # TODO: lens has to call _update on ... top most parent?
             with self._install_execution_context(
-                get_context().ui_element_registry.get_cell(object_id),
+                ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
                 try:
@@ -908,7 +915,6 @@ class Kernel:
                 )
                 if not is_local(name)
             )
-            print("bound names: ", bound_names)
 
             variable_values: list[VariableValue] = []
             for name in bound_names:
