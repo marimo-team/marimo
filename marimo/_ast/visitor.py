@@ -54,7 +54,7 @@ class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
         # Mapping from referenced names to their metadata
-        self._refs: dict[str, RefData] = {}
+        self._refs: dict[Name, RefData] = {}
         # Unique prefix used to mangle cell-local variable names
         self.id = (
             str(uuid4()).replace("-", "_")
@@ -390,7 +390,7 @@ class ScopedVisitor(ast.NodeVisitor):
         # module should not be None here, but appease the type checker
         module = node.module.split(".")[0] if node.module is not None else None
         imported_names = [self._get_alias_name(alias) for alias in node.names]
-        # we don't recurese into the alias nodes, since we define the
+        # we don't recurse into the alias nodes, since we define the
         # aliases here
         for name in imported_names:
             self._define(
