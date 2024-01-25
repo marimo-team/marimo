@@ -10,7 +10,10 @@ def test_cell_output(k: Kernel, exec_req: ExecReqProvider) -> None:
     k.run([er := exec_req.get("'hello'; 123")])
 
     runner = Runner(
-        cell_ids=set(k.graph.cells.keys()), graph=k.graph, glbls=k.globals
+        cell_ids=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
     )
     run_result = runner.run(er.cell_id)
     # last expression of cell is output
@@ -36,7 +39,10 @@ def test_traceback_includes_lineno(
     )
 
     runner = Runner(
-        cell_ids=set(k.graph.cells.keys()), graph=k.graph, glbls=k.globals
+        cell_ids=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
     )
     with capture_stderr() as buffer:
         runner.run(er.cell_id)
