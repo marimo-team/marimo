@@ -26,6 +26,7 @@ import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
+import { bannerAtom } from "../errors/state";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -45,6 +46,7 @@ export function useMarimoWebSocket(opts: {
   const setLayoutView = useSetAtom(layoutViewAtom);
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
+  const setBanner = useSetAtom(bannerAtom);
 
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
@@ -158,6 +160,9 @@ export function useMarimoWebSocket(opts: {
           }),
           variant: msg.data.variant,
         });
+        return;
+      case "banner":
+        setBanner(msg.data);
         return;
       default:
         logNever(msg);
