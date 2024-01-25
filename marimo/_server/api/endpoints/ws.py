@@ -51,6 +51,12 @@ async def websocket_endpoint(
 
 
 class WebsocketHandler(SessionHandler):
+    """WebSocket that sessions use to send messages to frontends.
+
+    Each new socket gets a unique session. At most one session can exist when
+    in edit mode.
+    """
+
     def __init__(
         self,
         websocket: WebSocket,
@@ -62,19 +68,12 @@ class WebsocketHandler(SessionHandler):
         self.manager = manager
         self.session_id = session_id
         self.mode = mode
-
-    """WebSocket that sessions use to send messages to frontends.
-
-    Each new socket gets a unique session. At most one session can exist when
-    in edit mode.
-    """
-
-    status: ConnectionState
-    cancel_close_handle: Optional[asyncio.TimerHandle] = None
-    heartbeat_task: Optional[asyncio.Task[None]] = None
-    # Messages from the kernel are put in this queue
-    # to be sent to the frontend
-    message_queue: asyncio.Queue[Tuple[str, Any]]
+        self.status: ConnectionState
+        self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
+        self.heartbeat_task: Optional[asyncio.Task[None]] = None
+        # Messages from the kernel are put in this queue
+        # to be sent to the frontend
+        self.message_queue: asyncio.Queue[Tuple[str, Any]]
 
     async def _write_kernel_ready(self) -> None:
         """Communicates to the client that the kernel is ready.
