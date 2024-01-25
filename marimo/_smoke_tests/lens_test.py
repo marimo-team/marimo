@@ -12,31 +12,38 @@ def __():
 
 @app.cell
 def __(mo):
+    from functools import partial
+
+    data = []
+
+    def append(v, i):
+        del v
+        data.append(i)
+        
     x = mo.ui.dictionary(
         {
-            str(i): mo.ui.button(value=i, label=str(i), on_click=lambda v: v + 1)
-            for i in range(10)
+            str(i): mo.ui.button(
+                value=i,
+                label=str(i),
+                on_click=lambda v: v + 1,
+                on_change=partial(append, i=i),
+            )
+            for i in range(3)
         }
     )
     x
-    return x,
-
-
-@app.cell
-def __(__get_item__):
-    __get_item__
-    return
+    return append, data, partial, x
 
 
 @app.cell
 def __(mo, x):
-    mo.ui.table([{"button": btn} for btn in x.values()])
+    mo.ui.table([{"button": btn} for btn in x.elements.values()])
     return
 
 
 @app.cell
-def __(x):
-    x.value
+def __(data, x):
+    x.value, data
     return
 
 
