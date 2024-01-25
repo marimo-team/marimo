@@ -85,7 +85,7 @@ def compile_cell(
     body = compile(module, body_filename, mode="exec")
     last_expr = compile(expr, last_expr_filename, mode="eval")
 
-    glbls = {name for name in v.defs if not is_local(name)}
+    glbls = {name for name in v.defs if not is_local(str(name))}
     return Cell(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),

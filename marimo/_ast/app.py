@@ -217,7 +217,7 @@ class App:
             #
             # if cond:
             #   x = 0
-            {name: glbls[name] for name in self._defs if name in glbls},
+            {str(name): glbls[name] for name in self._defs if name in glbls},
         )
 
 

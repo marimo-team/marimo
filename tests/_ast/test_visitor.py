@@ -7,6 +7,15 @@ from inspect import cleandoc
 import pytest
 
 from marimo._ast import visitor
+from marimo._ast.visitor import Name
+
+
+def assert_names_equal(this: set[Name], other: set[Name]) -> None:
+    for first, second in zip(this, other):
+        msg = f"mismatch comparing {repr(first)} and {repr(second)}"
+        assert first.name == second.name, msg
+        assert first.kind == second.kind, msg
+        assert first.module == second.module, msg
 
 
 def test_assign_simple() -> None:
@@ -602,3 +611,18 @@ def test_type_var_generic_function() -> None:
     assert v.defs == set(["test"])
     # U should not be a ref
     assert v.refs == set()
+
+
+def test_function_kind() -> None:
+    code = "def foo(): ..."
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert_names_equal(v.defs, set([Name("foo", kind="function")]))
+    
+def test_async_function_kind() -> None:
+    code = "async def foo(): ..."
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert_names_equal(v.defs, set([Name("foo", kind="function")]))

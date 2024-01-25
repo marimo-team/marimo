@@ -4,10 +4,39 @@ from __future__ import annotations
 import ast
 import sys
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 
-Name = str
+
+@dataclass
+class Name:
+    name: str
+    kind: Literal["function", "class", "import", "variable"] = "variable"
+    module: Optional[str] = None
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __eq__(self, other: object) -> bool:
+        return str(other) == self.name
+
+    def __neq__(self, other: object) -> bool:
+        return not other == self
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __lt__(self, other: object) -> bool:
+        return str(self) < str(other)
+
+    def __le__(self, other: object) -> bool:
+        return str(self) <= str(other)
+
+    def __gt__(self, other: object) -> bool:
+        return str(self) > str(other)
+
+    def __ge__(self, other: object) -> bool:
+        return str(self) >= str(other)
 
 
 def is_local(name: str) -> bool:
@@ -66,6 +95,34 @@ class ScopedVisitor(ast.NodeVisitor):
             return f"_{self.id}{name}"
         else:
             return name
+
+    def _get_alias_name(self, node: ast.alias) -> str:
+        """Get the string name of an imported alias
+
+        NB: We disallow `import *` because Python only allows
+        star imports at module-level, but we store cells as functions.
+        """
+        if node.asname is None:
+            # Imported name without an "as" clause. Examples:
+            #   import [a.b.c] - we define a
+            #   from foo import [a] - we define a
+            #   from foo import [*] - we don't define anything
+            #
+            # Note:
+            # Don't mangle - user has no control over package name
+            basename = node.name.split(".")[0]
+            if basename == "*":
+                line = (
+                    f"line {node.lineno}"
+                    if hasattr(node, "lineno")
+                    else "line ..."
+                )
+                raise SyntaxError(
+                    f"{line} SyntaxError: `import *` is not allowed in marimo."
+                )
+            return basename
+        else:
+            return self._if_local_then_mangle(node.asname)
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
@@ -180,22 +237,22 @@ class ScopedVisitor(ast.NodeVisitor):
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(Name(node.name))
+        self._define(Name(node.name, kind="class"))
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name)
+        self._define(Name(node.name, kind="function"))
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name)
+        self._define(Name(node.name, kind="function"))
         self.generic_visit(node)
 
     def visit_arg(self, node: ast.arg) -> None:
         node.arg = self._if_local_then_mangle(node.arg)
-        self._define(node.arg)
+        self._define(Name(node.arg, kind="variable"))
         if node.annotation is not None:
             self.visit(node.annotation)
 
@@ -254,7 +311,7 @@ class ScopedVisitor(ast.NodeVisitor):
                         node.target.id,
                         ignore_scope=(block == self.block_stack[0]),
                     )
-                    block.defs.add(node.target.id)
+                    block.defs.add(Name(node.target.id, kind="variable"))
                     break
         else:
             self.generic_visit(node)
@@ -275,19 +332,19 @@ class ScopedVisitor(ast.NodeVisitor):
         # generates a ref to foo if foo has not been def'd).
         if isinstance(node.ctx, ast.Store):
             node.id = self._if_local_then_mangle(node.id)
-            self._define(node.id)
+            self._define(Name(node.id, kind="variable"))
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
             and not is_local(node.id)
         ):
-            self._add_ref(node.id, deleted=False)
+            self._add_ref(Name(node.id, kind="variable"), deleted=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
             and not is_local(node.id)
         ):
-            self._add_ref(node.id, deleted=True)
+            self._add_ref(Name(node.id, kind="variable"), deleted=True)
         elif is_local(node.id):
             mangled_name = self._if_local_then_mangle(
                 node.id, ignore_scope=True
@@ -306,40 +363,24 @@ class ScopedVisitor(ast.NodeVisitor):
             for name in node.names
         ]
         for name in node.names:
-            self.block_stack[-1].global_names.add(name)
+            self.block_stack[-1].global_names.add(Name(name, kind="variable"))
 
     # TODO(akshayka): can we find a way around tracking imports as state
     # that needs to be tracked?
     # Import and ImportFrom statements have symbol names in alias nodes
     def visit_alias(self, node: ast.alias) -> None:
-        """Visiting names in import statements
-
-        NB: We disallow `import *` because Python only allows
-        star imports at module-level, but we store cells as functions.
-        """
-        if node.asname is None:
-            # imported name, no "as" clause; examples:
-            #   import [a.b.c] - we define a
-            #   from foo import [a] - we define a
-            #   from foo import [*] - we don't define anything
-            #
-            # Note:
-            # Don't mangle - user has no control over package name
-            basename = node.name.split(".")[0]
-            if basename == "*":
-                line = (
-                    f"line {node.lineno}"
-                    if hasattr(node, "lineno")
-                    else "line ..."
-                )
-                raise SyntaxError(
-                    f"{line} SyntaxError: `import *` is not allowed in marimo."
-                )
-            self._define(basename)
-        else:
-            node.asname = self._if_local_then_mangle(node.asname)
-            self._define(node.asname)
+        """Visiting names in import statements"""
+        name = self._get_alias_name(node)
+        self._define(Name(name, kind="import", module=name))
         self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        module = node.module
+        imported_names = [self._get_alias_name(alias) for alias in node.names]
+        # we don't recurese into the alias nodes, since we define the
+        # aliases here
+        for name in imported_names:
+            self._define(Name(name, kind="import", module=module))
 
     if sys.version_info >= (3, 10):
         # Match statements were introduced in Python 3.10
@@ -352,7 +393,7 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchAs(self, node: ast.MatchAs) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(node.name)
+                self._define(Name(node.name, kind="variable"))
             if node.pattern is not None:
                 # pattern may contain additional MatchAs statements in it
                 self.visit(node.pattern)
@@ -360,7 +401,7 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
             if node.rest is not None:
                 node.rest = self._if_local_then_mangle(node.rest)
-                self._define(node.rest)
+                self._define(Name(node.rest, kind="variable"))
             for key in node.keys:
                 self.visit(key)
             for pattern in node.patterns:
@@ -369,13 +410,13 @@ class ScopedVisitor(ast.NodeVisitor):
         def visit_MatchStar(self, node: ast.MatchStar) -> None:
             if node.name is not None:
                 node.name = self._if_local_then_mangle(node.name)
-                self._define(node.name)
+                self._define(Name(node.name, kind="variable"))
 
     if sys.version_info >= (3, 12):
 
         def visit_TypeVar(self, node: ast.TypeVar) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name)
+            self._define(Name(node.name, kind="variable"))
             if isinstance(node.bound, tuple):
                 for name in node.bound:
                     self.visit(name)
@@ -384,8 +425,8 @@ class ScopedVisitor(ast.NodeVisitor):
 
         def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name)
+            self._define(Name(node.name, kind="variable"))
 
         def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
             # node.name is a str, not an ast.Name node
-            self._define(node.name)
+            self._define(Name(node.name, kind="variable"))
