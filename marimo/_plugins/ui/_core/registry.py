@@ -36,6 +36,8 @@ class UIElementRegistry:
         self._objects[object_id] = weakref.ref(ui_element)
         assert kernel.execution_context is not None
         self._constructing_cells[object_id] = kernel.execution_context.cell_id
+        # bindings must be lazily registered, since there aren't any
+        # bindings at UIElement object creation time
         if object_id in self._bindings:
             # If `register` is called on an object_id that is being
             # reused before `delete` is called, bindings won't have been
@@ -47,32 +49,66 @@ class UIElementRegistry:
             self._register_bindings(object_id)
         return self._bindings[object_id]
 
-    def _register_bindings(self, object_id: UIElementId) -> None:
-        kernel = get_context().kernel
+    def _find_bindings(
+        self, object_id: UIElementId, glbls: dict[str, Any]
+    ) -> set[str]:
         # Get all variable names that are bound to this UI element
-        names = set(
+        return set(
             [
                 name
-                for name in kernel.globals
+                for name in glbls
                 if (
-                    isinstance(kernel.globals[name], UIElement)
-                    and kernel.globals[name]._id == object_id
+                    isinstance(glbls[name], UIElement)
+                    and glbls[name]._id == object_id
                 )
             ]
         )
-        self._bindings[object_id] = names
+
+    def _register_bindings(self, object_id: UIElementId) -> None:
+        kernel = get_context().kernel
+        # Get all variable names that are bound to this UI element or its
+        # parents
+        bindings = set()
+        seen = set()
+        queue = [object_id]
+        while queue:
+            current_object_id = queue.pop()
+            seen.add(current_object_id)
+            bindings |= self._find_bindings(current_object_id, kernel.globals)
+            ui_element = (
+                self._objects[object_id]()
+                if object_id in self._objects
+                else None
+            )
+            if (
+                ui_element is not None
+                and ui_element._parent_id is not None
+                and ui_element._parent_id not in seen
+            ):
+                queue.append(ui_element._parent_id)
+                seen.add(ui_element._parent_id)
+
+        self._bindings[object_id] = bindings
 
     def delete(self, object_id: UIElementId, python_id: int) -> None:
         if object_id not in self._objects:
             return
 
         ui_element = self._objects[object_id]()
-        registered_python_id = id(ui_element)
-        if registered_python_id != python_id:
+        registered_python_id = (
+            id(ui_element) if ui_element is not None else None
+        )
+        if (
+            registered_python_id is not None
+            and registered_python_id != python_id
+        ):
             # guards against UIElement's destructor racing against
             # registration of another element when a cell re-runs
             LOGGER.debug(
-                "Python id mismatch when deleting UI element %s", object_id
+                "Python id mismatch when deleting UI element %s (%s registered, %s provided)",
+                object_id,
+                registered_python_id,
+                python_id,
             )
             return
 

@@ -113,4 +113,6 @@ class dictionary(_batch_base):
 
     def _clone(self) -> dictionary:
         """Custom clone method so new dict gets copies of UI elements."""
-        return dictionary(self.elements, label=self._label)
+        return dictionary(
+            self.elements, label=self._label, on_change=self._on_change
+        )

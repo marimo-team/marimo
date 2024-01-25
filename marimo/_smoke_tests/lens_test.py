@@ -19,7 +19,7 @@ def __(mo):
     def append(v, i):
         del v
         data.append(i)
-        
+
     x = mo.ui.dictionary(
         {
             str(i): mo.ui.button(
@@ -31,7 +31,7 @@ def __(mo):
             for i in range(3)
         }
     )
-    x
+    x.text
     return append, data, partial, x
 
 

@@ -95,6 +95,9 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
             on_change=on_change,
         )
 
+        for element in self._elements:
+            element._set_parent(self)
+
     @property
     def elements(self) -> Sequence[UIElement[JSONType, object]]:
         return self._elements

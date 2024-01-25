@@ -125,6 +125,11 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         Split out from __init__ so _clone() typechecks
         """
+        # ID of the parent UIElement of this object, if any.
+        # Set with self._set_parent() after initialization, since parents
+        # are usually created after the child is created
+        self._parent_id: str | None = None
+
         # Random token
         #
         # Every element is annotated with a random token, which by design is
@@ -224,6 +229,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         frontend, to a value of type `T` for the `UIElement`.
         """
         pass
+
+    def _set_parent(self, parent: UIElement[Any, Any]) -> None:
+        """Register `parent` as a parent of this UI element."""
+        self._parent_id = parent._id
 
     @property
     def value(self) -> T:

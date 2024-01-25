@@ -868,6 +868,7 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
+            # TODO: lens has to call _update on ... top most parent?
             with self._install_execution_context(
                 get_context().ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
@@ -900,13 +901,14 @@ class Kernel:
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
 
-            bound_names = (
+            bound_names = list(
                 name
                 for name in get_context().ui_element_registry.bound_names(
                     object_id
                 )
                 if not is_local(name)
             )
+            print("bound names: ", bound_names)
 
             variable_values: list[VariableValue] = []
             for name in bound_names:
