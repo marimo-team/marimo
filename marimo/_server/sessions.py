@@ -33,6 +33,7 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
+from marimo._runtime.requests import AppMetadata
 from marimo._server.model import (
     ConnectionState,
     SessionHandler,
@@ -87,7 +88,7 @@ class KernelManager:
         queue_manager: QueueManager,
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
-        app_metadata: runtime.AppMetadata,
+        app_metadata: AppMetadata,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -203,7 +204,7 @@ class Session:
         session_handler: SessionHandler,
         mode: SessionMode,
         app: InternalApp,
-        app_metadata: runtime.AppMetadata,
+        app_metadata: AppMetadata,
     ) -> Session:
         configs = app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
@@ -291,7 +292,7 @@ class SessionManager:
         app = self.load_app()
         self.app_config = app.config
 
-        self.app_metadata = runtime.AppMetadata(
+        self.app_metadata = AppMetadata(
             filename=self._get_filename(),
         )
 
