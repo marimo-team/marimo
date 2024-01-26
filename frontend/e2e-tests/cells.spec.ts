@@ -64,7 +64,7 @@ test("page renders 2 cells", async ({ page }) => {
     .first()
     .click();
   // Type into the currently focused cell
-  await page.locator("*:focus").type(`mo.md("# Cell 0")`);
+  await page.locator("*:focus").fill(`mo.md("# Cell 0")`);
 
   // Check the rendered cells
   await expect(page.locator("h1")).toHaveText(["Cell 1", "Cell 2"]);
@@ -82,7 +82,7 @@ test("page renders 2 cells", async ({ page }) => {
     .locator(":visible")
     .last()
     .click();
-  await page.locator("*:focus").type(`mo.md("# Cell 1.5")`);
+  await page.locator("*:focus").fill(`mo.md("# Cell 1.5")`);
   await page.getByTestId("run-button").locator(":visible").last().click();
 
   // Verify the rendered cells

@@ -315,6 +315,18 @@ const CellComponent = (
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },
+    ...(userConfig.keymap.preset === "vim"
+      ? {
+          j: () => {
+            moveToNextCell({ cellId, before: false, noCreate: true });
+            return true;
+          },
+          k: () => {
+            moveToNextCell({ cellId, before: true, noCreate: true });
+            return true;
+          },
+        }
+      : {}),
   });
 
   if (!editing) {
