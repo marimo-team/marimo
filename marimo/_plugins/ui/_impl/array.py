@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Final, Optional, Sequence
+from typing import Any, Callable, Dict, Final, Iterator, Optional, Sequence
 
 from marimo._output.formatters.structures import format_structure
 from marimo._output.rich_help import mddoc
@@ -113,3 +113,18 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
 
     def _clone(self) -> array:
         return array(elements=self.elements, label=self._label)
+
+    def __len__(self) -> int:
+        return len(self.elements)
+
+    def __getitem__(self, key: int) -> UIElement[JSONType, object]:
+        return self.elements[key]
+
+    def __iter__(self) -> Iterator[UIElement[JSONType, object]]:
+        return self.elements.__iter__()
+
+    def __reversed__(self) -> Iterator[UIElement[JSONType, object]]:
+        return self.elements.__reversed__()
+
+    def __contains__(self, item: UIElement[JSONType, object]) -> bool:
+        return item in self.elements

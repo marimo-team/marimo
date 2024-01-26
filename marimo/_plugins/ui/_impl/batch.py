@@ -1,7 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Final, Optional
+import sys
+
+if sys.version_info < (3, 9):
+    from typing import ItemsView, ValuesView
+else:
+    from collections.abc import ItemsView, ValuesView
+
+from typing import Any, Callable, Dict, Final, Iterator, Optional
 
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -48,6 +55,30 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
     @property
     def elements(self) -> dict[str, UIElement[JSONType, object]]:
         return self._elements
+
+    def __len__(self) -> int:
+        return len(self.elements)
+
+    def __getitem__(self, key: str) -> UIElement[JSONType, object]:
+        return self.elements[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return self.elements.__iter__()
+
+    def __reversed__(self) -> Iterator[str]:
+        return self.elements.__reversed__()
+
+    def __contains__(self, item: str) -> bool:
+        return item in self.elements
+
+    def get(self, key: str, default: Any | None = None) -> Any:
+        return self.elements.get(key, default)
+
+    def items(self) -> ItemsView[str, UIElement[JSONType, object]]:
+        return self.elements.items()
+
+    def values(self) -> ValuesView[UIElement[JSONType, object]]:
+        return self.elements.values()
 
     def _convert_value(self, value: dict[str, JSONType]) -> dict[str, object]:
         if self._initialized:

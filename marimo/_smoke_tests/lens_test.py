@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.1.82"
@@ -50,7 +51,7 @@ def __(mo):
 
 @app.cell
 def __(mo, x):
-    mo.ui.table([{"button": btn} for btn in x.elements.values()])
+    mo.ui.table([{"button": btn} for btn in x.values()])
     return
 
 
@@ -73,8 +74,20 @@ def __(dict_template, mo):
 
 
 @app.cell
+def __():
+    10
+    return
+
+
+@app.cell
 def __(composite):
-    composite.elements[2]
+    composite[0], composite[1], composite[2]
+    return
+
+
+@app.cell
+def __(composite, mo):
+    mo.accordion({"Push a button": composite[2]["0"]})
     return
 
 
