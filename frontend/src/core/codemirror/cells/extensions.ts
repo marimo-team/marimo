@@ -8,6 +8,7 @@ import { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion } from "@codemirror/autocomplete";
+import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
@@ -116,8 +117,7 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        const main = ev.state.selection.main;
-        if (main.from === 0 && main.to === 0) {
+        if (isAtStartOfEditor(ev)) {
           focusUp();
           return true;
         }
@@ -129,11 +129,7 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        const main = ev.state.selection.main;
-        if (
-          main.from === ev.state.doc.length &&
-          main.to === ev.state.doc.length
-        ) {
+        if (isAtEndOfEditor(ev)) {
           focusDown();
           return true;
         }

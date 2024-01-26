@@ -5,6 +5,7 @@ import { formatEditorViews } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { CellActions } from "../cells/cells";
+import { invariant } from "@/utils/invariant";
 
 function acceptPlaceholder(cm: EditorView, text: string) {
   // if empty, insert the placeholder
@@ -86,10 +87,9 @@ export function scrollActiveLineIntoView() {
       // Only scroll if there is an active line
       if (activeLines.length === 1) {
         const activeLine = activeLines[0] as HTMLElement;
-        smartScrollIntoView(activeLine, {
-          top: 30,
-          bottom: 120,
-        });
+        const appEl = document.getElementById("App");
+        invariant(appEl, "App not found");
+        smartScrollIntoView(activeLine, { top: 30, bottom: 150 }, appEl);
       }
     }
   });

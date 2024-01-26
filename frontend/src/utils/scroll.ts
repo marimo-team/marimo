@@ -5,7 +5,8 @@
  */
 export function smartScrollIntoView(
   element: HTMLElement,
-  offset?: { top: number; bottom: number }
+  offset?: { top: number; bottom: number },
+  body: HTMLElement | typeof window = window
 ) {
   const topOffset = offset?.top ?? 0;
   const bottomOffset = offset?.bottom ?? 0;
@@ -13,14 +14,14 @@ export function smartScrollIntoView(
 
   if (rect.top < topOffset) {
     // Element is above the viewport, scroll to its top
-    window.scrollBy({
+    body.scrollBy({
       top: rect.top - topOffset,
       behavior: "smooth",
     });
     return;
   } else if (rect.bottom > window.innerHeight - bottomOffset) {
     // Element is below the viewport, scroll to its bottom
-    window.scrollBy({
+    body.scrollBy({
       top: rect.bottom - window.innerHeight + bottomOffset,
       behavior: "smooth",
     });

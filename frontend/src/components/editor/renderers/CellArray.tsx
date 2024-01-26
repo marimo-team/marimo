@@ -90,7 +90,12 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const cells = flattenNotebookCells(notebook);
 
   return (
-    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+    <VerticalLayoutWrapper
+      // 'pb' allows the user to put the cell in the middle of the screen
+      className="pb-[40vh]"
+      invisible={invisible}
+      appConfig={appConfig}
+    >
       <NotebookBanner />
       {cells.map((cell) => (
         <Cell
