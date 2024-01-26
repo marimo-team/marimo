@@ -60,7 +60,7 @@ async def instantiate(
     Instantiate the kernel.
     """
     app_state = AppState(request)
-    notebook = app_state.session_manager.load_app()
+    notebook = app_state.session_manager.get_app()
     body = await parse_request(request, cls=InstantiateRequest)
 
     execution_requests: tuple[ExecutionRequest, ...]

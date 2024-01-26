@@ -68,7 +68,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
             cell_id=cell_id,
         )
 
-    v = ScopedVisitor("cell_" + str(cell_id) if cell_id is not None else None)
+    v = ScopedVisitor("cell_" + cell_id)
     v.visit(module)
 
     expr: Union[ast.Expression, str]

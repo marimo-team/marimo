@@ -10,7 +10,6 @@ import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { sendInstantiate } from "../network/requests";
-import { CellId } from "../cells/ids";
 import { CellData } from "../cells/types";
 import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
@@ -52,16 +51,12 @@ export function useMarimoWebSocket(opts: {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
-        const { codes, names, layout, configs } = msg.data;
-
-        // TODO(akshayka): Get rid of this once the kernel sends cell IDs in
-        // kernel-ready.
-        CellId.reset();
+        const { codes, names, layout, configs, cell_ids } = msg.data;
 
         // Set the layout, initial codes, cells
         const cells = codes.map((code, i) =>
           createCell({
-            id: CellId.create(),
+            id: cell_ids[i],
             code,
             edited: !autoInstantiate,
             name: names[i],

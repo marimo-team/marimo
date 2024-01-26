@@ -85,7 +85,7 @@ class Cell:
     body: Optional[CodeType]
     last_expr: Optional[CodeType]
     # unique id
-    cell_id: Optional[CellId_t]
+    cell_id: CellId_t
 
     # Mutable fields
     # config: explicit configuration of cell
