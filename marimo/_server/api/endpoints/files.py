@@ -209,7 +209,7 @@ async def save_app_config(
     # Update the file with the latest app config
     # TODO(akshayka): Only change the `app = marimo.App` line (at top level
     # of file), instead of overwriting the whole file.
-    app = mgr.get_app()
+    app = mgr.load_app()
 
     if mgr.filename is not None:
         codes = list(app.cell_manager.codes())

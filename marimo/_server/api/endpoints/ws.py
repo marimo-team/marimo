@@ -84,7 +84,7 @@ class WebsocketHandler(SessionHandler):
         codes: tuple[str, ...]
         names: tuple[str, ...]
         configs: tuple[CellConfig, ...]
-        app = mgr.get_app()
+        app = mgr.load_app()
         layout: Optional[LayoutConfig] = None
         if mgr.should_send_code_to_frontend():
             codes, names, configs, cell_ids = tuple(

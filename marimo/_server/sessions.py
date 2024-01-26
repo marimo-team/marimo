@@ -281,7 +281,7 @@ class SessionManager:
         self.app_config: _AppConfig
         self.include_code = include_code
 
-        self.app = self._load_app()
+        self.app = self.load_app()
         self.app_config = self.app.config
 
         if mode == SessionMode.EDIT:
@@ -296,7 +296,7 @@ class SessionManager:
                 hash("".join(code for code in self.app.cell_manager.codes()))
             )
 
-    def _load_app(self) -> InternalApp:
+    def load_app(self) -> InternalApp:
         """
         Load the app from the current file.
         Otherwise, return an empty app.
@@ -312,9 +312,6 @@ class SessionManager:
             return empty_app
 
         return InternalApp(app)
-
-    def get_app(self) -> InternalApp:
-        return self.app
 
     def update_app_config(self, config: dict[str, Any]) -> None:
         self.app_config.update(config)
@@ -335,7 +332,7 @@ class SessionManager:
             s = Session.create(
                 session_handler=session_handler,
                 mode=self.mode,
-                app=self.get_app(),
+                app=self.load_app(),
             )
             self.sessions[session_id] = s
             return s
