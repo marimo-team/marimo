@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.81"
+__generated_with = "0.1.82"
 app = marimo.App()
 
 
@@ -22,6 +22,16 @@ def __(mo):
         data.append(i)
 
 
+    dict_template = {
+        str(i): mo.ui.button(
+            value=i,
+            label=str(i),
+            on_click=lambda v: v + 1,
+            on_change=partial(append, i=i),
+        )
+        for i in range(3)
+    }
+
     x = mo.ui.dictionary(
         {
             str(i): mo.ui.button(
@@ -34,7 +44,7 @@ def __(mo):
         }
     )
     # x
-    return append, data, partial, x
+    return append, data, dict_template, partial, x
 
 
 @app.cell
@@ -50,15 +60,27 @@ def __(data, x):
 
 
 @app.cell
-def __(mo, x):
+def __(dict_template, mo):
     composite = mo.ui.array(
         [
             mo.ui.slider(1, 10),
             mo.ui.array([mo.ui.checkbox(False), mo.ui.slider(10, 20)]),
-            mo.ui.dictionary(x),
+            mo.ui.dictionary(dict_template),
         ]
     )
     return composite,
+
+
+@app.cell
+def __(composite):
+    composite.elements[2]
+    return
+
+
+@app.cell
+def __(composite):
+    composite.value
+    return
 
 
 if __name__ == "__main__":
