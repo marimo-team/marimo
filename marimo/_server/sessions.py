@@ -292,7 +292,6 @@ class SessionManager:
         else:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
-            assert self.app is not None
             self.server_token = str(
                 hash("".join(code for code in self.app.cell_manager.codes()))
             )
