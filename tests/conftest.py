@@ -13,7 +13,7 @@ from marimo._runtime.context import (
     initialize_context,
     teardown_context,
 )
-from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
 
@@ -81,6 +81,9 @@ class MockedKernel:
             stderr=self.stderr,
             stdin=self.stdin,
             cell_configs={},
+            app_metadata=AppMetadata(
+                filename="/app/test.py",
+            ),
         )
 
         initialize_context(

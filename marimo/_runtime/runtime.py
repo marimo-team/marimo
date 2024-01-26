@@ -60,6 +60,7 @@ from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
+    AppMetadata,
     CompletionRequest,
     ConfigurationRequest,
     CreationRequest,
@@ -71,6 +72,7 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
+    UpdateAppMetadataRequest,
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
@@ -178,12 +180,14 @@ class Kernel:
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        app_metadata: AppMetadata,
         stream: Stream,
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
     ) -> None:
+        self.app_metadata = app_metadata
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -588,6 +592,12 @@ class Kernel:
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
+
+        # Set __file__ to the globals
+        # we do this dynamically because the user may change the filename
+        # of the notebook
+        self.globals["__file__"] = self.app_metadata.filename
+
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
@@ -1052,6 +1062,7 @@ def launch_kernel(
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
+    app_metadata: AppMetadata,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1087,6 +1098,7 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
+        app_metadata=app_metadata,
     )
     initialize_context(
         kernel=kernel,
@@ -1182,6 +1194,8 @@ def launch_kernel(
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
             CompletedRun().broadcast()
+        elif isinstance(request, UpdateAppMetadataRequest):
+            kernel.app_metadata = request.metadata
         elif isinstance(request, FunctionCallRequest):
             status, ret = kernel.function_call_request(request)
             FunctionCallResult(

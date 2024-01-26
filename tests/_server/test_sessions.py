@@ -4,11 +4,15 @@ from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
 
+from marimo._runtime.requests import AppMetadata
 from marimo._server.model import SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
 from marimo._server.utils import initialize_asyncio
 
 initialize_asyncio()
+
+
+app_metadata = AppMetadata(filename="test.py")
 
 
 def test_queue_manager() -> None:
@@ -29,7 +33,7 @@ def test_kernel_manager() -> None:
     mode = SessionMode.RUN
 
     # Instantiate a KernelManager
-    kernel_manager = KernelManager(queue_manager, mode, {})
+    kernel_manager = KernelManager(queue_manager, mode, {}, app_metadata)
 
     kernel_manager.start_kernel()
 
@@ -50,7 +54,9 @@ def test_kernel_manager() -> None:
 def test_session() -> None:
     session_handler: Any = MagicMock()
     queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(queue_manager, SessionMode.RUN, {})
+    kernel_manager = KernelManager(
+        queue_manager, SessionMode.RUN, {}, app_metadata
+    )
 
     # Instantiate a Session
     session = Session(session_handler, queue_manager, kernel_manager)

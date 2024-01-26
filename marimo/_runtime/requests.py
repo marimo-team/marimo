@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from marimo._ast.cell import CellId_t
 
@@ -31,6 +31,18 @@ class FunctionCallRequest:
     namespace: str
     function_name: str
     args: dict[str, Any]
+
+
+@dataclass
+class AppMetadata:
+    """Hold metadata about the app, like its filename."""
+
+    filename: Optional[str] = None
+
+
+@dataclass
+class UpdateAppMetadataRequest:
+    metadata: AppMetadata
 
 
 @dataclass
@@ -72,6 +84,7 @@ Request = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
+    UpdateAppMetadataRequest,
     FunctionCallRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
