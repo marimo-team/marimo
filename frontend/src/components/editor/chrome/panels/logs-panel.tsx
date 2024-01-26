@@ -4,7 +4,6 @@ import { CellLog, formatLogTimestamp } from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
 import React from "react";
 import { FileTextIcon } from "lucide-react";
-import { CellId } from "@/core/cells/ids";
 import { CellLink } from "../../links/cell-link";
 
 interface Props {

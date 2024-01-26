@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { CellId, HTMLCellId } from "./ids";
-
 export const DEFAULT_CELL_NAME = "__";
 
 // Generated with `python scripts/print_banned_cell_names.py`
