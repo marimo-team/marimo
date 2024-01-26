@@ -235,10 +235,11 @@ class CellManager:
         self._cell_data: dict[CellId_t, CellData] = {}
         self._cell_data = OrderedDict()
         self.unparsable = False
+        self.random_seed = random.Random(42)
 
     def create_cell_id(self) -> CellId_t:
         # 4 random letters
-        return "".join(random.choices(string.ascii_letters, k=4))
+        return "".join(self.random_seed.choices(string.ascii_letters, k=4))
 
     def cell_decorator(
         self,
