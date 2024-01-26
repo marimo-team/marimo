@@ -7,6 +7,7 @@ import { Handle, Position, useStore } from "reactflow";
 import { CustomNodeProps, getNodeHeight } from "./elements";
 import { displayCellName } from "@/core/cells/names";
 import { CellId } from "@/core/cells/ids";
+import { useCellIds } from "@/core/cells/cells";
 
 function getWidth(canvasWidth: number) {
   const minWidth = 100;
@@ -18,6 +19,7 @@ function getWidth(canvasWidth: number) {
 export const CustomNode = memo((props: CustomNodeProps) => {
   const { data, selected, id } = props;
   const cell = useAtomValue(data.atom);
+  const cellIndex = useCellIds().indexOf(id as CellId);
   const nonSelectedColor = "var(--gray-3)";
   const selectedColor = "var(--gray-9)";
   const color = selected ? selectedColor : nonSelectedColor;
@@ -49,7 +51,7 @@ export const CustomNode = memo((props: CustomNodeProps) => {
         }}
       >
         <div className="text-muted-foreground font-semibold text-xs py-1 px-2 bg-muted border-b">
-          {displayCellName(cell.name, id as CellId)}
+          {displayCellName(cell.name, cellIndex)}
         </div>
         <TinyCode code={cell.code} />
       </div>

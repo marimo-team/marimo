@@ -3,7 +3,7 @@ import { CellId, HTMLCellId } from "@/core/cells/ids";
 import { Logger } from "../../../utils/Logger";
 import { cn } from "@/utils/cn";
 import { displayCellName } from "@/core/cells/names";
-import { useCellNames } from "@/core/cells/cells";
+import { useCellIds, useCellNames } from "@/core/cells/cells";
 
 interface Props {
   cellId: CellId;
@@ -15,6 +15,7 @@ interface Props {
 export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant } = props;
   const cellName = useCellNames()[cellId] ?? "";
+  const cellIndex = useCellIds().indexOf(cellId);
   const cellHtmlId = HTMLCellId.create(cellId);
 
   return (
@@ -49,7 +50,7 @@ export const CellLink = (props: Props): JSX.Element => {
         }
       }}
     >
-      {displayCellName(cellName, cellId)}
+      {displayCellName(cellName, cellIndex)}
     </div>
   );
 };
