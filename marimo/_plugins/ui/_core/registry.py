@@ -4,13 +4,11 @@ from __future__ import annotations
 import weakref
 from typing import Any, Iterable
 
-from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 
 UIElementId = str
-LOGGER = _loggers.marimo_logger()
 
 
 class UIElementRegistry:
@@ -102,6 +100,13 @@ class UIElementRegistry:
         return self.resolve_lens(lens.parent_id, value)
 
     def delete(self, object_id: UIElementId, python_id: int) -> None:
+        """Delete a UI element from the registry
+
+        This function may be called by the Python garbage collector, while
+        a cell is executing. For this reason we make sure not to log
+        anything -- these logs would show up as console output in the
+        frontend, confusing the user.
+        """
         if object_id not in self._objects:
             return
 
@@ -115,15 +120,6 @@ class UIElementRegistry:
         ):
             # guards against UIElement's destructor racing against
             # registration of another element when a cell re-runs
-            LOGGER.debug(
-                (
-                    "Python id mismatch when deleting UI element "
-                    "%s (%s registered, %s provided)"
-                ),
-                object_id,
-                registered_python_id,
-                python_id,
-            )
             return
 
         if ui_element is not None:
