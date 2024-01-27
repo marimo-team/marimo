@@ -593,11 +593,6 @@ class Kernel:
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        # Set __file__ to the globals
-        # we do this dynamically because the user may change the filename
-        # of the notebook
-        self.globals["__file__"] = self.app_metadata.filename
-
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
@@ -854,6 +849,13 @@ class Kernel:
             self._run_cells(
                 dataflow.transitive_closure(self.graph, cells_to_run)
             )
+
+    def set_app_metadata(self, request: UpdateAppMetadataRequest) -> None:
+        """Update app metadata."""
+        self.app_metadata = request.metadata
+
+        # Set __file__ to the globals
+        self.globals["__file__"] = self.app_metadata.filename
 
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.
@@ -1195,7 +1197,7 @@ def launch_kernel(
             kernel.set_ui_element_value(request)
             CompletedRun().broadcast()
         elif isinstance(request, UpdateAppMetadataRequest):
-            kernel.app_metadata = request.metadata
+            kernel.set_app_metadata(request)
         elif isinstance(request, FunctionCallRequest):
             status, ret = kernel.function_call_request(request)
             FunctionCallResult(
