@@ -281,8 +281,8 @@ class SessionManager:
         self.app_config: _AppConfig
         self.include_code = include_code
 
-        app = self.load_app()
-        self.app_config = app.config
+        self.app = self.load_app()
+        self.app_config = self.app.config
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -292,9 +292,8 @@ class SessionManager:
         else:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
-            assert app is not None
             self.server_token = str(
-                hash("".join(code for code in app.cell_manager.codes()))
+                hash("".join(code for code in self.app.cell_manager.codes()))
             )
 
     def load_app(self) -> InternalApp:
@@ -302,15 +301,16 @@ class SessionManager:
         Load the app from the current file.
         Otherwise, return an empty app.
         """
-
         app = codegen.get_app(self.filename)
         if app is None:
             empty_app = InternalApp(App())
             empty_app.cell_manager.register_cell(
+                cell_id=None,
                 code="",
                 config=CellConfig(),
             )
             return empty_app
+
         return InternalApp(app)
 
     def update_app_config(self, config: dict[str, Any]) -> None:

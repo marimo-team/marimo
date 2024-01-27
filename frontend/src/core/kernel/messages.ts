@@ -170,6 +170,10 @@ export type OperationMessage =
          */
         codes: string[];
         /**
+         * The cell IDs
+         */
+        cell_ids: CellId[];
+        /**
          * The layout of the notebook
          * May be undefined if there is no layout set.
          */

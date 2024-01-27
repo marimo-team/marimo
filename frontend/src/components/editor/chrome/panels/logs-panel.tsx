@@ -4,6 +4,7 @@ import { CellLog, formatLogTimestamp } from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
 import React from "react";
 import { FileTextIcon } from "lucide-react";
+import { CellLink } from "../../links/cell-link";
 
 interface Props {
   className?: string;
@@ -77,7 +78,7 @@ function formatLog(log: CellLog) {
       <span className="flex-shrink-0 text-[var(--gray-10)]">[{timestamp}]</span>
       <span className={cn("flex-shrink-0", color)}>{level}</span>
       <span className="flex-shrink-0 text-[var(--gray-10)]">
-        ({log.cellId})
+        (<CellLink cellId={log.cellId} />)
       </span>
       {log.message}
     </>

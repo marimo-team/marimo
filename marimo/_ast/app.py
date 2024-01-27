@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import random
+import string
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import (
@@ -232,13 +234,12 @@ class CellManager:
     def __init__(self) -> None:
         self._cell_data: dict[CellId_t, CellData] = {}
         self._cell_data = OrderedDict()
-        self._cell_id_counter = 0
         self.unparsable = False
+        self.random_seed = random.Random(42)
 
     def create_cell_id(self) -> CellId_t:
-        cell_id = str(self._cell_id_counter)
-        self._cell_id_counter += 1
-        return cell_id
+        # 4 random letters
+        return "".join(self.random_seed.choices(string.ascii_letters, k=4))
 
     def cell_decorator(
         self,
@@ -259,7 +260,7 @@ class CellManager:
                 func: CellFuncTypeBound,
             ) -> CellFunction[CellFuncTypeBound]:
                 cell_function = cell_factory(
-                    func, cell_id=str(self._cell_id_counter)
+                    func, cell_id=self.create_cell_id()
                 )
                 cell_function.cell.configure(cell_config)
                 self._register_cell_function(cell_function)
@@ -272,7 +273,7 @@ class CellManager:
 
         # If the decorator was used without parentheses, func will be the
         # decorated function
-        cell_function = cell_factory(func, cell_id=str(self._cell_id_counter))
+        cell_function = cell_factory(func, cell_id=self.create_cell_id())
         cell_function.cell.configure(cell_config)
         self._register_cell_function(cell_function)
         return cell_function
@@ -281,6 +282,7 @@ class CellManager:
         self, cell_function: CellFunction[CellFuncTypeBound]
     ) -> None:
         self.register_cell(
+            cell_id=cell_function.cell.cell_id,
             code=cell_function.cell.code,
             name=cell_function.__name__,
             config=cell_function.cell.config,
@@ -289,12 +291,15 @@ class CellManager:
 
     def register_cell(
         self,
+        cell_id: Optional[CellId_t],
         code: str,
         config: Optional[CellConfig],
         name: str = "__",
         cell_function: Optional[CellFunction[CellFuncType]] = None,
     ) -> None:
-        cell_id = self.create_cell_id()
+        if cell_id is None:
+            cell_id = self.create_cell_id()
+
         self._cell_data[cell_id] = CellData(
             cell_id=cell_id,
             code=code,
@@ -319,9 +324,10 @@ class CellManager:
         )
 
         self.register_cell(
-            code,
-            cell_config,
-            name or "__",
+            cell_id=self.create_cell_id(),
+            code=code,
+            config=cell_config,
+            name=name or "__",
             cell_function=None,
         )
 

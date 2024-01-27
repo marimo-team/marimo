@@ -13,15 +13,18 @@ test.beforeEach(async ({ page }, info) => {
 
 const pageHelper = (page: Page) => {
   return {
-    selectBasicComponent: async (type: string) => {
-      const select = await page.locator("#cell-1").locator("select");
+    cell(index: number) {
+      return page.locator(".Cell").nth(index);
+    },
+    async selectBasicComponent(type: string) {
+      const select = await this.cell(1).locator("select");
       await select.selectOption({ label: type });
     },
-    selectComplexComponent: async (type: string) => {
-      const select = await page.locator("#cell-4").locator("select");
+    async selectComplexComponent(type: string) {
+      const select = await this.cell(4).locator("select");
       await select.selectOption({ label: type });
     },
-    verifyOutput: async (text: string) => {
+    async verifyOutput(text: string) {
       await expect(
         page.getByText(`The element's current value is ${text}`)
       ).toBeVisible();
@@ -96,7 +99,7 @@ test("date", async ({ page }) => {
 test("dropdown", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("dropdown");
-  const element = page.locator("#cell-2").getByRole("combobox");
+  const element = helper.cell(2).getByRole("combobox");
 
   // Verify is visible
   await expect(element).toBeVisible();
@@ -243,7 +246,7 @@ test("table", async ({ page }) => {
   // Click first checkbox to select all
   await page.getByRole("checkbox").first().click();
   await expect(
-    page.locator("#cell-3").locator(".marimo-json-output").first()
+    helper.cell(3).locator(".marimo-json-output").first()
   ).toHaveText(
     `
 [2 Items
@@ -263,7 +266,7 @@ test("table", async ({ page }) => {
   // Click second checkbox to remove first row
   await page.getByRole("checkbox").nth(1).click();
   await expect(
-    page.locator("#cell-3").locator(".marimo-json-output").first()
+    helper.cell(3).locator(".marimo-json-output").first()
   ).toHaveText(
     `
 [1 Items
@@ -327,7 +330,7 @@ test("complex - array", async ({ page }) => {
   await date.fill("2020-01-20");
   // Verify output
   await expect(
-    page.locator("#cell-6").locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first()
   ).toHaveText(
     `
 [3 Items
@@ -357,7 +360,7 @@ test("complex - batch", async ({ page }) => {
   await date.fill("2020-04-20");
   // Verify output
   await expect(
-    page.locator("#cell-6").locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first()
   ).toHaveText(
     `
 {2 Items
@@ -390,7 +393,7 @@ test("complex - dictionary", async ({ page }) => {
   await buttons.last().click();
   // Verify output
   await expect(
-    page.locator("#cell-6").locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first()
   ).toHaveText(
     `
 {3 Items

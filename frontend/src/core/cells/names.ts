@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { CellId, HTMLCellId } from "./ids";
-
 export const DEFAULT_CELL_NAME = "__";
 
 // Generated with `python scripts/print_banned_cell_names.py`
@@ -90,9 +88,9 @@ export function getValidName(name: string, existingNames: string[]): string {
 /**
  * Print the cell name if differs from DEFAULT_CELL_NAME
  */
-export function displayCellName(name: string, fallbackCellId: CellId): string {
+export function displayCellName(name: string, cellIndex: number): string {
   if (name !== DEFAULT_CELL_NAME) {
     return name;
   }
-  return HTMLCellId.create(fallbackCellId);
+  return `cell-${cellIndex}`;
 }

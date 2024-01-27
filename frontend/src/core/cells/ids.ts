@@ -4,25 +4,24 @@
 import { invariant } from "@/utils/invariant";
 import { TypedString } from "../../utils/typed";
 
+const lowercase = "abcdefghijklmnopqrstuvwxyz";
+const uppercase = lowercase.toUpperCase();
+const alphabet = lowercase + uppercase;
+
 /**
  * A typed CellId
  */
 export type CellId = TypedString<"CellId">;
-let counter = 0;
 export const CellId = {
   /**
-   * Create a new CellId
+   * Create a new CellId, a random 4 letter string.
    */
   create(): CellId {
-    const next = counter++;
-    return next.toString() as CellId;
-  },
-
-  /**
-   * Reset id provider.
-   */
-  reset() {
-    counter = 0;
+    let id = "";
+    for (let i = 0; i < 4; i++) {
+      id += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return id as CellId;
   },
 };
 

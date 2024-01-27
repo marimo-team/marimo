@@ -87,20 +87,25 @@ class WebsocketHandler(SessionHandler):
         app = mgr.load_app()
         layout: Optional[LayoutConfig] = None
         if mgr.should_send_code_to_frontend():
-            codes, names, configs = tuple(
+            codes, names, configs, cell_ids = tuple(
                 zip(
                     *tuple(
-                        (cell_data.code, cell_data.name, cell_data.config)
+                        (
+                            cell_data.code,
+                            cell_data.name,
+                            cell_data.config,
+                            cell_data.cell_id,
+                        )
                         for cell_data in app.cell_manager.cell_data()
                     )
                 )
             )
         else:
-            codes, names, configs = tuple(
+            codes, names, configs, cell_ids = tuple(
                 zip(
                     *tuple(
                         # Don't send code to frontend in run mode
-                        ("", "", cell_data.config)
+                        ("", "", cell_data.config, cell_data.cell_id)
                         for cell_data in app.cell_manager.cell_data()
                     )
                 )
@@ -123,6 +128,7 @@ class WebsocketHandler(SessionHandler):
                         names=names,
                         configs=configs,
                         layout=layout,
+                        cell_ids=cell_ids,
                     )
                 ),
             )
