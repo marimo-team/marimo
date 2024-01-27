@@ -1,14 +1,24 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 import weakref
-from typing import Any, Iterable
+from typing import Any, Iterable, TypeVar
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 
 UIElementId = str
+
+T = TypeVar("T")
+
+LensValue: TypeAlias = T | dict[str, "LensValue[T]"]
 
 
 class UIElementRegistry:
@@ -78,8 +88,8 @@ class UIElementRegistry:
         return self._constructing_cells[object_id]
 
     def resolve_lens(
-        self, object_id: UIElementId, value: Any
-    ) -> tuple[str, Any]:
+        self, object_id: UIElementId, value: LensValue[T]
+    ) -> tuple[str, LensValue[T]]:
         """Resolve a lens, if any, to an object id and value update
 
         Returns (resolved object id, resolved value)
@@ -96,8 +106,8 @@ class UIElementRegistry:
             # update is the same as what was passed in.
             return (object_id, value)
 
-        value = {lens.key: value}
-        return self.resolve_lens(lens.parent_id, value)
+        resolved_value = {lens.key: value}
+        return self.resolve_lens(lens.parent_id, resolved_value)
 
     def delete(self, object_id: UIElementId, python_id: int) -> None:
         """Delete a UI element from the registry
