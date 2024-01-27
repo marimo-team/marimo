@@ -65,6 +65,10 @@ def start(
             if development_mode
             else None,
             log_level=log_level,
+            # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
+            # seconds by default; for some reason breaks the server in
+            # mysterious ways (it stops processing requests) in edit mode.
+            timeout_keep_alive=300 if mode == SessionMode.RUN else int(1e9),
             # ping the websocket once a second to prevent intermittent
             # disconnections
             ws_ping_interval=1,
