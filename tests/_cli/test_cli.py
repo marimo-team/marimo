@@ -17,13 +17,11 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 
 
-def _try_fetch(port: int) -> Optional[bytes]:
+def _try_fetch(port: int, host: str = "127.0.0.1") -> Optional[bytes]:
     contents = None
     for _ in range(10):
         try:
-            contents = urllib.request.urlopen(
-                f"http://127.0.0.1:{port}"
-            ).read()
+            contents = urllib.request.urlopen(f"http://{host}:{port}").read()
             break
         except Exception:
             time.sleep(0.5)
@@ -138,3 +136,22 @@ def test_cli_tutorial() -> None:
         p, f"marimo-version data-version='{__version__}'".encode(), contents
     )
     _check_contents(p, b"intro.py", contents)
+
+
+def test_cli_custom_host() -> None:
+    port = _get_port()
+    host = "0.0.0.0"
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "tutorial",
+            "intro",
+            "-p",
+            str(port),
+            "--headless",
+            "--host",
+            host,
+        ]
+    )
+    contents = _try_fetch(port, host)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
