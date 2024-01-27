@@ -7,7 +7,7 @@ import { formatKeymapExtension } from "../extensions";
 import { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
-import { closeCompletion } from "@codemirror/autocomplete";
+import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 
 export interface MovementCallbacks
@@ -117,6 +117,12 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
+        // Skip if we are in the middle of an autocompletion
+        const hasAutocomplete = completionStatus(ev.state);
+        if (hasAutocomplete) {
+          return false;
+        }
+
         if (isAtStartOfEditor(ev)) {
           focusUp();
           return true;
@@ -129,6 +135,12 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
+        // Skip if we are in the middle of an autocompletion
+        const hasAutocomplete = completionStatus(ev.state);
+        if (hasAutocomplete) {
+          return false;
+        }
+
         if (isAtEndOfEditor(ev)) {
           focusDown();
           return true;
