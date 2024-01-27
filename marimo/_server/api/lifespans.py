@@ -13,7 +13,11 @@ else:
     from contextlib import AbstractAsyncContextManager
 
 from starlette.applications import Starlette
-from typing_extensions import TypeAlias
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 from marimo import _loggers
 from marimo._config.config import get_configuration
