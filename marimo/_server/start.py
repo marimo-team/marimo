@@ -25,6 +25,7 @@ def start(
     include_code: bool,
     headless: bool,
     port: Optional[int],
+    host: str,
 ) -> None:
     """
     Start the server.
@@ -53,6 +54,7 @@ def start(
         uvicorn.Config(
             app,
             port=port,
+            host=host,
             # TODO: cannot use reload unless the app is an import string
             # although cannot use import string because it breaks the
             # session manager
