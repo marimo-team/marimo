@@ -140,7 +140,7 @@ def test_cli_tutorial() -> None:
 
 def test_cli_custom_host() -> None:
     port = _get_port()
-    host = "0.0.0.0"
+    host = "localhost"
     p = subprocess.Popen(
         [
             "marimo",
