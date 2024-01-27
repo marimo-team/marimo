@@ -5,7 +5,7 @@ import { defaultKeymap } from "@codemirror/commands";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { vim, Vim } from "@replit/codemirror-vim";
-import { vimKeymapExtension } from "./vim";
+// import { vimKeymapExtension } from "./vim";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
@@ -38,7 +38,10 @@ export function keymapBundle(
         callbacks.deleteCell();
       });
       return [
-        vimKeymapExtension(callbacks),
+        // TODO: This isn't quite working -- not possible to type "j"
+        // in insert mode (both linux/mac), it ends up going to the next
+        // cell
+        // vimKeymapExtension(callbacks),
         // delete the cell on double press of "d", if the cell is empty
         Prec.highest(
           doubleCharacterListener(
