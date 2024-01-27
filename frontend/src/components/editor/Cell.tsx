@@ -315,7 +315,9 @@ const CellComponent = (
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },
-    ...(userConfig.keymap.preset === "vim"
+    // TODO: This appear to take precedence of the vimKeymapExtension;
+    // comment out for now ...
+    /*    ...(userConfig.keymap.preset === "vim"
       ? {
           j: () => {
             moveToNextCell({ cellId, before: false, noCreate: true });
@@ -326,7 +328,7 @@ const CellComponent = (
             return true;
           },
         }
-      : {}),
+          : {}),*/
   });
 
   if (!editing) {
