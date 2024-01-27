@@ -103,7 +103,7 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 @contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     host = app.state.host
-    port = app.state.post
+    port = app.state.port
     url = f"http://{host}:{port}"
     user_config = get_configuration()
     headless = app.state.headless
