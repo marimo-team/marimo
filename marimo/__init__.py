@@ -51,7 +51,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.1.85"
+__version__ = "0.1.86"
 
 from marimo._ast.app import App
 from marimo._output.doc import doc
