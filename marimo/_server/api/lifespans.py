@@ -118,14 +118,13 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
-    del app
     manager = get_manager()
 
     # Startup message
     if not manager.quiet:
         print_startup(
             manager.filename,
-            f"http://localhost:{manager.port}",
+            f"http://{app.state.host}:{manager.port}",
             manager.mode == SessionMode.RUN,
         )
 

@@ -22,7 +22,7 @@ def _try_fetch(port: int) -> Optional[bytes]:
     for _ in range(10):
         try:
             contents = urllib.request.urlopen(
-                f"http://localhost:{port}"
+                f"http://127.0.0.1:{port}"
             ).read()
             break
         except Exception:

@@ -47,6 +47,8 @@ def start(
     log_level = "info" if development_mode else "error"
 
     app.state.headless = headless
+    app.state.port = port
+    app.state.host = host
     app.state.session_manager = session_manager
     app.state.user_config = get_configuration()
 
