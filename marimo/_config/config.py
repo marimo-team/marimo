@@ -1,9 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, Union, cast
-
-from typing_extensions import TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
