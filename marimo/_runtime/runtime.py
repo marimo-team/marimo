@@ -201,6 +201,7 @@ class Kernel:
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
             "input": input_override,
+            "__file__": self.app_metadata.filename,
         }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
