@@ -315,7 +315,9 @@ const CellComponent = (
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },
-    ...(userConfig.keymap.preset === "vim"
+    // only register j/k movement if the cell is hidden, so as to not
+    // interfere with editing
+    ...(userConfig.keymap.preset === "vim" && cellConfig.hide_code
       ? {
           j: () => {
             moveToNextCell({ cellId, before: false, noCreate: true });
