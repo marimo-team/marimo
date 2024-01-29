@@ -143,7 +143,7 @@ jobs:
             source marimo-test-optional-env/bin/activate
           fi
           python -m pip install --upgrade pip
-          pip install .[testoptional]
+          pip install .[testcore,testoptional]
           pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
       - name: Upload coverage reports to Codecov
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
