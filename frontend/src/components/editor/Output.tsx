@@ -168,37 +168,41 @@ const ExpandableOutput = React.memo(
 
     return (
       <>
-        <div className="increase-pointer-area-x" />
-        <div
-          {...props}
-          className={cn("relative", props.className)}
-          ref={containerRef}
-          style={isExpanded ? { maxHeight: "none" } : undefined}
-        >
-          {children}
-        </div>
-        {(isOverflowing || isExpanded) && (
-          <Button
-            className={cn(
-              "absolute top-1 -right-10",
-              // Force show button if expanded
-              !isExpanded && "hover-action"
-            )}
-            onClick={() => setIsExpanded(!isExpanded)}
-            size="xs"
-            variant="text"
+        <div>
+          {(isOverflowing || isExpanded) && (
+            <div className="relative">
+              <Button
+                className={cn(
+                  "absolute top-6 -right-12 z-10",
+                  // Force show button if expanded
+                  !isExpanded && "hover-action"
+                )}
+                onClick={() => setIsExpanded(!isExpanded)}
+                size="xs"
+                variant="text"
+              >
+                {isExpanded ? (
+                  <Tooltip content="Collapse output" side="left">
+                    <ChevronsDownUpIcon className="h-4 w-4" />
+                  </Tooltip>
+                ) : (
+                  <Tooltip content="Expand output" side="left">
+                    <ChevronsUpDownIcon className="h-4 w-4" />
+                  </Tooltip>
+                )}
+              </Button>
+            </div>
+          )}
+          <div
+            {...props}
+            className={cn("relative", props.className)}
+            ref={containerRef}
+            style={isExpanded ? { maxHeight: "none" } : undefined}
           >
-            {isExpanded ? (
-              <Tooltip content="Collapse output" side="left">
-                <ChevronsDownUpIcon className="h-4 w-4" />
-              </Tooltip>
-            ) : (
-              <Tooltip content="Expand output" side="left">
-                <ChevronsUpDownIcon className="h-4 w-4" />
-              </Tooltip>
-            )}
-          </Button>
-        )}
+            {children}
+          </div>
+        </div>
+        <div className="increase-pointer-area-x contents" />
       </>
     );
   }
