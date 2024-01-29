@@ -54,6 +54,10 @@ jobs:
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -81,25 +85,65 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install marimo with dev dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
-      - name: Lint
-        run: |
-          ruff marimo/
-      - name: Typecheck
-        if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
-        run: |
-          mypy --config-file pyproject.toml marimo/
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
         run: |
           mkdir -p marimo/_static/assets
           cp frontend/index.html marimo/_static/index.html
           cp frontend/public/favicon.ico marimo/_static/favicon.ico
-      - name: Test
+      # Lint, typecheck
+      # Each run command runs in a separate shell, so we need to
+      # reactivate the virtual environment every time
+      - name: Install marimo with dev dependencies
         run: |
+          python -m venv marimo-dev-env
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\\Scripts\\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
+          python -m pip install --upgrade pip
+          pip install .[dev]
+      - name: Lint
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\\Scripts\\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
+          ruff marimo/
+      - name: Typecheck
+        if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\\Scripts\\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
+          mypy --config-file pyproject.toml marimo/
+      # Test with minimal dependencies
+      - name: Test with minimal dependencies
+        run: |
+          python -m venv marimo-test-env
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-test-env\\Scripts\\activate
+          else
+            source marimo-test-env/bin/activate
+          fi
+          python -m pip install --upgrade pip
+          pip install .[testcore]
+          pytest -v tests/ -k "not test_cli"
+      # Test with optional dependencies
+      - name: Test with optional dependencies
+        run: |
+          python -m venv marimo-test-optional-env
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-test-optional-env\\Scripts\\activate
+          else
+            source marimo-test-optional-env/bin/activate
+          fi
+          python -m pip install --upgrade pip
+          pip install .[testcore,testoptional]
           pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
       - name: Upload coverage reports to Codecov
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
