@@ -148,7 +148,7 @@
     "@storybook/react-vite": "^7.6.10",
     "@storybook/testing-library": "^0.2.2",
     "@swc-jotai/react-refresh": "^0.1.0",
-    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/jest-dom": "^6.3.0",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.2",
     "@types/katex": "^0.16.7",
