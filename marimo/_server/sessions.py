@@ -262,6 +262,7 @@ class Session:
         self.kernel_manager.interrupt_kernel()
 
     def put_request(self, request: requests.Request) -> None:
+        self.session_view.add_request(request)
         self._queue_manager.control_queue.put(request)
 
     def put_input(self, text: str) -> None:
