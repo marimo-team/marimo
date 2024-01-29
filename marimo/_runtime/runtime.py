@@ -857,9 +857,17 @@ class Kernel:
         resolved_requests: dict[str, Any] = {}
         ui_element_registry = get_context().ui_element_registry
         for object_id, value in request.ids_and_values:
-            resolved_id, resolved_value = ui_element_registry.resolve_lens(
-                object_id, value
-            )
+            try:
+                resolved_id, resolved_value = ui_element_registry.resolve_lens(
+                    object_id, value
+                )
+            except (KeyError, RuntimeError):
+                # KeyError: Trying to access an unnamed UIElement
+                # RuntimeError: UIElement was deleted somehow
+                LOGGER.debug(
+                    "Could not resolve UIElement with id%s", object_id
+                )
+                continue
             resolved_requests[resolved_id] = resolved_value
         del request
 

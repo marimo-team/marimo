@@ -93,6 +93,9 @@ class UIElementRegistry:
         """Resolve a lens, if any, to an object id and value update
 
         Returns (resolved object id, resolved value)
+
+        Raises KeyError if `object_id` does not exist in the registry,
+        RuntimeError if the object was deleted.
         """
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
