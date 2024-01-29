@@ -84,6 +84,13 @@ def test_set_ui_element_value(k: Kernel) -> None:
     assert k.globals["x"] == 6
 
 
+def test_set_ui_element_value_not_found_doesnt_fail(k: Kernel) -> None:
+    # smoke test -- this shouldn't raise an exception
+    k.set_ui_element_value(
+        SetUIElementValueRequest([("does not exist", None)])
+    )
+
+
 def test_set_ui_element_value_lensed(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
