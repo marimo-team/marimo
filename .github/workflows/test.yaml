@@ -54,6 +54,9 @@ jobs:
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      shell: bash
+
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -91,7 +94,11 @@ jobs:
       - name: Install marimo with dev dependencies
         run: |
           python -m venv marimo-dev-env
-          source marimo-dev-env/bin/activate
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\Scripts\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
           python -m pip install --upgrade pip
           pip install .[dev]
       - name: Lint
@@ -106,7 +113,11 @@ jobs:
         run: |
           deactivate
           python -m venv marimo-test-env
-          source marimo-test-env/bin/activate
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-test-env\Scripts\activate
+          else
+            source marimo-test-env/bin/activate
+          fi
           python -m pip install --upgrade pip
           pip install .[testcore]
           pytest -v tests/ -k "not test_cli"
@@ -115,7 +126,11 @@ jobs:
         run: |
           deactivate
           python -m venv marimo-test-optional-env
-          source marimo-test-optional-env/bin/activate
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-test-optional-env\Scripts\activate
+          else
+            source marimo-test-optional-env/bin/activate
+          fi
           python -m pip install --upgrade pip
           pip install .[testoptional]
           pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
