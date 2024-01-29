@@ -125,6 +125,8 @@ module.exports = {
     plugin(function ({ addUtilities }) {
       const newUtilities = {
         ".increase-pointer-area-x": {
+          border: "none",
+
           "&::before": {
             content: '""',
             position: "absolute",
