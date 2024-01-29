@@ -60,6 +60,7 @@ from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
+    AppMetadata,
     CompletionRequest,
     ConfigurationRequest,
     CreationRequest,
@@ -178,12 +179,14 @@ class Kernel:
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        app_metadata: AppMetadata,
         stream: Stream,
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
     ) -> None:
+        self.app_metadata = app_metadata
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -197,6 +200,7 @@ class Kernel:
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
             "input": input_override,
+            "__file__": self.app_metadata.filename,
         }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
@@ -588,6 +592,7 @@ class Kernel:
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
+
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
@@ -1052,6 +1057,7 @@ def launch_kernel(
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
+    app_metadata: AppMetadata,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1087,6 +1093,7 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
+        app_metadata=app_metadata,
     )
     initialize_context(
         kernel=kernel,

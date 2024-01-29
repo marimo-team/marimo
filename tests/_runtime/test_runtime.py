@@ -670,3 +670,14 @@ def test_interrupt(k: Kernel, exec_req: ExecReqProvider) -> None:
 
     # make sure the interrupt wasn't caught by the try/except
     assert k.globals["tries"] == 0
+
+
+def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("x = __file__"),
+        ]
+    )
+
+    assert k.globals["x"] == "/app/test.py"
