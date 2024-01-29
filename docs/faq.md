@@ -28,7 +28,8 @@
 
 ## Choosing marimo
 
-<a name="faq-jupyter" ></a>
+<a name="faq-jupyter"></a>
+
 ### How is marimo different from Jupyter?
 
 marimo is a reinvention of the Python notebook as a reproducible, interactive,
@@ -50,7 +51,8 @@ latest value.
 as pure Python files that can be executed as scripts, deployed as interactive
 web apps, and versioned easily with git.
 
-<a name="faq-problems" ></a>
+<a name="faq-problems"></a>
+
 ### What problems does marimo solve?
 
 marimo solves problems in reproducibility, maintainability, interactivity,
@@ -98,15 +100,13 @@ see these references
 [[1]](https://austinhenley.com/pubs/Chattopadhyay2020CHI_NotebookPainpoints.pdf)
 [[2]](https://www.youtube.com/watch?v=7jiPeIFXb6U&t=1s)._
 
+<a name="faq-widgets"></a>
 
-<a name="faq-widgets" ></a>
 ### How is `marimo.ui` different from Jupyter widgets?
-
 
 Unlike Jupyter widgets, marimo's interactive elements are automatically
 synchronized with the Python kernel: no callbacks, no observers, no manually
 re-running cells.
-
 
 <p align="center">
 <img src="/_static/faq-marimo-ui.gif" width="600px" />
@@ -114,8 +114,8 @@ re-running cells.
 
 ## Using marimo
 
+<a name="faq-notebook-library"></a>
 
-<a name="faq-notebook-library" ></a>
 ### Is marimo a notebook or a library?
 
 marimo is both a notebook and a library.
@@ -127,7 +127,8 @@ marimo is both a notebook and a library.
   create stateful interactive elements with `mo.ui` (`mo.ui.slider(...)`), and
   more. See the docs for an [API reference](https://docs.marimo.io/api/).
 
-<a name="faq-notebook-app" ></a>
+<a name="faq-notebook-app"></a>
+
 ### What's the difference between a marimo notebook and a marimo app?
 
 marimo programs are notebooks, apps, or both, depending on how you use them.
@@ -149,13 +150,14 @@ settings, such as collaborative research, education, and technical
 presentations, going back and forth between the notebook view and app view
 (which you can do from `marimo edit`) can be useful!
 
-<a name="faq-reactivity" ></a>
+<a name="faq-reactivity"></a>
+
 ### How does marimo know what cells to run?
 
 marimo reads each cell once to determine what global names it defines and what
 global names it reads. When a cell is run, marimo runs all other cells that
 read any of the global names it defines. A global name can refer to a variable,
-class, function, or import. 
+class, function, or import.
 
 In other words, marimo uses _static analysis_ to make a dataflow graph out of
 your cells. Each cell is a node in the graph across which global
@@ -183,7 +185,8 @@ intermediate computations (see our [best practices guide](guides/best_practices.
 - Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
   execution of a cell and its descendants.
 
-<a name="faq-interactivity" ></a>
+<a name="faq-interactivity"></a>
+
 ### How do I use sliders and other interactive elements?
 
 Interactive UI elements like sliders are available in `marimo.ui`.
@@ -210,7 +213,8 @@ marimo tutorial ui
 
 at the command line.
 
-<a name="faq-form" ></a>
+<a name="faq-form"></a>
+
 ### How do I add a submit button to UI elements?
 
 Use the `form` method to add a submit button to a UI element. For
@@ -219,19 +223,21 @@ example,
 ```python
 form = marimo.ui.text_area().form()
 ```
+
  When wrapped in a form, the
 text area's value will only be sent to Python when you click the submit button.
 Access the last submitted value of the text area with `form.value`.
 
-<a name="faq-markdown" ></a>
+<a name="faq-markdown"></a>
+
 ### How do I write markdown?
 
 Import `marimo` (as `mo`) in a notebook, and use the `mo.md` function.
 Learn more in the [outputs guide](/guides/outputs.md#markdown)
 or by running `marimo tutorial markdown`.
 
+<a name="faq-plots"></a>
 
-<a name="faq-plots" ></a>
 ### How do I display plots?
 
 Include plots in the last expression of a cell to display them, just like all
@@ -244,7 +250,8 @@ marimo tutorial plots
 
 Also see the <a href="/api/plotting.html">plotting API reference</a>.
 
-<a name="faq-mpl-cutoff" ></a>
+<a name="faq-mpl-cutoff"></a>
+
 ### How do I prevent matplotlib plots from being cut off?
 
 If your legend or axes labels are cut off, try calling `plt.tight_layout()`
@@ -259,7 +266,8 @@ plt.tight_layout()
 plt.gca()
 ```
 
-<a name="faq-interactive-plots" ></a>
+<a name="faq-interactive-plots"></a>
+
 ### How do I display interactive matplotlib plots?
 
 Use <a href="/api/plotting.html#marimo.mpl.interactive">`marimo.mpl.interactive`</a>.
@@ -270,7 +278,8 @@ ax.plot([1, 2])
 mo.mpl.interactive(ax)
 ```
 
-<a name="faq-rows-columns" ></a>
+<a name="faq-rows-columns"></a>
+
 ### How do I display objects in rows and columns?
 
 Use `marimo.hstack` and `marimo.vstack`. See the layout tutorial for details:
@@ -280,6 +289,7 @@ marimo tutorial layout
 ```
 
 <a name="faq-dynamic-ui-elements"></a>
+
 ### How do I create an output with a dynamic number of UI elements?
 
 Use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
@@ -295,13 +305,15 @@ use [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array) or
 For usage examples, see the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together).
 
-<a name="faq-restart" ></a>
+<a name="faq-restart"></a>
+
 ### How do I restart a notebook?
 
 To clear all program memory and restart the notebook from scratch, refresh
 the browser page.
 
-<a name="faq-reload" ></a>
+<a name="faq-reload"></a>
+
 ### How do I reload modules?
 
 To reload modules, use
@@ -317,6 +329,7 @@ Running this cell will reload `mymodule` with your new edits and automatically
 re-run any cells using `mymodule`.
 
 <a name="faq-on-change-called"></a>
+
 ### Why aren't my `on_change`/`on_click` handlers being called?
 
 A UI Element's `on_change` (or for buttons, `on_click`) handlers are only
@@ -327,7 +340,7 @@ mo.vstack([mo.ui.button(on_change=lambda _: print('I was called")) for _ in rang
 ```
 
 In such cases (when you want to output a dynamic number of UI elements),
-you need to use 
+you need to use
 [`mo.ui.array`](/api/inputs/array.md#marimo.ui.array),
 [`mo.ui.dictionary`](/api/inputs/dictionary.md#marimo.ui.dictionary), or
 [`mo.ui.batch`](/api/inputs/batch.md#marimo.ui.batch).
@@ -337,13 +350,13 @@ See the
 for example code.
 
 <a name="faq-annotations"></a>
+
 ### How does marimo treat type annotations?
 
 Type annotations are registered as references of a cell, unless they
 are explicitly written as strings. This helps ensure correctness of code that
 depends on type annotations at runtime (_e.g._, Pydantic), while still
 providing a way to omit annotations from affecting dataflow graph.
-
 
 For example, in
 
@@ -362,12 +375,14 @@ x: "A" = ...
 
 For Python 3.12+, marimo additionally implements annotation scoping.
 
-<a name="faq-packages" ></a>
+<a name="faq-packages"></a>
+
 ### What packages can I use?
 
 You can use any Python package. marimo cells run arbitrary Python code.
 
-<a name="faq-remote" ></a>
+<a name="faq-remote"></a>
+
 ### How do I use marimo on a remote server?
 
 Use SSH port-forwarding to run the marimo kernel on a remote server
@@ -378,18 +393,30 @@ to pass the `--headless` flag when starting marimo on remote:
 marimo edit notebook.py --headless
 ```
 
-<a name="faq-app-deploy" ></a>
+You may also want to set a custom host and port:
+
+```bash
+marimo edit notebook.py --headless --host 0.0.0.0 --port 8080
+```
+
+<a name="faq-app-deploy"></a>
+
 ### How do I deploy apps?
 
 Use the marimo CLI's `run` command to serve a notebook as an app:
 
-```
+```bash
 marimo run notebook.py
 ```
 
-<a name="faq-marimo-free" ></a>
+If you are running marimo inside a Docker container, you may want to run under a different host and port:
+
+```bash
+marimo run notebook.py --host 0.0.0.0 --port 8080
+```
+
+<a name="faq-marimo-free"></a>
+
 ### Is marimo free?
 
 Yes!
-
-
