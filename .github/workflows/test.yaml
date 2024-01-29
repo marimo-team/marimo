@@ -104,10 +104,20 @@ jobs:
           pip install .[dev]
       - name: Lint
         run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\Scripts\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
           ruff marimo/
       - name: Typecheck
         if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
         run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            marimo-dev-env\Scripts\activate
+          else
+            source marimo-dev-env/bin/activate
+          fi
           mypy --config-file pyproject.toml marimo/
       # Test with minimal dependencies
       - name: Test with minimal dependencies
@@ -115,7 +125,7 @@ jobs:
           deactivate
           python -m venv marimo-test-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-env\Scripts\activate
+            marimo-test-env\\Scripts\\activate
           else
             source marimo-test-env/bin/activate
           fi
@@ -128,7 +138,7 @@ jobs:
           deactivate
           python -m venv marimo-test-optional-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-optional-env\Scripts\activate
+            marimo-test-optional-env\\Scripts\\activate
           else
             source marimo-test-optional-env/bin/activate
           fi
