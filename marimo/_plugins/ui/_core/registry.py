@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Iterable, TypeVar, Union
+from typing import Any, Dict, Iterable, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
@@ -18,7 +18,8 @@ UIElementId = str
 
 T = TypeVar("T")
 
-LensValue: TypeAlias = Union[T, dict[str, "LensValue[T]"]]
+# Recursive types don't support | or dict[] in py3.8/3.9
+LensValue: TypeAlias = Union[T, Dict[str, "LensValue[T]"]]
 
 
 class UIElementRegistry:
