@@ -124,7 +124,6 @@ jobs:
       # Test with minimal dependencies
       - name: Test with minimal dependencies
         run: |
-          deactivate
           python -m venv marimo-test-env
           if [ "$RUNNER_OS" == "Windows" ]; then
             marimo-test-env\\Scripts\\activate
@@ -137,7 +136,6 @@ jobs:
       # Test with optional dependencies
       - name: Test with optional dependencies
         run: |
-          deactivate
           python -m venv marimo-test-optional-env
           if [ "$RUNNER_OS" == "Windows" ]; then
             marimo-test-optional-env\\Scripts\\activate
