@@ -29,7 +29,7 @@ def code_key(code: str) -> int:
 
 def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
     """Parse cell id from filename."""
-    matches = re.findall(r"__marimo__cell_(.*)_", filename)
+    matches = re.findall(r"__marimo__cell_(.*?)_", filename)
     if matches:
         return str(matches[0])
     return None
