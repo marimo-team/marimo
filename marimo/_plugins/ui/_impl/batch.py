@@ -50,7 +50,7 @@ class _batch_base(UIElement[Dict[str, JSONType], Dict[str, object]]):
         )
 
         for key, element in self._elements.items():
-            element._register_as_lens(parent=self, key=key)
+            element._register_as_view(parent=self, key=key)
 
     @property
     def elements(self) -> dict[str, UIElement[JSONType, object]]:

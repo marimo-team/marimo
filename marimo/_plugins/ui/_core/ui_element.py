@@ -44,6 +44,17 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class Lens:
+    """Track how a view of a higher-order element relates to its source
+
+    Higher-order UI elements support lensing, ie extracting their children
+    as "views". These views can be embedded in other outputs and interacted
+    with.
+
+    UI elements that are views of a higher-order element (eg, an entry of
+    an array is a view of the array) have a lens object that stores the
+    id of its parent UI element, and the key at which its parent stores it.
+    """
+
     parent_id: str
     key: str
 
@@ -134,7 +145,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         """
         # A UIElement may be a child ("lens") of another UI element.
         #
-        # Set with self._register_as_lens() after initialization, since parents
+        # Set with self._register_as_view() after initialization, since parents
         # are usually created after the child is created
         self._lens: Lens | None = None
 
@@ -238,8 +249,8 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         """
         pass
 
-    def _register_as_lens(self, parent: UIElement[Any, Any], key: str) -> None:
-        """Register `parent` as a parent of this UI element."""
+    def _register_as_view(self, parent: UIElement[Any, Any], key: str) -> None:
+        """Register this element as a view of `parent`."""
         self._lens = Lens(parent_id=parent._id, key=key)
 
     @property

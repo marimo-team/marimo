@@ -107,7 +107,7 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
         )
 
         for i, element in enumerate(self._elements):
-            element._register_as_lens(self, key=str(i))
+            element._register_as_view(self, key=str(i))
 
     @property
     def elements(self) -> Sequence[UIElement[JSONType, object]]:

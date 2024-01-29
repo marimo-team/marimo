@@ -850,7 +850,10 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
-        # Resolve lenses on request, if any
+        # Resolve lenses on request, if any: any element that is a view
+        # of another parent element is resolved to its parent. In particular,
+        # interacting with a view triggers reactive execution through the
+        # source (parent).
         resolved_requests: dict[str, Any] = {}
         ui_element_registry = get_context().ui_element_registry
         for object_id, value in request.ids_and_values:
@@ -908,7 +911,7 @@ class Kernel:
                     tmpio.seek(0)
                     sys.stderr.write(tmpio.read())
 
-            bound_names = list(
+            bound_names = (
                 name
                 for name in get_context().ui_element_registry.bound_names(
                     object_id
