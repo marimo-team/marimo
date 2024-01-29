@@ -172,7 +172,7 @@ edit_help_msg = "\n".join(
 )
 @click.option(
     "--host",
-    default="127.0.0.1",
+    default="",
     show_default=True,
     type=str,
     help="Host to attach to.",
@@ -246,7 +246,7 @@ Example:
 )
 @click.option(
     "--host",
-    default="127.0.0.1",
+    default="",
     show_default=True,
     type=str,
     help="Host to attach to.",
@@ -341,7 +341,7 @@ Recommended sequence:
 )
 @click.option(
     "--host",
-    default="127.0.0.1",
+    default="",
     show_default=True,
     type=str,
     help="Host to attach to.",

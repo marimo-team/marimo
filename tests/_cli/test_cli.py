@@ -17,7 +17,7 @@ from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 
 
-def _try_fetch(port: int, host: str = "127.0.0.1") -> Optional[bytes]:
+def _try_fetch(port: int, host: str = "localhost") -> Optional[bytes]:
     contents = None
     for _ in range(10):
         try:

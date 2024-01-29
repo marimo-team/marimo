@@ -125,10 +125,9 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
 
     # Startup message
     if not manager.quiet:
-        printed_host = "localhost" if host == "127.0.0.1" else host
         print_startup(
             manager.filename,
-            f"http://{printed_host}:{port}",
+            f"http://{host}:{port}",
             manager.mode == SessionMode.RUN,
         )
 
