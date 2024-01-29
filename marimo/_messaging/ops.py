@@ -47,7 +47,7 @@ class Op:
     # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
         stream = stream if stream is not None else get_context().stream
-        LOGGER.debug("Broadcasting op: %s", self.name)
+        LOGGER.debug("Broadcasting op: %s", self)
         stream.write(op=self.name, data=serialize(self))
 
 
