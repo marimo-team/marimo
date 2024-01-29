@@ -7,6 +7,7 @@ from typing import Any, Generator
 
 import pytest
 
+from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import Stderr, Stdin, Stdout
 from marimo._runtime.context import (
@@ -113,11 +114,10 @@ def mocked_kernel() -> Generator[MockedKernel, None, None]:
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
-        self.counter = 0
+        self.cell_manager = CellManager()
 
     def get(self, code: str) -> ExecutionRequest:
-        key = str(self.counter)
-        self.counter += 1
+        key = self.cell_manager.create_cell_id()
         return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
 
     def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:

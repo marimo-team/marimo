@@ -4,6 +4,7 @@ from __future__ import annotations
 from functools import partial
 
 from marimo._ast import compiler
+from marimo._ast.app import CellManager
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -100,7 +101,16 @@ class TestCellFactory:
 
 
 def test_cell_id_from_filename() -> None:
-    assert compiler.cell_id_from_filename(compiler.get_filename("0")) == "0"
-    assert compiler.cell_id_from_filename(compiler.get_filename("2")) == "2"
-    assert compiler.cell_id_from_filename(compiler.get_filename("23")) == "23"
+    cell_id = CellManager().create_cell_id()
+    assert (
+        compiler.cell_id_from_filename(compiler.get_filename(cell_id))
+        == cell_id
+    )
+    assert (
+        compiler.cell_id_from_filename(
+            compiler.get_filename(cell_id, suffix="_abcd")
+        )
+        == cell_id
+    )
+
     assert compiler.cell_id_from_filename("random_file.py") is None

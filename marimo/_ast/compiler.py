@@ -29,7 +29,7 @@ def code_key(code: str) -> int:
 
 def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
     """Parse cell id from filename."""
-    matches = re.findall(r"__marimo__cell_([0-9]+)", filename)
+    matches = re.findall(r"__marimo__cell_(.*?)_", filename)
     if matches:
         return str(matches[0])
     return None
@@ -37,7 +37,7 @@ def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
 
 def get_filename(cell_id: CellId_t, suffix: str = "") -> str:
     """Get a temporary Python filename that encodes the cell id in it."""
-    basename = f"__marimo__cell_{cell_id}"
+    basename = f"__marimo__cell_{cell_id}_"
     return os.path.join(get_tmpdir(), basename + suffix + ".py")
 
 
