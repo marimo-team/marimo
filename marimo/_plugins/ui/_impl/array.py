@@ -19,14 +19,19 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
 
     Use an array to
 
-    - create a set of UI elements at runtime
+    - create a dynamic number of UI elements at runtime
     - group together logically related UI elements
     - keep the number of global variables in your program small
 
-    Access the values of the elements using the `value` attribute of the
-    array.
+    Access the values of the elements using the `value` attribute of the array
+    (`array.value`).
 
-    The UI elements in the array are clones of the original elements:
+    The elements in the array can be accessed using square brackets
+    (`array[index]`) and embedded in other marimo outputs. You can also
+    iterate over the UI elements using the `in` operator (`for element in
+    array`).
+
+    Note: The UI elements in the array are clones of the original elements:
     interacting with the array will _not_ update the original elements, and
     vice versa.
 
@@ -44,6 +49,12 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
     ```python
     # array.value returns a list with the values of the elements
     array.value
+    ```
+
+    Access and output a UI element in the array:
+
+    ```python
+    mo.md(f"This is a slider: array[0]")
     ```
 
     Some number of UI elements, determined at runtime:
