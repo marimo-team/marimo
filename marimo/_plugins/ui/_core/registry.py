@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Iterable, TypeVar
+from typing import Any, Iterable, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
@@ -18,7 +18,7 @@ UIElementId = str
 
 T = TypeVar("T")
 
-LensValue: TypeAlias = T | dict[str, "LensValue[T]"]
+LensValue: TypeAlias = Union[T, dict[str, "LensValue[T]"]]
 
 
 class UIElementRegistry:
