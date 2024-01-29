@@ -24,8 +24,12 @@ class dictionary(_batch_base):
     Access the values of the elements using the `value` attribute of the
     dictionary.
 
-    The UI elements in the dictionary are clones of the original elements:
-    interacting with the dictionary will _not_ update the original
+    The elements in the dictionary can be accessed using square brackets
+    (`dictionary[key]`) and embedded in other marimo outputs. You can also
+    iterate over the UI elements using the same syntax used for Python dicts.
+
+    Note: The UI elements in the dictionary are clones of the original
+    elements: interacting with the dictionary will _not_ update the original
     elements, and vice versa.
 
     **Examples.**
@@ -46,6 +50,12 @@ class dictionary(_batch_base):
     ```python
     # d.value returns a dict with keys "slider", "text", "date"
     d.value
+    ```
+
+    Access and output a UI element in the array:
+
+    ```python
+    mo.md(f"This is a slider: d['slider']")
     ```
 
     Some number of UI elements, determined at runtime:
@@ -113,4 +123,6 @@ class dictionary(_batch_base):
 
     def _clone(self) -> dictionary:
         """Custom clone method so new dict gets copies of UI elements."""
-        return dictionary(self.elements, label=self._label)
+        return dictionary(
+            self.elements, label=self._label, on_change=self._on_change
+        )

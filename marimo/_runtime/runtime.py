@@ -855,12 +855,31 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
-        referring_cells = set()
+        # Resolve lenses on request, if any: any element that is a view
+        # of another parent element is resolved to its parent. In particular,
+        # interacting with a view triggers reactive execution through the
+        # source (parent).
+        resolved_requests: dict[str, Any] = {}
+        ui_element_registry = get_context().ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
-                component = get_context().ui_element_registry.get_object(
-                    object_id
+                resolved_id, resolved_value = ui_element_registry.resolve_lens(
+                    object_id, value
                 )
+            except (KeyError, RuntimeError):
+                # KeyError: Trying to access an unnamed UIElement
+                # RuntimeError: UIElement was deleted somehow
+                LOGGER.debug(
+                    "Could not resolve UIElement with id%s", object_id
+                )
+                continue
+            resolved_requests[resolved_id] = resolved_value
+        del request
+
+        referring_cells = set()
+        for object_id, value in resolved_requests.items():
+            try:
+                component = ui_element_registry.get_object(object_id)
                 LOGGER.debug(
                     "Setting value on UIElement with id %s, value %s",
                     object_id,
@@ -874,7 +893,7 @@ class Kernel:
                 continue
 
             with self._install_execution_context(
-                get_context().ui_element_registry.get_cell(object_id),
+                ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
                 try:

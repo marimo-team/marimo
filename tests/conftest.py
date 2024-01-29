@@ -111,6 +111,17 @@ def mocked_kernel() -> Generator[MockedKernel, None, None]:
     yield mocked
 
 
+# Installs an execution context without stream redirection
+@pytest.fixture
+def executing_kernel() -> Generator[Kernel, None, None]:
+    mocked = MockedKernel()
+    mocked.k.stdout = None
+    mocked.k.stderr = None
+    mocked.k.stdin = None
+    with mocked.k._install_execution_context(cell_id="0"):
+        yield mocked.k
+
+
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:

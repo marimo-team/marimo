@@ -72,8 +72,8 @@ def redirect_streams(
         ):
             yield
     finally:
-        # These have to be restored after the redirect context managers have
-        # exited
+        # The redirect context manager relies on these being installed;
+        # restore them after the context manager quits
         sys.stdout = py_stdout
         sys.stderr = py_stderr
         sys.stdin = py_stdin

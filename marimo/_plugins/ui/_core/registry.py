@@ -1,16 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 import weakref
-from typing import Any, Iterable
+from typing import Any, Dict, Iterable, TypeVar, Union
 
-from marimo import _loggers
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
+
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
 
 UIElementId = str
-LOGGER = _loggers.marimo_logger()
+
+T = TypeVar("T")
+
+# Recursive types don't support | or dict[] in py3.8/3.9
+LensValue: TypeAlias = Union[T, Dict[str, "LensValue[T]"]]
 
 
 class UIElementRegistry:
@@ -36,6 +45,8 @@ class UIElementRegistry:
         self._objects[object_id] = weakref.ref(ui_element)
         assert kernel.execution_context is not None
         self._constructing_cells[object_id] = kernel.execution_context.cell_id
+        # bindings must be lazily registered, since there aren't any
+        # bindings at UIElement object creation time
         if object_id in self._bindings:
             # If `register` is called on an object_id that is being
             # reused before `delete` is called, bindings won't have been
@@ -62,28 +73,6 @@ class UIElementRegistry:
         )
         self._bindings[object_id] = names
 
-    def delete(self, object_id: UIElementId, python_id: int) -> None:
-        if object_id not in self._objects:
-            return
-
-        ui_element = self._objects[object_id]()
-        registered_python_id = id(ui_element)
-        if registered_python_id != python_id:
-            # guards against UIElement's destructor racing against
-            # registration of another element when a cell re-runs
-            LOGGER.debug(
-                "Python id mismatch when deleting UI element %s", object_id
-            )
-            return
-
-        if ui_element is not None:
-            del self._objects[object_id]
-            ui_element._dispose()
-        if object_id in self._bindings:
-            del self._bindings[object_id]
-        if object_id in self._constructing_cells:
-            del self._constructing_cells[object_id]
-
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
@@ -98,3 +87,59 @@ class UIElementRegistry:
 
     def get_cell(self, object_id: UIElementId) -> CellId_t:
         return self._constructing_cells[object_id]
+
+    def resolve_lens(
+        self, object_id: UIElementId, value: LensValue[T]
+    ) -> tuple[str, LensValue[T]]:
+        """Resolve a lens, if any, to an object id and value update
+
+        Returns (resolved object id, resolved value)
+
+        Raises KeyError if `object_id` does not exist in the registry,
+        RuntimeError if the object was deleted.
+        """
+        if object_id not in self._objects:
+            raise KeyError(f"UIElement with id {object_id} not found")
+        obj = self._objects[object_id]()
+        if obj is None:
+            raise RuntimeError(f"UIElement with id {object_id} was deleted")
+
+        lens = obj._lens
+        if lens is None:
+            # Base case: the element has no lens, so the resolved
+            # update is the same as what was passed in.
+            return (object_id, value)
+
+        resolved_value = {lens.key: value}
+        return self.resolve_lens(lens.parent_id, resolved_value)
+
+    def delete(self, object_id: UIElementId, python_id: int) -> None:
+        """Delete a UI element from the registry
+
+        This function may be called by the Python garbage collector, while
+        a cell is executing. For this reason we make sure not to log
+        anything -- these logs would show up as console output in the
+        frontend, confusing the user.
+        """
+        if object_id not in self._objects:
+            return
+
+        ui_element = self._objects[object_id]()
+        registered_python_id = (
+            id(ui_element) if ui_element is not None else None
+        )
+        if (
+            registered_python_id is not None
+            and registered_python_id != python_id
+        ):
+            # guards against UIElement's destructor racing against
+            # registration of another element when a cell re-runs
+            return
+
+        if ui_element is not None:
+            del self._objects[object_id]
+            ui_element._dispose()
+        if object_id in self._bindings:
+            del self._bindings[object_id]
+        if object_id in self._constructing_cells:
+            del self._constructing_cells[object_id]

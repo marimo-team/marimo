@@ -84,6 +84,80 @@ def test_set_ui_element_value(k: Kernel) -> None:
     assert k.globals["x"] == 6
 
 
+def test_set_ui_element_value_not_found_doesnt_fail(k: Kernel) -> None:
+    # smoke test -- this shouldn't raise an exception
+    k.set_ui_element_value(
+        SetUIElementValueRequest([("does not exist", None)])
+    )
+
+
+def test_set_ui_element_value_lensed(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test setting the value of a lensed element.
+
+    Make sure reactivity flows through its parent, and that its on_change
+    handler is called exactly once.
+    """
+    k.run([exec_req.get(code="import marimo as mo")])
+
+    # Create an array and output it ...
+    cell_one_code = """
+    data = []
+    def on_change(v):
+        data.append(v)
+
+    array = mo.ui.array([mo.ui.slider(0, 10, value=1, on_change=on_change)]);
+    array
+    """
+    k.run([exec_req.get(code=cell_one_code)])
+
+    # Reference the array's value
+    k.run([exec_req.get(code="x = array.value[0] + 1")])
+    assert k.globals["x"] == 2
+
+    # Set a child of the array to 5 ...
+    child_id = k.globals["array"][0]._id
+    k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
+
+    # Make sure the array and its child are updated
+    assert k.globals["array"].value == [5]
+    assert k.globals["array"][0].value == 5
+
+    # Make sure the on_change handler got called exactly once
+    assert k.globals["data"] == [5]
+
+    # Make sure setting array's child triggered execution of the second cell,
+    # which references `array`
+    assert k.globals["x"] == 6
+
+
+def test_set_ui_element_value_lensed_with_state(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test setting the value of a lensed element with on_change set_state"""
+    k.run([exec_req.get(code="import marimo as mo")])
+
+    # Create an array and output it ...
+    cell_one_code = """
+    get_state, set_state = mo.state(None)
+
+    array = mo.ui.array(
+        [mo.ui.slider(0, 10, value=1, on_change=set_state),
+        mo.ui.slider(0, 10, value=1, on_change=set_state)
+    ]);
+    """
+    k.run([exec_req.get(code=cell_one_code)])
+    k.run([exec_req.get(code="state = get_state()")])
+
+    # Set a child of the array and make sure its on_change handler is called
+    child_id = k.globals["array"][0]._id
+    k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
+
+    # Make sure the array and its child are updated
+    assert k.globals["state"] == 5
+
+
 def test_set_local_var_ui_element_value(k: Kernel) -> None:
     k.run([ExecutionRequest("0", "import marimo as mo")])
     k.run([ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")])
