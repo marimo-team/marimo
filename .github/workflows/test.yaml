@@ -55,7 +55,8 @@ jobs:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     defaults:
-      shell: bash
+      run:
+        shell: bash
 
     strategy:
       matrix:
