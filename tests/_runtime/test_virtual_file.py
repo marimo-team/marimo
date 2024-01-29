@@ -229,7 +229,7 @@ def test_cached_vfile_disposal(k: Kernel, exec_req: ExecReqProvider) -> None:
     k.run([exec_req.get("vfiles[:] = []")])
     # NB: this test may be flaky! refcount decremented when `__del__` is called
     # but we can't rely on when it will be called.
-    k.run([exec_req.get("gc.collect()")])
+    k.run([exec_req.get("import gc; gc.collect()")])
     assert ctx.virtual_file_registry.refcount(vfile) == 0
 
     # create another vfile. the old one should be deleted

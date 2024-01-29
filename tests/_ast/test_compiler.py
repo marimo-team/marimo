@@ -106,4 +106,11 @@ def test_cell_id_from_filename() -> None:
         compiler.cell_id_from_filename(compiler.get_filename(cell_id))
         == cell_id
     )
+    assert (
+        compiler.cell_id_from_filename(
+            compiler.get_filename(cell_id, suffix="_abcd")
+        )
+        == cell_id
+    )
+
     assert compiler.cell_id_from_filename("random_file.py") is None
