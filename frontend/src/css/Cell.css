@@ -14,6 +14,8 @@
   border: 1px solid transparent;
   box-shadow: var(--light-shadow);
 
+  @apply divide-y divide-[var(--gray-5)];
+
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
      * body is an irregular shape because of pseudo-elements that extend
@@ -30,9 +32,14 @@
       overflow: auto;
     }
 
-    .output-area {
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
+    & > :first-child {
+      border-top-left-radius: 9px;
+      border-top-right-radius: 9px;
+    }
+
+    & > :last-child {
+      border-bottom-left-radius: 9px;
+      border-bottom-right-radius: 9px;
     }
 
     &:hover {
@@ -97,6 +104,8 @@
   &.needs-run {
     box-shadow: var(--light-shadow-stale);
 
+    @apply divide-[var(--stale-color)];
+
     &:hover {
       box-shadow: var(--medium-shadow-stale);
     }
@@ -109,10 +118,6 @@
     &:focus-within .cm-editor {
       box-shadow: none;
       border: 1px solid transparent;
-    }
-
-    .output-area {
-      border-bottom: 1px solid var(--stale-color);
     }
 
     .RunButton {
@@ -235,6 +240,7 @@
 .tray {
   display: flex;
   position: relative;
+  z-index: 1;
 
   &:first-child .cm-editor {
     border-top-left-radius: 9px;
@@ -358,14 +364,8 @@
 
 .output-area {
   padding: 0.25rem 1.85rem;
-  border: 1px solid transparent;
-  border-bottom: 1px solid var(--gray-5);
 }
 
 .console-output-area {
-  border-top: 1px solid var(--gray-5);
-  border-bottom: 1px solid var(--gray-3);
-  border-right: 1px solid var(--gray-3);
-  border-left: 1px solid var(--gray-3);
   background-color: var(--gray-1);
 }

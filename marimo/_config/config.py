@@ -77,10 +77,12 @@ class DisplayConfig(TypedDict, total=False):
 
     - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
+    - `cell_output`: `"above"` or `"below"`
     """
 
     theme: Literal["light", "dark", "system"]
     code_editor_font_size: int
+    cell_output: Literal["above", "below"]
 
 
 @mddoc
@@ -142,6 +144,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
+        "cell_output": "above",
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},

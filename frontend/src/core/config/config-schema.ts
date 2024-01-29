@@ -43,10 +43,12 @@ export const UserConfigSchema = z
       .object({
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
+        cell_output: z.enum(["above", "below"]).default("above"),
       })
       .default({
         theme: "light",
         code_editor_font_size: 14,
+        cell_output: "above",
       }),
     experimental: z
       .object({

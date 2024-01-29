@@ -375,7 +375,7 @@ const CellComponent = (
         cellId={cellId}
         title={cellTitle()}
       >
-        {outputArea}
+        {userConfig.display.cell_output === "above" && outputArea}
         <div className="tray">
           <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2 hover-action">
             <CreateCellButton
@@ -455,6 +455,7 @@ const CellComponent = (
             ) : null}
           </div>
         </div>
+        {userConfig.display.cell_output === "below" && outputArea}
         <ConsoleOutput
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}
