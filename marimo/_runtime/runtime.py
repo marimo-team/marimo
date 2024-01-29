@@ -72,7 +72,6 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
-    UpdateAppMetadataRequest,
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
@@ -851,13 +850,6 @@ class Kernel:
                 dataflow.transitive_closure(self.graph, cells_to_run)
             )
 
-    def set_app_metadata(self, request: UpdateAppMetadataRequest) -> None:
-        """Update app metadata."""
-        self.app_metadata = request.metadata
-
-        # Set __file__ to the globals
-        self.globals["__file__"] = self.app_metadata.filename
-
     def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
         """Set the value of a UI element bound to a global variable.
 
@@ -1197,8 +1189,6 @@ def launch_kernel(
         elif isinstance(request, SetUIElementValueRequest):
             kernel.set_ui_element_value(request)
             CompletedRun().broadcast()
-        elif isinstance(request, UpdateAppMetadataRequest):
-            kernel.set_app_metadata(request)
         elif isinstance(request, FunctionCallRequest):
             status, ret = kernel.function_call_request(request)
             FunctionCallResult(

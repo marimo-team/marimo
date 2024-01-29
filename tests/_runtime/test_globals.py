@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-from marimo._runtime.requests import AppMetadata, UpdateAppMetadataRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -13,15 +12,3 @@ def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
 
     assert k.globals["x"] == "/app/test.py"
-
-    k.set_app_metadata(
-        UpdateAppMetadataRequest(AppMetadata(filename="/app/test2.py"))
-    )
-
-    k.run(
-        [
-            exec_req.get("y = __file__"),
-        ]
-    )
-
-    assert k.globals["y"] == "/app/test2.py"

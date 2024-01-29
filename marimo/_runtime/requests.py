@@ -41,11 +41,6 @@ class AppMetadata:
 
 
 @dataclass
-class UpdateAppMetadataRequest:
-    metadata: AppMetadata
-
-
-@dataclass
 class SetCellConfigRequest:
     configs: dict[CellId_t, dict[str, object]]
 
@@ -84,7 +79,6 @@ Request = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
-    UpdateAppMetadataRequest,
     FunctionCallRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,

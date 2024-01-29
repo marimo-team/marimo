@@ -335,10 +335,6 @@ class SessionManager:
         """
         self.filename = filename
         self.app_metadata.filename = self._get_filename()
-        for _, session in self.sessions.items():
-            session.put_request(
-                requests.UpdateAppMetadataRequest(metadata=self.app_metadata)
-            )
 
     def create_session(
         self, session_id: str, session_handler: SessionHandler
