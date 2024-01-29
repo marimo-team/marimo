@@ -125,6 +125,32 @@ def test_set_ui_element_value_lensed(
     assert k.globals["x"] == 6
 
 
+def test_set_ui_element_value_lensed_with_state(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test setting the value of a lensed element with on_change set_state"""
+    k.run([exec_req.get(code="import marimo as mo")])
+
+    # Create an array and output it ...
+    cell_one_code = """
+    get_state, set_state = mo.state(None)
+
+    array = mo.ui.array(
+        [mo.ui.slider(0, 10, value=1, on_change=set_state),
+        mo.ui.slider(0, 10, value=1, on_change=set_state)
+    ]);
+    """
+    k.run([exec_req.get(code=cell_one_code)])
+    k.run([exec_req.get(code="state = get_state()")])
+
+    # Set a child of the array and make sure its on_change handler is called
+    child_id = k.globals["array"][0]._id
+    k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
+
+    # Make sure the array and its child are updated
+    assert k.globals["state"] == 5
+
+
 def test_set_local_var_ui_element_value(k: Kernel) -> None:
     k.run([ExecutionRequest("0", "import marimo as mo")])
     k.run([ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")])
