@@ -1,32 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
-import { SearchCursor, SearchQuery } from "@codemirror/search";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { SearchQuery } from "@codemirror/search";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { findReplaceAtom } from "./state";
 import { getAllEditorViews } from "@/core/cells/cells";
+import { QueryType, asQueryCreator } from "./query";
 
-type SearchResult = typeof SearchCursor.prototype.value;
-
-// Copied from https://github.com/codemirror/search/blob/6.5.2/src/search.ts#L164
-interface QueryType<Result extends SearchResult = SearchResult> {
-  nextMatch(state: EditorState, curFrom: number, curTo: number): Result | null;
-  prevMatch(state: EditorState, curFrom: number, curTo: number): Result | null;
-  getReplacement(result: Result): string;
-  matchAll(state: EditorState, limit: number): readonly Result[] | null;
-  highlight(
-    state: EditorState,
-    from: number,
-    to: number,
-    add: (from: number, to: number) => void
-  ): void;
-}
-
-interface QueryCreator {
-  create(): QueryType;
-}
-
-function searchCommand<T>(f: (state: { query: QueryType }) => T) {
+function searchCommand<T>(
+  f: (state: { query: QueryType; search: SearchQuery }) => T
+) {
   return () => {
     const state = store.get(findReplaceAtom);
     const search = new SearchQuery({
@@ -37,7 +20,7 @@ function searchCommand<T>(f: (state: { query: QueryType }) => T) {
       wholeWord: state.wholeWord,
     });
     return search.valid
-      ? f({ query: (search as unknown as QueryCreator).create() })
+      ? f({ query: asQueryCreator(search).create(), search })
       : false;
   };
 }

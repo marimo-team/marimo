@@ -28,6 +28,10 @@ import { useHotkey } from "@/hooks/useHotkey";
 import { EditorView } from "@codemirror/view";
 import { FocusScope } from "@react-aria/focus";
 import { toast } from "../ui/use-toast";
+import {
+  clearGlobalSearchQuery,
+  setGlobalSearchQuery,
+} from "@/core/codemirror/find-replace/search-highlight";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -48,17 +52,20 @@ export const FindReplace: React.FC = () => {
 
   useEffect(() => {
     if (!state.isOpen) {
+      clearGlobalSearchQuery();
       return;
     }
 
     if (state.findText === "") {
       setMatches(undefined);
+      clearGlobalSearchQuery();
       return;
     }
 
     const matches = getMatches();
     // False count means an invalid regex
     setMatches(matches === false ? undefined : matches);
+    setGlobalSearchQuery();
   }, [
     // Re-search when any of these change
     state.findText,
