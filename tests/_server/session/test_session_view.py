@@ -176,6 +176,7 @@ def test_add_raw_operation():
 # patch time
 @patch("time.time", return_value=123)
 def test_combine_console_outputs(time_mock: Any) -> None:
+    del time_mock
     session_view = SessionView()
     session_view.add_operation(
         CellOp(

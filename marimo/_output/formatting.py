@@ -93,7 +93,7 @@ def get_formatter(obj: T) -> Optional[Formatter[T]]:
             return None
         if callable(method):
 
-            def f(obj: T) -> tuple[str, str]:
+            def f(obj: T) -> tuple[KnownMimeType, str]:
                 return obj._mime_()  # type: ignore
 
             return f
@@ -103,7 +103,7 @@ def get_formatter(obj: T) -> Optional[Formatter[T]]:
             return None
         if callable(method):
 
-            def f(obj: T) -> tuple[str, str]:
+            def f(obj: T) -> tuple[KnownMimeType, str]:
                 return ("text/html", obj._repr_html_())  # type: ignore
 
             return f

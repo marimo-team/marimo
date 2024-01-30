@@ -28,7 +28,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, MessageOperation, serialize
 from marimo._output.formatters.formatters import register_formatters
@@ -422,7 +422,9 @@ class SessionManager:
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         return self.sessions.get(session_id)
 
-    def maybe_resume_session(self, new_session_id: str) -> Optional[Session]:
+    def maybe_resume_session(
+        self, new_session_id: SessionId
+    ) -> Optional[Session]:
         """
         Try to resume a session if one is resumable.
         If it is resumable, return the session and update the session id.
@@ -466,6 +468,7 @@ class SessionManager:
             "Session is not resumable, current state: %s",
             connection_state,
         )
+        return None
 
     def _get_filename(self) -> Optional[str]:
         if self.filename is None:

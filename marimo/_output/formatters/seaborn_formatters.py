@@ -20,7 +20,7 @@ class SeabornFormatter(FormatterFactory):
         from marimo._output import formatting
         from marimo._output.mime import MIME
 
-        def _show_ax_or_subplots(grid: Any) -> tuple[str, str]:
+        def _show_ax_or_subplots(grid: Any) -> tuple[KnownMimeType, str]:
             # Seaborn uses matplotlib under the hood: figures and axes are
             # instances of matplotlib's Artist class. (We've monkey pathed
             # `Artist` to implement the MIME protocol.)

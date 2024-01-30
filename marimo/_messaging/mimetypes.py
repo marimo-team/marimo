@@ -5,8 +5,17 @@ from typing import Literal
 # but can lead to typos. This literal type
 # helps us avoid typos.
 KnownMimeType = Literal[
-    "text/plain",
-    "text/html",
-    "application/vnd.marimo+error",
     "application/json",
+    "application/vnd.marimo+error",
+    "image/png",
+    "image/svg+xml",
+    "image/tiff",
+    "image/avif",
+    "image/bmp",
+    "image/gif",
+    "image/jpeg",
+    "video/mp4",
+    "video/mpeg",
+    "text/html",
+    "text/plain",
 ]

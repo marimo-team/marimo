@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from marimo._messaging.mimetypes import KnownMimeType
+
 
 class MIME(Protocol):
     """Protocol for instantiating objects using marimo's media viewer.
@@ -13,7 +15,7 @@ class MIME(Protocol):
 
     # TODO(akshayka): Single source of truth for supported mimetypes. The
     # documented types below are copied from the frontend
-    def _mime_(self) -> tuple[str, str]:
+    def _mime_(self) -> tuple[KnownMimeType, str]:
         """Return a tuple (mimetype, data)
 
         Return a mimetype and the string data to instantiate it in marimo's

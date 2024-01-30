@@ -20,6 +20,7 @@ from matplotlib.backend_bases import FigureManagerBase, Gcf  # type: ignore
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
 from marimo._output.utils import build_data_url
 
@@ -36,7 +37,7 @@ def _internal_show(canvas: FigureCanvasAgg) -> None:
     buf.seek(0)
     canvas.figure.savefig(buf, format="png")
     plt.close(canvas.figure)
-    mimetype = "image/png"
+    mimetype: KnownMimeType = "image/png"
     plot_bytes = base64.b64encode(buf.getvalue())
     CellOp.broadcast_console_output(
         channel=CellChannel.MEDIA,

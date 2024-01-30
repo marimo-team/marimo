@@ -76,8 +76,10 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
+from marimo._server.model import KernelMessage
 from marimo._server.types import QueueType
 from marimo._utils.signals import restore_signals
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -1084,15 +1086,18 @@ def launch_kernel(
         restore_signals()
 
     n_tries = 0
+    pipe: Optional[TypedConnection[KernelMessage]] = None
     while n_tries < 100:
         try:
-            pipe = mp.connection.Client(socket_addr)
+            pipe = TypedConnection[KernelMessage].of(
+                mp.connection.Client(socket_addr)
+            )
             break
         except Exception:
             n_tries += 1
             time.sleep(0.01)
 
-    if n_tries == 100:
+    if n_tries == 100 or pipe is None:
         LOGGER.debug("Failed to connect to socket.")
         return
 

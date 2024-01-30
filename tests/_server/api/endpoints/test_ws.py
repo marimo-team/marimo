@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from starlette.testclient import TestClient
@@ -27,22 +27,16 @@ def create_response(
     return response
 
 
-KERNEL_READY_RESPONSE = create_response({})
-
-RESUMED_KERNEL_READY_RESPONSE = create_response(
-    {
-        "resumed": True,
-    }
-)
-
 HEADERS = {
     "Marimo-Server-Token": "fake-token",
 }
 
 
 def assert_kernel_ready_response(
-    raw_data: dict[str, Any], response: dict[str, Any] = KERNEL_READY_RESPONSE
+    raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
 ):
+    if response is None:
+        response = create_response({})
     data = parse_raw(raw_data["data"], KernelReady)
     expected = parse_raw(response, KernelReady)
     assert data.cell_ids == expected.cell_ids
@@ -116,7 +110,7 @@ def test_fails_on_multiple_connections_with_other_sessions(
             with client.websocket_connect(
                 "/ws?session_id=456"
             ) as other_websocket:
-                other_websocket.receive_text()
+                other_websocket.receive_json()
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"

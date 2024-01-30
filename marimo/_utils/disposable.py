@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from typing import Callable
 
 
@@ -16,6 +17,6 @@ class Disposable:
     def is_disposed(self) -> bool:
         return self._is_disposed
 
-    @classmethod
-    def empty(cls):
+    @staticmethod
+    def empty() -> "Disposable":
         return Disposable(lambda: None)

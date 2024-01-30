@@ -11,6 +11,7 @@ from typing import Any, Iterable, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
 from marimo._server.model import KernelMessage
 from marimo._server.types import QueueType
@@ -125,7 +126,11 @@ class Stdout(io.TextIOBase):
             )
             data = data[: int(STD_STREAM_MAX_BYTES)] + " ... "
         self.stream.console_msg_queue.append(
-            ConsoleMsg(stream="stdout", cell_id=self.stream.cell_id, data=data)
+            ConsoleMsg(
+                stream=CellChannel.STDOUT,
+                cell_id=self.stream.cell_id,
+                data=data,
+            )
         )
         with self.stream.console_msg_cv:
             self.stream.console_msg_cv.notify()
@@ -183,7 +188,9 @@ class Stderr(io.TextIOBase):
         with self.stream.console_msg_cv:
             self.stream.console_msg_queue.append(
                 ConsoleMsg(
-                    stream="stderr", cell_id=self.stream.cell_id, data=data
+                    stream=CellChannel.STDERR,
+                    cell_id=self.stream.cell_id,
+                    data=data,
                 )
             )
             self.stream.console_msg_cv.notify()
@@ -233,7 +240,9 @@ class Stdin(io.TextIOBase):
             # This sends a prompt request to the frontend.
             self.stream.console_msg_queue.append(
                 ConsoleMsg(
-                    stream="stdin", cell_id=self.stream.cell_id, data=prompt
+                    stream=CellChannel.STDIN,
+                    cell_id=self.stream.cell_id,
+                    data=prompt,
                 )
             )
             self.stream.console_msg_cv.notify()
