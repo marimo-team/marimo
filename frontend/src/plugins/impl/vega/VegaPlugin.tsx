@@ -8,7 +8,7 @@ import { lazy, useMemo, useRef, useState } from "react";
 import { getSelectionParamNames } from "./params";
 import { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
-import { useDeepCompareMemoize } from "@/hooks/useDeppCompareMemoize";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useDebugMounting, usePropsDidChange } from "@/hooks/debug";
 import { debounce } from "lodash-es";
 import useEvent from "react-use-event-hook";
