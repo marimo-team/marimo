@@ -457,7 +457,9 @@ class SessionManager:
             )
             # Set new session and remove old session
             self.sessions[new_session_id] = session
-            del self.sessions[session_id]
+            # If the ID is the same, we don't need to delete the old session
+            if new_session_id != session_id:
+                del self.sessions[session_id]
             return session
 
         LOGGER.debug(
