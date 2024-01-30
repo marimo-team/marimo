@@ -21,6 +21,7 @@ import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper
 import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
 import { useChromeActions } from "../chrome/state";
 import { Functions } from "@/utils/functions";
+import { NotebookBanner } from "../notebook-banner";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -89,7 +90,13 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const cells = flattenNotebookCells(notebook);
 
   return (
-    <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
+    <VerticalLayoutWrapper
+      // 'pb' allows the user to put the cell in the middle of the screen
+      className="pb-[40vh]"
+      invisible={invisible}
+      appConfig={appConfig}
+    >
+      <NotebookBanner />
       {cells.map((cell) => (
         <Cell
           key={cell.id.toString()}

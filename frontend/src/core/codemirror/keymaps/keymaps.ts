@@ -5,12 +5,15 @@ import { defaultKeymap } from "@codemirror/commands";
 import { Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { vim, Vim } from "@replit/codemirror-vim";
+import { vimKeymapExtension } from "./vim";
 
 export const KEYMAP_PRESETS = ["default", "vim"] as const;
 
 export function keymapBundle(
   config: KeymapConfig,
   callbacks: {
+    focusUp: () => void;
+    focusDown: () => void;
     deleteCell: () => void;
   }
 ): Extension[] {
@@ -35,6 +38,7 @@ export function keymapBundle(
         callbacks.deleteCell();
       });
       return [
+        vimKeymapExtension(callbacks),
         // delete the cell on double press of "d", if the cell is empty
         Prec.highest(
           doubleCharacterListener(

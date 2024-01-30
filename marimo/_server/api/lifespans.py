@@ -13,7 +13,11 @@ else:
     from contextlib import AbstractAsyncContextManager
 
 from starlette.applications import Starlette
-from typing_extensions import TypeAlias
+
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 from marimo import _loggers
 from marimo._config.config import get_configuration
@@ -98,8 +102,9 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
-    session_mgr = get_manager()
-    url = f"http://localhost:{session_mgr.port}"
+    host = app.state.host
+    port = app.state.port
+    url = f"http://{host}:{port}"
     user_config = get_configuration()
     headless = app.state.headless
     if not headless:
@@ -114,14 +119,15 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
-    del app
     manager = get_manager()
+    host = app.state.host
+    port = app.state.port
 
     # Startup message
     if not manager.quiet:
         print_startup(
             manager.filename,
-            f"http://localhost:{manager.port}",
+            f"http://{host}:{port}",
             manager.mode == SessionMode.RUN,
         )
 

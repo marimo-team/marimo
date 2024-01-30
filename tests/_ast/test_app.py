@@ -37,12 +37,13 @@ class TestApp:
             z = y + 1
             return y, z
 
-        cell_names = tuple(app._names())
+        cell_manager = app._cell_manager
+        cell_names = tuple(cell_manager.names())
         assert cell_names[0] == "one"
         assert cell_names[1] == "two"
         assert cell_names[2] == "__"
 
-        codes = tuple(app._codes())
+        codes = tuple(cell_manager.codes())
         assert codes[0] == "x = 0\nx"
         assert codes[1] == "a = x + z\na + 1"
         assert codes[2] == "y = x + 1\nz = y + 1"
@@ -290,7 +291,8 @@ class TestApp:
             assert __x__ == 0
             return
 
-        configs = tuple(app._configs())
+        cell_manager = app._cell_manager
+        configs = tuple(cell_manager.configs())
         assert configs[0].disabled
         assert configs[1].hide_code
 

@@ -29,7 +29,8 @@ def get_codes(ipynb_name: str) -> tuple[Sequence[str], Sequence[str]]:
             f.seek(0)
         app = codegen.get_app(f.name)
         assert app is not None
-        return list(app._codes()), list(app._names())
+        cell_manager = app._cell_manager
+        return list(cell_manager.codes()), list(cell_manager.names())
     finally:
         os.remove(tempfile_name)
 

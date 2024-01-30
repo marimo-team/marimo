@@ -148,8 +148,15 @@ class TestGetCodes:
     def test_get_codes() -> None:
         app = codegen.get_app(get_filepath("test_generate_filecontents"))
         assert app is not None
-        assert list(app._names()) == ["one", "two", "three", "four", "five"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == [
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+        ]
+        assert list(cell_manager.codes()) == [
             "import numpy as np",
             "x = 0\nxx = 1",
             "y = x + 1",
@@ -163,8 +170,15 @@ class TestGetCodes:
             get_filepath("test_get_codes_with_incorrect_args_rets")
         )
         assert app is not None
-        assert list(app._names()) == ["one", "two", "three", "four", "five"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == [
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+        ]
+        assert list(cell_manager.codes()) == [
             "import numpy as np",
             "x = 0\nxx = 1",
             "y = x + 1",
@@ -177,8 +191,9 @@ class TestGetCodes:
         # name mo is not defined --- make sure this file is still parseable
         app = codegen.get_app(get_filepath("test_get_codes_with_name_error"))
         assert app is not None
-        assert list(app._names()) == ["one"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+        assert list(cell_manager.codes()) == [
             "mo",
         ]
 
@@ -186,8 +201,9 @@ class TestGetCodes:
     def test_get_codes_multiline_fndef() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_multiline_fndef"))
         assert app is not None
-        assert list(app._names()) == ["one"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+        assert list(cell_manager.codes()) == [
             "# comment\nx = 0 + a + b + c + d",
         ]
 
@@ -195,8 +211,9 @@ class TestGetCodes:
     def test_get_codes_messy() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_messy"))
         assert app is not None
-        assert list(app._names()) == ["__"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["__"]
+        assert list(cell_manager.codes()) == [
             "# comment\n# another comment\n\n# yet another comment\n"
             + "x = 0 + a + b + c + d",
         ]
@@ -205,29 +222,33 @@ class TestGetCodes:
     def test_get_codes_single_line_fn() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_single_line_fn"))
         assert app is not None
-        assert list(app._names()) == ["one"]
-        assert list(app._codes()) == ["c = a + b; print(c); "]
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+        assert list(cell_manager.codes()) == ["c = a + b; print(c); "]
 
     @staticmethod
     def test_get_codes_multiline_string() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_multiline_string"))
         assert app is not None
-        assert list(app._names()) == ["one"]
-        assert list(app._codes()) == ['c = """\n  a, b"""; ']
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+        assert list(cell_manager.codes()) == ['c = """\n  a, b"""; ']
 
     @staticmethod
     def test_get_codes_comment_after_sig() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_comment_after_sig"))
         assert app is not None
-        assert list(app._names()) == ["one"]
-        assert list(app._codes()) == ['print("hi")']
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one"]
+        assert list(cell_manager.codes()) == ['print("hi")']
 
     @staticmethod
     def test_get_codes_empty() -> None:
         app = codegen.get_app(get_filepath("test_get_codes_empty"))
         assert app is not None
-        assert list(app._names()) == ["one", "two"]
-        assert [c.strip() for c in app._codes()] == ["", ""]
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one", "two"]
+        assert [c.strip() for c in cell_manager.codes()] == ["", ""]
 
     @staticmethod
     def test_get_codes_syntax_error() -> None:
@@ -235,8 +256,9 @@ class TestGetCodes:
             get_filepath("test_generate_filecontents_with_syntax_error")
         )
         assert app is not None
-        assert list(app._names()) == ["one", "two", "__", "__"]
-        assert list(app._codes()) == [
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == ["one", "two", "__", "__"]
+        assert list(cell_manager.codes()) == [
             "import numpy as np",
             "_ error",
             "'all good'",

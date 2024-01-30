@@ -8,5 +8,5 @@ def test_pdb_patched(k: Kernel, exec_req: ExecReqProvider):
 
     pdb = k.globals["pdb"]
     assert pdb.Pdb == MarimoPdb
-    assert k._debugger.stdout is k.stdout
-    assert k._debugger.stdin is k.stdin
+    assert k.debugger.stdout is k.stdout
+    assert k.debugger.stdin is k.stdin

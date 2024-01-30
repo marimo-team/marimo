@@ -21,7 +21,7 @@ from typing import Any, Callable, Iterator, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import is_local
+from marimo._ast.visitor import Name, is_local
 from marimo._config.config import configure
 from marimo._messaging.errors import (
     Error,
@@ -60,6 +60,7 @@ from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
+    AppMetadata,
     CompletionRequest,
     ConfigurationRequest,
     CreationRequest,
@@ -178,25 +179,28 @@ class Kernel:
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
+        app_metadata: AppMetadata,
         stream: Stream,
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
     ) -> None:
+        self.app_metadata = app_metadata
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-        self._debugger = marimo_pdb.MarimoPdb(
+        self.debugger = marimo_pdb.MarimoPdb(
             stdout=self.stdout, stdin=self.stdin
         )
-        self.patch_pdb(self._debugger)
+        self.patch_pdb(self.debugger)
 
         self.globals: dict[Any, Any] = {
             "__name__": "__main__",
             "__builtins__": globals()["__builtins__"],
             "input": input_override,
+            "__file__": self.app_metadata.filename,
         }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
@@ -320,7 +324,7 @@ class Kernel:
         return previous_children, error
 
     def _delete_names(
-        self, names: Iterable[str], exclude_defs: set[str]
+        self, names: Iterable[Name], exclude_defs: set[Name]
     ) -> None:
         """Delete `names` from kernel, except for `exclude_defs`"""
         for name in names:
@@ -339,7 +343,7 @@ class Kernel:
     def _invalidate_cell_state(
         self,
         cell_id: CellId_t,
-        exclude_defs: Optional[set[str]] = None,
+        exclude_defs: Optional[set[Name]] = None,
         deletion: bool = False,
     ) -> None:
         """Cleanup state associated with this cell.
@@ -463,7 +467,7 @@ class Kernel:
         )
 
         # defs that we shouldn't remove from the graph
-        keep_alive_defs: set[str] = set()
+        keep_alive_defs: set[Name] = set()
         for cid in list(semantic_errors.keys()):
             # If a cell was previously valid, don't invalidate it unless
             # we have to, ie, unless it is a descendant of a just-registered
@@ -588,6 +592,7 @@ class Kernel:
 
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
+
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
@@ -613,6 +618,7 @@ class Kernel:
             cell_ids=cell_ids,
             graph=self.graph,
             glbls=self.globals,
+            debugger=self.debugger,
         )
 
         # I/O
@@ -849,12 +855,31 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
-        referring_cells = set()
+        # Resolve lenses on request, if any: any element that is a view
+        # of another parent element is resolved to its parent. In particular,
+        # interacting with a view triggers reactive execution through the
+        # source (parent).
+        resolved_requests: dict[str, Any] = {}
+        ui_element_registry = get_context().ui_element_registry
         for object_id, value in request.ids_and_values:
             try:
-                component = get_context().ui_element_registry.get_object(
-                    object_id
+                resolved_id, resolved_value = ui_element_registry.resolve_lens(
+                    object_id, value
                 )
+            except (KeyError, RuntimeError):
+                # KeyError: Trying to access an unnamed UIElement
+                # RuntimeError: UIElement was deleted somehow
+                LOGGER.debug(
+                    "Could not resolve UIElement with id%s", object_id
+                )
+                continue
+            resolved_requests[resolved_id] = resolved_value
+        del request
+
+        referring_cells = set()
+        for object_id, value in resolved_requests.items():
+            try:
+                component = ui_element_registry.get_object(object_id)
                 LOGGER.debug(
                     "Setting value on UIElement with id %s, value %s",
                     object_id,
@@ -868,7 +893,7 @@ class Kernel:
                 continue
 
             with self._install_execution_context(
-                get_context().ui_element_registry.get_cell(object_id),
+                ui_element_registry.get_cell(object_id),
                 setting_element_value=True,
             ):
                 try:
@@ -917,7 +942,7 @@ class Kernel:
                 try:
                     referring_cells.update(
                         self.graph.get_referring_cells(name)
-                        - self.graph.definitions[name]
+                        - self.graph.get_defining_cells(name)
                     )
                 except Exception:
                     # Internal marimo error
@@ -1051,6 +1076,7 @@ def launch_kernel(
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
+    app_metadata: AppMetadata,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1086,6 +1112,7 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
+        app_metadata=app_metadata,
     )
     initialize_context(
         kernel=kernel,

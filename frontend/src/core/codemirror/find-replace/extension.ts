@@ -6,6 +6,11 @@ import {
 } from "@codemirror/search";
 import { keymap } from "@codemirror/view";
 import { closeFindReplacePanel, openFindReplacePanel } from "./state";
+import {
+  highlightTheme,
+  searchHighlighter,
+  searchState,
+} from "./search-highlight";
 
 export function findReplaceBundle() {
   return [
@@ -28,5 +33,8 @@ export function findReplaceBundle() {
       },
     ]),
     highlightSelectionMatches(),
+    searchHighlighter,
+    searchState,
+    highlightTheme,
   ];
 }

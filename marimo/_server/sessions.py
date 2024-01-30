@@ -28,11 +28,12 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, _AppConfig
+from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, serialize
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
+from marimo._runtime.requests import AppMetadata
 from marimo._server.model import (
     ConnectionState,
     SessionHandler,
@@ -87,12 +88,14 @@ class KernelManager:
         queue_manager: QueueManager,
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
+        app_metadata: AppMetadata,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
         self._read_conn: Optional[connection.Connection] = None
+        self.app_metadata = app_metadata
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -111,6 +114,7 @@ class KernelManager:
                     listener.address,
                     is_edit_mode,
                     self.configs,
+                    self.app_metadata,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -143,6 +147,7 @@ class KernelManager:
                     listener.address,
                     is_edit_mode,
                     self.configs,
+                    self.app_metadata,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -198,12 +203,15 @@ class Session:
         cls,
         session_handler: SessionHandler,
         mode: SessionMode,
-        app: Optional[App],
+        app: InternalApp,
+        app_metadata: AppMetadata,
     ) -> Session:
-        configs = app._cell_configs() if app else {}
+        configs = app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
-        kernel_manager = KernelManager(queue_manager, mode, configs)
+        kernel_manager = KernelManager(
+            queue_manager, mode, configs, app_metadata
+        )
         return cls(session_handler, queue_manager, kernel_manager)
 
     def __init__(
@@ -278,13 +286,15 @@ class SessionManager:
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
-        self.app_config: Optional[_AppConfig]
+        self.app_config: _AppConfig
         self.include_code = include_code
 
-        if (app := self.load_app()) is not None:
-            self.app_config = app._config
-        else:
-            self.app_config = None
+        self.app = self.load_app()
+        self.app_config = self.app.config
+
+        self.app_metadata = AppMetadata(
+            filename=self._get_filename(),
+        )
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -294,19 +304,29 @@ class SessionManager:
         else:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
-            assert app is not None
             self.server_token = str(
-                hash("".join(code for code in app._codes()))
+                hash("".join(code for code in self.app.cell_manager.codes()))
             )
 
-    def load_app(self) -> Optional[App]:
-        return codegen.get_app(self.filename)
+    def load_app(self) -> InternalApp:
+        """
+        Load the app from the current file.
+        Otherwise, return an empty app.
+        """
+        app = codegen.get_app(self.filename)
+        if app is None:
+            empty_app = InternalApp(App())
+            empty_app.cell_manager.register_cell(
+                cell_id=None,
+                code="",
+                config=CellConfig(),
+            )
+            return empty_app
+
+        return InternalApp(app)
 
     def update_app_config(self, config: dict[str, Any]) -> None:
-        if self.app_config is not None:
-            self.app_config.update(config)
-        else:
-            self.app_config = _AppConfig(**config)
+        self.app_config.update(config)
 
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
@@ -314,6 +334,7 @@ class SessionManager:
         Should be called if an api call renamed the current file on disk.
         """
         self.filename = filename
+        self.app_metadata.filename = self._get_filename()
 
     def create_session(
         self, session_id: str, session_handler: SessionHandler
@@ -325,11 +346,20 @@ class SessionManager:
                 session_handler=session_handler,
                 mode=self.mode,
                 app=self.load_app(),
+                app_metadata=self.app_metadata,
             )
             self.sessions[session_id] = s
             return s
         else:
             return self.sessions[session_id]
+
+    def _get_filename(self) -> Optional[str]:
+        if self.filename is None:
+            return None
+        try:
+            return os.path.abspath(self.filename)
+        except AttributeError:
+            return None
 
     def get_session(self, session_id: str) -> Optional[Session]:
         if session_id in self.sessions:

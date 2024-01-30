@@ -255,11 +255,23 @@ class Stdin(io.TextIOBase):
 
 
 def _forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
-    while True:
-        data = os.read(fd, 1024)
-        if not data:
-            break
-        stream_object.write(data.decode())
+    """Watch a file descriptor and forward it to a stream object."""
+
+    # This coarse try/except block silences exceptions; a raised exception
+    # at this point could cause bad errors, such as an infinite stream of data
+    # to be written to the fd/routed through the stream.
+    #
+    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
+    # exceptions we actually want to pay attention to; then store the exception
+    # and print it to the terminal later (outside an execution context).
+    try:
+        while True:
+            data = os.read(fd, 1024)
+            if not data:
+                break
+            stream_object.write(data.decode())
+    except Exception:
+        ...
 
 
 def _dup2newfd(fd: int) -> tuple[int, int, int]:

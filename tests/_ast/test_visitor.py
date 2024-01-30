@@ -7,6 +7,7 @@ from inspect import cleandoc
 import pytest
 
 from marimo._ast import visitor
+from marimo._ast.visitor import VariableData
 
 
 def test_assign_simple() -> None:
@@ -16,6 +17,7 @@ def test_assign_simple() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set()
+    assert v.variable_data == {"x": VariableData(kind="variable")}
 
 
 def test_multiple_assign() -> None:
@@ -25,6 +27,10 @@ def test_multiple_assign() -> None:
     v.visit(mod)
     assert v.defs == set(["x", "y"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "x": VariableData(kind="variable"),
+        "y": VariableData(kind="variable"),
+    }
 
 
 def test_assign_multiple_statements() -> None:
@@ -34,6 +40,10 @@ def test_assign_multiple_statements() -> None:
     v.visit(mod)
     assert v.defs == set(["x", "y"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "x": VariableData(kind="variable"),
+        "y": VariableData(kind="variable"),
+    }
 
 
 def test_assign_attr() -> None:
@@ -43,6 +53,7 @@ def test_assign_attr() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_read_attr() -> None:
@@ -52,6 +63,7 @@ def test_read_attr() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_read_attr_of_defined_variable() -> None:
@@ -61,6 +73,7 @@ def test_read_attr_of_defined_variable() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set()
+    assert v.variable_data == {"x": VariableData(kind="variable")}
 
 
 def test_assign_nested_attr() -> None:
@@ -70,6 +83,7 @@ def test_assign_nested_attr() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_read_nested_attr() -> None:
@@ -79,6 +93,7 @@ def test_read_nested_attr() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_assign_same_name() -> None:
@@ -88,6 +103,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
+    assert v.variable_data == {"x": VariableData(kind="variable")}
 
     expr = "(x := x)"
     v = visitor.ScopedVisitor()
@@ -95,6 +111,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
+    assert v.variable_data == {"x": VariableData(kind="variable")}
 
     expr = "x += x"
     v = visitor.ScopedVisitor()
@@ -102,6 +119,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
+    assert v.variable_data == {"x": VariableData(kind="variable")}
 
     expr = "def f(): x = x; return x"
     v = visitor.ScopedVisitor()
@@ -109,6 +127,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
+    assert v.variable_data == {"f": VariableData(kind="function")}
 
     expr = "class F(): x = x"
     v = visitor.ScopedVisitor()
@@ -116,6 +135,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
+    assert v.variable_data == {"F": VariableData(kind="class")}
 
     expr = "{x: x}"
     v = visitor.ScopedVisitor()
@@ -123,6 +143,7 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_load_attr() -> None:
@@ -132,6 +153,7 @@ def test_load_attr() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["x"])
+    assert not v.variable_data
 
 
 def test_structured_assignment() -> None:
@@ -142,6 +164,16 @@ def test_structured_assignment() -> None:
     names = set(["a", "b", "c", "d", "e", "f", "g", "h"])
     assert v.defs == names
     assert v.refs == set()
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+        "c": VariableData(kind="variable"),
+        "d": VariableData(kind="variable"),
+        "e": VariableData(kind="variable"),
+        "f": VariableData(kind="variable"),
+        "g": VariableData(kind="variable"),
+        "h": VariableData(kind="variable"),
+    }
 
 
 def test_starred_assignment() -> None:
@@ -151,6 +183,10 @@ def test_starred_assignment() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "b"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+    }
 
 
 def test_scope_does_not_leak() -> None:
@@ -166,6 +202,9 @@ def test_scope_does_not_leak() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_nested_comprehensions() -> None:
@@ -181,11 +220,13 @@ def test_nested_comprehensions() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["range"])
+    assert not v.variable_data
 
 
 def test_walrus_leaks_to_global_in_comprehension() -> None:
     code = "\n".join(
         [
+            "def foo(): a",
             "[(a := (i, (b := j))) for i in range(10) for j in range(i)]",
             "{(c := (i, j)) for i in range(10) for j in range(i)}",
             "{i: (d := j) for i in range(10) for j in range(i)}",
@@ -194,8 +235,16 @@ def test_walrus_leaks_to_global_in_comprehension() -> None:
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)
-    assert v.defs == set(["a", "b", "c", "d"])
+    assert v.defs == set(["a", "b", "c", "d", "foo"])
+    # "a" should not be a ref!
     assert v.refs == set(["range"])
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+        "c": VariableData(kind="variable"),
+        "d": VariableData(kind="variable"),
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_nested_walrus_leaks_to_global_in_comprehension() -> None:
@@ -205,6 +254,10 @@ def test_nested_walrus_leaks_to_global_in_comprehension() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "b"])
     assert v.refs == set(["range"])
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+    }
 
 
 def test_pep572_walrus_comprehension_examples() -> None:
@@ -214,6 +267,9 @@ def test_pep572_walrus_comprehension_examples() -> None:
     v.visit(mod)
     assert v.defs == set(["y"])
     assert v.refs == set(["input_data", "f"])
+    assert v.variable_data == {
+        "y": VariableData(kind="variable"),
+    }
 
     code = "[[y := f(x), x/y] for x in range(5)]"
     v = visitor.ScopedVisitor()
@@ -221,6 +277,9 @@ def test_pep572_walrus_comprehension_examples() -> None:
     v.visit(mod)
     assert v.defs == set(["y"])
     assert v.refs == set(["f", "range"])
+    assert v.variable_data == {
+        "y": VariableData(kind="variable"),
+    }
 
 
 def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
@@ -232,6 +291,9 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     v.visit(mod)
     assert v.defs == set(["f"])  # x should _not_ leak to global scope
     assert v.refs == set(["range"])  # x should leak to f's scope
+    assert v.variable_data == {
+        "f": VariableData(kind="function"),
+    }
 
 
 def test_assignments_in_multiple_scopes() -> None:
@@ -251,6 +313,11 @@ def test_assignments_in_multiple_scopes() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "e", "foo"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "e": VariableData(kind="variable"),
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_function_with_args() -> None:
@@ -266,6 +333,9 @@ def test_function_with_args() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_function_with_defaults() -> None:
@@ -280,6 +350,9 @@ def test_function_with_defaults() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "y", "a"])
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_async_function_def() -> None:
@@ -296,6 +369,10 @@ def test_async_function_def() -> None:
     v.visit(mod)
     assert v.defs == set(["foo", "x"])
     assert v.refs == set("z")
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+        "x": VariableData(kind="variable"),
+    }
 
 
 def test_global_def() -> None:
@@ -311,6 +388,10 @@ def test_global_def() -> None:
     v.visit(mod)
     assert v.defs == set(["foo", "x"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+        "x": VariableData(kind="variable"),
+    }
 
 
 def test_global_ref() -> None:
@@ -326,6 +407,9 @@ def test_global_ref() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_nested_local_def_and_global_ref() -> None:
@@ -343,6 +427,9 @@ def test_nested_local_def_and_global_ref() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_call_ref() -> None:
@@ -352,6 +439,7 @@ def test_call_ref() -> None:
     v.visit(mod)
     assert v.defs == set()
     assert v.refs == set(["foo"])
+    assert not v.variable_data
 
 
 def test_call_defined() -> None:
@@ -367,6 +455,9 @@ def test_call_defined() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "foo": VariableData(kind="function"),
+    }
 
 
 def test_mutation_generates_def() -> None:
@@ -376,6 +467,9 @@ def test_mutation_generates_def() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set()
+    assert v.variable_data == {
+        "x": VariableData(kind="variable"),
+    }
 
 
 def test_captured_variables() -> None:
@@ -473,6 +567,14 @@ def test_matchas() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "b", "c", "d", "e", "f"])
     assert v.refs == set(["value"])
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+        "c": VariableData(kind="variable"),
+        "d": VariableData(kind="variable"),
+        "e": VariableData(kind="variable"),
+        "f": VariableData(kind="variable"),
+    }
 
 
 @pytest.mark.skipif("sys.version_info < (3, 10)")
@@ -491,6 +593,9 @@ def test_matchstar() -> None:
     v.visit(mod)
     assert v.defs == set(["rest"])
     assert v.refs == set(["value"])
+    assert v.variable_data == {
+        "rest": VariableData(kind="variable"),
+    }
 
 
 @pytest.mark.skipif("sys.version_info < (3, 10)")
@@ -511,6 +616,10 @@ def test_matchmapping() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "b"])
     assert v.refs == set(["value"])
+    assert v.variable_data == {
+        "a": VariableData(kind="variable"),
+        "b": VariableData(kind="variable"),
+    }
 
 
 def test_import_nested() -> None:
@@ -520,6 +629,7 @@ def test_import_nested() -> None:
     v.visit(mod)
     assert v.defs == set(["a"])
     assert v.refs == set()
+    assert v.variable_data["a"] == VariableData(kind="import", module="a")
 
 
 def test_import_as() -> None:
@@ -529,6 +639,7 @@ def test_import_as() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
+    assert v.variable_data["d"] == VariableData(kind="import", module="a")
 
 
 def test_import_multiple() -> None:
@@ -538,6 +649,8 @@ def test_import_multiple() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "d"])
     assert v.refs == set()
+    assert v.variable_data["a"] == VariableData(kind="import", module="a")
+    assert v.variable_data["d"] == VariableData(kind="import", module="d")
 
 
 def test_from_import() -> None:
@@ -547,6 +660,21 @@ def test_from_import() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
+    assert v.variable_data["d"] == VariableData(
+        kind="import", module="a", import_level=0
+    )
+
+
+def test_relative_from_import() -> None:
+    expr = "from ..a.b.c import d"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["d"])
+    assert v.refs == set()
+    assert v.variable_data["d"] == VariableData(
+        kind="import", module="a", import_level=2
+    )
 
 
 def test_from_import_star() -> None:
@@ -558,6 +686,7 @@ def test_from_import_star() -> None:
     assert "`import *` is not allowed in marimo." in str(e)
     assert v.defs == set()
     assert v.refs == set()
+    assert not v.variable_data
 
 
 @pytest.mark.skipif("sys.version_info < (3, 12)")

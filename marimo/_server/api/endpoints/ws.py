@@ -51,6 +51,12 @@ async def websocket_endpoint(
 
 
 class WebsocketHandler(SessionHandler):
+    """WebSocket that sessions use to send messages to frontends.
+
+    Each new socket gets a unique session. At most one session can exist when
+    in edit mode.
+    """
+
     def __init__(
         self,
         websocket: WebSocket,
@@ -62,19 +68,12 @@ class WebsocketHandler(SessionHandler):
         self.manager = manager
         self.session_id = session_id
         self.mode = mode
-
-    """WebSocket that sessions use to send messages to frontends.
-
-    Each new socket gets a unique session. At most one session can exist when
-    in edit mode.
-    """
-
-    status: ConnectionState
-    cancel_close_handle: Optional[asyncio.TimerHandle] = None
-    heartbeat_task: Optional[asyncio.Task[None]] = None
-    # Messages from the kernel are put in this queue
-    # to be sent to the frontend
-    message_queue: asyncio.Queue[Tuple[str, Any]]
+        self.status: ConnectionState
+        self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
+        self.heartbeat_task: Optional[asyncio.Task[None]] = None
+        # Messages from the kernel are put in this queue
+        # to be sent to the frontend
+        self.message_queue: asyncio.Queue[Tuple[str, Any]]
 
     async def _write_kernel_ready(self) -> None:
         """Communicates to the client that the kernel is ready.
@@ -87,37 +86,38 @@ class WebsocketHandler(SessionHandler):
         configs: tuple[CellConfig, ...]
         app = mgr.load_app()
         layout: Optional[LayoutConfig] = None
-        if app is None:
-            codes = ("",)
-            names = ("__",)
-            configs = (CellConfig(),)
-        elif mgr.should_send_code_to_frontend():
-            codes, names, configs = tuple(
+        if mgr.should_send_code_to_frontend():
+            codes, names, configs, cell_ids = tuple(
                 zip(
                     *tuple(
-                        (cell_data.code, cell_data.name, cell_data.config)
-                        for cell_data in app._cell_data.values()
+                        (
+                            cell_data.code,
+                            cell_data.name,
+                            cell_data.config,
+                            cell_data.cell_id,
+                        )
+                        for cell_data in app.cell_manager.cell_data()
                     )
                 )
             )
         else:
-            codes, names, configs = tuple(
+            codes, names, configs, cell_ids = tuple(
                 zip(
                     *tuple(
                         # Don't send code to frontend in run mode
-                        ("", "", cell_data.config)
-                        for cell_data in app._cell_data.values()
+                        ("", "", cell_data.config, cell_data.cell_id)
+                        for cell_data in app.cell_manager.cell_data()
                     )
                 )
             )
 
         if (
             app
-            and app._config.layout_file is not None
+            and app.config.layout_file is not None
             and isinstance(mgr.filename, str)
         ):
             app_dir = os.path.dirname(mgr.filename)
-            layout = read_layout_config(app_dir, app._config.layout_file)
+            layout = read_layout_config(app_dir, app.config.layout_file)
 
         await self.message_queue.put(
             (
@@ -128,6 +128,7 @@ class WebsocketHandler(SessionHandler):
                         names=names,
                         configs=configs,
                         layout=layout,
+                        cell_ids=cell_ids,
                     )
                 ),
             )

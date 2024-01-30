@@ -5,11 +5,17 @@ import { CellId, HTMLCellId } from "./ids";
 import { CellHandle } from "@/components/editor/Cell";
 import { CellConfig } from "./types";
 
-export function focusAndScrollCellIntoView(
-  cellId: CellId,
-  cell: RefObject<CellHandle>,
-  config: CellConfig
-) {
+export function focusAndScrollCellIntoView({
+  cellId,
+  cell,
+  config,
+  codeFocus,
+}: {
+  cellId: CellId;
+  cell: RefObject<CellHandle>;
+  config: CellConfig;
+  codeFocus: "top" | "bottom" | undefined;
+}) {
   if (!cell) {
     return;
   }
@@ -24,7 +30,30 @@ export function focusAndScrollCellIntoView(
   if (config.hide_code) {
     element.focus();
   } else {
-    cell.current?.editorView.focus();
+    const editor = cell.current?.editorView;
+    if (!editor) {
+      return;
+    }
+    editor.focus();
+    if (codeFocus === "top") {
+      // If codeFocus is top, move the cursor to the top of the editor.
+      editor.dispatch({
+        selection: {
+          anchor: 0,
+          head: 0,
+        },
+      });
+    } else if (codeFocus === "bottom") {
+      // If codeFocus is bottom, move the cursor to the bottom of the editor,
+      // but front of the last line.
+      const lastLine = editor.state.doc.line(editor.state.doc.lines);
+      editor.dispatch({
+        selection: {
+          anchor: lastLine.from,
+          head: lastLine.from,
+        },
+      });
+    }
   }
 
   element.scrollIntoView({

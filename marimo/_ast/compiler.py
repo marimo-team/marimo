@@ -4,6 +4,7 @@ import inspect
 import io
 import linecache
 import os
+import re
 import sys
 import textwrap
 import token as token_types
@@ -26,9 +27,18 @@ def code_key(code: str) -> int:
     return hash(code)
 
 
-def get_filename(basename: str) -> str:
-    """Get a temporary Python filename that ends with basename."""
-    return os.path.join(get_tmpdir(), basename + ".py")
+def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
+    """Parse cell id from filename."""
+    matches = re.findall(r"__marimo__cell_(.*?)_", filename)
+    if matches:
+        return str(matches[0])
+    return None
+
+
+def get_filename(cell_id: CellId_t, suffix: str = "") -> str:
+    """Get a temporary Python filename that encodes the cell id in it."""
+    basename = f"__marimo__cell_{cell_id}_"
+    return os.path.join(get_tmpdir(), basename + suffix + ".py")
 
 
 def cache(filename: str, code: str) -> None:
@@ -41,11 +51,7 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(
-    code: str,
-    cell_id: CellId_t,
-    basename: Optional[str] = None,
-) -> Cell:
+def compile_cell(code: str, cell_id: CellId_t) -> Cell:
     module = ast.parse(code, mode="exec")
     if not module.body:
         # either empty code or just comments
@@ -55,13 +61,14 @@ def compile_cell(
             mod=module,
             defs=set(),
             refs=set(),
+            variable_data={},
             deleted_refs=set(),
             body=None,
             last_expr=None,
             cell_id=cell_id,
         )
 
-    v = ScopedVisitor("cell_" + str(cell_id) if cell_id is not None else None)
+    v = ScopedVisitor("cell_" + cell_id)
     v.visit(module)
 
     expr: Union[ast.Expression, str]
@@ -71,9 +78,9 @@ def compile_cell(
         expr = "None"
 
     # store the cell's code in Python's linecache so debuggers can find it
-    basename = f"cell_{cell_id}" if basename is None else basename
-    body_filename = get_filename(basename)
-    last_expr_filename = get_filename(basename + "_output")
+    body_filename = get_filename(cell_id)
+    last_expr_filename = get_filename(cell_id, suffix="_output")
+    # cache the entire cell's code
     cache(body_filename, code)
     if sys.version_info >= (3, 9):
         # ast.unparse only available >= 3.9
@@ -81,7 +88,6 @@ def compile_cell(
             last_expr_filename,
             ast.unparse(expr) if not isinstance(expr, str) else "None",
         )
-
     body = compile(module, body_filename, mode="exec")
     last_expr = compile(expr, last_expr_filename, mode="eval")
 
@@ -93,6 +99,11 @@ def compile_cell(
         mod=module,
         defs=glbls,
         refs=v.refs,
+        variable_data={
+            name: v.variable_data[name]
+            for name in glbls
+            if name in v.variable_data
+        },
         deleted_refs=v.deleted_refs,
         body=body,
         last_expr=last_expr,

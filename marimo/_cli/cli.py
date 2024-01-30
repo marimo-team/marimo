@@ -171,6 +171,13 @@ edit_help_msg = "\n".join(
     help="Port to attach to.",
 )
 @click.option(
+    "--host",
+    default="",
+    show_default=True,
+    type=str,
+    help="Host to attach to.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -181,6 +188,7 @@ edit_help_msg = "\n".join(
 @click.argument("name", required=False)
 def edit(
     port: Optional[int],
+    host: str,
     headless: bool,
     name: Optional[str] = None,
 ) -> None:
@@ -208,6 +216,7 @@ def edit(
     start(
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
+        host=host,
         port=port,
         headless=headless,
         filename=name,
@@ -236,6 +245,13 @@ Example:
     help="Port to attach to.",
 )
 @click.option(
+    "--host",
+    default="",
+    show_default=True,
+    type=str,
+    help="Host to attach to.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -253,7 +269,11 @@ Example:
 )
 @click.argument("name", required=True)
 def run(
-    port: Optional[int], headless: bool, include_code: bool, name: str
+    port: Optional[int],
+    host: str,
+    headless: bool,
+    include_code: bool,
+    name: str,
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -267,6 +287,7 @@ def run(
     start(
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
+        host=host,
         port=port,
         headless=headless,
         filename=name,
@@ -319,6 +340,13 @@ Recommended sequence:
     help="Port to attach to.",
 )
 @click.option(
+    "--host",
+    default="",
+    show_default=True,
+    type=str,
+    help="Host to attach to.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -343,6 +371,7 @@ Recommended sequence:
 )
 def tutorial(
     port: Optional[int],
+    host: str,
     headless: bool,
     name: Literal[
         "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat"
@@ -376,6 +405,7 @@ def tutorial(
     start(
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
+        host=host,
         port=port,
         mode=SessionMode.EDIT,
         filename=fname,

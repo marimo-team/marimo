@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pytest
+
 from marimo._plugins import ui
 
 
@@ -72,3 +74,24 @@ def test_update_checks_against_frontend_value() -> None:
     # smoke test: don't check against backend value, which will raise
     array._update({"0": ["option"]})
     assert len(array.value) == 1 and isinstance(array.value[0], NoEquality)
+
+
+def test_container_emulation() -> None:
+    array = ui.array([ui.slider(1, 10), ui.text()])
+    # len
+    assert len(array) == 2
+    # reversed
+    assert list(reversed(array)) == list(reversed(array.elements))
+    # getitem
+    assert array[0] == array.elements[0]
+    assert array[1] == array.elements[1]
+    # iter
+    for a, b in zip(array, array.elements):
+        assert a == b
+    # contains
+    assert array[0] in array
+    assert array[1] in array
+
+    with pytest.raises(TypeError) as e:
+        array[0] = 1
+    assert "does not support item assignment" in str(e)

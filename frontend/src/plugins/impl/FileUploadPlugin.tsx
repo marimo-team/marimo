@@ -8,6 +8,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 import { filesToBase64 } from "../../utils/fileToBase64";
 import { buttonVariants } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
+import { toast } from "@/components/ui/use-toast";
 
 type FileUploadType = "button" | "area";
 
@@ -107,6 +108,18 @@ function groupFileTypesByMIMEType(extensions: string[]) {
   return filesByMIMEType;
 }
 
+// We may want to increase this based on user feedback
+//
+// But rather than forever increasing this, we should consider
+// adding a non-browser file-chooser which allows users to select files from
+// their local filesystem, and we only return the path.
+//
+// By using the browser's file chooser, it is more secure as we don
+// not get access to the uploaded file's path but
+// we are forced to upload the file to browser memory before
+// sending it to the server.
+const MAX_SIZE = 100_000_000; // 100 MB
+
 /* TODO(akshayka): Allow uploading files one-by-one and removing uploaded files
  * when multiple is `True`*/
 export const FileUpload = (props: FileUploadProps): JSX.Element => {
@@ -116,10 +129,44 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     useDropzone({
       accept: acceptGroups,
       multiple: multiple,
-      onDrop: (acceptedFiles) => {
-        filesToBase64(acceptedFiles).then((value) => {
-          setValue(value);
+      maxSize: MAX_SIZE,
+      onError: (error) => {
+        console.error(error);
+        toast({
+          title: "File upload failed",
+          description: error.message,
+          variant: "danger",
         });
+      },
+      onDropRejected: (rejectedFiles) => {
+        toast({
+          title: "File upload failed",
+          description: (
+            <div className="flex flex-col gap-1">
+              {rejectedFiles.map((file) => (
+                <div key={file.file.name}>
+                  {file.file.name} (
+                  {file.errors.map((e) => e.message).join(", ")})
+                </div>
+              ))}
+            </div>
+          ),
+          variant: "danger",
+        });
+      },
+      onDrop: (acceptedFiles) => {
+        filesToBase64(acceptedFiles)
+          .then((value) => {
+            setValue(value);
+          })
+          .catch((error) => {
+            console.error(error);
+            toast({
+              title: "File upload failed",
+              description: "Failed to convert file to base64.",
+              variant: "danger",
+            });
+          });
       },
     });
 
@@ -131,7 +178,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     // - hide the input element with a hidden attribute
     // - create a button and some text that reflects what has been uploaded;
     //   link button to the hidden input element
-    const label = props.label ?? "<p>Upload</p>";
+    const label = props.label ?? "Upload";
     return (
       <>
         <button
@@ -142,7 +189,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
           })}
         >
           {renderHTML({ html: label })}
-          <Upload size={16} className="ml-2" />
+          <Upload size={14} className="ml-2" />
         </button>
         <input {...getInputProps({})} type="file" />
       </>

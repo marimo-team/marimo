@@ -772,6 +772,8 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
     Use the `kind` argument to switch between a button and a drop-and-drop
     area.
 
+    The maximum file size is 100MB.
+
     **Examples.**
 
     Uploading a single file:

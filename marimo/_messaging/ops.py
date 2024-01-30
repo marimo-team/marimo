@@ -249,6 +249,7 @@ class KernelReady(Op):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
+    cell_ids: tuple[CellId_t, ...]
     codes: tuple[str, ...]
     names: tuple[str, ...]
     layout: Optional[LayoutConfig]

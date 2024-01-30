@@ -7,13 +7,14 @@ from typing import Any, Generator
 
 import pytest
 
+from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import Stderr, Stdin, Stdout
 from marimo._runtime.context import (
     initialize_context,
     teardown_context,
 )
-from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
 
@@ -81,6 +82,9 @@ class MockedKernel:
             stderr=self.stderr,
             stdin=self.stdin,
             cell_configs={},
+            app_metadata=AppMetadata(
+                filename="/app/test.py",
+            ),
         )
 
         initialize_context(
@@ -107,14 +111,24 @@ def mocked_kernel() -> Generator[MockedKernel, None, None]:
     yield mocked
 
 
+# Installs an execution context without stream redirection
+@pytest.fixture
+def executing_kernel() -> Generator[Kernel, None, None]:
+    mocked = MockedKernel()
+    mocked.k.stdout = None
+    mocked.k.stderr = None
+    mocked.k.stdin = None
+    with mocked.k._install_execution_context(cell_id="0"):
+        yield mocked.k
+
+
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
-        self.counter = 0
+        self.cell_manager = CellManager()
 
     def get(self, code: str) -> ExecutionRequest:
-        key = str(self.counter)
-        self.counter += 1
+        key = self.cell_manager.create_cell_id()
         return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
 
     def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:

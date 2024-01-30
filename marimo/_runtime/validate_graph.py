@@ -28,7 +28,7 @@ def check_for_multiple_definitions(
             for cid in defining_cells:
                 errors[cid].append(
                     MultipleDefinitionError(
-                        name=name,
+                        name=str(name),
                         cells=tuple(sorted(defining_cells - set([cid]))),
                     )
                 )
@@ -45,7 +45,7 @@ def check_for_delete_nonlocal(
             if name in graph.definitions:
                 errors[cid].append(
                     DeleteNonlocalError(
-                        name=name,
+                        name=str(name),
                         cells=tuple(graph.definitions[name]),
                     )
                 )

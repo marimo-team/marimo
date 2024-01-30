@@ -315,6 +315,20 @@ const CellComponent = (
       moveToNextCell({ cellId, before: true, noCreate: true });
       return true;
     },
+    // only register j/k movement if the cell is hidden, so as to not
+    // interfere with editing
+    ...(userConfig.keymap.preset === "vim" && cellConfig.hide_code
+      ? {
+          j: () => {
+            moveToNextCell({ cellId, before: false, noCreate: true });
+            return true;
+          },
+          k: () => {
+            moveToNextCell({ cellId, before: true, noCreate: true });
+            return true;
+          },
+        }
+      : {}),
   });
 
   if (!editing) {
@@ -361,7 +375,7 @@ const CellComponent = (
         cellId={cellId}
         title={cellTitle()}
       >
-        {outputArea}
+        {userConfig.display.cell_output === "above" && outputArea}
         <div className="tray">
           <div className="absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-2 hover-action">
             <CreateCellButton
@@ -441,6 +455,7 @@ const CellComponent = (
             ) : null}
           </div>
         </div>
+        {userConfig.display.cell_output === "below" && outputArea}
         <ConsoleOutput
           consoleOutputs={consoleOutputs}
           stale={consoleOutputStale}

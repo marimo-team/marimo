@@ -4,11 +4,12 @@ from __future__ import annotations
 import threading
 from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import Optional, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellId_t
 from marimo._ast.compiler import code_key
+from marimo._ast.visitor import Name
 
 Edge = Tuple[CellId_t, CellId_t]
 
@@ -39,7 +40,7 @@ class DirectedGraph:
     siblings: dict[CellId_t, set[CellId_t]] = field(default_factory=dict)
 
     # A mapping from defs to the cells that define them
-    definitions: dict[str, set[CellId_t]] = field(default_factory=dict)
+    definitions: dict[Name, set[CellId_t]] = field(default_factory=dict)
 
     # The set of cycles in the graph
     cycles: set[tuple[Edge, ...]] = field(default_factory=set)
@@ -55,7 +56,14 @@ class DirectedGraph:
             cell_id in self.cells and code_key(code) == self.cells[cell_id].key
         )
 
-    def get_referring_cells(self, name: str) -> set[CellId_t]:
+    def get_defining_cells(self, name: Name) -> set[CellId_t]:
+        """Get all cells that define name.
+
+        This is a singleton for well-formed graphs.
+        """
+        return self.definitions[name]
+
+    def get_referring_cells(self, name: Name) -> set[CellId_t]:
         """Get all cells that have a ref to `name`."""
         return set([cid for cid in self.cells if name in self.cells[cid].refs])
 
@@ -253,6 +261,23 @@ class DirectedGraph:
                 else:
                     queue.append(parent_id)
         return False
+
+    # these two helper functions could be written as concise
+    # `any` expressions using assignment expressions, but
+    # that's a silly reason to make Python < 3.8 incompatible
+    # with marimo.
+    def get_multiply_defined(self) -> Optional[Name]:
+        for name, definers in self.definitions.items():
+            if len(definers) > 1:
+                return name
+        return None
+
+    def get_deleted_nonlocal_ref(self) -> Optional[Name]:
+        for cell in self.cells.values():
+            for ref in cell.deleted_refs:
+                if ref in self.definitions:
+                    return ref
+        return None
 
 
 def transitive_closure(

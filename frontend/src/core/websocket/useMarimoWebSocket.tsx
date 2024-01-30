@@ -10,7 +10,6 @@ import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
 import { sendInstantiate } from "../network/requests";
-import { CellId } from "../cells/ids";
 import { CellData } from "../cells/types";
 import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
@@ -26,6 +25,7 @@ import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
+import { bannerAtom } from "../errors/state";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -45,21 +45,18 @@ export function useMarimoWebSocket(opts: {
   const setLayoutView = useSetAtom(layoutViewAtom);
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
+  const setBanner = useSetAtom(bannerAtom);
 
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
-        const { codes, names, layout, configs } = msg.data;
-
-        // TODO(akshayka): Get rid of this once the kernel sends cell IDs in
-        // kernel-ready.
-        CellId.reset();
+        const { codes, names, layout, configs, cell_ids } = msg.data;
 
         // Set the layout, initial codes, cells
         const cells = codes.map((code, i) =>
           createCell({
-            id: CellId.create(),
+            id: cell_ids[i],
             code,
             edited: !autoInstantiate,
             name: names[i],
@@ -158,6 +155,9 @@ export function useMarimoWebSocket(opts: {
           }),
           variant: msg.data.variant,
         });
+        return;
+      case "banner":
+        setBanner(msg.data);
         return;
       default:
         logNever(msg);

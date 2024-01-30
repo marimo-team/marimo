@@ -238,7 +238,37 @@ export const UserConfigForm: React.FC = () => {
                     />
                   </span>
                 </FormControl>
+                <FormDescription>
+                  When unchecked, code completion is still available through a
+                  hotkey.
+                </FormDescription>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="display.cell_output"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Cell output area</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    className="inline-flex mx-2"
+                  >
+                    {["above", "below"].map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+                <FormDescription>
+                  Where to display cell's output.
+                </FormDescription>
               </FormItem>
             )}
           />

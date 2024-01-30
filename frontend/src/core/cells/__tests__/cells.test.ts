@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   NotebookState,
   exportedForTesting,
@@ -28,12 +28,25 @@ describe("cell reducer", () => {
     cells = flattenNotebookCells(state);
   });
 
+  let i = 0;
+  const originalCreate = CellId.create.bind(CellId);
+
+  beforeAll(() => {
+    CellId.create = () => {
+      return `${i++}` as CellId;
+    };
+  });
+
   beforeEach(() => {
-    CellId.reset();
+    i = 0;
 
     state = initialNotebookState();
     actions.createNewCell({ cellId: undefined!, before: false });
     firstCellId = state.cellIds[0];
+  });
+
+  afterAll(() => {
+    CellId.create = originalCreate;
   });
 
   it("can add a cell after another cell", () => {

@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -39,6 +40,23 @@ S = TypeVar("S", bound=JSONType)
 T = TypeVar("T")
 
 LOGGER = _loggers.marimo_logger()
+
+
+@dataclass
+class Lens:
+    """Track how a view of a higher-order element relates to its source
+
+    Higher-order UI elements support lensing, ie extracting their children
+    as "views". These views can be embedded in other outputs and interacted
+    with.
+
+    UI elements that are views of a higher-order element (eg, an entry of
+    an array is a view of the array) have a lens object that stores the
+    id of its parent UI element, and the key at which its parent stores it.
+    """
+
+    parent_id: str
+    key: str
 
 
 class MarimoConvertValueException(Exception):
@@ -125,6 +143,12 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
         Split out from __init__ so _clone() typechecks
         """
+        # A UIElement may be a child ("lens") of another UI element.
+        #
+        # Set with self._register_as_view() after initialization, since parents
+        # are usually created after the child is created
+        self._lens: Lens | None = None
+
         # Random token
         #
         # Every element is annotated with a random token, which by design is
@@ -224,6 +248,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         frontend, to a value of type `T` for the `UIElement`.
         """
         pass
+
+    def _register_as_view(self, parent: UIElement[Any, Any], key: str) -> None:
+        """Register this element as a view of `parent`."""
+        self._lens = Lens(parent_id=parent._id, key=key)
 
     @property
     def value(self) -> T:

@@ -1,9 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, Union, cast
-
-from typing_extensions import TypedDict
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -79,10 +77,12 @@ class DisplayConfig(TypedDict, total=False):
 
     - `theme`: `"light"`, `"dark"`, or `"system"`
     - `code_editor_font_size`: font size for the code editor
+    - `cell_output`: `"above"` or `"below"`
     """
 
     theme: Literal["light", "dark", "system"]
     code_editor_font_size: int
+    cell_output: Literal["above", "below"]
 
 
 @mddoc
@@ -144,6 +144,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
+        "cell_output": "above",
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},

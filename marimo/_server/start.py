@@ -25,6 +25,7 @@ def start(
     include_code: bool,
     headless: bool,
     port: Optional[int],
+    host: str,
 ) -> None:
     """
     Start the server.
@@ -46,6 +47,8 @@ def start(
     log_level = "info" if development_mode else "error"
 
     app.state.headless = headless
+    app.state.port = port
+    app.state.host = host or "localhost"
     app.state.session_manager = session_manager
     app.state.user_config = get_configuration()
 
@@ -53,6 +56,7 @@ def start(
         uvicorn.Config(
             app,
             port=port,
+            host=host,
             # TODO: cannot use reload unless the app is an import string
             # although cannot use import string because it breaks the
             # session manager
@@ -65,6 +69,10 @@ def start(
             if development_mode
             else None,
             log_level=log_level,
+            # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
+            # seconds by default; for some reason breaks the server in
+            # mysterious ways (it stops processing requests) in edit mode.
+            timeout_keep_alive=300 if mode == SessionMode.RUN else int(1e9),
             # ping the websocket once a second to prevent intermittent
             # disconnections
             ws_ping_interval=1,

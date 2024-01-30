@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import sys
 import traceback
 from collections.abc import Container
@@ -9,8 +8,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell
+from marimo._ast.compiler import cell_id_from_filename
+from marimo._loggers import marimo_logger
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.marimo_pdb import MarimoPdb
+
+LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
     from marimo._runtime.state import State
@@ -19,14 +23,6 @@ if TYPE_CHECKING:
 def cell_filename(cell_id: CellId_t) -> str:
     """Filename to use when running cells through exec."""
     return f"<cell-{cell_id}>"
-
-
-def cell_id_from_filename(filename: str) -> Optional[CellId_t]:
-    """Parses cell id from filename."""
-    matches = re.findall(r"<cell-([0-9]+)>", filename)
-    if matches:
-        return str(matches[0])
-    return None
 
 
 def format_traceback(graph: dataflow.DirectedGraph) -> str:
@@ -97,8 +93,10 @@ class Runner:
         cell_ids: set[CellId_t],
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
+        debugger: MarimoPdb,
     ):
         self.graph = graph
+        self.debugger = debugger
         # runtime globals
         self.glbls = glbls
         # cells that the runner will run.
@@ -248,6 +246,29 @@ class Runner:
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
             self.print_traceback()
+        finally:
+            # if a debugger is active, force it to skip past marimo code.
+            try:
+                # Bdb defines the botframe attribute and sets it to non-None
+                # when it starts up
+                if (
+                    hasattr(self.debugger, "botframe")
+                    and self.debugger.botframe is not None
+                ):
+                    self.debugger.set_continue()
+            except Exception as debugger_error:
+                # This has never been hit, but just in case -- don't want
+                # to crash the kernel.
+                LOGGER.error(
+                    """Internal marimo error. Please copy this message and
+                    paste it in a GitHub issue:
+
+                    https://github.com/marimo-team/marimo/issues
+
+                    An exception raised attempting to continue debugger (%s).
+                    """,
+                    str(debugger_error),
+                )
 
         if run_result.exception is not None:
             self.exceptions[cell_id] = run_result.exception

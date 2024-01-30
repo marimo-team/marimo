@@ -14,7 +14,7 @@ def mock_register_cell(cf: CellFunction[CellFuncType]) -> None:
 
 
 app = App()
-app._register_cell = mock_register_cell  # type: ignore[method-assign, assignment] # noqa: E501
+app._cell_manager._register_cell_function = mock_register_cell  # type: ignore[method-assign, assignment] # noqa: E501
 
 
 def test_decorator_called() -> None:
