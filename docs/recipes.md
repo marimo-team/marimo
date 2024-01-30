@@ -200,13 +200,14 @@ dictionary
 dictionary.value
 ```
 
-### Create a batch of UI elements with custom formatting
+### Embed a dynamic number of UI elements in another output
 
-**Use cases.** When you want to batch UI elements together into a `dictionary`,
-but want custom formatting, use [`Html.batch`](api/html.md#marimo.Html.batch)
-or [`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch).
+**Use cases.** When you want to embed a dynamic number of UI elements
+in other outputs (like tables or markdown).
 
 **Recipe.**
+
+
 
 1. Import packages
 
@@ -214,64 +215,52 @@ or [`mo.ui.batch`](api/inputs/batch.md#marimo.ui.batch).
 import marimo as mo
 ```
 
-2. Create an HTML template, and use [`Html.batch`](api/html.md#marimo.Html.batch)
-to interpolate UI elements into it to create a new UI element batching the
-constituent ones (like `mo.ui.dictionary`).
+2. Group the elements with
+[`mo.ui.dictionary`](#marimo.ui.dictionary) or
+[`mo.ui.array`](#marimo.ui.array), then retrieve them from the container
+and display them elsewhere.
 
 ```python
-# n_items, checkboxes, and texts are just example data: replace them
-# with the real data you want to put in the batch
 import random
-n_items = random.randint(1, 10)
-checkboxes = {f"checkbox_{i}": mo.ui.checkbox() for i in range(n_items)}
-texts = {
-    f"text_{i}": mo.ui.text(placeholder="task ...") for i in range(n_items)
-}
 
+n_items = random.randint(2, 5)
 
-# a utility function that creates a placeholder that will be substituted
-# for a UI element
-def _placeholder(name) -> str:
-    return "{" + name + "}"
+# Create a dynamic number of elements using `mo.ui.dictionary` and
+# `mo.ui.array`
+elements = mo.ui.dictionary(
+    {
+        "checkboxes": mo.ui.array([mo.ui.checkbox() for _ in range(n_items)]),
+        "texts": mo.ui.array(
+            [mo.ui.text(placeholder="task ...") for _ in range(n_items)]
+        ),
+    }
+)
 
-
-# A batch is just like mo.ui.dictionary(), but lets you have custom formatting.
-#
-# To use batch, first create an HTML object with placeholders for 
-# the UI elements. A placeholder is a string key closed in braces,
-# such as "{my_button}".
-#
-# Then, call `batch()` with keys equal to placeholder
-# names and values equal to the UI elements you want to substitute, such as
-# `.batch(my_button=mo.ui.button())`.
-#
-# If you have many placeholders, create a dict with the placeholders as keys
-# and their UI elements as values, and unpack them when you call batch:
-# `.batch(**placeholders_and_values)`.
-batch = mo.md(
+mo.md(
     f"""
     Here's a TODO list of {n_items} items\n\n
     """
     + "\n\n".join(
+        # Iterate over the elements and embed them in markdown
         [
-            _placeholder(checkbox_key) + " " + _placeholder(text_key)
-            for checkbox_key, text_key in zip(checkboxes.keys(), texts.keys())
+            f"{checkbox} {text}"
+            for checkbox, text in zip(
+                elements["checkboxes"], elements["texts"]
+            )
         ]
     )
-).batch(**checkboxes, **texts)
-batch
+)
 ```
 
-3. Get the value of the batch as a Python `dict`, with placeholders as keys
-and their UI element values as values.
+3. Get the value of the elements
 
 ```python
 batch.value
 ```
 
-### Create a vstack (or hstack) of UI elements with `on_change` handlers
+### Create a hstack (or vstack) of UI elements with `on_change` handlers
 
-**Use cases.** Arrange a dynamic number of UI elements in a vstack or hstack,
+**Use cases.** Arrange a dynamic number of UI elements in a hstack or vstack,
 for example some number of buttons, and execute some side-effect when an
 element is interacted with, e.g. when a button is clicked.
 
@@ -283,58 +272,80 @@ element is interacted with, e.g. when a button is clicked.
 import marimo as mo
 ```
 
-2. Create an HTML template, and use [`Html.batch`](api/html.md#marimo.Html.batch)
-to interpolate UI elements into it to create a new UI element batching the
-constituent ones (like `mo.ui.dictionary`).
+2. Create buttons in `mo.ui.array` and pass them to hstack -- a regular
+Python list won't work. Make sure to assign the array to a global variable.
 
 ```python
 import random
 
 
-def on_change(v):
-   # replace with your code
-   ...
+# Create a state object that will store the index of the
+# clicked button
+get_state, set_state = mo.state(None)
 
-# create a dictionary of your UI elements, keyed by placeholder names
-buttons = {
-   f"button_{i}": mo.ui.button(label=i, on_change=on_change)
-   for i in range(random.randint(3, 10)
-}
+# Create an mo.ui.array of buttons - a regular Python list won't work.
+buttons = mo.ui.array(
+    [
+        mo.ui.button(
+            label="button " + str(i), on_change=lambda v, i=i: set_state(i)
+        )
+        for i in range(random.randint(2, 5))
+    ]
+)
 
-
-# a utility function that creates a placeholder that will be substituted
-# for a UI element
-def _placeholder(name) -> str:
-    return "{" + name + "}"
-
-
-# A batch is just like mo.ui.dictionary(), but lets you have custom formatting.
-#
-# To use batch, first create an HTML object with placeholders for 
-# the UI elements. A placeholder is a string key closed in braces,
-# such as "{my_button}".
-#
-# Then, call `batch()` with keys equal to placeholder
-# names and values equal to the UI elements you want to substitute, such as
-# `.batch(my_button=mo.ui.button())`.
-#
-# If you have many placeholders, create a dict with the placeholders as keys
-# and their UI elements as values, and unpack them when you call batch:
-# `.batch(**placeholders_and_values)`.
-batch = mo.vstack([
-   _placeholder(name) for name in buttons.keys()
-]).batch(**buttons)
-
-# Output the batched vstack
-batch
+mo.hstack(buttons)
 ```
 
-3. Get the value of the batch as a Python `dict`, with placeholders as keys
-and their UI element values as values.
+3. Get the state value
 
 ```python
-batch.value
+get_state()
 ```
+
+### Create a table with contains a column of buttons with `on_change` handlers
+
+**Use cases.** Arrange a dynamic number of UI elements in a column of
+a table, and execute some side-effect when an element is interacted with, e.g.
+when a button is clicked.
+
+**Recipe.**
+
+1. Import packages
+
+```python
+import marimo as mo
+```
+
+2. Create buttons in `mo.ui.array` and pass them to `mo.ui.table`.
+Make sure to assign the table and array to global variables
+
+```python
+import random
+
+
+# Create a state object that will store the index of the
+# clicked button
+get_state, set_state = mo.state(None)
+
+# Create an mo.ui.array of buttons - a regular Python list won't work.
+buttons = mo.ui.array(
+    [
+        mo.ui.button(
+            label="button " + str(i), on_change=lambda v, i=i: set_state(i)
+        )
+        for i in range(random.randint(2, 5))
+    ]
+)
+
+mo.hstack(buttons)
+```
+
+3. Get the state value
+
+```python
+get_state()
+```
+
 
 
 ### Create a form with multiple UI elements
