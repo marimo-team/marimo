@@ -269,6 +269,7 @@ class Session:
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put(text)
+        self.session_view.add_stdin(text)
 
     def disconnect_consumer(self) -> None:
         """Stop the session consumer but keep the kernel running"""

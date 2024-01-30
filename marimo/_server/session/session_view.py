@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 from marimo._ast.cell import CellId_t
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
     MessageOperation,
@@ -49,6 +49,17 @@ class SessionView:
             for object_id, value in request.ids_and_values:
                 self.add_ui_value(object_id, value)
             return
+
+    def add_stdin(self, stdin: str) -> None:
+        """Add a stdin request to the session view."""
+        # Find the first cell that is waiting for stdin.
+        for cell_op in self.cell_operations.values():
+            console_ops: list[CellOutput] = as_list(cell_op.console)
+            for cell_output in console_ops:
+                if cell_output.channel == CellChannel.STDIN:
+                    cell_output.channel = CellChannel.STDOUT
+                    cell_output.data = f"{cell_output.data} {stdin}\n"
+                    return
 
     def add_operation(self, operation: MessageOperation) -> None:
         """Add an operation to the session view."""

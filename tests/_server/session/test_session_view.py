@@ -233,3 +233,35 @@ def test_combine_console_outputs(time_mock: Any) -> None:
     assert session_view.cell_operations[cell_id].console == [
         CellOutput.stdout("three")
     ]
+
+
+@patch("time.time", return_value=123)
+def test_stdin(time_mock: Any) -> None:
+    del time_mock
+    session_view = SessionView()
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("Hello"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdin("What is your name?"),
+            status="running",
+        )
+    )
+
+    assert session_view.cell_operations[cell_id].console == [
+        CellOutput.stdout("Hello"),
+        CellOutput.stdin("What is your name?"),
+    ]
+
+    session_view.add_stdin("marimo")
+
+    assert session_view.cell_operations[cell_id].console == [
+        CellOutput.stdout("Hello"),
+        CellOutput.stdout("What is your name? marimo\n"),
+    ]
