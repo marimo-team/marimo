@@ -302,7 +302,7 @@ mo.hstack(buttons)
 get_state()
 ```
 
-### Create a table with contains a column of buttons with `on_change` handlers
+### Create a table column of buttons with `on_change` handlers
 
 **Use cases.** Arrange a dynamic number of UI elements in a column of
 a table, and execute some side-effect when an element is interacted with, e.g.
