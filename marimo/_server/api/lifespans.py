@@ -96,7 +96,7 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     run = session_mgr.mode == SessionMode.RUN
     if not run and user_config["completion"]["copilot"]:
         LOGGER.debug("GitHub Copilot is enabled")
-        session_mgr.start_lsp_server()
+        await session_mgr.start_lsp_server()
     yield
 
 

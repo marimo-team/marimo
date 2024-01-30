@@ -162,7 +162,7 @@ class WebsocketHandler(SessionConsumer):
         self.status = ConnectionState.OPEN
         session.connect_consumer(self)
 
-        self.write_operation("reconnected", None)
+        await self.write_operation("reconnected", None)
         operations = session.get_current_state().operations
         # Replay the current session view
         LOGGER.debug(
@@ -174,7 +174,7 @@ class WebsocketHandler(SessionConsumer):
             resumed=True,
             ui_values=session.get_current_state().ui_values,
         )
-        self.write_operation(
+        await self.write_operation(
             Banner.name,
             serialize(
                 Banner(
@@ -187,7 +187,7 @@ class WebsocketHandler(SessionConsumer):
 
         for op in operations:
             LOGGER.debug("Replaying operation %s", serialize(op))
-            self.write_operation(op.name, serialize(op))
+            await self.write_operation(op.name, serialize(op))
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -330,8 +330,8 @@ class WebsocketHandler(SessionConsumer):
 
         return listener
 
-    def write_operation(self, op: str, data: Any) -> None:
-        self.message_queue.put_nowait((op, data))
+    async def write_operation(self, op: str, data: Any) -> None:
+        await self.message_queue.put((op, data))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader

@@ -299,10 +299,10 @@ class Session:
             return ConnectionState.ORPHANED
         return self.session_consumer.connection_state()
 
-    def write_operation(self, operation: MessageOperation) -> None:
+    async def write_operation(self, operation: MessageOperation) -> None:
         self.session_view.add_operation(operation)
         if self.session_consumer:
-            self.session_consumer.write_operation(
+            await self.session_consumer.write_operation(
                 operation.name, serialize(operation)
             )
 
@@ -482,7 +482,7 @@ class SessionManager:
                 return True
         return False
 
-    def start_lsp_server(self) -> None:
+    async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
         Doesn't start in run mode.
@@ -495,7 +495,7 @@ class SessionManager:
         if binpath is None:
             LOGGER.error("Node.js not found; cannot start LSP server.")
             for _, session in self.sessions.items():
-                session.write_operation(
+                await session.write_operation(
                     Alert(
                         title="Github Copilot: Connection Error",
                         description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501

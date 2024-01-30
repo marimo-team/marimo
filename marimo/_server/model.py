@@ -49,7 +49,7 @@ class SessionConsumer(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def write_operation(self, op: str, data: Any) -> None:
+    async def write_operation(self, op: str, data: Any) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
