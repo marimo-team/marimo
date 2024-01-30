@@ -54,7 +54,8 @@ export function useMarimoWebSocket(opts: {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
-        const { codes, names, layout, configs, resumed, ui_values, cell_ids } = msg.data;
+        const { codes, names, layout, configs, resumed, ui_values, cell_ids } =
+          msg.data;
 
         // Set the layout, initial codes, cells
         const cells = codes.map((code, i) =>

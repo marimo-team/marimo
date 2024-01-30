@@ -42,9 +42,11 @@ async def set_ui_element_values(
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_request(
         SetUIElementValueRequest(
-            zip(
-                body.object_ids,
-                body.values,
+            list(
+                zip(
+                    body.object_ids,
+                    body.values,
+                )
             )
         )
     )
@@ -73,7 +75,7 @@ async def instantiate(
         CreationRequest(
             execution_requests=execution_requests,
             set_ui_element_value_request=SetUIElementValueRequest(
-                zip(body.object_ids, body.values)
+                list(zip(body.object_ids, body.values))
             ),
         )
     )
