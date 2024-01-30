@@ -76,11 +76,14 @@ Create and edit notebooks with `marimo edit`.
 marimo edit
 ```
 
-- create or edit a notebook with a given name:
+- marimo saves notebooks as Python files, which you can edit using: 
 
 ```bash
 marimo edit your_notebook.py
 ```
+
+(If `your_notebook.py` doesn't exist, marimo will create a blank notebook
+named `your_notebook.py`.)
 
 ## Apps
 
