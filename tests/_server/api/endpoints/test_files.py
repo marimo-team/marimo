@@ -4,9 +4,11 @@ import random
 
 from starlette.testclient import TestClient
 
-from tests._server.mocks import get_mock_session_manager
+from tests._server.mocks import get_mock_session_manager, with_session
 
+SESSION_ID = "session-123"
 HEADERS = {
+    "Marimo-Session-Id": SESSION_ID,
     "Marimo-Server-Token": "fake-token",
 }
 
@@ -57,6 +59,7 @@ def test_read_code(client: TestClient) -> None:
     assert response.json()["contents"].startswith("import marimo")
 
 
+@with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
     filename = get_mock_session_manager().filename
     assert filename
@@ -65,6 +68,7 @@ def test_save_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": filename,
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
@@ -88,6 +92,7 @@ def test_save_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": filename,
             "codes": ["import marimo as mo"],
             "names": ["__"],
@@ -100,11 +105,13 @@ def test_save_file(client: TestClient) -> None:
     )
 
 
+@with_session(SESSION_ID)
 def test_save_file_cannot_rename(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": "random_filename.py",
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
@@ -120,6 +127,7 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
     assert "cannot rename" in response.text
 
 
+@with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
     filename = get_mock_session_manager().filename
     assert filename

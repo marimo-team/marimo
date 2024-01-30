@@ -220,16 +220,18 @@ class Session:
         kernel_manager = KernelManager(
             queue_manager, mode, configs, app_metadata
         )
-        return cls(session_consumer, queue_manager, kernel_manager)
+        return cls(app, session_consumer, queue_manager, kernel_manager)
 
     def __init__(
         self,
+        app: InternalApp,
         session_consumer: SessionConsumer,
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
         self._queue_manager: QueueManager
+        self.app = app
         # This can be optional in case a consumer gets disconnected,
         # and we want to continue the session without a consumer.
         self.session_consumer: Optional[SessionConsumer] = None
@@ -352,11 +354,10 @@ class SessionManager:
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
-        self.app_config: _AppConfig
         self.include_code = include_code
 
-        self.app = self.load_app()
-        self.app_config = self.app.config
+        app = self.load_app()
+        self.app_config = app.config
 
         self.app_metadata = AppMetadata(
             filename=self._get_filename(),
@@ -371,7 +372,7 @@ class SessionManager:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
             self.server_token = str(
-                hash("".join(code for code in self.app.cell_manager.codes()))
+                hash("".join(code for code in app.cell_manager.codes()))
             )
 
     def load_app(self) -> InternalApp:
@@ -411,6 +412,8 @@ class SessionManager:
             self.sessions[session_id] = Session.create(
                 session_consumer=session_consumer,
                 mode=self.mode,
+                # When we create a session,
+                # we load the app from the file
                 app=self.load_app(),
                 app_metadata=self.app_metadata,
             )

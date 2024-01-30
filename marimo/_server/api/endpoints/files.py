@@ -145,13 +145,23 @@ async def save(
     app_state = AppState(request)
     mgr = app_state.session_manager
     body = await parse_request(request, cls=SaveRequest)
-    codes, names, filename, layout = (
+    cell_ids, codes, configs, names, filename, layout = (
+        body.cell_ids,
         body.codes,
+        body.configs,
         body.names,
         body.filename,
         body.layout,
     )
     filename = canonicalize_filename(filename)
+    session = app_state.require_current_session()
+    session.app.with_data(
+        cell_ids=cell_ids,
+        codes=codes,
+        names=names,
+        configs=configs,
+    )
+
     if mgr.filename is not None and mgr.filename != filename:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -170,6 +180,7 @@ async def save(
             layout_filename = save_layout_config(
                 app_dir, app_name, LayoutConfig(**layout)
             )
+            session.app.update_config({"layout_file": layout_filename})
             mgr.update_app_config({"layout_file": layout_filename})
 
         # try to save the app under the name `filename`
@@ -177,7 +188,7 @@ async def save(
             codes,
             names,
             cell_configs=body.configs,
-            config=mgr.app_config,
+            config=session.app.config,
         )
         LOGGER.debug("Saving app to %s", filename)
         try:
@@ -204,21 +215,22 @@ async def save_app_config(
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     mgr = app_state.session_manager
-    mgr.update_app_config(body.config)
 
     # Update the file with the latest app config
     # TODO(akshayka): Only change the `app = marimo.App` line (at top level
     # of file), instead of overwriting the whole file.
-    app = mgr.load_app()
+    app = app_state.require_current_session().app
+
+    new_config = app.update_config(body.config)
+    mgr.update_app_config(body.config)
 
     if mgr.filename is not None:
-        codes = list(app.cell_manager.codes())
-        names = list(app.cell_manager.names())
-        configs = list(app.cell_manager.configs())
-
         # Try to save the app under the name `mgr.filename`
         contents = codegen.generate_filecontents(
-            codes, names, cell_configs=configs, config=mgr.app_config
+            codes=list(app.cell_manager.codes()),
+            names=list(app.cell_manager.names()),
+            cell_configs=list(app.cell_manager.configs()),
+            config=new_config,
         )
         try:
             with open(mgr.filename, "w", encoding="utf-8") as f:

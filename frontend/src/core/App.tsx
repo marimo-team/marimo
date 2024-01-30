@@ -121,6 +121,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   );
 
   const cells = notebookCells(notebook);
+  const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
@@ -146,6 +147,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
     Logger.log("saving to ", filename);
     sendSave({
+      cellIds: cellIds,
       codes,
       names: cellNames,
       filename,

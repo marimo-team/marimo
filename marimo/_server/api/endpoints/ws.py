@@ -82,6 +82,7 @@ class WebsocketHandler(SessionConsumer):
 
     async def _write_kernel_ready(
         self,
+        session: Session,
         resumed: bool,
         ui_values: dict[str, JSONType],
     ) -> None:
@@ -90,11 +91,13 @@ class WebsocketHandler(SessionConsumer):
         Sends cell code and other metadata to client.
         """
         mgr = self.manager
+        app = session.app
+
         codes: tuple[str, ...]
         names: tuple[str, ...]
         configs: tuple[CellConfig, ...]
-        app = mgr.load_app()
         layout: Optional[LayoutConfig] = None
+
         if mgr.should_send_code_to_frontend():
             codes, names, configs, cell_ids = tuple(
                 zip(
@@ -167,7 +170,9 @@ class WebsocketHandler(SessionConsumer):
         )
 
         await self._write_kernel_ready(
-            resumed=True, ui_values=session.get_current_state().ui_values
+            session=session,
+            resumed=True,
+            ui_values=session.get_current_state().ui_values,
         )
         self.write_operation(
             Banner.name,
@@ -229,13 +234,15 @@ class WebsocketHandler(SessionConsumer):
             if mgr.mode == SessionMode.EDIT:
                 mgr.close_all_sessions()
 
-            mgr.create_session(
+            session = mgr.create_session(
                 session_id=session_id,
                 session_consumer=self,
             )
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
-            await self._write_kernel_ready(resumed=False, ui_values={})
+            await self._write_kernel_ready(
+                session, resumed=False, ui_values={}
+            )
 
         async def listen_for_messages() -> None:
             while True:

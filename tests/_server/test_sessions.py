@@ -4,6 +4,7 @@ from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
 
+from marimo._ast.app import App, InternalApp
 from marimo._runtime.requests import AppMetadata
 from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
@@ -60,7 +61,9 @@ def test_session() -> None:
     )
 
     # Instantiate a Session
-    session = Session(session_consumer, queue_manager, kernel_manager)
+    session = Session(
+        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+    )
 
     # Assert startup
     assert session.session_consumer == session_consumer
@@ -88,10 +91,14 @@ def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(queue_manager, SessionMode.RUN, {})
+    kernel_manager = KernelManager(
+        queue_manager, SessionMode.RUN, {}, AppMetadata()
+    )
 
     # Instantiate a Session
-    session = Session(session_consumer, queue_manager, kernel_manager)
+    session = Session(
+        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+    )
 
     # Assert startup
     assert session.session_consumer == session_consumer

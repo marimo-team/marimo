@@ -54,12 +54,16 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendSave: (request: SaveKernelRequest) => {
       // Validate same length
       invariant(
+        request.cellIds.length === request.codes.length,
+        "cell ids and codes must be the same length"
+      );
+      invariant(
         request.codes.length === request.names.length,
-        "cell codes and names must be the same length"
+        "cell ids and names must be the same length"
       );
       invariant(
         request.codes.length === request.configs.length,
-        "cell codes and configs must be the same length"
+        "cell ids and configs must be the same length"
       );
 
       return API.post<SaveKernelRequest>("/kernel/save", request);

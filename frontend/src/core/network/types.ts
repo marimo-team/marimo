@@ -46,6 +46,7 @@ export interface RunRequest {
 }
 
 export interface SaveKernelRequest {
+  cellIds: CellId[];
   filename: string;
   codes: string[];
   names: string[];
