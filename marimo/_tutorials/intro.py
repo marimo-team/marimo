@@ -1,7 +1,6 @@
-# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.1.88"
 app = marimo.App()
 
 
@@ -32,6 +31,17 @@ def __(mo, slider):
         {"##" + "🍃" * slider.value}
         """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        Tip: This is a tutorial notebook. You can create your own notebooks
+        by entering `marimo edit` at the command line.
+        """
+    ).callout()
     return
 
 
@@ -202,7 +212,7 @@ def __(mo):
         """
         ## 3. marimo is just Python
 
-        marimo cells parse Python (and only Python), and marimo programs are
+        marimo cells parse Python (and only Python), and marimo notebooks are
         stored as pure Python files — outputs are _not_ included. There's no
         magical syntax.
 
@@ -239,27 +249,9 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """
-        ## 5. The marimo editor
+        """## 5. The `marimo` command-line tool
 
-        Here are some tips to help you get started with the marimo editor.
-        """
-    )
-    return
-
-
-@app.cell
-def __(mo, tips):
-    mo.accordion(tips)
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """## 6. The `marimo` command-line tool
-
-        **Using the marimo editor.** Use
+        **Creating and editing notebooks.** Use
 
         ```
         marimo edit
@@ -308,6 +300,24 @@ def __(mo):
         [our Github repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
         """
     )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ## 6. The marimo editor
+
+        Here are some tips to help you get started with the marimo editor.
+        """
+    )
+    return
+
+
+@app.cell
+def __(mo, tips):
+    mo.accordion(tips)
     return
 
 

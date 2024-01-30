@@ -4,6 +4,12 @@ marimo notebooks are **reactive**: they automatically react to your code
 changes and UI interactions and keep your notebook up-to-date (like a
 spreadsheet).
 
+```{admonition} Creating marimo notebooks
+
+Make sure to first read the [getting started](/getting_started/index.md) page,
+which teaches you how to install marimo and create notebooks.
+```
+
 ## Cells
 
 A marimo notebook is made of small blocks of Python code called **cells**.
