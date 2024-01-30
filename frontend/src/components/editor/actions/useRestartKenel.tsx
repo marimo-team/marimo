@@ -20,7 +20,7 @@ export function useRestartKernel() {
           }}
           aria-label="Confirm Restart"
         >
-          Shutdown
+          Restart
         </AlertDialogDestructiveAction>
       ),
     });

@@ -445,6 +445,7 @@ class SessionManager:
                     new_session_id,
                 )
                 return maybe_session
+            return None
 
         if len(self.sessions) == 0:
             return None
