@@ -49,8 +49,9 @@ export const NotebookBanner: React.FC = (props) => {
 const RestartSessionButton = () => {
   const restartKernel = useRestartKernel();
   return (
-    <Button variant="secondary" size="sm" onClick={restartKernel}>
-      <RotateCcwIcon className="w-5 h-5" />
+    <Button variant="link" size="sm" onClick={restartKernel}>
+      <RotateCcwIcon className="w-4 h-4 mr-2" />
+      Restart
     </Button>
   );
 };
