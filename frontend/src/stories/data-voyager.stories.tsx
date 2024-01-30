@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
 import { DataVoyagerComponent } from "@/plugins/impl/data-voyager/DataVoyagerPlugin";
-import { SpecificEncoding } from "@/plugins/impl/data-voyager/encoding";
+import { ChartSpec } from "@/plugins/impl/data-voyager/state/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
@@ -14,7 +14,7 @@ export default meta;
 
 export const DataVoyager: StoryObj = {
   render: () => {
-    const [value, setValue] = useState<SpecificEncoding>();
+    const [value, setValue] = useState<ChartSpec>();
     return (
       <DataVoyagerComponent
         data="https://github.com/vega/vega/blob/main/docs/data/stocks.csv"

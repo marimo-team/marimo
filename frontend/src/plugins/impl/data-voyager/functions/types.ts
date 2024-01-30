@@ -1,7 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { FieldQueryBase } from "compassql/build/src/query/encoding";
 
-type AggregateOp = Extract<FieldQueryBase["aggregate"], string>;
-export type TimeUnitOp = Extract<FieldQueryBase["timeUnit"], string>;
+// Subset of aggregate operations that we support
+type AggregateOp =
+  | "average"
+  | "count"
+  | "distinct"
+  | "max"
+  | "mean"
+  | "median"
+  | "min"
+  | "q1"
+  | "q3"
+  | "stderr"
+  | "stdev"
+  | "sum";
+
+// Subset of time units that we support
+export type TimeUnitOp =
+  | "year"
+  | "month"
+  | "date"
+  | "day"
+  | "hours"
+  | "minutes"
+  | "seconds"
+  | "milliseconds"
+  | "yearmonth"
+  | "yearmonthdate"
+  | "monthdate";
 
 export type FieldFunction = AggregateOp | "bin" | TimeUnitOp;
