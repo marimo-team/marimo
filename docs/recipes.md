@@ -255,7 +255,7 @@ mo.md(
 3. Get the value of the elements
 
 ```python
-batch.value
+elements.value
 ```
 
 ### Create a hstack (or vstack) of UI elements with `on_change` handlers
