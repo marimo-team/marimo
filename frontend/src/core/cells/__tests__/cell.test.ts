@@ -3,6 +3,7 @@ import { expect, describe, it } from "vitest";
 import { outputIsStale } from "../cell";
 import { CellStatus } from "../types";
 import { OutputMessage } from "@/core/kernel/messages";
+import { Seconds } from "@/utils/time";
 
 const STATUSES: CellStatus[] = [
   "queued",
@@ -53,7 +54,7 @@ describe("outputIsStale", () => {
     const cell = {
       status: "running" as CellStatus,
       output: createOutput(),
-      runStartTimestamp: Date.now() - 1000, // Output received after run started
+      runStartTimestamp: (Date.now() - 1000) as Seconds, // Output received after run started
       interrupted: false,
     };
     const edited = false;
@@ -86,7 +87,7 @@ describe("outputIsStale", () => {
     const cell = {
       status: "running" as CellStatus,
       output: createOutput(),
-      runStartTimestamp: Date.now() + 1000, // Output received before run started
+      runStartTimestamp: (Date.now() + 1000) as Seconds, // Output received before run started
       interrupted: false,
     };
     const edited = false;
@@ -119,7 +120,7 @@ describe("outputIsStale", () => {
     const cell = {
       status: "running" as CellStatus,
       output: null,
-      runStartTimestamp: Date.now(),
+      runStartTimestamp: Date.now() as Seconds,
       interrupted: false,
     };
     const edited = false;

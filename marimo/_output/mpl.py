@@ -17,7 +17,7 @@ from typing import Optional
 
 import matplotlib.pyplot as plt  # type: ignore
 from matplotlib.backend_bases import FigureManagerBase, Gcf  # type: ignore
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.backends.backend_agg import FigureCanvasAgg  # type: ignore
 
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType

@@ -1,11 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import {
-  AlertDialogDescription,
-  AlertDialogDestructiveAction,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog";
+import { AlertDialogDestructiveAction } from "../ui/alert-dialog";
 import { Button } from "./inputs/Inputs";
 import { Tooltip } from "../ui/tooltip";
 import { useImperativeModal } from "../modal/ImperativeModal";
