@@ -11,6 +11,7 @@ import {
   FolderDownIcon,
   ClipboardCopyIcon,
   Share2Icon,
+  PowerSquareIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../CommandPalette";
 import {
@@ -19,7 +20,7 @@ import {
   useCellActions,
   useNotebook,
 } from "@/core/cells/cells";
-import { readCode, saveCellConfig } from "@/core/network/requests";
+import { readCode, saveCellConfig, sendRestart } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
@@ -136,6 +137,16 @@ export function useNotebookActions() {
       label: "Open documentation",
       handle: () => {
         window.open("https://docs.marimo.io", "_blank");
+      },
+    },
+
+    {
+      icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
+      label: "Restart kernel",
+      variant: "danger",
+      handle: async () => {
+        await sendRestart();
+        window.location.reload();
       },
     },
   ];
