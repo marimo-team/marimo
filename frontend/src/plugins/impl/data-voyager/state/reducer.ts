@@ -47,19 +47,28 @@ const { reducer, createActions } = createReducer(initialState, {
 
     return { ...state, encoding: nextEncoding };
   },
+  set: (state, next: ChartSpec) => {
+    // remove schema
+    const { schema, ...rest } = next;
+    return { ...state, ...rest };
+  },
 });
 
 export const chartSpecAtom = atom<ChartSpec>(initialState());
 
-export function useChartSpecActions() {
+export function useChartSpecActions(onChange?: (spec: ChartSpec) => void) {
   const setState = useSetAtom(chartSpecAtom);
 
   return useMemo(() => {
     const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
+      setState((state) => {
+        const newState = reducer(state, action);
+        onChange?.(newState);
+        return newState;
+      });
     });
     return actions;
-  }, [setState]);
+  }, [setState, onChange]);
 }
 
 export const relatedChartSpecsAtom = atom<Partial<ResultingCharts>>((get) => {

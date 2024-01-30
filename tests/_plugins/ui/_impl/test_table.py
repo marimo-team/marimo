@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.table import (
     _normalize_data,
 )
@@ -54,17 +57,6 @@ def test_normalize_data() -> None:
     result = _normalize_data(data)
     assert result == []
 
-    # Test with pandas DataFrame
-    try:
-        import pandas as pd
-
-        data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
-        result = _normalize_data(data)
-        assert isinstance(result, str)
-        assert result.endswith(".csv")
-    except ImportError:
-        pass
-
     # Test with invalid data type
     data2: Any = "invalid data type"
     try:
@@ -82,3 +74,21 @@ def test_normalize_data() -> None:
             == "data must be a sequence of JSON-serializable types, or a "
             + "sequence of dicts."
         )
+
+
+HAS_DEPS = DependencyManager.has_pandas()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_normalize_data_pandas() -> None:
+    # Create kernel and give the execution context an existing cell
+    mocked = MockedKernel()
+    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
+
+    # Test with pandas DataFrame
+    import pandas as pd
+
+    data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
+    result = _normalize_data(data)
+    assert isinstance(result, str)
+    assert result.endswith(".csv")

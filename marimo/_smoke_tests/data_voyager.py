@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.75"
+__generated_with = "0.1.88"
 app = marimo.App(width="full")
 
 
@@ -30,7 +30,14 @@ def __(data, dataset_dropdown, mo):
 
 @app.cell
 def __(df, mo):
-    mo.ui.data_voyager(df)
+    v = mo.ui.data_voyager(df)
+    v
+    return v,
+
+
+@app.cell
+def __(v):
+    v.value
     return
 
 

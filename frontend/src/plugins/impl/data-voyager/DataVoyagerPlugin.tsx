@@ -6,8 +6,8 @@ import "../vega/vega.css";
 import * as cql from "compassql/build/src";
 import { createPlugin } from "@/plugins/core/builder";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import React from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import React, { useMemo } from "react";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { vegaLoadData } from "../vega/loader";
 import { VegaLite } from "react-vega";
 import { ListFilterIcon } from "lucide-react";
@@ -17,7 +17,7 @@ import {
   relatedChartSpecsAtom,
   useChartSpecActions,
 } from "./state/reducer";
-import { Provider, useAtomValue } from "jotai";
+import { Provider, createStore, useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import { SpecificEncoding } from "./encoding";
 import { Objects } from "@/utils/objects";
@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { ErrorBanner } from "../common/error-banner";
 import { ColumnSummary } from "./components/column-summary";
 import { VegaLiteProps } from "react-vega/lib/VegaLite";
+import { useOnMount } from "@/hooks/useLifecycle";
+import { ChartSpec } from "./state/types";
 
 /**
  * @param label - a label of the table
@@ -36,7 +38,7 @@ interface Data {
 }
 
 // Value is unused for now
-type S = SpecificEncoding | undefined;
+type S = ChartSpec | undefined;
 
 export const DataVoyagerPlugin = createPlugin<S>("marimo-data-voyager")
   .withData(
@@ -47,15 +49,40 @@ export const DataVoyagerPlugin = createPlugin<S>("marimo-data-voyager")
   )
   .renderer((props) => (
     <TooltipProvider>
-      <Provider>
-        <DataVoyagerComponent
-          {...props.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
-      </Provider>
+      <ConnectedDataVoyagerComponent
+        {...props.data}
+        value={props.value}
+        setValue={props.setValue}
+      />
     </TooltipProvider>
   ));
+
+const ConnectedDataVoyagerComponent = (props: DataTableProps): JSX.Element => {
+  const store = useMemo(() => createStore(), []);
+
+  useOnMount(() => {
+    // Subscribe to the store
+    const unsub = store.sub(chartSpecAtom, () => {
+      const value = store.get(chartSpecAtom);
+      const { schema, ...withoutSchema } = value;
+      props.setValue(withoutSchema);
+    });
+
+    // Set the initial value
+    const value = props.value;
+    if (value && Object.keys(value).length > 0) {
+      store.set(chartSpecAtom, value);
+    }
+
+    return unsub;
+  });
+
+  return (
+    <Provider store={store}>
+      <DataVoyagerComponent {...props} />
+    </Provider>
+  );
+};
 
 interface DataTableProps extends Data {
   value: S;
@@ -167,21 +194,23 @@ export const DataVoyagerComponent = ({
                 </div>
               }
               actions={
-                <Button
-                  variant="text"
-                  size={"icon"}
-                  onClick={() => {
-                    const encoding: SpecificEncoding = Objects.fromEntries(
-                      plot.fieldInfos.map((info) => [
-                        info.channel,
-                        info.fieldDef,
-                      ])
-                    );
-                    actions.setEncoding(encoding);
-                  }}
-                >
-                  <ListFilterIcon className="w-4 h-4" />
-                </Button>
+                <Tooltip content="Add to the main plot">
+                  <Button
+                    variant="text"
+                    size={"icon"}
+                    onClick={() => {
+                      const encoding: SpecificEncoding = Objects.fromEntries(
+                        plot.fieldInfos.map((info) => [
+                          info.channel,
+                          info.fieldDef,
+                        ])
+                      );
+                      actions.setEncoding(encoding);
+                    }}
+                  >
+                    <ListFilterIcon className="w-4 h-4" />
+                  </Button>
+                </Tooltip>
               }
             >
               <VegaLite
