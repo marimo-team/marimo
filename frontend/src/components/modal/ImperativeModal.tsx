@@ -6,6 +6,10 @@ import {
   AlertDialogAction,
   AlertDialogContent,
   AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "../ui/alert-dialog";
 
 interface ModalContextType {
@@ -84,6 +88,42 @@ export function useImperativeModal() {
               <AlertDialogAction autoFocus={true} onClick={closeModal}>
                 Ok
               </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      );
+    },
+    openConfirm: (opts: {
+      title: React.ReactNode;
+      description?: React.ReactNode;
+      confirmAction: React.ReactNode;
+      variant?: "destructive";
+    }) => {
+      context.setModal(
+        <AlertDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeModal();
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle
+                className={
+                  opts.variant === "destructive" ? "text-destructive" : ""
+                }
+              >
+                {opts.title}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {opts.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={closeModal}>Cancel</AlertDialogCancel>
+              {opts.confirmAction}
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

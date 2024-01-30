@@ -5,7 +5,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
-import { sendRestart } from "@/core/network/requests";
+import { useRestartKernel } from "./actions/useRestartKenel";
 
 export const NotebookBanner: React.FC = (props) => {
   const { banners } = useBanners();
@@ -47,15 +47,9 @@ export const NotebookBanner: React.FC = (props) => {
 };
 
 const RestartSessionButton = () => {
+  const restartKernel = useRestartKernel();
   return (
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={async () => {
-        await sendRestart();
-        window.location.reload();
-      }}
-    >
+    <Button variant="secondary" size="sm" onClick={restartKernel}>
       <RotateCcwIcon className="w-5 h-5" />
     </Button>
   );

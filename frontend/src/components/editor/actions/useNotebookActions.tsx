@@ -20,7 +20,7 @@ import {
   useCellActions,
   useNotebook,
 } from "@/core/cells/cells";
-import { readCode, saveCellConfig, sendRestart } from "@/core/network/requests";
+import { readCode, saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
@@ -28,6 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
+import { useRestartKernel } from "./useRestartKenel";
 
 export function useNotebookActions() {
   const [filename] = useFilename();
@@ -35,6 +36,7 @@ export function useNotebookActions() {
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
+  const restartKernel = useRestartKernel();
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
 
   const disabledCells = disabledCellIds(notebook);
@@ -144,10 +146,7 @@ export function useNotebookActions() {
       icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
       label: "Restart kernel",
       variant: "danger",
-      handle: async () => {
-        await sendRestart();
-        window.location.reload();
-      },
+      handle: restartKernel,
     },
   ];
 

@@ -4,6 +4,7 @@ import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
+import { Seconds, Time } from "@/utils/time";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -37,8 +38,9 @@ export function transitionCell(
       break;
     case "idle":
       if (cell.runStartTimestamp) {
-        nextCell.runElapsedTimeMs =
-          (message.timestamp - cell.runStartTimestamp) * 1000;
+        nextCell.runElapsedTimeMs = Time.fromSeconds(
+          (message.timestamp - cell.runStartTimestamp) as Seconds
+        ).toMilliseconds();
         nextCell.runStartTimestamp = null;
       }
       nextCell.debuggerActive = false;

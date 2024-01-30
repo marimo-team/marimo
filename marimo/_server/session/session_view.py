@@ -106,6 +106,10 @@ def merge_cell_operation(
         combined_console.extend(as_list(next_.console))
         next_.console = combined_console
 
+    # If we went from running to running, use the previous timestamp.
+    if next_.status == "running" and previous.status == "running":
+        next_.timestamp = previous.timestamp
+
     if next_.output is None:
         next_.output = previous.output
 

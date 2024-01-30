@@ -5,6 +5,7 @@ import { CellConfig, CellStatus } from "../cells/types";
 import { CellId, UIElementId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";
+import { Seconds } from "@/utils/time";
 
 export type OutputChannel =
   | "output"
@@ -102,7 +103,7 @@ export interface CellMessage {
   /**
    * Timestamp in seconds since epoch, when the message was sent
    */
-  timestamp: number;
+  timestamp: Seconds;
 }
 
 export interface CompletionOption {

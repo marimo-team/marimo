@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Sequence, Union
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
 
 
-class CellChannel(StrEnum):
+class CellChannel(str, Enum):
     """The channel of a cell's output."""
 
     STDOUT = "stdout"
