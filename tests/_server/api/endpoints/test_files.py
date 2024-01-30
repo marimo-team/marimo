@@ -4,7 +4,8 @@ import random
 
 from starlette.testclient import TestClient
 
-from tests._server.mocks import get_mock_session_manager, with_session
+from tests._server.conftest import get_session_manager
+from tests._server.mocks import with_session
 
 SESSION_ID = "session-123"
 HEADERS = {
@@ -27,7 +28,7 @@ def test_directory_autocomplete(client: TestClient) -> None:
 
 
 def test_rename(client: TestClient) -> None:
-    current_filename = get_mock_session_manager().filename
+    current_filename = get_session_manager(client).filename
 
     assert current_filename
     assert os.path.exists(current_filename)
@@ -61,7 +62,7 @@ def test_read_code(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
-    filename = get_mock_session_manager().filename
+    filename = get_session_manager(client).filename
     assert filename
 
     response = client.post(
@@ -129,7 +130,7 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
-    filename = get_mock_session_manager().filename
+    filename = get_session_manager(client).filename
     assert filename
 
     file_contents = open(filename).read()

@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-import functools
 import tempfile
 from typing import Callable
 
@@ -9,7 +8,6 @@ from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 
 
-@functools.lru_cache()
 def get_mock_session_manager() -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
