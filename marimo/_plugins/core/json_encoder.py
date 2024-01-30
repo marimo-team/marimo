@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+import json
 from json import JSONEncoder
 from typing import Any
 
@@ -31,14 +32,24 @@ class WebComponentEncoder(JSONEncoder):
         if DependencyManager.has_pandas():
             import pandas as pd
 
+            # Opinionated or known types
             if isinstance(obj, pd.DataFrame):
                 return obj.to_dict("records")
             elif isinstance(obj, pd.Series):
                 return obj.to_list()
+            elif isinstance(obj, pd.Categorical):
+                return obj.tolist()
             elif isinstance(obj, pd.Timestamp):
                 return str(obj)
-            elif isinstance(obj, pd.DatetimeTZDtype):
+            elif isinstance(obj, pd.Interval):
                 return str(obj)
+
+            # Catch-all for other pandas objects
+            try:
+                if isinstance(obj, pd.core.base.PandasObject):  # type: ignore
+                    return json.loads(obj.to_json(date_format="iso"))
+            except AttributeError:
+                pass
 
         # Handle MIME objects
         if hasattr(obj, "_mime_"):
