@@ -263,6 +263,8 @@ class KernelReady(Op):
     resumed: bool
     # If the kernel was resumed, the values of the UI elements
     ui_values: Optional[Dict[str, JSONType]]
+    # If the kernel was resumed, the last executed code for each cell
+    last_executed_code: Optional[Dict[CellId_t, str]]
 
 
 @dataclass

@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Banner, KernelReady, serialize
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
@@ -85,6 +85,7 @@ class WebsocketHandler(SessionConsumer):
         session: Session,
         resumed: bool,
         ui_values: dict[str, JSONType],
+        last_executed_code: dict[CellId_t, str],
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
@@ -123,6 +124,8 @@ class WebsocketHandler(SessionConsumer):
                 )
             )
 
+            last_executed_code = {}
+
         if (
             app
             and app.config.layout_file is not None
@@ -143,6 +146,7 @@ class WebsocketHandler(SessionConsumer):
                         cell_ids=cell_ids,
                         resumed=resumed,
                         ui_values=ui_values,
+                        last_executed_code=last_executed_code,
                     )
                 ),
             )
@@ -173,6 +177,7 @@ class WebsocketHandler(SessionConsumer):
             session=session,
             resumed=True,
             ui_values=session.get_current_state().ui_values,
+            last_executed_code=session.get_current_state().last_executed_code,
         )
         await self.write_operation(
             Banner.name,
@@ -240,7 +245,7 @@ class WebsocketHandler(SessionConsumer):
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
             await self._write_kernel_ready(
-                session, resumed=False, ui_values={}
+                session, resumed=False, ui_values={}, last_executed_code={}
             )
 
         async def listen_for_messages() -> None:

@@ -54,19 +54,43 @@ export function useMarimoWebSocket(opts: {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
-        const { codes, names, layout, configs, resumed, ui_values, cell_ids } =
-          msg.data;
+        const {
+          codes,
+          names,
+          layout,
+          configs,
+          resumed,
+          ui_values,
+          cell_ids,
+          last_executed_code = {},
+        } = msg.data;
 
         // Set the layout, initial codes, cells
-        const cells = codes.map((code, i) =>
-          createCell({
-            id: cell_ids[i],
+        const cells = codes.map((code, i) => {
+          const cellId = cell_ids[i];
+
+          // A cell is stale if we did not auto-instantiate (i.e. nothing has run yet)
+          // or if the code has changed since the last time it was run.
+          let edited = false;
+          if (autoInstantiate) {
+            const lastCodeRun = last_executed_code[cellId];
+            if (lastCodeRun) {
+              edited = lastCodeRun !== code;
+            }
+          } else {
+            edited = true;
+          }
+
+          return createCell({
+            id: cellId,
             code,
-            edited: !autoInstantiate,
+            edited: edited,
             name: names[i],
+            lastCodeRun: last_executed_code[cellId] ?? null,
             config: configs[i],
-          })
-        );
+          });
+        });
+
         if (layout) {
           setLayoutView(layout.type);
           setLayoutData(deserializeLayout(layout.type, layout.data, cells));

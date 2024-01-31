@@ -65,7 +65,6 @@ async def instantiate(
     notebook = app_state.require_current_session().app
     body = await parse_request(request, cls=InstantiateRequest)
 
-    execution_requests: tuple[ExecutionRequest, ...]
     execution_requests = tuple(
         ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
         for cell_data in notebook.cell_manager.cell_data()

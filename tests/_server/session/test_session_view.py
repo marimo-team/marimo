@@ -13,6 +13,12 @@ from marimo._messaging.ops import (
     VariableValues,
     serialize,
 )
+from marimo._runtime.requests import (
+    CreationRequest,
+    ExecuteMultipleRequest,
+    ExecutionRequest,
+    SetUIElementValueRequest,
+)
 from marimo._server.session.session_view import SessionView
 
 cell_id: CellId_t = "cell_1"
@@ -113,32 +119,73 @@ def test_session_view_variable_values() -> None:
     assert list(variables_names) == ["var2"]
 
 
-def test_add_ui_value():
+def test_ui_values():
     session_view = SessionView()
-    session_view.add_ui_value("test_ui", 123)
+    session_view.add_request(SetUIElementValueRequest([("test_ui", 123)]))
     assert "test_ui" in session_view.ui_values
     assert session_view.ui_values["test_ui"] == 123
 
     # Can add multiple values
-    session_view.add_ui_value("test_ui2", 456)
+    # and can overwrite values
+    session_view.add_request(
+        SetUIElementValueRequest([("test_ui2", 456), ("test_ui", 789)])
+    )
     assert "test_ui2" in session_view.ui_values
-    assert session_view.ui_values["test_ui2"] == 456
-
-    # Can overwrite values
-    session_view.add_ui_value("test_ui", 789)
     assert "test_ui" in session_view.ui_values
+    assert session_view.ui_values["test_ui2"] == 456
     assert session_view.ui_values["test_ui"] == 789
 
+    # Can add from CreationRequest
+    session_view.add_request(
+        CreationRequest(
+            execution_requests=(),
+            set_ui_element_value_request=SetUIElementValueRequest(
+                [("test_ui3", 101112)]
+            ),
+        )
+    )
+    assert "test_ui3" in session_view.ui_values
 
-def test_add_raw_operation():
+
+def test_last_run_code():
     session_view = SessionView()
-    session_view.add_raw_operation(
-        serialize(
-            CellOp(
-                cell_id=cell_id, output=initial_output, status=initial_status
+    session_view.add_request(
+        ExecuteMultipleRequest(
+            execution_requests=(
+                ExecutionRequest(cell_id=cell_id, code="print('hello')"),
             )
         )
     )
+    assert session_view.last_executed_code[cell_id] == "print('hello')"
+
+    # Can overwrite values and add multiple
+    session_view.add_request(
+        ExecuteMultipleRequest(
+            execution_requests=(
+                ExecutionRequest(cell_id=cell_id, code="print('hello world')"),
+                ExecutionRequest(
+                    cell_id="cell_2", code="print('hello world')"
+                ),
+            )
+        )
+    )
+    assert session_view.last_executed_code[cell_id] == "print('hello world')"
+    assert session_view.last_executed_code["cell_2"] == "print('hello world')"
+
+    # Can add from CreationRequest
+    session_view.add_request(
+        CreationRequest(
+            execution_requests=(
+                ExecutionRequest(cell_id=cell_id, code="print('hello')"),
+            ),
+            set_ui_element_value_request=SetUIElementValueRequest([]),
+        )
+    )
+    assert session_view.last_executed_code[cell_id] == "print('hello')"
+
+
+def test_add_variables():
+    session_view = SessionView()
 
     session_view.add_raw_operation(
         serialize(
@@ -165,12 +212,24 @@ def test_add_raw_operation():
         )
     )
 
-    assert session_view.cell_operations[cell_id].output == initial_output
-    assert session_view.cell_operations[cell_id].status == initial_status
     assert session_view.variable_operations.variables[0].name == "var1"
     assert session_view.variable_operations.variables[1].name == "var2"
     assert session_view.variable_values["var1"].value == "1"
     assert session_view.variable_values["var2"].value == "hello"
+
+
+def test_add_cell_op():
+    session_view = SessionView()
+    session_view.add_raw_operation(
+        serialize(
+            CellOp(
+                cell_id=cell_id, output=initial_output, status=initial_status
+            )
+        )
+    )
+
+    assert session_view.cell_operations[cell_id].output == initial_output
+    assert session_view.cell_operations[cell_id].status == initial_status
 
 
 # patch time

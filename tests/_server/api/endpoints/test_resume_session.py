@@ -20,6 +20,7 @@ def create_response(
         "layout": None,
         "resumed": False,
         "ui_values": {},
+        "last_executed_code": {},
         "configs": [{"disabled": False, "hide_code": False}],
     }
     response.update(partial_response)

@@ -13,7 +13,13 @@ from marimo._messaging.ops import (
     VariableValue,
     VariableValues,
 )
-from marimo._runtime.requests import Request, SetUIElementValueRequest
+from marimo._runtime.requests import (
+    CreationRequest,
+    ExecuteMultipleRequest,
+    ExecutionRequest,
+    Request,
+    SetUIElementValueRequest,
+)
 from marimo._utils.parse_dataclass import parse_raw
 
 
@@ -27,12 +33,20 @@ class SessionView:
     def __init__(self) -> None:
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
+        # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
+        # Map of variable name to value.
         self.variable_values: dict[str, VariableValue] = {}
+        # Map of object id to value.
         self.ui_values: dict[str, Any] = {}
+        # Map of cell id to the last code that was executed in that cell.
+        self.last_executed_code: dict[CellId_t, str] = {}
 
-    def add_ui_value(self, name: str, value: Any) -> None:
+    def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
+
+    def _add_last_run_code(self, req: ExecutionRequest) -> None:
+        self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_operation(self, raw_operation: Any) -> None:
         # parse_raw only accepts a dataclass, so we wrap MessageOperation in a
@@ -47,8 +61,18 @@ class SessionView:
     def add_request(self, request: Request) -> None:
         if isinstance(request, SetUIElementValueRequest):
             for object_id, value in request.ids_and_values:
-                self.add_ui_value(object_id, value)
-            return
+                self._add_ui_value(object_id, value)
+        elif isinstance(request, ExecuteMultipleRequest):
+            for execution_request in request.execution_requests:
+                self._add_last_run_code(execution_request)
+        elif isinstance(request, CreationRequest):
+            for (
+                object_id,
+                value,
+            ) in request.set_ui_element_value_request.ids_and_values:
+                self._add_ui_value(object_id, value)
+            for execution_request in request.execution_requests:
+                self._add_last_run_code(execution_request)
 
     def add_stdin(self, stdin: str) -> None:
         """Add a stdin request to the session view."""

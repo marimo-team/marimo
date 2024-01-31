@@ -203,6 +203,10 @@ export type OperationMessage =
          * If the notebook was not resumed, this will be undefined.
          */
         ui_values: Record<UIElementId, unknown> | undefined;
+        /**
+         * The last executed code
+         */
+        last_executed_code: Record<CellId, string | undefined> | undefined;
       };
     }
   | {

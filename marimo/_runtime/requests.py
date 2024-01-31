@@ -74,7 +74,6 @@ class ConfigurationRequest:
 
 
 Request = Union[
-    ExecutionRequest,
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
