@@ -19,6 +19,7 @@ import { DependencyGraphPanel } from "@/components/editor/chrome/panels/dependen
 import { VariablePanel } from "../panels/variable-panel";
 import { LogsPanel } from "../panels/logs-panel";
 import { DocumentationPanel } from "../panels/documentation-panel";
+import { FileExplorerPanel } from "../panels/file-explorer-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel, panelLocation } = useChromeState();
@@ -86,6 +87,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <XIcon className="w-4 h-4" />
         </Button>
       </div>
+      {selectedPanel === "files" && <FileExplorerPanel />}
       {selectedPanel === "errors" && <ErrorsPanel />}
       {selectedPanel === "variables" && <VariablePanel />}
       {selectedPanel === "dependencies" && <DependencyGraphPanel />}
