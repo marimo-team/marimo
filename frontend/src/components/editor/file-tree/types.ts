@@ -67,16 +67,19 @@ export const FILE_TYPE_ICONS: Record<FileType, LucideIcon> = {
   unknown: FileIcon,
 };
 
+const TAB = "    ";
+
 export const PYTHON_CODE_FOR_FILE_TYPE: Record<
   FileType,
   (path: string) => string
 > = {
   directory: (path) => `os.listdir("${path}")`,
-  python: (path) => `open("${path}", "r")`,
-  json: (path) => `json.load(open("${path}", "r"))`,
-  code: (path) => `open("${path}", "r")`,
-  text: (path) => `open("${path}", "r")`,
-  image: (path) => `open("${path}", "rb")`,
-  data: (path) => `open("${path}", "r")`,
-  unknown: (path) => `open("${path}", "r")`,
+  python: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
+  json: (path) =>
+    `with open("${path}", "r") as _f:\n${TAB}_data = json.load(_f)\n`,
+  code: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
+  text: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
+  image: (path) => `with open("${path}", "rb") as _f:\n${TAB}...\n`,
+  data: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
+  unknown: (path) => `with open("${path}", "r") as _f:\n${TAB}...\n`,
 };
