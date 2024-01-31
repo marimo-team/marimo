@@ -25,6 +25,9 @@ export function transitionCell(
       // the cell's current code if the user modified it.
       break;
     case "running":
+      // Clear interrupted here in case we start as "running"
+      // This can happen on a resumed session
+      nextCell.interrupted = false;
       // If was previously stopped, clear the outputs
       if (cell.stopped) {
         nextCell.output = null;
