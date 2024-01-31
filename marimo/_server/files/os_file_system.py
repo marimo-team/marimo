@@ -5,29 +5,52 @@ from typing import List
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileInfo
 
+IGNORE_LIST = [
+    "__pycache__",
+    "node_modules",
+]
+
+IGNORE_PREFIXES = [
+    ".",
+]
+
 
 class OSFileSystem(FileSystem):
+    def get_root(self) -> str:
+        return os.getcwd()
+
     def list_files(self, path: str) -> List[FileInfo]:
         files: List[FileInfo] = []
         with os.scandir(path) as it:
             for entry in it:
+                if entry.name in IGNORE_LIST:
+                    continue
+                if any(
+                    entry.name.startswith(prefix) for prefix in IGNORE_PREFIXES
+                ):
+                    continue
+
                 info = FileInfo(
+                    id=entry.path,
                     path=entry.path,
                     name=entry.name,
                     is_directory=entry.is_dir(),
-                    size=entry.stat().st_size if not entry.is_dir() else None,
                     last_modified_date=entry.stat().st_mtime,
                 )
                 files.append(info)
+
+        # Sort by directory first, then by name
+        files.sort(key=lambda f: (not f.is_directory, f.name))
+
         return files
 
     def get_details(self, path: str) -> FileInfo:
         stat = os.stat(path)
         return FileInfo(
+            id=path,
             path=path,
             name=os.path.basename(path),
             is_directory=os.path.isdir(path),
-            size=stat.st_size if not os.path.isdir(path) else None,
             last_modified_date=stat.st_mtime,
         )
 

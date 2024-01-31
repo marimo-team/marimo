@@ -6,6 +6,11 @@ from marimo._server.models.files import FileInfo
 
 class FileSystem(ABC):
     @abstractmethod
+    def get_root(self) -> str:
+        """Get the root path."""
+        pass
+
+    @abstractmethod
     def list_files(self, path: str) -> List[FileInfo]:
         """List files and directories in a given path."""
         pass

@@ -4,23 +4,19 @@ from typing import List, Optional
 
 @dataclass
 class FileInfo:
+    id: str
     path: str
     name: str
     is_directory: bool
-    size: Optional[int] = None  # Size in bytes for files, None for directories
-    creation_date: Optional[str] = None  # Could be in ISO format
     last_modified_date: Optional[float] = None
-    permissions: Optional[
-        str
-    ] = None  # Unix style permissions as a string, e.g., 'rwxr-xr-x'
-    children: List["FileInfo"] = field(
-        default_factory=list
-    )  # Only populated for directories
+    children: List["FileInfo"] = field(default_factory=list)
 
 
 @dataclass
 class FileListRequest:
-    path: str  # The directory path to list files from
+    # The directory path to list files from
+    # If None, the root directory will be used
+    path: Optional[str] = None
 
 
 @dataclass

@@ -29,7 +29,7 @@ router = APIRouter()
 file_system = OSFileSystem()
 
 
-@router.get("/list_files")
+@router.post("/list_files")
 @requires("edit")
 async def list_files(
     *,
@@ -37,11 +37,11 @@ async def list_files(
 ) -> FileListResponse:
     """List files and directories in a given path."""
     body = await parse_request(request, cls=FileListRequest)
-    files = file_system.list_files(body.path)
+    files = file_system.list_files(body.path or file_system.get_root())
     return FileListResponse(files=files)
 
 
-@router.get("/file_details")
+@router.post("/file_details")
 @requires("edit")
 async def file_details(
     *,

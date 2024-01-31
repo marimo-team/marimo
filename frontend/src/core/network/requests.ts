@@ -22,6 +22,7 @@ import {
   RunRequests,
   EditRequests,
   SendStdin,
+  FileListResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -134,6 +135,12 @@ function createNetworkRequests(): EditRequests & RunRequests {
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
+    sendListFiles: (request) => {
+      return API.post<{ path: string | undefined }, FileListResponse>(
+        "/files/list_files",
+        request
+      );
+    },
   };
 }
 
@@ -155,4 +162,5 @@ export const {
   saveCellConfig,
   sendFunctionRequest,
   readCode,
+  sendListFiles,
 } = isStaticNotebook() ? createStaticRequests() : createNetworkRequests();

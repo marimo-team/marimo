@@ -21,6 +21,10 @@ def deep_to_camel_case(snake_dict: Any) -> dict[str, Any]:
     for key, value in snake_dict.items():
         if isinstance(value, dict):
             camel_dict[to_camel_case(key)] = deep_to_camel_case(value)
+        elif isinstance(value, list):
+            camel_dict[to_camel_case(key)] = [
+                deep_to_camel_case(item) for item in value
+            ]
         else:
             camel_dict[to_camel_case(key)] = value
     return camel_dict
