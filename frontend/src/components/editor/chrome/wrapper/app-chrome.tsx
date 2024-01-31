@@ -21,9 +21,12 @@ import { LogsPanel } from "../panels/logs-panel";
 import { DocumentationPanel } from "../panels/documentation-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
-  const { isOpen, selectedPanel, panelLocation } = useChromeState();
+  const { isOpen, selectedPanel } = useChromeState();
   const { setIsOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
+  // We only support 'left' for now
+  // We may add support for a bottom bar, but currently it forces the app to remount
+  const panelLocation = "left";
 
   // sync sidebar
   useEffect(() => {
@@ -104,8 +107,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral",
-        isOpen && "m-4",
-        isOpen && panelLocation === "bottom" && "mt-2"
+        isOpen && "m-4"
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
