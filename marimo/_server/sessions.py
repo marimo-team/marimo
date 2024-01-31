@@ -273,7 +273,9 @@ class Session:
 
     def disconnect_consumer(self) -> None:
         """Stop the session consumer but keep the kernel running"""
-        assert self.session_consumer, "Expecting a session consumer to pause"
+        assert (
+            self.session_consumer is not None
+        ), "Expecting a session consumer to pause"
         LOGGER.debug("Disconnecting session consumer")
         self.session_consumer.on_stop()
         self.unsubscribe_consumer()
@@ -296,13 +298,13 @@ class Session:
         return self.session_view
 
     def connection_state(self) -> ConnectionState:
-        if not self.session_consumer:
+        if self.session_consumer is None:
             return ConnectionState.ORPHANED
         return self.session_consumer.connection_state()
 
     async def write_operation(self, operation: MessageOperation) -> None:
         self.session_view.add_operation(operation)
-        if self.session_consumer:
+        if self.session_consumer is not None:
             await self.session_consumer.write_operation(
                 operation.name, serialize(operation)
             )
@@ -310,7 +312,7 @@ class Session:
     def close(self) -> None:
         # Could be no consumer if we already disconnect, but the session
         # is running in the background
-        if self.session_consumer:
+        if self.session_consumer is not None:
             self.session_consumer.on_stop()
         self.kernel_manager.close_kernel()
         self.message_distributor.stop()
