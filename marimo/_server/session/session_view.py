@@ -8,6 +8,7 @@ from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
+    Interrupted,
     MessageOperation,
     Variables,
     VariableValue,
@@ -109,6 +110,10 @@ class SessionView:
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
                 self.variable_values[value.name] = value
+
+        elif isinstance(operation, Interrupted):
+            # Resolve stdin
+            self.add_stdin("")
 
     @property
     def operations(self) -> list[MessageOperation]:
