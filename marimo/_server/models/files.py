@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -21,76 +22,78 @@ class FileListRequest:
 
 @dataclass
 class FileDetailsRequest:
-    path: str  # The path of the file or directory
+    # The path of the file or directory
+    path: str
 
 
 @dataclass
 class FileOpenRequest:
-    path: str  # The path of the file to open
+    # The path of the file to open
+    path: str
 
 
 @dataclass
 class FileTreeRequest:
-    path: str  # The root directory path for the tree
+    # The root directory path for the tree
+    path: str
 
 
 @dataclass
 class FileCreateRequest:
-    path: str  # The path where to create the file or directory
-    type: str  # 'file' or 'directory'
-    name: str  # The name of the file or directory
+    # The path where to create the file or directory
+    path: str
+    # 'file' or 'directory'
+    type: str
+    # The name of the file or directory
+    name: str
 
 
 @dataclass
 class FileDeleteRequest:
-    path: str  # The path of the file or directory to delete
+    # The path of the file or directory to delete
+    path: str
 
 
 @dataclass
 class FileUpdateRequest:
-    path: str  # The current path of the file or directory
-    new_path: str  # The new path or name for the file or directory
+    # The current path of the file or directory
+    path: str
+    # The new path or name for the file or directory
+    new_path: str
 
 
 @dataclass
 class FileListResponse:
-    files: List[FileInfo]  # Reuse the FileInfo class defined earlier
+    files: List[FileInfo]
 
 
 @dataclass
 class FileDetailsResponse:
-    file: FileInfo  # Reuse the FileInfo class defined earlier
+    file: FileInfo
 
 
 @dataclass
 class FileOpenResponse:
-    content: str  # The content of the file. For binary files, this might need to be encoded.
-
-
-@dataclass
-class FileTreeResponse:
-    tree: FileInfo  # The root of the file tree, using FileInfo with children populated
+    # The content of the file
+    content: str
 
 
 @dataclass
 class FileCreateResponse:
     success: bool
-    message: Optional[
-        str
-    ] = None  # Additional information, e.g., error message
+    # Additional information, e.g., error message
+    message: Optional[str] = None
 
 
 @dataclass
 class FileDeleteResponse:
     success: bool
-    message: Optional[
-        str
-    ] = None  # Additional information, e.g., error message
+    # Additional information, e.g., error message
+    message: Optional[str] = None
 
 
 @dataclass
 class FileUpdateResponse:
     success: bool
-    message: Optional[
-        str
-    ] = None  # Additional information, e.g., error message
+    # Additional information, e.g., error message
+    message: Optional[str] = None

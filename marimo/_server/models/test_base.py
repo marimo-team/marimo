@@ -16,7 +16,7 @@ def test_camel_case() -> None:
     assert to_camel_case("With_Some_CAPS") == "withSomeCaps"
 
 
-def test_deep_to_camel_case():
+def test_deep_to_camel_case() -> None:
     # Simple dictionary
     input_dict = {"first_key": "value1", "second_key": 2}
     expected_output = {"firstKey": "value1", "secondKey": 2}

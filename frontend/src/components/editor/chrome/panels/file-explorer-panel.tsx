@@ -9,6 +9,7 @@ export const FileExplorerPanel: React.FC = (props) => {
 
   return (
     <div ref={ref} className="h-full">
+      <div id="noop-dnd-container" />
       <FileExplorer height={height} />
     </div>
   );

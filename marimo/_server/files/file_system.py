@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from abc import ABC, abstractmethod
 from typing import List
 

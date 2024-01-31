@@ -67,7 +67,7 @@ async def create_file_or_directory(
     return FileCreateResponse(success=success)
 
 
-@router.delete("/delete")
+@router.post("/delete")
 @requires("edit")
 async def delete_file_or_directory(
     *,
@@ -79,7 +79,7 @@ async def delete_file_or_directory(
     return FileDeleteResponse(success=success)
 
 
-@router.patch("/update")
+@router.post("/update")
 @requires("edit")
 async def update_file_or_directory(
     *,

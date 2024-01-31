@@ -2,15 +2,17 @@
 import { NodeApi, NodeRendererProps, Tree, SimpleTree } from "react-arborist";
 
 import React, { useMemo, useState } from "react";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  FileIcon,
-  FolderIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { sendListFiles } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
+import {
+  FILE_TYPE_ICONS,
+  FileType,
+  PYTHON_CODE_FOR_FILE_TYPE,
+  guessFileType,
+} from "./types";
+import { toast } from "@/components/ui/use-toast";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -28,63 +30,107 @@ export const FileExplorer: React.FC<{
     });
   });
 
+  // This is a HACK so that we don't opt into react-arborist's drag and drop
+  // Their DnD implementation is removable and it causes issues with our
+  // our own DnD
+  const element = document.getElementById("noop-dnd-container");
+  if (!element) {
+    return null;
+  }
+
   return (
-    <Tree<FileInfo>
-      width="100%"
-      height={height}
-      className="h-full"
-      data={tree.data}
-      openByDefault={false}
-      onToggle={(id) => {
-        const node = tree.find(id);
-        if (!node) {
-          return;
-        }
-        if (!node.data.isDirectory) {
-          return;
-        }
+    <>
+      <Tree<FileInfo>
+        width="100%"
+        height={height}
+        className="h-full"
+        data={tree.data}
+        dndRootElement={element}
+        openByDefault={false}
+        onToggle={(id) => {
+          const node = tree.find(id);
+          if (!node) {
+            return;
+          }
+          if (!node.data.isDirectory) {
+            return;
+          }
 
-        // We may attempt to load empty directories multiple times
-        // but that is fine
-        if (node.children && node.children.length > 0) {
-          // Already loaded
-          return;
-        }
+          // We may attempt to load empty directories multiple times
+          // but that is fine
+          if (node.children && node.children.length > 0) {
+            // Already loaded
+            return;
+          }
 
-        sendListFiles({ path: id }).then((data) => {
-          tree.update({ id, changes: { children: data.files } });
-          setData(tree.data);
-        });
-      }}
-      padding={15}
-      rowHeight={30}
-      indent={INDENT_STEP}
-      overscanCount={1000}
-      // Not implemented yet
-      disableMultiSelection={true}
-      // disableDrag={true}
-      disableDrop={true}
-      disableEdit={true}
-    >
-      {Node}
-    </Tree>
+          sendListFiles({ path: id }).then((data) => {
+            tree.update({ id, changes: { children: data.files } });
+            setData(tree.data);
+          });
+        }}
+        padding={15}
+        rowHeight={30}
+        indent={INDENT_STEP}
+        overscanCount={1000}
+        // Disable all interactions
+        disableMultiSelection={true}
+        disableDrag={true}
+        disableDrop={true}
+        disableEdit={true}
+      >
+        {Node}
+      </Tree>
+      <div id="noop-dnd-container" />
+    </>
   );
 };
 
 const INDENT_STEP = 15;
 
-const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
-  const Icon = node.isInternal ? FolderIcon : FileIcon;
+const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
+  const fileType: FileType = node.data.isDirectory
+    ? "directory"
+    : guessFileType(node.data.name);
+
+  const Icon = FILE_TYPE_ICONS[fileType];
 
   return (
     <div
-      ref={dragHandle}
       style={style}
       className="flex items-center cursor-pointer gap-2 ml-2 text-muted-foreground whitespace-nowrap"
-      onClick={() => node.isInternal && node.toggle()}
+      onClick={(evt) => {
+        if (node.data.isDirectory) {
+          node.toggle();
+          evt.stopPropagation();
+        }
+      }}
     >
       <FolderArrow node={node} />
-      <Icon className="w-5 h-5 flex-shrink-0" /> <span>{node.data.name}</span>
+      <span
+        className="flex items-center gap-2"
+        draggable={true}
+        onDragStart={(e) => {
+          const { path } = node.data;
+          const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+          e.dataTransfer.setData("text/plain", pythonCode);
+          e.stopPropagation();
+        }}
+        onClick={() => {
+          if (node.data.isDirectory) {
+            return;
+          }
+
+          toast({
+            title: "Copied to clipboard",
+            description: "You can also drag and drop this file into the editor",
+          });
+          const { path } = node.data;
+          const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+          navigator.clipboard.writeText(pythonCode);
+        }}
+      >
+        <Icon className="w-5 h-5 flex-shrink-0" /> <span>{node.data.name}</span>
+      </span>
     </div>
   );
 };

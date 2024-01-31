@@ -97,22 +97,6 @@ class APIRouter(Router):
 
         return decorator
 
-    def patch(
-        self, path: str, include_in_schema: bool = True
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
-        """Patch method."""
-
-        def decorator(func: DecoratedCallable) -> DecoratedCallable:
-            self.add_route(
-                path=self.prefix + path,
-                endpoint=func,
-                methods=["PATCH"],
-                include_in_schema=include_in_schema,
-            )
-            return func
-
-        return decorator
-
     def websocket(
         self, path: str
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
