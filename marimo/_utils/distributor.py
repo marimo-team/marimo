@@ -56,11 +56,8 @@ class Distributor(Generic[T]):
 
     def stop(self) -> None:
         """Stop distributing the response."""
-        if not self.input_connection.closed:
-            asyncio.get_event_loop().remove_reader(
-                self.input_connection.fileno()
-            )
-            self.input_connection.close()
+        # Remove all consumers.
+        self.consumers.clear()
 
     def flush(self) -> None:
         """Flush the distributor."""

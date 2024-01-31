@@ -45,6 +45,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
+from marimo._messaging.types import KernelMessage
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -76,7 +77,6 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
-from marimo._server.model import KernelMessage
 from marimo._server.types import QueueType
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection

@@ -287,6 +287,11 @@ class Alert(Op):
 
 
 @dataclass
+class Reconnected(Op):
+    name: ClassVar[str] = "reconnected"
+
+
+@dataclass
 class Banner(Op):
     name: ClassVar[str] = "banner"
     title: str
@@ -359,6 +364,7 @@ class VariableValues(Op):
 MessageOperation = Union[
     CellOp,
     HumanReadableStatus,
+    Reconnected,
     FunctionCallResult,
     RemoveUIElements,
     Interrupted,

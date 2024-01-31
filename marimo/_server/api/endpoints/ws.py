@@ -5,20 +5,27 @@ import asyncio
 import json
 import os
 from enum import IntEnum
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._messaging.ops import Banner, KernelReady, serialize
+from marimo._messaging.ops import (
+    Alert,
+    Banner,
+    KernelReady,
+    MessageOperation,
+    Reconnected,
+    serialize,
+)
+from marimo._messaging.types import KernelMessage
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._server.api.deps import AppState
 from marimo._server.layout import LayoutConfig, read_layout_config
 from marimo._server.model import (
     ConnectionState,
-    KernelMessage,
     SessionConsumer,
     SessionMode,
 )
@@ -162,11 +169,25 @@ class WebsocketHandler(SessionConsumer):
         if self.cancel_close_handle is not None:
             self.cancel_close_handle.cancel()
 
-        # Write reconnected message
         self.status = ConnectionState.OPEN
         session.connect_consumer(self)
 
-        await self.write_operation("reconnected", None)
+        # Write reconnected message
+        await self.write_operation(Reconnected())
+
+        # If in run mode, we don't need to replay the session
+        # as we assume the frontend is in sync with the backend.
+        # Since you cannot resume a session after closing your browser,
+        # while in run mode.
+        if self.mode is SessionMode.RUN:
+            await self.write_operation(
+                Alert(
+                    title="Reconnected",
+                    description="You have reconnected to an existing session.",
+                )
+            )
+            return
+
         operations = session.get_current_state().operations
         # Replay the current session view
         LOGGER.debug(
@@ -180,18 +201,15 @@ class WebsocketHandler(SessionConsumer):
             last_executed_code=session.get_current_state().last_executed_code,
         )
         await self.write_operation(
-            Banner.name,
-            serialize(
-                Banner(
-                    title="Reconnected",
-                    description="You have reconnected to an existing session.",
-                )
-            ),
+            Banner(
+                title="Reconnected",
+                description="You have reconnected to an existing session.",
+            )
         )
 
         for op in operations:
             LOGGER.debug("Replaying operation %s", serialize(op))
-            await self.write_operation(op.name, serialize(op))
+            await self.write_operation(op)
 
     async def start(self) -> None:
         # Accept the websocket connection
@@ -211,10 +229,11 @@ class WebsocketHandler(SessionConsumer):
             LOGGER.debug(
                 "Refusing connection; a frontend is already connected."
             )
-            await self.websocket.close(
-                WebSocketCodes.ALREADY_CONNECTED,
-                "MARIMO_ALREADY_CONNECTED",
-            )
+            if self.websocket.application_state is WebSocketState.CONNECTED:
+                await self.websocket.close(
+                    WebSocketCodes.ALREADY_CONNECTED,
+                    "MARIMO_ALREADY_CONNECTED",
+                )
             return
 
         # Get resumable possible resumable session
@@ -222,8 +241,6 @@ class WebsocketHandler(SessionConsumer):
 
         # Handle reconnection
         if resumable_session is not None:
-            # TODO: test read mode
-
             # The session already exists, but it was disconnected.
             # This can happen in local development when the client
             # goes to sleep and wakes later. Just replace the session's
@@ -309,10 +326,11 @@ class WebsocketHandler(SessionConsumer):
         )
 
         try:
-            await asyncio.gather(
+            self.future = asyncio.gather(
                 listen_for_messages_task,
                 listen_for_disconnect_task,
             )
+            await self.future
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
             pass
@@ -334,8 +352,8 @@ class WebsocketHandler(SessionConsumer):
 
         return listener
 
-    async def write_operation(self, op: str, data: Any) -> None:
-        await self.message_queue.put((op, data))
+    async def write_operation(self, op: MessageOperation) -> None:
+        await self.message_queue.put((op.name, serialize(op)))
 
     def on_stop(self) -> None:
         # Cancel the heartbeat task, reader
@@ -345,13 +363,15 @@ class WebsocketHandler(SessionConsumer):
         # If the websocket is open, send a close message
         if (
             self.status == ConnectionState.OPEN
-            and self.websocket.application_state == WebSocketState.CONNECTED
+            and self.websocket.application_state is WebSocketState.CONNECTED
         ):
             asyncio.create_task(
                 self.websocket.close(
                     WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
                 )
             )
+
+        self.future.cancel()
 
     def connection_state(self) -> ConnectionState:
         return self.status

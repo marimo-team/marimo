@@ -74,7 +74,7 @@ def test_refresh_session(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=456") as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": None}
+        assert data == {"op": "reconnected", "data": {}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
@@ -98,7 +98,7 @@ def test_refresh_session(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=789") as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": None}
+        assert data == {"op": "reconnected", "data": {}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(
@@ -161,7 +161,7 @@ def test_save_session(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=456") as websocket:
         # First message is the kernel reconnected
         data = websocket.receive_json()
-        assert data == {"op": "reconnected", "data": None}
+        assert data == {"op": "reconnected", "data": {}}
         # Resume the session
         data = websocket.receive_json()
         assert_kernel_ready_response(

@@ -1,11 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 import abc
 from enum import Enum
-from typing import Any, Callable, Tuple
+from typing import Callable
 
-# The message from the kernel is a tuple of message type
-# and a json representation of the message
-KernelMessage = Tuple[str, Any]
+from marimo._messaging.ops import MessageOperation
+from marimo._messaging.types import KernelMessage
 
 
 class ConnectionState(Enum):
@@ -49,7 +48,7 @@ class SessionConsumer(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def write_operation(self, op: str, data: Any) -> None:
+    async def write_operation(self, op: MessageOperation) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

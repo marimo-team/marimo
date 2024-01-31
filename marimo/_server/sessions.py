@@ -30,13 +30,13 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._messaging.ops import Alert, MessageOperation, serialize
+from marimo._messaging.ops import Alert, MessageOperation
+from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import AppMetadata
 from marimo._server.model import (
     ConnectionState,
-    KernelMessage,
     SessionConsumer,
     SessionMode,
 )
@@ -305,9 +305,7 @@ class Session:
     async def write_operation(self, operation: MessageOperation) -> None:
         self.session_view.add_operation(operation)
         if self.session_consumer is not None:
-            await self.session_consumer.write_operation(
-                operation.name, serialize(operation)
-            )
+            await self.session_consumer.write_operation(operation)
 
     def close(self) -> None:
         # Could be no consumer if we already disconnect, but the session
