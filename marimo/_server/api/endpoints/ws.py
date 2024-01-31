@@ -159,7 +159,9 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-    async def _reconnect_session(self, session: "Session", replay: bool):
+    async def _reconnect_session(
+        self, session: "Session", replay: bool
+    ) -> None:
         """Reconnect to an existing session (kernel).
 
         A websocket can be closed when a user's computer goes to sleep,
