@@ -1,0 +1,361 @@
+/* Generated from by:
+
+copy(Array.from(document.getElementById("plotly.js-style-global").sheet.cssRules)
+  .map((rule) => rule.cssText)
+  .filter((rule) => rule.includes("mapboxgl"))
+  .join("\n"))
+
+We include these manually because plotly.js
+1) adds these at runtime via JS (not available to pull in via CSS)
+2) add them to the wrong place (to the document head, instead of the shadow DOM)
+
+See https://github.com/plotly/plotly.js/issues/1433
+*/
+
+.js-plotly-plot .plotly .mapboxgl-ctrl-logo {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3C?xml version="1.0" encoding="utf-8"?%3E %3Csvg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 21 21" style="enable-background:new 0 0 21 21;" xml:space="preserve"%3E%3Cg transform="translate(0,0.01)"%3E%3Cpath d="m 10.5,1.24 c -5.11,0 -9.25,4.15 -9.25,9.25 0,5.1 4.15,9.25 9.25,9.25 5.1,0 9.25,-4.15 9.25,-9.25 0,-5.11 -4.14,-9.25 -9.25,-9.25 z m 4.39,11.53 c -1.93,1.93 -4.78,2.31 -6.7,2.31 -0.7,0 -1.41,-0.05 -2.1,-0.16 0,0 -1.02,-5.64 2.14,-8.81 0.83,-0.83 1.95,-1.28 3.13,-1.28 1.27,0 2.49,0.51 3.39,1.42 1.84,1.84 1.89,4.75 0.14,6.52 z" style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3Cpath d="M 10.5,-0.01 C 4.7,-0.01 0,4.7 0,10.49 c 0,5.79 4.7,10.5 10.5,10.5 5.8,0 10.5,-4.7 10.5,-10.5 C 20.99,4.7 16.3,-0.01 10.5,-0.01 Z m 0,19.75 c -5.11,0 -9.25,-4.15 -9.25,-9.25 0,-5.1 4.14,-9.26 9.25,-9.26 5.11,0 9.25,4.15 9.25,9.25 0,5.13 -4.14,9.26 -9.25,9.26 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpath d="M 14.74,6.25 C 12.9,4.41 9.98,4.35 8.23,6.1 5.07,9.27 6.09,14.91 6.09,14.91 c 0,0 5.64,1.02 8.81,-2.14 C 16.64,11 16.59,8.09 14.74,6.25 Z m -2.27,4.09 -0.91,1.87 -0.9,-1.87 -1.86,-0.91 1.86,-0.9 0.9,-1.87 0.91,1.87 1.86,0.9 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpolygon points="11.56,12.21 10.66,10.34 8.8,9.43 10.66,8.53 11.56,6.66 12.47,8.53 14.33,9.43 12.47,10.34 " style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3C/g%3E%3C/svg%3E');
+}
+.js-plotly-plot .plotly .mapboxgl-attrib-empty {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib .mapbox-improve-map {
+  font-weight: bold;
+  margin-left: 2px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0px 10px 10px 0px;
+  float: right;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl {
+  margin: 0px 0px 10px 10px;
+  float: left;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-left
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-right
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  right: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact {
+  min-height: 20px;
+  padding: 0px;
+  margin: 10px;
+  position: relative;
+  background-color: rgb(255, 255, 255);
+  border-radius: 3px 12px 12px 3px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  content: "";
+  cursor: pointer;
+  position: absolute;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"%3E %3Cpath fill="%23333333" fill-rule="evenodd" d="M4,10a6,6 0 1,0 12,0a6,6 0 1,0 -12,0 M9,7a1,1 0 1,0 2,0a1,1 0 1,0 -2,0 M9,10a1,1 0 1,1 2,0l0,3a1,1 0 1,1 -2,0"/%3E %3C/svg%3E');
+  background-color: rgba(255, 255, 255, 0.5);
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact:hover {
+  padding: 2px 24px 2px 4px;
+  visibility: visible;
+  margin-top: 6px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact:hover
+  .mapboxgl-ctrl-attrib-inner {
+  display: block;
+  margin-top: 2px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact
+  .mapboxgl-ctrl-attrib-inner {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl {
+  clear: both;
+  pointer-events: auto;
+  transform: translate(0px, 0px);
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  right: 0px;
+  bottom: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-canary {
+  background-color: salmon;
+}
+.js-plotly-plot .plotly .mapboxgl-missing-css {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-map {
+  overflow: hidden;
+  position: relative;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-logo {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3C?xml version="1.0" encoding="utf-8"?%3E %3Csvg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 21 21" style="enable-background:new 0 0 21 21;" xml:space="preserve"%3E%3Cg transform="translate(0,0.01)"%3E%3Cpath d="m 10.5,1.24 c -5.11,0 -9.25,4.15 -9.25,9.25 0,5.1 4.15,9.25 9.25,9.25 5.1,0 9.25,-4.15 9.25,-9.25 0,-5.11 -4.14,-9.25 -9.25,-9.25 z m 4.39,11.53 c -1.93,1.93 -4.78,2.31 -6.7,2.31 -0.7,0 -1.41,-0.05 -2.1,-0.16 0,0 -1.02,-5.64 2.14,-8.81 0.83,-0.83 1.95,-1.28 3.13,-1.28 1.27,0 2.49,0.51 3.39,1.42 1.84,1.84 1.89,4.75 0.14,6.52 z" style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3Cpath d="M 10.5,-0.01 C 4.7,-0.01 0,4.7 0,10.49 c 0,5.79 4.7,10.5 10.5,10.5 5.8,0 10.5,-4.7 10.5,-10.5 C 20.99,4.7 16.3,-0.01 10.5,-0.01 Z m 0,19.75 c -5.11,0 -9.25,-4.15 -9.25,-9.25 0,-5.1 4.14,-9.26 9.25,-9.26 5.11,0 9.25,4.15 9.25,9.25 0,5.13 -4.14,9.26 -9.25,9.26 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpath d="M 14.74,6.25 C 12.9,4.41 9.98,4.35 8.23,6.1 5.07,9.27 6.09,14.91 6.09,14.91 c 0,0 5.64,1.02 8.81,-2.14 C 16.64,11 16.59,8.09 14.74,6.25 Z m -2.27,4.09 -0.91,1.87 -0.9,-1.87 -1.86,-0.91 1.86,-0.9 0.9,-1.87 0.91,1.87 1.86,0.9 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpolygon points="11.56,12.21 10.66,10.34 8.8,9.43 10.66,8.53 11.56,6.66 12.47,8.53 14.33,9.43 12.47,10.34 " style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3C/g%3E%3C/svg%3E');
+}
+.js-plotly-plot .plotly .mapboxgl-attrib-empty {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib .mapbox-improve-map {
+  font-weight: bold;
+  margin-left: 2px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0px 10px 10px 0px;
+  float: right;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl {
+  margin: 0px 0px 10px 10px;
+  float: left;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-left
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-right
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  right: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact {
+  min-height: 20px;
+  padding: 0px;
+  margin: 10px;
+  position: relative;
+  background-color: rgb(255, 255, 255);
+  border-radius: 3px 12px 12px 3px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  content: "";
+  cursor: pointer;
+  position: absolute;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"%3E %3Cpath fill="%23333333" fill-rule="evenodd" d="M4,10a6,6 0 1,0 12,0a6,6 0 1,0 -12,0 M9,7a1,1 0 1,0 2,0a1,1 0 1,0 -2,0 M9,10a1,1 0 1,1 2,0l0,3a1,1 0 1,1 -2,0"/%3E %3C/svg%3E');
+  background-color: rgba(255, 255, 255, 0.5);
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact:hover {
+  padding: 2px 24px 2px 4px;
+  visibility: visible;
+  margin-top: 6px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact:hover
+  .mapboxgl-ctrl-attrib-inner {
+  display: block;
+  margin-top: 2px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact
+  .mapboxgl-ctrl-attrib-inner {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl {
+  clear: both;
+  pointer-events: auto;
+  transform: translate(0px, 0px);
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  right: 0px;
+  bottom: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-canary {
+  background-color: salmon;
+}
+.js-plotly-plot .plotly .mapboxgl-missing-css {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-map {
+  overflow: hidden;
+  position: relative;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-logo {
+  display: block;
+  width: 21px;
+  height: 21px;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3C?xml version="1.0" encoding="utf-8"?%3E %3Csvg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 21 21" style="enable-background:new 0 0 21 21;" xml:space="preserve"%3E%3Cg transform="translate(0,0.01)"%3E%3Cpath d="m 10.5,1.24 c -5.11,0 -9.25,4.15 -9.25,9.25 0,5.1 4.15,9.25 9.25,9.25 5.1,0 9.25,-4.15 9.25,-9.25 0,-5.11 -4.14,-9.25 -9.25,-9.25 z m 4.39,11.53 c -1.93,1.93 -4.78,2.31 -6.7,2.31 -0.7,0 -1.41,-0.05 -2.1,-0.16 0,0 -1.02,-5.64 2.14,-8.81 0.83,-0.83 1.95,-1.28 3.13,-1.28 1.27,0 2.49,0.51 3.39,1.42 1.84,1.84 1.89,4.75 0.14,6.52 z" style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3Cpath d="M 10.5,-0.01 C 4.7,-0.01 0,4.7 0,10.49 c 0,5.79 4.7,10.5 10.5,10.5 5.8,0 10.5,-4.7 10.5,-10.5 C 20.99,4.7 16.3,-0.01 10.5,-0.01 Z m 0,19.75 c -5.11,0 -9.25,-4.15 -9.25,-9.25 0,-5.1 4.14,-9.26 9.25,-9.26 5.11,0 9.25,4.15 9.25,9.25 0,5.13 -4.14,9.26 -9.25,9.26 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpath d="M 14.74,6.25 C 12.9,4.41 9.98,4.35 8.23,6.1 5.07,9.27 6.09,14.91 6.09,14.91 c 0,0 5.64,1.02 8.81,-2.14 C 16.64,11 16.59,8.09 14.74,6.25 Z m -2.27,4.09 -0.91,1.87 -0.9,-1.87 -1.86,-0.91 1.86,-0.9 0.9,-1.87 0.91,1.87 1.86,0.9 z" style="opacity:0.35;enable-background:new" class="st1"/%3E%3Cpolygon points="11.56,12.21 10.66,10.34 8.8,9.43 10.66,8.53 11.56,6.66 12.47,8.53 14.33,9.43 12.47,10.34 " style="opacity:0.9;fill:%23ffffff;enable-background:new" class="st0"/%3E%3C/g%3E%3C/svg%3E');
+}
+.js-plotly-plot .plotly .mapboxgl-attrib-empty {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib .mapbox-improve-map {
+  font-weight: bold;
+  margin-left: 2px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a:hover {
+  color: inherit;
+  text-decoration: underline;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib a {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib {
+  color: rgba(0, 0, 0, 0.75);
+  text-decoration: none;
+  font-size: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0px 10px 10px 0px;
+  float: right;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl {
+  margin: 0px 0px 10px 10px;
+  float: left;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-left
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-bottom-right
+  > .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  bottom: 0px;
+  right: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact {
+  min-height: 20px;
+  padding: 0px;
+  margin: 10px;
+  position: relative;
+  background-color: rgb(255, 255, 255);
+  border-radius: 3px 12px 12px 3px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact::after {
+  content: "";
+  cursor: pointer;
+  position: absolute;
+  background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"%3E %3Cpath fill="%23333333" fill-rule="evenodd" d="M4,10a6,6 0 1,0 12,0a6,6 0 1,0 -12,0 M9,7a1,1 0 1,0 2,0a1,1 0 1,0 -2,0 M9,10a1,1 0 1,1 2,0l0,3a1,1 0 1,1 -2,0"/%3E %3C/svg%3E');
+  background-color: rgba(255, 255, 255, 0.5);
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 12px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-attrib.mapboxgl-compact:hover {
+  padding: 2px 24px 2px 4px;
+  visibility: visible;
+  margin-top: 6px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact:hover
+  .mapboxgl-ctrl-attrib-inner {
+  display: block;
+  margin-top: 2px;
+}
+.js-plotly-plot
+  .plotly
+  .mapboxgl-ctrl-attrib.mapboxgl-compact
+  .mapboxgl-ctrl-attrib-inner {
+  display: none;
+}
+.mapboxgl-ctrl-attrib-inner {
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl {
+  clear: both;
+  pointer-events: auto;
+  transform: translate(0px, 0px);
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-right {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  right: 0px;
+  bottom: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-ctrl-bottom-left {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  bottom: 0px;
+  left: 0px;
+}
+.js-plotly-plot .plotly .mapboxgl-canary {
+  background-color: salmon;
+}
+.js-plotly-plot .plotly .mapboxgl-missing-css {
+  display: none;
+}
+.js-plotly-plot .plotly .mapboxgl-map {
+  overflow: hidden;
+  position: relative;
+}
