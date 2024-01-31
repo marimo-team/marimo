@@ -64,6 +64,7 @@ def test_without_session(client: TestClient) -> None:
             raise AssertionError()
     assert exc_info.value.code == 1000
     assert exc_info.value.reason == "MARIMO_NO_SESSION_ID"
+    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_and_reconnect(client: TestClient) -> None:
