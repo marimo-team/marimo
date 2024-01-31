@@ -28,7 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
-import { useRestartKernel } from "./useRestartKenel";
+import { useRestartKernel } from "./useRestartKernel";
 
 export function useNotebookActions() {
   const [filename] = useFilename();

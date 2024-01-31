@@ -5,7 +5,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
-import { useRestartKernel } from "./actions/useRestartKenel";
+import { useRestartKernel } from "./actions/useRestartKernel";
 
 export const NotebookBanner: React.FC = (props) => {
   const { banners } = useBanners();
