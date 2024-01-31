@@ -107,7 +107,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     >
       <FolderArrow node={node} />
       <span
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1"
         draggable={true}
         onDragStart={(e) => {
           const { path } = node.data;
@@ -122,7 +122,8 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
 
           toast({
             title: "Copied to clipboard",
-            description: "You can also drag and drop this file into the editor",
+            description:
+              "Code to open the file has been copied to your clipboard. You can also drag and drop this file into the editor",
           });
           const { path } = node.data;
           const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
