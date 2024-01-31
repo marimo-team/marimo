@@ -1,11 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 import abc
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Tuple
 
 # The message from the kernel is a tuple of message type
 # and a json representation of the message
-KernelMessage = tuple[str, Any]
+KernelMessage = Tuple[str, Any]
 
 
 class ConnectionState(Enum):
