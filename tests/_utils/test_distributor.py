@@ -1,9 +1,13 @@
-from unittest.mock import MagicMock
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 from marimo._utils.distributor import Distributor
 
 
-def test_start():
+@patch("asyncio.get_event_loop")
+def test_start(mock_get_event_loop: Any) -> None:
+    mock_get_event_loop.return_value = MagicMock()
+
     mock_connection = MagicMock()
     distributor = Distributor[str](mock_connection)
 
