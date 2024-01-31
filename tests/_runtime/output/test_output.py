@@ -35,3 +35,33 @@ def test_spinner_removed(
                 mocked_kernel.stream.messages[i + 1][1]["output"]["data"] == ""
             )
     assert found_progress
+
+
+def test_mutating_appended_outputs(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    # append the same object multiple times, but mutate it in between
+    # appends. make sure the final output message contains the both
+    # versions of the object (before and after mutation)
+    mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+
+                x = ["before"]
+                mo.output.append(x)
+                x[0] = "after"
+                mo.output.append(x)
+                """
+            )
+        ]
+    )
+    outputs: list[str] = []
+    for msg in mocked_kernel.stream.messages:
+        if msg[0] == "cell-op" and msg[1]["output"] is not None:
+            outputs.append(msg[1]["output"]["data"])
+    assert len(outputs) == 2
+    assert "before" in outputs[0]
+    assert "before" in outputs[1]
+    assert "after" in outputs[1]
