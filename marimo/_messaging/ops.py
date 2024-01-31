@@ -14,9 +14,11 @@ from typing import (
     Any,
     ClassVar,
     Dict,
+    List,
     Literal,
     Optional,
     Sequence,
+    Tuple,
     Union,
     cast,
 )
@@ -72,7 +74,7 @@ class CellOp(Op):
     name: ClassVar[str] = "cell-op"
     cell_id: CellId_t
     output: Optional[CellOutput] = None
-    console: Optional[Union[CellOutput, list[CellOutput]]] = None
+    console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[CellStatusType] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
@@ -210,8 +212,8 @@ class HumanReadableStatus(Op):
     """Human-readable status."""
 
     code: Literal["ok", "error"]
-    title: str | None = None
-    message: str | None = None
+    title: Union[str, None] = None
+    message: Union[str, None] = None
 
 
 @dataclass
@@ -252,15 +254,15 @@ class KernelReady(Op):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
+    cell_ids: Tuple[CellId_t, ...]
+    codes: Tuple[str, ...]
+    names: Tuple[str, ...]
     layout: Optional[LayoutConfig]
-    configs: tuple[CellConfig, ...]
+    configs: Tuple[CellConfig, ...]
     # Whether the kernel was resumed from a previous session
     resumed: bool
     # If the kernel was resumed, the values of the UI elements
-    ui_values: Optional[dict[str, JSONType]]
+    ui_values: Optional[Dict[str, JSONType]]
 
 
 @dataclass
@@ -270,7 +272,7 @@ class CompletionResult(Op):
     name: ClassVar[str] = "completion-result"
     completion_id: str
     prefix_length: int
-    options: list[CompletionOption]
+    options: List[CompletionOption]
 
 
 @dataclass
@@ -295,8 +297,8 @@ class Banner(Op):
 @dataclass
 class VariableDeclaration:
     name: str
-    declared_by: list[CellId_t]
-    used_by: list[CellId_t]
+    declared_by: List[CellId_t]
+    used_by: List[CellId_t]
 
 
 @dataclass
@@ -341,7 +343,7 @@ class Variables(Op):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
-    variables: list[VariableDeclaration]
+    variables: List[VariableDeclaration]
 
 
 @dataclass
@@ -349,7 +351,7 @@ class VariableValues(Op):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
-    variables: list[VariableValue]
+    variables: List[VariableValue]
 
 
 MessageOperation = Union[
