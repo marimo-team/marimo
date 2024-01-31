@@ -75,7 +75,7 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {}}
         data = websocket.receive_json()
-        assert_kernel_ready_response(data, create_response({"resumed": True}))
+        assert data["op"] == "alert"
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
@@ -90,7 +90,7 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {}}
         data = websocket.receive_json()
-        assert_kernel_ready_response(data, create_response({"resumed": True}))
+        assert data["op"] == "alert"
     # New session with new ID (simulates refresh)
     with client.websocket_connect("/ws?session_id=456") as websocket:
         data = websocket.receive_json()

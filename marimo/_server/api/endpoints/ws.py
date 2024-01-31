@@ -159,7 +159,7 @@ class WebsocketHandler(SessionConsumer):
             )
         )
 
-    async def _reconnect_session(self, session: "Session") -> None:
+    async def _reconnect_session(self, session: "Session", replay: bool):
         """Reconnect to an existing session (kernel).
 
         A websocket can be closed when a user's computer goes to sleep,
@@ -175,11 +175,8 @@ class WebsocketHandler(SessionConsumer):
         # Write reconnected message
         await self.write_operation(Reconnected())
 
-        # If in run mode, we don't need to replay the session
-        # as we assume the frontend is in sync with the backend.
-        # Since you cannot resume a session after closing your browser,
-        # while in run mode.
-        if self.mode is SessionMode.RUN:
+        # If not replaying, just send a toast
+        if not replay:
             await self.write_operation(
                 Alert(
                     title="Reconnected",
@@ -236,34 +233,48 @@ class WebsocketHandler(SessionConsumer):
                 )
             return
 
-        # Get resumable possible resumable session
-        resumable_session = mgr.maybe_resume_session(session_id)
+        async def get_session() -> Session:
+            # 1. Handle reconnection
 
-        # Handle reconnection
-        if resumable_session is not None:
             # The session already exists, but it was disconnected.
             # This can happen in local development when the client
             # goes to sleep and wakes later. Just replace the session's
             # socket, but keep its kernel
-            LOGGER.debug("Reconnecting session %s", session_id)
-            await self._reconnect_session(resumable_session)
-        # Create a new session
-        else:
+            existing_session = mgr.get_session(session_id)
+            if existing_session is not None:
+                LOGGER.debug("Reconnecting session %s", session_id)
+                await self._reconnect_session(existing_session, replay=False)
+                return existing_session
+
+            # 2. Handle resume
+
+            # Get resumable possible resumable session
+            resumable_session = mgr.maybe_resume_session(session_id)
+            if resumable_session is not None:
+                LOGGER.debug("Resuming session %s", session_id)
+                await self._reconnect_session(resumable_session, replay=True)
+                return resumable_session
+
+            # 3. Create a new session
+
             # If the client refreshed their page, there will be one
             # existing session with a closed socket for a different session
             # id; that's why we call `close_all_sessions`.
             if mgr.mode == SessionMode.EDIT:
                 mgr.close_all_sessions()
 
-            session = mgr.create_session(
+            new_session = mgr.create_session(
                 session_id=session_id,
                 session_consumer=self,
             )
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
             await self._write_kernel_ready(
-                session, resumed=False, ui_values={}, last_executed_code={}
+                new_session, resumed=False, ui_values={}, last_executed_code={}
             )
+            return new_session
+
+        await get_session()
 
         async def listen_for_messages() -> None:
             while True:
