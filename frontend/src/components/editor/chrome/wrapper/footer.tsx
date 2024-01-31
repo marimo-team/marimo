@@ -10,7 +10,6 @@ import {
   FileTextIcon,
   MessageCircleQuestionIcon,
   BookMarkedIcon,
-  FileIcon,
   FolderTreeIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
