@@ -147,11 +147,12 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
           navigator.clipboard.writeText(pythonCode);
         }}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" />
+        <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />
         <span className="flex-1">{node.data.name}</span>
         {node.data.isMarimoFile ? (
           <Tooltip content="Open file">
             <PlaySquareIcon
+              strokeWidth={1.5}
               onClick={async (e) => {
                 e.stopPropagation();
                 openConfirm({
