@@ -98,3 +98,20 @@ class TestStderr:
             ]
         )
         assert mocked_kernel.stderr.messages == ["hello", "there"]
+
+
+def test_import_multiprocessing(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    mocked_kernel.k.run(
+        [
+            exec_req.get(
+                """
+                from multiprocessing import Manager
+                mymanager = Manager().dict()
+                print("hello")
+                """
+            )
+        ]
+    )
+    assert mocked_kernel.stdout.messages == ["hello", "\n"]

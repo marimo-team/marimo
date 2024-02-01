@@ -318,10 +318,10 @@ def _restore_fds(
     # close these fds before reusing them, which ensures that the
     # forwarding threads will terminate.
     os.dup2(fd_dup, original_fd)
+    os.close(fd_read)
     forwarding_thread.join()
     # Close since the original descriptor has been restored
     os.close(fd_dup)
-    os.close(fd_read)
 
 
 @contextlib.contextmanager
