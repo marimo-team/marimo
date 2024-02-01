@@ -35,7 +35,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       return;
     }
 
-    const isCurrentlyCollapsed = sidebarRef.current.getCollapsed();
+    const isCurrentlyCollapsed = sidebarRef.current.isCollapsed();
     if (isOpen && isCurrentlyCollapsed) {
       sidebarRef.current.expand();
     }
@@ -121,7 +121,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           sidebarRef.current?.resize(30);
         }
       }}
-      onCollapse={(collapsed) => setIsOpen(!collapsed)}
+      onCollapse={() => setIsOpen(false)}
+      onExpand={() => setIsOpen(true)}
     >
       {panelLocation === "left" ? (
         <span className="flex flex-row h-full">

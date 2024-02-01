@@ -91,7 +91,12 @@ export default defineConfig({
     htmlDevPlugin(),
     react({
       tsDecorators: true,
-      plugins: isDev ? [["@swc-jotai/react-refresh", {}]] : undefined,
+      plugins: isDev
+        ? [
+            // Fails on latest Vite
+            // ["@swc-jotai/react-refresh", {}]
+          ]
+        : undefined,
     }),
     tsconfigPaths(),
   ],
