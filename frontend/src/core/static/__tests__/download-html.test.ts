@@ -103,7 +103,7 @@ describe("download-html", () => {
       existingDocument: new JSDOM(DOC).window.document,
     });
 
-    const formattedResult = prettier.format(result, {
+    const formattedResult = await prettier.format(result, {
       parser: "html",
     });
     expect(formattedResult).toMatchSnapshot();
