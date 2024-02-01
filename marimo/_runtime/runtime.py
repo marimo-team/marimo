@@ -47,6 +47,7 @@ from marimo._messaging.ops import (
 from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
 from marimo._messaging.types import KernelMessage
 from marimo._output import formatting
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
@@ -146,7 +147,7 @@ class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
     # output object set imperatively
-    output: Optional[list[object]] = None
+    output: Optional[list[Html]] = None
 
 
 @dataclasses.dataclass

@@ -7,6 +7,7 @@ import type { Figure } from "react-plotly.js";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
+import "./mapbox.css";
 import { lazy, memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { PlotlyTemplateParser, createParser } from "./parse-from-template";

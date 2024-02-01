@@ -107,6 +107,18 @@ interface ValueUpdate {
   value: unknown;
 }
 
+export interface FileInfo {
+  id: string;
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  children: FileInfo[];
+}
+
+export interface FileListResponse {
+  files: FileInfo[];
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -137,4 +149,8 @@ export interface EditRequests {
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
+  // File explorer requests
+  sendListFiles: (request: {
+    path: string | undefined;
+  }) => Promise<FileListResponse>;
 }

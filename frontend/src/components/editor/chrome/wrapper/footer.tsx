@@ -8,6 +8,7 @@ import {
   FileTextIcon,
   MessageCircleQuestionIcon,
   BookMarkedIcon,
+  FolderTreeIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
@@ -34,6 +35,13 @@ export const Footer: React.FC = () => {
           })}
         />
         <span className="font-mono mt-[0.125rem]">{errorCount}</span>
+      </FooterItem>
+      <FooterItem
+        tooltip="View files"
+        selected={selectedPanel === "files"}
+        onClick={() => openApplication("files")}
+      >
+        <FolderTreeIcon className={cn("h-5 w-5")} />
       </FooterItem>
       <FooterItem
         tooltip="Explore variables"
