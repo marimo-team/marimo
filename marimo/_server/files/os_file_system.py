@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import os
 import shutil
-from operator import is_
 from typing import List
 
 from marimo._server.files.file_system import FileSystem

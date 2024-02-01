@@ -533,7 +533,7 @@ class LspServer:
     def start(self) -> Optional[Alert]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")
-            return
+            return None
 
         binpath = shutil.which("node")
         if binpath is None:
@@ -570,6 +570,8 @@ class LspServer:
                 cmd,
                 e,
             )
+
+        return None
 
     def stop(self) -> None:
         if self.process is not None:

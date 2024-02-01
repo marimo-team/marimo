@@ -40,8 +40,8 @@ class AppState:
         )
         self.user_config: MarimoConfig = request.app.state.user_config
         self._server: Server = request.app.state.server
-        self._host = request.app.state.host
-        self._port = request.app.state.port
+        self._host: str = request.app.state.host
+        self._port: int = request.app.state.port
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""

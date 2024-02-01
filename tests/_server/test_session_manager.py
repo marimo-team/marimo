@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, Mock, patch
+import asyncio
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -28,6 +29,13 @@ def session_manager():
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
     )
+
+
+def test_start_lsp_server(session_manager: SessionManager):
+    asyncio.get_event_loop().run_until_complete(
+        session_manager.start_lsp_server()
+    )
+    session_manager.lsp_server.start.assert_called_once()
 
 
 def test_create_session(
