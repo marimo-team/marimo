@@ -157,6 +157,6 @@ def merge_cell_operation(
 
 
 def as_list(value: Union[Any, Optional[Any], list[Any]]) -> list[Any]:
-    if not value:
+    if value is None:
         return []
     return value if isinstance(value, list) else [value]
