@@ -27,11 +27,11 @@ export const CommandPalette = () => {
   const registeredActions = useRegisteredActions();
   const notebookActions = useNotebookActions();
   const notebookActionsWithoutHotkeys = notebookActions.filter(
-    (action) => !action.hotkey
+    (action) => !action.hotkey,
   );
   const keyedNotebookActions = Objects.keyBy(
     notebookActionsWithoutHotkeys,
-    (action) => action.label
+    (action) => action.label,
   );
 
   const { recentCommands, addRecentCommand } = useRecentCommands();

@@ -20,7 +20,7 @@ export const LanguageToggle: React.FC<Props> = ({
   canUseMarkdown,
 }) => {
   const [languageAdapter, setLanguageAdapter] = useState(
-    editorView.state.field(languageAdapterState).type
+    editorView.state.field(languageAdapterState).type,
   );
 
   if (!canUseMarkdown && languageAdapter !== "markdown") {

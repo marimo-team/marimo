@@ -37,7 +37,7 @@ try {
           <MarimoApp />
         </ThemeProvider>
       </Provider>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 } catch (error) {
   // Most likely, configuration failed to parse.
@@ -47,7 +47,7 @@ try {
   root.render(
     <ErrorBoundary>
       <Throw />
-    </ErrorBoundary>
+    </ErrorBoundary>,
   );
 } finally {
   reportVitals();

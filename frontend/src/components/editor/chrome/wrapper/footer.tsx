@@ -105,7 +105,7 @@ const FooterItem: React.FC<
           "h-full flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
           !selected && "hover:bg-[var(--sage-3)]",
           selected && "bg-[var(--sage-4)]",
-          className
+          className,
         )}
         {...rest}
       >

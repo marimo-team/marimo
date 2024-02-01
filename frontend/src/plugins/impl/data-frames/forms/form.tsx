@@ -80,7 +80,7 @@ export const ZodForm = <T extends FieldValues>({
 function renderZodSchema<T extends FieldValues, S>(
   schema: z.ZodType<S>,
   form: UseFormReturn<T>,
-  path: Path<T>
+  path: Path<T>,
 ) {
   const {
     label,
@@ -108,7 +108,7 @@ function renderZodSchema<T extends FieldValues, S>(
       <div
         className={cn(
           "flex",
-          direction === "row" ? "flex-row gap-6 items-start" : "flex-col gap-6"
+          direction === "row" ? "flex-row gap-6 items-start" : "flex-col gap-6",
         )}
       >
         <FormLabel>{label}</FormLabel>
@@ -117,7 +117,7 @@ function renderZodSchema<T extends FieldValues, S>(
           const childForm = renderZodSchema(
             value as z.ZodType<unknown>,
             form,
-            `${path}.${key}` as Path<T>
+            `${path}.${key}` as Path<T>,
           );
 
           if (isLiteral) {
@@ -360,7 +360,7 @@ const StyledFormMessage = ({ className }: { className?: string }) => {
     <FormMessageTooltip
       className={cn(
         "absolute -left-6 bottom-0 text-destructive text-xs w-[16px]",
-        className
+        className,
       )}
     />
   );
@@ -381,7 +381,7 @@ const FormArray = ({
   minLength?: number;
 }) => {
   const { label, description } = FieldOptions.parse(
-    schema._def.description || ""
+    schema._def.description || "",
   );
 
   const control = form.control;
@@ -593,7 +593,7 @@ const FilterForm = ({
   const columnIdSchema = Objects.entries(schema._def.shape()).find(
     ([key, value]) => {
       return key === "column_id";
-    }
+    },
   )?.[1] as unknown as z.ZodString;
 
   // existing values
@@ -641,7 +641,7 @@ const FilterForm = ({
         >
           <FormLabel className="whitespace-pre"> </FormLabel>
           <div>This column type does not support filtering.</div>
-        </div>
+        </div>,
       );
     } else {
       children.push(
@@ -674,7 +674,7 @@ const FilterForm = ({
               <FormMessage />
             </FormItem>
           )}
-        />
+        />,
       );
     }
   }
@@ -688,7 +688,7 @@ const FilterForm = ({
           <ColumnNameContext.Provider value={columnId}>
             {renderZodSchema(operandSchemas[0], form, `${path}.value`)}
           </ColumnNameContext.Provider>
-        </React.Fragment>
+        </React.Fragment>,
       );
     }
   }
@@ -720,7 +720,7 @@ const StringFormField = ({
   path: Path<any>;
 }) => {
   const { label, description, placeholder, disabled } = FieldOptions.parse(
-    schema._def.description
+    schema._def.description,
   );
 
   return (
@@ -761,7 +761,7 @@ const MultiStringFormField = ({
   path: Path<any>;
 }) => {
   const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description
+    schema._def.description,
   );
 
   return (
@@ -800,7 +800,7 @@ const SelectFormField = ({
   textTransform?: (value: string) => string;
 }) => {
   const { label, description, disabled, special } = FieldOptions.parse(
-    schema._def.description
+    schema._def.description,
   );
 
   if (special === "radio_group") {
@@ -904,7 +904,7 @@ const MultiSelectFormField = ({
   showSwitchable?: boolean;
 }) => {
   const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description
+    schema._def.description,
   );
 
   const resolvePlaceholder =
@@ -970,7 +970,7 @@ const ColumnValuesFormField = ({
   path: Path<any>;
 }) => {
   const { label, description, placeholder } = FieldOptions.parse(
-    schema._def.description
+    schema._def.description,
   );
   const column = useContext(ColumnNameContext);
   const fetchValues = useContext(ColumnFetchValuesContext);

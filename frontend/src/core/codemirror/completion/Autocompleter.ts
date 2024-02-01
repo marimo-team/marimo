@@ -36,7 +36,7 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
   },
   // We don't care about previous requests
   // so we just resolve them with an empty response.
-  { resolveExistingRequests: () => null }
+  { resolveExistingRequests: () => null },
 );
 
 export const Autocompleter = {
@@ -45,7 +45,7 @@ export const Autocompleter = {
    */
   asCompletionResult(
     position: number,
-    message: CompletionResultMessage
+    message: CompletionResultMessage,
   ): CompletionResult {
     return {
       from: position - message.prefix_length,
@@ -107,7 +107,7 @@ export const Autocompleter = {
 
 function getFirstOption(
   options: CompletionOption[],
-  tieBreak?: string
+  tieBreak?: string,
 ): CompletionOption | undefined {
   if (options.length === 0) {
     return undefined;

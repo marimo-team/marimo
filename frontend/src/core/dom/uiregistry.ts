@@ -104,7 +104,7 @@ export class UIElementRegistry {
    */
   removeElementsByCell(cellId: CellId) {
     const objectIds = [...this.entries.keys()].filter((objectId) =>
-      objectId.startsWith(`${cellId}-`)
+      objectId.startsWith(`${cellId}-`),
     );
 
     objectIds.forEach((objectId) => {
@@ -136,7 +136,7 @@ export class UIElementRegistry {
   broadcastValueUpdate(
     initiator: HTMLElement,
     objectId: UIElementId,
-    value: ValueType
+    value: ValueType,
   ): void {
     const entry = this.entries.get(objectId);
     if (entry !== undefined) {
@@ -148,7 +148,7 @@ export class UIElementRegistry {
               bubbles: false, // only the intended target gets the message
               composed: true,
               detail: { value: value, element: element },
-            })
+            }),
           );
         }
       });
@@ -160,7 +160,7 @@ export class UIElementRegistry {
           detail: {
             objectId: objectId,
           },
-        })
+        }),
       );
     }
   }

@@ -52,7 +52,7 @@ export const OutlinePanel: React.FC = () => {
               item.level === 1 && "font-semibold",
               item.level === 2 && "ml-3",
               item.level === 3 && "ml-6",
-              item.level === 4 && "ml-9"
+              item.level === 4 && "ml-9",
             )}
             onClick={() => handleGoToItem(item.id, occurrences)}
           >

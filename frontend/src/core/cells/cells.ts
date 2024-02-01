@@ -88,11 +88,11 @@ function initialNotebookState(): NotebookState {
       cellIds: notebookState.cellIds,
       cellData: Objects.mapValues(
         notebookState.cellData,
-        deserializeBase64ToJson<CellData>
+        deserializeBase64ToJson<CellData>,
       ),
       cellRuntime: Objects.mapValues(
         notebookState.cellRuntime,
-        deserializeBase64ToJson<CellRuntimeState>
+        deserializeBase64ToJson<CellRuntimeState>,
       ),
       cellHandles: {},
       history: [],
@@ -323,7 +323,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
        * if so, the 'edited' state will be handled differently.
        */
       formattingChange: boolean;
-    }
+    },
   ) => {
     const { cellId, code, formattingChange } = action;
     const cellIndex = state.cellIds.indexOf(cellId);
@@ -359,7 +359,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
   },
   updateCellConfig: (
     state,
-    action: { cellId: CellId; config: Partial<CellConfig> }
+    action: { cellId: CellId; config: Partial<CellConfig> },
   ) => {
     const { cellId, config } = action;
     return updateCellData(state, cellId, (cell) => {
@@ -383,7 +383,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
   },
   handleCellMessage: (
     state,
-    action: { cellId: CellId; message: CellMessage }
+    action: { cellId: CellId; message: CellMessage },
   ) => {
     const { cellId, message } = action;
     const nextState = updateCellRuntimeState(state, cellId, (cell) => {
@@ -396,7 +396,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
   },
   setStdinResponse: (
     state,
-    action: { cellId: CellId; response: string; outputIndex: number }
+    action: { cellId: CellId; response: string; outputIndex: number },
   ) => {
     const { cellId, response, outputIndex } = action;
     return updateCellRuntimeState(state, cellId, (cell) => {
@@ -428,10 +428,10 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       cellIds: cells.map((cell) => cell.id),
       cellData: Object.fromEntries(cells.map((cell) => [cell.id, cell])),
       cellHandles: Object.fromEntries(
-        cells.map((cell) => [cell.id, createRef()])
+        cells.map((cell) => [cell.id, createRef()]),
       ),
       cellRuntime: Object.fromEntries(
-        cells.map((cell) => [cell.id, createCellRuntimeState()])
+        cells.map((cell) => [cell.id, createCellRuntimeState()]),
       ),
     };
   },
@@ -446,7 +446,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
    */
   moveToNextCell: (
     state,
-    action: { cellId: CellId; before: boolean; noCreate?: boolean }
+    action: { cellId: CellId; before: boolean; noCreate?: boolean },
   ) => {
     const { cellId, before, noCreate = false } = action;
     const index = state.cellIds.indexOf(cellId);
@@ -535,14 +535,14 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle.current?.editorView,
     );
     foldAllBulk(targets);
     return state;
   },
   unfoldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(
-      (handle) => handle.current?.editorView
+      (handle) => handle.current?.editorView,
     );
     unfoldAllBulk(targets);
     return state;
@@ -559,7 +559,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
 function updateCellRuntimeState(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellRuntimeState>
+  cellReducer: ReducerWithoutAction<CellRuntimeState>,
 ) {
   if (!(cellId in state.cellRuntime)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -577,7 +577,7 @@ function updateCellRuntimeState(
 function updateCellData(
   state: NotebookState,
   cellId: CellId,
-  cellReducer: ReducerWithoutAction<CellData>
+  cellReducer: ReducerWithoutAction<CellData>,
 ) {
   if (!(cellId in state.cellData)) {
     Logger.warn(`Cell ${cellId} not found in state`);
@@ -610,7 +610,7 @@ const cellErrorsAtom = atom((get) => {
         // These are errors that are caused by a cell that was stopped,
         // but nothing the user can take action on.
         const nonAncestorErrors = cell.output.data.filter(
-          (error) => error.type !== "ancestor-stopped"
+          (error) => error.type !== "ancestor-stopped",
         );
 
         if (nonAncestorErrors.length > 0) {
@@ -639,7 +639,7 @@ export const cellErrorCount = atom((get) => get(cellErrorsAtom).length);
 export const cellIdToNamesMap = atom((get) => {
   const { cellIds, cellData } = get(notebookAtom);
   const names: Record<CellId, string | undefined> = Objects.fromEntries(
-    cellIds.map((cellId) => [cellId, cellData[cellId]?.name])
+    cellIds.map((cellId) => [cellId, cellData[cellId]?.name]),
   );
   return names;
 });
@@ -693,8 +693,8 @@ export const getCellNames = () => {
 
 const cellDataAtoms = splitAtom(
   selectAtom(notebookAtom, (cells) =>
-    cells.cellIds.map((id) => cells.cellData[id])
-  )
+    cells.cellIds.map((id) => cells.cellData[id]),
+  ),
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
@@ -717,13 +717,13 @@ export const getCellEditorView = (cellId: CellId) => {
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(
-    (cell) => cell.status === "running"
+    (cell) => cell.status === "running",
   );
 }
 
 export function notebookNeedsSave(
   state: NotebookState,
-  lastSavedNotebook: LastSavedNotebook | undefined
+  lastSavedNotebook: LastSavedNotebook | undefined,
 ) {
   if (!lastSavedNotebook) {
     return false;
@@ -776,7 +776,7 @@ export function enabledCellIds(state: NotebookState) {
 export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.filter(
-    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted
+    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted,
   );
 }
 

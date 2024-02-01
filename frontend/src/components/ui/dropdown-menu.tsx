@@ -49,7 +49,7 @@ const DropdownMenuSubContent = React.forwardRef<
     className={cn(
       menuContentCommon({ subcontent: true }),
       "animate-in data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1",
-      className
+      className,
     )}
     {...props}
   />
@@ -68,7 +68,7 @@ const DropdownMenuContent = React.forwardRef<
       className={cn(
         menuContentCommon(),
         "animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        className
+        className,
       )}
       {...props}
     />

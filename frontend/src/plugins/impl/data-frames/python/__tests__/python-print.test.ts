@@ -21,7 +21,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      `"df["my_column"].astype("int8", errors="ignore")"`
+      `"df["my_column"].astype("int8", errors="ignore")"`,
     );
   });
 
@@ -34,7 +34,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      `"df.rename(columns={"old_name": "new_name"})"`
+      `"df.rename(columns={"old_name": "new_name"})"`,
     );
   });
 
@@ -48,7 +48,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      `"df.sort_values(by="my_column", ascending=False, na_position="first")"`
+      `"df.sort_values(by="my_column", ascending=False, na_position="first")"`,
     );
   });
 
@@ -77,7 +77,7 @@ describe("pythonPrint", () => {
     };
     const result3 = pythonPrint("df", transform3);
     expect(result3).toMatchInlineSnapshot(
-      `"df.agg({"my_column": ["mean", "sum"]})"`
+      `"df.agg({"my_column": ["mean", "sum"]})"`,
     );
   });
 
@@ -91,7 +91,7 @@ describe("pythonPrint", () => {
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
-      `"df.groupby(["my_column"], dropna=True).sum()"`
+      `"df.groupby(["my_column"], dropna=True).sum()"`,
     );
 
     const transform2: TransformType = {
@@ -102,7 +102,7 @@ describe("pythonPrint", () => {
     };
     const result2 = pythonPrint("df", transform2);
     expect(result2).toMatchInlineSnapshot(
-      `"df.groupby(["my_column", "my_column2"]).sum()"`
+      `"df.groupby(["my_column", "my_column2"]).sum()"`,
     );
   });
 });
@@ -193,7 +193,7 @@ describe("pythonPrint: filter", () => {
       ],
     });
     expect(result).toMatchInlineSnapshot(
-      `"df[(df["my_column"] == 42) & (df["my_column2"] == 43)]"`
+      `"df[(df["my_column"] == 42) & (df["my_column2"] == 43)]"`,
     );
   });
 
@@ -214,7 +214,7 @@ describe("pythonPrint: filter", () => {
       };
       const result = pythonPrint("df", transform);
       expect(result).toMatchSnapshot();
-    }
+    },
   );
 
   // Test for filter_rows for booleans
@@ -234,7 +234,7 @@ describe("pythonPrint: filter", () => {
       };
       const result = pythonPrint("df", transform);
       expect(result).toMatchSnapshot();
-    }
+    },
   );
 
   // Test for filter_rows for dates
@@ -254,7 +254,7 @@ describe("pythonPrint: filter", () => {
       };
       const result = pythonPrint("df", transform);
       expect(result).toMatchSnapshot();
-    }
+    },
   );
 
   // Test for filter_rows for numbers
@@ -274,6 +274,6 @@ describe("pythonPrint: filter", () => {
       };
       const result = pythonPrint("df", transform);
       expect(result).toMatchSnapshot();
-    }
+    },
   );
 });

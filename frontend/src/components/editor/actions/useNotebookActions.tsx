@@ -85,13 +85,13 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }])
+          ids.map((cellId) => [cellId, { disabled: false }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
         ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: false } })
+          updateCellConfig({ cellId, config: { disabled: false } }),
         );
       },
     },
@@ -102,13 +102,13 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }])
+          ids.map((cellId) => [cellId, { disabled: true }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
         ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: true } })
+          updateCellConfig({ cellId, config: { disabled: true } }),
         );
       },
     },

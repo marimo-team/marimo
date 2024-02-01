@@ -51,7 +51,7 @@ class LazyWebsocketTransport extends Transport {
 
   override async sendData(
     data: JSONRPCRequestData,
-    timeout?: number | null | undefined
+    timeout?: number | null | undefined,
   ) {
     return this.delegate?.sendData(data, timeout);
   }
@@ -65,7 +65,7 @@ export const getCopilotClient = once(
       languageId: LANGUAGE_ID,
       workspaceFolders: null,
       transport: createWSTransport(),
-    })
+    }),
 );
 
 export function copilotServer() {

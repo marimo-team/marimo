@@ -131,7 +131,7 @@ describe("parseOutline", () => {
         timestamp: 0,
         channel: "output",
         data: html,
-      })
+      }),
     ).toEqual({ items: [] });
   });
 

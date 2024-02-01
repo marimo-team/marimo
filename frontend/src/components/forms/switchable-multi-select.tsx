@@ -120,7 +120,7 @@ export const TextAreaMultiSelect: React.FC<{
 };
 
 export function ensureStringArray<T extends string>(
-  value: T | T[] | null | undefined
+  value: T | T[] | null | undefined,
 ): T[] {
   if (value == null) {
     return [];

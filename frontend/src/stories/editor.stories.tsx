@@ -62,7 +62,7 @@ export const Primary: Story = {
       <Editor
         extensions={basicBundle(
           { activate_on_typing: false, copilot: false },
-          ctx.globals.theme
+          ctx.globals.theme,
         )}
       />
     </div>

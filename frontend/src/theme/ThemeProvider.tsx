@@ -16,7 +16,7 @@ export const ThemeProvider: React.FC<PropsWithChildren> = memo(
     }, [theme]);
 
     return children;
-  }
+  },
 );
 ThemeProvider.displayName = "ThemeProvider";
 

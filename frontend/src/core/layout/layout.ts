@@ -33,7 +33,7 @@ export function getSerializedLayout() {
     return undefined;
   }
   const plugin = cellRendererPlugins.find(
-    (plugin) => plugin.type === layoutViewType
+    (plugin) => plugin.type === layoutViewType,
   );
   if (plugin === undefined) {
     Logger.error(`Unknown layout type: ${layoutViewType}`);

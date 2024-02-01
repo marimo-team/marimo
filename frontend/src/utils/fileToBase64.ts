@@ -23,8 +23,8 @@ export function filesToBase64(files: File[]): Promise<Array<[string, string]>> {
   return Promise.all(
     files.map((file) =>
       blobToBase64(file).then(
-        (contents) => [file.name, contents] as [string, string]
-      )
-    )
+        (contents) => [file.name, contents] as [string, string],
+      ),
+    ),
   );
 }

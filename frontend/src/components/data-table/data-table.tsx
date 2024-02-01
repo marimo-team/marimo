@@ -48,7 +48,7 @@ export const DataTable = <TData, TValue>({
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
-    { pageSize: pageSize, pageIndex: 0 }
+    { pageSize: pageSize, pageIndex: 0 },
   );
 
   const table = useReactTable({
@@ -86,7 +86,7 @@ export const DataTable = <TData, TValue>({
                         ? null
                         : flexRender(
                             header.column.columnDef.header,
-                            header.getContext()
+                            header.getContext(),
                           )}
                     </TableHead>
                   );
@@ -105,7 +105,7 @@ export const DataTable = <TData, TValue>({
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}

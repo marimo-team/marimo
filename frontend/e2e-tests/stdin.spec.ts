@@ -11,7 +11,7 @@ test("stdin works", async ({ page }) => {
 
   // Check that "what is your name?" exists in the console
   await expect(page.getByTestId("console-output-area")).toHaveText(
-    "what is your name?"
+    "what is your name?",
   );
 
   // Expect loading spinner

@@ -18,7 +18,7 @@ export function hintTooltip() {
         }
         return result;
       },
-      { hideOnChange: true }
+      { hideOnChange: true },
     ),
     cursorPositionDocumentation,
   ];
@@ -27,7 +27,7 @@ export function hintTooltip() {
 async function requestDocumentation(
   view: EditorView,
   pos: number,
-  excludeTypes?: string[]
+  excludeTypes?: string[],
 ) {
   const cellContainer = HTMLCellId.findElement(view.dom);
   if (!cellContainer) {
@@ -103,7 +103,7 @@ const debouncedAutocomplete = debounce(
       documentation: tooltip?.html ?? null,
     });
   },
-  300
+  300,
 );
 
 // Listen to cursor movement and send documentation requests

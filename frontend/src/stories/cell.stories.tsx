@@ -115,7 +115,7 @@ export const WithLargeOutput: Story = {
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
-              10
+              10,
             ),
             mimetype: "text/html",
             timestamp: 1_686_863_688,

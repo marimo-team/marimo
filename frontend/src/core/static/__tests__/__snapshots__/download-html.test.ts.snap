@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`download-html > should construct html correctly 1`] = `
-"<!DOCTYPE html>
+"<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />

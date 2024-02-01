@@ -18,7 +18,7 @@ export function createPlugin<S>(tagName: string) {
          * Functions that the plugin can call.
          */
         withFunctions<F extends PluginFunctions>(
-          functions: FunctionSchemas<F>
+          functions: FunctionSchemas<F>,
         ) {
           return {
             /**

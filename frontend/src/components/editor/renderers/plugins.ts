@@ -14,7 +14,7 @@ export const cellRendererPlugins: Array<ICellRendererPlugin<any, any>> = [
 export function deserializeLayout(
   type: LayoutType,
   data: unknown,
-  cells: CellData[]
+  cells: CellData[],
 ) {
   const plugin = cellRendererPlugins.find((plugin) => plugin.type === type);
   if (plugin === undefined) {

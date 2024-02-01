@@ -14,7 +14,7 @@ export async function downloadVirtualFiles(): Promise<StaticVirtualFiles> {
   const files: StaticVirtualFiles = {};
 
   const virtualFiles = Sets.merge(
-    ...VirtualFileTracker.INSTANCE.virtualFiles.values()
+    ...VirtualFileTracker.INSTANCE.virtualFiles.values(),
   );
 
   for (const url of virtualFiles) {
@@ -39,7 +39,7 @@ export async function downloadVirtualFiles(): Promise<StaticVirtualFiles> {
  * Patch fetch to resolve virtual files
  */
 export function patchFetch(
-  files: StaticVirtualFiles = getStaticVirtualFiles()
+  files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
   // Store the original fetch function
   const originalFetch = window.fetch;
@@ -73,7 +73,7 @@ export function patchVegaLoader(
   loader: {
     http: (url: string) => Promise<string>;
   },
-  files: StaticVirtualFiles = getStaticVirtualFiles()
+  files: StaticVirtualFiles = getStaticVirtualFiles(),
 ) {
   const originalHttp = loader.http;
 

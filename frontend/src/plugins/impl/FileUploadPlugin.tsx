@@ -219,7 +219,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
           !isFocused && "bg-muted border-input/60",
           isFocused && "bg-muted/60 border-accent/40",
           isDragAccept && "bg-muted/60 border-accent/40 shadow-xsSolid",
-          isDragReject && "bg-muted/60 border-destructive/60 shadow-xsSolid"
+          isDragReject && "bg-muted/60 border-destructive/60 shadow-xsSolid",
         )}
         {...getRootProps()}
       >

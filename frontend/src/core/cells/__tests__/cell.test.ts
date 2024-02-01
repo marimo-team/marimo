@@ -36,7 +36,7 @@ describe("outputIsStale", () => {
       };
       const edited = true;
       expect(outputIsStale(cell, edited)).toBe(true);
-    }
+    },
   );
 
   it("should return true if the cell is loading", () => {

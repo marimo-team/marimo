@@ -23,7 +23,7 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
           "m-auto pb-24 sm:pb-12",
           appConfig.width !== "full" && "max-w-contentWidth min-w-[400px]",
           // Hide the cells for a fake loading effect, to avoid flickering
-          invisible && "invisible"
+          invisible && "invisible",
         )}
       >
         {children}

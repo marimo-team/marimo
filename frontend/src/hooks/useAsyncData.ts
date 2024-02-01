@@ -7,7 +7,7 @@ import { DependencyList, useState, useEffect } from "react";
  */
 export function useAsyncData<T>(
   loader: () => Promise<T>,
-  deps: DependencyList
+  deps: DependencyList,
 ): {
   data: T | undefined;
   loading: boolean;

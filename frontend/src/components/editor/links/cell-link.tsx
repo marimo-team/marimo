@@ -22,7 +22,7 @@ export const CellLink = (props: Props): JSX.Element => {
     <div
       className={cn(
         "inline-block cursor-pointer text-[var(--blue-10)] hover:underline",
-        className
+        className,
       )}
       onClick={(e) => {
         e.stopPropagation();
@@ -57,7 +57,7 @@ export const CellLink = (props: Props): JSX.Element => {
 
 /* Component that adds a link to a cell, for use in a MarimoError. */
 export const CellLinkError = (
-  props: Pick<Props, "className" | "cellId">
+  props: Pick<Props, "className" | "cellId">,
 ): JSX.Element => {
   return <CellLink {...props} variant={"destructive"} />;
 };

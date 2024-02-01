@@ -8,7 +8,7 @@ import { store } from "@/core/state/jotai";
 import { documentationAtom } from "@/core/documentation/state";
 
 export async function completer(
-  context: CompletionContext
+  context: CompletionContext,
 ): Promise<CompletionResult | null> {
   const query = context.state.doc.sliceString(0, context.pos);
   const element = document.activeElement;

@@ -5,7 +5,7 @@ import { z } from "zod";
  * Get default values for a zod schema
  */
 export function getDefaults<TSchema extends z.ZodType<T>, T>(
-  schema: TSchema
+  schema: TSchema,
 ): T {
   const getDefaultValue = (schema: z.ZodTypeAny): unknown => {
     if (schema instanceof z.ZodLiteral) {
@@ -54,7 +54,7 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
   return Object.fromEntries(
     Object.entries(schema.shape).map(([key, value]) => {
       return [key, getDefaultValue(value as z.AnyZodObject)];
-    })
+    }),
   ) as T;
 }
 
@@ -62,7 +62,7 @@ export function getDefaults<TSchema extends z.ZodType<T>, T>(
  * Get the literal value of a union
  */
 export function getUnionLiteral<T extends z.ZodType<unknown>>(
-  schema: T
+  schema: T,
 ): z.ZodLiteral<string> {
   if (schema instanceof z.ZodLiteral) {
     return schema;

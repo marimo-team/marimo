@@ -56,7 +56,7 @@ function randomAlpha() {
   const length = 6;
   return Array.from(
     { length },
-    () => alphabet[Math.floor(Math.random() * alphabet.length)]
+    () => alphabet[Math.floor(Math.random() * alphabet.length)],
   ).join("");
 }
 

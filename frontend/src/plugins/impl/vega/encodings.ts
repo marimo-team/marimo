@@ -82,7 +82,7 @@ export function makeEncodingInteractive(
   key: "opacity",
   encodings: SharedCompositeEncoding<Field>,
   paramNames: string[],
-  mark: AnyMark | undefined
+  mark: AnyMark | undefined,
 ): SharedCompositeEncoding<Field> {
   const test = {
     and: paramNames.map((paramName) => ({

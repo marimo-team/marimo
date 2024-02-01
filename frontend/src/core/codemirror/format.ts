@@ -23,7 +23,7 @@ export const formattingChangeEffect = StateEffect.define<boolean>();
  */
 export async function formatEditorViews(
   views: Record<CellId, EditorView>,
-  updateCellCode: CellActions["updateCellCode"]
+  updateCellCode: CellActions["updateCellCode"],
 ) {
   const codes = Objects.mapValues(views, (view) => getEditorCodeAsPython(view));
 

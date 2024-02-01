@@ -28,7 +28,7 @@ export interface MovementCallbacks
  */
 export function cellMovementBundle(
   cellId: CellId,
-  callbacks: MovementCallbacks
+  callbacks: MovementCallbacks,
 ): Extension[] {
   const {
     onRun,
@@ -237,7 +237,7 @@ export interface CodeCallbacks {
  */
 export function cellCodeEditingBundle(
   cellId: CellId,
-  callbacks: CodeCallbacks
+  callbacks: CodeCallbacks,
 ): Extension[] {
   const { updateCellCode } = callbacks;
 
@@ -245,7 +245,7 @@ export function cellCodeEditingBundle(
     // Check if the doc update was a formatting change
     // e.g. changing from python to markdown
     const isFormattingChange = update.transactions.some((tr) =>
-      tr.effects.some((effect) => effect.is(formattingChangeEffect))
+      tr.effects.some((effect) => effect.is(formattingChangeEffect)),
     );
     if (update.docChanged) {
       const nextCode = getEditorCodeAsPython(update.view);

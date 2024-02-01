@@ -57,7 +57,7 @@ export const DataTablePagination = <TData,>({
 
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
-    table.getPageCount()
+    table.getPageCount(),
   );
   const totalPages = table.getPageCount();
 

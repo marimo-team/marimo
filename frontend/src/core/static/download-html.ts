@@ -62,7 +62,7 @@ export async function downloadAsHTML(opts: { filename: string }) {
 
   downloadBlob(
     new Blob([html], { type: "text/html" }),
-    `${filenameWithoutExtension}.html`
+    `${filenameWithoutExtension}.html`,
   );
 }
 
@@ -118,11 +118,11 @@ export function constructHTML(opts: {
           cellIds: notebookState.cellIds,
           cellData: Objects.mapValues(
             notebookState.cellData,
-            serializeJsonToBase64
+            serializeJsonToBase64,
           ),
           cellRuntime: Objects.mapValues(
             notebookState.cellRuntime,
-            serializeJsonToBase64
+            serializeJsonToBase64,
           ),
         })};
         window.__MARIMO_STATIC__.assetUrl = "${assetUrl}";

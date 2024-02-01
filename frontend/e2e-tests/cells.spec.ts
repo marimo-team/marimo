@@ -24,7 +24,7 @@ test("keeps re-renders from growing", async ({ page }) => {
 
   // Read the render count
   const cellRenderCount = await page.evaluate(
-    () => document.body.dataset.cellRenderCount
+    () => document.body.dataset.cellRenderCount,
   );
 
   // This count may grow with the addition of new features. If this is the case,
@@ -48,13 +48,13 @@ test("page renders 2 cells", async ({ page }) => {
 
   // No add buttons are visible
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count()
+    page.getByTestId("create-cell-button").locator(":visible").count(),
   ).resolves.toBe(0);
 
   // Hover over a cell the 'add cell' button appears
   await page.hover("text=Cell 1");
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count()
+    page.getByTestId("create-cell-button").locator(":visible").count(),
   ).resolves.toBe(2);
 
   // Clicking the first button creates a new cell at the top

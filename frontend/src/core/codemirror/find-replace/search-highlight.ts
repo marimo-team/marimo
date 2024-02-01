@@ -33,7 +33,7 @@ export function setGlobalSearchQuery() {
           regexp: state.regexp,
           replace: state.replaceText,
           wholeWord: state.wholeWord,
-        })
+        }),
       ),
     });
   }
@@ -124,7 +124,7 @@ export const searchHighlighter = ViewPlugin.fromClass(
         }
         query.highlight(view.state, from, to, (from, to) => {
           const selected = view.state.selection.ranges.some(
-            (r) => r.from == from && r.to == to
+            (r) => r.from == from && r.to == to,
           );
           builder.add(from, to, selected ? selectedMatchMark : matchMark);
         });
@@ -134,7 +134,7 @@ export const searchHighlighter = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-  }
+  },
 );
 
 export const highlightTheme = EditorView.baseTheme({

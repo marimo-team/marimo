@@ -28,7 +28,7 @@ describe("makeSelectable", () => {
       makeSelectable(spec, {
         chartSelection: false,
         fieldSelection: false,
-      })
+      }),
     ).toEqual(spec);
   });
 
@@ -40,7 +40,7 @@ describe("makeSelectable", () => {
       makeSelectable(spec, {
         chartSelection: true,
         fieldSelection: true,
-      })
+      }),
     ).toEqual(makeSelectable(spec, {}));
   });
 
@@ -86,7 +86,7 @@ describe("makeSelectable", () => {
       makeSelectable(spec, {
         chartSelection: true,
         fieldSelection: true,
-      })
+      }),
     ).toMatchSnapshot();
   });
 
@@ -118,14 +118,14 @@ describe("makeSelectable", () => {
     } as VegaLiteSpec;
 
     expect(
-      makeSelectable(spec, { chartSelection: true, fieldSelection: false })
+      makeSelectable(spec, { chartSelection: true, fieldSelection: false }),
     ).toMatchSnapshot();
 
     // These are the same
     expect(
-      makeSelectable(spec, { chartSelection: true, fieldSelection: false })
+      makeSelectable(spec, { chartSelection: true, fieldSelection: false }),
     ).toEqual(
-      makeSelectable(spec, { chartSelection: true, fieldSelection: [] })
+      makeSelectable(spec, { chartSelection: true, fieldSelection: [] }),
     );
   });
 

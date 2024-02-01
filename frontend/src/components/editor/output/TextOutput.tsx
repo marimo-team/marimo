@@ -14,7 +14,7 @@ export const TextOutput = ({ text, channel }: Props): JSX.Element => {
       className={cn(
         "whitespace-pre",
         channel === "output" && "font-prose",
-        channel
+        channel,
       )}
     >
       {text}

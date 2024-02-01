@@ -105,7 +105,7 @@ export const Controls = ({
       <div
         className={cn(
           bottomLeftControls,
-          appWidth === "normal" && "xl:flex-row"
+          appWidth === "normal" && "xl:flex-row",
         )}
       >
         {closed ? (

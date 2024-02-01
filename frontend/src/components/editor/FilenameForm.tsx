@@ -29,7 +29,7 @@ export const FilenameForm = ({
 
   function validateAndSubmitFilenameChange() {
     const inputEl = document.getElementById(
-      "filename-input"
+      "filename-input",
     ) as HTMLInputElement | null;
     if (inputEl === null) {
       throw new Error("Could not find filename form");
@@ -44,7 +44,7 @@ export const FilenameForm = ({
           <AlertDialogDescription>
             The filename can't be empty. Make sure to enter a non-empty name.
           </AlertDialogDescription>
-        </AlertDialogHeader>
+        </AlertDialogHeader>,
       );
       inputEl.blur();
     } else if (value.endsWith(".py")) {

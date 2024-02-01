@@ -53,7 +53,7 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for column conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.COLUMN_CONVERSION],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {
@@ -67,7 +67,7 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for rename conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.RENAME_COLUMN],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {
@@ -81,7 +81,7 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for group-by conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.GROUP_BY],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {
@@ -93,7 +93,7 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for aggregate conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.AGGREGATE],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {
@@ -105,7 +105,7 @@ describe("getUpdatedColumnTypes", () => {
   it("should update column types for select-columns conversion", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.SELECT_COLUMNS],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {
@@ -123,7 +123,7 @@ describe("getUpdatedColumnTypes", () => {
         Transforms.GROUP_BY_CHAINED,
         Transforms.AGGREGATE_CHAINED,
       ],
-      INITIAL_COLUMN_TYPES
+      INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
       {

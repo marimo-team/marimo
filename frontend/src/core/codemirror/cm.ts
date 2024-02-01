@@ -96,7 +96,7 @@ export const setupCodeMirror = ({
 // Based on codemirror's basicSetup extension
 export const basicBundle = (
   completionConfig: CompletionConfig,
-  theme: Theme
+  theme: Theme,
 ): Extension[] => {
   return [
     ///// View
