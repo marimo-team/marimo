@@ -21,7 +21,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-body,
 #root {
   width: 100%;
   display: flex;

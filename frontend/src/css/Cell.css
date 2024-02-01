@@ -23,6 +23,10 @@
     outline: none;
   }
 
+  &:focus-within {
+    z-index: 10;
+  }
+
   /* Interactive */
   &.interactive {
     /* Only restrain output length in edit mode. */
