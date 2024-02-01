@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request: {}
 
+env:
+  # Turbocache
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: marimo
+  TURBO_API: "https://cache.turbocache.build"
+  TURBO_RUN_SUMMARY: true
+
 jobs:
   build_wheel:
     name: Build marimo wheel
@@ -19,6 +26,8 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
       - uses: pnpm/action-setup@v2
         with:
@@ -30,6 +39,8 @@ jobs:
           node-version: 18
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - uses: turbocache-build/turbocache-action@v1
 
       - name: 📦 Build frontend
         run: make fe

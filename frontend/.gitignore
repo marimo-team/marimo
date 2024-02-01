@@ -3,6 +3,7 @@
 /.pnp
 .pnp.js
 .swc
+.turbo
 
 # testing
 /coverage
