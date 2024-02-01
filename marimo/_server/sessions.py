@@ -312,8 +312,8 @@ class Session:
         # is running in the background
         if self.session_consumer is not None:
             self.session_consumer.on_stop()
-        self.kernel_manager.close_kernel()
         self.message_distributor.stop()
+        self.kernel_manager.close_kernel()
         self.unsubscribe_consumer()
 
     def __repr__(self) -> str:

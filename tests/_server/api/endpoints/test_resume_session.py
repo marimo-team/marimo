@@ -229,11 +229,12 @@ def test_restart_session(client: TestClient) -> None:
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
-        # Send save request
-        client.post(
-            "/api/kernel/restart_session",
-            headers=headers("123"),
-        )
+
+    # Send save request
+    client.post(
+        "/api/kernel/restart_session",
+        headers=headers("123"),
+    )
 
     # Check the session still exists after closing the websocket
     assert not get_session(client, "123")
