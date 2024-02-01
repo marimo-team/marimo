@@ -25,13 +25,16 @@ import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { bannerAtom } from "../errors/state";
+import { Objects } from "@/utils/objects";
+import { SessionId } from "../kernel/session";
+import { useBannersActions } from "../errors/state";
+import { generateUUID } from "@/utils/uuid";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
  */
 export function useMarimoWebSocket(opts: {
-  sessionId: string;
+  sessionId: SessionId;
   autoInstantiate: boolean;
   setCells: (cells: CellData[]) => void;
 }) {
@@ -45,29 +48,63 @@ export function useMarimoWebSocket(opts: {
   const setLayoutView = useSetAtom(layoutViewAtom);
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
-  const setBanner = useSetAtom(bannerAtom);
+  const { addBanner } = useBannersActions();
 
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
       case "kernel-ready": {
-        const { codes, names, layout, configs, cell_ids } = msg.data;
+        const {
+          codes,
+          names,
+          layout,
+          configs,
+          resumed,
+          ui_values,
+          cell_ids,
+          last_executed_code = {},
+        } = msg.data;
 
         // Set the layout, initial codes, cells
-        const cells = codes.map((code, i) =>
-          createCell({
-            id: cell_ids[i],
+        const cells = codes.map((code, i) => {
+          const cellId = cell_ids[i];
+
+          // A cell is stale if we did not auto-instantiate (i.e. nothing has run yet)
+          // or if the code has changed since the last time it was run.
+          let edited = false;
+          if (autoInstantiate) {
+            const lastCodeRun = last_executed_code[cellId];
+            if (lastCodeRun) {
+              edited = lastCodeRun !== code;
+            }
+          } else {
+            edited = true;
+          }
+
+          return createCell({
+            id: cellId,
             code,
-            edited: !autoInstantiate,
+            edited: edited,
             name: names[i],
+            lastCodeRun: last_executed_code[cellId] ?? null,
             config: configs[i],
-          })
-        );
+          });
+        });
+
         if (layout) {
           setLayoutView(layout.type);
           setLayoutData(deserializeLayout(layout.type, layout.data, cells));
         }
         setCells(cells);
+
+        // If resumed, we don't need to instantiate the UI elements,
+        // and we should read in th existing values from the kernel.
+        if (resumed) {
+          for (const [objectId, value] of Objects.entries(ui_values || {})) {
+            UI_ELEMENT_REGISTRY.set(objectId, value);
+          }
+          return;
+        }
 
         // Auto-instantiate, in future this can be configurable
         // or include initial values
@@ -157,7 +194,10 @@ export function useMarimoWebSocket(opts: {
         });
         return;
       case "banner":
-        setBanner(msg.data);
+        addBanner({
+          ...msg.data,
+          id: generateUUID(),
+        });
         return;
       default:
         logNever(msg);

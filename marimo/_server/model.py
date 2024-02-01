@@ -1,8 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 import abc
 from enum import Enum
-from multiprocessing.connection import Connection
-from typing import Any, Callable
+from typing import Callable
+
+from marimo._messaging.ops import MessageOperation
+from marimo._messaging.types import KernelMessage
 
 
 class ConnectionState(Enum):
@@ -10,6 +12,7 @@ class ConnectionState(Enum):
 
     OPEN = 0
     CLOSED = 1
+    ORPHANED = 2
 
 
 class SessionMode(Enum):
@@ -21,28 +24,31 @@ class SessionMode(Enum):
     RUN = 1
 
 
-class SessionHandler(metaclass=abc.ABCMeta):
+class SessionConsumer(metaclass=abc.ABCMeta):
     """
-    Handler for a session
+    Consumer for a session
 
     This allows use to communicate with a session via different
-    connection types.
+    connection types. Currently we consume a session via WebSocket
     """
 
     @abc.abstractmethod
     def on_start(
         self,
-        connection: Connection,
         check_alive: Callable[[], None],
-    ) -> None:
+    ) -> Callable[[KernelMessage], None]:
+        """
+        Start the session consumer
+        and return a subscription function for the session consumer
+        """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def on_stop(self, connection: Connection) -> None:
+    def on_stop(self) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def write_operation(self, op: str, data: Any) -> None:
+    async def write_operation(self, op: MessageOperation) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod

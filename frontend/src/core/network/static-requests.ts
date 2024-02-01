@@ -36,6 +36,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Function requests are not supported in static mode");
       return null;
     },
+    sendRestart: throwNotInEditMode,
     sendRun: throwNotInEditMode,
     sendRename: throwNotInEditMode,
     sendSave: throwNotInEditMode,

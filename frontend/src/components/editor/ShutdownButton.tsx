@@ -1,19 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { XIcon } from "lucide-react";
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogDestructiveAction,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../ui/alert-dialog";
+import { AlertDialogDestructiveAction } from "../ui/alert-dialog";
 import { Button } from "./inputs/Inputs";
 import { Tooltip } from "../ui/tooltip";
+import { useImperativeModal } from "../modal/ImperativeModal";
+import { XIcon } from "lucide-react";
 
 interface ShutdownButtonProps {
   onShutdown: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -22,41 +13,39 @@ interface ShutdownButtonProps {
 export const ShutdownButton = ({
   onShutdown,
 }: ShutdownButtonProps): JSX.Element => {
+  const { openConfirm, closeModal } = useImperativeModal();
+
   return (
-    <AlertDialog>
-      <Tooltip content="Shutdown">
-        <AlertDialogTrigger asChild={true}>
-          <Button
-            aria-label="Shutdown"
-            shape="circle"
-            size="small"
-            color="red"
-            className="h-[27px] w-[27px]"
-          >
-            <XIcon strokeWidth={1} />
-          </Button>
-        </AlertDialogTrigger>
-      </Tooltip>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-destructive">
-            Shutdown?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            This will terminate the Python kernel. You'll lose all data that's
-            in memory.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogDestructiveAction
-            onClick={onShutdown}
-            aria-label="Confirm Shutdown"
-          >
-            Shutdown
-          </AlertDialogDestructiveAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Tooltip content="Shutdown">
+      <Button
+        aria-label="Shutdown"
+        shape="circle"
+        size="small"
+        color="red"
+        className="h-[27px] w-[27px]"
+        onClick={(e) => {
+          e.stopPropagation();
+          openConfirm({
+            title: "Shutdown",
+            description:
+              "This will terminate the Python kernel. You'll lose all data that's in memory.",
+            variant: "destructive",
+            confirmAction: (
+              <AlertDialogDestructiveAction
+                onClick={(e) => {
+                  onShutdown(e);
+                  closeModal();
+                }}
+                aria-label="Confirm Shutdown"
+              >
+                Shutdown
+              </AlertDialogDestructiveAction>
+            ),
+          });
+        }}
+      >
+        <XIcon strokeWidth={1} />
+      </Button>
+    </Tooltip>
   );
 };

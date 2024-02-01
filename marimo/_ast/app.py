@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     Literal,
     Optional,
-    OrderedDict,
     Union,
     cast,
 )
@@ -54,11 +53,13 @@ class _AppConfig:
     def asdict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def update(self, updates: dict[str, Any]) -> None:
+    def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)
         for key in updates:
             if key in config_dict:
                 self.__setattr__(key, updates[key])
+
+        return self
 
 
 @dataclass
@@ -233,7 +234,6 @@ class CellManager:
 
     def __init__(self) -> None:
         self._cell_data: dict[CellId_t, CellData] = {}
-        self._cell_data = OrderedDict()
         self.unparsable = False
         self.random_seed = random.Random(42)
 
@@ -394,3 +394,27 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    def update_config(self, updates: dict[str, Any]) -> _AppConfig:
+        return self.config.update(updates)
+
+    def with_data(
+        self,
+        *,
+        cell_ids: Iterable[CellId_t],
+        codes: Iterable[str],
+        names: Iterable[str],
+        configs: Iterable[CellConfig],
+    ) -> InternalApp:
+        new_cell_manager = CellManager()
+        for cell_id, code, name, config in zip(
+            cell_ids, codes, names, configs
+        ):
+            new_cell_manager.register_cell(
+                cell_id=cell_id,
+                code=code,
+                name=name,
+                config=config,
+            )
+        self._app._cell_manager = new_cell_manager
+        return self

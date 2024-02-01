@@ -13,6 +13,7 @@ import {
 import { cn } from "@/utils/cn";
 import React from "react";
 import { Check, ChevronRight, Circle } from "lucide-react";
+import { VariantProps } from "class-variance-authority";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -77,13 +78,12 @@ DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
-    inset?: boolean;
-  }
->(({ className, inset, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> &
+    VariantProps<typeof menuItemVariants>
+>(({ className, inset, variant, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
-    className={menuItemVariants({ className, inset })}
+    className={menuItemVariants({ className, inset, variant })}
     {...props}
   />
 ));

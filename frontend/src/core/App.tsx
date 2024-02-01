@@ -14,7 +14,6 @@ import {
 import { Controls } from "@/components/editor/Controls";
 import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
 import { FilenameForm } from "@/components/editor/FilenameForm";
-import { UUID } from "../utils/uuid";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
@@ -56,6 +55,7 @@ import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
+import { getSessionId } from "./kernel/session";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -98,7 +98,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       const configs = cells.map((cell) => cell.config);
       setLastSavedNotebook({ names, codes, configs });
     },
-    sessionId: UUID,
+    sessionId: getSessionId(),
   });
 
   const handleFilenameChange = useEvent(
@@ -121,6 +121,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   );
 
   const cells = notebookCells(notebook);
+  const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
@@ -146,6 +147,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
     Logger.log("saving to ", filename);
     sendSave({
+      cellIds: cellIds,
       codes,
       names: cellNames,
       filename,

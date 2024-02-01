@@ -23,6 +23,7 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import configure
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
     MarimoAncestorStoppedError,
@@ -44,6 +45,7 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
+from marimo._messaging.types import KernelMessage
 from marimo._output import formatting
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -78,6 +80,7 @@ from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._server.types import QueueType
 from marimo._utils.signals import restore_signals
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -511,7 +514,7 @@ class Kernel:
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
             CellOp.broadcast_output(
-                channel="output",
+                channel=CellChannel.OUTPUT,
                 mimetype="text/plain",
                 data="",
                 cell_id=cid,
@@ -683,7 +686,7 @@ class Kernel:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 CellOp.broadcast_output(
-                    channel="output",
+                    channel=CellChannel.OUTPUT,
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
@@ -1084,15 +1087,18 @@ def launch_kernel(
         restore_signals()
 
     n_tries = 0
+    pipe: Optional[TypedConnection[KernelMessage]] = None
     while n_tries < 100:
         try:
-            pipe = mp.connection.Client(socket_addr)
+            pipe = TypedConnection[KernelMessage].of(
+                mp.connection.Client(socket_addr)
+            )
             break
         except Exception:
             n_tries += 1
             time.sleep(0.01)
 
-    if n_tries == 100:
+    if n_tries == 100 or pipe is None:
         LOGGER.debug("Failed to connect to socket.")
         return
 

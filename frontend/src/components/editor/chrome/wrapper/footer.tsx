@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
 import {
-  PanelBottomIcon,
-  PanelLeftIcon,
   FunctionSquareIcon,
   XCircleIcon,
   ScrollTextIcon,
@@ -20,8 +18,8 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { FeedbackButton } from "../footer/feedback-button";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel, panelLocation } = useChromeState();
-  const { openApplication, changePanelLocation } = useChromeActions();
+  const { selectedPanel } = useChromeState();
+  const { openApplication } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
 
   return (
@@ -88,21 +86,6 @@ export const Footer: React.FC = () => {
       </FeedbackButton>
 
       <div className="mx-auto" />
-
-      <FooterItem
-        tooltip="Move panel to the left"
-        selected={panelLocation === "left"}
-        onClick={() => changePanelLocation("left")}
-      >
-        <PanelLeftIcon className="h-5 w-5" />
-      </FooterItem>
-      <FooterItem
-        tooltip="Move panel to the bottom"
-        selected={panelLocation === "bottom"}
-        onClick={() => changePanelLocation("bottom")}
-      >
-        <PanelBottomIcon className="h-5 w-5" />
-      </FooterItem>
     </footer>
   );
 };

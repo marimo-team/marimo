@@ -4,6 +4,7 @@ import { Cell, CellProps } from "../components/editor/Cell";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { CellId } from "../core/cells/ids";
 import { Logger } from "@/utils/Logger";
+import { Milliseconds, Seconds } from "@/utils/time";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",
@@ -28,8 +29,8 @@ const props: CellProps = {
   stopped: false,
   updateCellCode: Logger.log,
   prepareForRun: Logger.log,
-  runStartTimestamp: 0,
-  runElapsedTimeMs: 10,
+  runStartTimestamp: 0 as Seconds,
+  runElapsedTimeMs: 10 as Milliseconds,
   serializedEditorState: null,
   mode: "edit",
   name: "cell_1",
@@ -91,7 +92,7 @@ export const WithOutput: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
@@ -110,7 +111,7 @@ export const WithLargeOutput: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>".repeat(
@@ -131,7 +132,7 @@ export const UnsavedEditsOutput: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           edited={true}
           output={{
             channel: "output",
@@ -151,7 +152,7 @@ export const InterruptedOutput: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           interrupted={true}
           output={{
             channel: "output",
@@ -171,7 +172,7 @@ export const WithError: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           errored={true}
           output={{
             channel: "output",
@@ -191,7 +192,7 @@ export const Disabled: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           config={{
             disabled: true,
           }}
@@ -213,7 +214,7 @@ export const DisabledTransitively: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           status="disabled-transitively"
           output={{
             channel: "output",
@@ -233,7 +234,7 @@ export const StaleStatus: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           status="stale"
           output={{
             channel: "output",
@@ -253,7 +254,7 @@ export const StaleAndEditedStatus: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           status="stale"
           output={{
             channel: "output",
@@ -273,7 +274,7 @@ export const DisabledAndStaleStatus: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           config={{
             disabled: true,
           }}
@@ -296,7 +297,7 @@ export const Running: Story = {
       <TooltipProvider>
         <Cell
           {...props}
-          runElapsedTimeMs={20}
+          runElapsedTimeMs={20 as Milliseconds}
           status="running"
           output={{
             channel: "output",

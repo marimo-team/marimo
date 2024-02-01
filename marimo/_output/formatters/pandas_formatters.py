@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 
@@ -22,7 +23,7 @@ class PandasFormatter(FormatterFactory):
         from marimo._output import formatting
 
         @formatting.formatter(pd.DataFrame)
-        def _show_dataframe(df: pd.DataFrame) -> tuple[str, str]:
+        def _show_dataframe(df: pd.DataFrame) -> tuple[KnownMimeType, str]:
             max_rows = pd.get_option("display.max_rows")
             max_columns = pd.get_option("display.max_columns")
             show_dimensions_option = pd.get_option("display.show_dimensions")
@@ -58,7 +59,7 @@ class PandasFormatter(FormatterFactory):
             )
 
         @formatting.formatter(pd.Series)
-        def _show_series(series: pd.Series[Any]) -> tuple[str, str]:
+        def _show_series(series: pd.Series[Any]) -> tuple[KnownMimeType, str]:
             max_rows = pd.get_option("display.max_rows")
             show_dimensions_option = pd.get_option("display.show_dimensions")
             if show_dimensions_option == "truncate":

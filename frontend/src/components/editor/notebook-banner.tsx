@@ -1,31 +1,57 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { bannerAtom } from "@/core/errors/state";
+import { useBanners, useBannersActions } from "@/core/errors/state";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { useAtom } from "jotai";
-import { AlertCircleIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
+import { useRestartKernel } from "./actions/useRestartKernel";
 
 export const NotebookBanner: React.FC = (props) => {
-  const [banner, setBanner] = useAtom(bannerAtom);
+  const { banners } = useBanners();
+  const { removeBanner } = useBannersActions();
 
-  if (!banner) {
+  if (banners.length === 0) {
     return null;
   }
 
   return (
-    <Banner kind={banner.variant} className="mb-10 flex flex-col rounded p-3">
-      <div className="flex justify-between">
-        <span className="font-bold text-lg flex items-center mb-2">
-          <AlertCircleIcon className="w-5 h-5 inline-block mr-2" />
-          {banner.title}
-        </span>
-        <Button variant="text" size="icon" onClick={() => setBanner(undefined)}>
-          <XIcon className="w-5 h-5" />
-        </Button>
-      </div>
-      <span>{renderHTML({ html: banner.description })}</span>
-    </Banner>
+    <div className="flex flex-col gap-4 mb-5">
+      {banners.map((banner) => (
+        <Banner
+          kind={banner.variant || "info"}
+          key={banner.id}
+          className="flex flex-col rounded p-3"
+        >
+          <div className="flex justify-between">
+            <span className="font-bold text-lg flex items-center mb-2">
+              <AlertCircleIcon className="w-5 h-5 inline-block mr-2" />
+              {banner.title}
+            </span>
+            <Button
+              variant="text"
+              size="icon"
+              onClick={() => removeBanner(banner.id)}
+            >
+              <XIcon className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="flex justify-between items-end">
+            <span>{renderHTML({ html: banner.description })}</span>
+            {banner.action === "restart" && <RestartSessionButton />}
+          </div>
+        </Banner>
+      ))}
+    </div>
+  );
+};
+
+const RestartSessionButton = () => {
+  const restartKernel = useRestartKernel();
+  return (
+    <Button variant="link" size="sm" onClick={restartKernel}>
+      <RotateCcwIcon className="w-4 h-4 mr-2" />
+      Restart
+    </Button>
   );
 };

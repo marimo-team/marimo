@@ -44,6 +44,9 @@ function createNetworkRequests(): EditRequests & RunRequests {
         }
       );
     },
+    sendRestart: () => {
+      return API.post("/kernel/restart_session", {});
+    },
     sendRename: (filename: string | null) => {
       return API.post<RenameRequest>("/kernel/rename", {
         filename: filename,
@@ -52,12 +55,16 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendSave: (request: SaveKernelRequest) => {
       // Validate same length
       invariant(
+        request.cellIds.length === request.codes.length,
+        "cell ids and codes must be the same length"
+      );
+      invariant(
         request.codes.length === request.names.length,
-        "cell codes and names must be the same length"
+        "cell ids and names must be the same length"
       );
       invariant(
         request.codes.length === request.configs.length,
-        "cell codes and configs must be the same length"
+        "cell ids and configs must be the same length"
       );
 
       return API.post<SaveKernelRequest>("/kernel/save", request);
@@ -147,6 +154,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
 export const {
   sendComponentValues,
   sendRename,
+  sendRestart,
   sendSave,
   sendStdin,
   sendFormat,

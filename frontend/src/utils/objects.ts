@@ -2,14 +2,14 @@
 export const Objects = {
   mapValues<T, U, K extends string | number>(
     obj: Record<K, T>,
-    mapper: (value: T) => U
+    mapper: (value: T, key: K) => U
   ): Record<K, U> {
     if (!obj) {
       return obj as Record<K, U>;
     }
 
     return Objects.fromEntries(
-      Objects.entries(obj).map(([key, value]) => [key, mapper(value)])
+      Objects.entries(obj).map(([key, value]) => [key, mapper(value, key)])
     );
   },
   /**

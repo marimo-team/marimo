@@ -14,18 +14,21 @@ from typing import (
     Any,
     ClassVar,
     Dict,
+    List,
     Literal,
     Optional,
     Sequence,
+    Tuple,
     Union,
     cast,
 )
 
 from marimo import _loggers as loggers
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES, Stream
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
@@ -71,12 +74,14 @@ class CellOp(Op):
     name: ClassVar[str] = "cell-op"
     cell_id: CellId_t
     output: Optional[CellOutput] = None
-    console: Optional[Union[CellOutput, list[CellOutput]]] = None
+    console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[CellStatusType] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     @staticmethod
-    def maybe_truncate_output(mimetype: str, data: str) -> tuple[str, str]:
+    def maybe_truncate_output(
+        mimetype: KnownMimeType, data: str
+    ) -> tuple[KnownMimeType, str]:
         if (size := sys.getsizeof(data)) > OUTPUT_MAX_BYTES:
             from marimo._output.md import md
             from marimo._plugins.stateless.callout import callout
@@ -111,8 +116,8 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_output(
-        channel: str,
-        mimetype: str,
+        channel: CellChannel,
+        mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
@@ -144,7 +149,7 @@ class CellOp(Op):
         CellOp(
             cell_id=cell_id,
             output=CellOutput(
-                channel="output",
+                channel=CellChannel.OUTPUT,
                 mimetype="text/plain",
                 data="",
             ),
@@ -153,8 +158,8 @@ class CellOp(Op):
 
     @staticmethod
     def broadcast_console_output(
-        channel: str,
-        mimetype: str,
+        channel: CellChannel,
+        mimetype: KnownMimeType,
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
@@ -193,7 +198,7 @@ class CellOp(Op):
         CellOp(
             cell_id=cell_id,
             output=CellOutput(
-                channel="marimo-error",
+                channel=CellChannel.MARIMO_ERROR,
                 mimetype="application/vnd.marimo+error",
                 data=data,
             ),
@@ -207,8 +212,8 @@ class HumanReadableStatus(Op):
     """Human-readable status."""
 
     code: Literal["ok", "error"]
-    title: str | None = None
-    message: str | None = None
+    title: Union[str, None] = None
+    message: Union[str, None] = None
 
 
 @dataclass
@@ -249,11 +254,17 @@ class KernelReady(Op):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
-    cell_ids: tuple[CellId_t, ...]
-    codes: tuple[str, ...]
-    names: tuple[str, ...]
+    cell_ids: Tuple[CellId_t, ...]
+    codes: Tuple[str, ...]
+    names: Tuple[str, ...]
     layout: Optional[LayoutConfig]
-    configs: tuple[CellConfig, ...]
+    configs: Tuple[CellConfig, ...]
+    # Whether the kernel was resumed from a previous session
+    resumed: bool
+    # If the kernel was resumed, the values of the UI elements
+    ui_values: Optional[Dict[str, JSONType]]
+    # If the kernel was resumed, the last executed code for each cell
+    last_executed_code: Optional[Dict[CellId_t, str]]
 
 
 @dataclass
@@ -263,7 +274,7 @@ class CompletionResult(Op):
     name: ClassVar[str] = "completion-result"
     completion_id: str
     prefix_length: int
-    options: list[CompletionOption]
+    options: List[CompletionOption]
 
 
 @dataclass
@@ -276,10 +287,25 @@ class Alert(Op):
 
 
 @dataclass
+class Reconnected(Op):
+    name: ClassVar[str] = "reconnected"
+
+
+@dataclass
+class Banner(Op):
+    name: ClassVar[str] = "banner"
+    title: str
+    # description may be HTML
+    description: str
+    variant: Optional[Literal["danger"]] = None
+    action: Optional[Literal["restart"]] = None
+
+
+@dataclass
 class VariableDeclaration:
     name: str
-    declared_by: list[CellId_t]
-    used_by: list[CellId_t]
+    declared_by: List[CellId_t]
+    used_by: List[CellId_t]
 
 
 @dataclass
@@ -288,7 +314,9 @@ class VariableValue:
     datatype: Optional[str]
     value: Optional[str]
 
-    def __init__(self, name: str, value: object):
+    def __init__(
+        self, name: str, value: object, datatype: Optional[str] = None
+    ) -> None:
         self.name = name
 
         # Defensively try-catch attribute accesses, which could raise
@@ -296,7 +324,7 @@ class VariableValue:
         try:
             self.datatype = type(value).__name__ if value is not None else None
         except Exception:
-            self.datatype = None
+            self.datatype = datatype
 
         try:
             self.value = self._format_value(value)
@@ -322,7 +350,7 @@ class Variables(Op):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
-    variables: list[VariableDeclaration]
+    variables: List[VariableDeclaration]
 
 
 @dataclass
@@ -330,4 +358,21 @@ class VariableValues(Op):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
-    variables: list[VariableValue]
+    variables: List[VariableValue]
+
+
+MessageOperation = Union[
+    CellOp,
+    HumanReadableStatus,
+    Reconnected,
+    FunctionCallResult,
+    RemoveUIElements,
+    Interrupted,
+    CompletedRun,
+    KernelReady,
+    CompletionResult,
+    Alert,
+    Banner,
+    Variables,
+    VariableValues,
+]

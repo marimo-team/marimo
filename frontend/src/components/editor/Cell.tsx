@@ -419,6 +419,7 @@ const CellComponent = (
               edited={edited}
               disabled={cellConfig.disabled ?? false}
               elapsedTime={runElapsedTimeMs}
+              runStartTimestamp={runStartTimestamp}
             />
             <div className="flex align-bottom">
               <RunButton

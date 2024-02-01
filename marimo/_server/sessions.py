@@ -28,22 +28,29 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._messaging.ops import Alert, serialize
+from marimo._messaging.ops import Alert, MessageOperation
+from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import AppMetadata
 from marimo._server.model import (
     ConnectionState,
-    SessionHandler,
+    SessionConsumer,
     SessionMode,
 )
+from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import import_files, print_tabbed
+from marimo._utils.distributor import Distributor
+from marimo._utils.repr import format_repr
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
+
+SessionId = str
 
 
 class QueueManager:
@@ -94,8 +101,8 @@ class KernelManager:
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
-        self._read_conn: Optional[connection.Connection] = None
         self.app_metadata = app_metadata
+        self._read_conn: Optional[TypedConnection[KernelMessage]] = None
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -130,7 +137,8 @@ class KernelManager:
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
                 runtime.launch_kernel(*args)
-                self.kernel_connection.close()
+                if not self.kernel_connection.closed:
+                    self.kernel_connection.close()
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
@@ -157,7 +165,7 @@ class KernelManager:
         self.kernel_task.start()  # type: ignore
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
-        self._read_conn = listener.accept()
+        self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
 
     def is_alive(self) -> bool:
         return self.kernel_task is not None and self.kernel_task.is_alive()
@@ -184,7 +192,7 @@ class KernelManager:
             self.queue_manager.control_queue.put(requests.StopRequest())
 
     @property
-    def kernel_connection(self) -> connection.Connection:
+    def kernel_connection(self) -> TypedConnection[KernelMessage]:
         assert self._read_conn is not None, "connection not started"
         return self._read_conn
 
@@ -201,7 +209,7 @@ class Session:
     @classmethod
     def create(
         cls,
-        session_handler: SessionHandler,
+        session_consumer: SessionConsumer,
         mode: SessionMode,
         app: InternalApp,
         app_metadata: AppMetadata,
@@ -212,49 +220,110 @@ class Session:
         kernel_manager = KernelManager(
             queue_manager, mode, configs, app_metadata
         )
-        return cls(session_handler, queue_manager, kernel_manager)
+        return cls(app, session_consumer, queue_manager, kernel_manager)
 
     def __init__(
         self,
-        session_handler: SessionHandler,
+        app: InternalApp,
+        session_consumer: SessionConsumer,
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
         self._queue_manager: QueueManager
-        self.session_handler = session_handler
+        self.app = app
+        # This can be optional in case a consumer gets disconnected,
+        # and we want to continue the session without a consumer.
+        self.session_consumer: Optional[SessionConsumer] = None
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
+        self.session_view = SessionView()
+
         self.kernel_manager.start_kernel()
-
-        def check_alive() -> None:
-            if not self.kernel_manager.is_alive():
-                self.close()
-                print()
-                print_tabbed(
-                    "\033[31mThe Python kernel died unexpectedly.\033[0m"
-                )
-                print()
-                sys.exit()
-
-        self.check_alive = check_alive
-        self.session_handler.on_start(
-            connection=self.kernel_manager.kernel_connection,
-            check_alive=check_alive,
+        # Reads from the kernel connection and distributes the
+        # messages to each subscriber.
+        self.message_distributor = Distributor[KernelMessage](
+            self.kernel_manager.kernel_connection
         )
+        self.message_distributor.add_consumer(
+            lambda msg: self.session_view.add_raw_operation(msg[1])
+        )
+        self.connect_consumer(session_consumer)
+        self.message_distributor.start()
+
+    def _check_alive(self) -> None:
+        if not self.kernel_manager.is_alive():
+            LOGGER.debug("Closing session because kernel died")
+            self.close()
+            print()
+            print_tabbed("\033[31mThe Python kernel died unexpectedly.\033[0m")
+            print()
+            sys.exit()
 
     def try_interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
 
     def put_request(self, request: requests.Request) -> None:
         self._queue_manager.control_queue.put(request)
+        self.session_view.add_request(request)
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put(text)
+        self.session_view.add_stdin(text)
+
+    def disconnect_consumer(self) -> None:
+        """Stop the session consumer but keep the kernel running"""
+        assert (
+            self.session_consumer is not None
+        ), "Expecting a session consumer to pause"
+        LOGGER.debug("Disconnecting session consumer")
+        self.session_consumer.on_stop()
+        self.unsubscribe_consumer()
+        self.session_consumer = None
+
+    def connect_consumer(self, session_consumer: SessionConsumer) -> None:
+        """Connect or resume the session with a new consumer"""
+        assert (
+            self.session_consumer is None
+        ), "Expecting no existing session consumer"
+
+        self.session_consumer = session_consumer
+
+        subscribe = self.session_consumer.on_start(self._check_alive)
+        self.unsubscribe_consumer = self.message_distributor.add_consumer(
+            subscribe
+        )
+
+    def get_current_state(self) -> SessionView:
+        return self.session_view
+
+    def connection_state(self) -> ConnectionState:
+        if self.session_consumer is None:
+            return ConnectionState.ORPHANED
+        return self.session_consumer.connection_state()
+
+    async def write_operation(self, operation: MessageOperation) -> None:
+        self.session_view.add_operation(operation)
+        if self.session_consumer is not None:
+            await self.session_consumer.write_operation(operation)
 
     def close(self) -> None:
-        self.session_handler.on_stop(self.kernel_manager.kernel_connection)
+        # Could be no consumer if we already disconnect, but the session
+        # is running in the background
+        if self.session_consumer is not None:
+            self.session_consumer.on_stop()
+        self.message_distributor.stop()
         self.kernel_manager.close_kernel()
+        self.unsubscribe_consumer()
+
+    def __repr__(self) -> str:
+        return format_repr(
+            self,
+            {
+                "connection_state": self.connection_state(),
+                "consumer": self.session_consumer,
+            },
+        )
 
 
 class SessionManager:
@@ -286,11 +355,10 @@ class SessionManager:
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
-        self.app_config: _AppConfig
         self.include_code = include_code
 
-        self.app = self.load_app()
-        self.app_config = self.app.config
+        app = self.load_app()
+        self.app_config = app.config
 
         self.app_metadata = AppMetadata(
             filename=self._get_filename(),
@@ -305,7 +373,7 @@ class SessionManager:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
             self.server_token = str(
-                hash("".join(code for code in self.app.cell_manager.codes()))
+                hash("".join(code for code in app.cell_manager.codes()))
             )
 
     def load_app(self) -> InternalApp:
@@ -337,21 +405,72 @@ class SessionManager:
         self.app_metadata.filename = self._get_filename()
 
     def create_session(
-        self, session_id: str, session_handler: SessionHandler
+        self, session_id: SessionId, session_consumer: SessionConsumer
     ) -> Session:
         """Create a new session"""
-        LOGGER.debug("creating new session for id %s", session_id)
+        LOGGER.debug("Creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            s = Session.create(
-                session_handler=session_handler,
+            self.sessions[session_id] = Session.create(
+                session_consumer=session_consumer,
                 mode=self.mode,
+                # When we create a session,
+                # we load the app from the file
                 app=self.load_app(),
                 app_metadata=self.app_metadata,
             )
-            self.sessions[session_id] = s
-            return s
-        else:
-            return self.sessions[session_id]
+        return self.sessions[session_id]
+
+    def get_session(self, session_id: SessionId) -> Optional[Session]:
+        return self.sessions.get(session_id)
+
+    def maybe_resume_session(
+        self, new_session_id: SessionId
+    ) -> Optional[Session]:
+        """
+        Try to resume a session if one is resumable.
+        If it is resumable, return the session and update the session id.
+        """
+
+        # If in run mode, only resume the session if it is orphaned and has
+        # the same session id, otherwise we want to create a new session
+        if self.mode == SessionMode.RUN:
+            maybe_session = self.get_session(new_session_id)
+            if (
+                maybe_session
+                and maybe_session.connection_state()
+                == ConnectionState.ORPHANED
+            ):
+                LOGGER.debug(
+                    "Found a resumable RUN session: prev_id=%s",
+                    new_session_id,
+                )
+                return maybe_session
+            return None
+
+        if len(self.sessions) == 0:
+            return None
+        if len(self.sessions) > 1:
+            raise Exception("Only one session should exist while editing")
+
+        # Should only return an orphaned session
+        (session_id, session) = list(self.sessions.items())[0]
+        connection_state = session.connection_state()
+        if connection_state == ConnectionState.ORPHANED:
+            LOGGER.debug(
+                f"Found a resumable EDIT session: prev_id={session_id}"
+            )
+            # Set new session and remove old session
+            self.sessions[new_session_id] = session
+            # If the ID is the same, we don't need to delete the old session
+            if new_session_id != session_id:
+                del self.sessions[session_id]
+            return session
+
+        LOGGER.debug(
+            "Session is not resumable, current state: %s",
+            connection_state,
+        )
+        return None
 
     def _get_filename(self) -> Optional[str]:
         if self.filename is None:
@@ -361,22 +480,14 @@ class SessionManager:
         except AttributeError:
             return None
 
-    def get_session(self, session_id: str) -> Optional[Session]:
-        if session_id in self.sessions:
-            return self.sessions[session_id]
-        return None
-
     def any_clients_connected(self) -> bool:
         """Returns True if at least one client has an open socket."""
         for session in self.sessions.values():
-            if (
-                session.session_handler.connection_state()
-                == ConnectionState.OPEN
-            ):
+            if session.connection_state() == ConnectionState.OPEN:
                 return True
         return False
 
-    def start_lsp_server(self) -> None:
+    async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
         Doesn't start in run mode.
@@ -389,15 +500,12 @@ class SessionManager:
         if binpath is None:
             LOGGER.error("Node.js not found; cannot start LSP server.")
             for _, session in self.sessions.items():
-                session.session_handler.write_operation(
-                    Alert.name,
-                    serialize(
-                        Alert(
-                            title="Github Copilot: Connection Error",
-                            description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
-                            variant="danger",
-                        )
-                    ),
+                await session.write_operation(
+                    Alert(
+                        title="Github Copilot: Connection Error",
+                        description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
+                        variant="danger",
+                    )
                 )
             return
 
@@ -428,8 +536,8 @@ class SessionManager:
                 e,
             )
 
-    def close_session(self, session_id: str) -> None:
-        LOGGER.debug("closing session %s", session_id)
+    def close_session(self, session_id: SessionId) -> None:
+        LOGGER.debug("Closing session %s", session_id)
         session = self.get_session(session_id)
         if session is not None:
             session.close()

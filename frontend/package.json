@@ -116,7 +116,6 @@
     "ci": "CI=true run-s lint typecheck test build",
     "start": "vite",
     "dev": "vite",
-    "dev:msw": "VITE_MSW=true vite",
     "build:watch": "vite build --watch --outDir ../marimo/_static",
     "build": "vite build",
     "build:library": "vite build -c vite.lib.config.ts && tsc --declaration --emitDeclarationOnly --declarationDir lib",
@@ -174,7 +173,6 @@
     "eslint-plugin-vitest": "^0.3.20",
     "jsdom": "^24.0.0",
     "mock-socket": "^9.3.1",
-    "msw": "^1.3.2",
     "npm-run-all2": "^5.0.0",
     "postcss": "^8.4.33",
     "prettier": "^2.8.8",
@@ -189,8 +187,5 @@
     "vite": "^5.0.11",
     "vite-tsconfig-paths": "^4.3.1",
     "vitest": "^1.2.2"
-  },
-  "msw": {
-    "workerDirectory": "public"
   }
 }

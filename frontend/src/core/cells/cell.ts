@@ -4,6 +4,7 @@ import { CellMessage, OutputMessage } from "../kernel/messages";
 import { CellRuntimeState } from "./types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import { parseOutline } from "../dom/outline";
+import { Seconds, Time } from "@/utils/time";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -24,6 +25,9 @@ export function transitionCell(
       // the cell's current code if the user modified it.
       break;
     case "running":
+      // Clear interrupted here in case we start as "running"
+      // This can happen on a resumed session
+      nextCell.interrupted = false;
       // If was previously stopped, clear the outputs
       if (cell.stopped) {
         nextCell.output = null;
@@ -37,8 +41,9 @@ export function transitionCell(
       break;
     case "idle":
       if (cell.runStartTimestamp) {
-        nextCell.runElapsedTimeMs =
-          (message.timestamp - cell.runStartTimestamp) * 1000;
+        nextCell.runElapsedTimeMs = Time.fromSeconds(
+          (message.timestamp - cell.runStartTimestamp) as Seconds
+        ).toMilliseconds();
         nextCell.runStartTimestamp = null;
       }
       nextCell.debuggerActive = false;
@@ -58,6 +63,8 @@ export function transitionCell(
   nextCell.output = message.output ?? nextCell.output;
   nextCell.status = message.status ?? nextCell.status;
 
+  let didInterruptFromThisMessage = false;
+
   // Handle errors: marimo includes an error output when a cell is interrupted
   // or errored
   if (
@@ -67,6 +74,7 @@ export function transitionCell(
     if (message.output.data.some((error) => error.type === "interruption")) {
       // Interrupted helps distinguish that the cell is stale
       nextCell.interrupted = true;
+      didInterruptFromThisMessage = true;
     } else if (
       message.output.data.some((error) => error.type === "ancestor-stopped")
     ) {
@@ -81,13 +89,26 @@ export function transitionCell(
 
   // Coalesce console outputs, which are streamed during execution.
   let consoleOutputs = cell.consoleOutputs;
+
+  // If interrupted on the incoming message,
+  // remove the debugger and resolve all stdin for previous console outputs
+  if (didInterruptFromThisMessage) {
+    nextCell.debuggerActive = false;
+    consoleOutputs = consoleOutputs.map((output) => {
+      if (output.channel === "stdin") {
+        return { ...output, response: output.response ?? "" };
+      }
+      return output;
+    });
+  }
+
   if (message.console !== null) {
     // The kernel sends an empty array to clear the console; otherwise,
     // message.console is an output that needs to be appended to the
     // existing console outputs.
     consoleOutputs = Array.isArray(message.console)
       ? message.console
-      : collapseConsoleOutputs([...cell.consoleOutputs, message.console]);
+      : collapseConsoleOutputs([...consoleOutputs, message.console]);
   }
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output
@@ -102,16 +123,6 @@ export function transitionCell(
   const hasPdbOutput = pdbOutputs.length > 0;
   if (hasPdbOutput && pdbOutputs.some((output) => output.data === "start")) {
     nextCell.debuggerActive = true;
-  }
-  // If interrupted, remove the debugger and resolve all stdin
-  if (nextCell.interrupted || nextCell.errored) {
-    nextCell.debuggerActive = false;
-    nextCell.consoleOutputs = nextCell.consoleOutputs.map((output) => {
-      if (output.channel === "stdin") {
-        return { ...output, response: output.response ?? "" };
-      }
-      return output;
-    });
   }
 
   return nextCell;

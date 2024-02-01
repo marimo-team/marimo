@@ -417,6 +417,7 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
 
       return {
         ...cell,
+        interrupted: false,
         consoleOutputs,
       };
     });

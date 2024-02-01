@@ -4,8 +4,9 @@ from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
 
+from marimo._ast.app import App, InternalApp
 from marimo._runtime.requests import AppMetadata
-from marimo._server.model import SessionMode
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
 from marimo._server.utils import initialize_asyncio
 
@@ -52,23 +53,28 @@ def test_kernel_manager() -> None:
 
 
 def test_session() -> None:
-    session_handler: Any = MagicMock()
+    session_consumer: Any = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
         queue_manager, SessionMode.RUN, {}, app_metadata
     )
 
     # Instantiate a Session
-    session = Session(session_handler, queue_manager, kernel_manager)
+    session = Session(
+        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+    )
 
     # Assert startup
-    assert session.session_handler == session_handler
+    assert session.session_consumer == session_consumer
     assert session._queue_manager == queue_manager
     assert session.kernel_manager == kernel_manager
-    session_handler.on_start.assert_called_once()
-    assert session_handler.on_stop.call_count == 0
+    session_consumer.on_start.assert_called_once()
+    assert session_consumer.on_stop.call_count == 0
+    assert session.connection_state() == ConnectionState.OPEN
 
     session.close()
+    session_consumer.connection_state.return_value = ConnectionState.CLOSED
 
     # Assert shutdown
     assert kernel_manager.kernel_task is not None
@@ -76,5 +82,51 @@ def test_session() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
-    session_handler.on_start.assert_called_once()
-    session_handler.on_stop.assert_called_once()
+    session_consumer.on_start.assert_called_once()
+    session_consumer.on_stop.assert_called_once()
+    assert session.connection_state() == ConnectionState.CLOSED
+
+
+def test_session_disconnect_reconnect() -> None:
+    session_consumer: Any = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+    queue_manager = QueueManager(use_multiprocessing=False)
+    kernel_manager = KernelManager(
+        queue_manager, SessionMode.RUN, {}, AppMetadata()
+    )
+
+    # Instantiate a Session
+    session = Session(
+        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+    )
+
+    # Assert startup
+    assert session.session_consumer == session_consumer
+    session_consumer.on_start.assert_called_once()
+    assert session_consumer.on_stop.call_count == 0
+
+    session.disconnect_consumer()
+
+    # Assert shutdown of consumer
+    assert session.session_consumer is None
+    session_consumer.on_start.assert_called_once()
+    session_consumer.on_stop.assert_called_once()
+    assert session.connection_state() == ConnectionState.ORPHANED
+
+    # Reconnect
+    new_session_consumer = MagicMock()
+    session.connect_consumer(new_session_consumer)
+    assert session.session_consumer == new_session_consumer
+    new_session_consumer.on_start.assert_called_once()
+    assert new_session_consumer.on_stop.call_count == 0
+
+    session.close()
+    new_session_consumer.connection_state.return_value = ConnectionState.CLOSED
+
+    # Assert shutdown
+    assert kernel_manager.kernel_task is not None
+    kernel_manager.kernel_task.join()
+    assert not kernel_manager.is_alive()
+    new_session_consumer.on_start.assert_called_once()
+    new_session_consumer.on_stop.assert_called_once()
+    assert session.connection_state() == ConnectionState.CLOSED

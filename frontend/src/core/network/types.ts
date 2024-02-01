@@ -46,6 +46,7 @@ export interface RunRequest {
 }
 
 export interface SaveKernelRequest {
+  cellIds: CellId[];
   filename: string;
   codes: string[];
   names: string[];
@@ -146,6 +147,7 @@ export interface EditRequests {
   saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
+  sendRestart: () => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   // File explorer requests
   sendListFiles: (request: {

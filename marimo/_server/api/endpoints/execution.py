@@ -42,9 +42,11 @@ async def set_ui_element_values(
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_request(
         SetUIElementValueRequest(
-            zip(
-                body.object_ids,
-                body.values,
+            list(
+                zip(
+                    body.object_ids,
+                    body.values,
+                )
             )
         )
     )
@@ -60,10 +62,9 @@ async def instantiate(
     Instantiate the kernel.
     """
     app_state = AppState(request)
-    notebook = app_state.session_manager.load_app()
+    notebook = app_state.require_current_session().app
     body = await parse_request(request, cls=InstantiateRequest)
 
-    execution_requests: tuple[ExecutionRequest, ...]
     execution_requests = tuple(
         ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
         for cell_data in notebook.cell_manager.cell_data()
@@ -73,7 +74,7 @@ async def instantiate(
         CreationRequest(
             execution_requests=execution_requests,
             set_ui_element_value_request=SetUIElementValueRequest(
-                zip(body.object_ids, body.values)
+                list(zip(body.object_ids, body.values))
             ),
         )
     )
@@ -137,6 +138,25 @@ async def run_cell(
             )
         )
     )
+
+    return SuccessResponse()
+
+
+@router.post("/restart_session")
+@requires("edit")
+async def restart_session(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    Restart a session. This does not restart the
+    kernel or affect other sessions
+    """
+    app_state = AppState(request)
+    # This just closes the session, and the frontend will
+    # do a full reload, which will restart the session.
+    session_id = app_state.require_current_session_id()
+    app_state.session_manager.close_session(session_id)
 
     return SuccessResponse()
 
