@@ -31,11 +31,14 @@ class OSFileSystem(FileSystem):
                 ):
                     continue
 
+                is_directory = entry.is_dir()
                 info = FileInfo(
                     id=entry.path,
                     path=entry.path,
                     name=entry.name,
-                    is_directory=entry.is_dir(),
+                    is_directory=is_directory,
+                    is_marimo_file=not is_directory
+                    and self._is_marimo_file(entry.path),
                     last_modified_date=entry.stat().st_mtime,
                 )
                 files.append(info)
@@ -47,13 +50,22 @@ class OSFileSystem(FileSystem):
 
     def get_details(self, path: str) -> FileInfo:
         stat = os.stat(path)
+        is_directory = os.path.isdir(path)
         return FileInfo(
             id=path,
             path=path,
             name=os.path.basename(path),
-            is_directory=os.path.isdir(path),
+            is_directory=is_directory,
+            is_marimo_file=not is_directory and self._is_marimo_file(path),
             last_modified_date=stat.st_mtime,
         )
+
+    def _is_marimo_file(self, path: str) -> bool:
+        if not path.endswith(".py"):
+            return False
+
+        with open(path, "r") as file:
+            return "app = marimo.App(" in file.read()
 
     def open_file(self, path: str) -> str:
         with open(path, "r") as file:

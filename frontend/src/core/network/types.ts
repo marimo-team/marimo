@@ -112,6 +112,7 @@ export interface FileInfo {
   path: string;
   name: string;
   isDirectory: boolean;
+  isMarimoFile: boolean;
   children: FileInfo[];
 }
 
@@ -149,6 +150,7 @@ export interface EditRequests {
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
+  openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: {
     path: string | undefined;

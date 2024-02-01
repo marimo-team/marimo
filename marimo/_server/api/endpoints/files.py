@@ -13,16 +13,19 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.layout import LayoutConfig, save_layout_config
+from marimo._server.model import SessionMode
 from marimo._server.models.models import (
     BaseResponse,
     DirectoryAutocompleteRequest,
     DirectoryAutocompleteResponse,
+    OpenFileRequest,
     ReadCodeResponse,
     RenameFileRequest,
     SaveAppConfigurationRequest,
     SaveRequest,
     SuccessResponse,
 )
+from marimo._server.print import print_startup
 from marimo._server.router import APIRouter
 from marimo._server.utils import canonicalize_filename
 
@@ -131,6 +134,49 @@ async def rename_file(
                 ),
             ) from err
         mgr.rename(filename)
+
+    return SuccessResponse()
+
+
+@router.post("/open")
+@requires("edit")
+async def open_file(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """Open a file."""
+    app_state = AppState(request)
+    body = await parse_request(request, cls=OpenFileRequest)
+
+    # Validate file exists
+    if not os.path.exists(body.path):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"File {body.path} does not exist",
+        )
+
+    # Get relative path
+    filename = os.path.relpath(body.path)
+
+    try:
+        app = codegen.get_app(filename)
+        if app is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"File {filename} is not a valid marimo app",
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR,
+            detail=f"Failed to read file: {str(e)}",
+        ) from e
+
+    mgr = app_state.session_manager
+    mgr.rename(filename)
+    host = app_state.host
+    port = app_state.port
+    run = app_state.mode == SessionMode.RUN
+    print_startup(filename=filename, url=f"http://{host}:{port}", run=run)
 
     return SuccessResponse()
 

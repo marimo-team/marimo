@@ -142,6 +142,9 @@ function createNetworkRequests(): EditRequests & RunRequests {
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
+    openFile: (request) => {
+      return API.post<{ path: string }>("/kernel/open", request);
+    },
     sendListFiles: (request) => {
       return API.post<{ path: string | undefined }, FileListResponse>(
         "/files/list_files",
@@ -170,5 +173,6 @@ export const {
   saveCellConfig,
   sendFunctionRequest,
   readCode,
+  openFile,
   sendListFiles,
 } = isStaticNotebook() ? createStaticRequests() : createNetworkRequests();

@@ -342,20 +342,18 @@ class SessionManager:
         self,
         filename: Optional[str],
         mode: SessionMode,
-        port: int,
         development_mode: bool,
         quiet: bool,
         include_code: bool,
+        lsp_server: LspServer,
     ) -> None:
         self.filename = filename
         self.mode = mode
-        self.port = port
-        self.lsp_port = int(self.port * 10)
-        self.lsp_process: Optional[subprocess.Popen[bytes]] = None
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
         self.include_code = include_code
+        self.lsp_server = lsp_server
 
         app = self.load_app()
         self.app_config = app.config
@@ -399,7 +397,8 @@ class SessionManager:
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
 
-        Should be called if an api call renamed the current file on disk.
+        Should be called if an api call renamed the current file on disk,
+        or opened another file.
         """
         self.filename = filename
         self.app_metadata.filename = self._get_filename()
@@ -492,49 +491,16 @@ class SessionManager:
 
         Doesn't start in run mode.
         """
-        if self.lsp_process is not None or self.mode == SessionMode.RUN:
-            LOGGER.debug("LSP server already started")
+        if self.mode == SessionMode.RUN:
+            LOGGER.warn("Cannot start LSP server in run mode")
             return
 
-        binpath = shutil.which("node")
-        if binpath is None:
-            LOGGER.error("Node.js not found; cannot start LSP server.")
+        alert = self.lsp_server.start()
+
+        if alert is not None:
             for _, session in self.sessions.items():
-                await session.write_operation(
-                    Alert(
-                        title="Github Copilot: Connection Error",
-                        description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
-                        variant="danger",
-                    )
-                )
+                await session.write_operation(alert)
             return
-
-        cmd = None
-        try:
-            LOGGER.debug("Starting LSP server at port %s...", self.lsp_port)
-            lsp_bin = os.path.join(
-                str(import_files("marimo").joinpath("_lsp")),
-                "index.js",
-            )
-            cmd = f"node {lsp_bin} --port {self.lsp_port}"
-            LOGGER.debug("... running command: %s", cmd)
-            self.lsp_process = subprocess.Popen(
-                cmd.split(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
-            LOGGER.debug(
-                "... node process return code (`None` means success): %s",
-                self.lsp_process.returncode,
-            )
-            LOGGER.debug("Started LSP server at port %s", self.lsp_port)
-        except Exception as e:
-            LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
-            )
 
     def close_session(self, session_id: SessionId) -> None:
         LOGGER.debug("Closing session %s", session_id)
@@ -553,12 +519,68 @@ class SessionManager:
     def shutdown(self) -> None:
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
-        if self.lsp_process is not None:
-            self.lsp_process.terminate()
+        self.lsp_server.stop()
 
     def should_send_code_to_frontend(self) -> bool:
         """Returns True if the server can send messages to the frontend."""
         return self.mode == SessionMode.EDIT or self.include_code
+
+
+class LspServer:
+    def __init__(self, port: int) -> None:
+        self.port = port
+        self.process: Optional[subprocess.Popen[bytes]] = None
+
+    def start(self) -> Optional[Alert]:
+        if self.process is not None:
+            LOGGER.debug("LSP server already started")
+            return None
+
+        binpath = shutil.which("node")
+        if binpath is None:
+            LOGGER.error("Node.js not found; cannot start LSP server.")
+            return Alert(
+                title="Github Copilot: Connection Error",
+                description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
+                variant="danger",
+            )
+
+        cmd = None
+        try:
+            LOGGER.debug("Starting LSP server at port %s...", self.port)
+            lsp_bin = os.path.join(
+                str(import_files("marimo").joinpath("_lsp")),
+                "index.js",
+            )
+            cmd = f"node {lsp_bin} --port {self.port}"
+            LOGGER.debug("... running command: %s", cmd)
+            self.process = subprocess.Popen(
+                cmd.split(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+            )
+            LOGGER.debug(
+                "... node process return code (`None` means success): %s",
+                self.process.returncode,
+            )
+            LOGGER.debug("Started LSP server at port %s", self.port)
+        except Exception as e:
+            LOGGER.error(
+                "When starting language server (%s), got error: %s",
+                cmd,
+                e,
+            )
+
+        return None
+
+    def stop(self) -> None:
+        if self.process is not None:
+            self.process.terminate()
+            self.process = None
+            LOGGER.debug("Stopped LSP server at port %s", self.port)
+        else:
+            LOGGER.debug("LSP server not running")
 
 
 def initialize_manager(
@@ -574,10 +596,10 @@ def initialize_manager(
     SESSION_MANAGER = SessionManager(
         filename=filename,
         mode=mode,
-        port=port,
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
+        lsp_server=LspServer(port * 10),
     )
     return SESSION_MANAGER
 

@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { NodeApi, NodeRendererProps, Tree, SimpleTree } from "react-arborist";
 
-import React, { useMemo, useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import React from "react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  PlaySquareIcon,
+} from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { sendListFiles } from "@/core/network/requests";
+import { openFile, sendListFiles, sendRestart } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
@@ -13,20 +17,29 @@ import {
   guessFileType,
 } from "./types";
 import { toast } from "@/components/ui/use-toast";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { AlertDialogAction } from "@/components/ui/alert-dialog";
+import { atom, useAtom } from "jotai";
+
+// State lives outside of the component
+// to preserve the state when the component is unmounted
+const treeAtom = atom<SimpleTree<FileInfo>>(new SimpleTree<FileInfo>([]));
+const openStateAtom = atom<Record<string, boolean>>({});
 
 export const FileExplorer: React.FC<{
   height: number;
 }> = ({ height }) => {
-  const [data, setData] = useState<FileInfo[]>([]);
-  const tree = useMemo(() => new SimpleTree<FileInfo>(data), [data]);
+  const [tree, setTree] = useAtom(treeAtom);
+  const [openState, setOpenState] = useAtom(openStateAtom);
 
   useOnMount(() => {
-    if (data.length > 0) {
+    if (tree.data.length > 0) {
       return;
     }
     // Fetch initial data on mount
     sendListFiles({ path: undefined }).then((data) => {
-      setData(data.files);
+      setTree(new SimpleTree(data.files));
     });
   });
 
@@ -46,6 +59,7 @@ export const FileExplorer: React.FC<{
         className="h-full"
         data={tree.data}
         dndRootElement={element}
+        initialOpenState={openState}
         openByDefault={false}
         onToggle={(id) => {
           const node = tree.find(id);
@@ -65,7 +79,9 @@ export const FileExplorer: React.FC<{
 
           sendListFiles({ path: id }).then((data) => {
             tree.update({ id, changes: { children: data.files } });
-            setData(tree.data);
+            setTree(new SimpleTree(tree.data));
+            const prevOpen = openState[id] ?? false;
+            setOpenState({ ...openState, [id]: !prevOpen });
           });
         }}
         padding={15}
@@ -93,11 +109,12 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     : guessFileType(node.data.name);
 
   const Icon = FILE_TYPE_ICONS[fileType];
+  const { openConfirm } = useImperativeModal();
 
   return (
     <div
       style={style}
-      className="flex items-center cursor-pointer gap-2 ml-2 text-muted-foreground whitespace-nowrap"
+      className="flex items-center cursor-pointer ml-2 text-muted-foreground whitespace-nowrap"
       onClick={(evt) => {
         if (node.data.isDirectory) {
           node.toggle();
@@ -130,7 +147,35 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
           navigator.clipboard.writeText(pythonCode);
         }}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" /> <span>{node.data.name}</span>
+        <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />
+        <span className="flex-1">{node.data.name}</span>
+        {node.data.isMarimoFile ? (
+          <Tooltip content="Open file">
+            <PlaySquareIcon
+              strokeWidth={1.5}
+              onClick={async (e) => {
+                e.stopPropagation();
+                openConfirm({
+                  title: "Open notebook",
+                  description:
+                    "This will close the current notebook and open the selected notebook. You'll lose all data that's in memory.",
+                  confirmAction: (
+                    <AlertDialogAction
+                      onClick={async () => {
+                        await openFile({ path: node.data.path });
+                        await sendRestart();
+                        window.location.reload();
+                      }}
+                      aria-label="Confirm"
+                    >
+                      Open
+                    </AlertDialogAction>
+                  ),
+                });
+              }}
+            />
+          </Tooltip>
+        ) : null}
       </span>
     </div>
   );
