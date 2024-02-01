@@ -24,7 +24,10 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   mode,
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
-  const [showCode, setShowCode] = useState(false);
+  const [showCode, setShowCode] = useState(() => {
+    // Default to showing code if the notebook is static
+    return isStaticNotebook();
+  });
   // Show code if there is at least one cell with code
   const canShowCode = mode === "read" && cells.some((cell) => cell.code);
   return (
