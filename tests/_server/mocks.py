@@ -33,13 +33,16 @@ if __name__ == "__main__":
 
     temp_file.close()
 
+    lsp_server = MagicMock(spec=LspServer)
+    lsp_server.is_running.return_value = False
+
     sm = SessionManager(
         filename=temp_file.name,
         mode=SessionMode.EDIT,
         development_mode=False,
         quiet=False,
         include_code=True,
-        lsp_server=MagicMock(spec=LspServer),
+        lsp_server=lsp_server,
     )
     sm.server_token = "fake-token"
     return sm

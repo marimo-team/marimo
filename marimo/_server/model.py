@@ -15,13 +15,13 @@ class ConnectionState(Enum):
     ORPHANED = 2
 
 
-class SessionMode(Enum):
+class SessionMode(str, Enum):
     """Session mode for a session"""
 
     # read-write
-    EDIT = 0
+    EDIT = "edit"
     # read-only
-    RUN = 1
+    RUN = "run"
 
 
 class SessionConsumer(metaclass=abc.ABCMeta):
