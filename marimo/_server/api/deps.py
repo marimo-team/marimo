@@ -31,6 +31,9 @@ class AppState:
         assert (
             request.app.state.user_config is not None
         ), "User config not initialized"
+        assert request.app.state.server is not None, "Server not initialized"
+        assert request.app.state.host is not None, "Host not initialized"
+        assert request.app.state.port is not None, "Port not initialized"
 
         self.session_manager: SessionManager = (
             request.app.state.session_manager
@@ -38,6 +41,7 @@ class AppState:
         self.user_config: MarimoConfig = request.app.state.user_config
         self._server: Server = request.app.state.server
         self._host = request.app.state.host
+        self._port = request.app.state.port
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""
@@ -91,7 +95,7 @@ class AppState:
 
     @property
     def port(self) -> int:
-        return self.session_manager.port
+        return self._port
 
     @property
     def server_token(self) -> str:

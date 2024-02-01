@@ -1,9 +1,9 @@
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions import LspServer, Session, SessionManager
 
 
 @pytest.fixture
@@ -23,10 +23,10 @@ def session_manager():
     return SessionManager(
         filename=None,
         mode=SessionMode.EDIT,
-        port=5000,
         development_mode=False,
         quiet=False,
         include_code=True,
+        lsp_server=MagicMock(spec=LspServer),
     )
 
 
@@ -82,10 +82,8 @@ def test_shutdown(session_manager: SessionManager, mock_session: Session):
         "session1": mock_session,
         "session2": mock_session,
     }
-    with patch.object(
-        session_manager, "lsp_process", create=True
-    ) as mock_lsp_process:
-        session_manager.shutdown()
-        mock_lsp_process.terminate.assert_called_once()
+
+    session_manager.shutdown()
+    session_manager.lsp_server.stop.assert_called_once()
     assert len(session_manager.sessions) == 0
     assert mock_session.close.call_count == 2
