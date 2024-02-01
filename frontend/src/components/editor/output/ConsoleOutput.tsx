@@ -7,6 +7,9 @@ import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
+import { AnsiUp } from "ansi_up";
+
+const ansiUp = new AnsiUp();
 
 interface Props {
   cellId: CellId;
@@ -37,6 +40,12 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     return null;
   }
 
+  const renderText = (text: string) => {
+    return (
+      <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
+    );
+  };
+
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
@@ -56,7 +65,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
           if (output.response == null) {
             return (
               <div key={idx} className="flex gap-2 items-center">
-                <span>{output.data}</span>
+                {renderText(output.data)}
                 <Input
                   type="text"
                   autoComplete="off"
@@ -74,7 +83,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
           }
           return (
             <div key={idx} className="flex gap-2 items-center">
-              <span>{output.data}</span>
+              {renderText(output.data)}
               <span className="text-[var(--sky-11)]">{output.response}</span>
             </div>
           );
