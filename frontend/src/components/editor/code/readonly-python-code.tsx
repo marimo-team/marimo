@@ -18,7 +18,7 @@ export const ReadonlyPythonCode = memo(
       className?: string;
       code: string;
       initiallyHideCode?: boolean;
-    } & ReactCodeMirrorProps
+    } & ReactCodeMirrorProps,
   ) => {
     const { theme } = useThemeForPlugin();
     const { code, className, initiallyHideCode, ...rest } = props;
@@ -40,7 +40,7 @@ export const ReadonlyPythonCode = memo(
         />
       </div>
     );
-  }
+  },
 );
 ReadonlyPythonCode.displayName = "ReadonlyPythonCode";
 

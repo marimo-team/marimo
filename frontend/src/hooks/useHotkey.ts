@@ -51,7 +51,7 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
  */
 export function useHotkeysOnElement<T extends HotkeyAction>(
   element: HTMLElement | null,
-  handlers: Record<T, HotkeyHandler>
+  handlers: Record<T, HotkeyHandler>,
 ) {
   useEventListener(element, "keydown", (e) => {
     for (const [shortcut, callback] of Objects.entries(handlers)) {
@@ -74,7 +74,7 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
  */
 export function useKeydownOnElement(
   element: HTMLElement | null,
-  handlers: Record<string, HotkeyHandler>
+  handlers: Record<string, HotkeyHandler>,
 ) {
   useEventListener(element, "keydown", (e) => {
     for (const [key, callback] of Objects.entries(handlers)) {

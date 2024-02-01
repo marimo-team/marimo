@@ -141,7 +141,7 @@ export interface EditRequests {
   sendFormat: (request: FormatRequest) => Promise<Record<CellId, string>>;
   sendDeleteCell: (cellId: CellId) => Promise<null>;
   sendDirectoryAutocompleteRequest: (
-    prefix: string
+    prefix: string,
   ) => Promise<SendDirectoryAutocompleteResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;

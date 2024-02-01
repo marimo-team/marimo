@@ -82,7 +82,7 @@ interface PluginSlotProps<T> {
 // eslint-disable-next-line react/function-component-definition
 function PluginSlotInternal<T>(
   { hostElement, plugin, children, getInitialValue }: PluginSlotProps<T>,
-  ref: React.Ref<PluginSlotHandle>
+  ref: React.Ref<PluginSlotHandle>,
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
   const [value, setValue] = useState<T>(getInitialValue());
@@ -114,7 +114,7 @@ function PluginSlotInternal<T>(
       const hasAttributeMutation = mutations.some(
         (mutation) =>
           mutation.type === "attributes" &&
-          mutation.attributeName?.startsWith("data-")
+          mutation.attributeName?.startsWith("data-"),
       );
       if (hasAttributeMutation) {
         setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
@@ -159,7 +159,7 @@ function PluginSlotInternal<T>(
       methods[key] = async (...args: unknown[]) => {
         invariant(
           args.length <= 1,
-          `Plugin functions only supports a single argument. Called ${key}`
+          `Plugin functions only supports a single argument. Called ${key}`,
         );
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
@@ -184,9 +184,9 @@ function PluginSlotInternal<T>(
     return renderError(
       parsedResult.error,
       Objects.mapValues(hostElement.dataset, (value) =>
-        typeof value === "string" ? parseAttrValue(value) : value
+        typeof value === "string" ? parseAttrValue(value) : value,
       ),
-      hostElement.shadowRoot
+      hostElement.shadowRoot,
     );
   }
 
@@ -297,7 +297,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
      */
     reset() {
       this.dispatchEvent(
-        createInputEvent(parseAttrValue(this.dataset.initialValue), this)
+        createInputEvent(parseAttrValue(this.dataset.initialValue), this),
       );
       this.rerender();
     }
@@ -333,7 +333,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
           }}
         >
           {this.getChildren()}
-        </PluginSlot>
+        </PluginSlot>,
       );
     }
 
@@ -384,7 +384,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
                 }
                 return rule.cssText;
               })
-              .join("\n")
+              .join("\n"),
           );
           styleSheetCache.set(sheetUniqueKey, newSheet);
         }
@@ -398,7 +398,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       invariant(shadowRoot, "Shadow root should exist");
 
       Logger.warn(
-        "adoptedStyleSheets not supported, copying stylesheets in a less performance way. Please consider upgrading your browser."
+        "adoptedStyleSheets not supported, copying stylesheets in a less performance way. Please consider upgrading your browser.",
       );
 
       const styleSheets = Array.from(document.styleSheets).flatMap((sheet) => {
@@ -442,7 +442,7 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
 }
 
 export function isCustomMarimoElement(
-  element: Element | null
+  element: Element | null,
 ): element is IMarimoHTMLElement {
   if (!element) {
     return false;

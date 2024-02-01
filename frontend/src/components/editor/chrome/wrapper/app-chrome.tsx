@@ -70,7 +70,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "border-border no-print z-10",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
-        panelLocation === "left" ? "vertical" : "horizontal"
+        panelLocation === "left" ? "vertical" : "horizontal",
       )}
     />
   );
@@ -109,7 +109,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral",
-        isOpen && "m-4"
+        isOpen && "m-4",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open

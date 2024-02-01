@@ -22,7 +22,7 @@ const RecoveryModal = (props: {
   const downloadRecoveryFile = () => {
     downloadBlob(
       new Blob([props.getCellsAsJSON()], { type: "text/plain" }),
-      `${props.proposedName}.json`
+      `${props.proposedName}.json`,
     );
   };
 
@@ -100,7 +100,7 @@ export const RecoveryButton = (props: {
           getCellsAsJSON={getCellsAsJSON}
           proposedName={proposedName}
           closeModal={closeModal}
-        />
+        />,
       );
     }
   };

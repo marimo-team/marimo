@@ -87,7 +87,7 @@ describe("getDefaults", () => {
       z.object({
         string: z.string().default("default"),
         number: z.number().default(123),
-      })
+      }),
     );
     const result = getDefaults(schema);
     expect(result).toEqual([]);

@@ -30,7 +30,7 @@ describe("MarkdownLanguageAdapter", () => {
     it("should throw if no markdown is detected", () => {
       const pythonCode = 'print("Hello, World!")';
       expect(() =>
-        adapter.transformIn(pythonCode)
+        adapter.transformIn(pythonCode),
       ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
     });
 
@@ -79,7 +79,7 @@ describe("MarkdownLanguageAdapter", () => {
         'mo.md("""# Title\n\n```python\nprint("Hello, Markdown!")\n```""")';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
-        '# Title\n\n```python\nprint("Hello, Markdown!")\n```'
+        '# Title\n\n```python\nprint("Hello, Markdown!")\n```',
       );
       expect(offset).toBe('mo.md("""'.length);
     });
@@ -87,7 +87,7 @@ describe("MarkdownLanguageAdapter", () => {
     it("should return the original string if no markdown delimiters are present", () => {
       const pythonCode = 'print("No markdown here")';
       expect(() =>
-        adapter.transformIn(pythonCode)
+        adapter.transformIn(pythonCode),
       ).toThrowErrorMatchingInlineSnapshot(`[Error: Not supported]`);
     });
 
@@ -103,7 +103,7 @@ describe("MarkdownLanguageAdapter", () => {
         """)`;
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe(
-        `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`
+        `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`,
       );
       expect(offset).toBe(18);
     });
@@ -158,7 +158,7 @@ describe("MarkdownLanguageAdapter", () => {
       const code = 'Markdown with an escaped """quote"""!!';
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(
-        `mo.md("Markdown with an escaped \\"\\"\\"quote\\"\\"\\"!!")`
+        `mo.md("Markdown with an escaped \\"\\"\\"quote\\"\\"\\"!!")`,
       );
       expect(offset).toBe(7);
     });

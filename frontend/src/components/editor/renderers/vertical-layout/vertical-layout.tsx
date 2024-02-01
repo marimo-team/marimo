@@ -52,7 +52,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
             // If the notebook is static, we have a banner at the top, so
             // we can't use fixed positioning. Ideally this is sticky, but the
             // current dom structure makes that difficult.
-            isStaticNotebook() ? "absolute" : "fixed"
+            isStaticNotebook() ? "absolute" : "fixed",
           )}
         >
           <Button
@@ -109,7 +109,7 @@ const VerticalCell = memo(
         interrupted,
         runStartTimestamp,
       },
-      false
+      false,
     );
 
     const className = cn("Cell", "hover-actions-parent", {
@@ -154,7 +154,7 @@ const VerticalCell = memo(
         />
       </div>
     );
-  }
+  },
 );
 VerticalCell.displayName = "VerticalCell";
 

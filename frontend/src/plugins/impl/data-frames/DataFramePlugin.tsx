@@ -55,7 +55,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         .object({})
         .passthrough()
         .transform((value) => value as ColumnDataTypes),
-    })
+    }),
   )
   .withFunctions<PluginFunctions>({
     // Get the data as a URL
@@ -65,13 +65,13 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         has_more: z.boolean(),
         total_rows: z.number(),
         row_headers: z.array(z.tuple([z.string(), z.array(z.any())])),
-      })
+      }),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
       z.object({
         values: z.array(z.any()),
         too_many_values: z.boolean(),
-      })
+      }),
     ),
   })
   .renderer((props) => (
@@ -104,12 +104,12 @@ export const DataFrameComponent = ({
 }: DataTableProps): JSX.Element => {
   const { data, error } = useAsyncData(
     () => get_dataframe({}),
-    [value?.transforms]
+    [value?.transforms],
   );
   const { url, has_more, total_rows, row_headers } = data || {};
 
   const [internalValue, setInternalValue] = useState<Transformations>(
-    value || EMPTY
+    value || EMPTY,
   );
 
   return (

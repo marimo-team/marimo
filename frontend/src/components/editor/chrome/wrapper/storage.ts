@@ -29,7 +29,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
         return JSON.stringify(
           Objects.mapValues(parsed, (value) => {
             return value.reverse();
-          })
+          }),
         );
       } catch {
         return null;
@@ -43,7 +43,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
           value = JSON.stringify(
             Objects.mapValues(parsed, (value) => {
               return value.reverse();
-            })
+            }),
           );
         } catch {
           return null;

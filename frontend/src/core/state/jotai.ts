@@ -11,7 +11,7 @@ export const store = createStore();
  */
 export async function waitFor<T>(
   atom: Atom<T>,
-  predicate: (value: T) => boolean
+  predicate: (value: T) => boolean,
 ) {
   if (predicate(store.get(atom))) {
     return store.get(atom);

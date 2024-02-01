@@ -80,6 +80,6 @@ export const HtmlOutput: React.FC<Props> = memo(
         {renderHTML({ html })}
       </div>
     );
-  }
+  },
 );
 HtmlOutput.displayName = "HtmlOutput";

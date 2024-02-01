@@ -117,7 +117,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           openAlert(error.message);
           return null;
         });
-    }
+    },
   );
 
   const cells = notebookCells(notebook);
@@ -185,7 +185,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         <SaveDialog
           onClose={closeModal}
           onSubmitSaveDialog={onSubmitSaveDialog}
-        />
+        />,
       );
     }
   });
@@ -251,7 +251,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         (rect.bottom >= 0 && rect.bottom <= viewportEnd)
       ) {
         cellAnchor = HTMLCellId.parse(
-          (elem.parentNode as HTMLElement).id as HTMLCellId
+          (elem.parentNode as HTMLElement).id as HTMLCellId,
         );
         break;
       }
@@ -295,7 +295,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       // no replacer
       null,
       // whitespace for indentation
-      2
+      2,
     );
   });
 
@@ -326,13 +326,13 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           connStatus.state === WebSocketState.CLOSED && "disconnected",
           "bg-background w-full h-full text-textColor",
           "flex flex-col overflow-y-auto overflow-x-hidden",
-          appConfig.width === "full" && "config-width-full"
+          appConfig.width === "full" && "config-width-full",
         )}
       >
         <div
           className={cn(
             (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-            isReading && "sm:pt-8"
+            isReading && "sm:pt-8",
           )}
         >
           {isEditing && (

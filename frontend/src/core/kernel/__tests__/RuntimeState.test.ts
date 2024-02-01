@@ -36,7 +36,7 @@ describe("RuntimeState", () => {
     runtimeState.start();
     expect(addEventListenerSpy).toHaveBeenCalledWith(
       marimoValueReadyEvent,
-      expect.any(Function)
+      expect.any(Function),
     );
   });
 
@@ -44,7 +44,7 @@ describe("RuntimeState", () => {
     runtimeState.stop();
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
       marimoValueReadyEvent,
-      expect.any(Function)
+      expect.any(Function),
     );
   });
 

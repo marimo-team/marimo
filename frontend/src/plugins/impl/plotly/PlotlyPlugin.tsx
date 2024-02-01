@@ -102,7 +102,7 @@ export const PlotlyComponent = memo(
         })}
       />
     );
-  }
+  },
 );
 PlotlyComponent.displayName = "PlotlyComponent";
 
@@ -112,7 +112,7 @@ PlotlyComponent.displayName = "PlotlyComponent";
  * by using the hovertemplate.
  */
 function extractPoints(
-  points: Plotly.PlotDatum[]
+  points: Plotly.PlotDatum[],
 ): Array<Record<AxisName, AxisDatum>> {
   if (!points) {
     return [];

@@ -85,7 +85,7 @@ export function getOperatorForDtype(dtype: string): readonly string[] {
 
 export function getSchemaForOperator(
   dtype: string,
-  operator: string
+  operator: string,
 ): [z.ZodType] | [] {
   if (!dtype || !operator) {
     return [];

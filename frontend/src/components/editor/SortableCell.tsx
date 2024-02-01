@@ -77,7 +77,7 @@ const SortableCellInternal = React.forwardRef(
         </DragHandleSlot.Provider>
       </div>
     );
-  }
+  },
 );
 SortableCellInternal.displayName = "SortableCell";
 

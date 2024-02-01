@@ -79,7 +79,7 @@ export function useDebounceControlledState<T>(opts: {
 
 export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
   callback: T,
-  delay: number
+  delay: number,
 ) {
   const internalCallback = useEvent(callback);
   return useMemo(() => {

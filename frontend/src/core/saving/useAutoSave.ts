@@ -33,7 +33,7 @@ export function useAutoSave(opts: {
       if (needsSave && connStatus.state === WebSocketState.OPEN) {
         autosaveTimeoutId.current = setTimeout(
           onSave,
-          config.save.autosave_delay
+          config.save.autosave_delay,
         );
       }
     }

@@ -129,7 +129,7 @@ const DebuggerInput: React.FC<{
                   return true;
                 },
               },
-            ])
+            ]),
           ),
         ]}
         onChange={(value) => setValue(value)}
@@ -164,7 +164,7 @@ const DebuggerControls: React.FC<{
           onClick={() => onSubmit("c")}
           className={cn(
             buttonClasses,
-            "text-[var(--grass-11)] hover:text-[var(--grass-11)] hover:bg-[var(--grass-3)] hover:border-[var(--grass-8)]"
+            "text-[var(--grass-11)] hover:text-[var(--grass-11)] hover:bg-[var(--grass-3)] hover:border-[var(--grass-8)]",
           )}
         >
           <PlayIcon fontSize={36} className={iconClasses} />

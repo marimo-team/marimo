@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export function mergeAsArrays<T>(
   left: T | T[] | undefined,
-  right: T | T[] | undefined
+  right: T | T[] | undefined,
 ): T[] {
   return [...toArray(left), ...toArray(right)];
 }

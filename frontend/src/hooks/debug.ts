@@ -35,7 +35,7 @@ export function useDebugMounting(name: string) {
  */
 export function usePropsDidChange(
   name: string,
-  props: Record<string, unknown>
+  props: Record<string, unknown>,
 ) {
   if (process.env.NODE_ENV !== "development") {
     return;
@@ -58,7 +58,7 @@ export function usePropsDidChange(
       Logger.debug(`[${name}] Props changed: ${changedKeys.join(", ")}`);
       if (equalKeys.length > 0) {
         Logger.debug(
-          `[${name}] Props are deeply equal: ${equalKeys.join(", ")}`
+          `[${name}] Props are deeply equal: ${equalKeys.join(", ")}`,
         );
       }
     }

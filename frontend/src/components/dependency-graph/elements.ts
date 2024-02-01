@@ -43,7 +43,7 @@ function createEdge(source: CellId, target: CellId, direction: string): Edge {
 function createNode(
   id: string,
   atom: Atom<CellData>,
-  prevY: number
+  prevY: number,
 ): Node<NodeData> {
   const linesOfCode = store.get(atom).code.trim().split("\n").length;
   const height = getNodeHeight(linesOfCode);
@@ -60,7 +60,7 @@ function createNode(
 export function createElements(
   cellIds: CellId[],
   cellAtoms: Array<Atom<CellData>>,
-  variables: Variables
+  variables: Variables,
 ) {
   let prevY = 0;
   const nodes: Array<Node<NodeData>> = [];
@@ -79,7 +79,7 @@ export function createElements(
       for (const toId of usedBy) {
         edges.push(
           createEdge(fromId, toId, "inputs"),
-          createEdge(fromId, toId, "outputs")
+          createEdge(fromId, toId, "outputs"),
         );
       }
     }

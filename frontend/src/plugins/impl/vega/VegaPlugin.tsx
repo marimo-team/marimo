@@ -128,7 +128,7 @@ export const VegaComponent = ({
 };
 
 const VegaLite = lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite }))
+  import("react-vega").then((m) => ({ default: m.VegaLite })),
 );
 
 const LoadedVegaComponent = ({
@@ -162,7 +162,7 @@ const LoadedVegaComponent = ({
   }, [useDeepCompareMemoize(spec), chartSelection, fieldSelection]);
   const names = useMemo(
     () => getSelectionParamNames(selectableSpec),
-    [selectableSpec]
+    [selectableSpec],
   );
 
   // Update the value when the selection changes
@@ -181,14 +181,14 @@ const LoadedVegaComponent = ({
           handleUpdateValue({
             [signalName]: Objects.mapValues(
               signalValue as object,
-              convertSetToList
+              convertSetToList,
             ),
           });
         }, 100);
         return acc;
       }, {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [useDeepCompareMemoize(names), setValue]
+    [useDeepCompareMemoize(names), setValue],
   );
 
   const handleError = useEvent((error) => {

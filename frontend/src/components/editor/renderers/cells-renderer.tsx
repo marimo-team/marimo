@@ -44,6 +44,6 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     );
 
     return body;
-  }
+  },
 );
 CellsRenderer.displayName = "CellsRenderer";

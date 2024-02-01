@@ -9,7 +9,7 @@ import { ColumnDataTypes } from "../types";
  */
 export function getUpdatedColumnTypes(
   transforms: TransformType[],
-  columnTypes: ColumnDataTypes
+  columnTypes: ColumnDataTypes,
 ): ColumnDataTypes {
   if (!transforms || transforms.length === 0) {
     return columnTypes;
@@ -25,7 +25,7 @@ export function getUpdatedColumnTypes(
 
 function handleTransform(
   transform: TransformType,
-  next: ColumnDataTypes
+  next: ColumnDataTypes,
 ): ColumnDataTypes {
   switch (transform.type) {
     case "column_conversion":
@@ -45,20 +45,20 @@ function handleTransform(
             return [transform.new_column_id, v];
           }
           return [k, v];
-        })
+        }),
       );
     case "group_by":
       return Objects.filter(
         next,
-        (_v, k) => !transform.column_ids.includes(k as string)
+        (_v, k) => !transform.column_ids.includes(k as string),
       );
     case "aggregate":
       return Objects.filter(next, (_v, k) =>
-        transform.column_ids.includes(k as string)
+        transform.column_ids.includes(k as string),
       );
     case "select_columns":
       return Objects.filter(next, (_v, k) =>
-        transform.column_ids.includes(k as string)
+        transform.column_ids.includes(k as string),
       );
     case "filter_rows":
     case "shuffle_rows":

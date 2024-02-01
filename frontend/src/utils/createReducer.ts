@@ -26,7 +26,7 @@ type ReducerActions<RH extends ReducerHandlers<any>> = {
 
 export interface ReducerCreatorResult<
   State,
-  RH extends ReducerHandlers<State>
+  RH extends ReducerHandlers<State>,
 > {
   /**
    * The reducer function.
@@ -43,7 +43,7 @@ export interface ReducerCreatorResult<
  */
 export function createReducer<
   State,
-  RH extends ReducerHandlers<NoInfer<State>>
+  RH extends ReducerHandlers<NoInfer<State>>,
 >(initialState: () => State, reducers: RH): ReducerCreatorResult<State, RH> {
   return {
     reducer: (state, action: ReducerAction<RH>) => {

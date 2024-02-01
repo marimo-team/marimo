@@ -89,7 +89,7 @@ interface BoundingBox {
 }
 
 function expectValidBoundingBox(
-  bb: BoundingBox | null
+  bb: BoundingBox | null,
 ): asserts bb is BoundingBox {
   expect(bb).toBeDefined();
   if (!bb) {

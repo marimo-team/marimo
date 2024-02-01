@@ -99,7 +99,7 @@ describe("makeEncodingInteractive", () => {
     };
 
     expect(
-      makeEncodingInteractive("opacity", encodings, ["param1"], "point")
+      makeEncodingInteractive("opacity", encodings, ["param1"], "point"),
     ).toEqual(expected);
   });
 
@@ -115,7 +115,7 @@ describe("makeEncodingInteractive", () => {
       makeEncodingInteractive("opacity", encodings, ["param1"], {
         type: "point",
         opacity: 0.6,
-      })
+      }),
     ).toMatchInlineSnapshot(`
       {
         "opacity": {
@@ -165,8 +165,8 @@ describe("makeEncodingInteractive", () => {
         "opacity",
         encodings,
         ["param1", "param2"],
-        "point"
-      )
+        "point",
+      ),
     ).toEqual(expected);
   });
 });

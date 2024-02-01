@@ -78,7 +78,7 @@ export const TransformPanel: React.FC<Props> = ({
   const onInvalidSubmit = useEvent(
     (values: z.infer<typeof TransformationsSchema>) => {
       onInvalidChange(values);
-    }
+    },
   );
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export const TransformPanel: React.FC<Props> = ({
   const selectedTransformSchema = TransformTypeSchema._def.options.find(
     (option) => {
       return getUnionLiteral(option)._def.value === selectedTransformType;
-    }
+    },
   );
 
   const effectiveColumns = useMemo(() => {
@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {
                   "border-l-primary bg-accent text-accent-foreground":
                     selected === idx,
-                }
+                },
               )}
             >
               <div className="flex-grow text-ellipsis">
@@ -263,7 +263,7 @@ const AddTransformDropdown: React.FC<
               evt.stopPropagation();
               window.open(
                 "https://github.com/marimo-team/marimo/issues/new?title=New%20dataframe%20transform:&labels=enhancement&template=feature_request.yaml",
-                "_blank"
+                "_blank",
               );
             }}
           >

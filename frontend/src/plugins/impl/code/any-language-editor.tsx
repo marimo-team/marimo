@@ -31,7 +31,7 @@ const AnyLanguageCodeMirror: React.FC<
         <ErrorBanner
           className="mb-1 rounded-sm"
           error={`Language ${language} not supported. \n\nSupported languages are: ${Object.keys(
-            langs
+            langs,
           ).join(", ")}`}
         />
       )}

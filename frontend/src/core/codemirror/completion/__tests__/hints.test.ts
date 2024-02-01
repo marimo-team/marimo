@@ -22,7 +22,7 @@ describe("getPositionAtWordBounds", () => {
     `);
 
     expect(
-      doc.slice(result.startToken, result.endToken).toString()
+      doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"set_state"');
   });
 
@@ -36,7 +36,7 @@ describe("getPositionAtWordBounds", () => {
       }
     `);
     expect(
-      doc.slice(result.startToken, result.endToken).toString()
+      doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"data"');
   });
 
@@ -50,7 +50,7 @@ describe("getPositionAtWordBounds", () => {
       }
     `);
     expect(
-      doc.slice(result.startToken, result.endToken).toString()
+      doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"set_state"');
   });
 
@@ -64,7 +64,7 @@ describe("getPositionAtWordBounds", () => {
       }
     `);
     expect(
-      doc.slice(result.startToken, result.endToken).toString()
+      doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"get_state"');
   });
 
@@ -78,7 +78,7 @@ describe("getPositionAtWordBounds", () => {
       }
     `);
     expect(
-      doc.slice(result.startToken, result.endToken).toString()
+      doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"my_100_var"');
   });
 });

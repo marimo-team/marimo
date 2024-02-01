@@ -50,7 +50,7 @@ export const languageAdapterState = StateField.define<LanguageAdapter>({
   },
   provide: (field) =>
     showPanel.from(field, (value) =>
-      value.type === "python" ? null : createLanguagePanel
+      value.type === "python" ? null : createLanguagePanel,
     ),
 });
 
@@ -74,7 +74,7 @@ function languageToggle(completionConfig: CompletionConfig) {
           // Find the next language
           const currentLanguage = cm.state.field(languageAdapterState);
           const currentLanguageIndex = LANGUAGES.findIndex(
-            (l) => l.type === currentLanguage.type
+            (l) => l.type === currentLanguage.type,
           );
           const code = cm.state.doc.toString();
           const nextLanguage = findNextLanguage(code, currentLanguageIndex + 1);
@@ -93,7 +93,7 @@ function languageToggle(completionConfig: CompletionConfig) {
 
 function updateLanguageAdapterAndCode(
   view: EditorView,
-  nextLanguage: LanguageAdapter
+  nextLanguage: LanguageAdapter,
 ) {
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
@@ -114,7 +114,7 @@ function updateLanguageAdapterAndCode(
     effects: [
       setLanguageAdapter.of(nextLanguage),
       languageCompartment.reconfigure(
-        nextLanguage.getExtension(completionConfig)
+        nextLanguage.getExtension(completionConfig),
       ),
       // Clear history
       historyCompartment.reconfigure([]),
@@ -153,13 +153,13 @@ function createLanguagePanel(view: EditorView): Panel {
  * Set of extensions to enable adaptive language configuration.
  */
 export function adaptiveLanguageConfiguration(
-  completionConfig: CompletionConfig
+  completionConfig: CompletionConfig,
 ) {
   return [
     completionConfigState.of(completionConfig),
     languageToggle(completionConfig),
     languageCompartment.of(
-      LanguageAdapters.python().getExtension(completionConfig)
+      LanguageAdapters.python().getExtension(completionConfig),
     ),
     languageAdapterState,
   ];
@@ -170,7 +170,7 @@ export function adaptiveLanguageConfiguration(
  */
 export function switchLanguage(
   view: EditorView,
-  language: LanguageAdapter["type"]
+  language: LanguageAdapter["type"],
 ) {
   const newLanguage = LanguageAdapters[language];
   updateLanguageAdapterAndCode(view, newLanguage());
@@ -178,10 +178,10 @@ export function switchLanguage(
 
 export function reconfigureLanguageEffect(
   view: EditorView,
-  completionConfig: CompletionConfig
+  completionConfig: CompletionConfig,
 ) {
   const language = view.state.field(languageAdapterState);
   return languageCompartment.reconfigure(
-    language.getExtension(completionConfig)
+    language.getExtension(completionConfig),
   );
 }

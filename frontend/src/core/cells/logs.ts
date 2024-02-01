@@ -52,14 +52,14 @@ const CellLogLogger = {
       payload.level === "stdout"
         ? "gray"
         : payload.level === "stderr"
-        ? "red"
-        : "orange";
+          ? "red"
+          : "orange";
     const status = payload.level.toUpperCase();
     console.log(
       `%c[${status}]`,
       `color:${color}; padding:2px 0; border-radius:2px; font-weight:bold`,
       `[${formatLogTimestamp(payload.timestamp)}]`,
-      `(${payload.cellId}) ${payload.message}`
+      `(${payload.cellId}) ${payload.message}`,
     );
   },
 };

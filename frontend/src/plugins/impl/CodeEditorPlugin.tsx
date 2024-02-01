@@ -42,7 +42,7 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
 }
 
 const LazyAnyLanguageCodeMirror = lazy(
-  () => import("./code/any-language-editor")
+  () => import("./code/any-language-editor"),
 );
 
 interface CodeEditorComponentProps extends Data {

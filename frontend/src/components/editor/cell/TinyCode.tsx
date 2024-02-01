@@ -19,7 +19,7 @@ export const TinyCode: React.FC<Props> = memo(({ code, className }) => {
     <div
       className={cn(
         className,
-        "text-muted-foreground flex flex-col overflow-hidden"
+        "text-muted-foreground flex flex-col overflow-hidden",
       )}
     >
       <CodeMirror

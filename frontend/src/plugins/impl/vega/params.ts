@@ -58,7 +58,7 @@ export const Params = {
 };
 
 export function getEncodingAxisForMark(
-  spec: VegaLiteUnitSpec
+  spec: VegaLiteUnitSpec,
 ): SingleDefUnitChannel[] | undefined {
   const mark = Marks.getMarkType(spec.mark);
   switch (mark) {
@@ -73,8 +73,8 @@ export function getEncodingAxisForMark(
       return direction === "horizontal"
         ? ["y"]
         : direction === "vertical"
-        ? ["x"]
-        : undefined;
+          ? ["x"]
+          : undefined;
     }
     case Mark.circle:
     case Mark.geoshape:
@@ -107,7 +107,7 @@ export function getSelectionParamNames(spec: VegaLiteSpec): string[] {
  * Returns the direction of the bar chart.
  */
 export function getDirectionOfBar(
-  spec: VegaLiteUnitSpec
+  spec: VegaLiteUnitSpec,
 ): "horizontal" | "vertical" | undefined {
   if (!spec || !("mark" in spec)) {
     return undefined;

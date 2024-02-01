@@ -64,7 +64,7 @@ export const Radio = (props: RadioProps): JSX.Element => {
               htmlFor={`${id}-${i.toString()}`}
               className={clsx(
                 "text-md",
-                option === props.value ? "font-semibold" : ""
+                option === props.value ? "font-semibold" : "",
               )}
             >
               {option}

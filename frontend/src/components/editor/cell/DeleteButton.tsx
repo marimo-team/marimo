@@ -38,7 +38,7 @@ export const DeleteButton = (props: {
             DeleteButton: true,
             "inactive-button": appClosed || loading,
             running: loading,
-          }
+          },
         )}
         style={{
           boxShadow: "none",
