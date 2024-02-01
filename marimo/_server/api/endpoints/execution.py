@@ -151,6 +151,5 @@ async def shutdown(
     LOGGER.debug("Received shutdown request")
     app_state = AppState(request)
     app_state.session_manager.shutdown()
-
-    await close_uvicorn(app_state.server)
+    close_uvicorn(app_state.server)
     return SuccessResponse()

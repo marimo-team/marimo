@@ -45,7 +45,7 @@ async def _shutdown(app: Starlette, with_error: bool = False) -> None:
         LOGGER.fatal("marimo shut down with an error.")
     mgr.shutdown()
     if with_error:
-        await close_uvicorn(app.state.server)
+        close_uvicorn(app.state.server)
 
 
 # Compound lifespans
@@ -145,7 +145,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
     # Interrupt handler
     def shutdown() -> None:
         manager.shutdown()
-        asyncio.create_task(close_uvicorn(app.state.server))
+        close_uvicorn(app.state.server)
 
     InterruptHandler(
         quiet=manager.quiet,
