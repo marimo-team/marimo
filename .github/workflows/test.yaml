@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request: {}
 
+env:
+  # Turbocache
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: marimo
+  TURBO_API: "https://cache.turbocache.build"
+  TURBO_RUN_SUMMARY: true
+
 jobs:
   test_frontend:
     name: 🖥️ Lint, test, build frontend
@@ -20,6 +27,8 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
       - uses: pnpm/action-setup@v2
         with:
@@ -32,6 +41,8 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
+      - uses: turbocache-build/turbocache-action@v1
+
       - name: 📥 Install dependencies
         run: pnpm install
 
@@ -40,16 +51,16 @@ jobs:
         run: pnpm dedupe --check
 
       - name: 🧹 Lint
-        run: pnpm run lint
+        run: pnpm turbo lint
 
       - name: 🔎 Type check
-        run: pnpm run typecheck
+        run: pnpm turbo typecheck
 
       - name: 🧪 Test
-        run: pnpm run test
+        run: pnpm turbo test
 
       - name: 📦 Build
-        run: pnpm run build
+        run: pnpm turbo build
 
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}

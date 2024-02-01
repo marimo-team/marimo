@@ -42,7 +42,7 @@ fe-check: fe-lint fe-typecheck
 .PHONY: fe-test
 # test frontend
 fe-test:
-	cd frontend; CI=true pnpm test
+	cd frontend; CI=true pnpm turbo test
 
 .PHONY: e2e
 # test end-to-end
@@ -55,7 +55,7 @@ fe-lint:
 
 .PHONY: fe-typecheck
 fe-typecheck:
-	cd frontend; pnpm typecheck
+	cd frontend; pnpm turbo typecheck
 
 .PHONY: py-check
 # check python
