@@ -149,3 +149,20 @@ def test_lens_not_bound(k: Kernel, exec_req: ExecReqProvider) -> None:
     registry = get_context().ui_element_registry
     assert not registry.bound_names(array[0]._id)
     assert registry.bound_names(array._id) == set(["array"])
+
+
+def test_parent_bound_to_view(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                array = mo.ui.array([mo.ui.text(), mo.ui.slider(1, 10)])
+                child = array[0]
+                """
+            )
+        ]
+    )
+    array = k.globals["array"]
+    registry = get_context().ui_element_registry
+    assert registry.bound_names(array._id) == set(["array", "child"])

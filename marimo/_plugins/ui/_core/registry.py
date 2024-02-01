@@ -58,19 +58,35 @@ class UIElementRegistry:
             self._register_bindings(object_id)
         return self._bindings[object_id]
 
+    def _has_parent_id(
+        self, child: UIElement[Any, Any], parent_id: UIElementId
+    ) -> bool:
+        """Returns True if `child` has id `parent_id` or is a view of it"""
+        if child._id == parent_id:
+            return True
+        elif child._lens is not None:
+            element_ref = self._objects.get(child._lens.parent_id)
+            element = element_ref() if element_ref is not None else None
+            if element is not None:
+                return self._has_parent_id(element, parent_id)
+        return False
+
     def _register_bindings(self, object_id: UIElementId) -> None:
         kernel = get_context().kernel
-        # Get all variable names that are bound to this UI element
+        # Get all variable names that are either:
+        #   1. bound to this UI element, or
+        #   2. bound to a view (child) of this element
         names = set(
             [
                 name
                 for name in kernel.globals
                 if (
                     isinstance(kernel.globals[name], UIElement)
-                    and kernel.globals[name]._id == object_id
+                    and self._has_parent_id(kernel.globals[name], object_id)
                 )
             ]
         )
+        print(names)
         self._bindings[object_id] = names
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
