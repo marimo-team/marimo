@@ -5,6 +5,7 @@ Crude CLI tests
 Requires frontend to be built
 """
 import os
+import signal
 import socket
 import subprocess
 import tempfile
@@ -26,6 +27,20 @@ def _try_fetch(port: int, host: str = "localhost") -> Optional[bytes]:
         except Exception:
             time.sleep(0.5)
     return contents
+
+
+def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
+    assert _try_fetch(port, host) is not None
+
+
+def _temp_run_file(directory: tempfile.TemporaryDirectory) -> str:
+    filecontents = codegen.generate_filecontents(
+        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+    )
+    path = os.path.join(directory.name, "run.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(filecontents)
+    return path
 
 
 def _check_contents(
@@ -155,3 +170,67 @@ def test_cli_custom_host() -> None:
     )
     contents = _try_fetch(port, host)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+def test_cli_edit_interrupt_twice() -> None:
+    # two SIGINTs should kill the CLI
+    port = _get_port()
+    p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
+    _check_started(port)
+    os.kill(p.pid, signal.SIGINT)
+    assert p.poll() is None
+    os.kill(p.pid, signal.SIGINT)
+    time.sleep(1)
+    # exit code is system dependent when killed by signal
+    assert p.poll() is not None
+
+
+def test_cli_run_interrupt_twice() -> None:
+    # two SIGINTs should kill the CLI
+    d = tempfile.TemporaryDirectory()
+    path = _temp_run_file(d)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", path, "-p", str(port), "--headless"]
+    )
+    _check_started(port)
+    os.kill(p.pid, signal.SIGINT)
+    assert p.poll() is None
+    os.kill(p.pid, signal.SIGINT)
+    time.sleep(1)
+    # exit code is system dependent when killed by signal
+    assert p.poll() is not None
+
+
+def test_cli_edit_shutdown() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "edit", "-p", str(port), "--headless"],
+        stdin=subprocess.PIPE,
+    )
+    _check_started(port)
+    os.kill(p.pid, signal.SIGINT)
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    time.sleep(1)
+    assert p.poll() == 0
+
+
+def test_cli_run_shutdown() -> None:
+    d = tempfile.TemporaryDirectory()
+    path = _temp_run_file(d)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", path, "-p", str(port), "--headless"],
+        stdin=subprocess.PIPE,
+    )
+    _check_started(port)
+    os.kill(p.pid, signal.SIGINT)
+    assert p.poll() is None
+    assert p.stdin is not None
+    p.stdin.write(b"y\n")
+    p.stdin.flush()
+    time.sleep(1)
+    assert p.poll() == 0
