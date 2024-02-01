@@ -86,7 +86,6 @@ class UIElementRegistry:
                 )
             ]
         )
-        print(names)
         self._bindings[object_id] = names
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
