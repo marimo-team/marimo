@@ -571,8 +571,12 @@ class LspServer:
                 cmd,
                 e,
             )
+            self.process = None
 
         return None
+
+    def is_running(self) -> bool:
+        return self.process is not None
 
     def stop(self) -> None:
         if self.process is not None:
