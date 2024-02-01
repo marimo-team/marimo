@@ -69,12 +69,21 @@ class TestExecutionRoutes_EditMode:
         assert "success" in response.json()
 
     @staticmethod
-    @with_session(SESSION_ID)
     def test_restart_session(client: TestClient) -> None:
+        with client.websocket_connect(
+            f"/ws?session_id={SESSION_ID}"
+        ) as websocket:
+            data = websocket.receive_text()
+            assert data
         response = client.post("/api/kernel/restart_session", headers=HEADERS)
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
+        server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
+        client.post(
+            "/api/kernel/shutdown",
+            headers={"Marimo-Server-Token": server_token},
+        )
 
     @staticmethod
     @with_session(SESSION_ID)
