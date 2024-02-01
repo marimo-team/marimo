@@ -25,7 +25,7 @@ jobs:
         with:
           version: 8
 
-      - name: ⎔ Use Node.js
+      - name: ⎔ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -85,6 +85,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
         run: |
