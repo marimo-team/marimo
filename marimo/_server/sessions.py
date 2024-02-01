@@ -397,7 +397,8 @@ class SessionManager:
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
 
-        Should be called if an api call renamed the current file on disk.
+        Should be called if an api call renamed the current file on disk,
+        or opened another file.
         """
         self.filename = filename
         self.app_metadata.filename = self._get_filename()

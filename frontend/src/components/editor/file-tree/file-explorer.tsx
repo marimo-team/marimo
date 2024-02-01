@@ -156,9 +156,9 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
               onClick={async (e) => {
                 e.stopPropagation();
                 openConfirm({
-                  title: "Open file",
+                  title: "Open notebook",
                   description:
-                    "This will close the current file and open the selected file. You'll lose all data that's in memory.",
+                    "This will close the current notebook and open the selected notebook. You'll lose all data that's in memory.",
                   confirmAction: (
                     <AlertDialogAction
                       onClick={async () => {
