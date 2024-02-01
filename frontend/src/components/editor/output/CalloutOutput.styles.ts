@@ -18,5 +18,5 @@ export const calloutStyles = cva(
     defaultVariants: {
       kind: "neutral",
     },
-  }
+  },
 );

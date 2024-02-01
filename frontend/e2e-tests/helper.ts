@@ -14,7 +14,7 @@ export async function createCellBelow(opts: {
   // Hover over a cell the 'add cell' button appears
   await page.hover(cellSelector);
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count()
+    page.getByTestId("create-cell-button").locator(":visible").count(),
   ).resolves.toBe(2);
 
   // Clicking the first button creates a new cell below

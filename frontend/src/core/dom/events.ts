@@ -36,7 +36,7 @@ export const marimoValueReadyEvent = "marimo-value-ready";
  */
 export function createInputEvent(
   value: ValueType,
-  element: HTMLElement
+  element: HTMLElement,
 ): MarimoValueInputEventType {
   return new CustomEvent(marimoValueInputEvent, {
     bubbles: true, // bubble to tell marimo that a value has changed

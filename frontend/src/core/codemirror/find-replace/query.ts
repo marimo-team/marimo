@@ -15,7 +15,7 @@ export interface QueryType<Result extends SearchResult = SearchResult> {
     state: EditorState,
     from: number,
     to: number,
-    add: (from: number, to: number) => void
+    add: (from: number, to: number) => void,
   ): void;
   spec: SearchQuery;
 }

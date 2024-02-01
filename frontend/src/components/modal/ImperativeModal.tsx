@@ -69,7 +69,7 @@ export function useImperativeModal() {
           }}
         >
           {content}
-        </Dialog>
+        </Dialog>,
       );
     },
     openAlert: (content: React.ReactNode) => {
@@ -90,7 +90,7 @@ export function useImperativeModal() {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+        </AlertDialog>,
       );
     },
     openConfirm: (opts: {
@@ -126,7 +126,7 @@ export function useImperativeModal() {
               {opts.confirmAction}
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+        </AlertDialog>,
       );
     },
     closeModal: closeModal,

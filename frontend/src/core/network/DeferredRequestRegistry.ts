@@ -27,7 +27,7 @@ export class DeferredRequestRegistry<REQ, RES> {
        * Resolve existing requests with an empty response.
        */
       resolveExistingRequests?: () => RES;
-    } = {}
+    } = {},
   ) {}
 
   async request(opts: REQ): Promise<RES> {

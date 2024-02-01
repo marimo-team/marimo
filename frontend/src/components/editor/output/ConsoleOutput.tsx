@@ -44,7 +44,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
       className={cn(
         "console-output-area overflow-hidden rounded-b-lg",
         stale && "marimo-output-stale",
-        hasOutputs ? "p-5" : "p-3"
+        hasOutputs ? "p-5" : "p-3",
       )}
     >
       {consoleOutputs.map((output, idx) => {

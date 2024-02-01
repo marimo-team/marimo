@@ -49,7 +49,7 @@ const DependencyGraphInternal: React.FC<Props> = ({
   const { nodes: initialNodes, edges: initialEdges } = createElements(
     cellIds,
     cellAtoms,
-    variables
+    variables,
   );
   const [edges, setEdges] = useEdgesState([]);
   const [nodes, setNodes] = useNodesState(initialNodes);
@@ -141,13 +141,13 @@ function useTranslateExtent(nodes: Node[], height: number): CoordinateExtent {
   return useMemo<CoordinateExtent>(() => {
     const top = nodes.reduce(
       (top, { position }) => Math.min(top, position.y - height / 2 - PADDING_Y),
-      Number.POSITIVE_INFINITY
+      Number.POSITIVE_INFINITY,
     );
 
     const bottom = nodes.reduce(
       (bottom, { position }) =>
         Math.max(bottom, position.y + height / 2 + PADDING_Y),
-      Number.NEGATIVE_INFINITY
+      Number.NEGATIVE_INFINITY,
     );
 
     return [

@@ -85,5 +85,5 @@ export type SerializedGridLayoutCellPosition = [
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
 ];

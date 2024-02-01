@@ -15,7 +15,7 @@ export function keymapBundle(
     focusUp: () => void;
     focusDown: () => void;
     deleteCell: () => void;
-  }
+  },
 ): Extension[] {
   switch (config.preset) {
     case "default":
@@ -50,8 +50,8 @@ export function keymapBundle(
                 return true;
               }
               return false;
-            }
-          )
+            },
+          ),
         ),
         vim({ status: false }),
         keymap.of(defaultKeymap),
@@ -68,7 +68,7 @@ export function keymapBundle(
 function doubleCharacterListener(
   character: string,
   predicate: (view: EditorView) => boolean,
-  onDoubleCharacter: (view: EditorView) => boolean
+  onDoubleCharacter: (view: EditorView) => boolean,
 ): Extension {
   let lastKey = "";
   let lastKeyTime = 0;

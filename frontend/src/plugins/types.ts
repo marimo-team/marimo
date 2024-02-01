@@ -55,7 +55,7 @@ export type StringifiedPluginData<D> = {
 export interface IPlugin<
   S,
   D = Record<string, never>,
-  F extends PluginFunctions = {}
+  F extends PluginFunctions = {},
 > {
   /**
    * The html tag name to render the plugin.

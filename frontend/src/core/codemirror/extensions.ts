@@ -56,7 +56,7 @@ export function smartPlaceholderExtension(text: string) {
  */
 export function formatKeymapExtension(
   cellId: CellId,
-  updateCellCode: CellActions["updateCellCode"]
+  updateCellCode: CellActions["updateCellCode"],
 ) {
   return keymap.of([
     {
@@ -82,7 +82,7 @@ export function scrollActiveLineIntoView() {
     // A new line was added, scroll the active line into view
     if (update.heightChanged && update.docChanged) {
       const activeLines = update.view.dom.getElementsByClassName(
-        "cm-activeLine cm-line"
+        "cm-activeLine cm-line",
       );
       // Only scroll if there is an active line
       if (activeLines.length === 1) {

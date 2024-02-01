@@ -15,7 +15,7 @@ export const vegaLoader = createLoader();
  */
 export function vegaLoadData(
   url: string,
-  format: DataFormat | undefined | { type: "csv"; parse: "auto" }
+  format: DataFormat | undefined | { type: "csv"; parse: "auto" },
 ): Promise<object[]> {
   return vegaLoader.load(url).then((csvData: string) => {
     // CSV data comes columnar and may have duplicate column names.

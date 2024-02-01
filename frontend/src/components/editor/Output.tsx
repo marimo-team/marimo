@@ -122,7 +122,7 @@ export const OutputArea = React.memo(
         </ErrorBoundary>
       );
     }
-  }
+  },
 );
 OutputArea.displayName = "OutputArea";
 
@@ -175,7 +175,7 @@ const ExpandableOutput = React.memo(
                 className={cn(
                   "absolute top-6 -right-12 z-10",
                   // Force show button if expanded
-                  !isExpanded && "hover-action"
+                  !isExpanded && "hover-action",
                 )}
                 onClick={() => setIsExpanded(!isExpanded)}
                 size="xs"
@@ -205,7 +205,7 @@ const ExpandableOutput = React.memo(
         <div className="increase-pointer-area-x contents" />
       </>
     );
-  }
+  },
 );
 
 ExpandableOutput.displayName = "ExpandableOutput";

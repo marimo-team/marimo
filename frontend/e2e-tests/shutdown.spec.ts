@@ -22,7 +22,7 @@ test("can resume a session", async ({ page }) => {
   await page.reload();
 
   await expect(
-    page.getByText("You have reconnected to an existing session.")
+    page.getByText("You have reconnected to an existing session."),
   ).toBeVisible();
   secondCell = await page.locator(".Cell").nth(1);
   await expect(page.getByText("12345")).toBeVisible();

@@ -91,7 +91,7 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
 function multiselectFilterFn(option: string, value: string): number {
   const words = value.split(/\s+/);
   const match = words.every((word) =>
-    option.toLowerCase().includes(word.toLowerCase())
+    option.toLowerCase().includes(word.toLowerCase()),
   );
   return match ? 1 : 0;
 }

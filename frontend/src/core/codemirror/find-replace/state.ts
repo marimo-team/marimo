@@ -86,7 +86,7 @@ export const findReplaceAtom = atomWithReducer<FindReplaceState, Action>(
       case "clearCurrentView":
         return { ...state, currentView: undefined };
     }
-  }
+  },
 );
 
 export function openFindReplacePanel(initialView?: EditorView): boolean {

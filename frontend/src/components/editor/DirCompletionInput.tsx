@@ -106,7 +106,7 @@ export const DirCompletionInput = ({
     if (focused && value !== null) {
       fetchAndSetSuggestions(
         value === null ? "" : value,
-        completionTokenRef.current
+        completionTokenRef.current,
       );
     } else {
       setActiveSuggestion(null);
@@ -126,7 +126,7 @@ export const DirCompletionInput = ({
 
   function handleSuggestionMouseDown(
     index: number,
-    e: React.MouseEvent<HTMLLIElement>
+    e: React.MouseEvent<HTMLLIElement>,
   ) {
     e.preventDefault();
     if (e.button === 0 && !suggestions[index].endsWith(".py")) {
@@ -139,14 +139,14 @@ export const DirCompletionInput = ({
       case "Down":
       case "ArrowDown":
         setActiveSuggestion((i) =>
-          i == null ? 0 : (i + 1) % suggestions.length
+          i == null ? 0 : (i + 1) % suggestions.length,
         );
         e.preventDefault();
         break;
       case "Up":
       case "ArrowUp":
         setActiveSuggestion((i) =>
-          i === null || i === 0 ? suggestions.length - 1 : i - 1
+          i === null || i === 0 ? suggestions.length - 1 : i - 1,
         );
         e.preventDefault();
         break;
@@ -226,7 +226,7 @@ export const DirCompletionInput = ({
   if (flexibleWidth) {
     size = Math.min(
       60,
-      Math.max(placeholderText.length, value === null ? 0 : value.length)
+      Math.max(placeholderText.length, value === null ? 0 : value.length),
     );
   }
 
@@ -234,8 +234,8 @@ export const DirCompletionInput = ({
     !focused && placeholderText !== ""
       ? placeholderText
       : value === null
-      ? ""
-      : value;
+        ? ""
+        : value;
   return (
     <div className="DirCompletionInput">
       <Input

@@ -5,11 +5,11 @@ import { OperatorType } from "../utils/operators";
 
 export function pythonPrintTransforms(
   dfName: string,
-  transforms: TransformType[]
+  transforms: TransformType[],
 ): string {
   const dfNextName = `${dfName}_next`;
   const transformStrs = transforms.map(
-    (transform) => `${dfNextName} = ${pythonPrint(dfNextName, transform)}`
+    (transform) => `${dfNextName} = ${pythonPrint(dfNextName, transform)}`,
   );
 
   return [`${dfNextName} = ${dfName}`, ...transformStrs].join("\n");
@@ -30,7 +30,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       const args = argsList(
         `by="${column_id}"`,
         ascending ? "" : "ascending=False",
-        na_position === "last" ? "" : `na_position="${na_position}"`
+        na_position === "last" ? "" : `na_position="${na_position}"`,
       );
       return `${dfName}.sort_values(${args})`;
     }
@@ -41,7 +41,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       }
 
       const whereClauses = where.map((condition) =>
-        generateWhereClause(dfName, condition)
+        generateWhereClause(dfName, condition),
       );
       if (operation === "keep_rows" && whereClauses.length === 1) {
         return `${dfName}[${whereClauses[0]}]`;
@@ -68,7 +68,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
       const { column_ids, aggregation, drop_na } = transform;
       const args = argsList(
         listOfStrings(column_ids),
-        drop_na ? "dropna=True" : ""
+        drop_na ? "dropna=True" : "",
       );
       return `${dfName}.groupby(${args}).${aggregation}()`;
     }
@@ -101,7 +101,7 @@ function generateWhereClause(
     column_id: string;
     operator: OperatorType;
     value?: unknown;
-  }
+  },
 ): string {
   const { column_id, operator, value } = where;
   switch (operator) {
@@ -115,7 +115,7 @@ function generateWhereClause(
       return `${dfName}["${column_id}"].str.contains(${asString(value)})`;
     case "regex":
       return `${dfName}["${column_id}"].str.contains(${asString(
-        value
+        value,
       )}, regex=True)`;
     case "starts_with":
       return `${dfName}["${column_id}"].str.startswith(${asString(value)})`;

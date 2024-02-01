@@ -662,7 +662,7 @@ describe("cell reducer", () => {
     let cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe(
-      "mo.md('This has an ancestor that was stopped')"
+      "mo.md('This has an ancestor that was stopped')",
     );
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
@@ -709,7 +709,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((cell.output?.data as any)[0].msg).toBe(
-      "This cell wasn't run because an ancestor was stopped with `mo.stop`: "
+      "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );
     expect(cell.stopped).toBe(true);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all

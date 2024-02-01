@@ -29,13 +29,13 @@ function getMarimoDOMValue(tagName: string, key: string) {
   const tag = document.querySelector(tagName);
   invariant(
     tag !== null && tag instanceof HTMLElement,
-    `internal-error: ${tagName} tag not found`
+    `internal-error: ${tagName} tag not found`,
   );
 
   const value = tag.dataset[key];
   invariant(
     value !== undefined,
-    `internal-error: ${tagName} tag does not have ${key}`
+    `internal-error: ${tagName} tag does not have ${key}`,
   );
 
   return value;

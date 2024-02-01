@@ -70,10 +70,10 @@ function getDuplicateKeymaps(state: EditorState) {
   const groupBy = Objects.groupBy(
     prettyKeymaps,
     (keymap) => keymap.key,
-    (keymap) => keymap
+    (keymap) => keymap,
   );
   const duplicates = Objects.fromEntries(
-    Object.entries(groupBy).filter(([key, value]) => value.length > 1)
+    Object.entries(groupBy).filter(([key, value]) => value.length > 1),
   );
   return duplicates;
 }
@@ -85,7 +85,7 @@ describe("snapshot all duplicate keymaps", () => {
   test("default keymaps", () => {
     const extensions = setup();
     const duplicates = getDuplicateKeymaps(
-      EditorState.create({ extensions: extensions })
+      EditorState.create({ extensions: extensions }),
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting
@@ -98,7 +98,7 @@ describe("snapshot all duplicate keymaps", () => {
       keymapConfig: { preset: "vim" },
     });
     const duplicates = getDuplicateKeymaps(
-      EditorState.create({ extensions: extensions })
+      EditorState.create({ extensions: extensions }),
     );
     // Total duplicates:
     // if this changes, please make sure to validate they are not conflicting

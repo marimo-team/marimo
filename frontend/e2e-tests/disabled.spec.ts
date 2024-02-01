@@ -23,7 +23,7 @@ test("disabled cells", async ({ page }) => {
 
   // No add buttons are visible
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count()
+    page.getByTestId("create-cell-button").locator(":visible").count(),
   ).resolves.toBe(0);
 
   // Hover over a cell the drag button button appears
@@ -35,19 +35,19 @@ test("disabled cells", async ({ page }) => {
   // Check the cell status
   await expect(page.getByTitle("This cell is disabled")).toBeVisible();
   await expect(
-    page.getByTitle("This cell has a disabled ancestor")
+    page.getByTitle("This cell has a disabled ancestor"),
   ).toBeVisible();
   await expect(
     page
       .getByTestId("cell-status")
       .first()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("disabled");
   await expect(
     page
       .getByTestId("cell-status")
       .last()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("disabled-transitively");
 
   // Add code to the first cell and save
@@ -57,19 +57,19 @@ test("disabled cells", async ({ page }) => {
   await page.getByTestId("run-button").locator(":visible").first().click();
   await expect(page.getByTitle("This cell is disabled")).toBeVisible();
   await expect(
-    page.getByTitle("This cell has a disabled ancestor")
+    page.getByTitle("This cell has a disabled ancestor"),
   ).toBeVisible();
   await expect(
     page
       .getByTestId("cell-status")
       .first()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("stale");
   await expect(
     page
       .getByTestId("cell-status")
       .last()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("stale");
 
   // Disable the second cell
@@ -79,19 +79,19 @@ test("disabled cells", async ({ page }) => {
 
   // Check they are still stale
   await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    2
+    2,
   );
   await expect(
     page
       .getByTestId("cell-status")
       .first()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("stale");
   await expect(
     page
       .getByTestId("cell-status")
       .last()
-      .evaluate((el) => el.dataset.status)
+      .evaluate((el) => el.dataset.status),
   ).resolves.toBe("stale");
 
   // Enable the first
@@ -101,7 +101,7 @@ test("disabled cells", async ({ page }) => {
 
   // Check the status
   await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    1
+    1,
   );
 
   // Enable the second
@@ -111,7 +111,7 @@ test("disabled cells", async ({ page }) => {
 
   // Check the status
   await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    0
+    0,
   );
 
   await takeScreenshot(page, __filename);

@@ -63,7 +63,7 @@ export const BadPluginData: React.FC<Props> = ({
 export function renderError(
   error: ZodError | Error,
   badData: Record<string, unknown>,
-  shadowRoot: ShadowRoot | null
+  shadowRoot: ShadowRoot | null,
 ): JSX.Element {
   return (
     <BadPluginData error={error} badData={badData} shadowRoot={shadowRoot} />

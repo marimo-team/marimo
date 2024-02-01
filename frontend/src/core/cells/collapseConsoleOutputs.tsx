@@ -4,7 +4,7 @@ import { OutputMessage } from "@/core/kernel/messages";
 // collapses the last text/plain cells with the preceding one on the same
 // channel (if any), and handles bare carriage returns ("\r")
 export function collapseConsoleOutputs(
-  consoleOutputs: OutputMessage[]
+  consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
   let nextOutput = consoleOutputs[consoleOutputs.length - 1];
   if (nextOutput.mimetype !== "text/plain") {

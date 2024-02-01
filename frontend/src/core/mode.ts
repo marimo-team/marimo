@@ -57,7 +57,7 @@ interface ViewState {
 export const initialMode = getInitialAppMode();
 
 export async function runDuringPresentMode(
-  fn: () => void | Promise<void>
+  fn: () => void | Promise<void>,
 ): Promise<void> {
   const state = store.get(viewStateAtom);
   if (state.mode === "present") {

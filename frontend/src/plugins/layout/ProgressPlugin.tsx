@@ -92,14 +92,14 @@ export const ProgressComponent = ({
     if (rate) {
       elements.push(
         <span key="rate">{rate} iter/s</span>,
-        <span key="spacer-rate">&middot;</span>
+        <span key="spacer-rate">&middot;</span>,
       );
     }
 
     if (!hasCompleted && eta) {
       elements.push(
         <span key="eta">ETA {prettyTime(eta)}</span>,
-        <span key="spacer-eta">&middot;</span>
+        <span key="spacer-eta">&middot;</span>,
       );
     }
 
@@ -107,7 +107,7 @@ export const ProgressComponent = ({
       const totalTime = progress / rate;
       elements.push(
         <span key="completed">Total time {prettyTime(totalTime)}</span>,
-        <span key="spacer-completed">&middot;</span>
+        <span key="spacer-completed">&middot;</span>,
       );
     }
 

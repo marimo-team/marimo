@@ -6,7 +6,7 @@
 export function smartScrollIntoView(
   element: HTMLElement,
   offset?: { top: number; bottom: number },
-  body: HTMLElement | typeof window = window
+  body: HTMLElement | typeof window = window,
 ) {
   const topOffset = offset?.top ?? 0;
   const bottomOffset = offset?.bottom ?? 0;

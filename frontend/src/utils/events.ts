@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export const Events = {
   stopPropagation: <
-    E extends Pick<Event, "stopPropagation" | "preventDefault">
+    E extends Pick<Event, "stopPropagation" | "preventDefault">,
   >(
-    callback?: (evt: E) => void
+    callback?: (evt: E) => void,
   ) => {
     return (event: E) => {
       event.stopPropagation();
@@ -13,7 +13,7 @@ export const Events = {
     };
   },
   onEnter: <E extends Pick<KeyboardEvent, "key">>(
-    callback?: (evt: E) => void
+    callback?: (evt: E) => void,
   ) => {
     return (event: E) => {
       if (event.key === "Enter" && callback) {

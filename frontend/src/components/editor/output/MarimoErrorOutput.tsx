@@ -163,7 +163,7 @@ export const MarimoErrorOutput = ({
       variant={alertVariant}
       className={cn(
         `border-none font-code text-sm text-[0.84375rem] px-0 ${textColor} normal [&:has(svg)]:pl-0`,
-        className
+        className,
       )}
     >
       {title}

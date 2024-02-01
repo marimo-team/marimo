@@ -20,7 +20,7 @@ export function useExpandedOutput(cellId: CellId) {
 }
 
 export function isOutputEmpty(
-  output: OutputMessage | undefined | null
+  output: OutputMessage | undefined | null,
 ): boolean {
   if (output == null) {
     return true;

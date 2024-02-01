@@ -7,7 +7,7 @@ export function useCellRenderCount() {
       }
 
       const currentCount = Number.parseInt(
-        document.body.dataset.cellRenderCount || "0"
+        document.body.dataset.cellRenderCount || "0",
       );
       document.body.dataset.cellRenderCount = (currentCount + 1).toString();
     },

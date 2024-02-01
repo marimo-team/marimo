@@ -28,7 +28,7 @@ export function jsonParseWithSpecialChar<T>(value: string): T {
     value = value.replaceAll(
       // This was iterated on with GPT. The confidence lies in the unit tests.
       /(?<=\s|^|\[|,|:)(NaN|-Infinity|Infinity)(?=(?:[^"'\\]*(\\.|'([^'\\]*\\.)*[^'\\]*'|"([^"\\]*\\.)*[^"\\]*"))*[^"']*$)/g,
-      `"${CHAR}$1${CHAR}"`
+      `"${CHAR}$1${CHAR}"`,
     );
     return JSON.parse(value, (key, v) => {
       if (typeof v !== "string") {

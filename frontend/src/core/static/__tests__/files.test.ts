@@ -39,7 +39,7 @@ describe("patchFetch", () => {
     unpatch();
     expect(window.fetch).toHaveBeenCalledWith(
       "/@file/non-virtual-file.txt",
-      undefined
+      undefined,
     );
     expect(text).toBe("Not a virtual file");
   });

@@ -169,7 +169,7 @@ export const Combobox = <TValue,>({
           <div
             className={cn(
               "flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50",
-              className
+              className,
             )}
             aria-expanded={open}
           >
@@ -241,7 +241,7 @@ export interface ComboboxItemProps<TValue>
 export const ComboboxItem = React.forwardRef(
   <TValue extends string | { value: string }>(
     { children, className, value, onSelect }: ComboboxItemProps<TValue>,
-    ref: React.Ref<HTMLDivElement>
+    ref: React.Ref<HTMLDivElement>,
   ) => {
     const valueAsString =
       typeof value === "object" && "value" in value
@@ -266,6 +266,6 @@ export const ComboboxItem = React.forwardRef(
         {children}
       </CommandItem>
     );
-  }
+  },
 );
 ComboboxItem.displayName = "ComboboxItem";

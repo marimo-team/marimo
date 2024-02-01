@@ -6,7 +6,7 @@ import { Logger } from "../../utils/Logger";
  */
 export function defineCustomElement(
   name: string,
-  clazz: CustomElementConstructor
+  clazz: CustomElementConstructor,
 ) {
   if (!window?.customElements) {
     Logger.warn("Custom elements not supported");

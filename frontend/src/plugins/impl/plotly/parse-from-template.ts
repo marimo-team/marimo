@@ -51,7 +51,7 @@ export function createParser(hovertemplate: string): PlotlyTemplateParser {
           acc[key] = get(data, selector);
           return acc;
         },
-        {}
+        {},
       );
     },
   };

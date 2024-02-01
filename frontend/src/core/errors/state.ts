@@ -17,7 +17,7 @@ interface BannerState {
 }
 
 const { reducer, createActions } = createReducer(
-  () => ({ banners: [] } as BannerState),
+  () => ({ banners: [] }) as BannerState,
   {
     addBanner: (state, banner: Banner) => {
       return { ...state, banners: [...state.banners, banner] };
@@ -31,7 +31,7 @@ const { reducer, createActions } = createReducer(
     clearBanners: (state) => {
       return { ...state, banners: [] };
     },
-  }
+  },
 );
 
 const bannersAtom = atom<BannerState>({ banners: [] });

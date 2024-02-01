@@ -11,7 +11,7 @@ export const copilotSignedInState = atomWithStorage<boolean | null>(
   undefined,
   {
     getOnInit: true,
-  }
+  },
 );
 
 function getIsLastSignedIn() {

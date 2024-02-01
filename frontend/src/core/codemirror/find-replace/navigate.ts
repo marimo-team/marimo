@@ -8,7 +8,7 @@ import { getAllEditorViews } from "@/core/cells/cells";
 import { QueryType, asQueryCreator } from "./query";
 
 function searchCommand<T>(
-  f: (state: { query: QueryType; search: SearchQuery }) => T
+  f: (state: { query: QueryType; search: SearchQuery }) => T,
 ) {
   return () => {
     const state = store.get(findReplaceAtom);
@@ -63,7 +63,7 @@ const findInDirection = (direction: "next" | "prev") =>
           : query.prevMatch(
               view.state,
               startingPosition ?? view.state.doc.length,
-              view.state.doc.length
+              view.state.doc.length,
             );
 
       if (!next) {
