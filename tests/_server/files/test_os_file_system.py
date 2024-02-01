@@ -41,11 +41,35 @@ class TestOSFileSystem(unittest.TestCase):
     def test_get_details(self):
         test_file_name = "test_file.txt"
         self.fs.create_file_or_directory(self.test_dir, "file", test_file_name)
+        with open(os.path.join(self.test_dir, test_file_name), "w") as f:
+            f.write(
+                """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def __():
+                import marimo as mo
+                return mo,
+
+            if __name__ == "__main__":
+                app.run()
+            """
+            )
         file_info = self.fs.get_details(
             os.path.join(self.test_dir, test_file_name)
         )
         assert isinstance(file_info, FileInfo)
         assert file_info.name == test_file_name
+
+    def test_get_details_marimo_file(self):
+        test_file_name = "test_file.txt"
+        self.fs.create_file_or_directory(self.test_dir, "file", test_file_name)
+        file_info = self.fs.get_details(
+            os.path.join(self.test_dir, test_file_name)
+        )
+        assert isinstance(file_info, FileInfo)
+        assert file_info.is_marimo_file
 
     def test_open_file(self):
         test_file_name = "test_file.txt"

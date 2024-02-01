@@ -37,6 +37,7 @@ class AppState:
         )
         self.user_config: MarimoConfig = request.app.state.user_config
         self._server: Server = request.app.state.server
+        self._host = request.app.state.host
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""
@@ -83,6 +84,10 @@ class AppState:
     @property
     def development_mode(self) -> bool:
         return self.session_manager.development_mode
+
+    @property
+    def host(self) -> str:
+        return self._host
 
     @property
     def port(self) -> int:

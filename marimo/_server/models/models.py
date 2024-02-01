@@ -85,6 +85,11 @@ class RenameFileRequest:
 
 
 @dataclass
+class OpenFileRequest:
+    path: str
+
+
+@dataclass
 class RunRequest:
     # ids of cells to run
     cell_ids: List[CellId_t]
