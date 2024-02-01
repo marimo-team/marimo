@@ -132,6 +132,29 @@ def test_set_ui_element_value_lensed(
     assert k.globals["x"] == 6
 
 
+def test_set_ui_element_value_lensed_bound_child(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test setting the value of a lensed element.
+
+    Make sure reactivity flows through its parent and also to names bound
+    to children.
+    """
+    k.run([exec_req.get(code="import marimo as mo")])
+
+    cell_one_code = """
+    array = mo.ui.array([mo.ui.slider(0, 10, value=1)])
+    child = array[0]
+    """
+    k.run([exec_req.get(code=cell_one_code)])
+    k.run([exec_req.get(code="x = child.value + 1")])
+
+    array_id = k.globals["array"]._id
+    k.set_ui_element_value(SetUIElementValueRequest([(array_id, {"0": 5})]))
+    assert k.globals["array"].value == [5]
+    assert k.globals["x"] == 6
+
+
 def test_set_ui_element_value_lensed_with_state(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
