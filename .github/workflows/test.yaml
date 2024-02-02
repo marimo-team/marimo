@@ -16,6 +16,7 @@ jobs:
   test_frontend:
     name: 🖥️ Lint, test, build frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./frontend
@@ -65,6 +66,7 @@ jobs:
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     defaults:
       run:
         shell: bash
