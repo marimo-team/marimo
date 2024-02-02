@@ -129,13 +129,14 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
         session_manager.mode = SessionMode.RUN
-        session_manager.start_file_watcher()
+        unsubscribe = session_manager.start_file_watcher()
         assert session_manager.filename
         with open(session_manager.filename, "a") as f:
             f.write("\n# test")
             f.close()
         assert session_manager.watcher
         await session_manager.watcher.callback(Path(session_manager.filename))
+        unsubscribe()
         data = websocket.receive_json()
         assert data == {"op": "reload", "data": {}}
         session_manager.mode = SessionMode.EDIT

@@ -44,6 +44,7 @@ from marimo._server.model import (
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import import_files, print_tabbed
+from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.repr import format_repr
@@ -530,7 +531,7 @@ class SessionManager:
         """Returns True if the server can send messages to the frontend."""
         return self.mode == SessionMode.EDIT or self.include_code
 
-    def start_file_watcher(self) -> None:
+    def start_file_watcher(self) -> Disposable:
         """Starts the file watcher if it is not already started"""
         if self.mode == SessionMode.EDIT:
             # We don't support file watching in edit mode yet
@@ -539,12 +540,12 @@ class SessionManager:
             # - do we re-run the app or just show the changed code
             # - we don't properly handle saving from the frontend
             LOGGER.warn("Cannot start file watcher in edit mode")
-            return
+            return Disposable.empty()
 
         file_path = self._get_file_path()
         if file_path is None:
             LOGGER.warn("Cannot start file watcher without a filename")
-            return
+            return Disposable.empty()
 
         async def on_file_changed(path: Path) -> None:
             LOGGER.debug(f"{path} was modified")
@@ -555,6 +556,7 @@ class SessionManager:
         LOGGER.debug("Starting file watcher for %s", file_path)
         self.watcher = FileWatcher.create(Path(file_path), on_file_changed)
         self.watcher.start()
+        return Disposable(self.watcher.stop)
 
 
 class LspServer:
