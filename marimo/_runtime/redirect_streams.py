@@ -67,9 +67,7 @@ def redirect_streams(
     sys.stdin = stdin  # type: ignore
 
     try:
-        with redirect(stdout, py_stdout.fileno()), redirect(
-            stderr, py_stderr.fileno()
-        ):
+        with redirect(stdout), redirect(stderr):
             yield
     finally:
         # The redirect context manager relies on these being installed;
