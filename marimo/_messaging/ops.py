@@ -302,6 +302,11 @@ class Banner(Op):
 
 
 @dataclass
+class Reload(Op):
+    name: ClassVar[str] = "reload"
+
+
+@dataclass
 class VariableDeclaration:
     name: str
     declared_by: List[CellId_t]
@@ -364,6 +369,7 @@ class VariableValues(Op):
 MessageOperation = Union[
     CellOp,
     HumanReadableStatus,
+    Reload,
     Reconnected,
     FunctionCallResult,
     RemoveUIElements,

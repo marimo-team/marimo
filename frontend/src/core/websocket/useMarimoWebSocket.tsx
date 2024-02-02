@@ -53,6 +53,9 @@ export function useMarimoWebSocket(opts: {
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
     switch (msg.op) {
+      case "reload":
+        window.location.reload();
+        return;
       case "kernel-ready": {
         const {
           codes,

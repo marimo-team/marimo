@@ -18,6 +18,7 @@ DEFAULT_PORT = 2718
 
 
 def start(
+    *,
     filename: Optional[str],
     mode: SessionMode,
     development_mode: bool,
@@ -26,6 +27,7 @@ def start(
     headless: bool,
     port: Optional[int],
     host: str,
+    watch: bool,
 ) -> None:
     """
     Start the server.
@@ -43,6 +45,9 @@ def start(
         include_code=include_code,
         port=port,
     )
+
+    if watch:
+        session_manager.start_file_watcher()
 
     log_level = "info" if development_mode else "error"
 
