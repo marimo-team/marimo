@@ -16,14 +16,12 @@ class FileWatcher(ABC):
     def create(path: Path, callback: Callback) -> "FileWatcher":
         if DependencyManager.has_watchdog():
             LOGGER.debug("Using watchdog file watcher")
-            return _create_watchdog(path, callback, asyncio.get_running_loop())
+            return _create_watchdog(path, callback, asyncio.get_event_loop())
         else:
             LOGGER.warning(
                 "watchdog is not installed, using polling file watcher"
             )
-            return PollingFileWatcher(
-                path, callback, asyncio.get_running_loop()
-            )
+            return PollingFileWatcher(path, callback, asyncio.get_event_loop())
 
     def __init__(
         self,
