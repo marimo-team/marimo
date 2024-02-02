@@ -1237,4 +1237,9 @@ def launch_kernel(
             break
         else:
             raise ValueError(f"Unknown request {request}")
+
+    if stdout is not None:
+        stdout._watcher.stop()
+    if stderr is not None:
+        stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()
