@@ -46,14 +46,12 @@ def start(
         port=port,
     )
 
-    if watch:
-        session_manager.start_file_watcher()
-
     log_level = "info" if development_mode else "error"
 
     app.state.headless = headless
     app.state.port = port
     app.state.host = host or "localhost"
+    app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.user_config = get_configuration()
 
