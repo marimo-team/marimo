@@ -4,6 +4,7 @@ from __future__ import annotations
 import builtins
 import importlib.util
 import json
+import os
 from collections.abc import Sequence
 from typing import Any, List, Optional, Union, cast
 
@@ -245,3 +246,13 @@ def recover(filename: str) -> str:
         cast(List[str], names),
         cast(List[CellConfig], configs),
     )
+
+
+def get_header_comments(filename: str) -> Optional[str]:
+    if not os.path.exists(filename):
+        return None
+    with open(filename, "r", encoding="utf-8") as f:
+        contents = f.read()
+
+    header, _ = contents.split("import marimo", 1)
+    return header
