@@ -428,3 +428,21 @@ def test_recover() -> None:
 # TODO(akshayka): more tests for attributes, classdefs, and closures
 # TODO(akshayka): test builtin functions
 # TODO(akshayka): test delete cell
+
+
+def test_get_header_comments() -> None:
+    filepath = get_filepath("test_get_header_comments")
+    comments = codegen.get_header_comments(filepath)
+
+    assert comments, "No comments found"
+    assert '"""Docstring"""' in comments, "Docstring not found"
+    assert '"""multi\n    line\n"""' in comments, "Multiline string not found"
+    assert "# A copyright" in comments, "Comment not found"
+    assert "# A linter" in comments, "Comment not found"
+
+
+def test_get_header_comments_invalid() -> None:
+    filepath = get_filepath("test_get_header_comments_invalid")
+    comments = codegen.get_header_comments(filepath)
+
+    assert comments is None, "Comments found when there should be none"
