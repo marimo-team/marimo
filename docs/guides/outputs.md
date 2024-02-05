@@ -22,7 +22,7 @@ embed markdown in other objects.
 Here's a simple hello world example:
 
 ```python
-import marimo asmo
+import marimo as mo
 ```
 
 ```python
