@@ -271,7 +271,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         # with those transforms, before applying the selection
         if _has_transforms(self._spec):
             try:
-                df: pd.DataFrame = self._chart.transformed_data()  # type: ignore[assignment]
+                df: pd.DataFrame = self._chart.transformed_data()
                 return _filter_dataframe(df, value)
             except ImportError as e:
                 sys.stderr.write(
