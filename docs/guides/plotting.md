@@ -7,7 +7,6 @@ as you normally would.
 For Altair plots, marimo does something special: use [`mo.ui.altair_chart`](#reactive-plots)
 to connect frontend selections to Python!
 
-
 ```{admonition} Reactive plots!
 :class: important
 
@@ -16,7 +15,6 @@ marimo supports reactive plots via
 filter with your mouse, and marimo _automatically makes the selected data
 available in Python as a Pandas dataframe_!
 ```
-
 
 ## Reactive plots! ⚡
 
@@ -32,12 +30,12 @@ automatically made available as Pandas dataframes in Python._
 </figure>
 </div>
 
-
 ```{admonition} Requirements
 :class: warning
 Reactive plots currently require Altair. Install it with `pip install altair`
 In the future, we may make other plotting libraries reactive.
 ```
+
 Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
 to make it **reactive**: select data on the frontend, access it via the chart's
 `value` attribute (`chart.value`).
@@ -137,6 +135,19 @@ docs](../api/plotting.md#marimo.ui.altair_chart) for details.
 ```{admonition} Note
 You may still add your own selection parameters via Altair or Vega-Lite.
 marimo will not override your selections.
+```
+
+### Altair transformations
+
+Altair supports a variety of transformations, such as filtering, aggregation, and sorting. These transformations can be used to create more complex and nuanced visualizations. For example, you can use a filter to show only the points that meet a certain condition, or use an aggregation to show the average value of a variable.
+
+In order for marimo's reactive plots to work with transformations, you must install `vegafusion`, as this feature uses `chart.transformed_data` (which requires version 1.4.0 or greater of the `vegafusion` packages).
+
+```bash
+# These can be installed with pip using:
+pip install "vegafusion[embed]>=1.4.0"
+# Or with conda using:
+conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0"
 ```
 
 ## matplotlib
