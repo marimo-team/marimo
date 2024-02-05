@@ -1,7 +1,7 @@
 from marimo._output.md import _md
 
 
-def test_md():
+def test_md() -> None:
     # Test basic markdown conversion
     input_text = "This is **bold** and this is _italic_."
     expected_output = '<span class="markdown"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
@@ -15,21 +15,21 @@ def test_md():
     )
 
 
-def test_md_code_blocks():
+def test_md_code_blocks() -> None:
     # Test code block conversion
     code_input = "```python\nprint('Hello, world!')\n```"
     expected_output = '<div class="codehilite"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Hello, world!&#39;</span><span class="p">)</span>\n</code></pre></div>'  # noqa: E501
     assert _md(code_input, apply_markdown_class=False).text == expected_output
 
 
-def test_md_lates():
+def test_md_lates() -> None:
     # Test LaTeX conversion
     latex_input = "Here is an equation: ||(E=mc^2||)"
     expected_output = '<span class="paragraph">Here is an equation: ||(E=mc^2||)</span>'  # noqa: E501
     assert _md(latex_input, apply_markdown_class=False).text == expected_output
 
 
-def test_md_links():
+def test_md_links() -> None:
     # Test external link conversion
     link_input = "[Google](https://google.com)"
     expected_output = '<span class="paragraph"><a href="https://google.com" rel="noopener" target="_blank">Google</a></span>'  # noqa: E501
@@ -38,7 +38,7 @@ def test_md_links():
     )
 
 
-def test_md_footnotes():
+def test_md_footnotes() -> None:
     # Test footnote conversion
     footnote_input = (
         "Here is a footnote reference[^1].\n\n[^1]: Here is the footnote."
