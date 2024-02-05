@@ -238,7 +238,10 @@ async def save(
         )
         LOGGER.debug("Saving app to %s", filename)
         try:
+            header_comments = codegen.get_header_comments(filename)
             with open(filename, "w", encoding="utf-8") as f:
+                if header_comments:
+                    f.write(header_comments.rstrip() + "\n\n")
                 f.write(contents)
         except Exception as e:
             raise HTTPException(
