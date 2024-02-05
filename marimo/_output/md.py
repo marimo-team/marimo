@@ -25,6 +25,9 @@ extension_configs = {
         "disable_indented_code_blocks": True,
         "css_class": "codehilite",
     },
+    "footnotes": {
+        "UNIQUE_IDS": True,
+    },
 }
 
 
@@ -49,6 +52,8 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
             # Table of contents
             # This adds ids to the HTML headers
             "toc",
+            # Footnotes
+            "footnotes",
         ],
         extension_configs=extension_configs,
     ).strip()
