@@ -267,6 +267,14 @@ Example:
     type=bool,
     help="Include notebook code in the app.",
 )
+@click.option(
+    "--base-url",
+    default="",
+    show_default=True,
+    type=str,
+    help="Base URL for the server. Should start with a /.",
+    # TODO: validate that it starts with a /
+)
 @click.argument("name", required=True)
 def run(
     port: Optional[int],
@@ -274,6 +282,7 @@ def run(
     headless: bool,
     include_code: bool,
     name: str,
+    base_url: str,
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -293,6 +302,7 @@ def run(
         filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
+        base_url=base_url,
     )
 
 

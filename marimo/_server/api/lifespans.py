@@ -104,7 +104,8 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     host = app.state.host
     port = app.state.port
-    url = f"http://{host}:{port}"
+    base_url = app.state.base_url
+    url = f"http://{host}:{port}{base_url}"
     user_config = get_configuration()
     headless = app.state.headless
     if not headless:
@@ -122,12 +123,13 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     manager = get_manager()
     host = app.state.host
     port = app.state.port
+    base_url = app.state.base_url
 
     # Startup message
     if not manager.quiet:
         print_startup(
             manager.filename,
-            f"http://{host}:{port}",
+            f"http://{host}:{port}{base_url}",
             manager.mode == SessionMode.RUN,
         )
 

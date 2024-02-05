@@ -59,3 +59,28 @@ class ValidateServerTokensMiddleware:
 
         # Passed
         return await self.app(scope, receive, send)
+
+
+class StripBaseURLMiddleware:
+    def __init__(self, app: ASGIApp, base_url: str) -> None:
+        self.app = app
+        self.base_url = base_url
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        if self.base_url == "" or self.base_url == "/":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope)
+
+        if not request.url.path.startswith(self.base_url):
+            return await self.app(scope, receive, send)
+
+        scope["path"] = scope["path"][len(self.base_url) :]
+        if not scope["path"].startswith("/"):
+            scope["path"] = "/" + scope["path"]
+        return await self.app(scope, receive, send)

@@ -28,6 +28,7 @@ const htmlDevPlugin = (): Plugin => {
 
       // copies these elements from server to dev
       const copyElements = [
+        "base",
         "title",
         "marimo-filename",
         "marimo-version",
