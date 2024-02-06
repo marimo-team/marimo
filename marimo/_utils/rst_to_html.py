@@ -1,11 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
-from docutils.core import publish_parts
+from docutils.core import publish_parts  # type: ignore[import-untyped]
 
 
 def convert_rst_to_html(rst_content: str) -> str:
     """Convert RST content to HTML."""
 
-    return publish_parts(
+    parts = publish_parts(
         rst_content,
         writer_name="html",
         settings_overrides={
@@ -13,4 +13,5 @@ def convert_rst_to_html(rst_content: str) -> str:
             "file_insertion_enabled": False,
             "report_level": 5,
         },
-    )["html_body"]
+    )
+    return parts["html_body"]  # type: ignore[no-any-return]
