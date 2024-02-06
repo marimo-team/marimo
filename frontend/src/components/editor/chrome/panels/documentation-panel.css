@@ -10,8 +10,26 @@
 
   ul,
   .docutils p,
+  .docutils dd,
   .paragraph {
     white-space: initial;
+  }
+
+  table {
+    @apply text-sm border rounded my-2;
+
+    th,
+    td {
+      @apply border p-2;
+    }
+
+    th {
+      @apply bg-[var(--slate-2)];
+    }
+
+    tr:nth-child(2n) {
+      @apply bg-[var(--slate-1)];
+    }
   }
 
   ul {
@@ -20,7 +38,7 @@
   }
 
   code {
-    @apply border px-1 rounded-md font-mono bg-[var(--slate-1)] text-sm;
+    @apply border px-1 rounded font-mono bg-[var(--slate-1)] text-sm;
   }
 
   h1 {
@@ -39,7 +57,7 @@
   .doctest-block,
   .literal-block {
     white-space: pre-wrap;
-    @apply bg-[var(--slate-2)] p-2 rounded-md text-sm;
+    @apply bg-[var(--slate-2)] p-2 rounded text-sm;
   }
 
   .docutils.literal {
