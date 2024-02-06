@@ -21,7 +21,7 @@ export const DocumentationPanel: React.FC = () => {
   }
 
   return (
-    <div className="p-4 overflow-y-auto overflow-x-hidden h-full docs-panel flex flex-col gap-6">
+    <div className="p-3 overflow-y-auto overflow-x-hidden h-full docs-panel flex flex-col gap-4">
       {renderHTML({ html: documentation })}
     </div>
   );

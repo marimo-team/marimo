@@ -1,6 +1,66 @@
-.docs-panel pre,
-.docs-panel code {
-  white-space: break-spaces;
-  font-size: 0.875rem;
-  line-height: 150%;
+.docs-panel {
+  white-space: pre-wrap;
+  line-height: normal;
+
+  @apply font-prose;
+
+  li {
+    white-space: initial;
+    margin-bottom: 0.5rem;
+  }
+
+  li:last-child {
+    margin-bottom: 0;
+  }
+
+  ul,
+  p,
+  .paragraph {
+    white-space: initial;
+  }
+
+  ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+  }
+
+  code {
+    @apply border p-1 rounded-md font-mono bg-[var(--slate-1)] text-sm;
+  }
+
+  h1 {
+    font-weight: 600;
+    @apply text-primary;
+    @apply text-xl border-b pb-2;
+  }
+
+  dt {
+    @apply font-bold;
+
+    span {
+      @apply font-normal;
+      background-color: transparent;
+    }
+  }
+
+  .doctest-block,
+  .literal-block {
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-3)] p-2 rounded-md text-sm;
+  }
+}
+
+.docs-panel > .external-docs {
+  @apply font-normal;
+}
+
+.docs-panel > .codehilite {
+  @apply text-lg;
+
+  code {
+    width: 100%;
+    display: inline-block;
+    white-space: pre-wrap;
+    @apply bg-transparent bg-[var(--slate-3)] border p-2 rounded-md font-mono text-sm;
+  }
 }
