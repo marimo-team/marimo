@@ -60,9 +60,6 @@ async def index(request: Request) -> HTMLResponse:
             "{{ mode }}",
             "read" if app_state.mode == SessionMode.RUN else "edit",
         )
-        # Remove all href's that start with '/'
-        # This is so that we can use the base_url to serve the files
-        html = re.sub(r'href="/', 'href="', html)
 
     return HTMLResponse(html)
 

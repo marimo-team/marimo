@@ -38,6 +38,7 @@ def client() -> TestClient:
     app.state.server = uvicorn_server
     app.state.host = "localhost"
     app.state.port = 1234
+    app.state.base_url = ""
     return client
 
 
