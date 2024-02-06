@@ -30,8 +30,7 @@
 
   h1 {
     font-weight: 600;
-    @apply text-primary;
-    @apply text-xl border-b pb-2;
+    @apply text-xl border-b pb-2 text-primary;
   }
 
   dt {
@@ -39,7 +38,6 @@
 
     span {
       @apply font-normal;
-      background-color: transparent;
     }
   }
 
@@ -61,6 +59,6 @@
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
-    @apply bg-transparent bg-[var(--slate-3)] border p-2 rounded-md font-mono text-sm;
+    @apply bg-[var(--slate-3)] border p-2 rounded-md font-mono text-sm;
   }
 }
