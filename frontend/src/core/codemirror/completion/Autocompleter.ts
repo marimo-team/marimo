@@ -9,6 +9,7 @@ import { sendCodeCompletionRequest } from "@/core/network/requests";
 import { Tooltip } from "@codemirror/view";
 import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
 import { CodeCompletionRequest } from "@/core/network/types";
+import "../../../components/editor/documentation.css";
 
 function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   if (!innerHtml) {
@@ -16,9 +17,10 @@ function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   }
   const container = document.createElement("span");
   container.classList.add("mo-cm-tooltip");
+  container.classList.add("docs-documentation");
   container.style.display = "flex";
   container.style.flexDirection = "column";
-  container.style.gap = "1rem";
+  container.style.gap = ".8rem";
   container.innerHTML = innerHtml;
   return container;
 }

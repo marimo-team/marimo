@@ -1,5 +1,4 @@
-.docs-panel {
-  white-space: pre-wrap;
+.docs-documentation {
   line-height: normal;
 
   @apply font-prose;
@@ -12,6 +11,19 @@
   ul {
     list-style-type: disc;
     padding-left: 1.5rem;
+  }
+
+  p {
+    padding: 0.4rem 0;
+    white-space: pre-wrap;
+  }
+
+  .section {
+    padding: 0.5rem 0;
+  }
+
+  dt {
+    padding-top: 0.6rem;
   }
 
   ul,
@@ -46,7 +58,7 @@
 
   h1 {
     font-weight: 600;
-    @apply text-xl border-b pb-2 text-primary;
+    @apply text-xl border-b pb-1 text-primary;
   }
 
   dt {
@@ -66,19 +78,28 @@
   .docutils.literal {
     @apply bg-[var(--slate-2)] px-1 border rounded-md text-sm font-mono;
   }
-}
 
-.docs-panel > .external-docs {
-  @apply font-normal;
-}
-
-.docs-panel > .codehilite {
-  @apply text-lg;
-
-  code {
+  .codehilite code {
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
     @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm;
+  }
+}
+
+/* Custom overrides when in a tooltip */
+.mo-cm-tooltip.docs-documentation {
+  @apply text-sm;
+
+  h1 {
+    @apply text-base;
+  }
+
+  code,
+  .doctest-block,
+  .literal-block,
+  .docutils.literal,
+  .codehilite code {
+    @apply text-xs;
   }
 }
