@@ -6,15 +6,9 @@
 
   li {
     white-space: initial;
-    margin-bottom: 0.5rem;
-  }
-
-  li:last-child {
-    margin-bottom: 0;
   }
 
   ul,
-  p,
   .paragraph {
     white-space: initial;
   }
@@ -25,7 +19,7 @@
   }
 
   code {
-    @apply border p-1 rounded-md font-mono bg-[var(--slate-1)] text-sm;
+    @apply border px-1 rounded-md font-mono bg-[var(--slate-1)] text-sm;
   }
 
   h1 {
@@ -45,6 +39,10 @@
   .literal-block {
     white-space: pre-wrap;
     @apply bg-[var(--slate-2)] p-2 rounded-md text-sm;
+  }
+
+  .docutils.literal {
+    @apply bg-[var(--slate-2)] px-1 border rounded-md text-sm font-mono;
   }
 }
 
