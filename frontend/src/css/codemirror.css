@@ -26,7 +26,6 @@
 /* -- Tooltips: code completion and type hints -- */
 
 #App .cm-tooltip {
-  font-size: 0.875rem;
   border: none;
   box-shadow: var(--light-shadow);
   border-radius: 4px;
@@ -50,42 +49,27 @@
   padding: 0.625rem 0.875rem;
 }
 
-#App .cm-tooltip code {
-  font-size: 0.8125rem;
-}
-
-#App .cm-tooltip .external-docs {
-  font-size: 0.75rem;
-}
-
 /* Hover tooltips get highest priority in display. */
 #App .cm-tooltip.cm-tooltip-hover {
   z-index: 1000;
 }
 
 .mo-cm-tooltip {
+  white-space: pre-wrap;
+
+  @apply text-base;
+
   ul {
-    white-space: normal;
     display: block;
     list-style-type: disc;
-    margin-block: 0 0;
-    margin-inline: 0 0;
-    padding-inline-start: 40px;
   }
 
   ol {
-    /* provide by the browser, but removed from 'reset' */
-    white-space: normal;
-    display: block;
     list-style-type: decimal;
-    margin-block: 0 0;
-    margin-inline: 0 0;
-    padding-inline-start: 40px;
+    padding-left: 1.5rem;
   }
 
   li {
-    /* provided by the browser, but removed from 'reset' */
-    white-space: normal;
     display: list-item;
     text-align: -webkit-match-parent;
   }
@@ -98,11 +82,19 @@
     }
   }
 
+  ul,
+  ol,
+  .docutils p,
+  .docutils dd,
+  .paragraph {
+    white-space: initial;
+  }
+
   .codehilite code {
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
-    @apply border-none bg-[var(--slate-2)] p-2 rounded-md font-mono;
+    @apply border-none bg-[var(--slate-2)] p-2 rounded-md font-mono text-sm;
   }
 
   h1 {
@@ -117,25 +109,11 @@
   .doctest-block,
   .literal-block {
     white-space: pre-wrap;
-    @apply bg-[var(--slate-2)] p-2 my-1 rounded-md;
-  }
-
-  blockquote {
-    display: contents;
-    margin-block: 0 0;
-    margin-inline: 0 0;
-  }
-
-  pre {
-    margin: 0;
-
-    /* We previously used pre-wrap, but this caused tooltips at the end
-    * (right) of a cell to obscure code. */
-    white-space: pre;
+    @apply bg-[var(--slate-2)] p-2 my-1 rounded-md text-sm;
   }
 
   table {
-    @apply text-xs border rounded my-2;
+    @apply text-sm border rounded my-2;
 
     th,
     td {
