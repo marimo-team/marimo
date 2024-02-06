@@ -85,6 +85,26 @@
     white-space: pre-wrap;
     @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm;
   }
+
+  blockquote {
+    white-space: pre-wrap;
+
+    @apply pl-2 ml-2;
+
+    p,
+    dl.docutils,
+    .docutils dt {
+      padding: 0;
+      white-space: normal;
+      font-weight: initial;
+      @apply text-sm font-mono;
+    }
+
+    .docutils dd {
+      white-space: pre-wrap;
+      padding-left: 1rem;
+    }
+  }
 }
 
 /* Custom overrides when in a tooltip */
