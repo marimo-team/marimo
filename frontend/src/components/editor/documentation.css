@@ -58,7 +58,7 @@
 
   h1 {
     font-weight: 600;
-    @apply text-xl border-b pb-1 text-primary;
+    @apply text-xl border-b pb-1 mb-1 text-primary;
   }
 
   dt {
@@ -121,5 +121,13 @@
   .docutils.literal,
   .codehilite code {
     @apply text-xs;
+  }
+
+  blockquote {
+    p,
+    dl.docutils,
+    .docutils dt {
+      @apply text-xs;
+    }
   }
 }
