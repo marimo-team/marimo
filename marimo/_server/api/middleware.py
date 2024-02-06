@@ -9,8 +9,8 @@ from starlette.authentication import (
     BaseUser,
     SimpleUser,
 )
-from starlette.responses import JSONResponse
 from starlette.requests import HTTPConnection, Request
+from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.model import SessionMode

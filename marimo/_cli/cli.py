@@ -10,6 +10,7 @@ from typing import Any, Literal, Optional
 
 import click
 
+import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
@@ -273,7 +274,7 @@ Example:
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    # TODO: validate that it starts with a /
+    callback=validators.start_with_slash,
 )
 @click.argument("name", required=True)
 def run(

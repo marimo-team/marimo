@@ -1,6 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
-from starlette.testclient import TestClient
 import uvicorn
+from starlette.testclient import TestClient
 
 from marimo import __version__
 from marimo._config.config import get_configuration
