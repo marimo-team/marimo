@@ -274,7 +274,7 @@ Example:
     show_default=True,
     type=str,
     help="Base URL for the server. Should start with a /.",
-    callback=validators.start_with_slash,
+    callback=validators.base_url,
 )
 @click.argument("name", required=True)
 def run(
