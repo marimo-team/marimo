@@ -44,7 +44,7 @@
   .doctest-block,
   .literal-block {
     white-space: pre-wrap;
-    @apply bg-[var(--slate-3)] p-2 rounded-md text-sm;
+    @apply bg-[var(--slate-2)] p-2 rounded-md text-sm;
   }
 }
 
@@ -59,6 +59,6 @@
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
-    @apply bg-[var(--slate-3)] border p-2 rounded-md font-mono text-sm;
+    @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm;
   }
 }

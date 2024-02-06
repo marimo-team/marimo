@@ -63,44 +63,76 @@
   z-index: 1000;
 }
 
-.mo-cm-tooltip ul {
-  white-space: normal;
-  display: block;
-  list-style-type: disc;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
+.mo-cm-tooltip {
+  ul {
+    white-space: normal;
+    display: block;
+    list-style-type: disc;
+    margin-block: 0 0;
+    margin-inline: 0 0;
+    padding-inline-start: 40px;
+  }
 
-.mo-cm-tooltip ol {
-  /* provide by the browser, but removed from 'reset' */
-  white-space: normal;
-  display: block;
-  list-style-type: decimal;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
+  ol {
+    /* provide by the browser, but removed from 'reset' */
+    white-space: normal;
+    display: block;
+    list-style-type: decimal;
+    margin-block: 0 0;
+    margin-inline: 0 0;
+    padding-inline-start: 40px;
+  }
 
-.mo-cm-tooltip li {
-  /* provided by the browser, but removed from 'reset' */
-  white-space: normal;
-  display: list-item;
-  text-align: -webkit-match-parent;
-}
+  li {
+    /* provided by the browser, but removed from 'reset' */
+    white-space: normal;
+    display: list-item;
+    text-align: -webkit-match-parent;
+  }
 
-.mo-cm-tooltip blockquote {
-  display: contents;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-}
+  dt {
+    @apply font-bold;
 
-.mo-cm-tooltip pre {
-  margin: 0;
+    span {
+      @apply font-normal;
+    }
+  }
 
-  /* We previously used pre-wrap, but this caused tooltips at the end
-   * (right) of a cell to obscure code. */
-  white-space: pre;
+  .codehilite code {
+    width: 100%;
+    display: inline-block;
+    white-space: pre-wrap;
+    @apply border-none bg-[var(--slate-2)] p-2 rounded-md font-mono;
+  }
+
+  h1 {
+    font-weight: 600;
+    @apply border-b pb-1 mt-1 text-primary;
+  }
+
+  code {
+    @apply border px-1 rounded-md font-mono bg-[var(--slate-1)] text-sm;
+  }
+
+  .doctest-block,
+  .literal-block {
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] p-2 my-1 rounded-md;
+  }
+
+  blockquote {
+    display: contents;
+    margin-block: 0 0;
+    margin-inline: 0 0;
+  }
+
+  pre {
+    margin: 0;
+
+    /* We previously used pre-wrap, but this caused tooltips at the end
+    * (right) of a cell to obscure code. */
+    white-space: pre;
+  }
 }
 
 /* -- Completion Info -- */
