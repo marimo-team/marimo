@@ -6,6 +6,7 @@ from inspect import cleandoc
 import markdown  # type: ignore
 
 from marimo._output.hypertext import Html
+from marimo._output.md_extensions.external_links import ExternalLinksExtension
 from marimo._output.rich_help import mddoc
 
 extension_configs = {
@@ -54,16 +55,18 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
             "toc",
             # Footnotes
             "footnotes",
+            # Links
+            ExternalLinksExtension(),
         ],
         extension_configs=extension_configs,
     ).strip()
     # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
-    html_text = html_text.replace("<p>", "<span class='paragraph'>").replace(
+    html_text = html_text.replace("<p>", '<span class="paragraph">').replace(
         "</p>", "</span>"
     )
 
     if apply_markdown_class:
-        return Html("<span class='markdown'>" + html_text + "</span>")
+        return Html('<span class="markdown">' + html_text + "</span>")
     else:
         return Html(html_text)
 
