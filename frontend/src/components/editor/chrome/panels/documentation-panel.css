@@ -9,7 +9,7 @@
   }
 
   ul,
-  p,
+  .docutils p,
   .paragraph {
     white-space: initial;
   }
