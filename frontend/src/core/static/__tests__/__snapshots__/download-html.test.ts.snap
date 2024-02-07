@@ -4,6 +4,8 @@ exports[`download-html > should construct html correctly 1`] = `
 "<!doctype html>
 <html>
   <head>
+    <base href="/" />
+
     <meta charset="utf-8" />
     <link
       rel="icon"
