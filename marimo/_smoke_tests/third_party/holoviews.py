@@ -81,5 +81,20 @@ def __(scatter):
     return
 
 
+@app.cell
+def __(mo):
+    mo.md("# HV Plot")
+    return
+
+
+@app.cell
+def __():
+    import hvplot.pandas
+    from bokeh.sampledata.penguins import data as df
+
+    df.hvplot.scatter(x='bill_length_mm', y='bill_depth_mm', by='species')
+    return df, hvplot
+
+
 if __name__ == "__main__":
     app.run()

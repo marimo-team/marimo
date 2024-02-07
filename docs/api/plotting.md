@@ -36,4 +36,5 @@ You can use all the popular plotting libraries with marimo. Such as:
 - [Bokeh](https://bokeh.org/)
 - [Altair](https://altair-viz.github.io/)
 - [HoloViews](http://holoviews.org/)
+- [hvPlot](https://hvplot.holoviz.org/)
 - [Leafmap](https://leafmap.org/)

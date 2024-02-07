@@ -21,8 +21,12 @@ class BokehFormatter(FormatterFactory):
         def _show_plot(
             plot: bokeh.models.Model,
         ) -> tuple[KnownMimeType, str]:
-            from bokeh.embed import file_html  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            from bokeh.resources import CDN  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            from bokeh.embed import (
+                file_html,  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            )
+            from bokeh.resources import (
+                CDN,  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            )
 
             html = file_html(plot, CDN)
             html_file = mo_data.html(html)

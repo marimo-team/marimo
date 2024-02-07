@@ -18,9 +18,9 @@ class HoloViewsFormatter(FormatterFactory):
 
         from marimo._output import formatting
 
-        @formatting.formatter(hv.Element)
+        @formatting.formatter(hv.core.ViewableElement)
         def _show_chart(
-            plot: hv.Element,
+            plot: hv.core.ViewableElement,
         ) -> tuple[KnownMimeType, str]:
             backend_output = hv.render(plot)
 
