@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
 import queue
 from typing import cast
 
@@ -82,11 +83,21 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         if completion.module_name.startswith("marimo"):
             body = _md(body, apply_markdown_class=False).text
         else:
-            body = (
-                "<div class='external-docs'>"
-                + convert_rst_to_html(body)
-                + "</div>"
-            )
+            try:
+                body = (
+                    "<div class='external-docs'>"
+                    + convert_rst_to_html(body)
+                    + "</div>"
+                )
+            except Exception as e:
+                # if docutils chokes, we don't want to crash the completion
+                # worker
+                LOGGER.debug("Converting RST to HTML failed: ", e)
+                body = (
+                    "<pre class='external-docs'>"
+                    + html.escape(body)
+                    + "</pre>"
+                )
 
     if signature_text and body:
         docstring = signature_text + "\n\n" + body
