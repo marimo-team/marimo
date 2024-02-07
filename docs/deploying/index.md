@@ -31,3 +31,11 @@ If you would like to deploy your application at a subpath, you can set the `--ba
 ```bash
 marimo run app.py --base-url /subpath
 ```
+
+## Including code in your application
+
+You can include code in your application by using the `--include-code` flag when running your application.
+
+```bash
+marimo run app.py --include-code
+```
