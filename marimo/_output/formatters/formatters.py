@@ -5,7 +5,9 @@ import sys
 from typing import Any, Callable, Sequence
 
 from marimo._output.formatters.altair_formatters import AltairFormatter
+from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
 from marimo._output.formatters.matplotlib_formatters import MatplotlibFormatter
 from marimo._output.formatters.pandas_formatters import PandasFormatter
@@ -23,6 +25,8 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     PlotlyFormatter.package_name(): PlotlyFormatter(),
     SeabornFormatter.package_name(): SeabornFormatter(),
     LeafmapFormatter.package_name(): LeafmapFormatter(),
+    BokehFormatter.package_name(): BokehFormatter(),
+    HoloViewsFormatter.package_name(): HoloViewsFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a

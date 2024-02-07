@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -24,11 +25,15 @@ class PlotlyFormatter(FormatterFactory):
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
-            json_str = plotly.io.to_json(fig)
-            plugin = Html(
-                build_stateless_plugin(
-                    component_name="marimo-plotly",
-                    args={"figure": json.loads(json_str)},
-                )
-            )
+            json_str: str = plotly.io.to_json(fig)
+            plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
             return ("text/html", plugin.text)
+
+    @staticmethod
+    def render_plotly_dict(json: dict[Any, Any]) -> Html:
+        return Html(
+            build_stateless_plugin(
+                component_name="marimo-plotly",
+                args={"figure": json},
+            )
+        )

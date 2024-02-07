@@ -20,8 +20,21 @@ For more information about plotting, see the [plotting guide](../guides/plotting
 .. autofunction:: marimo.ui.plotly
 ```
 
-## matplotlib
+## Interactive matplotlib
 
 ```{eval-rst}
 .. autofunction:: marimo.mpl.interactive
 ```
+
+## Other plotting libraries
+
+You can use all the popular plotting libraries with marimo. Such as:
+
+- [Matplotlib](https://matplotlib.org/)
+- [Plotly](https://plotly.com/)
+- [Seaborn](https://seaborn.pydata.org/)
+- [Bokeh](https://bokeh.org/)
+- [Altair](https://altair-viz.github.io/)
+- [HoloViews](http://holoviews.org/)
+- [hvPlot](https://hvplot.holoviz.org/)
+- [Leafmap](https://leafmap.org/)
