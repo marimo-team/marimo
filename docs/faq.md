@@ -21,6 +21,7 @@
   - [How do I restart a notebook?](#faq-restart)
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
+  - [How do I use dotenv?](#faq-dotenv)
   - [What packages can I use?](#faq-packages)
   - [How do I use marimo on a remote server?](#faq-remote)
   - [How do I deploy apps?](#faq-app-deploy)
@@ -309,8 +310,8 @@ For usage examples, see the
 
 ### How do I restart a notebook?
 
-To clear all program memory and restart the notebook from scratch, refresh
-the browser page.
+To clear all program memory and restart the notebook from scratch, open the
+notebook menu in the top right and click "Restart kernel".
 
 <a name="faq-reload"></a>
 
@@ -374,6 +375,14 @@ x: "A" = ...
 `A` isn't made a reference.
 
 For Python 3.12+, marimo additionally implements annotation scoping.
+
+
+<a name="faq-dotenv"></a>
+
+### How do I use dotenv?
+
+The package `dotenv`'s `loadenv()` function does not work out-of-the box in
+marimo. Instead, use `dotenv.load_dotenv(dotenv.find_dotenv(usecwd=True))`.
 
 <a name="faq-packages"></a>
 
