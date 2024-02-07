@@ -98,7 +98,7 @@ export const VegaComponent = ({
     let url: URL;
     try {
       url = asURL(spec.data.url);
-    } catch (e) {
+    } catch {
       return spec;
     }
 

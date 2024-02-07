@@ -2,6 +2,7 @@
 import { TopLevelSpec } from "vega-lite";
 import { Marks } from "./marks";
 import {
+  Field,
   Mark,
   SelectionParameter,
   SingleDefUnitChannel,
@@ -92,7 +93,7 @@ export function getEncodingAxisForMark(
 }
 
 export function getSelectionParamNames(
-  spec: TopLevelSpec | LayerSpec<any> | UnitSpec<any>,
+  spec: TopLevelSpec | LayerSpec<Field> | UnitSpec<Field>,
 ): string[] {
   if ("params" in spec && spec.params && spec.params.length > 0) {
     const params = spec.params;
@@ -110,7 +111,7 @@ export function getSelectionParamNames(
     );
   }
   if ("layer" in spec) {
-    return uniq(spec.layer.map(getSelectionParamNames).flat());
+    return uniq(spec.layer.flatMap(getSelectionParamNames));
   }
   return [];
 }

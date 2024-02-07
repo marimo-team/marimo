@@ -83,7 +83,7 @@ describe("makeSelectable", () => {
         type: "point",
       },
     } as VegaLiteSpec;
-    let newSpec = makeSelectable(spec, {
+    const newSpec = makeSelectable(spec, {
       chartSelection: true,
       fieldSelection: true,
     });
@@ -122,7 +122,7 @@ describe("makeSelectable", () => {
       },
     } as VegaLiteSpec;
 
-    let newSpec = makeSelectable(spec, {
+    const newSpec = makeSelectable(spec, {
       chartSelection: true,
       fieldSelection: false,
     });
@@ -267,11 +267,11 @@ describe("makeSelectable", () => {
           },
           {
             yield_error: 6.9775,
-            yield_center: 30.96667,
+            yield_center: 30.966_67,
           },
           {
             yield_error: 3.9167,
-            yield_center: 33.966665,
+            yield_center: 33.966_665,
           },
           {
             yield_error: 11.9732,

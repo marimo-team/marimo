@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { beforeAll, expect, describe, test } from "vitest";
 import { asURL } from "../url";
 

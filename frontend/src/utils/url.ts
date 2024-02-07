@@ -1,3 +1,5 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
 /**
  * Resolve the path to a URL.
  *

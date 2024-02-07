@@ -108,7 +108,7 @@ function makeChartSelectable(
   let mark: Mark;
   try {
     mark = Marks.getMarkType(spec.mark);
-  } catch (e) {
+  } catch {
     return spec;
   }
 
