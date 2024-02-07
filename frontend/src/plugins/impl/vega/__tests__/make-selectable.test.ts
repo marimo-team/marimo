@@ -2,6 +2,7 @@
 import { expect, describe, it } from "vitest";
 import { makeSelectable } from "../make-selectable";
 import { VegaLiteSpec } from "../types";
+import { getSelectionParamNames } from "../params";
 
 describe("makeSelectable", () => {
   it("should return correctly if mark is not string", () => {
@@ -24,12 +25,12 @@ describe("makeSelectable", () => {
     const spec = {
       mark: "point",
     } as VegaLiteSpec;
-    expect(
-      makeSelectable(spec, {
-        chartSelection: false,
-        fieldSelection: false,
-      }),
-    ).toEqual(spec);
+    const newSpec = makeSelectable(spec, {
+      chartSelection: false,
+      fieldSelection: false,
+    });
+    expect(newSpec).toEqual(spec);
+    expect(getSelectionParamNames(newSpec)).toEqual([]);
   });
 
   it("should return the same spec for not-defined and true", () => {
@@ -82,12 +83,16 @@ describe("makeSelectable", () => {
         type: "point",
       },
     } as VegaLiteSpec;
-    expect(
-      makeSelectable(spec, {
-        chartSelection: true,
-        fieldSelection: true,
-      }),
-    ).toMatchSnapshot();
+    const newSpec = makeSelectable(spec, {
+      chartSelection: true,
+      fieldSelection: true,
+    });
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "legend_selection_Origin",
+      "select_point",
+      "select_interval",
+    ]);
   });
 
   it("should skip field selection if empty or false", () => {
@@ -117,9 +122,15 @@ describe("makeSelectable", () => {
       },
     } as VegaLiteSpec;
 
-    expect(
-      makeSelectable(spec, { chartSelection: true, fieldSelection: false }),
-    ).toMatchSnapshot();
+    const newSpec = makeSelectable(spec, {
+      chartSelection: true,
+      fieldSelection: false,
+    });
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "select_point",
+      "select_interval",
+    ]);
 
     // These are the same
     expect(
@@ -144,7 +155,14 @@ describe("makeSelectable", () => {
       },
     } as VegaLiteSpec;
 
-    expect(makeSelectable(spec, {})).toMatchSnapshot();
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "legend_selection_colorField",
+      "legend_selection_sizeField",
+      "select_point",
+      "select_interval",
+    ]);
   });
 
   it("should return correctly if existing legend selection", () => {
@@ -190,6 +208,87 @@ describe("makeSelectable", () => {
         },
       ],
     } as VegaLiteSpec;
-    expect(makeSelectable(spec, {})).toMatchSnapshot();
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "param_1",
+      "legend_selection_series",
+      "select_point",
+    ]);
+  });
+
+  it("should work for multi-layered charts", () => {
+    const spec = {
+      layer: [
+        {
+          mark: {
+            type: "errorbar",
+            ticks: true,
+          },
+          encoding: {
+            x: {
+              field: "yield_center",
+              scale: {
+                zero: false,
+              },
+              title: "yield",
+              type: "quantitative",
+            },
+            xError: {
+              field: "yield_error",
+            },
+            y: {
+              field: "variety",
+              type: "nominal",
+            },
+          },
+        },
+        {
+          mark: {
+            type: "point",
+            color: "black",
+            filled: true,
+          },
+          encoding: {
+            x: {
+              field: "yield_center",
+              type: "quantitative",
+            },
+          },
+        },
+      ],
+      data: { name: "source" },
+      width: "container",
+      datasets: {
+        source: [
+          {
+            yield_error: 7.5522,
+            yield_center: 32.4,
+          },
+          {
+            yield_error: 6.9775,
+            yield_center: 30.966_67,
+          },
+          {
+            yield_error: 3.9167,
+            yield_center: 33.966_665,
+          },
+          {
+            yield_error: 11.9732,
+            yield_center: 30.45,
+          },
+        ],
+      },
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {
+      chartSelection: true,
+    });
+    expect(newSpec).toMatchSnapshot();
+
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "select_point",
+      "select_interval",
+    ]);
   });
 });

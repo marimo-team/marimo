@@ -1,12 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { TopLevelSpec } from "vega-lite";
 import { Marks } from "./marks";
 import {
+  Field,
   Mark,
   SelectionParameter,
   SingleDefUnitChannel,
-  VegaLiteSpec,
   VegaLiteUnitSpec,
 } from "./types";
+import { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
+import { uniq } from "lodash-es";
 
 const ParamNames = {
   LEGEND_SELECTION: "legend_selection",
@@ -89,16 +92,26 @@ export function getEncodingAxisForMark(
   }
 }
 
-export function getSelectionParamNames(spec: VegaLiteSpec): string[] {
-  const params = spec.params;
-  if (params && params.length > 0) {
-    return params
-      .filter((param) => {
-        return "select" in param && param.select !== undefined;
-      })
-      .map((param) => {
-        return param.name;
-      });
+export function getSelectionParamNames(
+  spec: TopLevelSpec | LayerSpec<Field> | UnitSpec<Field>,
+): string[] {
+  if ("params" in spec && spec.params && spec.params.length > 0) {
+    const params = spec.params;
+    return (
+      params
+        // @ts-expect-error TS doesn't know that `param` is an object
+        .filter((param) => {
+          if (param == null) {
+            return false;
+          }
+          // @ts-expect-error TS doesn't know that `param` is an object
+          return "select" in param && param.select !== undefined;
+        })
+        .map((param) => param.name)
+    );
+  }
+  if ("layer" in spec) {
+    return uniq(spec.layer.flatMap(getSelectionParamNames));
   }
   return [];
 }

@@ -39,6 +39,19 @@ export function makeSelectable<T extends VegaLiteSpec>(
     return { ...spec, hconcat: subSpecs };
   }
 
+  if ("layer" in spec) {
+    const subSpecs = spec.layer.map((subSpec, idx) => {
+      if (!("mark" in subSpec)) {
+        return subSpec;
+      }
+      let resolvedSpec = subSpec as VegaLiteUnitSpec;
+      resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection);
+      resolvedSpec = makeChartInteractive(resolvedSpec);
+      return resolvedSpec;
+    });
+    return { ...spec, layer: subSpecs };
+  }
+
   if (!("mark" in spec)) {
     return spec;
   }
@@ -92,7 +105,13 @@ function makeChartSelectable(
     return spec;
   }
 
-  const mark = Marks.getMarkType(spec.mark);
+  let mark: Mark;
+  try {
+    mark = Marks.getMarkType(spec.mark);
+  } catch {
+    return spec;
+  }
+
   const resolvedChartSelection =
     chartSelection === true ? getBestSelectionForMark(mark) : [chartSelection];
 
@@ -112,6 +131,9 @@ function makeChartSelectable(
   } as VegaLiteUnitSpec;
 }
 
+/**
+ * Makes a chart clickable and adds an opacity encoding to the chart.
+ */
 function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const prevEncodings = "encoding" in spec ? spec.encoding : undefined;
   const params = spec.params || [];

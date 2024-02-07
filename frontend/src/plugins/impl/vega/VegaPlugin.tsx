@@ -21,6 +21,7 @@ import { fixRelativeUrl } from "./fix-relative-url";
 import "./vega.css";
 import { useThemeForPlugin } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
+import { asURL } from "@/utils/url";
 
 interface Data {
   spec: VegaLiteSpec;
@@ -93,21 +94,23 @@ export const VegaComponent = ({
       return spec;
     }
 
-    // Skip non-relative URLs
-    if (!spec.data.url.startsWith("/")) {
+    // Parse URL
+    let url: URL;
+    try {
+      url = asURL(spec.data.url);
+    } catch {
       return spec;
     }
-    const url = spec.data.url;
 
-    const data = await vegaLoadData(url, spec.data.format);
+    const data = await vegaLoadData(url.href, spec.data.format);
     return {
       ...spec,
       data: {
-        name: url,
+        name: url.pathname,
       },
       datasets: {
         ...spec.datasets,
-        [url]: data,
+        [url.pathname]: data,
       },
     } as VegaLiteSpec;
   }, [spec]);
