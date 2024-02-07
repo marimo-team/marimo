@@ -2,7 +2,6 @@
 import uvicorn
 from starlette.testclient import TestClient
 
-from marimo import __version__
 from marimo._config.config import get_configuration
 from marimo._server.main import create_starlette_app
 from tests._server.mocks import get_mock_session_manager
