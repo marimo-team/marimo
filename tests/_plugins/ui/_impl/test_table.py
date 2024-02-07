@@ -7,15 +7,15 @@ from marimo._plugins.ui._impl.table import (
     _normalize_data,
 )
 from marimo._plugins.ui._impl.utils.dataframe import TableData
-from marimo._runtime.runtime import ExecutionContext
-from tests.conftest import MockedKernel
+from marimo._runtime.runtime import Kernel
 
 
-def test_normalize_data() -> None:
+def test_normalize_data(executing_kernel: Kernel) -> None:
+    # unused, except for the side effect of giving the kernel an execution
+    # context
+    del executing_kernel
+
     # Create kernel and give the execution context an existing cell
-    mocked = MockedKernel()
-    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
-
     data: TableData
 
     # Test with list of integers
