@@ -18,6 +18,7 @@ DEFAULT_PORT = 2718
 
 
 def start(
+    *,
     filename: Optional[str],
     mode: SessionMode,
     development_mode: bool,
@@ -26,6 +27,7 @@ def start(
     headless: bool,
     port: Optional[int],
     host: str,
+    watch: bool,
     base_url: str = "",
 ) -> None:
     """
@@ -52,6 +54,7 @@ def start(
     app.state.headless = headless
     app.state.port = port
     app.state.host = host or "localhost"
+    app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
     app.state.user_config = get_configuration()

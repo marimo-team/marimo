@@ -223,6 +223,7 @@ def edit(
         filename=name,
         mode=SessionMode.EDIT,
         include_code=True,
+        watch=False,
     )
 
 
@@ -269,6 +270,18 @@ Example:
     help="Include notebook code in the app.",
 )
 @click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Watch the file for changes and reload the app.
+    If watchdog is installed, it will be used to watch the file.
+    Otherwise, file watcher will poll the file every 1s.
+    """,
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -282,6 +295,7 @@ def run(
     host: str,
     headless: bool,
     include_code: bool,
+    watch: bool,
     name: str,
     base_url: str,
 ) -> None:
@@ -303,6 +317,7 @@ def run(
         filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
+        watch=watch,
         base_url=base_url,
     )
 
@@ -422,6 +437,7 @@ def tutorial(
         filename=fname,
         include_code=True,
         headless=headless,
+        watch=False,
     )
 
 

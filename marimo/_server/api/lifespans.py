@@ -101,6 +101,15 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 
 
 @contextlib.asynccontextmanager
+async def watcher(app: Starlette) -> AsyncIterator[None]:
+    watch: bool = app.state.watch
+    if watch:
+        session_mgr = get_manager()
+        session_mgr.start_file_watcher()
+    yield
+
+
+@contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     host = app.state.host
     port = app.state.port
@@ -165,5 +174,13 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 
 LIFESPANS = Lifespans(
-    [user_configuration, lsp, etc, signal_handler, logging, open_browser]
+    [
+        user_configuration,
+        lsp,
+        watcher,
+        etc,
+        signal_handler,
+        logging,
+        open_browser,
+    ]
 )

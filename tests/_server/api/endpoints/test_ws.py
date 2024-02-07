@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Optional
 
 import pytest
@@ -8,7 +9,9 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._messaging.ops import KernelReady
+from marimo._server.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
+from tests._server.conftest import get_session_manager
 
 
 def create_response(
@@ -116,4 +119,25 @@ def test_fails_on_multiple_connections_with_other_sessions(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+@pytest.mark.asyncio
+async def test_file_watcher_calls_reload(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    with client.websocket_connect("/ws?session_id=123") as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+        session_manager.mode = SessionMode.RUN
+        unsubscribe = session_manager.start_file_watcher()
+        assert session_manager.filename
+        with open(session_manager.filename, "a") as f:
+            f.write("\n# test")
+            f.close()
+        assert session_manager.watcher
+        await session_manager.watcher.callback(Path(session_manager.filename))
+        unsubscribe()
+        data = websocket.receive_json()
+        assert data == {"op": "reload", "data": {}}
+        session_manager.mode = SessionMode.EDIT
     client.post("/api/kernel/shutdown", headers=HEADERS)

@@ -78,6 +78,7 @@ dev = [
     "polars==0.19.12",
     "pytest~=7.4.0",
     "pytest-codecov~=0.5.1",
+    "pytest-asyncio~=0.23.4",
     "mypy~=1.7.0",
     "ruff~=0.0.275",
     "typos~=1.17.1",
@@ -99,7 +100,8 @@ testcore = [
     # for server testing
     "httpx~=0.26.0",
     "pytest~=7.4.0",
-    "pytest-codecov~=0.5.1"
+    "pytest-codecov~=0.5.1",
+    "pytest-asyncio~=0.23.4",
 ]
 
 testoptional = [

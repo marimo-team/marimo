@@ -213,6 +213,9 @@ export type OperationMessage =
       op: "completed-run";
     }
   | {
+      op: "reload";
+    }
+  | {
       op: "interrupted";
     }
   | {
