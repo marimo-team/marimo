@@ -1,4 +1,4 @@
-# Deploying marimo apps / notebooks
+# Deploying
 
 ```{eval-rst}
 .. toctree::

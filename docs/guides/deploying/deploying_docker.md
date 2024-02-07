@@ -1,4 +1,4 @@
-# Deploying marimo notebooks and apps with Docker
+# Deploying with Docker
 
 ## Prerequisites
 

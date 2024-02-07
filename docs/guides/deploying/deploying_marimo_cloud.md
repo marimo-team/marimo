@@ -1,4 +1,4 @@
-# Deploying marimo notebooks and apps to marimo cloud
+# Deploying to marimo cloud
 
 `marimo cloud` makes it easy to deploy and share your marimo notebooks and apps.
 
