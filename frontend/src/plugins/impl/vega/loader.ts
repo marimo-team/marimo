@@ -27,7 +27,11 @@ export function vegaLoadData(
     // we would need to store the data in columnar format.
     csvData = uniquifyColumnNames(csvData);
 
-    // csv -> json
+    // Always set parse to auto for csv data, to be able to parse dates and floats
+    if (format && format.type === "csv") {
+      // csv -> json
+      return read(csvData, { ...format, parse: "auto" });
+    }
     return read(csvData, format);
   });
 }

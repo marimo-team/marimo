@@ -50,12 +50,12 @@ class table(
     A table component with selectable rows. Get the selected rows with
     `table.value`.
 
-    The table data can be supplied a :
+    The table data can be supplied a:
 
-        1. a list of dicts, with one dict for each row, keyed by column names;
-        2. a list of values, representing a table with a single column;
-        3. a Pandas dataframe; or
-        4. a Polars dataframe.
+    1. a list of dicts, with one dict for each row, keyed by column names;
+    2. a list of values, representing a table with a single column;
+    3. a Pandas dataframe; or
+    4. a Polars dataframe.
 
     **Examples.**
 

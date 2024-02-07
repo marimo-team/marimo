@@ -20,10 +20,8 @@ DecoratedCallable = TypeVar("DecoratedCallable", bound=Callable[..., Any])
 
 @dataclass
 class APIRouter(Router):
-    # Prefix to append to routes
-    prefix: str = ""
-
-    def __init__(self) -> None:
+    def __init__(self, prefix: str = "") -> None:
+        self.prefix = prefix
         super().__init__()
 
     def __post_init__(self) -> None:
@@ -120,4 +118,4 @@ class APIRouter(Router):
                 route.routes.extend(router.routes)
                 return
 
-        self.mount(path=prefix, app=router, name=name)
+        self.mount(path=self.prefix + prefix, app=router, name=name)

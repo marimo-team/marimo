@@ -3,7 +3,7 @@ import { documentationAtom } from "@/core/documentation/state";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { useAtomValue } from "jotai";
 import React from "react";
-import "./documentation-panel.css";
+import "../../documentation.css";
 import { BookMarkedIcon } from "lucide-react";
 
 export const DocumentationPanel: React.FC = () => {
@@ -21,7 +21,7 @@ export const DocumentationPanel: React.FC = () => {
   }
 
   return (
-    <div className="p-4 overflow-y-auto overflow-x-hidden h-full docs-panel flex flex-col gap-6">
+    <div className="p-3 overflow-y-auto overflow-x-hidden h-full docs-documentation flex flex-col gap-4">
       {renderHTML({ html: documentation })}
     </div>
   );

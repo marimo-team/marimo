@@ -16,6 +16,7 @@ from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CompletionRequest
 from marimo._utils.format_signature import format_signature
+from marimo._utils.rst_to_html import convert_rst_to_html
 
 LOGGER = loggers.marimo_logger()
 
@@ -82,9 +83,21 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         if completion.module_name.startswith("marimo"):
             body = _md(body, apply_markdown_class=False).text
         else:
-            # TODO: this would look better parsed as RST
-            # for non-marimo modules
-            body = "<pre class='external-docs'>" + html.escape(body) + "</pre>"
+            try:
+                body = (
+                    "<div class='external-docs'>"
+                    + convert_rst_to_html(body)
+                    + "</div>"
+                )
+            except Exception as e:
+                # if docutils chokes, we don't want to crash the completion
+                # worker
+                LOGGER.debug("Converting RST to HTML failed: ", e)
+                body = (
+                    "<pre class='external-docs'>"
+                    + html.escape(body)
+                    + "</pre>"
+                )
 
     if signature_text and body:
         docstring = signature_text + "\n\n" + body

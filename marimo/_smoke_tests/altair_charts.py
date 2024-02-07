@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.1.59"
+__generated_with = "0.2.1"
 app = marimo.App(width="full")
 
 
@@ -505,6 +505,41 @@ def __(alt, mo, np, pd):
 @app.cell
 def __(facet_chart, mo):
     mo.hstack([facet_chart.value, facet_chart.selections])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+    # With `transform_filter`
+    > Bug https://github.com/marimo-team/marimo/issues/727
+    """
+    )
+    return
+
+
+@app.cell
+def __(alt, data, mo):
+    from altair import datum
+
+    _chart = (
+        alt.Chart(data.cars())
+        .mark_point()
+        .encode(
+            x="Horsepower",
+            y="Miles_per_Gallon",
+            color="Origin",
+        )
+        .transform_filter(datum.Origin == "Europe")
+    )
+    with_transform = mo.ui.altair_chart(_chart)
+    return datum, with_transform
+
+
+@app.cell
+def __(mo, with_transform):
+    mo.vstack([with_transform, with_transform.value])
     return
 
 

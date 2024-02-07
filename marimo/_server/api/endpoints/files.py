@@ -175,8 +175,11 @@ async def open_file(
     mgr.rename(filename)
     host = app_state.host
     port = app_state.port
+    base_url = app_state.base_url
     run = app_state.mode == SessionMode.RUN
-    print_startup(filename=filename, url=f"http://{host}:{port}", run=run)
+    print_startup(
+        filename=filename, url=f"http://{host}:{port}{base_url}", run=run
+    )
 
     return SuccessResponse()
 
@@ -238,7 +241,10 @@ async def save(
         )
         LOGGER.debug("Saving app to %s", filename)
         try:
+            header_comments = codegen.get_header_comments(filename)
             with open(filename, "w", encoding="utf-8") as f:
+                if header_comments:
+                    f.write(header_comments.rstrip() + "\n\n")
                 f.write(contents)
         except Exception as e:
             raise HTTPException(

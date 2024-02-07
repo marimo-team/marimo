@@ -1,9 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import builtins
 import importlib.util
 import json
+import os
 from collections.abc import Sequence
 from typing import Any, List, Optional, Union, cast
 
@@ -245,3 +247,40 @@ def recover(filename: str) -> str:
         cast(List[str], names),
         cast(List[CellConfig], configs),
     )
+
+
+def get_header_comments(filename: str) -> Optional[str]:
+    """Gets the header comments from a file. Returns
+    None if the file does not exist or the header is
+    invalid, which is determined by:
+        1. If the file is does not contain the marimo
+            import statement
+        2. If the section before the marimo import
+            statement contains any non-comment code
+    """
+
+    def is_multiline_comment(node: ast.stmt) -> bool:
+        """Checks if a node is a docstring or a multiline comment."""
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+            return True
+        return False
+
+    if not os.path.exists(filename):
+        return None
+
+    with open(filename, "r", encoding="utf-8") as f:
+        contents = f.read()
+
+    if "import marimo" not in contents:
+        return None
+
+    header, _ = contents.split("import marimo", 1)
+
+    # Ensure the header only contains non-executable code
+    # ast parses out single line comments, so we only
+    # need to check that every node is not a multiline comment
+    module = ast.parse(header)
+    if any(not is_multiline_comment(node) for node in module.body):
+        return None
+
+    return header

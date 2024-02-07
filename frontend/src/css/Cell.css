@@ -27,6 +27,14 @@
     z-index: 10;
   }
 
+  /* Hover z-index is higher than focus-within z-index
+   * This is because you may hover for tooltip docs while
+   * not focused in another cell.
+   */
+  &:hover {
+    z-index: 20;
+  }
+
   /* Interactive */
   &.interactive {
     /* Only restrain output length in edit mode. */

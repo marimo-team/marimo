@@ -44,7 +44,9 @@ class VirtualFile:
         # Create a file URL with the buffer size
         # This is a hack so when we pull from shared memory we know how
         # many bytes to read.
-        self.url = url or f"/@file/{len(buffer)}-{filename}"
+        # Also, URL is intentionally relative, so it can be resolved with
+        # different base URLs.
+        self.url = url or f"./@file/{len(buffer)}-{filename}"
 
     @staticmethod
     def from_external_url(url: str) -> VirtualFile:
@@ -57,7 +59,9 @@ class VirtualFile:
 
 EMPTY_VIRTUAL_FILE = VirtualFile(
     filename="empty.txt",
-    url="/@file/0-empty.txt",
+    # URL is intentionally relative, so it can be resolved with
+    # different base URLs.
+    url="@file/0-empty.txt",
     buffer=b"",
 )
 

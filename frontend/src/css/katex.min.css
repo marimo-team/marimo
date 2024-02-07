@@ -1,3 +1,5 @@
+/* Slightly adapted from https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css */
+
 @font-face {
   font-family: "KaTeX_AMS";
   font-style: normal;
@@ -229,7 +231,7 @@
 }
 
 .katex .katex-version::after {
-  content: "0.16.0";
+  content: "0.16.9";
 }
 
 .katex .katex-mathml {
@@ -315,6 +317,12 @@
 .katex .mathfrak,
 .katex .textfrak {
   font-family: "KaTeX_Fraktur";
+}
+
+.katex .mathboldfrak,
+.katex .textboldfrak {
+  font-family: "KaTeX_Fraktur";
+  font-weight: 700;
 }
 
 .katex .mathtt {
@@ -1384,6 +1392,7 @@
   text-align: left;
 }
 
-body {
+body,
+.katex-display {
   counter-reset: katexEqnNo mmlEqnNo;
 }
