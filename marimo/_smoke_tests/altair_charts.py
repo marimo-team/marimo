@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.1"
+__generated_with = "0.2.2"
 app = marimo.App(width="full")
 
 
@@ -88,19 +89,21 @@ def __(alt, chart1, chart_selection_value, legend_selection_value, mo):
     mo.vstack(
         [
             chart1,
-            mo.ui.altair_chart(
-                alt.Chart(chart1.value)
-                .mark_bar()
-                .encode(
-                    x="Origin",
-                    y="count()",
-                    color="Origin",
-                ),
-                chart_selection=chart_selection_value,
-                legend_selection=legend_selection_value,
-            )
-            if not chart1.value.empty
-            else mo.md("No selection"),
+            (
+                mo.ui.altair_chart(
+                    alt.Chart(chart1.value)
+                    .mark_bar()
+                    .encode(
+                        x="Origin",
+                        y="count()",
+                        color="Origin",
+                    ),
+                    chart_selection=chart_selection_value,
+                    legend_selection=legend_selection_value,
+                )
+                if not chart1.value.empty
+                else mo.md("No selection")
+            ),
             chart1.value.head(),
         ]
     )
@@ -540,6 +543,56 @@ def __(alt, data, mo):
 @app.cell
 def __(mo, with_transform):
     mo.vstack([with_transform, with_transform.value])
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("# Layers")
+    return
+
+
+@app.cell
+def __(alt, mo, pd):
+    _source = pd.DataFrame(
+        {
+            "yield_error": [7.5522, 6.9775, 3.9167, 11.9732],
+            "yield_center": [32.4, 30.96667, 33.966665, 30.45],
+            "variety": ["Glabron", "Manchuria", "No. 457", "No. 462"],
+        }
+    )
+
+    bar = (
+        alt.Chart(_source)
+        .mark_errorbar(ticks=True)
+        .encode(
+            x=alt.X("yield_center:Q").scale(zero=False).title("yield"),
+            xError=("yield_error:Q"),
+            y=alt.Y("variety:N"),
+        )
+        .properties(width="container")
+    )
+
+    point = (
+        alt.Chart(_source)
+        .mark_point(filled=True, color="black")
+        .encode(
+            alt.X("yield_center:Q"),
+            alt.Y("variety:N"),
+        )
+    )
+
+    _chart = bar + point
+    # layered_chart = mo.ui.altair_chart(_chart, chart_selection="point")
+    layered_chart = mo.ui.altair_chart(_chart, chart_selection="interval")
+    return bar, layered_chart, point
+
+
+@app.cell
+def __(layered_chart, mo):
+    mo.vstack(
+        [layered_chart, mo.hstack([layered_chart.value, layered_chart.selections])]
+    )
     return
 
 

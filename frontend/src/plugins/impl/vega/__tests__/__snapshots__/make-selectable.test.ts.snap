@@ -460,3 +460,116 @@ exports[`makeSelectable > should skip field selection if empty or false 1`] = `
   ],
 }
 `;
+
+exports[`makeSelectable > should work for multi-layered charts 1`] = `
+{
+  "data": {
+    "name": "source",
+  },
+  "datasets": {
+    "source": [
+      {
+        "yield_center": 32.4,
+        "yield_error": 7.5522,
+      },
+      {
+        "yield_center": 30.96667,
+        "yield_error": 6.9775,
+      },
+      {
+        "yield_center": 33.966665,
+        "yield_error": 3.9167,
+      },
+      {
+        "yield_center": 30.45,
+        "yield_error": 11.9732,
+      },
+    ],
+  },
+  "layer": [
+    {
+      "encoding": {
+        "x": {
+          "field": "yield_center",
+          "scale": {
+            "zero": false,
+          },
+          "title": "yield",
+          "type": "quantitative",
+        },
+        "xError": {
+          "field": "yield_error",
+        },
+        "y": {
+          "field": "variety",
+          "type": "nominal",
+        },
+      },
+      "mark": {
+        "ticks": true,
+        "type": "errorbar",
+      },
+    },
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point",
+                },
+                {
+                  "param": "select_interval",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "field": "yield_center",
+          "type": "quantitative",
+        },
+      },
+      "mark": {
+        "color": "black",
+        "cursor": "pointer",
+        "filled": true,
+        "tooltip": true,
+        "type": "point",
+      },
+      "params": [
+        {
+          "name": "select_point",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval",
+          "select": {
+            "encodings": [
+              "x",
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "type": "interval",
+          },
+        },
+      ],
+    },
+  ],
+  "width": "container",
+}
+`;
