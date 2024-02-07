@@ -26,7 +26,6 @@
 /* -- Tooltips: code completion and type hints -- */
 
 #App .cm-tooltip {
-  font-size: 0.875rem;
   border: none;
   box-shadow: var(--light-shadow);
   border-radius: 4px;
@@ -50,57 +49,9 @@
   padding: 0.625rem 0.875rem;
 }
 
-#App .cm-tooltip code {
-  font-size: 0.8125rem;
-}
-
-#App .cm-tooltip .external-docs {
-  font-size: 0.75rem;
-}
-
 /* Hover tooltips get highest priority in display. */
 #App .cm-tooltip.cm-tooltip-hover {
   z-index: 1000;
-}
-
-.mo-cm-tooltip ul {
-  white-space: normal;
-  display: block;
-  list-style-type: disc;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
-
-.mo-cm-tooltip ol {
-  /* provide by the browser, but removed from 'reset' */
-  white-space: normal;
-  display: block;
-  list-style-type: decimal;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-  padding-inline-start: 40px;
-}
-
-.mo-cm-tooltip li {
-  /* provided by the browser, but removed from 'reset' */
-  white-space: normal;
-  display: list-item;
-  text-align: -webkit-match-parent;
-}
-
-.mo-cm-tooltip blockquote {
-  display: contents;
-  margin-block: 0 0;
-  margin-inline: 0 0;
-}
-
-.mo-cm-tooltip pre {
-  margin: 0;
-
-  /* We previously used pre-wrap, but this caused tooltips at the end
-   * (right) of a cell to obscure code. */
-  white-space: pre;
 }
 
 /* -- Completion Info -- */
