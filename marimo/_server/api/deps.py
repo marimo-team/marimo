@@ -34,6 +34,9 @@ class AppState:
         assert request.app.state.server is not None, "Server not initialized"
         assert request.app.state.host is not None, "Host not initialized"
         assert request.app.state.port is not None, "Port not initialized"
+        assert (
+            request.app.state.base_url is not None
+        ), "Base URL not initialized"
 
         self.session_manager: SessionManager = (
             request.app.state.session_manager
@@ -42,6 +45,7 @@ class AppState:
         self._server: Server = request.app.state.server
         self._host: str = request.app.state.host
         self._port: int = request.app.state.port
+        self._base_url: str = request.app.state.base_url
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""
@@ -96,6 +100,10 @@ class AppState:
     @property
     def port(self) -> int:
         return self._port
+
+    @property
+    def base_url(self) -> str:
+        return self._base_url
 
     @property
     def server_token(self) -> str:

@@ -9,8 +9,6 @@ export function getXsrfCookie(): string {
   return r ? r[1] : "";
 }
 
-const BASE_URL = "/api";
-
 const getServerTokenOnce = once(() => {
   return getMarimoServerToken();
 });
@@ -21,6 +19,8 @@ const getServerTokenOnce = once(() => {
  */
 export const API = {
   post<REQ, RESP = null>(url: string, body: REQ): Promise<RESP> {
+    const BASE_URL = `${document.baseURI}api`;
+
     const fullUrl = BASE_URL + url;
     return fetch(fullUrl, {
       method: "POST",

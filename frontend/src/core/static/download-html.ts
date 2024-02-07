@@ -96,6 +96,7 @@ export function constructHTML(opts: {
   <!DOCTYPE html>
   <html>
     <head>
+      <base href="/">
       ${staticHead.innerHTML}
     </head>
 
@@ -200,9 +201,16 @@ export function constructHTML(opts: {
 
 function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
   // Will convert: https://localhost:8080/assets/index-c78b8d10.js
+  //  Or will convert ./assets/index-c78b8d10.js
+  //  Or will convert /assets/index-c78b8d10.js
   // into: https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.1.43/dist/assets/index-c78b8d10.js
 
-  // relative path
+  // relative './...'
+  if (existingUrl.startsWith("./")) {
+    return `${assetBaseUrl}${existingUrl.slice(1)}`;
+  }
+
+  // relative '/...'
   if (existingUrl.startsWith("/")) {
     return `${assetBaseUrl}${existingUrl}`;
   }
@@ -216,3 +224,7 @@ function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {
   // otherwise, leave as is
   return existingUrl;
 }
+
+export const visibleForTesting = {
+  updateAssetUrl,
+};

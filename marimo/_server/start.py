@@ -5,7 +5,7 @@ from typing import Optional
 import uvicorn
 
 from marimo._config.config import get_configuration
-from marimo._server.main import app
+from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import initialize_manager
 from marimo._server.utils import (
@@ -26,6 +26,7 @@ def start(
     headless: bool,
     port: Optional[int],
     host: str,
+    base_url: str = "",
 ) -> None:
     """
     Start the server.
@@ -46,10 +47,13 @@ def start(
 
     log_level = "info" if development_mode else "error"
 
+    app = create_starlette_app(base_url=base_url)
+
     app.state.headless = headless
     app.state.port = port
     app.state.host = host or "localhost"
     app.state.session_manager = session_manager
+    app.state.base_url = base_url
     app.state.user_config = get_configuration()
 
     server = uvicorn.Server(

@@ -10,6 +10,7 @@ from typing import Any, Literal, Optional
 
 import click
 
+import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
@@ -267,6 +268,14 @@ Example:
     type=bool,
     help="Include notebook code in the app.",
 )
+@click.option(
+    "--base-url",
+    default="",
+    show_default=True,
+    type=str,
+    help="Base URL for the server. Should start with a /.",
+    callback=validators.base_url,
+)
 @click.argument("name", required=True)
 def run(
     port: Optional[int],
@@ -274,6 +283,7 @@ def run(
     headless: bool,
     include_code: bool,
     name: str,
+    base_url: str,
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -293,6 +303,7 @@ def run(
         filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
+        base_url=base_url,
     )
 
 
