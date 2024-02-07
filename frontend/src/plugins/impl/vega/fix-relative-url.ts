@@ -9,7 +9,7 @@ import { VegaLiteSpec } from "./types";
  */
 export function fixRelativeUrl(spec: VegaLiteSpec) {
   if (spec.data && "url" in spec.data) {
-    return asURL(spec.data.url).href;
+    spec.data.url = asURL(spec.data.url).href;
   }
   return spec;
 }
