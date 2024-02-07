@@ -80,7 +80,6 @@ notebooks_</a>.
    faq
    examples
    integrations/index
-   deploying
    community
 ```
 
