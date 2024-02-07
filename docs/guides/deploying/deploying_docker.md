@@ -36,7 +36,7 @@ USER app_user
 CMD [ "marimo", "run", "app.py", "-p", "8080" ]
 ```
 
-## Breaking down
+## Breaking it down
 
 `FROM` instructs what base image to choose. In our case, we chose Python 3.9 with the “slim” variant. This removes a lot of extra dependencies. You can always add them back as needed.
 
