@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import Any, Callable, Optional
 
 from marimo._output.formatters.structures import format_structure
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
+from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.batch import _batch_base
@@ -126,3 +128,19 @@ class dictionary(_batch_base):
         return dictionary(
             self.elements, label=self._label, on_change=self._on_change
         )
+
+    def hstack(self, **kwargs: Any) -> Html:
+        """
+        Stack the elements horizontally.
+
+        For kwargs, see `marimo.hstack`.
+        """
+        return hstack(items=list(self.elements.values()), **kwargs)
+
+    def vstack(self, **kwargs: Any) -> Html:
+        """
+        Stack the elements vertically.
+
+        For kwargs, see `marimo.vstack`.
+        """
+        return vstack(items=list(self.elements.values()), **kwargs)

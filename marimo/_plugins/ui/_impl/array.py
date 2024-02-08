@@ -4,8 +4,10 @@ from __future__ import annotations
 from typing import Any, Callable, Dict, Final, Iterator, Optional, Sequence
 
 from marimo._output.formatters.structures import format_structure
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -139,3 +141,19 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
 
     def __contains__(self, item: UIElement[JSONType, object]) -> bool:
         return item in self.elements
+
+    def hstack(self, **kwargs: Any) -> Html:
+        """
+        Stack the elements horizontally.
+
+        For kwargs, see `marimo.hstack`.
+        """
+        return hstack(items=self.elements, **kwargs)
+
+    def vstack(self, **kwargs: Any) -> Html:
+        """
+        Stack the elements vertically.
+
+        For kwargs, see `marimo.vstack`.
+        """
+        return vstack(items=self.elements, **kwargs)
