@@ -17,8 +17,8 @@ _When you run a cell, marimo automatically runs all cells that read any global
 variables defined by that cell._ This is reactive execution.
 
 > **Reactive execution lets your notebooks double as interactive
-apps**. It also guarantees that your code and program state are
-consistent.
+> apps**. It also guarantees that your code and program state are
+> consistent.
 
 <div align="center">
 <figure>
@@ -111,8 +111,8 @@ runs all cells that use the element_, which you can access via its `value`
 attribute.
 
 > **This combination of interactivity and reactivity is very powerful**: use it
-to make your data tangible during exploration and to build all kinds of tools
-and apps.
+> to make your data tangible during exploration and to build all kinds of tools
+> and apps.
 
 _marimo can only synchronize UI elements that are assigned to
 global variables._ You can use composite elements like `mo.ui.array` and
@@ -141,6 +141,4 @@ collections of elements.
 ## Layout
 
 The marimo library also comes with layout elements, including `mo.hstack`,
-`mo.vstack`, and `mo.tabs`. See the [API reference](https://docs.marimo.io/api/layouts/index.html) for more info.
-
-
+`mo.vstack`, and `mo.ui.tabs`. See the [API reference](https://docs.marimo.io/api/layouts/index.html) for more info.

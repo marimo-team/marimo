@@ -26,6 +26,7 @@ __all__ = [
     "slider",
     "switch",
     "table",
+    "tabs",
     "text_area",
     "text",
 ]
@@ -56,3 +57,4 @@ from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
+from marimo._plugins.ui._impl.tabs import tabs
