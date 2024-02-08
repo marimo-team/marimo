@@ -4,6 +4,7 @@ import { SerializedEditorState } from "../codemirror/types";
 import { Outline } from "./outline";
 import { CellId } from "./ids";
 import { DEFAULT_CELL_NAME } from "./names";
+import { Milliseconds, Seconds } from "@/utils/time";
 
 /**
  * The status of a cell.
@@ -97,9 +98,9 @@ export interface CellRuntimeState {
    */
   errored: boolean;
   /** run start time, as seconds since epoch */
-  runStartTimestamp: number | null;
+  runStartTimestamp: Seconds | null;
   /** run elapsed time, in milliseconds */
-  runElapsedTimeMs: number | null;
+  runElapsedTimeMs: Milliseconds | null;
   /** debugger active */
   debuggerActive: boolean;
 }

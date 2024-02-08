@@ -8,7 +8,7 @@ type RecentCommandId = HotkeyAction | (string & {});
 export function useRecentCommands() {
   const [commands, setCommands] = useLocalStorage<RecentCommandId[]>(
     "marimo:commands",
-    []
+    [],
   );
 
   return {

@@ -20,10 +20,8 @@ DecoratedCallable = TypeVar("DecoratedCallable", bound=Callable[..., Any])
 
 @dataclass
 class APIRouter(Router):
-    # Prefix to append to routes
-    prefix: str = ""
-
-    def __init__(self) -> None:
+    def __init__(self, prefix: str = "") -> None:
+        self.prefix = prefix
         super().__init__()
 
     def __post_init__(self) -> None:
@@ -66,13 +64,32 @@ class APIRouter(Router):
         return decorator
 
     def get(
-        self, path: str
+        self, path: str, include_in_schema: bool = True
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Get method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_route(
-                path=self.prefix + path, endpoint=func, methods=["GET"]
+                path=self.prefix + path,
+                endpoint=func,
+                methods=["GET"],
+                include_in_schema=include_in_schema,
+            )
+            return func
+
+        return decorator
+
+    def delete(
+        self, path: str, include_in_schema: bool = True
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        """Delete method."""
+
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            self.add_route(
+                path=self.prefix + path,
+                endpoint=func,
+                methods=["DELETE"],
+                include_in_schema=include_in_schema,
             )
             return func
 
@@ -101,4 +118,4 @@ class APIRouter(Router):
                 route.routes.extend(router.routes)
                 return
 
-        self.mount(path=prefix, app=router, name=name)
+        self.mount(path=self.prefix + prefix, app=router, name=name)

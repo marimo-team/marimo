@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { asURL } from "@/utils/url";
 import { VegaLiteSpec } from "./types";
 
 /**
@@ -7,8 +8,8 @@ import { VegaLiteSpec } from "./types";
  * otherwise vega-lite throws an error.
  */
 export function fixRelativeUrl(spec: VegaLiteSpec) {
-  if (spec.data && "url" in spec.data && spec.data.url.startsWith("/")) {
-    spec.data.url = `${window.location.origin}${spec.data.url}`;
+  if (spec.data && "url" in spec.data) {
+    spec.data.url = asURL(spec.data.url).href;
   }
   return spec;
 }

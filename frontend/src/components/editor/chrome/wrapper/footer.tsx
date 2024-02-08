@@ -1,8 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
 import {
-  PanelBottomIcon,
-  PanelLeftIcon,
   FunctionSquareIcon,
   XCircleIcon,
   ScrollTextIcon,
@@ -10,6 +8,7 @@ import {
   FileTextIcon,
   MessageCircleQuestionIcon,
   BookMarkedIcon,
+  FolderTreeIcon,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
@@ -19,8 +18,8 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { FeedbackButton } from "../footer/feedback-button";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel, panelLocation } = useChromeState();
-  const { openApplication, changePanelLocation } = useChromeActions();
+  const { selectedPanel } = useChromeState();
+  const { openApplication } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
 
   return (
@@ -36,6 +35,13 @@ export const Footer: React.FC = () => {
           })}
         />
         <span className="font-mono mt-[0.125rem]">{errorCount}</span>
+      </FooterItem>
+      <FooterItem
+        tooltip="View files"
+        selected={selectedPanel === "files"}
+        onClick={() => openApplication("files")}
+      >
+        <FolderTreeIcon className={cn("h-5 w-5")} />
       </FooterItem>
       <FooterItem
         tooltip="Explore variables"
@@ -80,21 +86,6 @@ export const Footer: React.FC = () => {
       </FeedbackButton>
 
       <div className="mx-auto" />
-
-      <FooterItem
-        tooltip="Move panel to the left"
-        selected={panelLocation === "left"}
-        onClick={() => changePanelLocation("left")}
-      >
-        <PanelLeftIcon className="h-5 w-5" />
-      </FooterItem>
-      <FooterItem
-        tooltip="Move panel to the bottom"
-        selected={panelLocation === "bottom"}
-        onClick={() => changePanelLocation("bottom")}
-      >
-        <PanelBottomIcon className="h-5 w-5" />
-      </FooterItem>
     </footer>
   );
 };
@@ -114,7 +105,7 @@ const FooterItem: React.FC<
           "h-full flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
           !selected && "hover:bg-[var(--sage-3)]",
           selected && "bg-[var(--sage-4)]",
-          className
+          className,
         )}
         {...rest}
       >

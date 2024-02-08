@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 
 
@@ -28,10 +29,10 @@ class MatplotlibFormatter(FormatterFactory):
         from marimo._output import formatting
         from marimo._output.utils import build_data_url
 
-        def mime_data_artist(artist: Artist) -> tuple[str, str]:
+        def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
             buf = io.BytesIO()
             artist.figure.savefig(buf, format="png")
-            mimetype = "image/png"
+            mimetype: KnownMimeType = "image/png"
             plot_bytes = base64.b64encode(buf.getvalue())
             return (
                 mimetype,
@@ -45,7 +46,7 @@ class MatplotlibFormatter(FormatterFactory):
         # use an explicit formatter, no need to try to format subclasses of
         # BarContainer
         @formatting.formatter(BarContainer)
-        def _show_bar_container(bc: BarContainer) -> tuple[str, str]:
+        def _show_bar_container(bc: BarContainer) -> tuple[KnownMimeType, str]:
             if len(bc.patches) > 0:
                 return mime_data_artist(bc.patches[0].figure)
             else:

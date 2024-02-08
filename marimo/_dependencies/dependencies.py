@@ -106,3 +106,8 @@ class DependencyManager:
     def has_plotly() -> bool:
         """Return True if plotly is installed."""
         return importlib.util.find_spec("plotly") is not None
+
+    @staticmethod
+    def has_watchdog() -> bool:
+        """Return True if watchdog is installed."""
+        return importlib.util.find_spec("watchdog") is not None

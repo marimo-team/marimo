@@ -1,9 +1,11 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`download-html > should construct html correctly 1`] = `
-"<!DOCTYPE html>
+"<!doctype html>
 <html>
   <head>
+    <base href="/" />
+
     <meta charset="utf-8" />
     <link
       rel="icon"

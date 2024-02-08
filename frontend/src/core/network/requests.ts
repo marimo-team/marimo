@@ -22,6 +22,7 @@ import {
   RunRequests,
   EditRequests,
   SendStdin,
+  FileListResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -40,8 +41,11 @@ function createNetworkRequests(): EditRequests & RunRequests {
         {
           objectIds: objectIds,
           values: values,
-        }
+        },
       );
+    },
+    sendRestart: () => {
+      return API.post("/kernel/restart_session", {});
     },
     sendRename: (filename: string | null) => {
       return API.post<RenameRequest>("/kernel/rename", {
@@ -51,12 +55,16 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendSave: (request: SaveKernelRequest) => {
       // Validate same length
       invariant(
+        request.cellIds.length === request.codes.length,
+        "cell ids and codes must be the same length",
+      );
+      invariant(
         request.codes.length === request.names.length,
-        "cell codes and names must be the same length"
+        "cell ids and names must be the same length",
       );
       invariant(
         request.codes.length === request.configs.length,
-        "cell codes and configs must be the same length"
+        "cell ids and configs must be the same length",
       );
 
       return API.post<SaveKernelRequest>("/kernel/save", request);
@@ -64,7 +72,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendFormat: (request: FormatRequest) => {
       return API.post<FormatRequest, FormatResponse>(
         "/kernel/format",
-        request
+        request,
       ).then((res) => res.codes);
     },
     sendInterrupt: () => {
@@ -86,7 +94,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
       // Validate same length
       invariant(
         request.objectIds.length === request.values.length,
-        "must be the same length"
+        "must be the same length",
       );
 
       return API.post<InstantiateRequest>("/kernel/instantiate", request);
@@ -107,13 +115,13 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendCodeCompletionRequest: (request) => {
       return API.post<CodeCompletionRequest>(
         "/kernel/code_autocomplete",
-        request
+        request,
       );
     },
     saveUserConfig: (request) => {
       return API.post<SaveUserConfigRequest>(
         "/kernel/save_user_config",
-        request
+        request,
       );
     },
     saveAppConfig: (request) => {
@@ -122,7 +130,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
     saveCellConfig: (request) => {
       return API.post<SaveCellConfigRequest>(
         "/kernel/set_cell_config",
-        request
+        request,
       );
     },
     sendFunctionRequest: (request) => {
@@ -134,12 +142,22 @@ function createNetworkRequests(): EditRequests & RunRequests {
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
+    openFile: (request) => {
+      return API.post<{ path: string }>("/kernel/open", request);
+    },
+    sendListFiles: (request) => {
+      return API.post<{ path: string | undefined }, FileListResponse>(
+        "/files/list_files",
+        request,
+      );
+    },
   };
 }
 
 export const {
   sendComponentValues,
   sendRename,
+  sendRestart,
   sendSave,
   sendStdin,
   sendFormat,
@@ -155,4 +173,6 @@ export const {
   saveCellConfig,
   sendFunctionRequest,
   readCode,
+  openFile,
+  sendListFiles,
 } = isStaticNotebook() ? createStaticRequests() : createNetworkRequests();

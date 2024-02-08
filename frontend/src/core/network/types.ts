@@ -46,6 +46,7 @@ export interface RunRequest {
 }
 
 export interface SaveKernelRequest {
+  cellIds: CellId[];
   filename: string;
   codes: string[];
   names: string[];
@@ -106,6 +107,19 @@ interface ValueUpdate {
   value: unknown;
 }
 
+export interface FileInfo {
+  id: string;
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  isMarimoFile: boolean;
+  children: FileInfo[];
+}
+
+export interface FileListResponse {
+  files: FileInfo[];
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -128,11 +142,17 @@ export interface EditRequests {
   sendFormat: (request: FormatRequest) => Promise<Record<CellId, string>>;
   sendDeleteCell: (cellId: CellId) => Promise<null>;
   sendDirectoryAutocompleteRequest: (
-    prefix: string
+    prefix: string,
   ) => Promise<SendDirectoryAutocompleteResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
+  sendRestart: () => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
+  openFile: (request: { path: string }) => Promise<null>;
+  // File explorer requests
+  sendListFiles: (request: {
+    path: string | undefined;
+  }) => Promise<FileListResponse>;
 }

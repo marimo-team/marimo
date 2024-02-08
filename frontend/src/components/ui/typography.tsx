@@ -11,7 +11,7 @@ const H1 = React.forwardRef<
     <h1
       className={cn(
         "scroll-m-20 text-4xl font-extrabold tracking-tight text-foreground lg:text-5xl",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -28,7 +28,7 @@ const H2 = React.forwardRef<
     <h2
       className={cn(
         "scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight text-foreground first:mt-0",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -45,7 +45,7 @@ const H3 = React.forwardRef<
     <h3
       className={cn(
         "scroll-m-20 text-2xl font-semibold tracking-tight text-foreground",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -62,7 +62,7 @@ const H4 = React.forwardRef<
     <h4
       className={cn(
         "scroll-m-20 text-xl font-semibold tracking-tight text-foreground",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -79,7 +79,7 @@ const P = React.forwardRef<
     <p
       className={cn(
         "leading-7 text-foreground [&:not(:first-child)]:mt-6",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -110,7 +110,7 @@ const List = React.forwardRef<
     <ul
       className={cn(
         "my-6 ml-6 list-disc text-foreground [&>li]:mt-2",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -127,7 +127,7 @@ const InlineCode = React.forwardRef<
     <code
       className={cn(
         "relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold text-foreground",
-        className
+        className,
       )}
       ref={ref}
       {...props}
@@ -172,7 +172,7 @@ const SmallText = React.forwardRef<
     <div
       className={cn(
         "text-sm font-medium leading-none text-foreground",
-        className
+        className,
       )}
       ref={ref}
       {...props}

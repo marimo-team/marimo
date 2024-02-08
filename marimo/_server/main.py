@@ -12,22 +12,10 @@ from starlette.responses import JSONResponse
 from marimo._server.api.lifespans import LIFESPANS
 from marimo._server.api.middleware import (
     AuthBackend,
+    StripBaseURLMiddleware,
     ValidateServerTokensMiddleware,
 )
 from marimo._server.api.router import ROUTES
-
-# CORS
-middleware = [
-    Middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    ),
-    Middleware(AuthenticationMiddleware, backend=AuthBackend()),
-    Middleware(ValidateServerTokensMiddleware),
-]
 
 
 # Convert exceptions to JSON responses
@@ -45,12 +33,31 @@ async def handle_error(request: Request, response: Any) -> Any:
 
 
 # Create app
-app = Starlette(
-    routes=ROUTES,
-    middleware=middleware,
-    lifespan=LIFESPANS,
-    exception_handlers={
-        Exception: handle_error,
-        HTTPException: handle_error,
-    },
-)
+def create_starlette_app(
+    base_url: str,
+) -> Starlette:
+    middleware = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        ),
+        Middleware(
+            StripBaseURLMiddleware,
+            base_url=base_url,
+        ),
+        Middleware(AuthenticationMiddleware, backend=AuthBackend()),
+        Middleware(ValidateServerTokensMiddleware),
+    ]
+
+    return Starlette(
+        routes=ROUTES,
+        middleware=middleware,
+        lifespan=LIFESPANS,
+        exception_handlers={
+            Exception: handle_error,
+            HTTPException: handle_error,
+        },
+    )

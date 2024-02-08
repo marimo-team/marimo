@@ -1,15 +1,14 @@
 # Copyright 2024 Marimo. All rights reserved.
-import functools
 import tempfile
 from typing import Callable
+from unittest.mock import MagicMock
 
 from starlette.testclient import TestClient
 
 from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.sessions import LspServer, SessionManager
 
 
-@functools.lru_cache()
 def get_mock_session_manager() -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
@@ -34,13 +33,16 @@ if __name__ == "__main__":
 
     temp_file.close()
 
+    lsp_server = MagicMock(spec=LspServer)
+    lsp_server.is_running.return_value = False
+
     sm = SessionManager(
         filename=temp_file.name,
         mode=SessionMode.EDIT,
-        port=1001,
         development_mode=False,
         quiet=False,
         include_code=True,
+        lsp_server=lsp_server,
     )
     sm.server_token = "fake-token"
     return sm

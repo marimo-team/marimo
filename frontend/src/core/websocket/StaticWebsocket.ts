@@ -23,7 +23,7 @@ export class StaticWebsocket implements IReconnectingWebSocket {
   removeEventListener(
     type: unknown,
     callback: unknown,
-    options?: unknown
+    options?: unknown,
   ): void {
     // Noop
   }

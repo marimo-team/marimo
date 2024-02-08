@@ -37,7 +37,7 @@ const ColumnConversionTransformSchema = z
       .enum(["ignore", "raise"])
       .default("ignore")
       .describe(
-        FieldOptions.of({ label: "Handle errors", special: "radio_group" })
+        FieldOptions.of({ label: "Handle errors", special: "radio_group" }),
       ),
   })
   .describe(FieldOptions.of({}));
@@ -61,7 +61,7 @@ const SortColumnTransformSchema = z.object({
   na_position: z
     .enum(["first", "last"])
     .describe(
-      FieldOptions.of({ label: "N/A position", special: "radio_group" })
+      FieldOptions.of({ label: "N/A position", special: "radio_group" }),
     )
     .default("last"),
 });
@@ -136,7 +136,7 @@ const SampleRowsTransformSchema = z.object({
     .number()
     .default(() => randomNumber())
     .describe(
-      FieldOptions.of({ label: "Re-sample", special: "random_number_button" })
+      FieldOptions.of({ label: "Re-sample", special: "random_number_button" }),
     ),
   replace: z
     .boolean()
@@ -144,7 +144,7 @@ const SampleRowsTransformSchema = z.object({
     .describe(
       FieldOptions.of({
         label: "Sample with replacement",
-      })
+      }),
     ),
 });
 
@@ -154,7 +154,7 @@ const ShuffleRowsTransformSchema = z.object({
     .number()
     .default(() => randomNumber())
     .describe(
-      FieldOptions.of({ label: "Re-shuffle", special: "random_number_button" })
+      FieldOptions.of({ label: "Re-shuffle", special: "random_number_button" }),
     ),
 });
 

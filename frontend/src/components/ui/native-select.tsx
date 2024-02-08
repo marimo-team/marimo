@@ -18,7 +18,7 @@ export const selectStyles = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 );
 
 const NativeSelect = React.forwardRef<

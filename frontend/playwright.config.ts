@@ -7,6 +7,7 @@ import { exec } from "node:child_process";
 export interface ServerOptions {
   command: "edit" | "run";
   port: number;
+  baseUrl?: string | undefined;
 }
 
 // Read environment variables from file. See https://github.com/motdotla/dotenv
@@ -34,20 +35,25 @@ const appToOptions = {
   "layout_grid.py//edit": { port: port(), command: "edit" },
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
-  "output.py//run": { port: port(), command: "run" },
+  "output.py//run": {
+    port: port(),
+    command: "run",
+    baseUrl: "/foo",
+  },
   "kitchen_sink.py//edit": { port: port(), command: "edit" },
   "stdin.py//edit": { port: port(), command: "edit" },
 } satisfies Record<string, ServerOptions>;
 
 export type ApplicationNames = keyof typeof appToOptions;
 
-function getUrl(port: number): string {
-  return `http://127.0.0.1:${port}`;
+function getUrl(port: number, baseUrl = ""): string {
+  return `http://127.0.0.1:${port}${baseUrl}`;
 }
 
 // For tests to lookup their url/server
 export function getAppUrl(app: ApplicationNames): string {
-  return getUrl(appToOptions[app].port);
+  const options: ServerOptions = appToOptions[app];
+  return getUrl(options.port, options.baseUrl);
 }
 
 // Reset file via git checkout
@@ -127,13 +133,16 @@ const config: PlaywrightTestConfig = {
   webServer: Object.entries(appToOptions).map(([app, options]) => {
     app = app.replace("//edit", "").replace("//run", "");
 
-    const { command, port } = options;
+    const { command, port, baseUrl } = options as ServerOptions;
     const pathToApp = path.join(pydir, app);
-    const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+    let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+    if (baseUrl) {
+      marimoCmd += ` --base-url=${baseUrl}`;
+    }
 
     return {
       command: marimoCmd,
-      url: getUrl(port),
+      url: getUrl(port, baseUrl),
       reuseExistingServer: false,
     };
   }),

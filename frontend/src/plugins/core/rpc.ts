@@ -12,12 +12,12 @@ export type PluginFunctions = Record<string, PluginFunction>;
 
 // Utility types for extracting schemas from functions.
 export type ExtractInputSchema<F extends PluginFunction> = F extends (
-  args: infer REQ
+  args: infer REQ,
 ) => Promise<any>
   ? ZodType<REQ, ZodTypeDef, unknown>
   : never;
 export type ExtractOutputSchema<F extends PluginFunction> = F extends (
-  args: any
+  args: any,
 ) => Promise<infer RES>
   ? ZodType<RES, ZodTypeDef, unknown>
   : never;

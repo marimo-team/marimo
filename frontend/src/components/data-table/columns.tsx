@@ -56,7 +56,7 @@ export function getColumnInfo<T>(items: T[]): ColumnInfo[] {
 export function generateColumns<T>(
   items: T[],
   rowHeaders: Array<ColumnDef<T>>,
-  selection: "single" | "multi" | null
+  selection: "single" | "multi" | null,
 ): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
   const columns = columnInfo.map(
@@ -80,7 +80,7 @@ export function generateColumns<T>(
         return <MimeCell value={value} />;
       },
       enableSorting: info.type === "primitive",
-    })
+    }),
   );
 
   if (rowHeaders.length > 0) {
@@ -121,7 +121,7 @@ export function generateColumns<T>(
  * Turn rowHeaders into a list of columns
  */
 export function generateIndexColumns<T>(
-  rowHeaders: Array<[string, string[]]>
+  rowHeaders: Array<[string, string[]]>,
 ): Array<ColumnDef<T>> {
   return rowHeaders.map(
     ([title, keys], idx): ColumnDef<T> => ({
@@ -136,7 +136,7 @@ export function generateIndexColumns<T>(
         return <b>{String(renderValue())}</b>;
       },
       enableSorting: false,
-    })
+    }),
   );
 }
 

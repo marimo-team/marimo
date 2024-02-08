@@ -49,6 +49,7 @@ async def index(request: Request) -> HTMLResponse:
     index_html = os.path.join(root, "index.html")
     with open(index_html, "r") as f:
         html = f.read()
+        html = html.replace("{{ base_url }}", app_state.base_url)
         html = html.replace("{{ title }}", title)
         html = html.replace("{{ user_config }}", json.dumps(user_config))
         html = html.replace("{{ app_config }}", json.dumps(app_config))

@@ -35,7 +35,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
           .nullable(),
         scrollable: z.boolean().optional(),
         alignment: z.enum(["top", "bottom", "left", "right"]).optional(),
-      })
+      }),
     ),
   }),
 
@@ -52,7 +52,7 @@ export const GridLayoutPlugin: ICellRendererPlugin<
 
     if (serialized.cells.length !== cells.length) {
       Logger.warn(
-        "Number of cells in layout does not match number of cells in notebook"
+        "Number of cells in layout does not match number of cells in notebook",
       );
     }
 

@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Optional, Union
 
@@ -22,7 +21,7 @@ class ExecuteMultipleRequest:
 @dataclass
 class SetUIElementValueRequest:
     # (object id, value) tuples
-    ids_and_values: Iterable[tuple[str, Any]]
+    ids_and_values: list[tuple[str, Any]]
 
 
 @dataclass
@@ -74,8 +73,7 @@ class ConfigurationRequest:
     config: str
 
 
-Request = Union[
-    ExecutionRequest,
+ControlRequest = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
@@ -83,6 +81,5 @@ Request = Union[
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
-    CompletionRequest,
     ConfigurationRequest,
 ]

@@ -24,7 +24,10 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   mode,
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
-  const [showCode, setShowCode] = useState(false);
+  const [showCode, setShowCode] = useState(() => {
+    // Default to showing code if the notebook is static
+    return isStaticNotebook();
+  });
   // Show code if there is at least one cell with code
   const canShowCode = mode === "read" && cells.some((cell) => cell.code);
   return (
@@ -52,7 +55,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
             // If the notebook is static, we have a banner at the top, so
             // we can't use fixed positioning. Ideally this is sticky, but the
             // current dom structure makes that difficult.
-            isStaticNotebook() ? "absolute" : "fixed"
+            isStaticNotebook() ? "absolute" : "fixed",
           )}
         >
           <Button
@@ -109,7 +112,7 @@ const VerticalCell = memo(
         interrupted,
         runStartTimestamp,
       },
-      false
+      false,
     );
 
     const className = cn("Cell", "hover-actions-parent", {
@@ -154,7 +157,7 @@ const VerticalCell = memo(
         />
       </div>
     );
-  }
+  },
 );
 VerticalCell.displayName = "VerticalCell";
 

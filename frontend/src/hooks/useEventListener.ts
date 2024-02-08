@@ -5,16 +5,16 @@ type Target = Document | HTMLElement | Window | null;
 type EventMap<T extends Target> = T extends Document
   ? DocumentEventMap
   : T extends HTMLElement
-  ? HTMLElementEventMap
-  : T extends Window
-  ? WindowEventMap
-  : never;
+    ? HTMLElementEventMap
+    : T extends Window
+      ? WindowEventMap
+      : never;
 
 export function useEventListener<T extends Target, K extends keyof EventMap<T>>(
   target: T,
   type: K & string,
   listener: (ev: EventMap<T>[K]) => unknown,
-  options?: boolean | AddEventListenerOptions
+  options?: boolean | AddEventListenerOptions,
 ): void {
   const savedListener = useRef(listener);
 

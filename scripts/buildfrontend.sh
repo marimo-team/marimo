@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cd frontend
-if pnpm build; then
+if pnpm turbo build; then
   echo "Removing old static files..."
   rm -rf ../marimo/_static/
   echo "Copying new static files..."

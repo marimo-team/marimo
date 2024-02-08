@@ -12,7 +12,7 @@ function computeColor(
   appClosed: boolean,
   needsRun: boolean,
   loading: boolean,
-  inactive: boolean
+  inactive: boolean,
 ) {
   if (appClosed) {
     return "disabled";
@@ -52,7 +52,7 @@ export const RunButton = (props: {
         <Button
           className={cn(
             !needsRun && "hover-action",
-            inactive && "inactive-button"
+            inactive && "inactive-button",
           )}
           onClick={onClick}
           color={color}
@@ -73,7 +73,7 @@ export const RunButton = (props: {
         <Button
           className={cn(
             !needsRun && "hover-action",
-            inactive && "inactive-button"
+            inactive && "inactive-button",
           )}
           onClick={onClick}
           color={color}
@@ -118,7 +118,7 @@ export const RunButton = (props: {
       <Button
         className={cn(
           !needsRun && "hover-action",
-          inactive && "inactive-button"
+          inactive && "inactive-button",
         )}
         onClick={onClick}
         color={color}

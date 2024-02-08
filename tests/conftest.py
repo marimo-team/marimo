@@ -69,6 +69,8 @@ class MockStdin(Stdin):
 
 @dataclasses.dataclass
 class MockedKernel:
+    """Should only be created in fixtures b/c inits a runtime context"""
+
     stream: _MockStream = dataclasses.field(default_factory=_MockStream)
 
     def __post_init__(self) -> None:
@@ -92,9 +94,11 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
         )
 
-    def __del__(self) -> None:
-        # have to teardown the runtime context because it's a global
+    def teardown(self):
+        # must be called by fixtures that instantiate this
         teardown_context()
+        self.stdout._watcher.stop()
+        self.stderr._watcher.stop()
 
 
 # fixture that provides a kernel (and tears it down)
@@ -102,6 +106,7 @@ class MockedKernel:
 def k() -> Generator[Kernel, None, None]:
     mocked = MockedKernel()
     yield mocked.k
+    mocked.teardown()
 
 
 # fixture that wraps a kernel and other mocked objects
@@ -109,6 +114,7 @@ def k() -> Generator[Kernel, None, None]:
 def mocked_kernel() -> Generator[MockedKernel, None, None]:
     mocked = MockedKernel()
     yield mocked
+    mocked.teardown()
 
 
 # Installs an execution context without stream redirection
@@ -120,6 +126,7 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.k.stdin = None
     with mocked.k._install_execution_context(cell_id="0"):
         yield mocked.k
+    mocked.teardown()
 
 
 # Factory to create ExecutionRequests and abstract away cell ID

@@ -9,7 +9,7 @@ describe("htmlUtils", () => {
       const div = document.createElement("div");
       div.dataset.initialValue = JSON.stringify(initialValue);
       expect(parseInitialValue(div)).toEqual(initialValue);
-    }
+    },
   );
 
   it("can parse an element with no initialValue", () => {

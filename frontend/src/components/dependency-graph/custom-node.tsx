@@ -43,7 +43,7 @@ export const CustomNode = memo((props: CustomNodeProps) => {
       <div
         className={cn(
           "flex flex-col bg-card border border-input/50 rounded-md mx-[2px] overflow-hidden",
-          selected && "border-primary"
+          selected && "border-primary",
         )}
         style={{
           height: getNodeHeight(linesOfCode),

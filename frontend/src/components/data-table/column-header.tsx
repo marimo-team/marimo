@@ -50,7 +50,7 @@ export const DataTableColumnHeader = <TData, TValue>({
             className={cn(
               "ml-3 h-5 data-[state=open]:bg-accent m-0 p-1",
               !column.getIsSorted() &&
-                "invisible group-hover:visible data-[state=open]:visible"
+                "invisible group-hover:visible data-[state=open]:visible",
             )}
           >
             {column.getIsSorted() === "desc" ? (

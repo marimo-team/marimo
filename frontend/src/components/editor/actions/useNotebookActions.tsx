@@ -11,6 +11,7 @@ import {
   FolderDownIcon,
   ClipboardCopyIcon,
   Share2Icon,
+  PowerSquareIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../CommandPalette";
 import {
@@ -27,6 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
+import { useRestartKernel } from "./useRestartKernel";
 
 export function useNotebookActions() {
   const [filename] = useFilename();
@@ -34,6 +36,7 @@ export function useNotebookActions() {
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
+  const restartKernel = useRestartKernel();
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
 
   const disabledCells = disabledCellIds(notebook);
@@ -82,13 +85,13 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = disabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: false }])
+          ids.map((cellId) => [cellId, { disabled: false }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
         ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: false } })
+          updateCellConfig({ cellId, config: { disabled: false } }),
         );
       },
     },
@@ -99,13 +102,13 @@ export function useNotebookActions() {
       handle: async () => {
         const ids = enabledCells.map((cell) => cell.id);
         const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }])
+          ids.map((cellId) => [cellId, { disabled: true }]),
         );
         // send to BE
         await saveCellConfig({ configs: newConfigs });
         // update on FE
         ids.forEach((cellId) =>
-          updateCellConfig({ cellId, config: { disabled: true } })
+          updateCellConfig({ cellId, config: { disabled: true } }),
         );
       },
     },
@@ -137,6 +140,13 @@ export function useNotebookActions() {
       handle: () => {
         window.open("https://docs.marimo.io", "_blank");
       },
+    },
+
+    {
+      icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
+      label: "Restart kernel",
+      variant: "danger",
+      handle: restartKernel,
     },
   ];
 

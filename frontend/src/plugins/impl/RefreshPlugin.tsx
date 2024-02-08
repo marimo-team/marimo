@@ -69,7 +69,7 @@ let count = 0;
 const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
   // internal selection
   const [selected, setSelected] = useState<string | number>(
-    data.defaultInterval ?? OFF
+    data.defaultInterval ?? OFF,
   );
 
   // reset selection when defaultInterval changes
@@ -94,8 +94,8 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
       typeof selected === "number"
         ? selected
         : /[a-z]/.test(selected) // check if has units
-        ? timestring(selected)
-        : timestring(`${selected}s`); // default to seconds if no units
+          ? timestring(selected)
+          : timestring(`${selected}s`); // default to seconds if no units
 
     // Smallest interval is 1 second
     asSeconds = Math.max(asSeconds, 1);
@@ -118,7 +118,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
           className={cn(
             noShadow,
             "border mb-0 rounded",
-            hasOptions && "border-r-0 rounded-tr-none rounded-br-none"
+            hasOptions && "border-r-0 rounded-tr-none rounded-br-none",
           )}
           onClick={refresh}
         >
@@ -134,7 +134,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
           className={cn(
             noShadow,
             "border mb-0 bg-secondary rounded rounded-tl-none rounded-bl-none hover:bg-secondary/60",
-            !hasOptions && "hidden"
+            !hasOptions && "hidden",
           )}
         >
           <option value={OFF}>off</option>

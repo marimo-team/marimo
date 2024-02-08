@@ -188,7 +188,7 @@ const COLUMNS = [
 function sortData(
   variables: Variable[],
   sort: ColumnSort | undefined,
-  cellIdToIndex: Map<CellId, number>
+  cellIdToIndex: Map<CellId, number>,
 ) {
   // Default to sort by the cell that defined it
   if (!sort) {
@@ -205,7 +205,7 @@ function sortData(
       break;
     case ColumnIds.defs:
       sortedVariables = sortBy(variables, (v) =>
-        cellIdToIndex.get(v.declaredBy[0])
+        cellIdToIndex.get(v.declaredBy[0]),
       );
       break;
   }
@@ -242,7 +242,7 @@ export const VariableTable: React.FC<Props> = memo(
               <TableHead key={header.id}>
                 {flexRender(
                   header.column.columnDef.header,
-                  header.getContext()
+                  header.getContext(),
                 )}
               </TableHead>
             ))}
@@ -261,6 +261,6 @@ export const VariableTable: React.FC<Props> = memo(
         </TableBody>
       </Table>
     );
-  }
+  },
 );
 VariableTable.displayName = "VariableTable";

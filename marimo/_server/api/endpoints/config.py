@@ -64,9 +64,9 @@ async def save_user_config(
     config = configure(body.config)
     if config["completion"]["copilot"]:
         LOGGER.debug("Starting copilot server")
-        app_state.session_manager.start_lsp_server()
+        await app_state.session_manager.start_lsp_server()
     # Update the kernel's view of the config
-    app_state.require_current_session().put_request(
+    app_state.require_current_session().put_control_request(
         requests.ConfigurationRequest(str(body.config))
     )
 

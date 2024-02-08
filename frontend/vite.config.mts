@@ -28,6 +28,7 @@ const htmlDevPlugin = (): Plugin => {
 
       // copies these elements from server to dev
       const copyElements = [
+        "base",
         "title",
         "marimo-filename",
         "marimo-version",
@@ -62,6 +63,8 @@ const htmlDevPlugin = (): Plugin => {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // This allows for a dynamic <base> tag in index.html
+  base: "./",
   server: {
     host: "localhost",
     port: 3000,
@@ -91,7 +94,12 @@ export default defineConfig({
     htmlDevPlugin(),
     react({
       tsDecorators: true,
-      plugins: isDev ? [["@swc-jotai/react-refresh", {}]] : undefined,
+      plugins: isDev
+        ? [
+            // Fails on latest Vite
+            // ["@swc-jotai/react-refresh", {}]
+          ]
+        : undefined,
     }),
     tsconfigPaths(),
   ],

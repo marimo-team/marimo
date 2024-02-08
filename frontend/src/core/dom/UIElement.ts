@@ -98,7 +98,7 @@ export function initializeUIElement() {
           UI_ELEMENT_REGISTRY.broadcastValueUpdate(
             child as HTMLElement,
             objectId,
-            e.detail.value
+            e.detail.value,
           );
         }
       };
@@ -113,7 +113,7 @@ export function initializeUIElement() {
         return;
       } else if (!(child instanceof HTMLElement)) {
         Logger.error(
-          "[marimo-ui-element] first child must be instance of HTMLElement"
+          "[marimo-ui-element] first child must be instance of HTMLElement",
         );
         return;
       }
@@ -145,7 +145,7 @@ export function initializeUIElement() {
         const objectId = UIElementId.parseOrThrow(this);
         UI_ELEMENT_REGISTRY.removeInstance(
           objectId,
-          this.firstElementChild as HTMLElement
+          this.firstElementChild as HTMLElement,
         );
       }
     }
@@ -159,7 +159,7 @@ export function initializeUIElement() {
         child.reset();
       } else {
         Logger.error(
-          "[marimo-ui-element] first child must have a reset method"
+          "[marimo-ui-element] first child must have a reset method",
         );
       }
     }
@@ -174,7 +174,7 @@ export function initializeUIElement() {
     attributeChangedCallback(
       name: string,
       oldValue: string | null,
-      newValue: string | null
+      newValue: string | null,
     ) {
       if (this.initialized) {
         const hasChanged = oldValue !== newValue;
@@ -188,7 +188,7 @@ export function initializeUIElement() {
             child.rerender();
           } else {
             Logger.error(
-              "[marimo-ui-element] first child must have a rerender method"
+              "[marimo-ui-element] first child must have a rerender method",
             );
           }
           // register the element and reset its initial value

@@ -8,7 +8,7 @@ import {
 } from "../loader";
 
 describe("vega loader", () => {
-  it("should parse csv data", async () => {
+  it("should parse csv data with dates", async () => {
     const csvData = `
 active,username,id
 2023-08-14T19:28:47Z,akshayka,1994308
@@ -55,6 +55,44 @@ Bob,NaN
         {
           "age": "NaN",
           "user": "Bob",
+        },
+      ]
+    `);
+  });
+
+  it("should parse csv data with floats", async () => {
+    const csvData = `
+yield_error,yield_center
+7.5522,32.4
+6.9775,30.96667
+3.9167,33.966665
+11.9732,30.45
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const data = await vegaLoadData(csvData, { type: "csv", parse: "auto" });
+    const dataWithoutParseAuto = await vegaLoadData(csvData, { type: "csv" });
+
+    expect(data).toEqual(dataWithoutParseAuto);
+
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "yield_center": 32.4,
+          "yield_error": 7.5522,
+        },
+        {
+          "yield_center": 30.96667,
+          "yield_error": 6.9775,
+        },
+        {
+          "yield_center": 33.966665,
+          "yield_error": 3.9167,
+        },
+        {
+          "yield_center": 30.45,
+          "yield_error": 11.9732,
         },
       ]
     `);

@@ -15,7 +15,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
   opts: {
     chartSelection?: boolean | "interval" | "point";
     fieldSelection?: boolean | string[];
-  }
+  },
 ): T {
   // Both default to true
   const { chartSelection = true, fieldSelection = true } = opts;
@@ -27,16 +27,29 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   if ("vconcat" in spec) {
     const subSpecs = spec.vconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
     return { ...spec, vconcat: subSpecs };
   }
 
   if ("hconcat" in spec) {
     const subSpecs = spec.hconcat.map((subSpec) =>
-      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec
+      "mark" in subSpec ? makeChartInteractive(subSpec) : subSpec,
     );
     return { ...spec, hconcat: subSpecs };
+  }
+
+  if ("layer" in spec) {
+    const subSpecs = spec.layer.map((subSpec, idx) => {
+      if (!("mark" in subSpec)) {
+        return subSpec;
+      }
+      let resolvedSpec = subSpec as VegaLiteUnitSpec;
+      resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection);
+      resolvedSpec = makeChartInteractive(resolvedSpec);
+      return resolvedSpec;
+    });
+    return { ...spec, layer: subSpecs };
   }
 
   if (!("mark" in spec)) {
@@ -56,7 +69,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
  */
 function makeLegendSelectable(
   spec: VegaLiteUnitSpec,
-  fieldSelection: boolean | string[]
+  fieldSelection: boolean | string[],
 ): VegaLiteUnitSpec {
   // If fieldSelection is false, we don't do anything
   if (fieldSelection === false) {
@@ -67,7 +80,7 @@ function makeLegendSelectable(
   // If fieldSelection is an array, we filter the fields
   if (Array.isArray(fieldSelection)) {
     legendFields = legendFields.filter((field) =>
-      fieldSelection.includes(field)
+      fieldSelection.includes(field),
     );
   }
 
@@ -85,14 +98,20 @@ function makeLegendSelectable(
  */
 function makeChartSelectable(
   spec: VegaLiteUnitSpec,
-  chartSelection: boolean | "interval" | "point"
+  chartSelection: boolean | "interval" | "point",
 ): VegaLiteUnitSpec {
   // If chartSelection is false, we don't do anything
   if (chartSelection === false) {
     return spec;
   }
 
-  const mark = Marks.getMarkType(spec.mark);
+  let mark: Mark;
+  try {
+    mark = Marks.getMarkType(spec.mark);
+  } catch {
+    return spec;
+  }
+
   const resolvedChartSelection =
     chartSelection === true ? getBestSelectionForMark(mark) : [chartSelection];
 
@@ -101,7 +120,7 @@ function makeChartSelectable(
   }
 
   const params = resolvedChartSelection.map((selectionType) =>
-    selectionType === "interval" ? Params.interval(spec) : Params.point(spec)
+    selectionType === "interval" ? Params.interval(spec) : Params.point(spec),
   );
 
   const nextParams = [...(spec.params || []), ...params];
@@ -112,6 +131,9 @@ function makeChartSelectable(
   } as VegaLiteUnitSpec;
 }
 
+/**
+ * Makes a chart clickable and adds an opacity encoding to the chart.
+ */
 function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const prevEncodings = "encoding" in spec ? spec.encoding : undefined;
   const params = spec.params || [];
@@ -128,7 +150,7 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
       "opacity",
       prevEncodings || {},
       paramNames,
-      spec.mark
+      spec.mark,
     ),
   };
 }

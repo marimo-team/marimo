@@ -47,7 +47,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
-    })
+    }),
   )
   .withFunctions<Functions>({
     download_as: rpc
@@ -84,7 +84,7 @@ interface DataTableProps extends Data<unknown>, Functions {
 }
 
 export const LoadingDataTableComponent = (
-  props: DataTableProps & { data: string }
+  props: DataTableProps & { data: string },
 ) => {
   const { data, loading, error } = useAsyncData<unknown[]>(() => {
     if (!props.data) {
@@ -128,7 +128,7 @@ const DataTableComponent = ({
 }): JSX.Element => {
   const columns = useMemo(
     () => generateColumns(data, generateIndexColumns(rowHeaders), selection),
-    [data, selection, rowHeaders]
+    [data, selection, rowHeaders],
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));

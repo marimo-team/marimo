@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export function assertExists<T>(
   x: T | null | undefined,
-  message?: string
+  message?: string,
 ): asserts x is T {
   if (x === undefined || x === null) {
     if (message) {

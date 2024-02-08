@@ -70,7 +70,7 @@ describe("VirtualFileTracker", () => {
       } as OutputMessage,
     });
     expect(tracker.virtualFiles.get(cellId)).toEqual(
-      new Set(["/@file/test-file.js"])
+      new Set(["/@file/test-file.js"]),
     );
 
     // can append
@@ -82,7 +82,7 @@ describe("VirtualFileTracker", () => {
       } as OutputMessage,
     });
     expect(tracker.virtualFiles.get(cellId)).toEqual(
-      new Set(["/@file/test-file.js", "/@file/another-file.txt"])
+      new Set(["/@file/test-file.js", "/@file/another-file.txt"]),
     );
 
     // can clear

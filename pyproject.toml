@@ -35,6 +35,8 @@ dependencies = [
     "websockets >= 10.0.0,<13.0.0",
     # python <=3.10 compatibility
     "typing_extensions>=4.4.0; python_version < \"3.10\"",
+    # for rst parsing
+    "docutils>=0.17.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "black",
@@ -76,6 +78,7 @@ dev = [
     "polars==0.19.12",
     "pytest~=7.4.0",
     "pytest-codecov~=0.5.1",
+    "pytest-asyncio~=0.23.4",
     "mypy~=1.7.0",
     "ruff~=0.0.275",
     "typos~=1.17.1",
@@ -97,7 +100,8 @@ testcore = [
     # for server testing
     "httpx~=0.26.0",
     "pytest~=7.4.0",
-    "pytest-codecov~=0.5.1"
+    "pytest-codecov~=0.5.1",
+    "pytest-asyncio~=0.23.4",
 ]
 
 testoptional = [

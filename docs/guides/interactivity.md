@@ -49,16 +49,26 @@ mo.md(f"Choose a value: {slider})")
 Composite elements are advanced elements let you build UI elements out of other
 UI elements. The following composite elements are available:
 
-- [`mo.ui.form`](#marimo.ui.form)
 - [`mo.ui.array`](#marimo.ui.array)
 - [`mo.ui.dictionary`](#marimo.ui.dictionary)
 - [`mo.ui.batch`](#marimo.ui.batch)
+- [`mo.ui.form`](#marimo.ui.form)
 
-Use these powerful elements to gate the sending of value on form submission
-or logically group together related elements. These elements are especially
-useful when a set of UI elements is only known at runtime (so you can't
-assign each to a global variable individually, but can assign them to
-an array or dictionary).
+**Arrays and dictionaries.**
+Use [`mo.ui.array`](#marimo.ui.array) and
+[`mo.ui.dictionary`](#marimo.ui.dictionary) to logically group together related
+elements. These elements are especially useful when a set of UI elements is
+only known at runtime (so you can't assign each to a global variable
+individually, but can assign them to an array or dictionary).
+
+You can access the elements contained in an array or dictionary using
+Pythonic syntax, and embed these elements in other outputs. See their docstrings
+for code examples.
+
+**Batch and form.**
+Use these powerful elements to group together multiple UI elements into a
+single element with custom formatting, and gate the sending of an element's
+value on form submission.
 
 <div align="center">
 <figure>

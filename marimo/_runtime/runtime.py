@@ -9,7 +9,6 @@ import io
 import itertools
 import multiprocessing as mp
 import os
-import queue
 import signal
 import sys
 import threading
@@ -23,6 +22,7 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import configure
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
     MarimoAncestorStoppedError,
@@ -44,7 +44,9 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream
+from marimo._messaging.types import KernelMessage
 from marimo._output import formatting
+from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
@@ -63,12 +65,12 @@ from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
     ConfigurationRequest,
+    ControlRequest,
     CreationRequest,
     DeleteRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
     FunctionCallRequest,
-    Request,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
@@ -77,6 +79,7 @@ from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._server.types import QueueType
 from marimo._utils.signals import restore_signals
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -143,7 +146,7 @@ class ExecutionContext:
     cell_id: CellId_t
     setting_element_value: bool
     # output object set imperatively
-    output: Optional[list[object]] = None
+    output: Optional[list[Html]] = None
 
 
 @dataclasses.dataclass
@@ -217,12 +220,19 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
-        self.completion_thread: Optional[threading.Thread] = None
-        self.completion_queue: queue.Queue[CompletionRequest] = queue.Queue()
-
         # an empty string represents the current directory
         exec("import sys; sys.path.append('')", self.globals)
         exec("import marimo as __marimo__", self.globals)
+
+    def start_completion_worker(
+        self, completion_queue: QueueType[CompletionRequest]
+    ) -> None:
+        """Must be called after context is initialized"""
+        threading.Thread(
+            target=complete,
+            args=(completion_queue, self.graph, get_context().stream),
+            daemon=True,
+        ).start()
 
     @contextlib.contextmanager
     def _install_execution_context(
@@ -510,7 +520,7 @@ class Kernel:
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
             CellOp.broadcast_output(
-                channel="output",
+                channel=CellChannel.OUTPUT,
                 mimetype="text/plain",
                 data="",
                 cell_id=cid,
@@ -682,7 +692,7 @@ class Kernel:
                     with self._install_execution_context(cell_id):
                         sys.stderr.write(formatted_output.traceback)
                 CellOp.broadcast_output(
-                    channel="output",
+                    channel=CellChannel.OUTPUT,
                     mimetype=formatted_output.mimetype,
                     data=formatted_output.data,
                     cell_id=cell_id,
@@ -1039,17 +1049,6 @@ class Kernel:
             None,
         )
 
-    def complete(self, request: CompletionRequest) -> None:
-        """Code completion"""
-        if self.completion_thread is None:
-            self.completion_thread = threading.Thread(
-                target=complete,
-                args=(self.completion_queue, self.graph, get_context().stream),
-            )
-            self.completion_thread.start()
-
-        self.completion_queue.put(request)
-
     def instantiate(self, request: CreationRequest) -> None:
         """Instantiate the kernel with cells and UIElement initial values
 
@@ -1071,7 +1070,8 @@ class Kernel:
 
 
 def launch_kernel(
-    control_queue: QueueType[Request],
+    control_queue: QueueType[ControlRequest],
+    completion_queue: QueueType[CompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
@@ -1083,15 +1083,18 @@ def launch_kernel(
         restore_signals()
 
     n_tries = 0
+    pipe: Optional[TypedConnection[KernelMessage]] = None
     while n_tries < 100:
         try:
-            pipe = mp.connection.Client(socket_addr)
+            pipe = TypedConnection[KernelMessage].of(
+                mp.connection.Client(socket_addr)
+            )
             break
         except Exception:
             n_tries += 1
             time.sleep(0.01)
 
-    if n_tries == 100:
+    if n_tries == 100 or pipe is None:
         LOGGER.debug("Failed to connect to socket.")
         return
 
@@ -1107,12 +1110,12 @@ def launch_kernel(
 
     kernel = Kernel(
         cell_configs=configs,
+        app_metadata=app_metadata,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
-        app_metadata=app_metadata,
     )
     initialize_context(
         kernel=kernel,
@@ -1120,6 +1123,9 @@ def launch_kernel(
     )
 
     if is_edit_mode:
+        # completions only provided in edit mode
+        kernel.start_completion_worker(completion_queue)
+
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
@@ -1218,8 +1224,6 @@ def launch_kernel(
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)
-        elif isinstance(request, CompletionRequest):
-            kernel.complete(request)
         elif isinstance(request, ConfigurationRequest):
             # Kernel runs in a separate process than server in edit mode,
             # and configuration is only allowed in edit mode. As of
@@ -1230,4 +1234,9 @@ def launch_kernel(
             break
         else:
             raise ValueError(f"Unknown request {request}")
+
+    if stdout is not None:
+        stdout._watcher.stop()
+    if stderr is not None:
+        stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()

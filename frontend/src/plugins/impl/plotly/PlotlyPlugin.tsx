@@ -7,6 +7,7 @@ import type { Figure } from "react-plotly.js";
 import { Logger } from "@/utils/Logger";
 
 import "./plotly.css";
+import "./mapbox.css";
 import { lazy, memo, useMemo } from "react";
 import useEvent from "react-use-event-hook";
 import { PlotlyTemplateParser, createParser } from "./parse-from-template";
@@ -101,7 +102,7 @@ export const PlotlyComponent = memo(
         })}
       />
     );
-  }
+  },
 );
 PlotlyComponent.displayName = "PlotlyComponent";
 
@@ -111,7 +112,7 @@ PlotlyComponent.displayName = "PlotlyComponent";
  * by using the hovertemplate.
  */
 function extractPoints(
-  points: Plotly.PlotDatum[]
+  points: Plotly.PlotDatum[],
 ): Array<Record<AxisName, AxisDatum>> {
   if (!points) {
     return [];

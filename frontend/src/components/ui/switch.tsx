@@ -17,7 +17,7 @@ const switchVariants = cva(
     defaultVariants: {
       size: "default",
     },
-  }
+  },
 );
 
 const switchThumbVariants = cva(
@@ -33,7 +33,7 @@ const switchThumbVariants = cva(
     defaultVariants: {
       size: "default",
     },
-  }
+  },
 );
 
 const Switch = React.forwardRef<

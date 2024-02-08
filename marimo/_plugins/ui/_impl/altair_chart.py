@@ -124,6 +124,11 @@ def _parse_spec(spec: altair.TopLevelMixin) -> VegaSpec:
     return spec.to_dict()  # type: ignore
 
 
+def _has_transforms(spec: VegaSpec) -> bool:
+    """Return True if the spec has transforms."""
+    return "transform" in spec and len(spec["transform"]) > 0
+
+
 @mddoc
 class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
     """Make reactive charts with Altair
@@ -234,6 +239,10 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
         self.dataframe = chart.data
 
+        # Private attributes
+        self._chart = chart
+        self._spec = vega_spec
+
         super().__init__(
             component_name="marimo-vega",
             initial_value={},
@@ -257,4 +266,20 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             import pandas as pd
 
             return pd.DataFrame()
+
+        # If we have transforms, we need to filter the dataframe
+        # with those transforms, before applying the selection
+        if _has_transforms(self._spec):
+            try:
+                df: pd.DataFrame = self._chart.transformed_data()
+                return _filter_dataframe(df, value)
+            except ImportError as e:
+                sys.stderr.write(
+                    "Failed to filter dataframe that includes a transform. "
+                    + "This could be due to a missing dependency.\n\n"
+                    + e.msg
+                )
+                # Fall back to the untransformed dataframe
+                return _filter_dataframe(self.dataframe, value)
+
         return _filter_dataframe(self.dataframe, value)

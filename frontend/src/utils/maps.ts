@@ -9,7 +9,7 @@ export const Maps = {
    */
   keyBy<V, K = string>(
     items: Iterable<V>,
-    key: (item: NoInfer<V>) => K
+    key: (item: NoInfer<V>) => K,
   ): Map<K, V> {
     const map = new Map<K, V>();
     const duplicateIds = new Set<K>();

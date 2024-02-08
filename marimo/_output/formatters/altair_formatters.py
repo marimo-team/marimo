@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.utils import flatten_string
 
@@ -18,7 +19,7 @@ class AltairFormatter(FormatterFactory):
         from marimo._output import formatting
 
         @formatting.formatter(altair.TopLevelMixin)
-        def _show_chart(chart: altair.Chart) -> tuple[str, str]:
+        def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
             # TODO(akshayka): remove the `onload` hack and handle iframe
             # resizing entirely in the frontend
             # `__resizeIframe` is a script defined in the frontend that sets

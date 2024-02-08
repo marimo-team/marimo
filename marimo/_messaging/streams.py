@@ -7,13 +7,15 @@ import os
 import sys
 import threading
 from collections import deque
-from multiprocessing.connection import Connection
 from typing import Any, Iterable, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._messaging.types import KernelMessage
 from marimo._server.types import QueueType
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
@@ -48,7 +50,7 @@ class Stream:
 
     def __init__(
         self,
-        pipe: Connection,
+        pipe: TypedConnection[KernelMessage],
         input_queue: QueueType[str],
         cell_id: Optional[CellId_t] = None,
     ):
@@ -80,6 +82,61 @@ class Stream:
                 LOGGER.debug("Error when writing (op: %s) to pipe: %s", op, e)
 
 
+def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
+    """Watch a file descriptor and forward it to a stream object."""
+
+    # This coarse try/except block silences exceptions; a raised exception
+    # at this point could cause bad errors, such as an infinite stream of data
+    # to be written to the fd/routed through the stream.
+    #
+    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
+    # exceptions we actually want to pay attention to; then store the exception
+    # and print it to the terminal later (outside an execution context).
+    try:
+        while True:
+            data = os.read(fd, 1024)
+            if not data:
+                break
+            standard_stream.write(data.decode())
+    except Exception:
+        ...
+
+
+class Watcher:
+    """Watches and redirects a standard stream."""
+
+    def __init__(self, standard_stream: Stdout | Stderr) -> None:
+        self.standard_stream = standard_stream
+        self.fd = self.standard_stream._original_fd
+        self.read_fd, self.write_fd = os.pipe()
+        self.thread = threading.Thread(
+            target=_forward_os_stream,
+            args=(self.standard_stream, self.read_fd),
+            daemon=True,
+        )
+        self.thread.start()
+
+    def start(self) -> None:
+        # Save the file for the standard stream by opening a new file
+        # descriptor for it
+        self.fd_dup = os.dup(self.fd)
+        self.standard_stream._set_fileno(self.fd_dup)
+        # Change the original file descriptor for the standard stream
+        # to refer to the write end of the pipe
+        os.dup2(self.write_fd, self.fd)
+
+    def pause(self) -> None:
+        # Restore the original file descriptor to point to the standard
+        # stream file
+        os.dup2(self.fd_dup, self.fd)
+        os.close(self.fd_dup)
+        self.standard_stream._set_fileno(None)
+
+    def stop(self) -> None:
+        os.close(self.write_fd)
+        os.close(self.read_fd)
+
+
 # NB: Python doesn't provide a standard out class to inherit from, so
 # we inherit from TextIOBase.
 class Stdout(io.TextIOBase):
@@ -89,7 +146,9 @@ class Stdout(io.TextIOBase):
     _fileno: int | None = None
 
     def __init__(self, stream: Stream):
-        self.stream = stream
+        self._stream = stream
+        self._original_fd = sys.stdout.fileno()
+        self._watcher = Watcher(self)
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -113,7 +172,7 @@ class Stdout(io.TextIOBase):
         return
 
     def write(self, data: str) -> int:
-        assert self.stream.cell_id is not None
+        assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
@@ -123,11 +182,15 @@ class Stdout(io.TextIOBase):
                 "Warning: marimo truncated a very large console output.\n"
             )
             data = data[: int(STD_STREAM_MAX_BYTES)] + " ... "
-        self.stream.console_msg_queue.append(
-            ConsoleMsg(stream="stdout", cell_id=self.stream.cell_id, data=data)
+        self._stream.console_msg_queue.append(
+            ConsoleMsg(
+                stream=CellChannel.STDOUT,
+                cell_id=self._stream.cell_id,
+                data=data,
+            )
         )
-        with self.stream.console_msg_cv:
-            self.stream.console_msg_cv.notify()
+        with self._stream.console_msg_cv:
+            self._stream.console_msg_cv.notify()
         return len(data)
 
     # Buffer type not available python < 3.12, hence type ignore
@@ -143,7 +206,9 @@ class Stderr(io.TextIOBase):
     _fileno: int | None = None
 
     def __init__(self, stream: Stream):
-        self.stream = stream
+        self._stream = stream
+        self._original_fd = sys.stderr.fileno()
+        self._watcher = Watcher(self)
 
     def fileno(self) -> int:
         if self._fileno is not None:
@@ -167,7 +232,7 @@ class Stderr(io.TextIOBase):
         return
 
     def write(self, data: str) -> int:
-        assert self.stream.cell_id is not None
+        assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__
@@ -179,13 +244,15 @@ class Stderr(io.TextIOBase):
                 + " ... "
             )
 
-        with self.stream.console_msg_cv:
-            self.stream.console_msg_queue.append(
+        with self._stream.console_msg_cv:
+            self._stream.console_msg_queue.append(
                 ConsoleMsg(
-                    stream="stderr", cell_id=self.stream.cell_id, data=data
+                    stream=CellChannel.STDERR,
+                    cell_id=self._stream.cell_id,
+                    data=data,
                 )
             )
-            self.stream.console_msg_cv.notify()
+            self._stream.console_msg_cv.notify()
         return len(data)
 
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
@@ -201,7 +268,7 @@ class Stdin(io.TextIOBase):
     errors = sys.stdin.errors
 
     def __init__(self, stream: Stream):
-        self.stream = stream
+        self._stream = stream
 
     def fileno(self) -> int:
         raise io.UnsupportedOperation(
@@ -216,7 +283,7 @@ class Stdin(io.TextIOBase):
 
     def _readline_with_prompt(self, prompt: str = "") -> str:
         """Read input from the standard in stream, with an optional prompt."""
-        assert self.stream.cell_id is not None
+        assert self._stream.cell_id is not None
         if not isinstance(prompt, str):
             raise TypeError(
                 "prompt must be a str, not %s" % type(prompt).__name__
@@ -228,16 +295,18 @@ class Stdin(io.TextIOBase):
                 + " ... "
             )
 
-        with self.stream.console_msg_cv:
+        with self._stream.console_msg_cv:
             # This sends a prompt request to the frontend.
-            self.stream.console_msg_queue.append(
+            self._stream.console_msg_queue.append(
                 ConsoleMsg(
-                    stream="stdin", cell_id=self.stream.cell_id, data=prompt
+                    stream=CellChannel.STDIN,
+                    cell_id=self._stream.cell_id,
+                    data=prompt,
                 )
             )
-            self.stream.console_msg_cv.notify()
+            self._stream.console_msg_cv.notify()
 
-        return self.stream.input_queue.get()
+        return self._stream.input_queue.get()
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
         # size only included for compatibility with sys.stdin.readline API;
@@ -254,86 +323,11 @@ class Stdin(io.TextIOBase):
         return self._readline_with_prompt(prompt="").split("\n")
 
 
-def _forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
-    """Watch a file descriptor and forward it to a stream object."""
-
-    # This coarse try/except block silences exceptions; a raised exception
-    # at this point could cause bad errors, such as an infinite stream of data
-    # to be written to the fd/routed through the stream.
-    #
-    # TODO(akshayka): Make this loop bomb-proof, so that exceptions raised are
-    # exceptions we actually want to pay attention to; then store the exception
-    # and print it to the terminal later (outside an execution context).
-    try:
-        while True:
-            data = os.read(fd, 1024)
-            if not data:
-                break
-            stream_object.write(data.decode())
-    except Exception:
-        ...
-
-
-def _dup2newfd(fd: int) -> tuple[int, int, int]:
-    """Create a pipe, with `fd` at the write end of it.
-
-    Returns
-    - duplicate (os.dup) of `fd`
-    - read end of pipe
-    - fd (which now points to the file referenced by the write end of the pipe)
-
-    When done with the pipe, the write-end of the pipe should be closed
-    and remapped to point to the saved duplicate. The read end should
-    also be closed, as should the saved duplicate.
-    """
-    # fd_dup keeps a pointer to `fd`'s original location
-    fd_dup = os.dup(fd)
-    # create a pipe, with `fd` as the write end of it
-    read_fd, write_fd = os.pipe()
-    # repurpose fd to point to the write-end of the pipe
-    os.dup2(write_fd, fd)
-    os.close(write_fd)
-    return fd_dup, read_fd, fd
-
-
-def _restore_fds(
-    fd_dup: int,
-    fd_read: int,
-    original_fd: int,
-    forwarding_thread: threading.Thread,
-) -> None:
-    # Restore the original file descriptors: point original_fd
-    # back to its original location. Before this call, original_fd
-    # is referring to the write end of a pipe. dup2 will
-    # close these fds before reusing them, which ensures that the
-    # forwarding threads will terminate.
-    os.dup2(fd_dup, original_fd)
-    forwarding_thread.join()
-    # Close since the original descriptor has been restored
-    os.close(fd_dup)
-    os.close(fd_read)
-
-
 @contextlib.contextmanager
-def redirect(stream: Stdout | Stderr, fileno: int) -> Iterator[None]:
-    """Redirect fileno through the stream object."""
-    fd_dup, fd_read, fd = _dup2newfd(fileno)
-
-    # redirecting the standard streams in this way appears to have an overhead
-    # of ~1-2ms; the following alternatives had high variance, with up to 30ms
-    # overhead
-    # - reusing the same two threads instead of creating and destroying on
-    #   each call; this requires (slow) synchronization with locks
-    # - using a multiprocessing ThreadPool
-    # - using a concurrent.futures.ThreadPool/ProcessPool
-    thread = threading.Thread(
-        target=_forward_os_stream, args=(stream, fd_read)
-    )
-    thread.start()
-
+def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
+    """Redirect a standard stream to the frontend."""
     try:
-        stream._set_fileno(fd_dup)
+        standard_stream._watcher.start()
         yield
     finally:
-        _restore_fds(fd_dup, fd_read, fd, thread)
-        stream._set_fileno(None)
+        standard_stream._watcher.pause()

@@ -55,7 +55,7 @@ const ContextMenuSubContent = React.forwardRef<
     className={cn(
       menuContentCommon({ subcontent: true }),
       contentCommon,
-      className
+      className,
     )}
     {...props}
   />

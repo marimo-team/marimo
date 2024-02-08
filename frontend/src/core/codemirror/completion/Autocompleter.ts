@@ -9,6 +9,7 @@ import { sendCodeCompletionRequest } from "@/core/network/requests";
 import { Tooltip } from "@codemirror/view";
 import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";
 import { CodeCompletionRequest } from "@/core/network/types";
+import "../../../components/editor/documentation.css";
 
 function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   if (!innerHtml) {
@@ -16,9 +17,10 @@ function constructCompletionInfoNode(innerHtml?: string): HTMLElement | null {
   }
   const container = document.createElement("span");
   container.classList.add("mo-cm-tooltip");
+  container.classList.add("docs-documentation");
   container.style.display = "flex";
   container.style.flexDirection = "column";
-  container.style.gap = "1rem";
+  container.style.gap = ".8rem";
   container.innerHTML = innerHtml;
   return container;
 }
@@ -36,7 +38,7 @@ export const AUTOCOMPLETER = new DeferredRequestRegistry<
   },
   // We don't care about previous requests
   // so we just resolve them with an empty response.
-  { resolveExistingRequests: () => null }
+  { resolveExistingRequests: () => null },
 );
 
 export const Autocompleter = {
@@ -45,7 +47,7 @@ export const Autocompleter = {
    */
   asCompletionResult(
     position: number,
-    message: CompletionResultMessage
+    message: CompletionResultMessage,
   ): CompletionResult {
     return {
       from: position - message.prefix_length,
@@ -107,7 +109,7 @@ export const Autocompleter = {
 
 function getFirstOption(
   options: CompletionOption[],
-  tieBreak?: string
+  tieBreak?: string,
 ): CompletionOption | undefined {
   if (options.length === 0) {
     return undefined;

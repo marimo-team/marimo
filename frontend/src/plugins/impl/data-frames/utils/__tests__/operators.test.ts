@@ -19,22 +19,22 @@ describe("getOperatorForDtype", () => {
   it('should return NUMERIC_OPERATORS for "int" and "float"', () => {
     expect(getOperatorForDtype("int")).toEqual(Object.keys(NUMERIC_OPERATORS));
     expect(getOperatorForDtype("float")).toEqual(
-      Object.keys(NUMERIC_OPERATORS)
+      Object.keys(NUMERIC_OPERATORS),
     );
   });
 
   it('should return DATE_OPERATORS for "datetime64[ns]"', () => {
     expect(getOperatorForDtype("datetime64[ns]")).toEqual(
-      Object.keys(DATE_OPERATORS)
+      Object.keys(DATE_OPERATORS),
     );
   });
 
   it('should return STRING_OPERATORS for "object" and "string"', () => {
     expect(getOperatorForDtype("object")).toEqual(
-      Object.keys(STRING_OPERATORS)
+      Object.keys(STRING_OPERATORS),
     );
     expect(getOperatorForDtype("string")).toEqual(
-      Object.keys(STRING_OPERATORS)
+      Object.keys(STRING_OPERATORS),
     );
   });
 
@@ -46,14 +46,14 @@ describe("getOperatorForDtype", () => {
 describe("getSchemaForOperator", () => {
   it("should return the correct schema for the given dtype and operator", () => {
     expect(getSchemaForOperator("bool", "is true")).toEqual(
-      BOOLEAN_OPERATORS.is_true
+      BOOLEAN_OPERATORS.is_true,
     );
     expect(getSchemaForOperator("int", "==")).toEqual(NUMERIC_OPERATORS["=="]);
     expect(getSchemaForOperator("datetime64[ns]", "!=")).toEqual(
-      DATE_OPERATORS["!="]
+      DATE_OPERATORS["!="],
     );
     expect(getSchemaForOperator("string", "contains")).toEqual(
-      STRING_OPERATORS.contains
+      STRING_OPERATORS.contains,
     );
   });
 

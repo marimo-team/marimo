@@ -62,7 +62,7 @@ export const NameCellContentEditable: React.FC<{
 }> = ({ value, cellId, className }) => {
   const { updateCellName } = useCellActions();
   const inputProps = useCellNameInput(value, (newName) =>
-    updateCellName({ cellId, name: newName })
+    updateCellName({ cellId, name: newName }),
   );
 
   // If the name is the default, don't render the content editable
@@ -75,7 +75,7 @@ export const NameCellContentEditable: React.FC<{
       <span
         className={cn(
           "outline-none border hover:border-cyan-500/40 focus:border-cyan-500/40",
-          className
+          className,
         )}
         contentEditable={true}
         suppressContentEditableWarning={true}

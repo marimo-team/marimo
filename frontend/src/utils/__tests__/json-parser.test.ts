@@ -6,8 +6,8 @@ it("can jsonParseWithSpecialChar happy path", () => {
   expect(jsonParseWithSpecialChar('"hello"')).toEqual("hello");
   expect(
     jsonParseWithSpecialChar(
-      '[false,{"a":1},true,0,1,[{"a":1},{"b":2}],"hello",""]'
-    )
+      '[false,{"a":1},true,0,1,[{"a":1},{"b":2}],"hello",""]',
+    ),
   ).toEqual([false, { a: 1 }, true, 0, 1, [{ a: 1 }, { b: 2 }], "hello", ""]);
 
   expect(jsonParseWithSpecialChar("10")).toEqual(10);
@@ -25,7 +25,7 @@ it("can jsonParseWithSpecialChar NaN, Infinity, -Infinity", () => {
     Number.POSITIVE_INFINITY,
   ]);
   expect(
-    jsonParseWithSpecialChar('[NaN,Infinity,-Infinity,{"A": NaN}]')
+    jsonParseWithSpecialChar('[NaN,Infinity,-Infinity,{"A": NaN}]'),
   ).toEqual([
     Number.NaN,
     Number.POSITIVE_INFINITY,
@@ -40,10 +40,10 @@ it("can jsonParseWithSpecialChar NaN, Infinity, -Infinity", () => {
 
   expect(jsonParseWithSpecialChar('"This is NaN"')).toEqual("This is NaN");
   expect(jsonParseWithSpecialChar('"To Infinity and Beyond"')).toEqual(
-    "To Infinity and Beyond"
+    "To Infinity and Beyond",
   );
   expect(jsonParseWithSpecialChar('"To -Infinity and Beyond"')).toEqual(
-    "To -Infinity and Beyond"
+    "To -Infinity and Beyond",
   );
 });
 

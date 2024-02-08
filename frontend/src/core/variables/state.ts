@@ -34,7 +34,7 @@ const { reducer, createActions } = createReducer(initialState, {
   },
   setMetadata: (
     state,
-    metadata: Array<{ name: VariableName; value?: string; dataType?: string }>
+    metadata: Array<{ name: VariableName; value?: string; dataType?: string }>,
   ) => {
     const newVariables = { ...state };
     for (const { name, value, dataType } of metadata) {

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from typing import Any, Union
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output import formatting
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._utils.flatten import CyclicStructureError, flatten
@@ -42,7 +43,7 @@ class StructuresFormatter(FormatterFactory):
         @formatting.formatter(dict)
         def _format_structure(
             t: Union[tuple[Any, ...], list[Any], dict[str, Any]]
-        ) -> tuple[str, str]:
+        ) -> tuple[KnownMimeType, str]:
             try:
                 formatted_structure = format_structure(t)
             except CyclicStructureError:

@@ -14,7 +14,7 @@ interface Body {
 interface JSON {
   parse(
     text: string,
-    reviver?: (this: any, key: string, value: any) => any
+    reviver?: (this: any, key: string, value: any) => any,
   ): unknown;
 }
 

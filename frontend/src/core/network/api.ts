@@ -1,15 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { once } from "@/utils/once";
 import { Logger } from "../../utils/Logger";
-import { UUID } from "../../utils/uuid";
 import { getMarimoServerToken } from "../dom/marimo-tag";
+import { getSessionId } from "../kernel/session";
 
 export function getXsrfCookie(): string {
   const r = document.cookie.match("\\b_xsrf=([^;]*)\\b");
   return r ? r[1] : "";
 }
-
-const BASE_URL = "/api";
 
 const getServerTokenOnce = once(() => {
   return getMarimoServerToken();
@@ -21,13 +19,15 @@ const getServerTokenOnce = once(() => {
  */
 export const API = {
   post<REQ, RESP = null>(url: string, body: REQ): Promise<RESP> {
+    const BASE_URL = `${document.baseURI}api`;
+
     const fullUrl = BASE_URL + url;
     return fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Xsrftoken": getXsrfCookie(),
-        "Marimo-Session-Id": UUID,
+        "Marimo-Session-Id": getSessionId(),
         "Marimo-Server-Token": getServerTokenOnce(),
       },
       body: JSON.stringify(body),

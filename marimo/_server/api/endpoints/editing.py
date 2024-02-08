@@ -31,7 +31,7 @@ async def code_complete(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
     body = await parse_request(request, cls=CodeCompleteRequest)
-    app_state.require_current_session().put_request(
+    app_state.require_current_session().put_completion_request(
         requests.CompletionRequest(
             completion_id=body.id,
             document=body.document,
@@ -48,7 +48,7 @@ async def delete_cell(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
     body = await parse_request(request, cls=DeleteCellRequest)
-    app_state.require_current_session().put_request(
+    app_state.require_current_session().put_control_request(
         requests.DeleteRequest(cell_id=body.cell_id)
     )
 
@@ -85,7 +85,7 @@ async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
     app_state = AppState(request)
     body = await parse_request(request, cls=SetCellConfigRequest)
-    app_state.require_current_session().put_request(
+    app_state.require_current_session().put_control_request(
         requests.SetCellConfigRequest(configs=body.configs)
     )
 

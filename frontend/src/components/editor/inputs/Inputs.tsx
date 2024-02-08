@@ -18,7 +18,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {props.children}
       </button>
     );
-  }
+  },
 );
 Button.displayName = "Button";
 
@@ -29,6 +29,6 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <input ref={ref} className={clsx(styles.input(), className)} {...props} />
     );
-  }
+  },
 );
 Input.displayName = "Input";

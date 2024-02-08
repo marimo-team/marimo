@@ -104,6 +104,9 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     [slider, number]
     ```
 
+    **Warning.** Do not store `marimo.ui` elements in state; doing so can
+    lead to hard-to-diagnose bugs.
+
     **Args**:
 
     - `value`: initial value of the state

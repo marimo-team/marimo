@@ -2,6 +2,7 @@
 import sys
 
 from marimo._ast.cell import CellId_t
+from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import CellOp
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
@@ -14,7 +15,7 @@ def write_internal(cell_id: CellId_t, value: object) -> None:
     if output.traceback is not None:
         sys.stderr.write(output.traceback)
     CellOp.broadcast_output(
-        channel="output",
+        channel=CellChannel.OUTPUT,
         mimetype=output.mimetype,
         data=output.data,
         cell_id=cell_id,
@@ -39,7 +40,7 @@ def replace(value: object) -> None:
     elif value is None:
         ctx.kernel.execution_context.output = None
     else:
-        ctx.kernel.execution_context.output = [value]
+        ctx.kernel.execution_context.output = [formatting.as_html(value)]
     write_internal(cell_id=ctx.kernel.execution_context.cell_id, value=value)
 
 
@@ -59,9 +60,9 @@ def append(value: object) -> None:
         return
 
     if ctx.kernel.execution_context.output is None:
-        ctx.kernel.execution_context.output = [value]
+        ctx.kernel.execution_context.output = [formatting.as_html(value)]
     else:
-        ctx.kernel.execution_context.output.append(value)
+        ctx.kernel.execution_context.output.append(formatting.as_html(value))
     write_internal(
         cell_id=ctx.kernel.execution_context.cell_id,
         value=vstack(ctx.kernel.execution_context.output),

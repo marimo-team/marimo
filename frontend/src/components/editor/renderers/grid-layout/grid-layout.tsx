@@ -73,7 +73,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       // but this increases complexity to the user
       lg: layout.columns,
     }),
-    [layout.columns]
+    [layout.columns],
   );
 
   // Add class to update the background of the app
@@ -154,7 +154,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
           "border-t border-x rounded-t shadow-sm overflow-hidden",
         // Add additional padding if bordered when reading
         layout.bordered && isReading && "pt-4 w-[calc(100%-2rem)]",
-        !layout.maxWidth && "min-w-[800px]"
+        !layout.maxWidth && "min-w-[800px]",
       )}
       margin={MARGIN}
       isBounded={false}
@@ -269,7 +269,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
       <div className={cn("relative flex gap-2 px-2 z-10 flex-1")}>
         <div
           className={cn(
-            "flex-grow overflow-auto transparent-when-disconnected"
+            "flex-grow overflow-auto transparent-when-disconnected",
           )}
         >
           {grid}
@@ -300,7 +300,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               }}
               className={cn(
                 DRAG_HANDLE,
-                "droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0"
+                "droppable-element bg-background border-border border overflow-hidden p-2 rounded flex-shrink-0",
               )}
             >
               <GridCell
@@ -361,7 +361,7 @@ const GridCell = memo(
           side === "top" && "flex items-start",
           side === "bottom" && "flex items-end",
           side === "left" && "flex justify-start",
-          side === "right" && "flex justify-end"
+          side === "right" && "flex justify-end",
         )}
       >
         <OutputArea
@@ -372,7 +372,7 @@ const GridCell = memo(
         />
       </div>
     );
-  }
+  },
 );
 GridCell.displayName = "GridCell";
 
@@ -496,7 +496,7 @@ const EditableGridCell = React.forwardRef(
 
       display: "top" | "bottom";
     }>,
-    ref: React.Ref<HTMLDivElement>
+    ref: React.Ref<HTMLDivElement>,
   ) => {
     const [popoverOpened, setPopoverOpened] = useState<"side" | "scroll">();
 
@@ -510,7 +510,7 @@ const EditableGridCell = React.forwardRef(
           "bg-background border-transparent hover:border-[var(--sky-8)] border",
           popoverOpened && "border-[var(--sky-8)] z-20",
           !popoverOpened && "hover-actions-parent",
-          isDragging && "bg-[var(--slate-2)] border-border z-20"
+          isDragging && "bg-[var(--slate-2)] border-border z-20",
         )}
       >
         {children}
@@ -526,7 +526,7 @@ const EditableGridCell = React.forwardRef(
         />
       </div>
     );
-  }
+  },
 );
 EditableGridCell.displayName = "EditableGridCell";
 
@@ -560,8 +560,8 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
     side === "left"
       ? AlignStartVerticalIcon
       : side === "right"
-      ? AlignEndVerticalIcon
-      : undefined;
+        ? AlignEndVerticalIcon
+        : undefined;
 
   return (
     <div
@@ -569,7 +569,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
         "absolute right-0 p-1 bg-[var(--sky-8)] text-white h-6 z-10 flex gap-2",
         !popoverOpened && "hover-action",
         display === "top" && "-top-6 rounded-t",
-        display === "bottom" && "-bottom-6 rounded-b"
+        display === "bottom" && "-bottom-6 rounded-b",
       )}
     >
       <DropdownMenu

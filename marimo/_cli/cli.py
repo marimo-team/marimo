@@ -10,6 +10,7 @@ from typing import Any, Literal, Optional
 
 import click
 
+import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
@@ -222,6 +223,7 @@ def edit(
         filename=name,
         mode=SessionMode.EDIT,
         include_code=True,
+        watch=False,
     )
 
 
@@ -267,13 +269,35 @@ Example:
     type=bool,
     help="Include notebook code in the app.",
 )
+@click.option(
+    "--watch",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Watch the file for changes and reload the app.
+    If watchdog is installed, it will be used to watch the file.
+    Otherwise, file watcher will poll the file every 1s.
+    """,
+)
+@click.option(
+    "--base-url",
+    default="",
+    show_default=True,
+    type=str,
+    help="Base URL for the server. Should start with a /.",
+    callback=validators.base_url,
+)
 @click.argument("name", required=True)
 def run(
     port: Optional[int],
     host: str,
     headless: bool,
     include_code: bool,
+    watch: bool,
     name: str,
+    base_url: str,
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -293,6 +317,8 @@ def run(
         filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
+        watch=watch,
+        base_url=base_url,
     )
 
 
@@ -411,6 +437,7 @@ def tutorial(
         filename=fname,
         include_code=True,
         headless=headless,
+        watch=False,
     )
 
 

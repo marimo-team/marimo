@@ -26,7 +26,7 @@ const pageHelper = (page: Page) => {
     },
     async verifyOutput(text: string) {
       await expect(
-        page.getByText(`The element's current value is ${text}`)
+        page.getByText(`The element's current value is ${text}`),
       ).toBeVisible();
     },
   };
@@ -246,7 +246,7 @@ test("table", async ({ page }) => {
   // Click first checkbox to select all
   await page.getByRole("checkbox").first().click();
   await expect(
-    helper.cell(3).locator(".marimo-json-output").first()
+    helper.cell(3).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
 [2 Items
@@ -260,13 +260,13 @@ test("table", async ({ page }) => {
 }
 ]
   `.trim(),
-    { useInnerText: true }
+    { useInnerText: true },
   );
 
   // Click second checkbox to remove first row
   await page.getByRole("checkbox").nth(1).click();
   await expect(
-    helper.cell(3).locator(".marimo-json-output").first()
+    helper.cell(3).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
 [1 Items
@@ -276,7 +276,7 @@ test("table", async ({ page }) => {
 }
 ]
 `.trim(),
-    { useInnerText: true }
+    { useInnerText: true },
   );
 
   await takeScreenshot(page, __filename);
@@ -330,7 +330,7 @@ test("complex - array", async ({ page }) => {
   await date.fill("2020-01-20");
   // Verify output
   await expect(
-    helper.cell(6).locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
 [3 Items
@@ -339,7 +339,7 @@ test("complex - array", async ({ page }) => {
 2:2020-01-20
 ]
 `.trim(),
-    { useInnerText: true }
+    { useInnerText: true },
   );
 
   await takeScreenshot(page, __filename);
@@ -360,7 +360,7 @@ test("complex - batch", async ({ page }) => {
   await date.fill("2020-04-20");
   // Verify output
   await expect(
-    helper.cell(6).locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
 {2 Items
@@ -368,7 +368,7 @@ test("complex - batch", async ({ page }) => {
 "date":2020-04-20
 }
 `.trim(),
-    { useInnerText: true }
+    { useInnerText: true },
   );
 
   await takeScreenshot(page, __filename);
@@ -393,7 +393,7 @@ test("complex - dictionary", async ({ page }) => {
   await buttons.last().click();
   // Verify output
   await expect(
-    helper.cell(6).locator(".marimo-json-output").first()
+    helper.cell(6).locator(".marimo-json-output").first(),
   ).toHaveText(
     `
 {3 Items
@@ -406,7 +406,7 @@ test("complex - dictionary", async ({ page }) => {
 ]
 }
 `.trim(),
-    { useInnerText: true }
+    { useInnerText: true },
   );
 
   await takeScreenshot(page, __filename);

@@ -4,9 +4,12 @@ import random
 
 from starlette.testclient import TestClient
 
-from tests._server.mocks import get_mock_session_manager
+from tests._server.conftest import get_session_manager
+from tests._server.mocks import with_session
 
+SESSION_ID = "session-123"
 HEADERS = {
+    "Marimo-Session-Id": SESSION_ID,
     "Marimo-Server-Token": "fake-token",
 }
 
@@ -25,7 +28,7 @@ def test_directory_autocomplete(client: TestClient) -> None:
 
 
 def test_rename(client: TestClient) -> None:
-    current_filename = get_mock_session_manager().filename
+    current_filename = get_session_manager(client).filename
 
     assert current_filename
     assert os.path.exists(current_filename)
@@ -57,14 +60,16 @@ def test_read_code(client: TestClient) -> None:
     assert response.json()["contents"].startswith("import marimo")
 
 
+@with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
-    filename = get_mock_session_manager().filename
+    filename = get_session_manager(client).filename
     assert filename
 
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": filename,
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
@@ -88,6 +93,7 @@ def test_save_file(client: TestClient) -> None:
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": filename,
             "codes": ["import marimo as mo"],
             "names": ["__"],
@@ -100,11 +106,95 @@ def test_save_file(client: TestClient) -> None:
     )
 
 
+@with_session(SESSION_ID)
+def test_save_with_header(client: TestClient) -> None:
+    filename = get_session_manager(client).filename
+    assert filename
+    assert os.path.exists(filename)
+
+    header = (
+        '"""This is a docstring"""\n\n' + "# Copyright 2024\n# Linter ignore\n"
+    )
+    # Prepend a header to the file
+    contents = open(filename).read()
+    contents = header + contents
+    open(filename, "w", encoding="UTF-8").write(contents)
+
+    response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["1"],
+            "filename": filename,
+            "codes": ["import marimo as mo"],
+            "names": ["my_cell"],
+            "configs": [
+                {
+                    "hideCode": True,
+                    "disabled": False,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    file_contents = open(filename).read()
+    assert "import marimo as mo" in file_contents
+    assert file_contents.startswith(header.rstrip()), "Header was removed"
+    assert "@app.cell(hide_code=True)" in file_contents
+    assert "my_cell" in file_contents
+
+
+@with_session(SESSION_ID)
+def test_save_with_invalid_file(client: TestClient) -> None:
+    filename = get_session_manager(client).filename
+    assert filename
+    assert os.path.exists(filename)
+
+    header = (
+        '"""This is a docstring"""\n\n'
+        + 'print("dont do this!")\n'
+        + "# Linter ignore\n"
+    )
+
+    # Prepend a header to the file
+    contents = open(filename).read()
+    contents = header + contents
+    open(filename, "w", encoding="UTF-8").write(contents)
+
+    response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["1"],
+            "filename": filename,
+            "codes": ["import marimo as mo"],
+            "names": ["my_cell"],
+            "configs": [
+                {
+                    "hideCode": True,
+                    "disabled": False,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+    file_contents = open(filename).read()
+    assert file_contents.startswith("import marimo"), "Header was not removed"
+    assert "@app.cell(hide_code=True)" in file_contents
+    assert "my_cell" in file_contents
+
+
+@with_session(SESSION_ID)
 def test_save_file_cannot_rename(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/save",
         headers=HEADERS,
         json={
+            "cell_ids": ["1"],
             "filename": "random_filename.py",
             "codes": ["import marimo as mo"],
             "names": ["my_cell"],
@@ -120,8 +210,9 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
     assert "cannot rename" in response.text
 
 
+@with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
-    filename = get_mock_session_manager().filename
+    filename = get_session_manager(client).filename
     assert filename
 
     file_contents = open(filename).read()

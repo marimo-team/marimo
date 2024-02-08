@@ -2,9 +2,10 @@
 
 import { LayoutType } from "@/components/editor/renderers/types";
 import { CellConfig, CellStatus } from "../cells/types";
-import { CellId } from "../cells/ids";
+import { CellId, UIElementId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";
+import { Seconds } from "@/utils/time";
 
 export type OutputChannel =
   | "output"
@@ -102,7 +103,7 @@ export interface CellMessage {
   /**
    * Timestamp in seconds since epoch, when the message was sent
    */
-  timestamp: number;
+  timestamp: Seconds;
 }
 
 export interface CompletionOption {
@@ -193,10 +194,26 @@ export type OperationMessage =
          * The cell configs.
          */
         configs: CellConfig[];
+        /**
+         * Whether the notebook was resumed from a previous session
+         */
+        resumed: boolean;
+        /**
+         * UI element values from the previous session.
+         * If the notebook was not resumed, this will be undefined.
+         */
+        ui_values: Record<UIElementId, unknown> | undefined;
+        /**
+         * The last executed code
+         */
+        last_executed_code: Record<CellId, string | undefined> | undefined;
       };
     }
   | {
       op: "completed-run";
+    }
+  | {
+      op: "reload";
     }
   | {
       op: "interrupted";
@@ -256,5 +273,6 @@ export type OperationMessage =
         title: string;
         description: string;
         variant?: "danger";
+        action?: "restart";
       };
     };

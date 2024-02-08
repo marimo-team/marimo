@@ -13,16 +13,19 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.layout import LayoutConfig, save_layout_config
+from marimo._server.model import SessionMode
 from marimo._server.models.models import (
     BaseResponse,
     DirectoryAutocompleteRequest,
     DirectoryAutocompleteResponse,
+    OpenFileRequest,
     ReadCodeResponse,
     RenameFileRequest,
     SaveAppConfigurationRequest,
     SaveRequest,
     SuccessResponse,
 )
+from marimo._server.print import print_startup
 from marimo._server.router import APIRouter
 from marimo._server.utils import canonicalize_filename
 
@@ -135,6 +138,52 @@ async def rename_file(
     return SuccessResponse()
 
 
+@router.post("/open")
+@requires("edit")
+async def open_file(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """Open a file."""
+    app_state = AppState(request)
+    body = await parse_request(request, cls=OpenFileRequest)
+
+    # Validate file exists
+    if not os.path.exists(body.path):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"File {body.path} does not exist",
+        )
+
+    # Get relative path
+    filename = os.path.relpath(body.path)
+
+    try:
+        app = codegen.get_app(filename)
+        if app is None:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"File {filename} is not a valid marimo app",
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR,
+            detail=f"Failed to read file: {str(e)}",
+        ) from e
+
+    mgr = app_state.session_manager
+    mgr.rename(filename)
+    host = app_state.host
+    port = app_state.port
+    base_url = app_state.base_url
+    run = app_state.mode == SessionMode.RUN
+    print_startup(
+        filename=filename, url=f"http://{host}:{port}{base_url}", run=run
+    )
+
+    return SuccessResponse()
+
+
 @router.post("/save")
 @requires("edit")
 async def save(
@@ -145,13 +194,23 @@ async def save(
     app_state = AppState(request)
     mgr = app_state.session_manager
     body = await parse_request(request, cls=SaveRequest)
-    codes, names, filename, layout = (
+    cell_ids, codes, configs, names, filename, layout = (
+        body.cell_ids,
         body.codes,
+        body.configs,
         body.names,
         body.filename,
         body.layout,
     )
     filename = canonicalize_filename(filename)
+    session = app_state.require_current_session()
+    session.app.with_data(
+        cell_ids=cell_ids,
+        codes=codes,
+        names=names,
+        configs=configs,
+    )
+
     if mgr.filename is not None and mgr.filename != filename:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -170,6 +229,7 @@ async def save(
             layout_filename = save_layout_config(
                 app_dir, app_name, LayoutConfig(**layout)
             )
+            session.app.update_config({"layout_file": layout_filename})
             mgr.update_app_config({"layout_file": layout_filename})
 
         # try to save the app under the name `filename`
@@ -177,11 +237,14 @@ async def save(
             codes,
             names,
             cell_configs=body.configs,
-            config=mgr.app_config,
+            config=session.app.config,
         )
         LOGGER.debug("Saving app to %s", filename)
         try:
+            header_comments = codegen.get_header_comments(filename)
             with open(filename, "w", encoding="utf-8") as f:
+                if header_comments:
+                    f.write(header_comments.rstrip() + "\n\n")
                 f.write(contents)
         except Exception as e:
             raise HTTPException(
@@ -204,21 +267,22 @@ async def save_app_config(
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     mgr = app_state.session_manager
-    mgr.update_app_config(body.config)
 
     # Update the file with the latest app config
     # TODO(akshayka): Only change the `app = marimo.App` line (at top level
     # of file), instead of overwriting the whole file.
-    app = mgr.load_app()
+    app = app_state.require_current_session().app
+
+    new_config = app.update_config(body.config)
+    mgr.update_app_config(body.config)
 
     if mgr.filename is not None:
-        codes = list(app.cell_manager.codes())
-        names = list(app.cell_manager.names())
-        configs = list(app.cell_manager.configs())
-
         # Try to save the app under the name `mgr.filename`
         contents = codegen.generate_filecontents(
-            codes, names, cell_configs=configs, config=mgr.app_config
+            codes=list(app.cell_manager.codes()),
+            names=list(app.cell_manager.names()),
+            cell_configs=list(app.cell_manager.configs()),
+            config=new_config,
         )
         try:
             with open(mgr.filename, "w", encoding="utf-8") as f:

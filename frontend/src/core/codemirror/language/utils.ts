@@ -13,7 +13,7 @@ export function getEditorCodeAsPython(editor: EditorView): string {
 
 export function updateEditorCodeFromPython(
   editor: EditorView,
-  pythonCode: string
+  pythonCode: string,
 ) {
   const languageAdapter = editor.state.field(languageAdapterState);
   const [code] = languageAdapter.transformIn(pythonCode);

@@ -46,7 +46,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
   private _request<Method extends keyof LSPRequestMap>(
     method: Method,
-    params: LSPRequestMap[Method][0]
+    params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (this as any).request(method, params);
@@ -57,7 +57,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override async textDocumentDidOpen(
-    params: DidOpenTextDocumentParams
+    params: DidOpenTextDocumentParams,
   ): Promise<DidOpenTextDocumentParams> {
     if (this.isDisabled()) {
       return params;
@@ -66,7 +66,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override async textDocumentCompletion(
-    params: CompletionParams
+    params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
     if (this.isDisabled()) {
       return [];
@@ -75,7 +75,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override async textDocumentDidChange(
-    params: DidChangeTextDocumentParams
+    params: DidChangeTextDocumentParams,
   ): Promise<DidChangeTextDocumentParams> {
     if (this.isDisabled()) {
       return params;
@@ -85,7 +85,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
       contentChanges: [{ text: getCodes(params.contentChanges[0].text) }],
       textDocument: VersionedTextDocumentIdentifier.create(
         params.textDocument.uri,
-        ++this.documentVersion
+        ++this.documentVersion,
       ),
     });
   }

@@ -19,11 +19,15 @@ import { DependencyGraphPanel } from "@/components/editor/chrome/panels/dependen
 import { VariablePanel } from "../panels/variable-panel";
 import { LogsPanel } from "../panels/logs-panel";
 import { DocumentationPanel } from "../panels/documentation-panel";
+import { FileExplorerPanel } from "../panels/file-explorer-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
-  const { isOpen, selectedPanel, panelLocation } = useChromeState();
+  const { isOpen, selectedPanel } = useChromeState();
   const { setIsOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
+  // We only support 'left' for now
+  // We may add support for a bottom bar, but currently it forces the app to remount
+  const panelLocation = "left";
 
   // sync sidebar
   useEffect(() => {
@@ -31,7 +35,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       return;
     }
 
-    const isCurrentlyCollapsed = sidebarRef.current.getCollapsed();
+    const isCurrentlyCollapsed = sidebarRef.current.isCollapsed();
     if (isOpen && isCurrentlyCollapsed) {
       sidebarRef.current.expand();
     }
@@ -66,7 +70,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "border-border no-print z-10",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
-        panelLocation === "left" ? "vertical" : "horizontal"
+        panelLocation === "left" ? "vertical" : "horizontal",
       )}
     />
   );
@@ -86,6 +90,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <XIcon className="w-4 h-4" />
         </Button>
       </div>
+      {selectedPanel === "files" && <FileExplorerPanel />}
       {selectedPanel === "errors" && <ErrorsPanel />}
       {selectedPanel === "variables" && <VariablePanel />}
       {selectedPanel === "dependencies" && <DependencyGraphPanel />}
@@ -105,7 +110,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral",
         isOpen && "m-4",
-        isOpen && panelLocation === "bottom" && "mt-2"
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -117,7 +121,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           sidebarRef.current?.resize(30);
         }
       }}
-      onCollapse={(collapsed) => setIsOpen(!collapsed)}
+      onCollapse={() => setIsOpen(false)}
+      onExpand={() => setIsOpen(true)}
     >
       {panelLocation === "left" ? (
         <span className="flex flex-row h-full">

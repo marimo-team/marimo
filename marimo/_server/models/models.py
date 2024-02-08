@@ -85,6 +85,11 @@ class RenameFileRequest:
 
 
 @dataclass
+class OpenFileRequest:
+    path: str
+
+
+@dataclass
 class RunRequest:
     # ids of cells to run
     cell_ids: List[CellId_t]
@@ -94,6 +99,8 @@ class RunRequest:
 
 @dataclass
 class SaveRequest:
+    # id of each cell
+    cell_ids: List[CellId_t]
     # code for each cell
     codes: List[str]
     # name of each cell

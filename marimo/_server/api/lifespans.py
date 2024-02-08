@@ -45,7 +45,7 @@ async def _shutdown(app: Starlette, with_error: bool = False) -> None:
         LOGGER.fatal("marimo shut down with an error.")
     mgr.shutdown()
     if with_error:
-        await close_uvicorn(app.state.server)
+        close_uvicorn(app.state.server)
 
 
 # Compound lifespans
@@ -96,7 +96,16 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
     run = session_mgr.mode == SessionMode.RUN
     if not run and user_config["completion"]["copilot"]:
         LOGGER.debug("GitHub Copilot is enabled")
-        session_mgr.start_lsp_server()
+        await session_mgr.start_lsp_server()
+    yield
+
+
+@contextlib.asynccontextmanager
+async def watcher(app: Starlette) -> AsyncIterator[None]:
+    watch: bool = app.state.watch
+    if watch:
+        session_mgr = get_manager()
+        session_mgr.start_file_watcher()
     yield
 
 
@@ -104,7 +113,8 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
     host = app.state.host
     port = app.state.port
-    url = f"http://{host}:{port}"
+    base_url = app.state.base_url
+    url = f"http://{host}:{port}{base_url}"
     user_config = get_configuration()
     headless = app.state.headless
     if not headless:
@@ -122,12 +132,13 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     manager = get_manager()
     host = app.state.host
     port = app.state.port
+    base_url = app.state.base_url
 
     # Startup message
     if not manager.quiet:
         print_startup(
             manager.filename,
-            f"http://{host}:{port}",
+            f"http://{host}:{port}{base_url}",
             manager.mode == SessionMode.RUN,
         )
 
@@ -145,7 +156,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
     # Interrupt handler
     def shutdown() -> None:
         manager.shutdown()
-        asyncio.create_task(close_uvicorn(app.state.server))
+        close_uvicorn(app.state.server)
 
     InterruptHandler(
         quiet=manager.quiet,
@@ -163,5 +174,13 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 
 LIFESPANS = Lifespans(
-    [user_configuration, lsp, etc, signal_handler, logging, open_browser]
+    [
+        user_configuration,
+        lsp,
+        watcher,
+        etc,
+        signal_handler,
+        logging,
+        open_browser,
+    ]
 )

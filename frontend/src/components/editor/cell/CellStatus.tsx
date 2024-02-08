@@ -6,18 +6,21 @@ import {
   RefreshCwIcon,
 } from "lucide-react";
 import { Tooltip } from "../../ui/tooltip";
-import { CellStatus } from "../../../core/cells/types";
+import { CellRuntimeState } from "../../../core/cells/types";
 import { useElapsedTime } from "../../../hooks/useElapsedTime";
 import { Logger } from "@/utils/Logger";
 import { MultiIcon } from "@/components/icons/multi-icon";
 
 import "./cell-status.css";
+import { Time } from "@/utils/time";
 
-export interface CellStatusComponentProps {
+export interface CellStatusComponentProps
+  extends Pick<
+    CellRuntimeState,
+    "status" | "runStartTimestamp" | "interrupted"
+  > {
   editing: boolean;
-  status: CellStatus;
   edited: boolean;
-  interrupted: boolean;
   disabled: boolean;
   elapsedTime: number | null;
 }
@@ -29,6 +32,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   edited,
   interrupted,
   elapsedTime,
+  runStartTimestamp,
 }) => {
   if (!editing) {
     return null;
@@ -128,7 +132,9 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
           data-testid="cell-status"
           data-status="running"
         >
-          <CellTimer />
+          <CellTimer
+            startTime={Time.fromSeconds(runStartTimestamp) || Time.now()}
+          />
         </div>
       </Tooltip>
     );
@@ -223,7 +229,7 @@ function formatElapsedTime(elapsedTime: number | null) {
   }
 }
 
-const CellTimer = () => {
-  const time = useElapsedTime();
+const CellTimer = (props: { startTime: Time }) => {
+  const time = useElapsedTime(props.startTime.toMilliseconds());
   return <span>{formatElapsedTime(time)}</span>;
 };

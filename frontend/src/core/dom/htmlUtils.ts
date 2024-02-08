@@ -14,7 +14,7 @@ export function parseAttrValue<T>(value: string | undefined): T {
 
 export function parseDataset(element: HTMLElement): Record<string, unknown> {
   return Objects.mapValues(element.dataset, (value) =>
-    typeof value === "string" ? parseAttrValue(value) : value
+    typeof value === "string" ? parseAttrValue(value) : value,
   );
 }
 

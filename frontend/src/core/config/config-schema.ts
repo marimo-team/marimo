@@ -75,7 +75,7 @@ export function parseAppConfig() {
     return AppConfigSchema.parse(JSON.parse(getRawMarimoAppConfig()));
   } catch (error) {
     throw new Error(
-      `Marimo got an unexpected value in the configuration file: ${error}`
+      `Marimo got an unexpected value in the configuration file: ${error}`,
     );
   }
 }
@@ -91,7 +91,7 @@ export function parseUserConfig() {
     return parsed;
   } catch (error) {
     throw new Error(
-      `Marimo got an unexpected value in the configuration file: ${error}`
+      `Marimo got an unexpected value in the configuration file: ${error}`,
     );
   }
 }

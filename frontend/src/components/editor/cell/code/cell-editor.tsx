@@ -99,27 +99,27 @@ const CellEditorInternal = ({
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const moveDown = useCallback(
     () => moveCell({ cellId, before: false }),
-    [cellId, moveCell]
+    [cellId, moveCell],
   );
   const moveUp = useCallback(
     () => moveCell({ cellId, before: true }),
-    [cellId, moveCell]
+    [cellId, moveCell],
   );
   const focusDown = useCallback(
     () => focusCell({ cellId, before: false }),
-    [cellId, focusCell]
+    [cellId, focusCell],
   );
   const focusUp = useCallback(
     () => focusCell({ cellId, before: true }),
-    [cellId, focusCell]
+    [cellId, focusCell],
   );
   const toggleHideCode = useEvent(() => {
     const newConfig: CellConfig = { hide_code: !hidden };
@@ -170,7 +170,7 @@ const CellEditorInternal = ({
             setCanUseMarkdown(LanguageAdapters.markdown().isSupported(code));
           }
         },
-      }))
+      })),
     );
 
     // Should focus will be true if its a newly created editor
@@ -193,7 +193,7 @@ const CellEditorInternal = ({
             StateEffect.reconfigure.of([extensions]),
             reconfigureLanguageEffect(
               editorViewRef.current,
-              userConfig.completion
+              userConfig.completion,
             ),
           ],
         });
@@ -207,7 +207,7 @@ const CellEditorInternal = ({
             doc: code,
             extensions: extensions,
           },
-          { history: historyField }
+          { history: historyField },
         ),
       });
       shouldFocus = true;

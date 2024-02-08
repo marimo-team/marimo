@@ -14,7 +14,6 @@ import {
 import { Controls } from "@/components/editor/Controls";
 import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
 import { FilenameForm } from "@/components/editor/FilenameForm";
-import { UUID } from "../utils/uuid";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
@@ -56,6 +55,7 @@ import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
+import { getSessionId } from "./kernel/session";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -98,7 +98,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       const configs = cells.map((cell) => cell.config);
       setLastSavedNotebook({ names, codes, configs });
     },
-    sessionId: UUID,
+    sessionId: getSessionId(),
   });
 
   const handleFilenameChange = useEvent(
@@ -117,10 +117,11 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           openAlert(error.message);
           return null;
         });
-    }
+    },
   );
 
   const cells = notebookCells(notebook);
+  const cellIds = cells.map((cell) => cell.id);
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
@@ -146,6 +147,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
     Logger.log("saving to ", filename);
     sendSave({
+      cellIds: cellIds,
       codes,
       names: cellNames,
       filename,
@@ -183,7 +185,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         <SaveDialog
           onClose={closeModal}
           onSubmitSaveDialog={onSubmitSaveDialog}
-        />
+        />,
       );
     }
   });
@@ -249,7 +251,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         (rect.bottom >= 0 && rect.bottom <= viewportEnd)
       ) {
         cellAnchor = HTMLCellId.parse(
-          (elem.parentNode as HTMLElement).id as HTMLCellId
+          (elem.parentNode as HTMLElement).id as HTMLCellId,
         );
         break;
       }
@@ -293,7 +295,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       // no replacer
       null,
       // whitespace for indentation
-      2
+      2,
     );
   });
 
@@ -324,13 +326,13 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           connStatus.state === WebSocketState.CLOSED && "disconnected",
           "bg-background w-full h-full text-textColor",
           "flex flex-col overflow-y-auto overflow-x-hidden",
-          appConfig.width === "full" && "config-width-full"
+          appConfig.width === "full" && "config-width-full",
         )}
       >
         <div
           className={cn(
             (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-            isReading && "sm:pt-8"
+            isReading && "sm:pt-8",
           )}
         >
           {isEditing && (

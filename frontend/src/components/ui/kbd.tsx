@@ -13,7 +13,7 @@ export const Kbd: React.FC<Props> = (props) => {
         props.className,
         // text-[0.75rem]: don't want to set line height; want to inherit
         // whatever line height is used to make sure text is not off-center
-        "rounded-md border border-border bg-muted px-2 text-[0.75rem] font-code"
+        "rounded-md border border-border bg-muted px-2 text-[0.75rem] font-code",
       )}
     >
       {props.children}

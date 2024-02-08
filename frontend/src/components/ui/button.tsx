@@ -10,57 +10,57 @@ const activeCommon = "active:shadow-xsSolid";
 const buttonVariants = cva(
   cn(
     "disabled:opacity-50 disabled:pointer-events-none",
-    "inline-flex mb-1 items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+    "inline-flex mb-1 items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
   ),
   {
     variants: {
       variant: {
         default: cn(
           "bg-primary text-primary-foreground hover:bg-primary/90 shadow-smSolid border border-primary",
-          activeCommon
+          activeCommon,
         ),
         destructive: cn(
           "border shadow-smSolid",
           "bg-[var(--red-9)] hover:bg-[var(--red-10)] dark:bg-[var(--red-6)] dark:hover:bg-[var(--red-7)]",
           "text-[var(--red-1)] dark:text-[var(--red-12)]",
           "border-[var(--red-11)]",
-          activeCommon
+          activeCommon,
         ),
         success: cn(
           "border shadow-smSolid",
           "bg-[var(--grass-9)] hover:bg-[var(--grass-10)] dark:bg-[var(--grass-6)] dark:hover:bg-[var(--grass-7)]",
           "text-[var(--grass-1)] dark:text-[var(--grass-12)]",
           "border-[var(--grass-11)]",
-          activeCommon
+          activeCommon,
         ),
         warn: cn(
           "border shadow-smSolid",
           "bg-[var(--yellow-9)] hover:bg-[var(--yellow-10)] dark:bg-[var(--yellow-6)] dark:hover:bg-[var(--yellow-7)]",
           "text-[var(--yellow-12)]",
           "border-[var(--yellow-11)]",
-          activeCommon
+          activeCommon,
         ),
         action: cn(
           "bg-action text-action-foreground shadow-smSolid",
           "hover:bg-action-hover border border-action",
-          activeCommon
+          activeCommon,
         ),
         outline: cn(
           "border border-slate-500 shadow-smSolid",
           "hover:bg-secondary/90 hover:text-secondary-foreground",
           "hover:border-input",
-          activeCommon
+          activeCommon,
         ),
         secondary: cn(
           "bg-secondary text-secondary-foreground hover:bg-secondary/60",
           "border border-input shadow-smSolid",
-          activeCommon
+          activeCommon,
         ),
         text: cn("opacity-60 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
           "hover:bg-accent hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
           activeCommon,
-          "active:text-accent-foreground"
+          "active:text-accent-foreground",
         ),
         link: "underline-offset-4 hover:underline text-link",
       },
@@ -79,7 +79,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "sm",
     },
-  }
+  },
 );
 
 export interface ButtonProps
@@ -94,13 +94,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         className={cn(
-          buttonVariants({ variant, size, className, disabled: props.disabled })
+          buttonVariants({
+            variant,
+            size,
+            className,
+            disabled: props.disabled,
+          }),
         )}
         ref={ref}
         {...props}
       />
     );
-  }
+  },
 );
 Button.displayName = "Button";
 

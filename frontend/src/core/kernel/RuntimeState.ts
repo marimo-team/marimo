@@ -37,7 +37,7 @@ export class RuntimeState {
     private uiElementRegistry: UIElementRegistry,
     private opts: {
       sendComponentValues: RunRequests["sendComponentValues"];
-    }
+    },
   ) {
     this.runningCount = 0;
     this.componentsToUpdate = new Set();
@@ -85,7 +85,7 @@ export class RuntimeState {
           Array.from(this.componentsToUpdate.values(), (objectId) => ({
             objectId: objectId,
             value: this.uiElementRegistry.lookupValue(objectId),
-          })).filter((update) => update.value !== undefined)
+          })).filter((update) => update.value !== undefined),
         )
         .catch(() => {
           // This happens if the run was failed to register (401, 403, network error, etc.)
@@ -95,7 +95,7 @@ export class RuntimeState {
           this.registerRunEnd();
           // Merge the previous components to update with the current ones
           previousComponentsToUpdate.forEach((objectId) =>
-            this.componentsToUpdate.add(objectId)
+            this.componentsToUpdate.add(objectId),
           );
         });
       this.componentsToUpdate.clear();

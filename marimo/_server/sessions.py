@@ -23,27 +23,37 @@ import sys
 import threading
 from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
+from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._messaging.ops import Alert, serialize
+from marimo._messaging.ops import Alert, MessageOperation, Reload
+from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
 from marimo._runtime.requests import AppMetadata
 from marimo._server.model import (
     ConnectionState,
-    SessionHandler,
+    SessionConsumer,
     SessionMode,
 )
+from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import import_files, print_tabbed
+from marimo._utils.disposable import Disposable
+from marimo._utils.distributor import Distributor
+from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.repr import format_repr
+from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
+
+SessionId = str
 
 
 class QueueManager:
@@ -51,11 +61,18 @@ class QueueManager:
 
     def __init__(self, use_multiprocessing: bool):
         context = mp.get_context("spawn") if use_multiprocessing else None
-        # Control messages for the kernel (run, autocomplete,
-        # set UI element, set config, etc ) are sent through the control queue
-        self.control_queue: QueueType[requests.Request] = (
+
+        # Control messages for the kernel (run, set UI element, set config, etc
+        # ) are sent through the control queue
+        self.control_queue: QueueType[requests.ControlRequest] = (
             context.Queue() if context is not None else queue.Queue()
         )
+
+        # Code completion requests are sent through a separate queue
+        self.completion_queue: QueueType[requests.CompletionRequest] = (
+            context.Queue() if context is not None else queue.Queue()
+        )
+
         # Input messages for the user's Python code are sent through the
         # input queue
         self.input_queue: QueueType[str] = (
@@ -81,6 +98,10 @@ class QueueManager:
             self.input_queue.cancel_join_thread()
             self.input_queue.close()
 
+        if isinstance(self.completion_queue, MPQueue):
+            self.completion_queue.cancel_join_thread()
+            self.completion_queue.close()
+
 
 class KernelManager:
     def __init__(
@@ -94,8 +115,8 @@ class KernelManager:
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
-        self._read_conn: Optional[connection.Connection] = None
         self.app_metadata = app_metadata
+        self._read_conn: Optional[TypedConnection[KernelMessage]] = None
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -110,6 +131,7 @@ class KernelManager:
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
@@ -130,7 +152,8 @@ class KernelManager:
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(*args: Any) -> None:
                 runtime.launch_kernel(*args)
-                self.kernel_connection.close()
+                if not self.kernel_connection.closed:
+                    self.kernel_connection.close()
 
             # install formatter import hooks, which will be shared by all
             # threads (in edit mode, the single kernel process installs
@@ -143,6 +166,7 @@ class KernelManager:
                 target=launch_kernel_with_cleanup,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
@@ -157,7 +181,7 @@ class KernelManager:
         self.kernel_task.start()  # type: ignore
         # First thing kernel does is connect to the socket, so it's safe to
         # call accept
-        self._read_conn = listener.accept()
+        self._read_conn = TypedConnection[KernelMessage].of(listener.accept())
 
     def is_alive(self) -> bool:
         return self.kernel_task is not None and self.kernel_task.is_alive()
@@ -184,7 +208,7 @@ class KernelManager:
             self.queue_manager.control_queue.put(requests.StopRequest())
 
     @property
-    def kernel_connection(self) -> connection.Connection:
+    def kernel_connection(self) -> TypedConnection[KernelMessage]:
         assert self._read_conn is not None, "connection not started"
         return self._read_conn
 
@@ -201,7 +225,7 @@ class Session:
     @classmethod
     def create(
         cls,
-        session_handler: SessionHandler,
+        session_consumer: SessionConsumer,
         mode: SessionMode,
         app: InternalApp,
         app_metadata: AppMetadata,
@@ -212,49 +236,115 @@ class Session:
         kernel_manager = KernelManager(
             queue_manager, mode, configs, app_metadata
         )
-        return cls(session_handler, queue_manager, kernel_manager)
+        return cls(app, session_consumer, queue_manager, kernel_manager)
 
     def __init__(
         self,
-        session_handler: SessionHandler,
+        app: InternalApp,
+        session_consumer: SessionConsumer,
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
         self._queue_manager: QueueManager
-        self.session_handler = session_handler
+        self.app = app
+        # This can be optional in case a consumer gets disconnected,
+        # and we want to continue the session without a consumer.
+        self.session_consumer: Optional[SessionConsumer] = None
         self._queue_manager = queue_manager
         self.kernel_manager = kernel_manager
+        self.session_view = SessionView()
+
         self.kernel_manager.start_kernel()
-
-        def check_alive() -> None:
-            if not self.kernel_manager.is_alive():
-                self.close()
-                print()
-                print_tabbed(
-                    "\033[31mThe Python kernel died unexpectedly.\033[0m"
-                )
-                print()
-                sys.exit()
-
-        self.check_alive = check_alive
-        self.session_handler.on_start(
-            connection=self.kernel_manager.kernel_connection,
-            check_alive=check_alive,
+        # Reads from the kernel connection and distributes the
+        # messages to each subscriber.
+        self.message_distributor = Distributor[KernelMessage](
+            self.kernel_manager.kernel_connection
         )
+        self.message_distributor.add_consumer(
+            lambda msg: self.session_view.add_raw_operation(msg[1])
+        )
+        self.connect_consumer(session_consumer)
+        self.message_distributor.start()
+
+    def _check_alive(self) -> None:
+        if not self.kernel_manager.is_alive():
+            LOGGER.debug("Closing session because kernel died")
+            self.close()
+            print()
+            print_tabbed("\033[31mThe Python kernel died unexpectedly.\033[0m")
+            print()
+            sys.exit()
 
     def try_interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
 
-    def put_request(self, request: requests.Request) -> None:
+    def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put(request)
+        self.session_view.add_control_request(request)
+
+    def put_completion_request(
+        self, request: requests.CompletionRequest
+    ) -> None:
+        self._queue_manager.completion_queue.put(request)
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put(text)
+        self.session_view.add_stdin(text)
+
+    def disconnect_consumer(self) -> None:
+        """Stop the session consumer but keep the kernel running"""
+        assert (
+            self.session_consumer is not None
+        ), "Expecting a session consumer to pause"
+        LOGGER.debug("Disconnecting session consumer")
+        self.session_consumer.on_stop()
+        self.unsubscribe_consumer()
+        self.session_consumer = None
+
+    def connect_consumer(self, session_consumer: SessionConsumer) -> None:
+        """Connect or resume the session with a new consumer"""
+        assert (
+            self.session_consumer is None
+        ), "Expecting no existing session consumer"
+
+        self.session_consumer = session_consumer
+
+        subscribe = self.session_consumer.on_start(self._check_alive)
+        self.unsubscribe_consumer = self.message_distributor.add_consumer(
+            subscribe
+        )
+
+    def get_current_state(self) -> SessionView:
+        return self.session_view
+
+    def connection_state(self) -> ConnectionState:
+        if self.session_consumer is None:
+            return ConnectionState.ORPHANED
+        return self.session_consumer.connection_state()
+
+    async def write_operation(self, operation: MessageOperation) -> None:
+        self.session_view.add_operation(operation)
+        if self.session_consumer is not None:
+            await self.session_consumer.write_operation(operation)
 
     def close(self) -> None:
-        self.session_handler.on_stop(self.kernel_manager.kernel_connection)
+        # Could be no consumer if we already disconnect, but the session
+        # is running in the background
+        if self.session_consumer is not None:
+            self.session_consumer.on_stop()
+        self.message_distributor.stop()
         self.kernel_manager.close_kernel()
+        self.unsubscribe_consumer()
+
+    def __repr__(self) -> str:
+        return format_repr(
+            self,
+            {
+                "connection_state": self.connection_state(),
+                "consumer": self.session_consumer,
+            },
+        )
 
 
 class SessionManager:
@@ -273,27 +363,25 @@ class SessionManager:
         self,
         filename: Optional[str],
         mode: SessionMode,
-        port: int,
         development_mode: bool,
         quiet: bool,
         include_code: bool,
+        lsp_server: LspServer,
     ) -> None:
         self.filename = filename
         self.mode = mode
-        self.port = port
-        self.lsp_port = int(self.port * 10)
-        self.lsp_process: Optional[subprocess.Popen[bytes]] = None
         self.development_mode = development_mode
         self.quiet = quiet
         self.sessions: dict[str, Session] = {}
-        self.app_config: _AppConfig
         self.include_code = include_code
+        self.lsp_server = lsp_server
+        self.watcher: Optional[FileWatcher] = None
 
-        self.app = self.load_app()
-        self.app_config = self.app.config
+        app = self.load_app()
+        self.app_config = app.config
 
         self.app_metadata = AppMetadata(
-            filename=self._get_filename(),
+            filename=self._get_file_path(),
         )
 
         if mode == SessionMode.EDIT:
@@ -305,7 +393,7 @@ class SessionManager:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
             self.server_token = str(
-                hash("".join(code for code in self.app.cell_manager.codes()))
+                hash("".join(code for code in app.cell_manager.codes()))
             )
 
     def load_app(self) -> InternalApp:
@@ -331,29 +419,81 @@ class SessionManager:
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
 
-        Should be called if an api call renamed the current file on disk.
+        Should be called if an api call renamed the current file on disk,
+        or opened another file.
         """
         self.filename = filename
-        self.app_metadata.filename = self._get_filename()
+        self.app_metadata.filename = self._get_file_path()
 
     def create_session(
-        self, session_id: str, session_handler: SessionHandler
+        self, session_id: SessionId, session_consumer: SessionConsumer
     ) -> Session:
         """Create a new session"""
-        LOGGER.debug("creating new session for id %s", session_id)
+        LOGGER.debug("Creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            s = Session.create(
-                session_handler=session_handler,
+            self.sessions[session_id] = Session.create(
+                session_consumer=session_consumer,
                 mode=self.mode,
+                # When we create a session,
+                # we load the app from the file
                 app=self.load_app(),
                 app_metadata=self.app_metadata,
             )
-            self.sessions[session_id] = s
-            return s
-        else:
-            return self.sessions[session_id]
+        return self.sessions[session_id]
 
-    def _get_filename(self) -> Optional[str]:
+    def get_session(self, session_id: SessionId) -> Optional[Session]:
+        return self.sessions.get(session_id)
+
+    def maybe_resume_session(
+        self, new_session_id: SessionId
+    ) -> Optional[Session]:
+        """
+        Try to resume a session if one is resumable.
+        If it is resumable, return the session and update the session id.
+        """
+
+        # If in run mode, only resume the session if it is orphaned and has
+        # the same session id, otherwise we want to create a new session
+        if self.mode == SessionMode.RUN:
+            maybe_session = self.get_session(new_session_id)
+            if (
+                maybe_session
+                and maybe_session.connection_state()
+                == ConnectionState.ORPHANED
+            ):
+                LOGGER.debug(
+                    "Found a resumable RUN session: prev_id=%s",
+                    new_session_id,
+                )
+                return maybe_session
+            return None
+
+        if len(self.sessions) == 0:
+            return None
+        if len(self.sessions) > 1:
+            raise Exception("Only one session should exist while editing")
+
+        # Should only return an orphaned session
+        (session_id, session) = list(self.sessions.items())[0]
+        connection_state = session.connection_state()
+        if connection_state == ConnectionState.ORPHANED:
+            LOGGER.debug(
+                f"Found a resumable EDIT session: prev_id={session_id}"
+            )
+            # Set new session and remove old session
+            self.sessions[new_session_id] = session
+            # If the ID is the same, we don't need to delete the old session
+            if new_session_id != session_id:
+                del self.sessions[session_id]
+            return session
+
+        LOGGER.debug(
+            "Session is not resumable, current state: %s",
+            connection_state,
+        )
+        return None
+
+    def _get_file_path(self) -> Optional[str]:
         if self.filename is None:
             return None
         try:
@@ -361,75 +501,31 @@ class SessionManager:
         except AttributeError:
             return None
 
-    def get_session(self, session_id: str) -> Optional[Session]:
-        if session_id in self.sessions:
-            return self.sessions[session_id]
-        return None
-
     def any_clients_connected(self) -> bool:
         """Returns True if at least one client has an open socket."""
         for session in self.sessions.values():
-            if (
-                session.session_handler.connection_state()
-                == ConnectionState.OPEN
-            ):
+            if session.connection_state() == ConnectionState.OPEN:
                 return True
         return False
 
-    def start_lsp_server(self) -> None:
+    async def start_lsp_server(self) -> None:
         """Starts the lsp server if it is not already started.
 
         Doesn't start in run mode.
         """
-        if self.lsp_process is not None or self.mode == SessionMode.RUN:
-            LOGGER.debug("LSP server already started")
+        if self.mode == SessionMode.RUN:
+            LOGGER.warn("Cannot start LSP server in run mode")
             return
 
-        binpath = shutil.which("node")
-        if binpath is None:
-            LOGGER.error("Node.js not found; cannot start LSP server.")
+        alert = self.lsp_server.start()
+
+        if alert is not None:
             for _, session in self.sessions.items():
-                session.session_handler.write_operation(
-                    Alert.name,
-                    serialize(
-                        Alert(
-                            title="Github Copilot: Connection Error",
-                            description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
-                            variant="danger",
-                        )
-                    ),
-                )
+                await session.write_operation(alert)
             return
 
-        cmd = None
-        try:
-            LOGGER.debug("Starting LSP server at port %s...", self.lsp_port)
-            lsp_bin = os.path.join(
-                str(import_files("marimo").joinpath("_lsp")),
-                "index.js",
-            )
-            cmd = f"node {lsp_bin} --port {self.lsp_port}"
-            LOGGER.debug("... running command: %s", cmd)
-            self.lsp_process = subprocess.Popen(
-                cmd.split(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
-            LOGGER.debug(
-                "... node process return code (`None` means success): %s",
-                self.lsp_process.returncode,
-            )
-            LOGGER.debug("Started LSP server at port %s", self.lsp_port)
-        except Exception as e:
-            LOGGER.error(
-                "When starting language server (%s), got error: %s",
-                cmd,
-                e,
-            )
-
-    def close_session(self, session_id: str) -> None:
-        LOGGER.debug("closing session %s", session_id)
+    def close_session(self, session_id: SessionId) -> None:
+        LOGGER.debug("Closing session %s", session_id)
         session = self.get_session(session_id)
         if session is not None:
             session.close()
@@ -445,12 +541,101 @@ class SessionManager:
     def shutdown(self) -> None:
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
-        if self.lsp_process is not None:
-            self.lsp_process.terminate()
+        self.lsp_server.stop()
+        if self.watcher:
+            self.watcher.stop()
 
     def should_send_code_to_frontend(self) -> bool:
         """Returns True if the server can send messages to the frontend."""
         return self.mode == SessionMode.EDIT or self.include_code
+
+    def start_file_watcher(self) -> Disposable:
+        """Starts the file watcher if it is not already started"""
+        if self.mode == SessionMode.EDIT:
+            # We don't support file watching in edit mode yet
+            # as there are some edge cases that would need to be handled.
+            # - what to do if the file is deleted, or is renamed
+            # - do we re-run the app or just show the changed code
+            # - we don't properly handle saving from the frontend
+            LOGGER.warn("Cannot start file watcher in edit mode")
+            return Disposable.empty()
+
+        file_path = self._get_file_path()
+        if file_path is None:
+            LOGGER.warn("Cannot start file watcher without a filename")
+            return Disposable.empty()
+
+        async def on_file_changed(path: Path) -> None:
+            LOGGER.debug(f"{path} was modified")
+            for _, session in self.sessions.items():
+                session.app = self.load_app()
+                await session.write_operation(Reload())
+
+        LOGGER.debug("Starting file watcher for %s", file_path)
+        self.watcher = FileWatcher.create(Path(file_path), on_file_changed)
+        self.watcher.start()
+        return Disposable(self.watcher.stop)
+
+
+class LspServer:
+    def __init__(self, port: int) -> None:
+        self.port = port
+        self.process: Optional[subprocess.Popen[bytes]] = None
+
+    def start(self) -> Optional[Alert]:
+        if self.process is not None:
+            LOGGER.debug("LSP server already started")
+            return None
+
+        binpath = shutil.which("node")
+        if binpath is None:
+            LOGGER.error("Node.js not found; cannot start LSP server.")
+            return Alert(
+                title="Github Copilot: Connection Error",
+                description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
+                variant="danger",
+            )
+
+        cmd = None
+        try:
+            LOGGER.debug("Starting LSP server at port %s...", self.port)
+            lsp_bin = os.path.join(
+                str(import_files("marimo").joinpath("_lsp")),
+                "index.js",
+            )
+            cmd = f"node {lsp_bin} --port {self.port}"
+            LOGGER.debug("... running command: %s", cmd)
+            self.process = subprocess.Popen(
+                cmd.split(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+            )
+            LOGGER.debug(
+                "... node process return code (`None` means success): %s",
+                self.process.returncode,
+            )
+            LOGGER.debug("Started LSP server at port %s", self.port)
+        except Exception as e:
+            LOGGER.error(
+                "When starting language server (%s), got error: %s",
+                cmd,
+                e,
+            )
+            self.process = None
+
+        return None
+
+    def is_running(self) -> bool:
+        return self.process is not None
+
+    def stop(self) -> None:
+        if self.process is not None:
+            self.process.terminate()
+            self.process = None
+            LOGGER.debug("Stopped LSP server at port %s", self.port)
+        else:
+            LOGGER.debug("LSP server not running")
 
 
 def initialize_manager(
@@ -466,10 +651,10 @@ def initialize_manager(
     SESSION_MANAGER = SessionManager(
         filename=filename,
         mode=mode,
-        port=port,
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
+        lsp_server=LspServer(port * 10),
     )
     return SESSION_MANAGER
 

@@ -8,14 +8,14 @@ from threading import Condition
 from typing import TYPE_CHECKING, Literal
 
 from marimo._ast.cell import CellId_t
-from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.cell_output import CellChannel, CellOutput
 
 if TYPE_CHECKING:
     from typing import Optional
 
     from marimo._messaging.streams import Stream
 
-StreamT = Literal["stdout", "stderr", "stdin"]
+StreamT = Literal[CellChannel.STDERR, CellChannel.STDOUT, CellChannel.STDIN]
 
 # Flush console outputs every 10ms
 TIMEOUT_S = 0.01

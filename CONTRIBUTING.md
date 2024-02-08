@@ -54,11 +54,13 @@ make check
 ```
 
 **Frontend.**
+
 ```bash
 make fe-check
 ```
 
 **Python.**
+
 ```bash
 make py-check
 ```
@@ -131,12 +133,11 @@ npx playwright test <filename> --ui
 npx playwright test cells.test.ts --ui
 ```
 
-or 
+or
 
 ```bash
 npx playwright test --debug <filename>
 ```
-
 
 ## Storybook
 
@@ -197,15 +198,9 @@ marimo server. This means that:
 
 1. You will want to run your marimo server with `--headless` so it does not open a new browser tab, as it will
    interfere with the frontend dev server.
-2. You should open an existing notebook instead of creating a new one, as the
-   frontend dev server will not be able to create or save notebooks.
-3. marimo normally sets the filename, mode, and config. These will be
-   mocked/disabled when running in the frontend in dev mode.
-4. The tradeoff of using the frontend dev server is that it is faster to
+2. The tradeoff of using the frontend dev server is that it is faster to
    develop on the frontend, but you will not be able to test the frontend in
-  the same way that it will be used in production.
-
-
+   the same way that it will be used in production.
 
 ## Editor settings
 

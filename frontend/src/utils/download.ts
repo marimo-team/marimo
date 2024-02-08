@@ -4,7 +4,7 @@ import { toast } from "@/components/ui/use-toast";
 
 export async function downloadHTMLAsImage(
   element: HTMLElement,
-  filename: string
+  filename: string,
 ) {
   // Capture current scroll position
   const appEl = document.getElementById("App");
@@ -16,7 +16,7 @@ export async function downloadHTMLAsImage(
     const dataUrl = await toPng(element);
     downloadByURL(
       dataUrl,
-      filename.endsWith(".png") ? filename : `${filename}.png`
+      filename.endsWith(".png") ? filename : `${filename}.png`,
     );
   } catch {
     toast({

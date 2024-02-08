@@ -8,6 +8,6 @@ import pypandoc
 def md2rst(app, what, name, obj, options, lines):
     del app, what, name, obj, options
     md = "\n".join(lines)
-    rst = pypandoc.convert_text(md, "rst", format="md")
+    rst = pypandoc.convert_text(source=md, format="md", to="rst")
     lines.clear()
     lines += rst.splitlines()

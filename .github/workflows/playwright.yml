@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request: {}
 
+env:
+  # Turbocache
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: marimo
+  TURBO_API: "https://cache.turbocache.build"
+  TURBO_RUN_SUMMARY: true
+
 jobs:
   test:
     timeout-minutes: 16
@@ -27,7 +34,6 @@ jobs:
         run: |
           echo "[experimental]" > .marimo.toml
           echo "layouts=true" >> .marimo.toml
-          echo "static_export=true" >> .marimo.toml
 
       - uses: pnpm/action-setup@v2
         with:
@@ -40,6 +46,8 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "**/pnpm-lock.yaml"
 
+      - uses: turbocache-build/turbocache-action@v1
+
       - name: 📦 Build frontend
         run: make fe
 
@@ -47,6 +55,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: "pip"
 
       - name: 🐍 Install marimo
         run: |

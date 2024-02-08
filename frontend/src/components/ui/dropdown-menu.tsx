@@ -13,6 +13,7 @@ import {
 import { cn } from "@/utils/cn";
 import React from "react";
 import { Check, ChevronRight, Circle } from "lucide-react";
+import { VariantProps } from "class-variance-authority";
 
 const DropdownMenu = DropdownMenuPrimitive.Root;
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -48,7 +49,7 @@ const DropdownMenuSubContent = React.forwardRef<
     className={cn(
       menuContentCommon({ subcontent: true }),
       "animate-in data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1",
-      className
+      className,
     )}
     {...props}
   />
@@ -67,7 +68,7 @@ const DropdownMenuContent = React.forwardRef<
       className={cn(
         menuContentCommon(),
         "animate-in data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        className
+        className,
       )}
       {...props}
     />
@@ -77,13 +78,12 @@ DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
-    inset?: boolean;
-  }
->(({ className, inset, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> &
+    VariantProps<typeof menuItemVariants>
+>(({ className, inset, variant, ...props }, ref) => (
   <DropdownMenuPrimitive.Item
     ref={ref}
-    className={menuItemVariants({ className, inset })}
+    className={menuItemVariants({ className, inset, variant })}
     {...props}
   />
 ));

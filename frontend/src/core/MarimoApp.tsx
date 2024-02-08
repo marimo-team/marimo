@@ -51,7 +51,7 @@ export const MarimoApp: React.FC = () => {
             <CssVariables
               variables={{
                 "--marimo-code-editor-font-size": toRem(
-                  userConfig.display.code_editor_font_size
+                  userConfig.display.code_editor_font_size,
                 ),
               }}
             >
