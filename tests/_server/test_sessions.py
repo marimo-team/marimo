@@ -20,11 +20,13 @@ def test_queue_manager() -> None:
     # Test with multiprocessing queues
     queue_manager_mp = QueueManager(use_multiprocessing=True)
     assert isinstance(queue_manager_mp.control_queue, MPQueue)
+    assert isinstance(queue_manager_mp.completion_queue, MPQueue)
     assert isinstance(queue_manager_mp.input_queue, MPQueue)
 
     # Test with threading queues
     queue_manager_thread = QueueManager(use_multiprocessing=False)
     assert isinstance(queue_manager_thread.control_queue, queue.Queue)
+    assert isinstance(queue_manager_thread.completion_queue, queue.Queue)
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
 
 

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import html
-import queue
 from typing import cast
 
 import jedi  # type: ignore # noqa: F401
@@ -15,6 +14,7 @@ from marimo._messaging.streams import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.requests import CompletionRequest
+from marimo._server.types import QueueType
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
@@ -189,15 +189,26 @@ def _write_no_completions(stream: Stream, completion_id: str) -> None:
     _write_completion_result(stream, completion_id, 0, [])
 
 
+def _drain_queue(
+    completion_queue: QueueType[CompletionRequest],
+) -> CompletionRequest:
+    """Drain the queue of completion requests, returning the most recent one"""
+
+    request = completion_queue.get()
+    while not completion_queue.empty():
+        request = completion_queue.get()
+    return request
+
+
 def complete(
-    queue: queue.Queue[CompletionRequest],
+    completion_queue: QueueType[CompletionRequest],
     graph: dataflow.DirectedGraph,
     stream: Stream,
 ) -> None:
     """Code completion worker"""
 
     while True:
-        request = queue.get()
+        request = _drain_queue(completion_queue)
         if not request.document.strip():
             _write_no_completions(stream, request.completion_id)
             continue

@@ -121,13 +121,15 @@ def test_session_view_variable_values() -> None:
 
 def test_ui_values():
     session_view = SessionView()
-    session_view.add_request(SetUIElementValueRequest([("test_ui", 123)]))
+    session_view.add_control_request(
+        SetUIElementValueRequest([("test_ui", 123)])
+    )
     assert "test_ui" in session_view.ui_values
     assert session_view.ui_values["test_ui"] == 123
 
     # Can add multiple values
     # and can overwrite values
-    session_view.add_request(
+    session_view.add_control_request(
         SetUIElementValueRequest([("test_ui2", 456), ("test_ui", 789)])
     )
     assert "test_ui2" in session_view.ui_values
@@ -136,7 +138,7 @@ def test_ui_values():
     assert session_view.ui_values["test_ui"] == 789
 
     # Can add from CreationRequest
-    session_view.add_request(
+    session_view.add_control_request(
         CreationRequest(
             execution_requests=(),
             set_ui_element_value_request=SetUIElementValueRequest(
@@ -149,7 +151,7 @@ def test_ui_values():
 
 def test_last_run_code():
     session_view = SessionView()
-    session_view.add_request(
+    session_view.add_control_request(
         ExecuteMultipleRequest(
             execution_requests=(
                 ExecutionRequest(cell_id=cell_id, code="print('hello')"),
@@ -159,7 +161,7 @@ def test_last_run_code():
     assert session_view.last_executed_code[cell_id] == "print('hello')"
 
     # Can overwrite values and add multiple
-    session_view.add_request(
+    session_view.add_control_request(
         ExecuteMultipleRequest(
             execution_requests=(
                 ExecutionRequest(cell_id=cell_id, code="print('hello world')"),
@@ -173,7 +175,7 @@ def test_last_run_code():
     assert session_view.last_executed_code["cell_2"] == "print('hello world')"
 
     # Can add from CreationRequest
-    session_view.add_request(
+    session_view.add_control_request(
         CreationRequest(
             execution_requests=(
                 ExecutionRequest(cell_id=cell_id, code="print('hello')"),

@@ -73,7 +73,7 @@ class ConfigurationRequest:
     config: str
 
 
-Request = Union[
+ControlRequest = Union[
     ExecuteMultipleRequest,
     CreationRequest,
     DeleteRequest,
@@ -81,6 +81,5 @@ Request = Union[
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
-    CompletionRequest,
     ConfigurationRequest,
 ]

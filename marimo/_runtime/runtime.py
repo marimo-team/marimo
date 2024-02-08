@@ -9,7 +9,6 @@ import io
 import itertools
 import multiprocessing as mp
 import os
-import queue
 import signal
 import sys
 import threading
@@ -66,12 +65,12 @@ from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
     ConfigurationRequest,
+    ControlRequest,
     CreationRequest,
     DeleteRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
     FunctionCallRequest,
-    Request,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
@@ -221,12 +220,19 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
-        self.completion_thread: Optional[threading.Thread] = None
-        self.completion_queue: queue.Queue[CompletionRequest] = queue.Queue()
-
         # an empty string represents the current directory
         exec("import sys; sys.path.append('')", self.globals)
         exec("import marimo as __marimo__", self.globals)
+
+    def start_completion_worker(
+        self, completion_queue: QueueType[CompletionRequest]
+    ) -> None:
+        """Must be called after context is initialized"""
+        threading.Thread(
+            target=complete,
+            args=(completion_queue, self.graph, get_context().stream),
+            daemon=True,
+        ).start()
 
     @contextlib.contextmanager
     def _install_execution_context(
@@ -1043,17 +1049,6 @@ class Kernel:
             None,
         )
 
-    def complete(self, request: CompletionRequest) -> None:
-        """Code completion"""
-        if self.completion_thread is None:
-            self.completion_thread = threading.Thread(
-                target=complete,
-                args=(self.completion_queue, self.graph, get_context().stream),
-            )
-            self.completion_thread.start()
-
-        self.completion_queue.put(request)
-
     def instantiate(self, request: CreationRequest) -> None:
         """Instantiate the kernel with cells and UIElement initial values
 
@@ -1075,7 +1070,8 @@ class Kernel:
 
 
 def launch_kernel(
-    control_queue: QueueType[Request],
+    control_queue: QueueType[ControlRequest],
+    completion_queue: QueueType[CompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
@@ -1114,12 +1110,12 @@ def launch_kernel(
 
     kernel = Kernel(
         cell_configs=configs,
+        app_metadata=app_metadata,
         stream=stream,
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
-        app_metadata=app_metadata,
     )
     initialize_context(
         kernel=kernel,
@@ -1127,6 +1123,9 @@ def launch_kernel(
     )
 
     if is_edit_mode:
+        # completions only provided in edit mode
+        kernel.start_completion_worker(completion_queue)
+
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
@@ -1225,8 +1224,6 @@ def launch_kernel(
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)
-        elif isinstance(request, CompletionRequest):
-            kernel.complete(request)
         elif isinstance(request, ConfigurationRequest):
             # Kernel runs in a separate process than server in edit mode,
             # and configuration is only allowed in edit mode. As of
