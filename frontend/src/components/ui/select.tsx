@@ -11,6 +11,7 @@ import {
 
 import { cn } from "@/utils/cn";
 import { selectStyles } from "./native-select";
+import { VariantProps } from "class-variance-authority";
 
 const Select = SelectPrimitive.Root;
 
@@ -22,31 +23,37 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
     onClear?: () => void;
-  }
->(({ className, children, onClear, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(selectStyles({}), "mb-0", className)}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild={true}>
-      {onClear ? (
-        <span
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onClear();
-          }}
-        >
-          <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
-        </span>
-      ) : (
-        <ChevronDown className="h-4 w-4 opacity-50" />
-      )}
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+    hideChevron?: boolean;
+  } & VariantProps<typeof selectStyles>
+>(
+  (
+    { className, children, onClear, variant, hideChevron = false, ...props },
+    ref,
+  ) => (
+    <SelectPrimitive.Trigger
+      ref={ref}
+      className={cn(selectStyles({ variant }), "mb-0", className)}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild={true}>
+        {onClear ? (
+          <span
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClear();
+            }}
+          >
+            <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+          </span>
+        ) : (
+          !hideChevron && <ChevronDown className="h-4 w-4 opacity-50" />
+        )}
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  ),
+);
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectContent = React.forwardRef<
@@ -116,7 +123,12 @@ const SelectItem = React.forwardRef<
         <CheckIcon className="h-3 w-3" />
       </SelectPrimitive.ItemIndicator>
     </span>
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    <SelectPrimitive.ItemText
+      asChild={typeof children === "string" ? undefined : true}
+      className="flex w-full flex-1"
+    >
+      {children}
+    </SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;

@@ -11,6 +11,7 @@ __all__ = [
     "button",
     "checkbox",
     "code_editor",
+    "data_explorer",
     "date",
     "dataframe",
     "dictionary",
@@ -34,6 +35,7 @@ __all__ = [
 from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch
+from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
 from marimo._plugins.ui._impl.dictionary import dictionary
 from marimo._plugins.ui._impl.input import (

@@ -14,3 +14,16 @@ div:has(> marimo-ui-element > marimo-vega) {
 .vega-embed canvas {
   @apply rounded-md;
 }
+
+.vega-embed .vega-actions.vega-actions {
+  /* Otherwise overflows */
+  right: 3px;
+
+  &::after {
+    right: 3px;
+  }
+
+  &::before {
+    right: 2px;
+  }
+}

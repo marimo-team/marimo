@@ -73,6 +73,7 @@
     "cmdk": "^0.2.1",
     "codemirror-extension-inline-suggestion": "^0.0.1",
     "codemirror-languageserver": "^1.11.0",
+    "compassql": "^0.21.2",
     "cssnano": "^6.0.3",
     "date-fns": "^3.3.1",
     "dedent": "^1.5.1",

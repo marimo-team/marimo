@@ -12,6 +12,7 @@
   chart
   code_editor
   dataframe
+  data_explorer
   date
   dictionary
   dropdown
@@ -43,6 +44,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.chart
   marimo.ui.code_editor
   marimo.ui.dataframe
+  marimo.ui.data_explorer
   marimo.ui.date
   marimo.ui.dictionary
   marimo.ui.dropdown

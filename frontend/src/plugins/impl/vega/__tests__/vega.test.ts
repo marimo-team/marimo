@@ -35,6 +35,31 @@ active,username,id
     `);
   });
 
+  it("should parse csv data with NaN", async () => {
+    const csvData = `
+user,age
+Alice,30.0
+Bob,NaN
+`.trim();
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const data = await vegaLoadData(csvData, { type: "csv", parse: "auto" });
+
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "age": "30.0",
+          "user": "Alice",
+        },
+        {
+          "age": "NaN",
+          "user": "Bob",
+        },
+      ]
+    `);
+  });
+
   it("should parse csv data with floats", async () => {
     const csvData = `
 yield_error,yield_center
