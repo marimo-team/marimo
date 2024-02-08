@@ -59,13 +59,25 @@ SessionId = str
 class QueueManager:
     """Manages queues for a session."""
 
-    def __init__(self, use_multiprocessing: bool):
+    def __init__(self, use_multiprocessing: bool, provide_completions: bool):
         context = mp.get_context("spawn") if use_multiprocessing else None
-        # Control messages for the kernel (run, autocomplete,
-        # set UI element, set config, etc ) are sent through the control queue
-        self.control_queue: QueueType[requests.Request] = (
+
+        # Control messages for the kernel (run, set UI element, set config, etc
+        # ) are sent through the control queue
+        self.control_queue: QueueType[requests.ControlRequest] = (
             context.Queue() if context is not None else queue.Queue()
         )
+
+        # Code completion requests are sent through a separate queue
+        if provide_completions:
+            self.completion_queue: QueueType[
+                requests.CompletionRequest
+            ] | None = (
+                context.Queue() if context is not None else queue.Queue()
+            )
+        else:
+            self.completion_queue = None
+
         # Input messages for the user's Python code are sent through the
         # input queue
         self.input_queue: QueueType[str] = (
@@ -120,6 +132,7 @@ class KernelManager:
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
@@ -154,6 +167,7 @@ class KernelManager:
                 target=launch_kernel_with_cleanup,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
                     is_edit_mode,
@@ -219,7 +233,10 @@ class Session:
     ) -> Session:
         configs = app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
-        queue_manager = QueueManager(use_multiprocessing)
+        provide_completions = mode == SessionMode.EDIT
+        queue_manager = QueueManager(
+            use_multiprocessing, provide_completions=provide_completions
+        )
         kernel_manager = KernelManager(
             queue_manager, mode, configs, app_metadata
         )
@@ -266,9 +283,15 @@ class Session:
     def try_interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
 
-    def put_request(self, request: requests.Request) -> None:
+    def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put(request)
-        self.session_view.add_request(request)
+        self.session_view.add_control_request(request)
+
+    def put_completion_request(
+        self, request: requests.CompletionRequest
+    ) -> None:
+        if self._queue_manager.completion_queue is not None:
+            self._queue_manager.completion_queue.put(request)
 
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put(text)

@@ -15,10 +15,10 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._runtime.requests import (
+    ControlRequest,
     CreationRequest,
     ExecuteMultipleRequest,
     ExecutionRequest,
-    Request,
     SetUIElementValueRequest,
 )
 from marimo._utils.parse_dataclass import parse_raw
@@ -59,7 +59,7 @@ class SessionView:
         operation = parse_raw({"operation": raw_operation}, _Container)
         self.add_operation(operation.operation)
 
-    def add_request(self, request: Request) -> None:
+    def add_control_request(self, request: ControlRequest) -> None:
         if isinstance(request, SetUIElementValueRequest):
             for object_id, value in request.ids_and_values:
                 self._add_ui_value(object_id, value)
