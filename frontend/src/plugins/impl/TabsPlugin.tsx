@@ -54,7 +54,6 @@ const TabComponent = ({
 }: PropsWithChildren<TabComponentProps>): JSX.Element => {
   // We use the index since labels are raw HTML and can't be used as keys
   const selectedTab = value || "0";
-  console.log(value);
   return (
     <Tabs value={selectedTab} onValueChange={setValue}>
       <TabsList>
