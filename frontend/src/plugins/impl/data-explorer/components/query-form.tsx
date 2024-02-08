@@ -87,7 +87,7 @@ export const QueryForm: React.FC<Props> = ({ schema, mark }) => {
   return (
     <div className="grid gap-x-2 gap-y-4 justify-items-start py-3 pl-4 pr-2 bg-[var(--slate-1)] border rounded items-center grid-template-columns-[repeat(2,_minmax(0,_min-content))] self-start">
       <span className="col-span-2 flex items-center justify-between w-full">
-        <div className="text-base font-semibold">Encodings</div>
+        <div className="text-sm font-semibold">Encodings</div>
       </span>
       {ENCODINGS.map(renderChannel)}
       <span className="col-span-2 text-sm font-semibold w-full border-t border-divider flex items-center justify-between pt-2 pr-[30px]">
