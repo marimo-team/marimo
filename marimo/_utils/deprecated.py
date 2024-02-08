@@ -34,7 +34,7 @@ def deprecated(reason: str) -> Callable[[Any], Any]:
             warnings.simplefilter(
                 "default", DeprecationWarning
             )  # reset filter
-            return func(*args, **kwargs)
+            return func(*args, **kwargs)  # type: ignore[no-any-return]
 
         return new_func
 
