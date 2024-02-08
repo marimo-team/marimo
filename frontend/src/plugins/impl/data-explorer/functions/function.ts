@@ -12,7 +12,7 @@ type FieldQueryFunctionMixins = Pick<
 >;
 
 export function toFieldQueryFunctionMixins(
-  fn: FieldFunction | undefined
+  fn: FieldFunction | undefined,
 ): FieldQueryFunctionMixins {
   if (!fn) {
     return {};
@@ -63,7 +63,7 @@ export const MULTI_TEMPORAL_FUNCTIONS: FieldFunction[] = [
 ];
 
 export function fromFieldQueryFunctionMixins(
-  fieldQuery: FieldQueryFunctionMixins
+  fieldQuery: FieldQueryFunctionMixins,
 ): FieldFunction | undefined {
   const { aggregate, bin, timeUnit } = fieldQuery;
   if (bin) {

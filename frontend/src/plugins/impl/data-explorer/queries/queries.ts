@@ -58,7 +58,7 @@ function getFeaturesForRelatedViewRules(spec: SpecQuery) {
 
 export function allRelatedViewResults(
   query: Query,
-  schema: Schema
+  schema: Schema,
 ): Partial<ResultingCharts> {
   const charts: Partial<ResultingCharts> = {};
 
@@ -69,7 +69,7 @@ export function allRelatedViewResults(
     charts.addQuantitativeField = relatedViewResult(
       addQuantitativeField,
       query,
-      schema
+      schema,
     );
   }
 
@@ -77,7 +77,7 @@ export function allRelatedViewResults(
     charts.addCategoricalField = relatedViewResult(
       addCategoricalField,
       query,
-      schema
+      schema,
     );
   }
 
@@ -85,7 +85,7 @@ export function allRelatedViewResults(
     charts.addTemporalField = relatedViewResult(
       addTemporalField,
       query,
-      schema
+      schema,
     );
   }
 
@@ -100,7 +100,7 @@ export function allRelatedViewResults(
 
 export function mainViewResult(
   mainQuery: Query,
-  schema: Schema
+  schema: Schema,
 ): Result | undefined {
   if (isQueryEmpty(mainQuery.spec)) {
     return {
@@ -123,7 +123,7 @@ export function mainViewResult(
 export function relatedViewResult(
   queryCreator: QueryCreator,
   mainQuery: Query,
-  schema: Schema
+  schema: Schema,
 ): Result {
   const query = queryCreator.createQuery(mainQuery);
 
@@ -139,7 +139,7 @@ export function relatedViewResult(
 
 function fromSpecQueryModelGroup(
   modelGroup: SpecQueryModelGroup,
-  data: NamedData
+  data: NamedData,
 ): ResultPlot[] {
   return modelGroup.items.map((item) => {
     if (isResultTree<SpecQueryModel>(item)) {
@@ -195,6 +195,6 @@ function getDefaultGroupBy(args: {
   return hasWildcardFn
     ? "fieldTransform"
     : hasWildcardField
-    ? "field"
-    : "encoding";
+      ? "field"
+      : "encoding";
 }

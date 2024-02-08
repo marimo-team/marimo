@@ -34,9 +34,9 @@ interface Props {
   mark: SpecMark;
 }
 
-const ENCODINGS: Array<EncodingChannel> = ["x", "y", "row", "column"];
+const ENCODINGS: EncodingChannel[] = ["x", "y", "row", "column"];
 
-const MARK_ENCODINGS: Array<EncodingChannel> = ["color", "size", "shape"];
+const MARK_ENCODINGS: EncodingChannel[] = ["color", "size", "shape"];
 
 /**
  * Query form component that allows users to select encodings

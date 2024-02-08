@@ -28,7 +28,7 @@ const SelectTrigger = React.forwardRef<
 >(
   (
     { className, children, onClear, variant, hideChevron = false, ...props },
-    ref
+    ref,
   ) => (
     <SelectPrimitive.Trigger
       ref={ref}
@@ -52,7 +52,7 @@ const SelectTrigger = React.forwardRef<
         )}
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
-  )
+  ),
 );
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 

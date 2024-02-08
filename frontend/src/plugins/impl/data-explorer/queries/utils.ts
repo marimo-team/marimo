@@ -25,7 +25,7 @@ export function isQueryFull(spec: SpecQuery) {
 
   const listedEncodings = new Set(spec.encodings.map((encQ) => encQ.channel));
   const hasAllChannels = encodings.every((channel) =>
-    listedEncodings.has(channel)
+    listedEncodings.has(channel),
   );
   const hasFacet = facets.some((facet) => listedEncodings.has(facet));
 

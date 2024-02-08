@@ -57,7 +57,7 @@ export type SpecificEncoding = Partial<
 
 export function toFieldQuery(
   fieldDef: FieldDefinition,
-  channel: EncodingChannel | SHORT_WILDCARD
+  channel: EncodingChannel | SHORT_WILDCARD,
 ): FieldQuery {
   const { fn, ...rest } = fieldDef;
 
