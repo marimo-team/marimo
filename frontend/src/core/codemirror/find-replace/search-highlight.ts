@@ -146,3 +146,30 @@ export const highlightTheme = EditorView.baseTheme({
     backgroundColor: "#6199ff88 !important",
   },
 });
+
+/**
+ * Poor-man's go to definition.
+ *
+ * This function will select the first occurrence of the given variable name.
+ */
+export function goToDefinition(view: EditorView, variableName: string) {
+  const state = view.state;
+  const search = new SearchQuery({
+    search: variableName,
+    caseSensitive: true,
+    regexp: false,
+    replace: "",
+    wholeWord: true,
+  });
+  const query = asQueryCreator(search).create();
+  const result = query.nextMatch(state, 0, 0);
+  if (result) {
+    view.focus();
+    view.dispatch({
+      selection: {
+        anchor: result.from,
+        head: result.from,
+      },
+    });
+  }
+}

@@ -26,6 +26,8 @@ import {
 } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../data-table/column-header";
 import { sortBy } from "lodash-es";
+import { getCellEditorView } from "@/core/cells/cells";
+import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
 
 interface Props {
   className?: string;
@@ -111,7 +113,7 @@ const COLUMNS = [
   }),
   columnDefOf({
     id: ColumnIds.defs,
-    accessorFn: (v) => [v.declaredBy, v.usedBy] as const,
+    accessorFn: (v) => [v.declaredBy, v.usedBy, v.name] as const,
     enableSorting: true,
     sortingFn: "basic",
     header: ({ column }) => (
@@ -126,7 +128,15 @@ const COLUMNS = [
       />
     ),
     cell: ({ getValue }) => {
-      const [declaredBy, usedBy] = getValue();
+      const [declaredBy, usedBy, name] = getValue();
+
+      // Highlight the variable in the cell editor
+      const highlightInCell = (cellId: CellId) => {
+        const editorView = getCellEditorView(cellId);
+        if (editorView) {
+          goToDefinition(editorView, name);
+        }
+      };
 
       return (
         <div className="flex flex-col gap-1 py-1">
@@ -136,7 +146,11 @@ const COLUMNS = [
             </span>
 
             {declaredBy.length === 1 ? (
-              <CellLink variant="focus" cellId={declaredBy[0]} />
+              <CellLink
+                variant="focus"
+                cellId={declaredBy[0]}
+                onClick={() => highlightInCell(declaredBy[0])}
+              />
             ) : (
               <div className="text-destructive flex flex-row gap-2">
                 {declaredBy.slice(0, 3).map((cellId, idx) => (
@@ -146,6 +160,7 @@ const COLUMNS = [
                       key={cellId}
                       cellId={cellId}
                       className="whitespace-nowrap text-destructive"
+                      onClick={() => highlightInCell(cellId)}
                     />
                     {idx < declaredBy.length - 1 && ", "}
                   </span>
@@ -165,6 +180,7 @@ const COLUMNS = [
                   key={cellId}
                   cellId={cellId}
                   className="whitespace-nowrap"
+                  onClick={() => highlightInCell(cellId)}
                 />
                 {idx < usedBy.length - 1 && ", "}
               </span>
