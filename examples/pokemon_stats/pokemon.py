@@ -94,7 +94,7 @@ def __(pokemon, pokemon_types):
 
 @app.cell
 def __(distribution_plot, drilldown, mo, pokemon_types):
-    mo.tabs(
+    mo.ui.tabs(
         {
             "**Compare distributions**": distribution_plot,
             "**Drill down**": drilldown,

@@ -12,7 +12,7 @@ def __(tabs):
 
 @app.cell
 def __(array, ax, dictionary, mo, plots, table, text):
-    tabs = mo.tabs(
+    tabs = mo.ui.tabs(
         {
             "markdown": mo.md(
                 r"""

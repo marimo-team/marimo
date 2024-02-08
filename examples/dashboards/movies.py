@@ -185,7 +185,7 @@ def __(
 
 @app.cell
 def __(filtered_movies, mo):
-    mo.tabs(
+    mo.ui.tabs(
         {
             "📑 Data": mo.ui.table(filtered_movies, selection=None, page_size=5),
             "📊 Summary": mo.ui.table(filtered_movies.describe(), selection=None),

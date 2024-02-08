@@ -240,7 +240,7 @@ def __(mo):
         """
         ## Tabs
 
-        Use `mo.tabs` to display multiple objects in a single tabbed output:
+        Use `mo.ui.tabs` to display multiple objects in a single tabbed output:
         """
     )
     return
@@ -264,7 +264,7 @@ def __(mo):
         ]
     )
 
-    mo.tabs(
+    mo.ui.tabs(
         {
             "🧙‍♀ User": _settings,
             "🏢 Organization": _organization,
@@ -275,7 +275,7 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(mo):
-    mo.accordion({"Documentation: `mo.tabs`": mo.doc(mo.tabs)})
+    mo.accordion({"Documentation: `mo.ui.tabs`": mo.doc(mo.ui.tabs)})
     return
 
 

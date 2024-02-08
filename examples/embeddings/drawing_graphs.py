@@ -56,7 +56,7 @@ def __(complete_graph, mo, tree):
     def draw_graphs(n_items, penalty, loss):
         complete_graph_tab = [penalty, complete_graph(n_items.value, penalty.value)]
         tree_tab = [loss, tree(n_items.value, loss.value)]
-        return mo.tabs(
+        return mo.ui.tabs(
             {
                 "Complete graph": complete_graph_tab,
                 "Binary tree": tree_tab,
