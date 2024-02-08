@@ -15,7 +15,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 @mddoc
 class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
     """
-    Quickly explore a DataFrame.
+    Quickly explore a DataFrame with automatically suggested visualizations.
 
     **Example.**
 
@@ -29,7 +29,7 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
 
     **Initialization Args.**
 
-    - `df`: the DataFrame or series to transform
+    - `df`: the DataFrame to visualize
     """
 
     _name: Final[str] = "marimo-data-explorer"
