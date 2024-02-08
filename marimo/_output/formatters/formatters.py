@@ -80,11 +80,13 @@ def register_formatters() -> None:
         # to the new `find_spec` method; this is needed because closures are
         # late-binding and we're in a for loop ...
         def find_spec(  # type:ignore[no-untyped-def]
+            self,
             fullname,
             path=None,
             target=None,
             original_find_spec=original_find_spec,
         ) -> Any:
+            del self
             spec = original_find_spec(fullname, path, target)
             if spec is None:
                 return spec
@@ -114,7 +116,9 @@ def register_formatters() -> None:
 
             return spec
 
-        finder.find_spec = find_spec  # type: ignore[method-assign]
+        # Use the __get__ descriptor to bind find_spec to this finder object,
+        # to make sure self/cls gets passed
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.
