@@ -12,13 +12,13 @@ def deprecated(reason: str) -> Callable[[Any], Any]:
 
     def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         @functools.wraps(func)
-        def new_func(*args: Any, **kwargs: Any):
+        def new_func(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
             # get the line number of the stack frame of the caller
             lineno = 0
             try:
                 import inspect
 
-                lineno = inspect.currentframe().f_back.f_lineno
+                lineno = inspect.currentframe().f_back.f_lineno  # type: ignore[union-attr]
             except Exception:
                 pass
 
