@@ -175,7 +175,7 @@ const FieldSelect = ({
           }}
         >
           <SelectTrigger
-            className="min-w-[210px] h-full"
+            className="min-w-[140px] lg:min-w-[210px] h-full"
             onClear={field ? clear : undefined}
           >
             {renderValue()}

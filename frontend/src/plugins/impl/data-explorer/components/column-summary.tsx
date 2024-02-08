@@ -5,6 +5,15 @@ import { PRIMITIVE_TYPE_ICON } from "./icons";
 import { Schema } from "compassql/build/src/schema";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   schema: Schema;
@@ -43,7 +52,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
       <span className="text-muted-foreground font-semibold">
         {fields.length > 0 ? fields.length : "No"} fields
       </span>
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 p-2 bg-[var(--slate-1)] border rounded lg:items-center items-start w-fit grid-flow-dense max-h-[300px] overflow-auto">
+      <div className="hidden lg:grid grid-cols-2 xl:grid-cols-3 gap-2 p-2 bg-[var(--slate-1)] border rounded lg:items-center items-start w-fit grid-flow-dense max-h-[300px] overflow-auto">
         {fieldsToShow.map((field) => {
           const cardinality = schema.cardinality({
             channel: "x",
@@ -84,6 +93,36 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
             {showMore ? "Show less" : "Show more"}
           </Button>
         )}
+      </div>
+      <div className="lg:hidden">
+        <Select
+          value={selectedField || ""}
+          disabled={fields.length === 0}
+          onValueChange={(value) => {
+            setSelectedField(value);
+          }}
+        >
+          <SelectTrigger className="min-w-[210px] h-full">
+            <SelectValue placeholder="Select a column" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {schema.fieldNames().map((name) => {
+                return (
+                  <SelectItem key={name} value={name.toString()}>
+                    <span className="flex items-center gap-2 flex-1">
+                      {PRIMITIVE_TYPE_ICON[schema.primitiveType(name)]}
+                      <span className="flex-1">{name}</span>
+                      <span className="text-muted-foreground text-xs font-semibold">
+                        ({schema.vlType(name)})
+                      </span>
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       {selectedField && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 p-2 text-sm">
