@@ -8,12 +8,13 @@ import { useCellIds, useCellNames } from "@/core/cells/cells";
 interface Props {
   cellId: CellId;
   className?: string;
+  onClick?: () => void;
   variant?: "destructive" | "focus";
 }
 
 /* Component that adds a link to a cell, with styling. */
 export const CellLink = (props: Props): JSX.Element => {
-  const { className, cellId, variant } = props;
+  const { className, cellId, variant, onClick } = props;
   const cellName = useCellNames()[cellId] ?? "";
   const cellIndex = useCellIds().indexOf(cellId);
   const cellHtmlId = HTMLCellId.create(cellId);
@@ -47,6 +48,8 @@ export const CellLink = (props: Props): JSX.Element => {
               cell.classList.remove("focus-outline");
             }, 1500);
           }
+
+          onClick?.();
         }
       }}
     >
