@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.88"
+__generated_with = "0.2.2"
 app = marimo.App(width="full")
 
 
@@ -9,7 +10,6 @@ app = marimo.App(width="full")
 def __():
     import marimo as mo
     from vega_datasets import data
-
     return data, mo
 
 
@@ -33,7 +33,7 @@ def __(data, dataset_dropdown, mo):
 def __(df, mo):
     v = mo.ui.data_explorer(df)
     v
-    return (v,)
+    return v,
 
 
 @app.cell
