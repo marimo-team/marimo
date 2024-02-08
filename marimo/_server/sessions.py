@@ -103,6 +103,10 @@ class QueueManager:
             self.input_queue.cancel_join_thread()
             self.input_queue.close()
 
+        if isinstance(self.completion_queue, MPQueue):
+            self.completion_queue.cancel_join_thread()
+            self.completion_queue.close()
+
 
 class KernelManager:
     def __init__(
