@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { PRIMITIVE_TYPE_ICON } from "./icons";
 import { Schema } from "compassql/build/src/schema";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/utils/cn";
 
 interface Props {
   schema: Schema;
@@ -37,22 +38,29 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
   const hasMore = fields.length > COLUMN_LIMIT;
 
   return (
-    <div className="flex flex-col justify-center items-center h-full flex-1 gap-3">
+    <div className="flex flex-col justify-center items-center h-full flex-1 gap-2">
       {icon}
       <span className="text-muted-foreground font-semibold">
         {fields.length > 0 ? fields.length : "No"} fields
       </span>
-      <div className="grid grid-cols-3 gap-2 p-2 bg-[var(--slate-1)] border rounded items-center w-fit">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 p-2 bg-[var(--slate-1)] border rounded lg:items-center items-start w-fit grid-flow-dense max-h-[300px] overflow-auto">
         {fieldsToShow.map((field) => {
           const cardinality = schema.cardinality({
             channel: "x",
             field: field,
           });
           return (
-            <div
+            <span
               key={field}
-              className="hover:bg-gray-100 self-start px-2 py-2 rounded flex flex-row gap-2 items-center cursor-pointer justify-center"
+              className={cn(
+                "hover:bg-muted self-start px-2 py-2 rounded flex flex-row gap-1 items-center cursor-pointer lg:justify-center text-sm truncate flex-shrink-0 overflow-hidden",
+                selectedField === field && "bg-muted",
+              )}
               onClick={() => {
+                if (selectedField === field) {
+                  setSelectedField(undefined);
+                  return;
+                }
                 setSelectedField(field);
               }}
             >
@@ -63,7 +71,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
                   ({cardinality})
                 </span>
               )}
-            </div>
+            </span>
           );
         })}
         {hasMore && (
@@ -78,7 +86,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
         )}
       </div>
       {selectedField && (
-        <div className="grid grid-cols-4 gap-2 p-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2 p-2 text-sm">
           {STAT_KEYS.map((key) => (
             <div key={key} className="flex flex-row gap-2 min-w-[100px]">
               <span className="font-semibold">{key}</span>

@@ -33,7 +33,7 @@ import { StatPlugin } from "./layout/StatPlugin";
 import { DataFramePlugin } from "./impl/data-frames/DataFramePlugin";
 import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
 import { CodeEditorPlugin } from "./impl/CodeEditorPlugin";
-import { DataVoyagerPlugin } from "./impl/data-voyager/DataVoyagerPlugin";
+import { DataExplorerPlugin } from "./impl/data-explorer/DataExplorerPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
 
 // List of UI plugins
@@ -58,7 +58,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new TextInputPlugin(),
   new VegaPlugin(),
   new PlotlyPlugin(),
-  DataVoyagerPlugin,
+  DataExplorerPlugin,
   DataFramePlugin,
 ];
 

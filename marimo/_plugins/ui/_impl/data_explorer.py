@@ -13,14 +13,14 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 
 @mddoc
-class data_voyager(UIElement[Dict[str, Any], Dict[str, Any]]):
+class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
     """
     Quickly explore a DataFrame.
 
     **Example.**
 
     ```python
-    mo.ui.data_voyager(data)
+    mo.ui.data_explorer(data)
     ```
 
     **Attributes.**
@@ -32,7 +32,7 @@ class data_voyager(UIElement[Dict[str, Any], Dict[str, Any]]):
     - `df`: the DataFrame or series to transform
     """
 
-    _name: Final[str] = "marimo-data-voyager"
+    _name: Final[str] = "marimo-data-explorer"
 
     def __init__(
         self,
@@ -42,7 +42,7 @@ class data_voyager(UIElement[Dict[str, Any], Dict[str, Any]]):
         self._data = df
 
         super().__init__(
-            component_name=data_voyager._name,
+            component_name=data_explorer._name,
             initial_value={},
             on_change=on_change,
             label="",

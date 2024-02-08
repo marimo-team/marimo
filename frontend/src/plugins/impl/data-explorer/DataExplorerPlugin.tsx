@@ -40,16 +40,16 @@ interface Data {
 // Value is unused for now
 type S = ChartSpec | undefined;
 
-export const DataVoyagerPlugin = createPlugin<S>("marimo-data-voyager")
+export const DataExplorerPlugin = createPlugin<S>("marimo-data-explorer")
   .withData(
     z.object({
       label: z.string().nullish(),
       data: z.string(),
-    })
+    }),
   )
   .renderer((props) => (
     <TooltipProvider>
-      <ConnectedDataVoyagerComponent
+      <ConnectedDataExplorerComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
@@ -57,7 +57,7 @@ export const DataVoyagerPlugin = createPlugin<S>("marimo-data-voyager")
     </TooltipProvider>
   ));
 
-const ConnectedDataVoyagerComponent = (props: DataTableProps): JSX.Element => {
+const ConnectedDataExplorerComponent = (props: DataTableProps): JSX.Element => {
   const store = useMemo(() => createStore(), []);
 
   useOnMount(() => {
@@ -79,7 +79,7 @@ const ConnectedDataVoyagerComponent = (props: DataTableProps): JSX.Element => {
 
   return (
     <Provider store={store}>
-      <DataVoyagerComponent {...props} />
+      <DataExplorerComponent {...props} />
     </Provider>
   );
 };
@@ -97,7 +97,7 @@ const ACTIONS: VegaLiteProps["actions"] = {
 };
 const PADDING = { left: 20, right: 20, top: 20, bottom: 20 };
 
-export const DataVoyagerComponent = ({
+export const DataExplorerComponent = ({
   data: dataUrl,
 }: DataTableProps): JSX.Element => {
   const actions = useChartSpecActions();
@@ -130,7 +130,7 @@ export const DataVoyagerComponent = ({
 
   const mainPlot = charts.main?.plots?.[0];
   const existingEncodingNames = new Set(
-    mainPlot?.fieldInfos.map((info) => info.fieldDef.field)
+    mainPlot?.fieldInfos.map((info) => info.fieldDef.field),
   );
 
   const renderMainPlot = () => {
@@ -176,8 +176,8 @@ export const DataVoyagerComponent = ({
                       info.fieldDef.field === "*"
                         ? "Count"
                         : info.fieldDef.fn
-                        ? `${info.fieldDef.fn}(${info.fieldDef.field})`
-                        : info.fieldDef.field.toString();
+                          ? `${info.fieldDef.fn}(${info.fieldDef.field})`
+                          : info.fieldDef.field.toString();
                     return (
                       <Badge
                         variant={
@@ -194,7 +194,7 @@ export const DataVoyagerComponent = ({
                 </div>
               }
               actions={
-                <Tooltip content="Add to the main plot">
+                <Tooltip content="Make main plot">
                   <Button
                     variant="text"
                     size={"icon"}
@@ -203,7 +203,7 @@ export const DataVoyagerComponent = ({
                         plot.fieldInfos.map((info) => [
                           info.channel,
                           info.fieldDef,
-                        ])
+                        ]),
                       );
                       actions.setEncoding(encoding);
                     }}

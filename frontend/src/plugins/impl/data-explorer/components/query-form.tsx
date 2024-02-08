@@ -34,17 +34,9 @@ interface Props {
   mark: SpecMark;
 }
 
-const ENCODINGS: Array<EncodingChannel | "DIVIDER"> = [
-  "x",
-  "y",
-  "DIVIDER",
-  "color",
-  "size",
-  "shape",
-  "DIVIDER",
-  "row",
-  "column",
-];
+const ENCODINGS: Array<EncodingChannel> = ["x", "y", "row", "column"];
+
+const MARK_ENCODINGS: Array<EncodingChannel> = ["color", "size", "shape"];
 
 /**
  * Query form component that allows users to select encodings
@@ -53,49 +45,56 @@ const ENCODINGS: Array<EncodingChannel | "DIVIDER"> = [
 export const QueryForm: React.FC<Props> = ({ schema, mark }) => {
   const value = useAtomValue(chartSpecAtom);
   const actions = useChartSpecActions();
-  return (
-    <div className="grid gap-x-2 gap-y-4 justify-items-start p-2 bg-[var(--slate-1)] border rounded items-center grid-template-columns-[repeat(2,_minmax(0,_min-content))] self-start">
-      <span className="col-span-2 flex items-center justify-between w-full">
-        <div className="text-lg font-semibold">Encodings</div>
-        <Select
-          value={mark.toString()}
-          onValueChange={(value) => actions.setMark(value as SpecMark)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Mark" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectLabel>Mark</SelectLabel>
-              {MARKS.map((mark) => (
-                <SelectItem key={mark} value={mark}>
-                  {mark === SHORT_WILDCARD ? "auto" : mark}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </span>
-      {ENCODINGS.map((channel, idx) => {
-        if (channel === "DIVIDER") {
-          return (
-            <hr
-              key={`${channel}-${idx}`}
-              className="border-gray-200 w-full col-span-2"
-            />
-          );
-        }
+  const canConfigureRowOrColumn = value.encoding.x && value.encoding.y;
 
-        return (
-          <FieldSelect
-            key={channel}
-            schema={schema}
-            label={channel}
-            fieldDefinition={value.encoding[channel]}
-            onChange={(value) => actions.setEncoding({ [channel]: value })}
-          />
-        );
-      })}
+  const renderChannel = (channel: EncodingChannel) => {
+    const isRowOrColumn = channel === "row" || channel === "column";
+    const disabled = isRowOrColumn && !canConfigureRowOrColumn;
+
+    return (
+      <FieldSelect
+        key={channel}
+        schema={schema}
+        label={channel}
+        disabled={disabled}
+        fieldDefinition={value.encoding[channel]}
+        onChange={(value) => actions.setEncoding({ [channel]: value })}
+      />
+    );
+  };
+
+  const markSelect = (
+    <Select
+      value={mark.toString()}
+      onValueChange={(value) => actions.setMark(value as SpecMark)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Mark" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>Mark</SelectLabel>
+          {MARKS.map((mark) => (
+            <SelectItem key={mark} value={mark}>
+              {mark === SHORT_WILDCARD ? "auto" : mark}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <div className="grid gap-x-2 gap-y-4 justify-items-start py-3 pl-4 pr-2 bg-[var(--slate-1)] border rounded items-center grid-template-columns-[repeat(2,_minmax(0,_min-content))] self-start">
+      <span className="col-span-2 flex items-center justify-between w-full">
+        <div className="text-base font-semibold">Encodings</div>
+      </span>
+      {ENCODINGS.map(renderChannel)}
+      <span className="col-span-2 text-sm font-semibold w-full border-t border-divider flex items-center justify-between pt-2 pr-[30px]">
+        <div>Mark</div>
+        {markSelect}
+      </span>
+      {MARK_ENCODINGS.map(renderChannel)}
     </div>
   );
 };
@@ -107,10 +106,12 @@ const FieldSelect = ({
   label,
   schema,
   fieldDefinition,
+  disabled,
   onChange,
 }: {
   label: string;
   schema: Schema;
+  disabled: boolean;
   fieldDefinition: FieldDefinition | undefined;
   onChange: (def: FieldDefinition | undefined) => void;
 }) => {
@@ -157,6 +158,7 @@ const FieldSelect = ({
       <div className="flex flex-row gap-1 h-[26px]">
         <Select
           value={field}
+          disabled={disabled}
           onValueChange={(value) => {
             if (value === "*") {
               onChange({

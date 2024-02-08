@@ -9,6 +9,7 @@ app = marimo.App(width="full")
 def __():
     import marimo as mo
     from vega_datasets import data
+
     return data, mo
 
 
@@ -30,9 +31,9 @@ def __(data, dataset_dropdown, mo):
 
 @app.cell
 def __(df, mo):
-    v = mo.ui.data_voyager(df)
+    v = mo.ui.data_explorer(df)
     v
-    return v,
+    return (v,)
 
 
 @app.cell
