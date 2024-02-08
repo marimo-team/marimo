@@ -269,7 +269,7 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
         h.iframe(
             src=f"http://{host}:{port}?figure={figure_manager.num}",
             width="100%",
-            height="450px",
+            height="550px",
             onload="__resizeIframe(this)",
         )
     )
