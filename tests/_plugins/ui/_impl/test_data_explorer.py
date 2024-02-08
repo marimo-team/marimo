@@ -5,19 +5,18 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl import data_explorer
-from marimo._runtime.runtime import ExecutionContext
-from tests.conftest import MockedKernel
+from marimo._runtime.runtime import Kernel
 
 HAS_DEPS = DependencyManager.has_pandas()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_data_explorer() -> None:
-    import pandas as pd
+def test_data_explorer(executing_kernel: Kernel):
+    # unused, except for the side effect of giving the kernel an execution
+    # context
+    del executing_kernel
 
-    # Create kernel and give the execution context an existing cell
-    mocked = MockedKernel()
-    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
+    import pandas as pd
 
     data = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
     explorer = data_explorer.data_explorer(data)

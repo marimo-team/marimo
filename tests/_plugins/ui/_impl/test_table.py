@@ -80,10 +80,10 @@ HAS_DEPS = DependencyManager.has_pandas()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_normalize_data_pandas() -> None:
-    # Create kernel and give the execution context an existing cell
-    mocked = MockedKernel()
-    mocked.k.execution_context = ExecutionContext("test_cell_id", False)
+def test_normalize_data_pandas(executing_kernel: Kernel) -> None:
+    # unused, except for the side effect of giving the kernel an execution
+    # context
+    del executing_kernel
 
     # Test with pandas DataFrame
     import pandas as pd
