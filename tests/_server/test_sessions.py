@@ -18,27 +18,21 @@ app_metadata = AppMetadata(filename="test.py")
 
 def test_queue_manager() -> None:
     # Test with multiprocessing queues
-    queue_manager_mp = QueueManager(
-        use_multiprocessing=True, provide_completions=True
-    )
+    queue_manager_mp = QueueManager(use_multiprocessing=True)
     assert isinstance(queue_manager_mp.control_queue, MPQueue)
     assert isinstance(queue_manager_mp.completion_queue, MPQueue)
     assert isinstance(queue_manager_mp.input_queue, MPQueue)
 
     # Test with threading queues
-    queue_manager_thread = QueueManager(
-        use_multiprocessing=False, provide_completions=False
-    )
+    queue_manager_thread = QueueManager(use_multiprocessing=False)
     assert isinstance(queue_manager_thread.control_queue, queue.Queue)
-    assert queue_manager_thread.completion_queue is None
+    assert isinstance(queue_manager_thread.completion_queue, queue.Queue)
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
 
 
 def test_kernel_manager() -> None:
     # Mock objects and data for testing
-    queue_manager = QueueManager(
-        use_multiprocessing=False, provide_completions=False
-    )
+    queue_manager = QueueManager(use_multiprocessing=False)
     mode = SessionMode.RUN
 
     # Instantiate a KernelManager
@@ -63,9 +57,7 @@ def test_kernel_manager() -> None:
 def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(
-        use_multiprocessing=False, provide_completions=False
-    )
+    queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
         queue_manager, SessionMode.RUN, {}, app_metadata
     )
@@ -100,9 +92,7 @@ def test_session() -> None:
 def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(
-        use_multiprocessing=False, provide_completions=False
-    )
+    queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
         queue_manager, SessionMode.RUN, {}, AppMetadata()
     )

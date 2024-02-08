@@ -1071,7 +1071,7 @@ class Kernel:
 
 def launch_kernel(
     control_queue: QueueType[ControlRequest],
-    completion_queue: QueueType[CompletionRequest] | None,
+    completion_queue: QueueType[CompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,
@@ -1121,10 +1121,11 @@ def launch_kernel(
         kernel=kernel,
         stream=stream,
     )
-    if completion_queue is not None:
-        kernel.start_completion_worker(completion_queue)
 
     if is_edit_mode:
+        # completions only provided in edit mode
+        kernel.start_completion_worker(completion_queue)
+
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
 
