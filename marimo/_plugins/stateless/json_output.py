@@ -22,8 +22,10 @@ def json_output(json_data: JSONType, name: Optional[str] = None) -> Html:
     return Html(
         build_stateless_plugin(
             component_name="marimo-json-output",
-            args={"json-data": json_data, "name": name}
-            if name is not None
-            else {"json-data": json_data},
+            args=(
+                {"json-data": json_data, "name": name}
+                if name is not None
+                else {"json-data": json_data}
+            ),
         )
     )

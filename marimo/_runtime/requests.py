@@ -67,12 +67,6 @@ class CompletionRequest:
     cell_id: CellId_t
 
 
-@dataclass
-class ConfigurationRequest:
-    # stringified MarimoConfig
-    config: str
-
-
 ControlRequest = Union[
     ExecuteMultipleRequest,
     CreationRequest,
@@ -81,5 +75,4 @@ ControlRequest = Union[
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
-    ConfigurationRequest,
 ]

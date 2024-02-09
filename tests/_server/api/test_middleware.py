@@ -2,7 +2,7 @@
 import uvicorn
 from starlette.testclient import TestClient
 
-from marimo._config.config import get_configuration
+from marimo._config.manager import UserConfigManager
 from marimo._server.main import create_starlette_app
 from tests._server.mocks import get_mock_session_manager
 
@@ -10,9 +10,7 @@ from tests._server.mocks import get_mock_session_manager
 def test_base_url() -> None:
     app = create_starlette_app(base_url="/foo")
     app.state.session_manager = get_mock_session_manager()
-    app.state.user_config = get_configuration()
-    app.state.session_manager = get_mock_session_manager()
-    app.state.user_config = get_configuration()
+    app.state.config_manager = UserConfigManager()
     client = TestClient(app)
 
     # Mock out the server

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
+from typing import Any, Dict, Literal, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -156,30 +156,13 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "server": {"browser": "default"},
 }
-_USER_CONFIG: Optional[MarimoConfig] = None
 
 
-@mddoc
-def configure(config: MarimoConfig) -> MarimoConfig:
-    """Configure the marimo editor with a user config.
-
-    **Args.**
-
-    - `config`: A configuration object.
-    """
-    global _USER_CONFIG
-    _USER_CONFIG = cast(
+def merge_config(config: MarimoConfig) -> MarimoConfig:
+    """Merge a user configuration with the default configuration."""
+    return cast(
         MarimoConfig,
         deep_merge(
             cast(Dict[Any, Any], DEFAULT_CONFIG), cast(Dict[Any, Any], config)
         ),
-    )
-    return _USER_CONFIG
-
-
-def get_configuration() -> MarimoConfig:
-    """Return the current configuration."""
-    return cast(
-        MarimoConfig,
-        _USER_CONFIG if _USER_CONFIG is not None else DEFAULT_CONFIG,
     )

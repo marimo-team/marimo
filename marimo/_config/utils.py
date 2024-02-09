@@ -5,9 +5,15 @@ from typing import Optional, cast
 import tomlkit
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig, configure, get_configuration
+from marimo._config.config import (
+    DEFAULT_CONFIG,
+    MarimoConfig,
+    merge_config,
+)
 
 LOGGER = _loggers.marimo_logger()
+
+CONFIG_FILENAME = ".marimo.toml"
 
 
 def _is_parent(parent_path: str, child_path: str) -> bool:
@@ -39,7 +45,6 @@ def get_config_path() -> Optional[str]:
 
     May raise an OSError.
     """
-    filename = ".marimo.toml"
 
     # we use os.path.realpath to canonicalize paths, just in case
     # some these functions don't eliminate symlinks on some platforms
@@ -53,7 +58,9 @@ def get_config_path() -> Optional[str]:
     if not _is_parent(home_directory, current_directory):
         # Can't search back to home, since current_directory not in
         # home_directory
-        config_path = _check_directory_for_file(current_directory, filename)
+        config_path = _check_directory_for_file(
+            current_directory, CONFIG_FILENAME
+        )
         if config_path is not None:
             return config_path
     else:
@@ -64,7 +71,7 @@ def get_config_path() -> Optional[str]:
             and current_directory != previous_directory
         ):
             previous_directory = current_directory
-            config_path = os.path.join(current_directory, filename)
+            config_path = os.path.join(current_directory, CONFIG_FILENAME)
             if os.path.isfile(config_path):
                 return config_path
             else:
@@ -72,14 +79,14 @@ def get_config_path() -> Optional[str]:
                     os.path.dirname(current_directory)
                 )
 
-    config_path = os.path.join(home_directory, filename)
+    config_path = os.path.join(home_directory, CONFIG_FILENAME)
     if os.path.isfile(config_path):
         return config_path
 
     return None
 
 
-def load_config() -> Optional[MarimoConfig]:
+def load_config() -> MarimoConfig:
     """Load configuration, taking into account user config file, if any."""
     try:
         path = get_config_path()
@@ -95,8 +102,8 @@ def load_config() -> Optional[MarimoConfig]:
         except Exception as e:
             LOGGER.error("Failed to read user config at %s", path)
             LOGGER.error(str(e))
-            return get_configuration()
-        configure(cast(MarimoConfig, user_config))
+            return DEFAULT_CONFIG
+        return merge_config(cast(MarimoConfig, user_config))
     else:
         LOGGER.debug("No config found; loading default settings.")
-    return get_configuration()
+    return DEFAULT_CONFIG
