@@ -20,8 +20,6 @@ else:
     from typing import TypeAlias
 
 from marimo import _loggers
-from marimo._config.config import get_configuration
-from marimo._config.utils import load_config
 from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
 from marimo._server.model import SessionMode
@@ -35,17 +33,6 @@ LifespanList: TypeAlias = Sequence[
 ]
 
 LOGGER = _loggers.marimo_logger()
-
-
-async def _shutdown(app: Starlette, with_error: bool = False) -> None:
-    """Shutdown the server."""
-    mgr = get_manager()
-
-    if with_error:
-        LOGGER.fatal("marimo shut down with an error.")
-    mgr.shutdown()
-    if with_error:
-        close_uvicorn(app.state.server)
 
 
 # Compound lifespans
@@ -77,21 +64,8 @@ class Lifespans:
 
 
 @contextlib.asynccontextmanager
-async def user_configuration(app: Starlette) -> AsyncIterator[None]:
-    try:
-        load_config()
-    except Exception as e:
-        LOGGER.fatal("Error parsing the marimo configuration file: ")
-        LOGGER.fatal(type(e).__name__ + ": " + str(e))
-        await _shutdown(app, with_error=True)
-
-    yield
-
-
-@contextlib.asynccontextmanager
 async def lsp(app: Starlette) -> AsyncIterator[None]:
-    del app
-    user_config = get_configuration()
+    user_config = app.state.config_manager.get_config()
     session_mgr = get_manager()
     run = session_mgr.mode == SessionMode.RUN
     if not run and user_config["completion"]["copilot"]:
@@ -115,7 +89,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
     port = app.state.port
     base_url = app.state.base_url
     url = f"http://{host}:{port}{base_url}"
-    user_config = get_configuration()
+    user_config = app.state.config_manager.get_config()
     headless = app.state.headless
     if not headless:
         browser = user_config["server"]["browser"]
@@ -175,7 +149,6 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 
 LIFESPANS = Lifespans(
     [
-        user_configuration,
         lsp,
         watcher,
         etc,

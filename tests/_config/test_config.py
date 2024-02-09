@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
-from marimo._config.config import DEFAULT_CONFIG, MarimoConfig, configure
+from marimo._config.config import DEFAULT_CONFIG, MarimoConfig, merge_config
 
 
 def assert_config(override: MarimoConfig) -> None:
-    user_config = configure(override)
+    user_config = merge_config(override)
     assert user_config == {**DEFAULT_CONFIG, **override}
 
 

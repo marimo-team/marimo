@@ -8,7 +8,7 @@ from starlette.websockets import WebSocket
 from uvicorn import Server
 
 from marimo._ast.app import _AppConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.manager import UserConfigManager
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionId, SessionManager
 
@@ -28,24 +28,26 @@ class AppState:
         assert (
             request.app.state.session_manager is not None
         ), "Session manager not initialized"
-        assert (
-            request.app.state.user_config is not None
-        ), "User config not initialized"
         assert request.app.state.server is not None, "Server not initialized"
         assert request.app.state.host is not None, "Host not initialized"
         assert request.app.state.port is not None, "Port not initialized"
         assert (
             request.app.state.base_url is not None
         ), "Base URL not initialized"
+        assert (
+            request.app.state.config_manager is not None
+        ), "Config manager not initialized"
 
         self.session_manager: SessionManager = (
             request.app.state.session_manager
         )
-        self.user_config: MarimoConfig = request.app.state.user_config
         self._server: Server = request.app.state.server
         self._host: str = request.app.state.host
         self._port: int = request.app.state.port
         self._base_url: str = request.app.state.base_url
+        self._config_manager: UserConfigManager = (
+            request.app.state.config_manager
+        )
 
     def get_current_session_id(self) -> Optional[SessionId]:
         """Get the current session."""
@@ -112,6 +114,10 @@ class AppState:
     @property
     def server(self) -> Server:
         return self._server
+
+    @property
+    def config_manager(self) -> UserConfigManager:
+        return self._config_manager
 
     def require_query_params(self, param: str) -> str:
         """Get a query parameter or raise an error."""

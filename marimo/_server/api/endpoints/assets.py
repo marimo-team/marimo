@@ -12,7 +12,6 @@ from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from marimo import __version__, _loggers
-from marimo._config.config import get_configuration
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_title
@@ -39,7 +38,7 @@ router.mount(
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     title = parse_title(app_state.filename)
-    user_config = get_configuration()
+    user_config = app_state.config_manager.get_config()
     app_config = (
         app_state.app_config.asdict()
         if app_state.app_config is not None

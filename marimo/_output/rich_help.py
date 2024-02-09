@@ -27,9 +27,11 @@ def _format_parameter(parameter: inspect.Parameter) -> str:
     default = (
         ""
         if parameter.default == inspect.Parameter.empty
-        else f" = '{str(parameter.default)}'"
-        if isinstance(parameter.default, str)
-        else f" = {str(parameter.default)}"
+        else (
+            f" = '{str(parameter.default)}'"
+            if isinstance(parameter.default, str)
+            else f" = {str(parameter.default)}"
+        )
     )
     return parameter.name + annotation + default
 

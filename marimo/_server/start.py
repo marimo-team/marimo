@@ -4,7 +4,7 @@ from typing import Optional
 
 import uvicorn
 
-from marimo._config.config import get_configuration
+from marimo._config.manager import UserConfigManager
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import initialize_manager
@@ -57,7 +57,7 @@ def start(
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
-    app.state.user_config = get_configuration()
+    app.state.config_manager = UserConfigManager()
 
     server = uvicorn.Server(
         uvicorn.Config(
@@ -68,13 +68,15 @@ def start(
             # although cannot use import string because it breaks the
             # session manager
             # reload=development_mode,
-            reload_dirs=[
-                os.path.realpath(
-                    str(import_files("marimo").joinpath("_static"))
-                )
-            ]
-            if development_mode
-            else None,
+            reload_dirs=(
+                [
+                    os.path.realpath(
+                        str(import_files("marimo").joinpath("_static"))
+                    )
+                ]
+                if development_mode
+                else None
+            ),
             log_level=log_level,
             # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
             # seconds by default; for some reason breaks the server in

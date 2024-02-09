@@ -21,7 +21,6 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
-from marimo._config.config import configure
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
@@ -64,7 +63,6 @@ from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
-    ConfigurationRequest,
     ControlRequest,
     CreationRequest,
     DeleteRequest,
@@ -723,9 +721,11 @@ class Kernel:
                             msg="This cell raised an exception: %s%s"
                             % (
                                 exception_type,
-                                f"('{str(run_result.exception)}')"
-                                if str(run_result.exception)
-                                else "",
+                                (
+                                    f"('{str(run_result.exception)}')"
+                                    if str(run_result.exception)
+                                    else ""
+                                ),
                             ),
                             exception_type=exception_type,
                             raising_cell=None,
@@ -1224,12 +1224,6 @@ def launch_kernel(
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             kernel.delete(request)
-        elif isinstance(request, ConfigurationRequest):
-            # Kernel runs in a separate process than server in edit mode,
-            # and configuration is only allowed in edit mode. As of
-            # writing configuration only controls frontend, so this
-            # isn't actually needed. But it's helpful for debugging.
-            configure(eval(request.config))
         elif isinstance(request, StopRequest):
             break
         else:
