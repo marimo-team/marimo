@@ -31,26 +31,31 @@ def _patch_signals_win32() -> Iterator[None]:
     old_handler: Any = None
     try:
         if _is_win32():
-            old_handler = signal.signal(signal.SIGINT, lambda *args: ...)
+            old_handler = signal.signal(signal.SIGINT, lambda *_: ...)
         yield
     finally:
         if old_handler is not None:
             signal.signal(signal.SIGINT, old_handler)
 
-def _interrupt(pid: int) -> None:
-    if _is_win32():
-        os.kill(pid, signal.CTRL_C_EVENT)
-    else:
-        os.kill(pid, signal.SIGINT)
 
-def _confirm_shutdown(process) -> None:
+def _interrupt(process: subprocess.Popen) -> None:
+    if _is_win32():
+        os.kill(process.pid, signal.CTRL_C_EVENT)
+    else:
+        os.kill(process.pid, signal.SIGINT)
+
+
+def _confirm_shutdown(process: subprocess.Popen) -> None:
     if _is_win32():
         process.stdin.write(b"y\r\n")
     else:
         process.stdin.write(b"y\n")
     process.stdin.flush()
 
-def _check_shutdown(process, check_fn: Optional[Callable[[int], bool]] = None) -> None:
+
+def _check_shutdown(
+    process, check_fn: Optional[Callable[[int], bool]] = None
+) -> None:
     max_tries = 3
     tries = 0
     while process.poll() is None and tries < max_tries:
@@ -223,9 +228,9 @@ def test_cli_edit_interrupt_twice() -> None:
     p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
     _check_started(port)
     with _patch_signals_win32():
-        _interrupt(p.pid)
+        _interrupt(p)
         assert p.poll() is None
-        _interrupt(p.pid)
+        _interrupt(p)
         # exit code is system dependent when killed by signal
         _check_shutdown(p, check_fn=lambda code: code is not None)
 
@@ -241,9 +246,9 @@ def test_cli_run_interrupt_twice() -> None:
     )
     _check_started(port)
     with _patch_signals_win32():
-        _interrupt(p.pid)
+        _interrupt(p)
         assert p.poll() is None
-        _interrupt(p.pid)
+        _interrupt(p)
         # exit code is system dependent when killed by signal
         _check_shutdown(p, check_fn=lambda code: code is not None)
 
@@ -257,11 +262,12 @@ def test_cli_edit_shutdown() -> None:
     )
     _check_started(port)
     with _patch_signals_win32():
-        _interrupt(p.pid)
+        _interrupt(p)
         assert p.poll() is None
         assert p.stdin is not None
         _confirm_shutdown(p)
         _check_shutdown(p)
+
 
 @pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
 def test_cli_run_shutdown() -> None:
@@ -274,7 +280,7 @@ def test_cli_run_shutdown() -> None:
     )
     _check_started(port)
     with _patch_signals_win32():
-        _interrupt(p.pid)
+        _interrupt(p)
         assert p.poll() is None
         assert p.stdin is not None
         p.stdin.write(b"y\n")
