@@ -4,17 +4,67 @@ Crude CLI tests
 
 Requires frontend to be built
 """
+import contextlib
 import os
+import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.request
-from typing import Optional
+from typing import Any, Callable, Iterator, Optional
+
+import pytest
 
 from marimo import __version__
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+
+
+def _is_win32() -> bool:
+    return sys.platform == "win32"
+
+
+@contextlib.contextmanager
+def _patch_signals_win32() -> Iterator[None]:
+    old_handler: Any = None
+    try:
+        if _is_win32():
+            old_handler = signal.signal(signal.SIGINT, lambda *_: ...)
+        yield
+    finally:
+        if old_handler is not None:
+            signal.signal(signal.SIGINT, old_handler)
+
+
+def _interrupt(process: subprocess.Popen) -> None:
+    if _is_win32():
+        os.kill(process.pid, signal.CTRL_C_EVENT)
+    else:
+        os.kill(process.pid, signal.SIGINT)
+
+
+def _confirm_shutdown(process: subprocess.Popen) -> None:
+    if _is_win32():
+        process.stdin.write(b"y\r\n")
+    else:
+        process.stdin.write(b"y\n")
+    process.stdin.flush()
+
+
+def _check_shutdown(
+    process, check_fn: Optional[Callable[[int], bool]] = None
+) -> None:
+    max_tries = 3
+    tries = 0
+    while process.poll() is None and tries < max_tries:
+        time.sleep(1)
+        tries += 1
+    if check_fn is None:
+        assert process.poll() == 0
+    else:
+        assert check_fn(process.poll())
 
 
 def _try_fetch(port: int, host: str = "localhost") -> Optional[bytes]:
@@ -26,6 +76,20 @@ def _try_fetch(port: int, host: str = "localhost") -> Optional[bytes]:
         except Exception:
             time.sleep(0.5)
     return contents
+
+
+def _check_started(port: int, host: str = "localhost") -> Optional[bytes]:
+    assert _try_fetch(port, host) is not None
+
+
+def _temp_run_file(directory: tempfile.TemporaryDirectory) -> str:
+    filecontents = codegen.generate_filecontents(
+        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
+    )
+    path = os.path.join(directory.name, "run.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(filecontents)
+    return path
 
 
 def _check_contents(
@@ -155,3 +219,71 @@ def test_cli_custom_host() -> None:
     )
     contents = _try_fetch(port, host)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+
+
+@pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
+def test_cli_edit_interrupt_twice() -> None:
+    # two SIGINTs should kill the CLI
+    port = _get_port()
+    p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
+    _check_started(port)
+    with _patch_signals_win32():
+        _interrupt(p)
+        assert p.poll() is None
+        _interrupt(p)
+        # exit code is system dependent when killed by signal
+        _check_shutdown(p, check_fn=lambda code: code is not None)
+
+
+@pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
+def test_cli_run_interrupt_twice() -> None:
+    # two SIGINTs should kill the CLI
+    d = tempfile.TemporaryDirectory()
+    path = _temp_run_file(d)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", path, "-p", str(port), "--headless"]
+    )
+    _check_started(port)
+    with _patch_signals_win32():
+        _interrupt(p)
+        assert p.poll() is None
+        _interrupt(p)
+        # exit code is system dependent when killed by signal
+        _check_shutdown(p, check_fn=lambda code: code is not None)
+
+
+@pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
+def test_cli_edit_shutdown() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "edit", "-p", str(port), "--headless"],
+        stdin=subprocess.PIPE,
+    )
+    _check_started(port)
+    with _patch_signals_win32():
+        _interrupt(p)
+        assert p.poll() is None
+        assert p.stdin is not None
+        _confirm_shutdown(p)
+        _check_shutdown(p)
+
+
+@pytest.mark.xfail(condition=_is_win32(), reason="flaky on Windows")
+def test_cli_run_shutdown() -> None:
+    d = tempfile.TemporaryDirectory()
+    path = _temp_run_file(d)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", path, "-p", str(port), "--headless"],
+        stdin=subprocess.PIPE,
+    )
+    _check_started(port)
+    with _patch_signals_win32():
+        _interrupt(p)
+        assert p.poll() is None
+        assert p.stdin is not None
+        p.stdin.write(b"y\n")
+        p.stdin.flush()
+        time.sleep(3)
+        assert p.poll() == 0
