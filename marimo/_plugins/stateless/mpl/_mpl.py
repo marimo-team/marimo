@@ -8,6 +8,7 @@ Adapted from https://matplotlib.org/stable/gallery/user_interfaces/embedding_web
 from __future__ import annotations
 
 import asyncio
+import html
 import io
 import mimetypes
 import signal
@@ -55,6 +56,18 @@ class FigureManagers:
 figure_managers = FigureManagers()
 
 
+def _template(
+    host: str,
+    port: int,
+    fig_id: str,
+) -> str:
+    return html_content % {
+        "ws_uri": f"ws://{host}:{port}/ws?figure={fig_id}",
+        "fig_id": fig_id,
+        "base_url": f"http://{host}:{port}",
+    }
+
+
 def create_application(
     host: str,
     port: int,
@@ -67,13 +80,7 @@ def create_application(
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
         assert figure_id is not None
-        ws_uri = f"ws://{host}:{port}/ws?figure={figure_id}"
-
-        content = html_content % {
-            "ws_uri": ws_uri,
-            "fig_id": figure_id,
-            "custom_css": css_content,
-        }
+        content = _template(host, port, figure_id)
         return HTMLResponse(content=content)
 
     async def mpl_js(request: Request) -> Response:
@@ -81,6 +88,13 @@ def create_application(
         return Response(
             content=FigureManagerWebAgg.get_javascript(),
             media_type="application/javascript",
+        )
+
+    async def mpl_custom_css(request: Request) -> Response:
+        del request
+        return Response(
+            content=css_content,
+            media_type="text/css",
         )
 
     async def download(request: Request) -> Response:
@@ -145,6 +159,7 @@ def create_application(
         routes=[
             Route("/", main_page, methods=["GET"]),
             Route("/mpl/mpl.js", mpl_js, methods=["GET"]),
+            Route("/mpl/custom.css", mpl_custom_css, methods=["GET"]),
             Route("/download.{fmt}", download, methods=["GET"]),
             WebSocketRoute("/ws", websocket_endpoint),
             Mount(
@@ -265,9 +280,12 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     ctx.cell_lifecycle_registry.add(CleanupHandle())
     ctx.stream.cell_id = ctx.kernel.execution_context.cell_id
 
+    content = _template(host, port, str(figure_manager.num))
+
     return Html(
         h.iframe(
-            src=f"http://{host}:{port}?figure={figure_manager.num}",
+            # srcdoc allows us to use __resizeIframe
+            srcdoc=html.escape(content),
             width="100%",
             height="550px",
             onload="__resizeIframe(this)",
@@ -278,15 +296,14 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
 html_content = """
 <!DOCTYPE html>
 <html lang="en">
+  <base href="%(base_url)s" />
   <head>
     <link rel="stylesheet" href="mpl/_static/css/page.css" type="text/css" />
     <link rel="stylesheet" href="mpl/_static/css/boilerplate.css" type="text/css" />
     <link rel="stylesheet" href="mpl/_static/css/fbm.css" type="text/css" />
     <link rel="stylesheet" href="mpl/_static/css/mpl.css" type="text/css" />
+    <link rel="stylesheet" href="mpl/custom.css" type="text/css" />
     <script src="mpl/mpl.js"></script>
-    <style>
-    %(custom_css)s
-    </style>
 
     <script>
       function ondownload(figure, format) {

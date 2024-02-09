@@ -88,6 +88,7 @@ class _HTMLBuilder:
     @staticmethod
     def iframe(
         src: Optional[str] = None,
+        srcdoc: Optional[str] = None,
         width: Optional[str] = None,
         height: Optional[str] = None,
         style: Optional[str] = None,
@@ -96,6 +97,8 @@ class _HTMLBuilder:
         params: List[Tuple[str, Union[str, None]]] = []
         if src:
             params.append(("src", src))
+        if srcdoc:
+            params.append(("srcdoc", srcdoc))
         if width:
             params.append(("width", width))
         if height:
