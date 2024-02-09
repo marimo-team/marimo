@@ -210,7 +210,7 @@ def complete(
     while True:
         request = _drain_queue(completion_queue)
         if not request.document.strip():
-            _write_no_completions(stream, request.completion_id)
+            _write_no_completions(stream, request.id)
             continue
 
         with graph.lock:
@@ -251,7 +251,7 @@ def complete(
                 if signatures:
                     _write_completion_result(
                         stream=stream,
-                        completion_id=request.completion_id,
+                        completion_id=request.id,
                         prefix_length=0,
                         options=[
                             CompletionOption(
@@ -267,7 +267,7 @@ def complete(
 
             if not completions:
                 # If there are still no completions, then bail.
-                _write_no_completions(stream, request.completion_id)
+                _write_no_completions(stream, request.id)
                 continue
 
             prefix = request.document[-prefix_length:]
@@ -278,11 +278,11 @@ def complete(
             ]
             _write_completion_result(
                 stream=stream,
-                completion_id=request.completion_id,
+                completion_id=request.id,
                 prefix_length=prefix_length,
                 options=options,
             )
         except Exception as e:
             # jedi failed to provide completion
             LOGGER.debug("Completion with jedi failed: ", str(e))
-            _write_no_completions(stream, request.completion_id)
+            _write_no_completions(stream, request.id)

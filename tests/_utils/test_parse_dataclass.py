@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pytest
 
-from marimo._server.models.models import SetCellConfigRequest
+from marimo._runtime.requests import SetCellConfigRequest
 from marimo._utils.parse_dataclass import build_dataclass, parse_raw
 
 

@@ -37,8 +37,9 @@ async def list_files(
 ) -> FileListResponse:
     """List files and directories in a given path."""
     body = await parse_request(request, cls=FileListRequest)
-    files = file_system.list_files(body.path or file_system.get_root())
-    return FileListResponse(files=files)
+    root = body.path or file_system.get_root()
+    files = file_system.list_files(root)
+    return FileListResponse(files=files, root=root)
 
 
 @router.post("/file_details")

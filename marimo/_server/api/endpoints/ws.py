@@ -99,7 +99,7 @@ class WebsocketHandler(SessionConsumer):
         Sends cell code and other metadata to client.
         """
         mgr = self.manager
-        app = session.app
+        app = session.app_file_manager.app
 
         codes: tuple[str, ...]
         names: tuple[str, ...]

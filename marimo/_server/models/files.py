@@ -66,6 +66,7 @@ class FileUpdateRequest:
 @dataclass
 class FileListResponse:
     files: List[FileInfo]
+    root: str
 
 
 @dataclass

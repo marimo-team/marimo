@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from marimo._ast.app import App, InternalApp
 from marimo._runtime.requests import AppMetadata
+from marimo._server.file_manager import AppFileManager
 from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
 from marimo._server.utils import initialize_asyncio
@@ -64,7 +65,10 @@ def test_session() -> None:
 
     # Instantiate a Session
     session = Session(
-        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        AppFileManager.from_app(InternalApp(App())),
     )
 
     # Assert startup
@@ -99,7 +103,10 @@ def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = Session(
-        InternalApp(App()), session_consumer, queue_manager, kernel_manager
+        session_consumer,
+        queue_manager,
+        kernel_manager,
+        AppFileManager.from_app(InternalApp(App())),
     )
 
     # Assert startup

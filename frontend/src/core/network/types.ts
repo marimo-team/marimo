@@ -4,6 +4,7 @@ import { LayoutType } from "@/components/editor/renderers/types";
 import { CellId } from "../cells/ids";
 import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
+import { saveUserConfig } from "./requests";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -59,15 +60,6 @@ export interface SaveKernelRequest {
   configs: CellConfig[];
 }
 
-export interface SendDirectoryAutocompleteRequest {
-  prefix: string;
-}
-
-export interface SendDirectoryAutocompleteResponse {
-  directories: string[];
-  files: string[];
-}
-
 export interface SetComponentValuesRequest {
   objectIds: string[];
   values: unknown[];
@@ -118,6 +110,7 @@ export interface FileInfo {
 
 export interface FileListResponse {
   files: FileInfo[];
+  root: string;
 }
 
 /**
@@ -141,9 +134,6 @@ export interface EditRequests {
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<Record<CellId, string>>;
   sendDeleteCell: (cellId: CellId) => Promise<null>;
-  sendDirectoryAutocompleteRequest: (
-    prefix: string,
-  ) => Promise<SendDirectoryAutocompleteResponse>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigRequest) => Promise<null>;
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;

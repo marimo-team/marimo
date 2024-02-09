@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._config.config import MarimoConfig
+from marimo._runtime.requests import ExecuteMultipleRequest, ExecutionRequest
 
 UIElementId = str
 
@@ -15,19 +16,15 @@ class UpdateComponentValuesRequest:
     object_ids: List[UIElementId]
     values: List[Union[str, bool, int, float, None]]
 
+    def zip(
+        self,
+    ) -> List[tuple[UIElementId, Union[str, bool, int, float, None]]]:
+        return list(zip(self.object_ids, self.values))
+
 
 @dataclass
-class InstantiateRequest:
-    object_ids: List[UIElementId]
-    values: List[Union[str, bool, int, float, None]]
-
-
-@dataclass
-class FunctionCallRequest:
-    function_call_id: str
-    namespace: str
-    function_name: str
-    args: Dict[str, Any]
+class InstantiateRequest(UpdateComponentValuesRequest):
+    pass
 
 
 @dataclass
@@ -38,29 +35,6 @@ class BaseResponse:
 @dataclass
 class SuccessResponse(BaseResponse):
     success: bool = True
-
-
-@dataclass
-class CodeCompleteRequest:
-    id: str
-    document: str
-    cell_id: CellId_t
-
-
-@dataclass
-class DeleteCellRequest:
-    cell_id: CellId_t
-
-
-@dataclass
-class DirectoryAutocompleteRequest:
-    prefix: str
-
-
-@dataclass
-class DirectoryAutocompleteResponse:
-    directories: List[str]
-    files: List[str]
 
 
 @dataclass
@@ -96,6 +70,14 @@ class RunRequest:
     # code to register/run for each cell
     codes: List[str]
 
+    def as_execution_request(self) -> ExecuteMultipleRequest:
+        return ExecuteMultipleRequest(
+            execution_requests=[
+                ExecutionRequest(cell_id=cid, code=code)
+                for cid, code in zip(self.cell_ids, self.codes)
+            ]
+        )
+
 
 @dataclass
 class SaveRequest:
@@ -123,12 +105,6 @@ class SaveAppConfigurationRequest:
 class SaveUserConfigurationRequest:
     # user configuration
     config: MarimoConfig
-
-
-@dataclass
-class SetCellConfigRequest:
-    # Map from Cell ID to (possibly partial) CellConfig
-    configs: Dict[CellId_t, Dict[str, object]]
 
 
 @dataclass

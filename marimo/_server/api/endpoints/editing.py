@@ -4,22 +4,22 @@ from __future__ import annotations
 from starlette.authentication import requires
 from starlette.requests import Request
 
-from marimo._ast.cell import CellId_t
-from marimo._config.utils import LOGGER
-from marimo._runtime import requests
+from marimo._runtime.requests import (
+    CompletionRequest,
+    DeleteRequest,
+    SetCellConfigRequest,
+)
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     BaseResponse,
-    CodeCompleteRequest,
-    DeleteCellRequest,
     FormatRequest,
     FormatResponse,
-    SetCellConfigRequest,
     StdinRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._utils.formatter import BlackFormatter
 
 # Router for editing endpoints
 router = APIRouter()
@@ -30,14 +30,8 @@ router = APIRouter()
 async def code_complete(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
-    body = await parse_request(request, cls=CodeCompleteRequest)
-    app_state.require_current_session().put_completion_request(
-        requests.CompletionRequest(
-            completion_id=body.id,
-            document=body.document,
-            cell_id=body.cell_id,
-        )
-    )
+    body = await parse_request(request, cls=CompletionRequest)
+    app_state.require_current_session().put_completion_request(body)
 
     return SuccessResponse()
 
@@ -47,10 +41,8 @@ async def code_complete(request: Request) -> BaseResponse:
 async def delete_cell(request: Request) -> BaseResponse:
     """Complete a code fragment."""
     app_state = AppState(request)
-    body = await parse_request(request, cls=DeleteCellRequest)
-    app_state.require_current_session().put_control_request(
-        requests.DeleteRequest(cell_id=body.cell_id)
-    )
+    body = await parse_request(request, cls=DeleteRequest)
+    app_state.require_current_session().put_control_request(body)
 
     return SuccessResponse()
 
@@ -59,24 +51,10 @@ async def delete_cell(request: Request) -> BaseResponse:
 @requires("edit")
 async def format_cell(request: Request) -> FormatResponse:
     """Complete a code fragment."""
-    try:
-        import black
-    except ModuleNotFoundError:
-        LOGGER.warn(
-            "To enable code formatting, install black (pip install black)"
-        )
-        return FormatResponse(codes={})
-
     body = await parse_request(request, cls=FormatRequest)
-    formatted_codes: dict[CellId_t, str] = {}
-    for key, code in body.codes.items():
-        try:
-            mode = black.Mode(line_length=body.line_length)  # type: ignore
-            formatted = black.format_str(code, mode=mode)
-            formatted_codes[key] = formatted.strip()
-        except Exception:
-            formatted_codes[key] = code
-    return FormatResponse(codes=formatted_codes)
+    formatter = BlackFormatter(line_length=body.line_length)
+
+    return FormatResponse(codes=formatter.format(body.codes))
 
 
 @router.post("/set_cell_config")
@@ -85,9 +63,7 @@ async def set_cell_config(request: Request) -> BaseResponse:
     """Set the config for a cell."""
     app_state = AppState(request)
     body = await parse_request(request, cls=SetCellConfigRequest)
-    app_state.require_current_session().put_control_request(
-        requests.SetCellConfigRequest(configs=body.configs)
-    )
+    app_state.require_current_session().put_control_request(body)
 
     return SuccessResponse()
 

@@ -12,8 +12,6 @@ import {
   RenameRequest,
   RunRequest,
   SaveKernelRequest,
-  SendDirectoryAutocompleteRequest,
-  SendDirectoryAutocompleteResponse,
   SetComponentValuesRequest,
   SaveUserConfigRequest,
   SaveAppConfigRequest,
@@ -104,14 +102,6 @@ function createNetworkRequests(): EditRequests & RunRequests {
         cellId: cellId,
       });
     },
-    sendDirectoryAutocompleteRequest: (prefix) => {
-      return API.post<
-        SendDirectoryAutocompleteRequest,
-        SendDirectoryAutocompleteResponse
-      >("/kernel/directory_autocomplete", {
-        prefix: prefix,
-      });
-    },
     sendCodeCompletionRequest: (request) => {
       return API.post<CodeCompletionRequest>(
         "/kernel/code_autocomplete",
@@ -166,7 +156,6 @@ export const {
   sendRun,
   sendInstantiate,
   sendDeleteCell,
-  sendDirectoryAutocompleteRequest,
   sendCodeCompletionRequest,
   saveUserConfig,
   saveAppConfig,
