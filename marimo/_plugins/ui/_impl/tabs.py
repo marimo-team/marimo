@@ -11,41 +11,45 @@ from marimo._plugins.ui._core.ui_element import UIElement
 
 @mddoc
 class tabs(UIElement[str, str]):
-    """
-    Tabs of UI elements.
-
-    This can be "controlled" by setting the `value` attribute to the name
-    of the tab you want to be active.
-    Or it can be "uncontrolled" and the active tab will be stored in the
-    ui element's internal state.
+    """Display objects in a tabbed view.
 
     **Examples.**
+
+    Show content in tabs:
 
     ```python
     tab1 = mo.vstack([
         "slider": mo.ui.slider(1, 10),
         "text": mo.ui.text(),
         "date": mo.ui.date()
-    ]);
-    tab2 = mo.vstack([{
-        "slider": mo.ui.slider(1, 10),
-        "text": mo.ui.text(),
-        "date": mo.ui.date()
-    ]);
+    ])
+
+    tab2 = mo.md("You can show arbitrary content in a tab.")
+
     tabs = mo.ui.tabs({
-        "Tab 1": tab1,
-        "Tab 2": tab2
+        "Heading 1": tab1,
+        "Heading 2": tab2
     })
+    ```
+
+    Control which tab is selected:
+
+    ```python
+    tabs = mo.ui.tabs({
+        "Heading 1": tab1,
+        "Heading 2": tab2
+    }, value="Heading 2")
     ```
 
     **Attributes.**
 
-    - `value`: A string, the name of the active tab.
+    - `value`: A string, the name of the selected tab.
 
     **Initialization Args.**
 
     - `tabs`: a dictionary of tab names to tab content; strings are interpreted
-    as markdown
+              as markdown
+    - `value`: the name of the tab to open; defaults to the first tab
     """
 
     _name: Final[str] = "marimo-tabs"

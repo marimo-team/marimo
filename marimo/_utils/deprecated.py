@@ -1,41 +1,23 @@
+# Copyright 2024 Marimo. All rights reserved.
 import functools
 import warnings
 from typing import Any, Callable
 
-# Adapted from https://stackoverflow.com/questions/2536307
-
 
 def deprecated(reason: str) -> Callable[[Any], Any]:
-    """This is a decorator which can be used to mark functions
-    as deprecated. It will result in a warning being emitted
-    when the function is used."""
+    """A decorator that emits a deprecation warning."""
 
     def decorator(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
         @functools.wraps(func)
-        def new_func(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
-            # get the line number of the stack frame of the caller
-            lineno = 0
-            try:
-                import inspect
-
-                lineno = inspect.currentframe().f_back.f_lineno  # type: ignore[union-attr]
-            except Exception:
-                pass
-
-            warnings.simplefilter(
-                "always", DeprecationWarning
-            )  # turn off filter
-            warnings.showwarning(
+        def wrapper(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+            # stacklevel=2 shows the line number in the call site
+            warnings.warn(
                 message=reason,
                 category=DeprecationWarning,
-                filename="",
-                lineno=lineno,
+                stacklevel=2,
             )
-            warnings.simplefilter(
-                "default", DeprecationWarning
-            )  # reset filter
             return func(*args, **kwargs)  # type: ignore[no-any-return]
 
-        return new_func
+        return wrapper
 
     return decorator
