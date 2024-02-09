@@ -22,7 +22,7 @@ import { IStatelessPlugin } from "./stateless-plugin";
 import { AccordionPlugin } from "./layout/AccordionPlugin";
 import { CalloutPlugin } from "./layout/CalloutPlugin";
 import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
-import { TabsPlugin } from "./layout/TabsPlugin";
+import { TabsPlugin } from "./impl/TabsPlugin";
 import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
@@ -54,6 +54,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new RefreshPlugin(),
   new SliderPlugin(),
   new SwitchPlugin(),
+  new TabsPlugin(),
   new TextAreaPlugin(),
   new TextInputPlugin(),
   new VegaPlugin(),

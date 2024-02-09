@@ -26,6 +26,7 @@
   slider
   switch
   table
+  tabs
   text
   text_area
 ```
@@ -57,6 +58,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.refresh
   marimo.ui.slider
   marimo.ui.switch
+  marimo.ui.tabs
   marimo.ui.table
   marimo.ui.text
   marimo.ui.text_area

@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.4"
+__generated_with = "0.2.2"
 app = marimo.App()
 
 
@@ -385,7 +386,11 @@ def __(mo):
 @app.cell
 def __(get_shared_state, mo, set_shared_state):
     x = mo.ui.slider(
-        0, 10, value=get_shared_state(), on_change=set_shared_state, label="$x$:"
+        0,
+        10,
+        value=get_shared_state(),
+        on_change=set_shared_state,
+        label="$x$:",
     )
     return x,
 
@@ -441,7 +446,6 @@ def __(dataclass, mo):
         name: str
         done: bool = False
 
-
     get_tasks, set_tasks = mo.state([])
     task_list_mutated, set_task_list_mutated = mo.state(False)
     return (
@@ -468,11 +472,9 @@ def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box):
             set_tasks(lambda v: v + [Task(task_entry_box.value)])
             set_task_list_mutated(True)
 
-
     def clear_tasks():
         set_tasks(lambda v: [task for task in v if not task.done])
         set_task_list_mutated(True)
-
 
     add_task_button = mo.ui.button(
         label="add task",
@@ -488,7 +490,10 @@ def __(Task, mo, set_task_list_mutated, set_tasks, task_entry_box):
 @app.cell
 def __(Task, get_tasks, mo, set_tasks):
     task_list = mo.ui.array(
-        [mo.ui.checkbox(value=task.done, label=task.name) for task in get_tasks()],
+        [
+            mo.ui.checkbox(value=task.done, label=task.name)
+            for task in get_tasks()
+        ],
         label="tasks",
         on_change=lambda v: set_tasks(
             lambda tasks: [
@@ -559,6 +564,7 @@ def __(mo):
                     "radio": mo.ui.radio,
                     "slider": mo.ui.slider,
                     "switch": mo.ui.switch,
+                    "tabs": mo.ui.tabs,
                     "table": mo.ui.table,
                     "text": mo.ui.text,
                     "text_area": mo.ui.text_area,
@@ -573,7 +579,9 @@ def __(mo):
 def __(mo):
     def construct_element(value):
         if value == mo.ui.array:
-            return mo.ui.array([mo.ui.text(), mo.ui.slider(1, 10), mo.ui.date()])
+            return mo.ui.array(
+                [mo.ui.text(), mo.ui.slider(1, 10), mo.ui.date()]
+            )
         elif value == mo.ui.batch:
             return mo.md(
                 """
@@ -619,6 +627,19 @@ def __(mo):
             return mo.ui.slider(start=1, stop=10, step=0.5)
         elif value == mo.ui.switch:
             return mo.ui.switch()
+        elif value == mo.ui.tabs:
+            return mo.ui.tabs(
+                {
+                    "Employee #1": {
+                        "first_name": "Michael",
+                        "last_name": "Scott",
+                    },
+                    "Employee #2": {
+                        "first_name": "Dwight",
+                        "last_name": "Schrute",
+                    },
+                }
+            )
         elif value == mo.ui.table:
             return mo.ui.table(
                 data=[
@@ -665,7 +686,11 @@ def __(mo):
     def documentation(element):
         if element is not None:
             return mo.accordion(
-                {f"Documentation on `mo.ui.{element.__name__}`": mo.doc(element)}
+                {
+                    f"Documentation on `mo.ui.{element.__name__}`": mo.doc(
+                        element
+                    )
+                }
             )
     return documentation,
 

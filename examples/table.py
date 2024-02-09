@@ -39,7 +39,7 @@ def __(mo, office_characters):
 
 @app.cell
 def __(mo, single_select_table):
-    mo.tabs({"table": single_select_table, "selection": single_select_table.value})
+    mo.ui.tabs({"table": single_select_table, "selection": single_select_table.value})
     return
 
 
@@ -61,7 +61,7 @@ def __(mo, office_characters):
 
 @app.cell
 def __(mo, multi_select_table):
-    mo.tabs({"table": multi_select_table, "selection": multi_select_table.value})
+    mo.ui.tabs({"table": multi_select_table, "selection": multi_select_table.value})
     return
 
 

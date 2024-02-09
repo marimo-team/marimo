@@ -429,7 +429,7 @@ def __(create_wrapper, mo):
 @app.cell
 def __(bar, create_wrapper, mo):
     create_wrapper(
-        mo.tabs(
+        mo.ui.tabs(
             {
                 "📈 Sales": bar,
                 "💻 Settings": mo.ui.text(placeholder="Key"),

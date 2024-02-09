@@ -8,8 +8,8 @@ import {
   TabsContent,
 } from "../../components/ui/tabs";
 import { z } from "zod";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { renderHTML } from "../core/RenderHTML";
+import { IPlugin, IPluginProps } from "../types";
 
 interface Data {
   /**
@@ -18,24 +18,44 @@ interface Data {
   tabs: string[];
 }
 
-export class TabsPlugin implements IStatelessPlugin<Data> {
+// Selected tab index
+type T = string;
+
+export class TabsPlugin implements IPlugin<T, Data> {
   tagName = "marimo-tabs";
 
   validator = z.object({
     tabs: z.array(z.string()),
   });
 
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
-    return <TabComponent {...props.data}>{props.children}</TabComponent>;
+  render(props: IPluginProps<T, Data>): JSX.Element {
+    return (
+      <TabComponent
+        {...props.data}
+        value={props.value}
+        setValue={props.setValue}
+      >
+        {props.children}
+      </TabComponent>
+    );
   }
+}
+
+interface TabComponentProps extends Data {
+  value: T;
+  setValue: (value: T) => void;
 }
 
 const TabComponent = ({
   tabs,
+  value,
+  setValue,
   children,
-}: PropsWithChildren<Data>): JSX.Element => {
+}: PropsWithChildren<TabComponentProps>): JSX.Element => {
+  // We use the index since labels are raw HTML and can't be used as keys
+  const selectedTab = value || "0";
   return (
-    <Tabs defaultValue="0">
+    <Tabs value={selectedTab} onValueChange={setValue}>
       <TabsList>
         {tabs.map((tab, index) => (
           <TabsTrigger key={index} value={index.toString()}>

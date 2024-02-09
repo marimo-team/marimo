@@ -1,16 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
-from marimo._output.md import md
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._plugins.ui._impl.tabs import tabs as tabs_impl
+from marimo._utils.deprecated import deprecated
 
 
 @mddoc
+@deprecated("mo.tabs is deprecated. Use mo.ui.tabs instead")
 def tabs(tabs: dict[str, object]) -> Html:
     """
+    **Deprecated.**: Use `mo.ui.tabs` instead.
+
     Tabs of UI elements.
 
     **Examples.**
@@ -41,19 +43,4 @@ def tabs(tabs: dict[str, object]) -> Html:
 
     - An `Html` object.
     """
-    tab_items = "".join(
-        [
-            "<div data-kind='tab'>"
-            + (md(tab).text if isinstance(tab, str) else as_html(tab).text)
-            + "</div>"
-            for tab in tabs.values()
-        ]
-    )
-    tab_labels = list(md(label).text for label in tabs.keys())
-    return Html(
-        build_stateless_plugin(
-            component_name="marimo-tabs",
-            args={"tabs": tab_labels},
-            slotted_html=tab_items,
-        )
-    )
+    return tabs_impl(tabs)
