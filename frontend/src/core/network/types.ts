@@ -4,7 +4,6 @@ import { LayoutType } from "@/components/editor/renderers/types";
 import { CellId } from "../cells/ids";
 import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
-import { saveUserConfig } from "./requests";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.

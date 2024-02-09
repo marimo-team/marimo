@@ -1,10 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
+from typing import Dict
+
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
-CellCodes = dict[CellId_t, str]
+CellCodes = Dict[CellId_t, str]
 
 
 class Formatter:
