@@ -19,7 +19,7 @@ save_request = SaveRequest(
 
 
 @pytest.fixture
-def app_file_manager() -> None:
+def app_file_manager() -> AppFileManager:
     """
     Creates an AppFileManager instance with a temporary file.
     """
@@ -68,7 +68,7 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
 
 def test_successful_rename(app_file_manager: AppFileManager) -> None:
     new_filename = "new_filename.py"
-    if os.path.exists(new_filename) -> None:
+    if os.path.exists(new_filename):
         os.remove(new_filename)
     app_file_manager.rename(new_filename)
     assert app_file_manager.filename == new_filename
@@ -86,7 +86,7 @@ def test_rename_exception(app_file_manager: AppFileManager) -> None:
 def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = None
     new_filename = "new_file.py"
-    if os.path.exists(new_filename) -> None:
+    if os.path.exists(new_filename):
         os.remove(new_filename)
     app_file_manager.rename(new_filename)
     assert os.path.exists(new_filename)
@@ -110,7 +110,9 @@ def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
         assert e.status_code == HTTPStatus.SERVER_ERROR
 
 
-def test_save_filename_change_not_allowed(app_file_manager: AppFileManager) -> None:
+def test_save_filename_change_not_allowed(
+    app_file_manager: AppFileManager,
+) -> None:
     app_file_manager.filename = "original.py"
     save_request.filename = "new.py"
     try:
