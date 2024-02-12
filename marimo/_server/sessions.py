@@ -400,7 +400,6 @@ class SessionManager:
         self.mode = mode
         self.development_mode = development_mode
         self.quiet = quiet
-        self.filename = filename
         self.sessions: dict[str, Session] = {}
         self.include_code = include_code
         self.lsp_server = lsp_server
