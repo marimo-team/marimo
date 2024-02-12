@@ -400,7 +400,7 @@ class SessionManager:
         Load the app from the current file.
         Otherwise, return an empty app.
         """
-        app = codegen.get_app(self.filename)
+        app = codegen.get_app(self.path)
         if app is None:
             empty_app = InternalApp(App())
             empty_app.cell_manager.register_cell(
