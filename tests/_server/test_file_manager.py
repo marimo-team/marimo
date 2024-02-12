@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Generator
 
 import pytest
 from starlette.exceptions import HTTPException
@@ -19,7 +20,7 @@ save_request = SaveRequest(
 
 
 @pytest.fixture
-def app_file_manager() -> AppFileManager:
+def app_file_manager() -> Generator[AppFileManager, None, None]:
     """
     Creates an AppFileManager instance with a temporary file.
     """
@@ -45,7 +46,11 @@ if __name__ == "__main__":
 
     # Instantiate AppFileManager with the temporary file and a mock app
     manager = AppFileManager(filename=temp_file.name)
-    return manager
+    yield manager
+
+    # Clean up the temporary file
+    if os.path.exists(temp_file.name):
+        os.remove(temp_file.name)
 
 
 def test_rename_same_filename(app_file_manager: AppFileManager) -> None:
@@ -73,17 +78,18 @@ def test_successful_rename(app_file_manager: AppFileManager) -> None:
     )
     if os.path.exists(new_filename):
         os.remove(new_filename)
-    app_file_manager.rename(new_filename)
-    assert app_file_manager.filename == new_filename
-    os.remove(new_filename)
+    try:
+        app_file_manager.rename(new_filename)
+        assert app_file_manager.filename == new_filename
+    finally:
+        os.remove(new_filename)
 
 
 def test_rename_exception(app_file_manager: AppFileManager) -> None:
     new_filename = "/invalid/path/new_filename.py"
-    try:
+    with pytest.raises(HTTPException) as e:
         app_file_manager.rename(new_filename)
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.SERVER_ERROR
+        assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
 
 def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
@@ -91,26 +97,29 @@ def test_rename_create_new_file(app_file_manager: AppFileManager) -> None:
     new_filename = "new_file.py"
     if os.path.exists(new_filename):
         os.remove(new_filename)
-    app_file_manager.rename(new_filename)
-    assert os.path.exists(new_filename)
-    os.remove(new_filename)
+    try:
+        app_file_manager.rename(new_filename)
+        assert os.path.exists(new_filename)
+    finally:
+        os.remove(new_filename)
 
 
 def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "app_config.py"
-    app_file_manager.save_app_config({})
-    with open(app_file_manager.filename, "r", encoding="utf-8") as f:
-        contents = f.read()
-    assert "app = marimo.App" in contents
-    os.remove(app_file_manager.filename)
+    try:
+        app_file_manager.save_app_config({})
+        with open(app_file_manager.filename, "r", encoding="utf-8") as f:
+            contents = f.read()
+        assert "app = marimo.App" in contents
+    finally:
+        os.remove(app_file_manager.filename)
 
 
 def test_save_app_config_exception(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = "/invalid/path/app_config.py"
-    try:
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save_app_config({})
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.SERVER_ERROR
+        assert e.value.status_code == HTTPStatus.SERVER_ERROR
 
 
 def test_save_filename_change_not_allowed(
@@ -118,10 +127,9 @@ def test_save_filename_change_not_allowed(
 ) -> None:
     app_file_manager.filename = "original.py"
     save_request.filename = "new.py"
-    try:
+    with pytest.raises(HTTPException) as e:
         app_file_manager.save(save_request)
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.BAD_REQUEST
+        assert e.value.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
@@ -130,9 +138,9 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
         f.write("This is a test file.")
     save_request.filename = existing_filename
     try:
-        app_file_manager.save(save_request)
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.BAD_REQUEST
+        with pytest.raises(HTTPException) as e:
+            app_file_manager.save(save_request)
+            assert e.value.status_code == HTTPStatus.BAD_REQUEST
     finally:
         os.remove(existing_filename)
 
@@ -140,8 +148,10 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
 def test_save_successful(app_file_manager: AppFileManager) -> None:
     save_request.filename = app_file_manager.filename or ""
     app_file_manager.save(save_request)
-    assert os.path.exists(save_request.filename)
-    os.remove(save_request.filename)
+    try:
+        assert os.path.exists(save_request.filename)
+    finally:
+        os.remove(save_request.filename)
 
 
 def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
@@ -155,16 +165,17 @@ def test_save_cannot_rename(app_file_manager: AppFileManager) -> None:
 def test_read_valid_filename(app_file_manager: AppFileManager) -> None:
     expected_content = "This is a test read."
     app_file_manager.filename = "test_read.py"
-    with open(app_file_manager.filename, "w", encoding="utf-8") as f:
-        f.write(expected_content)
-    content = app_file_manager.read_file()
-    assert content == expected_content
-    os.remove(app_file_manager.filename)
+    try:
+        with open(app_file_manager.filename, "w", encoding="utf-8") as f:
+            f.write(expected_content)
+        content = app_file_manager.read_file()
+        assert content == expected_content
+    finally:
+        os.remove(app_file_manager.filename)
 
 
 def test_read_unnamed_notebook(app_file_manager: AppFileManager) -> None:
     app_file_manager.filename = None
-    try:
+    with pytest.raises(HTTPException) as e:
         app_file_manager.read_file()
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.BAD_REQUEST
+        assert e.value.status_code == HTTPStatus.BAD_REQUEST
