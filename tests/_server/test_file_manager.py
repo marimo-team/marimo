@@ -67,7 +67,10 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
 
 
 def test_successful_rename(app_file_manager: AppFileManager) -> None:
-    new_filename = "new_filename.py"
+    existing_filename = "existing_file.py"
+    new_filename = os.path.join(
+        os.path.dirname(existing_filename), "new_file.py"
+    )
     if os.path.exists(new_filename):
         os.remove(new_filename)
     app_file_manager.rename(new_filename)
