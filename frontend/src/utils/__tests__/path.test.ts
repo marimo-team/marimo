@@ -16,6 +16,12 @@ describe("Paths", () => {
     it("should handle paths without a leading slash", () => {
       expect(Paths.dirname("user/docs/Letter.txt")).toBe("user/docs");
     });
+
+    it("should handle windows-style paths", () => {
+      expect(Paths.dirname("C:\\user\\docs\\Letter.txt")).toBe(
+        "C:\\user\\docs",
+      );
+    });
   });
 
   describe("basename", () => {
@@ -29,6 +35,10 @@ describe("Paths", () => {
 
     it("should handle paths without a leading slash", () => {
       expect(Paths.basename("user/docs/Letter.txt")).toBe("Letter.txt");
+    });
+
+    it("should handle windows-style paths", () => {
+      expect(Paths.basename("C:\\user\\docs\\Letter.txt")).toBe("Letter.txt");
     });
   });
 });
