@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from marimo._ast.cell import CellId_t
 
@@ -19,13 +19,13 @@ class ExecutionRequest:
 
 @dataclass
 class ExecuteMultipleRequest:
-    execution_requests: list[ExecutionRequest]
+    execution_requests: List[ExecutionRequest]
 
 
 @dataclass
 class SetUIElementValueRequest:
     # (object id, value) tuples
-    ids_and_values: list[tuple[UIElementId, Any]]
+    ids_and_values: List[Tuple[UIElementId, Any]]
 
 
 @dataclass
@@ -33,7 +33,7 @@ class FunctionCallRequest:
     function_call_id: FunctionCallId
     namespace: str
     function_name: str
-    args: dict[str, Any]
+    args: Dict[str, Any]
 
 
 @dataclass
@@ -46,12 +46,12 @@ class AppMetadata:
 @dataclass
 class SetCellConfigRequest:
     # Map from Cell ID to (possibly partial) CellConfig
-    configs: dict[CellId_t, dict[str, object]]
+    configs: Dict[CellId_t, Dict[str, object]]
 
 
 @dataclass
 class CreationRequest:
-    execution_requests: tuple[ExecutionRequest, ...]
+    execution_requests: Tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
 
 
