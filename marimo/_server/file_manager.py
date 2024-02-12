@@ -21,9 +21,9 @@ LOGGER = _loggers.marimo_logger()
 
 
 class AppFileManager:
-    def __init__(self, filename: Optional[str]) -> None:
-        self.filename = filename
-        self.app = self._load_app(filename)
+    def __init__(self, path: Optional[str]) -> None:
+        self.path = path
+        self.app = self._load_app(path)
 
     @staticmethod
     def from_app(app: InternalApp) -> AppFileManager:
@@ -33,12 +33,12 @@ class AppFileManager:
 
     def reload(self) -> None:
         """Reload the app from the file."""
-        self.app = self._load_app(self.filename)
+        self.app = self._load_app(self.path)
 
     @staticmethod
-    def _load_app(filename: Optional[str]) -> InternalApp:
+    def _load_app(path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
-        app = codegen.get_app(filename)
+        app = codegen.get_app(path)
         if app is None:
             empty_app = InternalApp(App())
             empty_app.cell_manager.register_cell(
@@ -55,21 +55,21 @@ class AppFileManager:
 
         new_filename = canonicalize_filename(new_filename)
 
-        if self.filename == new_filename:
+        if self.path == new_filename:
             return
         if os.path.exists(new_filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="File {0} already exists".format(new_filename),
             )
-        if self.filename is not None:
+        if self.path is not None:
             try:
-                os.rename(self.filename, new_filename)
+                os.rename(self.path, new_filename)
             except Exception as err:
                 raise HTTPException(
                     status_code=HTTPStatus.SERVER_ERROR,
                     detail="Failed to rename from {0} to {1}".format(
-                        self.filename, new_filename
+                        self.path, new_filename
                     ),
                 ) from err
         else:
@@ -83,7 +83,7 @@ class AppFileManager:
                     detail="Failed to create file {0}".format(new_filename),
                 ) from err
 
-        self.filename = new_filename
+        self.path = os.path.abspath(new_filename)
 
     def save_app_config(self, config: Dict[str, Any]) -> None:
         """Save the app configuration."""
@@ -92,7 +92,7 @@ class AppFileManager:
         # of file), instead of overwriting the whole file.
         new_config = self.app.update_config(config)
 
-        if self.filename is not None:
+        if self.path is not None:
             # Try to save the app under the name `self.filename`
             contents = codegen.generate_filecontents(
                 codes=list(self.app.cell_manager.codes()),
@@ -101,7 +101,7 @@ class AppFileManager:
                 config=new_config,
             )
             try:
-                with open(self.filename, "w", encoding="utf-8") as f:
+                with open(self.path, "w", encoding="utf-8") as f:
                     f.write(contents)
             except Exception as e:
                 raise HTTPException(
@@ -127,12 +127,12 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self.filename is not None and self.filename != filename:
+        if self.path is not None and self.path != filename:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
             )
-        elif self.filename is None and os.path.exists(filename):
+        elif self.path is None and os.path.exists(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="File {0} already exists".format(filename),
@@ -167,16 +167,16 @@ class AppFileManager:
                     status_code=HTTPStatus.SERVER_ERROR,
                     detail="Failed to save file: {0}".format(str(e)),
                 ) from e
-            if self.filename is None:
+            if self.path is None:
                 self.rename(filename)
 
     def read_file(self) -> str:
         """Read the contents of the file."""
-        if self.filename is None:
+        if self.path is None:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Cannot read code from an unnamed notebook",
             )
-        with open(self.filename, "r", encoding="utf-8") as f:
+        with open(self.path, "r", encoding="utf-8") as f:
             contents = f.read().strip()
         return contents
