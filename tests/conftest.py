@@ -9,7 +9,12 @@ import pytest
 
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
-from marimo._messaging.streams import Stderr, Stdin, Stdout
+from marimo._messaging.streams import (
+    ConcurrentStderr,
+    ConcurrentStdin,
+    ConcurrentStdout,
+    ConcurrentStream,
+)
 from marimo._runtime.context import (
     initialize_context,
     teardown_context,
@@ -19,7 +24,7 @@ from marimo._runtime.runtime import Kernel
 
 
 @dataclasses.dataclass
-class _MockStream:
+class _MockStream(ConcurrentStream):
     """Captures the ops sent through the stream"""
 
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
@@ -30,7 +35,7 @@ class _MockStream:
         self.messages.append((op, data))
 
 
-class MockStdout(Stdout):
+class MockStdout(ConcurrentStdout):
     """Captures the output sent through the stream"""
 
     def __init__(self, stream: _MockStream) -> None:
@@ -42,7 +47,7 @@ class MockStdout(Stdout):
         return len(data)
 
 
-class MockStderr(Stderr):
+class MockStderr(ConcurrentStderr):
     """Captures the output sent through the stream"""
 
     messages: list[str] = dataclasses.field(default_factory=list)
@@ -56,7 +61,7 @@ class MockStderr(Stderr):
         return len(data)
 
 
-class MockStdin(Stdin):
+class MockStdin(ConcurrentStdin):
     """Echoes the prompt."""
 
     def __init__(self, stream: _MockStream) -> None:
@@ -97,8 +102,8 @@ class MockedKernel:
     def teardown(self):
         # must be called by fixtures that instantiate this
         teardown_context()
-        self.stdout._watcher.stop()
-        self.stderr._watcher.stop()
+        self.stdout.stop()
+        self.stderr.stop()
 
 
 # fixture that provides a kernel (and tears it down)

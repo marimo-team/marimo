@@ -13,7 +13,13 @@ from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
-from marimo._messaging.types import KernelMessage
+from marimo._messaging.types import (
+    KernelMessage,
+    Stderr,
+    Stdin,
+    Stdout,
+    Stream,
+)
 from marimo._server.types import QueueType
 from marimo._utils.typed_connection import TypedConnection
 
@@ -45,7 +51,7 @@ OUTPUT_MAX_BYTES = int(os.getenv("MARIMO_OUTPUT_MAX_BYTES", 5_000_000))
 STD_STREAM_MAX_BYTES = int(os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000))
 
 
-class Stream:
+class ConcurrentStream(Stream):
     """A thread-safe wrapper around a pipe."""
 
     def __init__(
@@ -105,7 +111,9 @@ def _forward_os_stream(standard_stream: Stdout | Stderr, fd: int) -> None:
 class Watcher:
     """Watches and redirects a standard stream."""
 
-    def __init__(self, standard_stream: Stdout | Stderr) -> None:
+    def __init__(
+        self, standard_stream: ConcurrentStdout | ConcurrentStderr
+    ) -> None:
         self.standard_stream = standard_stream
         self.fd = self.standard_stream._original_fd
         self.read_fd, self.write_fd = os.pipe()
@@ -139,13 +147,13 @@ class Watcher:
 
 # NB: Python doesn't provide a standard out class to inherit from, so
 # we inherit from TextIOBase.
-class Stdout(io.TextIOBase):
+class ConcurrentStdout(io.TextIOBase, Stdout):
     name = "stdout"
     encoding = sys.stdout.encoding
     errors = sys.stdout.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: Stream):
+    def __init__(self, stream: ConcurrentStream):
         self._stream = stream
         self._original_fd = sys.stdout.fileno()
         self._watcher = Watcher(self)
@@ -198,14 +206,26 @@ class Stdout(io.TextIOBase):
         for line in sequence:
             self.write(line)
 
+    def start(self) -> None:
+        self._watcher.start()
+        return
 
-class Stderr(io.TextIOBase):
+    def stop(self) -> None:
+        self._watcher.stop()
+        return
+
+    def pause(self) -> None:
+        self._watcher.pause()
+        return
+
+
+class ConcurrentStderr(io.TextIOBase, Stderr):
     name = "stderr"
     encoding = sys.stderr.encoding
     errors = sys.stderr.errors
     _fileno: int | None = None
 
-    def __init__(self, stream: Stream):
+    def __init__(self, stream: ConcurrentStream):
         self._stream = stream
         self._original_fd = sys.stderr.fileno()
         self._watcher = Watcher(self)
@@ -259,15 +279,27 @@ class Stderr(io.TextIOBase):
         for line in sequence:
             self.write(line)
 
+    def start(self) -> None:
+        self._watcher.start()
+        return
 
-class Stdin(io.TextIOBase):
+    def stop(self) -> None:
+        self._watcher.stop()
+        return
+
+    def pause(self) -> None:
+        self._watcher.pause()
+        return
+
+
+class ConcurrentStdin(io.TextIOBase, Stdin):
     """Implements a subset of stdin."""
 
     name = "stdin"
     encoding = sys.stdin.encoding
     errors = sys.stdin.errors
 
-    def __init__(self, stream: Stream):
+    def __init__(self, stream: ConcurrentStream):
         self._stream = stream
 
     def fileno(self) -> int:
@@ -327,7 +359,7 @@ class Stdin(io.TextIOBase):
 def redirect(standard_stream: Stdout | Stderr) -> Iterator[None]:
     """Redirect a standard stream to the frontend."""
     try:
-        standard_stream._watcher.start()
+        standard_stream.start()
         yield
     finally:
-        standard_stream._watcher.pause()
+        standard_stream.pause()

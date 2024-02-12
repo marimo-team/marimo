@@ -7,7 +7,7 @@ from pdb import Pdb
 from types import FrameType
 
 from marimo import _loggers
-from marimo._messaging.streams import Stdin, Stdout
+from marimo._messaging.types import Stdin, Stdout
 
 LOGGER = _loggers.marimo_logger()
 

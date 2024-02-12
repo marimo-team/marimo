@@ -18,7 +18,7 @@ from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
-    from marimo._messaging.streams import Stream
+    from marimo._messaging.types import Stream
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.runtime import Kernel
     from marimo._runtime.virtual_file import VirtualFileRegistry
