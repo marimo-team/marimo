@@ -451,7 +451,7 @@ class SessionManager:
                 session_consumer=session_consumer,
                 mode=self.mode,
                 app_metadata=self.app_metadata,
-                app_file_manager=AppFileManager(self.filename),
+                app_file_manager=AppFileManager(self.path),
             )
         return self.sessions[session_id]
 

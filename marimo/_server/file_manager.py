@@ -24,7 +24,7 @@ class AppFileManager:
     def __init__(self, filename: Optional[str]) -> None:
         self.filename = filename
         self.path = self._get_file_path(filename)
-        self.app = self._load_app(self.filename)
+        self.app = self._load_app(self.path)
 
     @staticmethod
     def from_app(app: InternalApp) -> AppFileManager:
