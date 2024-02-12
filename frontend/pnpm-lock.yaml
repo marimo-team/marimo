@@ -267,8 +267,8 @@ dependencies:
     specifier: ^2.6.0
     version: 2.6.0(plotly.js@2.28.0)(react@18.2.0)
   react-resizable-panels:
-    specifier: 2.0.3
-    version: 2.0.3(react-dom@18.2.0)(react@18.2.0)
+    specifier: 2.0.6
+    version: 2.0.6(react-dom@18.2.0)(react@18.2.0)
   react-use-event-hook:
     specifier: ^0.9.6
     version: 0.9.6(react@18.2.0)
@@ -14323,14 +14323,15 @@ packages:
       use-callback-ref: 1.3.0(@types/react@18.2.51)(react@18.2.0)
       use-sidecar: 1.1.2(@types/react@18.2.51)(react@18.2.0)
 
-  /react-resizable-panels@2.0.3(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-m0upi03cdqCt/g/dUxRQkHiBzo0UDtMIYwcf8qhKM+QG0cnpusOVFKOD2ElpGrtxB/oIxTItuKYsDOeu76JHvg==}
+  /react-resizable-panels@2.0.6(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-GGkXtlDsUZvoHai4j1IO0GavLjxZJgFjfgx4CBN3cJQ+MN5HaOw3zMx+SsorQZ3caMYPYvuIArYFUhIo+q661w==}
     peerDependencies:
       react: ^16.14.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0
     dependencies:
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
+      stacking-order: 1.0.1
     dev: false
 
   /react-resizable@3.0.5(react-dom@18.2.0)(react@18.2.0):
@@ -15211,6 +15212,10 @@ packages:
   /stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
     dev: true
+
+  /stacking-order@1.0.1:
+    resolution: {integrity: sha512-IxD2jw+DDiQ3FaXr6QcvSt5uE2vDWBYcC7bbCWfI5R9kEoj8Zgi4rFwPXALOjTtE96iIdZjcJFLQVr7r7xIdAA==}
+    dev: false
 
   /static-eval@2.1.0:
     resolution: {integrity: sha512-agtxZ/kWSsCkI5E4QifRwsaPs0P0JmZV6dkLz6ILYfFYQGn+5plctanRN+IC8dJRiFkyXHrwEE3W9Wmx67uDbw==}
