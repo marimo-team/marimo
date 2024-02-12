@@ -5,17 +5,14 @@ from starlette.authentication import requires
 from starlette.requests import Request
 
 from marimo import _loggers
-from marimo._runtime import requests
 from marimo._runtime.requests import (
-    CreationRequest,
-    ExecutionRequest,
+    FunctionCallRequest,
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     BaseResponse,
-    FunctionCallRequest,
     InstantiateRequest,
     RunRequest,
     SuccessResponse,
@@ -41,14 +38,7 @@ async def set_ui_element_values(
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_control_request(
-        SetUIElementValueRequest(
-            list(
-                zip(
-                    body.object_ids,
-                    body.values,
-                )
-            )
-        )
+        SetUIElementValueRequest(body.zip())
     )
     return SuccessResponse()
 
@@ -62,22 +52,8 @@ async def instantiate(
     Instantiate the kernel.
     """
     app_state = AppState(request)
-    notebook = app_state.require_current_session().app
     body = await parse_request(request, cls=InstantiateRequest)
-
-    execution_requests = tuple(
-        ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
-        for cell_data in notebook.cell_manager.cell_data()
-    )
-
-    app_state.require_current_session().put_control_request(
-        CreationRequest(
-            execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(
-                list(zip(body.object_ids, body.values))
-            ),
-        )
-    )
+    app_state.require_current_session().instantiate(body)
 
     return SuccessResponse()
 
@@ -90,14 +66,7 @@ async def function_call(
     """Invoke an RPC"""
     app_state = AppState(request)
     body = await parse_request(request, cls=FunctionCallRequest)
-    app_state.require_current_session().put_control_request(
-        requests.FunctionCallRequest(
-            function_call_id=body.function_call_id,
-            namespace=body.namespace,
-            function_name=body.function_name,
-            args=body.args,
-        )
-    )
+    app_state.require_current_session().put_control_request(body)
 
     return SuccessResponse()
 
@@ -131,12 +100,7 @@ async def run_cell(
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
     app_state.require_current_session().put_control_request(
-        requests.ExecuteMultipleRequest(
-            tuple(
-                requests.ExecutionRequest(cell_id=cid, code=code)
-                for cid, code in zip(body.cell_ids, body.codes)
-            )
-        )
+        body.as_execution_request()
     )
 
     return SuccessResponse()

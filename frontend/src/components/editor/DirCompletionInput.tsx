@@ -7,18 +7,13 @@ import {
   useState,
 } from "react";
 
-import { sendDirectoryAutocompleteRequest } from "@/core/network/requests";
 import { Input } from "./inputs/Inputs";
 import { Logger } from "../../utils/Logger";
 import { Functions } from "../../utils/functions";
 import { cn } from "../../utils/cn";
-
-function extractBasename(path: string): string {
-  const basename = path.split(/[/\\]/).pop();
-  // split on empty string returns an empty string, so basename should
-  // never be undefined ... satisfy typescript
-  return basename ?? "";
-}
+import { sendListFiles } from "@/core/network/requests";
+import { Paths } from "@/utils/paths";
+import { useAsyncData } from "@/hooks/useAsyncData";
 
 export interface DirCompletionInputHandle {
   suggestions: string[];
@@ -47,9 +42,6 @@ export const DirCompletionInput = ({
   handle = createRef(),
   ...rest
 }: DirCompletionInputProps): JSX.Element => {
-  // every completion request gets a token; later requests invalidate
-  // previous ones, to avoid races
-  const completionTokenRef = useRef<number>(0);
   const [value, setValue] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState<number | null>(null);
@@ -88,35 +80,30 @@ export const DirCompletionInput = ({
     onChangeCallback(e.target.value);
   }
 
-  useEffect(() => {
-    async function fetchAndSetSuggestions(prefix: string, token: number) {
-      try {
-        const data = await sendDirectoryAutocompleteRequest(prefix);
-        // Only set suggestions if this token has not been invalidated
-        if (token === completionTokenRef.current) {
-          setActiveSuggestion(null);
-          setSuggestions([...data.directories, ...data.files]);
-        }
-      } catch (error) {
-        Logger.error("Failed to autocomplete directory: ", error);
-      }
-    }
+  const dirname = Paths.dirname(value || "");
+  const basename = Paths.basename(value || "");
+  const filteredSuggestions = suggestions.filter((suggestion) =>
+    suggestion.startsWith(basename),
+  );
 
-    completionTokenRef.current += 1;
-    if (focused && value !== null) {
-      fetchAndSetSuggestions(
-        value === null ? "" : value,
-        completionTokenRef.current,
-      );
-    } else {
+  useAsyncData(async () => {
+    if (!focused) {
       setActiveSuggestion(null);
       setSuggestions([]);
+      return;
     }
-  }, [value, focused]);
+
+    const data = await sendListFiles({ path: dirname });
+    // Only set suggestions if this token has not been invalidated
+    setActiveSuggestion(null);
+    const relativePaths = data.files.map((path) =>
+      path.path.slice(data.root.length + 1),
+    );
+    setSuggestions(relativePaths);
+  }, [dirname, focused]);
 
   function chooseSuggestion(index: number) {
     const prefix = value === null ? "" : value;
-    const basename = extractBasename(prefix);
     const completion = suggestions[index].slice(basename.length);
     setValue(`${prefix + completion}/`);
     if (ref.current != null) {
@@ -192,7 +179,7 @@ export const DirCompletionInput = ({
   }, [activeSuggestion]);
 
   const suggestionsList =
-    suggestions.length === 0 || ref.current == null ? null : (
+    filteredSuggestions.length === 0 || ref.current == null ? null : (
       <ul
         className="autocomplete-list"
         style={{
@@ -200,7 +187,7 @@ export const DirCompletionInput = ({
           width: ref.current.offsetWidth,
         }}
       >
-        {suggestions.map((suggestion, index) => {
+        {filteredSuggestions.map((suggestion, index) => {
           const isFile = suggestion.endsWith(".py");
           const icon = isFile ? "📄" : "📁 ";
           const isActive = activeSuggestion === index;

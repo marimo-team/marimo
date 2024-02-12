@@ -7,7 +7,6 @@ from starlette.requests import Request
 from starlette.websockets import WebSocket
 from uvicorn import Server
 
-from marimo._ast.app import _AppConfig
 from marimo._config.manager import UserConfigManager
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionId, SessionManager
@@ -82,10 +81,6 @@ class AppState:
     @property
     def mode(self) -> SessionMode:
         return self.session_manager.mode
-
-    @property
-    def app_config(self) -> Optional[_AppConfig]:
-        return self.session_manager.app_config
 
     @property
     def quiet(self) -> bool:

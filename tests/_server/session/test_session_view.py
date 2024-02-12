@@ -153,9 +153,9 @@ def test_last_run_code():
     session_view = SessionView()
     session_view.add_control_request(
         ExecuteMultipleRequest(
-            execution_requests=(
+            execution_requests=[
                 ExecutionRequest(cell_id=cell_id, code="print('hello')"),
-            )
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"
@@ -163,12 +163,12 @@ def test_last_run_code():
     # Can overwrite values and add multiple
     session_view.add_control_request(
         ExecuteMultipleRequest(
-            execution_requests=(
+            execution_requests=[
                 ExecutionRequest(cell_id=cell_id, code="print('hello world')"),
                 ExecutionRequest(
                     cell_id="cell_2", code="print('hello world')"
                 ),
-            )
+            ]
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello world')"

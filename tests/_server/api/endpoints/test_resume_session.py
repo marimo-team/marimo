@@ -213,8 +213,10 @@ def test_save_config(client: TestClient) -> None:
         )
 
     # Check the session still exists after closing the websocket
-    assert get_session(client, "123").app.config.width == "full"
-    assert get_session_manager(client).app_config.width == "full"
+    assert (
+        get_session(client, "123").app_file_manager.app.config.width == "full"
+    )
+    assert get_session_manager(client).app_config().width == "full"
 
     # Loading index page should have the new config
     response = client.get("/")

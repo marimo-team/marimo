@@ -14,19 +14,7 @@ HEADERS = {
 }
 
 
-def test_directory_autocomplete(client: TestClient) -> None:
-    response = client.post(
-        "/api/kernel/directory_autocomplete",
-        headers=HEADERS,
-        json={
-            "prefix": "",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert len(response.json()["directories"]) > 0
-
-
+@with_session(SESSION_ID)
 def test_rename(client: TestClient) -> None:
     current_filename = get_session_manager(client).filename
 
@@ -50,6 +38,7 @@ def test_rename(client: TestClient) -> None:
     assert not os.path.exists(current_filename)
 
 
+@with_session(SESSION_ID)
 def test_read_code(client: TestClient) -> None:
     response = client.post(
         "/api/kernel/read_code",

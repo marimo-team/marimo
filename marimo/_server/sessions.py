@@ -28,19 +28,25 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp
+from marimo._ast.app import InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, MessageOperation, Reload
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import requests, runtime
-from marimo._runtime.requests import AppMetadata
+from marimo._runtime.requests import (
+    AppMetadata,
+    CreationRequest,
+    ExecutionRequest,
+    SetUIElementValueRequest,
+)
+from marimo._server.file_manager import AppFileManager
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
     SessionMode,
 )
+from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import import_files, print_tabbed
@@ -227,27 +233,32 @@ class Session:
         cls,
         session_consumer: SessionConsumer,
         mode: SessionMode,
-        app: InternalApp,
         app_metadata: AppMetadata,
+        app_file_manager: AppFileManager,
     ) -> Session:
-        configs = app.cell_manager.config_map()
+        configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
         kernel_manager = KernelManager(
             queue_manager, mode, configs, app_metadata
         )
-        return cls(app, session_consumer, queue_manager, kernel_manager)
+        return cls(
+            session_consumer,
+            queue_manager,
+            kernel_manager,
+            app_file_manager,
+        )
 
     def __init__(
         self,
-        app: InternalApp,
         session_consumer: SessionConsumer,
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
+        app_file_manager: AppFileManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
         self._queue_manager: QueueManager
-        self.app = app
+        self.app_file_manager = app_file_manager
         # This can be optional in case a consumer gets disconnected,
         # and we want to continue the session without a consumer.
         self.session_consumer: Optional[SessionConsumer] = None
@@ -337,6 +348,22 @@ class Session:
         self.kernel_manager.close_kernel()
         self.unsubscribe_consumer()
 
+    def instantiate(self, request: InstantiateRequest) -> None:
+        """Instantiate the app."""
+        execution_requests = tuple(
+            ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
+            for cell_data in self.app_file_manager.app.cell_manager.cell_data()
+        )
+
+        self.put_control_request(
+            CreationRequest(
+                execution_requests=execution_requests,
+                set_ui_element_value_request=SetUIElementValueRequest(
+                    request.zip(),
+                ),
+            )
+        )
+
     def __repr__(self) -> str:
         return format_repr(
             self,
@@ -378,8 +405,7 @@ class SessionManager:
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
 
-        app = self.load_app()
-        self.app_config = app.config
+        app = self._load_app()
 
         self.app_metadata = AppMetadata(filename=self.path)
 
@@ -395,25 +421,16 @@ class SessionManager:
                 hash("".join(code for code in app.cell_manager.codes()))
             )
 
-    def load_app(self) -> InternalApp:
+    def _load_app(self) -> InternalApp:
         """
         Load the app from the current file.
         Otherwise, return an empty app.
         """
-        app = codegen.get_app(self.path)
-        if app is None:
-            empty_app = InternalApp(App())
-            empty_app.cell_manager.register_cell(
-                cell_id=None,
-                code="",
-                config=CellConfig(),
-            )
-            return empty_app
+        return AppFileManager(self.path).app
 
-        return InternalApp(app)
-
-    def update_app_config(self, config: dict[str, Any]) -> None:
-        self.app_config.update(config)
+    def app_config(self) -> _AppConfig:
+        """Read the app's configuration from the file."""
+        return self._load_app().config
 
     def rename(self, filename: Optional[str]) -> None:
         """Register a change in filename.
@@ -433,10 +450,8 @@ class SessionManager:
             self.sessions[session_id] = Session.create(
                 session_consumer=session_consumer,
                 mode=self.mode,
-                # When we create a session,
-                # we load the app from the file
-                app=self.load_app(),
                 app_metadata=self.app_metadata,
+                app_file_manager=AppFileManager(self.filename),
             )
         return self.sessions[session_id]
 
@@ -568,7 +583,7 @@ class SessionManager:
         async def on_file_changed(path: Path) -> None:
             LOGGER.debug(f"{path} was modified")
             for _, session in self.sessions.items():
-                session.app = self.load_app()
+                session.app_file_manager.reload()
                 await session.write_operation(Reload())
 
         LOGGER.debug("Starting file watcher for %s", file_path)

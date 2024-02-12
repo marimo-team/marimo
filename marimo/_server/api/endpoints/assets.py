@@ -39,11 +39,7 @@ async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     title = parse_title(app_state.filename)
     user_config = app_state.config_manager.get_config()
-    app_config = (
-        app_state.app_config.asdict()
-        if app_state.app_config is not None
-        else {}
-    )
+    app_config = app_state.session_manager.app_config().asdict()
 
     index_html = os.path.join(root, "index.html")
     with open(index_html, "r") as f:
