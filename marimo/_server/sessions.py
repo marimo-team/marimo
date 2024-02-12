@@ -369,6 +369,7 @@ class SessionManager:
         lsp_server: LspServer,
     ) -> None:
         self.filename = filename
+        self.path = self._get_file_path(filename)
         self.mode = mode
         self.development_mode = development_mode
         self.quiet = quiet
@@ -380,9 +381,7 @@ class SessionManager:
         app = self.load_app()
         self.app_config = app.config
 
-        self.app_metadata = AppMetadata(
-            filename=self._get_file_path(),
-        )
+        self.app_metadata = AppMetadata(filename=self.path)
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -401,7 +400,7 @@ class SessionManager:
         Load the app from the current file.
         Otherwise, return an empty app.
         """
-        app = codegen.get_app(self.filename)
+        app = codegen.get_app(self.path)
         if app is None:
             empty_app = InternalApp(App())
             empty_app.cell_manager.register_cell(
@@ -423,7 +422,7 @@ class SessionManager:
         or opened another file.
         """
         self.filename = filename
-        self.app_metadata.filename = self._get_file_path()
+        self.app_metadata.filename = self._get_file_path(filename)
 
     def create_session(
         self, session_id: SessionId, session_consumer: SessionConsumer
@@ -493,11 +492,12 @@ class SessionManager:
         )
         return None
 
-    def _get_file_path(self) -> Optional[str]:
-        if self.filename is None:
+    @staticmethod
+    def _get_file_path(filename: Optional[str]) -> Optional[str]:
+        if filename is None:
             return None
         try:
-            return os.path.abspath(self.filename)
+            return os.path.abspath(filename)
         except AttributeError:
             return None
 
@@ -560,7 +560,7 @@ class SessionManager:
             LOGGER.warn("Cannot start file watcher in edit mode")
             return Disposable.empty()
 
-        file_path = self._get_file_path()
+        file_path = self.path
         if file_path is None:
             LOGGER.warn("Cannot start file watcher without a filename")
             return Disposable.empty()
