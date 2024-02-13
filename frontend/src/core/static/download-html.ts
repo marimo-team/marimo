@@ -56,7 +56,7 @@ export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
   const html = await createStaticHTMLNotebook();
 
-  const filenameWithoutPath = filename.split("/").pop() ?? "app.py";
+  const filenameWithoutPath = filename.split("/").pop() ?? "notebook.py";
   const filenameWithoutExtension =
     filenameWithoutPath.split(".").shift() ?? "app";
 

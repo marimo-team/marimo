@@ -438,6 +438,10 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
     return sheet.href.startsWith(getStaticNotebookAssetUrl());
   }
 
+  if (sheet.href.startsWith("https://cdn.jsdelivr.net/npm/@marimo-team/")) {
+    return true;
+  }
+
   return sheet.href.startsWith(window.location.origin);
 }
 

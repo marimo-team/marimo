@@ -8,20 +8,28 @@ import {
 
 export const UserConfigSchema = z
   .object({
-    completion: z.object({
-      activate_on_typing: z.boolean(),
-      copilot: z.boolean(),
-    }),
-    save: z.object({
-      autosave: z.enum(["off", "after_delay"]).default("after_delay"),
-      autosave_delay: z
-        .number()
-        .nonnegative()
-        // Ensure that the delay is at least 1 second
-        .transform((millis) => Math.max(millis, 1000))
-        .default(1000),
-      format_on_save: z.boolean().default(false),
-    }),
+    completion: z
+      .object({
+        activate_on_typing: z.boolean(),
+        copilot: z.boolean(),
+      })
+      .default({ activate_on_typing: true, copilot: false }),
+    save: z
+      .object({
+        autosave: z.enum(["off", "after_delay"]).default("after_delay"),
+        autosave_delay: z
+          .number()
+          .nonnegative()
+          // Ensure that the delay is at least 1 second
+          .transform((millis) => Math.max(millis, 1000))
+          .default(1000),
+        format_on_save: z.boolean().default(false),
+      })
+      .default({
+        autosave: "after_delay",
+        autosave_delay: 1000,
+        format_on_save: false,
+      }),
     formatting: z
       .object({
         line_length: z
@@ -31,9 +39,11 @@ export const UserConfigSchema = z
           .transform((n) => Math.min(n, 1000)),
       })
       .default({ line_length: 79 }),
-    keymap: z.object({
-      preset: z.enum(["default", "vim"]).default("default"),
-    }),
+    keymap: z
+      .object({
+        preset: z.enum(["default", "vim"]).default("default"),
+      })
+      .default({ preset: "default" }),
     runtime: z
       .object({
         auto_instantiate: z.boolean(),

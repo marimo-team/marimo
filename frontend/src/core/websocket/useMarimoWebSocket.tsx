@@ -213,7 +213,7 @@ export function useMarimoWebSocket(opts: {
     // open connection is closed.
     if (shouldTryReconnecting.current) {
       shouldTryReconnecting.current = false;
-      ws.current?.reconnect(code, reason);
+      ws.reconnect(code, reason);
     }
   };
 
@@ -259,7 +259,7 @@ export function useMarimoWebSocket(opts: {
             code: WebSocketClosedReason.ALREADY_RUNNING,
             reason: "another browser tab is already connected to the kernel",
           });
-          ws.current?.close(); // close to prevent reconnecting
+          ws.close(); // close to prevent reconnecting
           return;
 
         case "MARIMO_WRONG_KERNEL_ID":
@@ -270,7 +270,7 @@ export function useMarimoWebSocket(opts: {
             code: WebSocketClosedReason.KERNEL_DISCONNECTED,
             reason: "kernel not found",
           });
-          ws.current?.close(); // close to prevent reconnecting
+          ws.close(); // close to prevent reconnecting
           return;
 
         case "MARIMO_MALFORMED_QUERY":

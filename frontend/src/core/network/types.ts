@@ -93,7 +93,7 @@ export interface SendStdin {
   text: string;
 }
 
-interface ValueUpdate {
+export interface ValueUpdate {
   objectId: string;
   value: unknown;
 }

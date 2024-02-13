@@ -29,6 +29,7 @@ import { useFilename } from "@/core/saving/filename";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
+import { createShareableLink } from "@/core/pyodide/share";
 
 export function useNotebookActions() {
   const [filename] = useFilename();
@@ -48,6 +49,19 @@ export function useNotebookActions() {
       label: "Publish as HTML",
       handle: async () => {
         openModal(<ShareStaticNotebookModal onClose={closeModal} />);
+      },
+    },
+    {
+      icon: <Share2Icon size={14} strokeWidth={1.5} />,
+      label: "Share notebook via WASM",
+      handle: async () => {
+        const code = await readCode();
+        const url = createShareableLink(code.contents);
+        window.navigator.clipboard.writeText(url);
+        toast({
+          title: "Copied",
+          description: "Link copied to clipboard.",
+        });
       },
     },
     {

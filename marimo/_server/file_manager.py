@@ -4,14 +4,11 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
-from starlette.exceptions import HTTPException
-
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
 from marimo._runtime.layout.layout import LayoutConfig, save_layout_config
-from marimo._server.api.status import HTTPStatus
 from marimo._server.models.models import (
     SaveRequest,
 )
@@ -59,19 +56,15 @@ class AppFileManager:
         if self.filename == new_filename:
             return
         if os.path.exists(new_filename):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(new_filename),
-            )
+            raise Exception("File {0} already exists".format(new_filename))
         if self.filename is not None:
             try:
                 os.rename(self.filename, new_filename)
             except Exception as err:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to rename from {0} to {1}".format(
+                raise Exception(
+                    "Failed to rename from {0} to {1}".format(
                         self.filename, new_filename
-                    ),
+                    )
                 ) from err
         else:
             try:
@@ -79,9 +72,8 @@ class AppFileManager:
                 with open(new_filename, "w") as _:
                     pass
             except Exception as err:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to create file {0}".format(new_filename),
+                raise Exception(
+                    "Failed to create file {0}".format(new_filename)
                 ) from err
 
         self.filename = new_filename
@@ -115,9 +107,8 @@ class AppFileManager:
                 with open(self.filename, "w", encoding="utf-8") as f:
                     f.write(contents)
             except Exception as e:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to save file: {0}".format(str(e)),
+                raise Exception(
+                    "Failed to save file: {0}".format(str(e))
                 ) from e
 
     def save(self, request: SaveRequest) -> None:
@@ -139,15 +130,9 @@ class AppFileManager:
         )
 
         if self.filename is not None and self.filename != filename:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Save handler cannot rename files.",
-            )
+            raise Exception("Save handler cannot rename files.")
         elif self.filename is None and os.path.exists(filename):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(filename),
-            )
+            raise Exception("File {0} already exists".format(filename))
         else:
             # save layout
             if layout is not None:
@@ -174,9 +159,8 @@ class AppFileManager:
                         f.write(header_comments.rstrip() + "\n\n")
                     f.write(contents)
             except Exception as e:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to save file: {0}".format(str(e)),
+                raise Exception(
+                    "Failed to save file: {0}".format(str(e))
                 ) from e
             if self.filename is None:
                 self.rename(filename)
@@ -184,10 +168,7 @@ class AppFileManager:
     def read_file(self) -> str:
         """Read the contents of the file."""
         if self.filename is None:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="Cannot read code from an unnamed notebook",
-            )
+            raise Exception("Cannot read code from an unnamed notebook")
         with open(self.filename, "r", encoding="utf-8") as f:
             contents = f.read().strip()
         return contents
