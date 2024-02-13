@@ -156,7 +156,9 @@ class PyodideStdin(Stdin):
             ),
         ).broadcast(self.stream)
 
-        return self.stream.input_queue.get_nowait()
+        loop = asyncio.get_event_loop()
+        response = loop.run_until_complete(self.stream.input_queue.get())
+        return response
 
     def readline(self, size: int | None = -1) -> str:  # type: ignore[override]  # noqa: E501
         # size only included for compatibility with sys.stdin.readline API;

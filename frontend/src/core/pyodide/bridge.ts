@@ -21,6 +21,8 @@ import { IReconnectingWebSocket } from "../websocket/types";
 import { bootstrap } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
 import { fileStore } from "./store";
+import { invariant } from "@/utils/invariant";
+import { isPyodide } from "./utils";
 
 interface RawBridge {
   put_control_request(operation: string): Promise<void>;
@@ -46,10 +48,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private context: Promise<{
     bridge: RawBridge;
     pyodide: PyodideInterface;
-  }>;
+  }> | null = null;
 
-  private constructor() {
-    this.context = bootstrap();
+  constructor() {
+    if (isPyodide()) {
+      this.context = bootstrap();
+    }
   }
 
   initialize = async () => {
@@ -203,6 +207,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private get bridge() {
+    invariant(this.context, "Bridge context is not initialized");
     return this.context.then((context) => context.bridge);
   }
 }

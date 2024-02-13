@@ -15,8 +15,9 @@ from marimo._pyodide.streams import (
     PyodideStdout,
     PyodideStream,
 )
-from marimo._runtime import input_override, requests
+from marimo._runtime import requests
 from marimo._runtime.context import initialize_context
+from marimo._runtime.input_override import input_override
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -28,7 +29,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.model import ConnectionState, SessionMode
+from marimo._server.model import SessionMode
 from marimo._server.models.files import (
     FileCreateRequest,
     FileCreateResponse,
@@ -48,7 +49,6 @@ from marimo._server.models.models import (
     SaveAppConfigurationRequest,
     SaveRequest,
 )
-from marimo._server.session.session_view import SessionView
 from marimo._utils.formatter import BlackFormatter
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -149,11 +149,9 @@ class PyodideSession:
         self.mode = mode
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
-        self.session_view = SessionView()
         self.session_consumer = on_write
 
         self.consumers: list[Callable[[KernelMessage], None]] = [
-            lambda msg: self.session_view.add_raw_operation(msg[1]),
             lambda msg: self.session_consumer(msg),
         ]
 
@@ -162,7 +160,6 @@ class PyodideSession:
             consumer(msg)
 
     async def start(self) -> None:
-        print("[py] Launching kernel..")
         await launch_pyodide_kernel(
             control_queue=self._queue_manager.control_queue,
             completion_queue=self._queue_manager.completion_queue,
@@ -172,11 +169,9 @@ class PyodideSession:
             configs=self.app_manager.app.cell_manager.config_map(),
             app_metadata=self.app_metadata,
         )
-        print("[py] Launched kernel")
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put_nowait(request)
-        self.session_view.add_control_request(request)
 
     def put_completion_request(
         self, request: requests.CompletionRequest
@@ -187,19 +182,8 @@ class PyodideSession:
         # TODO
         pass
 
-    def put_input(self, text: str) -> None:
-        self._queue_manager.input_queue.put_nowait(text)
-        self.session_view.add_stdin(text)
-
-    def get_current_state(self) -> SessionView:
-        return self.session_view
-
-    def connection_state(self) -> ConnectionState:
-        return ConnectionState.OPEN
-
-    async def write_operation(self, operation: KernelMessage) -> None:
-        self.session_view.add_raw_operation(operation[1])
-        self.session_consumer(operation)
+    async def put_input(self, text: str) -> None:
+        await self._queue_manager.input_queue.put(text)
 
 
 class PyodideBridge:
@@ -215,7 +199,6 @@ class PyodideBridge:
     async def __aiter__(self):
         while True:
             op = await self.queue.get()
-            print("[py] Got operation", op)
             yield json.dumps(op)
 
     def put_control_request(self, request: str):
@@ -226,8 +209,8 @@ class PyodideBridge:
         parsed = parse_raw({"body": json.loads(request)}, Container).body
         self.session.put_control_request(parsed)
 
-    def put_input(self, text: str):
-        self.session.put_input(text)
+    async def put_input(self, text: str):
+        await self.session.put_input(text)
 
     def interrupt(self):
         self.session.interrupt()
@@ -312,7 +295,9 @@ async def launch_pyodide_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
 ) -> None:
+
     LOGGER.debug("Launching kernel")
+    del completion_queue
 
     # Create communication channels
     stream = PyodideStream(on_message, input_queue)

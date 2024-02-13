@@ -1,10 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { APP_FILE_PATH, mountFilesystem } from "./fs";
+import { Logger } from "@/utils/Logger";
 
-declare let loadPyodide: () => Promise<PyodideInterface>;
+declare let loadPyodide: undefined | (() => Promise<PyodideInterface>);
 
 export async function bootstrap() {
+  if (!loadPyodide) {
+    throw new Error("loadPyodide is not defined");
+  }
+
   // Load pyodide and micropip
   const pyodide = await loadPyodide();
   await pyodide.loadPackage("micropip");

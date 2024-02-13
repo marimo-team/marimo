@@ -45,6 +45,10 @@ export function useWebSocket(options: UseWebSocketOptions) {
     onMessage && ws.addEventListener("message", onMessage);
 
     return () => {
+      // Don't disconnect if we're using Pyodide
+      if (isPyodide()) {
+        return;
+      }
       onOpen && ws.removeEventListener("open", onOpen);
       onClose && ws.removeEventListener("close", onClose);
       onError && ws.removeEventListener("error", onError);

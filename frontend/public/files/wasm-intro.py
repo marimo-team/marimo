@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.88"
+__generated_with = "0.2.4"
 app = marimo.App()
 
 
@@ -9,14 +10,35 @@ app = marimo.App()
 def __():
     import marimo as mo
 
-    mo.md("# Welcome to marimo! 🌊🍃")
-    return (mo,)
+    mo.md("# Welcome to marimo running in WASM! 🌊🍃")
+    return mo,
+
+
+@app.cell
+def __():
+    import micropip
+    import asyncio
+
+    # You can install packages using this function
+    # e.g. install("numpy")
+
+
+    def install(pkg):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(micropip.install(pkg))
+    return asyncio, install, micropip
+
+
+@app.cell
+def __(install):
+    install("pandas")
+    return
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return (slider,)
+    return slider,
 
 
 @app.cell
@@ -97,7 +119,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return (changed,)
+    return changed,
 
 
 @app.cell(hide_code=True)
@@ -186,13 +208,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return (icon,)
+    return icon,
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return (repetitions,)
+    return repetitions,
 
 
 @app.cell
@@ -434,7 +456,7 @@ def __():
            """
         ),
     }
-    return (tips,)
+    return tips,
 
 
 if __name__ == "__main__":
