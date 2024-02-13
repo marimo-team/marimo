@@ -25,35 +25,11 @@ class Stream(abc.ABC):
 
 class Stdout:
     @abc.abstractmethod
-    def start(self) -> None:
-        pass
-
-    @abc.abstractmethod
-    def stop(self) -> None:
-        pass
-
-    @abc.abstractmethod
-    def pause(self) -> None:
-        pass
-
-    @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass
 
 
 class Stderr:
-    @abc.abstractmethod
-    def start(self) -> None:
-        pass
-
-    @abc.abstractmethod
-    def stop(self) -> None:
-        pass
-
-    @abc.abstractmethod
-    def pause(self) -> None:
-        pass
-
     @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass

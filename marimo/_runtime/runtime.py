@@ -43,10 +43,10 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import (
-    ConcurrentStderr,
-    ConcurrentStdin,
-    ConcurrentStdout,
-    ConcurrentStream,
+    ThreadSafeStderr,
+    ThreadSafeStdin,
+    ThreadSafeStdout,
+    ThreadSafeStream,
 )
 from marimo._messaging.types import (
     KernelMessage,
@@ -1110,14 +1110,14 @@ def launch_kernel(
         return
 
     # Create communication channels
-    stream = ConcurrentStream(pipe=pipe, input_queue=input_queue)
+    stream = ThreadSafeStream(pipe=pipe, input_queue=input_queue)
     # Console output is hidden in run mode, so no need to redirect
     # (redirection of console outputs is not thread-safe anyway)
-    stdout = ConcurrentStdout(stream) if is_edit_mode else None
-    stderr = ConcurrentStderr(stream) if is_edit_mode else None
+    stdout = ThreadSafeStdout(stream) if is_edit_mode else None
+    stderr = ThreadSafeStderr(stream) if is_edit_mode else None
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
-    stdin = ConcurrentStdin(stream) if is_edit_mode else None
+    stdin = ThreadSafeStdin(stream) if is_edit_mode else None
 
     kernel = Kernel(
         cell_configs=configs,
@@ -1240,8 +1240,8 @@ def launch_kernel(
         else:
             raise ValueError(f"Unknown request {request}")
 
-    if stdout is not None:
-        stdout.stop()
-    if stderr is not None:
-        stderr.stop()
+    if stdout is not None and isinstance(stdout, ThreadSafeStdout):
+        stdout._watcher.stop()
+    if stderr is not None and isinstance(stderr, ThreadSafeStderr):
+        stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()

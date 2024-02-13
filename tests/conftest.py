@@ -10,10 +10,10 @@ import pytest
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import (
-    ConcurrentStderr,
-    ConcurrentStdin,
-    ConcurrentStdout,
-    ConcurrentStream,
+    ThreadSafeStderr,
+    ThreadSafeStdin,
+    ThreadSafeStdout,
+    ThreadSafeStream,
 )
 from marimo._runtime.context import (
     initialize_context,
@@ -24,7 +24,7 @@ from marimo._runtime.runtime import Kernel
 
 
 @dataclasses.dataclass
-class _MockStream(ConcurrentStream):
+class _MockStream(ThreadSafeStream):
     """Captures the ops sent through the stream"""
 
     messages: list[tuple[str, dict[Any, Any]]] = dataclasses.field(
@@ -35,7 +35,7 @@ class _MockStream(ConcurrentStream):
         self.messages.append((op, data))
 
 
-class MockStdout(ConcurrentStdout):
+class MockStdout(ThreadSafeStdout):
     """Captures the output sent through the stream"""
 
     def __init__(self, stream: _MockStream) -> None:
@@ -47,7 +47,7 @@ class MockStdout(ConcurrentStdout):
         return len(data)
 
 
-class MockStderr(ConcurrentStderr):
+class MockStderr(ThreadSafeStderr):
     """Captures the output sent through the stream"""
 
     messages: list[str] = dataclasses.field(default_factory=list)
@@ -61,7 +61,7 @@ class MockStderr(ConcurrentStderr):
         return len(data)
 
 
-class MockStdin(ConcurrentStdin):
+class MockStdin(ThreadSafeStdin):
     """Echoes the prompt."""
 
     def __init__(self, stream: _MockStream) -> None:
