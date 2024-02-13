@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import dataclasses
 import mimetypes
 import random
@@ -61,11 +62,11 @@ class VirtualFile:
             self.url = url or f"./@file/{len(buffer)}-{filename}"
         else:
             self.url = url or build_data_url(
-                cast(
+                mimetype=cast(
                     KnownMimeType,
                     mimetypes.guess_type(self.filename)[0],
                 ),
-                buffer,
+                data=base64.b64encode(buffer),
             )
 
     @staticmethod
