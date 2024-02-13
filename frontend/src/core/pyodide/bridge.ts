@@ -205,10 +205,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private get bridge() {
     return this.context.then((context) => context.bridge);
   }
-
-  private get pyodide() {
-    return this.context.then((context) => context.pyodide);
-  }
 }
 
 export class PyodideWebsocket implements IReconnectingWebSocket {
