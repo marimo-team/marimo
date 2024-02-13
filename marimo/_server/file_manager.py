@@ -10,8 +10,8 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
+from marimo._runtime.layout.layout import LayoutConfig, save_layout_config
 from marimo._server.api.status import HTTPStatus
-from marimo._server.layout import LayoutConfig, save_layout_config
 from marimo._server.models.models import (
     SaveRequest,
 )
