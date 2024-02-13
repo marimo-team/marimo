@@ -312,7 +312,6 @@ async def launch_pyodide_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        input_override=input_override,
     )
     initialize_context(
         kernel=kernel,
