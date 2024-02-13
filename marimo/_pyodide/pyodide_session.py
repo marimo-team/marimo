@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -73,7 +74,6 @@ def instantiate(session: PyodideSession) -> None:
 def create_session(
     filename: str,
 ) -> tuple[PyodideSession, PyodideBridge]:
-
     queue = asyncio.Queue[dict[str, Any]]()
 
     def write_kernel_message(op: KernelMessage) -> None:
@@ -295,7 +295,6 @@ async def launch_pyodide_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
 ) -> None:
-
     LOGGER.debug("Launching kernel")
     del completion_queue
 
@@ -317,6 +316,7 @@ async def launch_pyodide_kernel(
     initialize_context(
         kernel=kernel,
         stream=stream,
+        virtual_files_supported=False,
     )
 
     if is_edit_mode:
