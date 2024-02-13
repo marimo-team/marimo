@@ -22,6 +22,7 @@ class CellLifecycleRegistry:
         from marimo._runtime.context import get_context
 
         ctx = get_context()
+
         cell_id = ctx.cell_id
         if cell_id is None:
             return
