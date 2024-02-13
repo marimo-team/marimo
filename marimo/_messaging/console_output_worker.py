@@ -13,7 +13,7 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 if TYPE_CHECKING:
     from typing import Optional
 
-    from marimo._messaging.streams import Stream
+    from marimo._messaging.types import Stream
 
 StreamT = Literal[CellChannel.STDERR, CellChannel.STDOUT, CellChannel.STDIN]
 
@@ -29,7 +29,10 @@ class ConsoleMsg:
 
 
 def _write_console_output(
-    stream: Stream, stream_type: StreamT, cell_id: CellId_t, data: str
+    stream: Stream,
+    stream_type: StreamT,
+    cell_id: CellId_t,
+    data: str,
 ) -> None:
     from marimo._messaging.ops import CellOp
 

@@ -29,7 +29,8 @@ from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.streams import OUTPUT_MAX_BYTES, Stream
+from marimo._messaging.streams import OUTPUT_MAX_BYTES
+from marimo._messaging.types import Stream
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement

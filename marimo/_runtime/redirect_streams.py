@@ -7,7 +7,10 @@ import sys
 from typing import Iterator
 
 from marimo._ast.cell import CellId_t
-from marimo._messaging.streams import Stderr, Stdin, Stdout, Stream, redirect
+from marimo._messaging.streams import (
+    redirect,
+)
+from marimo._messaging.types import Stderr, Stdin, Stdout, Stream
 
 
 def forward_os_stream(stream_object: Stdout | Stderr, fd: int) -> None:
