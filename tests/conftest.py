@@ -102,8 +102,8 @@ class MockedKernel:
     def teardown(self):
         # must be called by fixtures that instantiate this
         teardown_context()
-        self.stdout.stop()
-        self.stderr.stop()
+        self.stdout._watcher.stop()
+        self.stderr._watcher.stop()
 
 
 # fixture that provides a kernel (and tears it down)
