@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import abc
+import io
 from typing import Any, Dict, Optional, Tuple
 
 from marimo._ast.cell import CellId_t
@@ -23,13 +24,13 @@ class Stream(abc.ABC):
         pass
 
 
-class Stdout:
+class Stdout(io.TextIOBase):
     @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass
 
 
-class Stderr:
+class Stderr(io.TextIOBase):
     @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass
