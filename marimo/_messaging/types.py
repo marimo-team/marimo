@@ -36,5 +36,5 @@ class Stderr(io.TextIOBase):
         pass
 
 
-class Stdin:
+class Stdin(io.TextIOBase):
     pass

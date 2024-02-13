@@ -268,7 +268,7 @@ class ThreadSafeStderr(Stderr):
             self.write(line)
 
 
-class ThreadSafeStdin(io.TextIOBase, Stdin):
+class ThreadSafeStdin(Stdin):
     """Implements a subset of stdin."""
 
     name = "stdin"
