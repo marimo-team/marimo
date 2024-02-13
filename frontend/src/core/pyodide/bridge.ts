@@ -57,6 +57,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 
   initialize = async () => {
+    this.context = bootstrap();
     await this.context;
   };
 
