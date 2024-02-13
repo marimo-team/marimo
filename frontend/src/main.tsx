@@ -34,7 +34,9 @@ try {
     <React.StrictMode>
       <Provider store={store}>
         <ThemeProvider>
-          <MarimoApp />
+          <ErrorBoundary>
+            <MarimoApp />
+          </ErrorBoundary>
         </ThemeProvider>
       </Provider>
     </React.StrictMode>,

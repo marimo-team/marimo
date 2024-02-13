@@ -1,7 +1,8 @@
 # marimo + pyodide
 
 ```bash
-open pyodide/tests/index.html
+python3 pyodide/build_and_serve.py
+# then in another terminal
 cd frontend
 PYODIDE=true pnpm dev
 ```

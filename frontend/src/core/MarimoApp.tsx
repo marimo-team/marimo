@@ -16,6 +16,10 @@ import { initialMode } from "./mode";
 import { AppChrome } from "../components/editor/chrome/wrapper/app-chrome";
 import { StaticBanner } from "../components/static-html/static-banner";
 import { CssVariables } from "@/theme/ThemeProvider";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { isPyodide } from "./pyodide/utils";
+import { PyodideBridge } from "./pyodide/bridge";
+import { LargeSpinner } from "@/components/icons/large-spinner";
 
 /**
  * The root component of the Marimo app.
@@ -24,9 +28,20 @@ export const MarimoApp: React.FC = () => {
   const [userConfig] = useUserConfig();
   const [appConfig] = useAppConfig();
 
+  const { loading } = useAsyncData(async () => {
+    if (isPyodide()) {
+      await PyodideBridge.INSTANCE.initialize();
+    }
+    return true;
+  }, []);
+
   useEffect(() => {
     initializePlugins();
   }, []);
+
+  if (loading) {
+    return <LargeSpinner />;
+  }
 
   const body =
     initialMode === "read" ? (

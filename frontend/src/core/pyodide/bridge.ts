@@ -50,8 +50,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   private constructor() {
     this.context = bootstrap();
-    void this.context;
   }
+
+  initialize = async () => {
+    await this.context;
+  };
 
   consumeMessages = (consumer: (message: string) => void) => {
     let done = false;
