@@ -54,6 +54,7 @@ class RuntimeContext:
     function_registry: FunctionRegistry
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
+    virtual_files_supported: bool
     stream: Stream
     _id_provider: Optional[IDProvider] = None
 
@@ -99,8 +100,7 @@ _THREAD_LOCAL_CONTEXT = _ThreadLocalContext()
 
 
 def initialize_context(
-    kernel: Kernel,
-    stream: Stream,
+    kernel: Kernel, stream: Stream, virtual_files_supported: bool = True
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -120,6 +120,7 @@ def initialize_context(
             function_registry=FunctionRegistry(),
             cell_lifecycle_registry=CellLifecycleRegistry(),
             virtual_file_registry=VirtualFileRegistry(),
+            virtual_files_supported=virtual_files_supported,
             stream=stream,
         )
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
