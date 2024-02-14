@@ -53,7 +53,7 @@ export function useNotebookActions() {
     },
     {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
-      label: "Share notebook via WASM",
+      label: "Share WebAssembly notebook",
       handle: async () => {
         const code = await readCode();
         const url = createShareableLink(code.contents);
