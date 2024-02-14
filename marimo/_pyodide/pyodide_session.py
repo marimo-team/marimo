@@ -116,7 +116,7 @@ def create_session(
 class AsyncQueueManager:
     """Manages queues for a session."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
         self.control_queue = asyncio.Queue[requests.ControlRequest]()
@@ -199,12 +199,12 @@ class PyodideBridge:
         self.session = session
         self.file_system = OSFileSystem()
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> Any:
         while True:
             op = await self.queue.get()
             yield json.dumps(op)
 
-    def put_control_request(self, request: str):
+    def put_control_request(self, request: str) -> None:
         @dataclasses.dataclass
         class Container:
             body: requests.ControlRequest
@@ -212,35 +212,35 @@ class PyodideBridge:
         parsed = parse_raw({"body": json.loads(request)}, Container).body
         self.session.put_control_request(parsed)
 
-    async def put_input(self, text: str):
+    async def put_input(self, text: str) -> None:
         await self.session.put_input(text)
 
-    def interrupt(self):
+    def interrupt(self) -> None:
         self.session.interrupt()
 
-    def code_complete(self, request: str):
+    def code_complete(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), requests.CompletionRequest)
         self.session.put_completion_request(parsed)
 
-    def read_code(self):
+    def read_code(self) -> ReadCodeResponse:
         contents: str = self.session.app_manager.read_file()
         return ReadCodeResponse(contents=contents)
 
-    async def format(self, request: str):
+    async def format(self, request: str) -> FormatResponse:
         parsed = parse_raw(json.loads(request), FormatRequest)
         formatter = BlackFormatter(line_length=parsed.line_length)
 
         return FormatResponse(codes=formatter.format(parsed.codes))
 
-    def save(self, request: str):
+    def save(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), SaveRequest)
         self.session.app_manager.save(parsed)
 
-    def save_app_config(self, request: str):
+    def save_app_config(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), SaveAppConfigurationRequest)
         self.session.app_manager.save_app_config(parsed.config)
 
-    def rename_file(self, filename: str):
+    def rename_file(self, filename: str) -> None:
         self.session.app_manager.rename(filename)
 
     async def list_files(
@@ -298,7 +298,6 @@ def launch_pyodide_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
 ) -> RestartableTask:
-
     LOGGER.debug("Launching kernel")
     del completion_queue
 

@@ -16,12 +16,17 @@ from marimo._server.api.middleware import (
     ValidateServerTokensMiddleware,
 )
 from marimo._server.api.router import ROUTES
+from marimo._server.api.status import HTTPException as MarimoHTTPException
 
 
 # Convert exceptions to JSON responses
 async def handle_error(request: Request, response: Any) -> Any:
     del request
     if isinstance(response, HTTPException):
+        return JSONResponse(
+            {"detail": response.detail}, status_code=response.status_code
+        )
+    if isinstance(response, MarimoHTTPException):
         return JSONResponse(
             {"detail": response.detail}, status_code=response.status_code
         )

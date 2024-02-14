@@ -28,3 +28,16 @@ class TypedConnection(Generic[T]):
 
     def recv(self) -> T:
         return self._delegate.recv()  # type: ignore[no-any-return]
+
+    def poll(self) -> bool:
+        return self._delegate.poll()
+
+    def fileno(self) -> int:
+        return self._delegate.fileno()
+
+    @property
+    def closed(self) -> bool:
+        return self._delegate.closed
+
+    def close(self) -> None:
+        self._delegate.close()

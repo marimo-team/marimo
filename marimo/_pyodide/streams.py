@@ -9,8 +9,14 @@ from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import CellOp
-from marimo._messaging.streams import STD_STREAM_MAX_BYTES, Stdin, Stream
-from marimo._messaging.types import KernelMessage, Stderr, Stdout
+from marimo._messaging.streams import STD_STREAM_MAX_BYTES
+from marimo._messaging.types import (
+    KernelMessage,
+    Stderr,
+    Stdin,
+    Stdout,
+    Stream,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -50,6 +56,7 @@ class PyodideStdout(Stdout):
         return False
 
     def write(self, data: str) -> int:
+        assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
                 "write() argument must be a str, not %s" % type(data).__name__

@@ -43,7 +43,6 @@ from marimo._messaging.ops import (
     VariableValues,
 )
 from marimo._messaging.streams import (
-    Stdin,
     ThreadSafeStderr,
     ThreadSafeStdin,
     ThreadSafeStdout,
@@ -52,6 +51,7 @@ from marimo._messaging.streams import (
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
+    Stdin,
     Stdout,
     Stream,
 )
