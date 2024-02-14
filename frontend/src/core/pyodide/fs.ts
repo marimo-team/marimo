@@ -4,7 +4,9 @@ import { fileStore } from "./store";
 
 export const APP_FILE_PATH = "notebook.py";
 
-export async function mountFilesystem(pyodide: PyodideInterface) {
+export async function mountFilesystem(
+  pyodide: PyodideInterface,
+): Promise<string> {
   const mountDir = "/marimo";
   await pyodide.FS.mkdir(mountDir);
   await pyodide.FS.mount(pyodide.FS.filesystems.IDBFS, { root: "." }, mountDir);
@@ -16,8 +18,10 @@ export async function mountFilesystem(pyodide: PyodideInterface) {
   `);
 
   // Check if or write the default app.py
+  const contents = await fileStore.readFile();
   if (!(await pyodide.FS.analyzePath(APP_FILE_PATH).exists)) {
-    const contents = await fileStore.readFile();
     await pyodide.FS.writeFile(APP_FILE_PATH, contents, { encoding: "utf8" });
   }
+
+  return contents || "";
 }

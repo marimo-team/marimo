@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { APP_FILE_PATH, mountFilesystem } from "./fs";
+import { Logger } from "@/utils/Logger";
 
 declare let loadPyodide: undefined | (() => Promise<PyodideInterface>);
 
@@ -11,10 +12,18 @@ export async function bootstrap() {
 
   // Load pyodide and micropip
   const pyodide = await loadPyodide();
-  await pyodide.loadPackage("micropip");
 
   // Set up the filesystem
-  mountFilesystem(pyodide);
+  const code = await mountFilesystem(pyodide);
+
+  // Load micropip and packages from imports
+  await Promise.all([
+    pyodide.loadPackage("micropip"),
+    pyodide.loadPackagesFromImports(code, {
+      messageCallback: Logger.log,
+      errorCallback: Logger.error,
+    }),
+  ]);
 
   // Install marimo
   const baseUrl =

@@ -11,7 +11,7 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo running in WASM! 🌊🍃")
-    return mo,
+    return (mo,)
 
 
 @app.cell
@@ -19,13 +19,15 @@ def __():
     import micropip
     import asyncio
 
-    # You can install packages using this function
-    # e.g. install("numpy")
-
+    # Most packages will be automatically installed,
+    # These can be found: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
+    # For those that are not, you can use this `install` function
+    # e.g. install("altair")
 
     def install(pkg):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(micropip.install(pkg))
+
     return asyncio, install, micropip
 
 
@@ -38,7 +40,7 @@ def __(install):
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -119,7 +121,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return changed,
+    return (changed,)
 
 
 @app.cell(hide_code=True)
@@ -208,13 +210,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return icon,
+    return (icon,)
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return repetitions,
+    return (repetitions,)
 
 
 @app.cell
@@ -456,7 +458,7 @@ def __():
            """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 if __name__ == "__main__":

@@ -109,6 +109,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
+    const pyodide = await this.pyodide;
+
+    const loadForCode = async (code: string) => {
+      await pyodide.loadPackagesFromImports(code, {
+        messageCallback: Logger.log,
+        errorCallback: Logger.error,
+      });
+    };
+
+    // Load all the packages in parallel
+    // It will be a no-op if the package is already loaded
+    await Promise.all(codes.map(loadForCode));
+
     await this.putControlRequest({
       execution_requests: cellIds.map((cellId, index) => ({
         cell_id: cellId,
@@ -209,6 +222,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private get bridge() {
     invariant(this.context, "Bridge context is not initialized");
     return this.context.then((context) => context.bridge);
+  }
+
+  private get pyodide() {
+    invariant(this.context, "Bridge context is not initialized");
+    return this.context.then((context) => context.pyodide);
   }
 }
 
