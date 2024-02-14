@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { CopyIcon, DownloadIcon } from "lucide-react";
+import { createShareableLink } from "@/core/pyodide/share";
 
 export const StaticBanner: React.FC = () => {
   if (!isStaticNotebook()) {
@@ -37,8 +38,7 @@ export const StaticBanner: React.FC = () => {
         </a>
         .
         <br />
-        Some interactive features may not work, however you can download the
-        code and run it locally.
+        Some interactive features may not work, see ways to run or edit this.
       </span>
       <span className="flex-shrink-0">
         <StaticBannerDialog />
@@ -56,6 +56,8 @@ const StaticBannerDialog = () => {
   }
 
   const href = window.location.href;
+  const code = getMarimoCode();
+  const wasmLink = createShareableLink(code);
 
   return (
     <Dialog>
@@ -85,20 +87,34 @@ const StaticBannerDialog = () => {
             </div>
             {!href.endsWith(".html") && (
               <>
-                <hr className="my-3" />
-                You may also run:
+                or
                 <div className="font-mono text-sm bg-[var(--sky-2)] rounded-md my-3 p-2 border border-[var(--sky-7)] break-all">
                   marimo edit {window.location.href}
                 </div>
               </>
             )}
+            <hr className="my-3" />
+            You may also be able to run this notebook entirely in the browser
+            via WebAssembly at:{" "}
+            <a
+              href={wasmLink}
+              target="_blank"
+              className="text-link hover:underline"
+            >
+              {wasmLink.slice(0, 40)}...
+            </a>
+            <br />
+            <div className="text-sm text-muted-foreground pt-2">
+              <strong>Note:</strong> This feature is experimental and may not
+              work for all notebooks. Additionally, some dependencies may not be
+              available in the browser.
+            </div>
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-4 flex-wrap">
           <Button
             variant="secondary"
             onClick={() => {
-              const code = getMarimoCode();
               window.navigator.clipboard.writeText(code);
               toast({ title: "Copied to clipboard" });
             }}
@@ -109,7 +125,6 @@ const StaticBannerDialog = () => {
           <Button
             variant="secondary"
             onClick={() => {
-              const code = getMarimoCode();
               downloadBlob(new Blob([code], { type: "text/plain" }), filename);
             }}
           >
