@@ -16,10 +16,10 @@ export async function bootstrap() {
   await pyodide.loadPackage("micropip");
 
   // Install marimo
-  const baseUrl =
+  const marimoWheel =
     process.env.NODE_ENV === "production"
-      ? `https://marimo.app/registry`
-      : "http://localhost:8000/dist";
+      ? "marimo >= 0.2.5"
+      : "http://localhost:8000/dist/marimo-0.2.5-py3-none-any.whl";
   await pyodide.runPythonAsync(`
     import micropip
 
@@ -37,7 +37,7 @@ export async function bootstrap() {
     await micropip.install(
       [
         # Subset of marimo requirements
-        "${baseUrl}/marimo-0.2.4-py3-none-any.whl",
+        "${marimoWheel}",
         "markdown",
         "jedi",
         "docutils",
