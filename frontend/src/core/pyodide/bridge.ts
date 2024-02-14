@@ -5,8 +5,10 @@ import { CellId } from "../cells/ids";
 import {
   CodeCompletionRequest,
   EditRequests,
+  FileListRequest,
   FileListResponse,
   FormatRequest,
+  FormatResponse,
   InstantiateRequest,
   RunRequests,
   SaveAppConfigRequest,
@@ -18,84 +20,103 @@ import {
   ValueUpdate,
 } from "../network/types";
 import { IReconnectingWebSocket } from "../websocket/types";
-import { bootstrap } from "./bootstrap";
-import type { PyodideInterface } from "pyodide";
 import { fileStore } from "./store";
-import { invariant } from "@/utils/invariant";
 import { isPyodide } from "./utils";
+import {
+  RawBridge,
+  WorkerClientPayload,
+  WorkerServerPayload,
+} from "./worker/types";
+import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
+import { Deferred } from "@/utils/Deferred";
 
-interface RawBridge {
-  put_control_request(operation: string): Promise<void>;
-  put_input(input: string): Promise<void>;
-  interrupt(): Promise<void>;
-  code_complete(request: string): Promise<string>;
-  read_code(): Promise<{ contents: string }>;
-  format(request: string): Promise<{ codes: Record<CellId, string> }>;
-  save(request: string): Promise<string>;
-  save_app_config(request: string): Promise<string>;
-  rename_file(request: string): Promise<string>;
-  list_files(request: string): Promise<FileListResponse>;
-  file_details(request: string): Promise<string>;
-  create_file_or_directory(request: string): Promise<string>;
-  delete_file_or_directory(request: string): Promise<string>;
-  update_file_or_directory(request: string): Promise<string>;
-  [Symbol.asyncIterator](): AsyncIterator<string>;
-}
+export type BridgeFunctionAndPayload = {
+  [P in keyof RawBridge]: {
+    functionName: P;
+    payload: Parameters<RawBridge[P]>[0];
+  };
+}[keyof RawBridge];
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
-  private context: Promise<{
-    bridge: RawBridge;
-    pyodide: PyodideInterface;
-  }> | null = null;
+  private worker!: Worker;
+  private messageConsumer: ((message: string) => void) | undefined;
+  private fetcher = new DeferredRequestRegistry<
+    BridgeFunctionAndPayload,
+    unknown
+  >("bridge", async (requestId, request) => {
+    this.postMessage({
+      type: "call-function",
+      id: requestId,
+      functionName: request.functionName,
+      payload: request.payload,
+    });
+  });
+
+  public initialized = new Deferred<void>();
 
   constructor() {
     if (isPyodide()) {
-      this.context = bootstrap();
+      this.worker = new Worker(new URL("worker/worker.ts", import.meta.url), {
+        type: "module",
+      });
+      this.worker.onmessage = this.handleWorkerMessage;
     }
   }
 
-  initialize = async () => {
-    await this.context;
+  private setCode = async () => {
+    const code = await fileStore.readFile();
+    this.postMessage({ type: "set-code", code: code || "" });
+  };
+
+  private handleWorkerMessage = async (
+    event: MessageEvent<WorkerClientPayload>,
+  ) => {
+    if (event.data.type === "ready") {
+      await this.setCode();
+    }
+    if (event.data.type === "initialized") {
+      this.initialized.resolve();
+    }
+    if (event.data.type === "message") {
+      this.messageConsumer?.(event.data.message);
+    }
+    if (event.data.type === "error") {
+      Logger.error(event.data.error);
+      this.fetcher.reject(event.data.id, new Error(event.data.error));
+    }
+    if (event.data.type === "response") {
+      this.fetcher.resolve(event.data.id, event.data.response);
+    }
+  };
+
+  private postMessage = (message: WorkerServerPayload) => {
+    this.worker.postMessage(message);
   };
 
   consumeMessages = (consumer: (message: string) => void) => {
-    let done = false;
-
-    const runForever = async () => {
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        if (done) {
-          return;
-        }
-        const bridge = await this.bridge;
-        for await (const message of bridge) {
-          consumer(message);
-        }
-      }
-    };
-
-    void runForever();
-
-    return () => {
-      done = true;
-    };
+    this.messageConsumer = consumer;
+    this.postMessage({ type: "start-messages" });
   };
 
   sendRename = async (filename: string | null): Promise<null> => {
     if (filename === null) {
       return null;
     }
-    const bridge = await this.bridge;
-    await bridge.rename_file(filename);
+    await this.fetcher.request({
+      functionName: "rename_file",
+      payload: filename,
+    });
     return null;
   };
 
   sendSave = async (request: SaveKernelRequest): Promise<null> => {
-    const bridge = await this.bridge;
-    await bridge.save(JSON.stringify(request));
-    const code = await bridge.read_code();
+    await this.fetcher.request({
+      functionName: "save",
+      payload: request,
+    });
+    const code = await this.readCode();
     if (code.contents) {
       fileStore.saveFile(code.contents);
     }
@@ -103,24 +124,18 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendStdin = async (request: SendStdin): Promise<null> => {
-    const bridge = await this.bridge;
-    await bridge.put_input(request.text);
+    await this.fetcher.request({
+      functionName: "put_input",
+      payload: request.text,
+    });
     return null;
   };
 
   sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
-    const pyodide = await this.pyodide;
-
-    const loadForCode = async (code: string) => {
-      await pyodide.loadPackagesFromImports(code, {
-        messageCallback: Logger.log,
-        errorCallback: Logger.error,
-      });
-    };
-
-    // Load all the packages in parallel
-    // It will be a no-op if the package is already loaded
-    await Promise.all(codes.map(loadForCode));
+    await this.fetcher.request({
+      functionName: "load_packages",
+      payload: codes.join("\n"),
+    });
 
     await this.putControlRequest({
       execution_requests: cellIds.map((cellId, index) => ({
@@ -131,8 +146,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendInterrupt = async (): Promise<null> => {
-    const bridge = await this.bridge;
-    await bridge.interrupt();
+    await this.fetcher.request({
+      functionName: "interrupt",
+      payload: undefined,
+    });
     return null;
   };
   sendShutdown = async (): Promise<null> => {
@@ -142,9 +159,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendFormat = async (
     request: FormatRequest,
   ): Promise<Record<CellId, string>> => {
-    const bridge = await this.bridge;
-    const response = await bridge.format(JSON.stringify(request));
-    return response.codes;
+    const response = await this.fetcher.request({
+      functionName: "format",
+      payload: request,
+    });
+    return (response as FormatResponse).codes;
   };
   sendDeleteCell = async (cellId: CellId): Promise<null> => {
     await this.putControlRequest({
@@ -156,42 +175,57 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCodeCompletionRequest = async (
     request: CodeCompletionRequest,
   ): Promise<null> => {
-    const bridge = await this.bridge;
-    await bridge.code_complete(JSON.stringify(request));
+    await this.fetcher.request({
+      functionName: "code_complete",
+      payload: request,
+    });
     return null;
   };
+
   saveUserConfig = (request: SaveUserConfigRequest): Promise<null> => {
     throw new Error("Method not implemented.");
   };
+
   saveAppConfig = async (request: SaveAppConfigRequest): Promise<null> => {
-    const bridge = await this.bridge;
-    await bridge.save_app_config(JSON.stringify(request));
+    await this.fetcher.request({
+      functionName: "save_app_config",
+      payload: request,
+    });
     return null;
   };
+
   saveCellConfig = async (request: SaveCellConfigRequest): Promise<null> => {
     await this.putControlRequest({
       configs: request.configs,
     });
     return null;
   };
+
   sendRestart = async (): Promise<null> => {
     window.location.reload();
     return null;
   };
+
   readCode = async (): Promise<{ contents: string }> => {
-    const bridge = await this.bridge;
-    const response = await bridge.read_code();
-    return response;
+    const response = await this.fetcher.request({
+      functionName: "read_code",
+      payload: undefined,
+    });
+    return response as { contents: string };
   };
+
   openFile = (request: { path: string }): Promise<null> => {
     throw new Error("Method not implemented.");
   };
-  sendListFiles = async (request: {
-    path: string | undefined;
-  }): Promise<FileListResponse> => {
-    const bridge = await this.bridge;
-    const response = await bridge.list_files(JSON.stringify(request));
-    return response;
+
+  sendListFiles = async (
+    request: FileListRequest,
+  ): Promise<FileListResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "list_files",
+      payload: request,
+    });
+    return response as FileListResponse;
   };
   sendComponentValues = async (valueUpdates: ValueUpdate[]): Promise<null> => {
     await this.putControlRequest({
@@ -215,19 +249,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private putControlRequest = async (operation: object) => {
-    const bridge = await this.bridge;
-    bridge.put_control_request(JSON.stringify(operation));
+    await this.fetcher.request({
+      functionName: "put_control_request",
+      payload: operation,
+    });
   };
-
-  private get bridge() {
-    invariant(this.context, "Bridge context is not initialized");
-    return this.context.then((context) => context.bridge);
-  }
-
-  private get pyodide() {
-    invariant(this.context, "Bridge context is not initialized");
-    return this.context.then((context) => context.pyodide);
-  }
 }
 
 export class PyodideWebsocket implements IReconnectingWebSocket {
@@ -256,7 +282,6 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
   private consumeMessages() {
     this.bridge.consumeMessages((message) => {
       this.messageSubscriptions.forEach((callback) => {
-        Logger.debug("[js] message", message);
         callback({ data: message } as MessageEvent);
       });
     });

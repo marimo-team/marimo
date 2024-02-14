@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
-import { fileStore } from "./store";
 
 export const APP_FILE_PATH = "notebook.py";
 
 export async function mountFilesystem(
   pyodide: PyodideInterface,
+  contents: string,
 ): Promise<string> {
   const mountDir = "/marimo";
   await pyodide.FS.mkdir(mountDir);
@@ -18,7 +18,6 @@ export async function mountFilesystem(
   `);
 
   // Check if or write the default app.py
-  const contents = await fileStore.readFile();
   if (!(await pyodide.FS.analyzePath(APP_FILE_PATH).exists)) {
     await pyodide.FS.writeFile(APP_FILE_PATH, contents, { encoding: "utf8" });
   }

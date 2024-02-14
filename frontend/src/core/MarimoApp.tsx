@@ -30,7 +30,7 @@ export const MarimoApp: React.FC = () => {
 
   const { loading } = useAsyncData(async () => {
     if (isPyodide()) {
-      await PyodideBridge.INSTANCE.initialize();
+      await PyodideBridge.INSTANCE.initialized.promise;
     }
     return true;
   }, []);

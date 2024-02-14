@@ -180,13 +180,11 @@ class PyodideSession:
         self._queue_manager.completion_queue.put_nowait(request)
 
     def interrupt(self) -> None:
-        # TODO: (mscolnick) cancel won't properly work until
-        # pyodide is in a web worker
         assert self.kernel_task is not None
         self.kernel_task.restart()
 
-    async def put_input(self, text: str) -> None:
-        await self._queue_manager.input_queue.put(text)
+    def put_input(self, text: str) -> None:
+        self._queue_manager.input_queue.put_nowait(text)
 
 
 class PyodideBridge:
@@ -212,8 +210,8 @@ class PyodideBridge:
         parsed = parse_raw({"body": json.loads(request)}, Container).body
         self.session.put_control_request(parsed)
 
-    async def put_input(self, text: str) -> None:
-        await self.session.put_input(text)
+    def put_input(self, text: str) -> None:
+        self.session.put_input(text)
 
     def interrupt(self) -> None:
         self.session.interrupt()
@@ -222,15 +220,17 @@ class PyodideBridge:
         parsed = parse_raw(json.loads(request), requests.CompletionRequest)
         self.session.put_completion_request(parsed)
 
-    def read_code(self) -> ReadCodeResponse:
+    def read_code(self) -> str:
         contents: str = self.session.app_manager.read_file()
-        return ReadCodeResponse(contents=contents)
+        response = ReadCodeResponse(contents=contents)
+        return json.dumps(dataclasses.asdict(response))
 
-    async def format(self, request: str) -> FormatResponse:
+    def format(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), FormatRequest)
         formatter = BlackFormatter(line_length=parsed.line_length)
 
-        return FormatResponse(codes=formatter.format(parsed.codes))
+        response = FormatResponse(codes=formatter.format(parsed.codes))
+        return json.dumps(dataclasses.asdict(response))
 
     def save(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), SaveRequest)
@@ -243,50 +243,55 @@ class PyodideBridge:
     def rename_file(self, filename: str) -> None:
         self.session.app_manager.rename(filename)
 
-    async def list_files(
+    def list_files(
         self,
         request: str,
-    ) -> FileListResponse:
+    ) -> str:
         body = parse_raw(json.loads(request), FileListRequest)
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
-        return FileListResponse(files=files, root=root)
+        response = FileListResponse(files=files, root=root)
+        return json.dumps(dataclasses.asdict(response))
 
-    async def file_details(
+    def file_details(
         self,
         request: str,
-    ) -> FileDetailsResponse:
+    ) -> str:
         body = parse_raw(json.loads(request), FileDetailsRequest)
         file_info = self.file_system.get_details(body.path)
-        return FileDetailsResponse(file=file_info)
+        response = FileDetailsResponse(file=file_info)
+        return json.dumps(dataclasses.asdict(response))
 
-    async def create_file_or_directory(
+    def create_file_or_directory(
         self,
         request: str,
-    ) -> FileCreateResponse:
+    ) -> str:
         body = parse_raw(json.loads(request), FileCreateRequest)
         success = self.file_system.create_file_or_directory(
             body.path, body.type, body.name
         )
-        return FileCreateResponse(success=success)
+        response = FileCreateResponse(success=success)
+        return json.dumps(dataclasses.asdict(response))
 
-    async def delete_file_or_directory(
+    def delete_file_or_directory(
         self,
         request: str,
-    ) -> FileDeleteResponse:
+    ) -> str:
         body = parse_raw(json.loads(request), FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
-        return FileDeleteResponse(success=success)
+        response = FileDeleteResponse(success=success)
+        return json.dumps(dataclasses.asdict(response))
 
-    async def update_file_or_directory(
+    def update_file_or_directory(
         self,
         request: str,
-    ) -> FileUpdateResponse:
+    ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         success = self.file_system.update_file_or_directory(
             body.path, body.new_path
         )
-        return FileUpdateResponse(success=success)
+        response = FileUpdateResponse(success=success)
+        return json.dumps(dataclasses.asdict(response))
 
 
 def launch_pyodide_kernel(

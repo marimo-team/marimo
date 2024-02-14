@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { APP_FILE_PATH, mountFilesystem } from "./fs";
-import { Logger } from "@/utils/Logger";
+import { Logger } from "../../../utils/Logger";
+import { SerializedBridge } from "./types";
 
 declare let loadPyodide: undefined | (() => Promise<PyodideInterface>);
 
@@ -12,18 +13,7 @@ export async function bootstrap() {
 
   // Load pyodide and micropip
   const pyodide = await loadPyodide();
-
-  // Set up the filesystem
-  const code = await mountFilesystem(pyodide);
-
-  // Load micropip and packages from imports
-  await Promise.all([
-    pyodide.loadPackage("micropip"),
-    pyodide.loadPackagesFromImports(code, {
-      messageCallback: Logger.log,
-      errorCallback: Logger.error,
-    }),
-  ]);
+  await pyodide.loadPackage("micropip");
 
   // Install marimo
   const baseUrl =
@@ -58,25 +48,34 @@ export async function bootstrap() {
     );
   `);
 
+  return pyodide;
+}
+
+export async function startSession(
+  pyodide: PyodideInterface,
+  code: string,
+): Promise<SerializedBridge> {
+  // Set up the filesystem
+  await mountFilesystem(pyodide, code);
+
+  // Load packages from the code
+  await pyodide.loadPackagesFromImports(code, {
+    messageCallback: Logger.log,
+    errorCallback: Logger.error,
+  });
+
   const bridge = await pyodide.runPythonAsync(
     `
-      print("[py] Importing marimo...")
+      print("[py] Starting marimo...")
       import asyncio
-      from marimo._ast.app import App
       from marimo._pyodide.pyodide_session import create_session, instantiate
 
-      print("[py] Creating session...")
       session, bridge = create_session(filename="${APP_FILE_PATH}")
-
-      print("[py] Starting session...")
       instantiate(session)
       asyncio.create_task(session.start())
 
       bridge`,
   );
 
-  return {
-    bridge,
-    pyodide,
-  };
+  return bridge;
 }

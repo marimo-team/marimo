@@ -107,6 +107,10 @@ export interface FileInfo {
   children: FileInfo[];
 }
 
+export interface FileListRequest {
+  path: string | undefined;
+}
+
 export interface FileListResponse {
   files: FileInfo[];
   root: string;
@@ -141,7 +145,5 @@ export interface EditRequests {
   readCode: () => Promise<{ contents: string }>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
-  sendListFiles: (request: {
-    path: string | undefined;
-  }) => Promise<FileListResponse>;
+  sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
 }

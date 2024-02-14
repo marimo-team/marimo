@@ -29,10 +29,7 @@ const htmlDevPlugin = (): Plugin => {
         html = html.replace("{{ version }}", "0.2.0");
         html = html.replace("{{ filename }}", "notebook.py");
         html = html.replace("{{ mode }}", "edit");
-        html = html.replace(
-          /<\/head>/,
-          `<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script></head>`,
-        );
+        html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
         return html;
       }
 
