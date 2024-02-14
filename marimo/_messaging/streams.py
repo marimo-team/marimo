@@ -148,7 +148,6 @@ class Watcher:
 # NB: Python doesn't provide a standard out class to inherit from, so
 # we inherit from TextIOBase.
 class ThreadSafeStdout(Stdout):
-    name = "stdout"
     encoding = sys.stdout.encoding
     errors = sys.stdout.errors
     _fileno: int | None = None
@@ -208,7 +207,6 @@ class ThreadSafeStdout(Stdout):
 
 
 class ThreadSafeStderr(Stderr):
-    name = "stderr"
     encoding = sys.stderr.encoding
     errors = sys.stderr.errors
     _fileno: int | None = None
@@ -271,7 +269,6 @@ class ThreadSafeStderr(Stderr):
 class ThreadSafeStdin(Stdin):
     """Implements a subset of stdin."""
 
-    name = "stdin"
     encoding = sys.stdin.encoding
     errors = sys.stdin.errors
 

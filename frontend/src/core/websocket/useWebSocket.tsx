@@ -1,8 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
 import { IReconnectingWebSocket } from "./types";
 import { StaticWebsocket } from "./StaticWebsocket";
+import { isPyodide } from "../pyodide/utils";
+import { PyodideBridge, PyodideWebsocket } from "../pyodide/bridge";
 
 interface UseWebSocketOptions {
   url: string;
@@ -21,37 +23,39 @@ interface UseWebSocketOptions {
 export function useWebSocket(options: UseWebSocketOptions) {
   const { onOpen, onMessage, onClose, onError, ...rest } = options;
 
-  const wsRef = useRef<IReconnectingWebSocket>();
+  // eslint-disable-next-line react/hook-use-state
+  const [ws] = useState<IReconnectingWebSocket>(() => {
+    const socket: IReconnectingWebSocket = isPyodide()
+      ? new PyodideWebsocket(PyodideBridge.INSTANCE)
+      : options.static
+        ? new StaticWebsocket()
+        : new ReconnectingWebSocket(rest.url, undefined, {
+            // We don't want Infinity retries
+            maxRetries: 10,
+            debug: false,
+          });
+
+    return socket;
+  });
 
   useEffect(() => {
-    wsRef.current = options.static
-      ? new StaticWebsocket()
-      : new ReconnectingWebSocket(rest.url, undefined, {
-          // We don't want Infinity retries
-          maxRetries: 10,
-          debug: false,
-        });
-
-    const socket = wsRef.current;
-    onOpen && socket.addEventListener("open", onOpen);
-    onClose && socket.addEventListener("close", onClose);
-    onError && socket.addEventListener("error", onError);
-    onMessage && socket.addEventListener("message", onMessage);
+    onOpen && ws.addEventListener("open", onOpen);
+    onClose && ws.addEventListener("close", onClose);
+    onError && ws.addEventListener("error", onError);
+    onMessage && ws.addEventListener("message", onMessage);
 
     return () => {
-      onOpen && socket.removeEventListener("open", onOpen);
-      onClose && socket.removeEventListener("close", onClose);
-      onError && socket.removeEventListener("error", onError);
-      onMessage && socket.removeEventListener("message", onMessage);
+      // Don't disconnect if we're using Pyodide
+      if (isPyodide()) {
+        return;
+      }
+      onOpen && ws.removeEventListener("open", onOpen);
+      onClose && ws.removeEventListener("close", onClose);
+      onError && ws.removeEventListener("error", onError);
+      onMessage && ws.removeEventListener("message", onMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const socket = wsRef.current;
-    return () => socket?.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return wsRef;
+  return ws;
 }

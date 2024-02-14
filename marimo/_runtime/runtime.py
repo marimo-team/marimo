@@ -7,7 +7,6 @@ import dataclasses
 import functools
 import io
 import itertools
-import multiprocessing as mp
 import os
 import signal
 import sys
@@ -15,6 +14,7 @@ import threading
 import time
 import traceback
 from collections.abc import Iterable, Sequence
+from multiprocessing import connection
 from typing import Any, Callable, Iterator, Optional
 
 from marimo import _loggers
@@ -1079,6 +1079,36 @@ class Kernel:
             self.run(request.execution_requests)
             self.reset_ui_initializers()
 
+    def handle_message(self, request: ControlRequest) -> None:
+        """Handle a message from the client.
+        The message is dispatched to the appropriate method based on its type.
+        """
+        if isinstance(request, CreationRequest):
+            self.instantiate(request)
+            CompletedRun().broadcast()
+        elif isinstance(request, ExecuteMultipleRequest):
+            self.run(request.execution_requests)
+            CompletedRun().broadcast()
+        elif isinstance(request, SetCellConfigRequest):
+            self.set_cell_config(request)
+        elif isinstance(request, SetUIElementValueRequest):
+            self.set_ui_element_value(request)
+            CompletedRun().broadcast()
+        elif isinstance(request, FunctionCallRequest):
+            status, ret = self.function_call_request(request)
+            FunctionCallResult(
+                function_call_id=request.function_call_id,
+                return_value=ret,
+                status=status,
+            ).broadcast()
+            CompletedRun().broadcast()
+        elif isinstance(request, DeleteRequest):
+            self.delete(request)
+        elif isinstance(request, StopRequest):
+            return None
+        else:
+            raise ValueError(f"Unknown request {request}")
+
 
 def launch_kernel(
     control_queue: QueueType[ControlRequest],
@@ -1098,7 +1128,7 @@ def launch_kernel(
     while n_tries < 100:
         try:
             pipe = TypedConnection[KernelMessage].of(
-                mp.connection.Client(socket_addr)
+                connection.Client(socket_addr)
             )
             break
         except Exception:
@@ -1214,34 +1244,12 @@ def launch_kernel(
             LOGGER.debug("kernel queue.get() failed %s", e)
             break
         LOGGER.debug("received request %s", request)
-        if isinstance(request, CreationRequest):
-            kernel.instantiate(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, ExecuteMultipleRequest):
-            kernel.run(request.execution_requests)
-            CompletedRun().broadcast()
-        elif isinstance(request, SetCellConfigRequest):
-            kernel.set_cell_config(request)
-        elif isinstance(request, SetUIElementValueRequest):
-            kernel.set_ui_element_value(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, FunctionCallRequest):
-            status, ret = kernel.function_call_request(request)
-            FunctionCallResult(
-                function_call_id=request.function_call_id,
-                return_value=ret,
-                status=status,
-            ).broadcast()
-            CompletedRun().broadcast()
-        elif isinstance(request, DeleteRequest):
-            kernel.delete(request)
-        elif isinstance(request, StopRequest):
+        if isinstance(request, StopRequest):
             break
-        else:
-            raise ValueError(f"Unknown request {request}")
+        kernel.handle_message(request)
 
-    if stdout is not None and isinstance(stdout, ThreadSafeStdout):
+    if stdout is not None:
         stdout._watcher.stop()
-    if stderr is not None and isinstance(stderr, ThreadSafeStderr):
+    if stderr is not None:
         stderr._watcher.stop()
     get_context().virtual_file_registry.shutdown()

@@ -58,4 +58,14 @@ export class DeferredRequestRegistry<REQ, RES> {
     entry.resolve(response);
     this.requests.delete(requestId);
   }
+
+  reject(requestId: RequestId, error: Error) {
+    const entry = this.requests.get(requestId);
+    if (entry === undefined) {
+      return;
+    }
+
+    entry.reject(error);
+    this.requests.delete(requestId);
+  }
 }

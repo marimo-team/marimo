@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CellId } from "../cells/ids";
+import { PyodideBridge } from "../pyodide/bridge";
+import { isPyodide } from "../pyodide/utils";
 import { isStaticNotebook } from "../static/static-state";
 import { API } from "./api";
 import { createStaticRequests } from "./static-requests";
@@ -164,4 +166,8 @@ export const {
   readCode,
   openFile,
   sendListFiles,
-} = isStaticNotebook() ? createStaticRequests() : createNetworkRequests();
+} = isPyodide()
+  ? PyodideBridge.INSTANCE
+  : isStaticNotebook()
+    ? createStaticRequests()
+    : createNetworkRequests();

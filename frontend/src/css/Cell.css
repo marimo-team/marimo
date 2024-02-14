@@ -165,6 +165,7 @@
 
     /* custom shadow until our theme overrides can support colored shadow */
     --tw-shadow: 0 4px 0px -1px var(--blue-8), 0 2px 4px -2px var(--blue-8) !important;
+
     box-shadow: var(--tw-shadow) !important;
 
     @apply shadow-lg;

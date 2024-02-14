@@ -93,7 +93,7 @@ export interface SendStdin {
   text: string;
 }
 
-interface ValueUpdate {
+export interface ValueUpdate {
   objectId: string;
   value: unknown;
 }
@@ -105,6 +105,10 @@ export interface FileInfo {
   isDirectory: boolean;
   isMarimoFile: boolean;
   children: FileInfo[];
+}
+
+export interface FileListRequest {
+  path: string | undefined;
 }
 
 export interface FileListResponse {
@@ -141,7 +145,5 @@ export interface EditRequests {
   readCode: () => Promise<{ contents: string }>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
-  sendListFiles: (request: {
-    path: string | undefined;
-  }) => Promise<FileListResponse>;
+  sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
 }

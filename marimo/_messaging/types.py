@@ -25,16 +25,22 @@ class Stream(abc.ABC):
 
 
 class Stdout(io.TextIOBase):
+    name = "stdout"
+
     @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass
 
 
 class Stderr(io.TextIOBase):
+    name = "stderr"
+
     @abc.abstractmethod
     def write(self, __s: str) -> int:
         pass
 
 
 class Stdin(io.TextIOBase):
+    name = "stdin"
+
     pass

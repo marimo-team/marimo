@@ -97,6 +97,7 @@ module.exports = {
     "unicorn/no-keyword-prefix": "off",
     "unicorn/no-useless-undefined": "off",
     "unicorn/prefer-add-event-listener": "off",
+    "unicorn/require-post-message-target-origin": "off",
     "unicorn/prefer-at": "off",
     "unicorn/prefer-code-point": "off",
     "unicorn/prefer-module": "off",

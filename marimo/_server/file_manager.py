@@ -4,14 +4,12 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
-from starlette.exceptions import HTTPException
-
 from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
 from marimo._runtime.layout.layout import LayoutConfig, save_layout_config
-from marimo._server.api.status import HTTPStatus
+from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     SaveRequest,
 )
@@ -36,6 +34,54 @@ class AppFileManager:
         """Reload the app from the file."""
         self.app = self._load_app(self.path)
 
+    def _is_same_path(self, filename: str) -> bool:
+        if self.filename is None:
+            return False
+        return os.path.abspath(self.filename) == os.path.abspath(filename)
+
+    def _assert_path_does_not_exist(self, filename: str) -> None:
+        if os.path.exists(filename):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="File {0} already exists".format(filename),
+            )
+
+    def _assert_path_is_the_same(self, filename: str) -> None:
+        if self.filename is not None and not self._is_same_path(filename):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Save handler cannot rename files.",
+            )
+
+    def _create_file(
+        self,
+        filename: str,
+        contents: str = "",
+        header_comments: Optional[str] = None,
+    ) -> None:
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                if header_comments:
+                    f.write(header_comments.rstrip() + "\n\n")
+                f.write(contents)
+        except Exception as err:
+            raise HTTPException(
+                status_code=HTTPStatus.SERVER_ERROR,
+                detail="Failed to save file {0}".format(filename),
+            ) from err
+
+    def _rename_file(self, new_filename: str) -> None:
+        assert self.filename is not None
+        try:
+            os.rename(self.filename, new_filename)
+        except Exception as err:
+            raise HTTPException(
+                status_code=HTTPStatus.SERVER_ERROR,
+                detail="Failed to rename from {0} to {1}".format(
+                    self.filename, new_filename
+                ),
+            ) from err
+
     @staticmethod
     def _load_app(path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
@@ -48,41 +94,21 @@ class AppFileManager:
                 config=CellConfig(),
             )
             return empty_app
-
         return InternalApp(app)
 
     def rename(self, new_filename: str) -> None:
         """Rename the file."""
-
         new_filename = canonicalize_filename(new_filename)
 
-        if self.filename == new_filename:
+        if self._is_same_path(new_filename):
             return
-        if os.path.exists(new_filename):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(new_filename),
-            )
+
+        self._assert_path_does_not_exist(new_filename)
+
         if self.filename is not None:
-            try:
-                os.rename(self.filename, new_filename)
-            except Exception as err:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to rename from {0} to {1}".format(
-                        self.filename, new_filename
-                    ),
-                ) from err
+            self._rename_file(new_filename)
         else:
-            try:
-                # create a file named `new_filename`
-                with open(new_filename, "w") as _:
-                    pass
-            except Exception as err:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to create file {0}".format(new_filename),
-                ) from err
+            self._create_file(new_filename)
 
         self.filename = new_filename
         self.path = self._get_file_path(new_filename)
@@ -102,7 +128,6 @@ class AppFileManager:
         # TODO(akshayka): Only change the `app = marimo.App` line (at top level
         # of file), instead of overwriting the whole file.
         new_config = self.app.update_config(config)
-
         if self.filename is not None:
             # Try to save the app under the name `self.filename`
             contents = codegen.generate_filecontents(
@@ -111,14 +136,7 @@ class AppFileManager:
                 cell_configs=list(self.app.cell_manager.configs()),
                 config=new_config,
             )
-            try:
-                with open(self.filename, "w", encoding="utf-8") as f:
-                    f.write(contents)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to save file: {0}".format(str(e)),
-                ) from e
+            self._create_file(self.filename, contents)
 
     def save(self, request: SaveRequest) -> None:
         """Save the current app."""
@@ -138,48 +156,33 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self.filename is not None and self.filename != filename:
+        if self.filename is not None and not self._is_same_path(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
             )
-        elif self.filename is None and os.path.exists(filename):
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail="File {0} already exists".format(filename),
-            )
-        else:
-            # save layout
-            if layout is not None:
-                app_dir = os.path.dirname(filename)
-                app_name = os.path.basename(filename)
-                layout_filename = save_layout_config(
-                    app_dir, app_name, LayoutConfig(**layout)
-                )
-                self.app.update_config({"layout_file": layout_filename})
 
-            # try to save the app under the name `filename`
-            contents = codegen.generate_filecontents(
-                codes,
-                names,
-                cell_configs=configs,
-                config=self.app.config,
+        # save layout
+        if layout is not None:
+            app_dir = os.path.dirname(filename)
+            app_name = os.path.basename(filename)
+            layout_filename = save_layout_config(
+                app_dir, app_name, LayoutConfig(**layout)
             )
+            self.app.update_config({"layout_file": layout_filename})
+        # try to save the app under the name `filename`
+        contents = codegen.generate_filecontents(
+            codes,
+            names,
+            cell_configs=configs,
+            config=self.app.config,
+        )
+        LOGGER.debug("Saving app to %s", filename)
+        header_comments = codegen.get_header_comments(filename)
+        self._create_file(filename, contents, header_comments)
 
-            LOGGER.debug("Saving app to %s", filename)
-            try:
-                header_comments = codegen.get_header_comments(filename)
-                with open(filename, "w", encoding="utf-8") as f:
-                    if header_comments:
-                        f.write(header_comments.rstrip() + "\n\n")
-                    f.write(contents)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=HTTPStatus.SERVER_ERROR,
-                    detail="Failed to save file: {0}".format(str(e)),
-                ) from e
-            if self.filename is None:
-                self.rename(filename)
+        if self.filename is None:
+            self.rename(filename)
 
     def read_file(self) -> str:
         """Read the contents of the file."""

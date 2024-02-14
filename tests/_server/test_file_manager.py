@@ -3,10 +3,9 @@ import tempfile
 from typing import Generator
 
 import pytest
-from starlette.exceptions import HTTPException
 
 from marimo._ast.cell import CellConfig
-from marimo._server.api.status import HTTPStatus
+from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.models import SaveRequest
 
@@ -64,9 +63,9 @@ def test_rename_to_existing_filename(app_file_manager: AppFileManager) -> None:
     with open(existing_filename, "w") as f:
         f.write("This is a test file.")
     try:
-        app_file_manager.rename(existing_filename)
-    except HTTPException as e:
-        assert e.status_code == HTTPStatus.BAD_REQUEST
+        with pytest.raises(HTTPException) as e:
+            app_file_manager.rename(existing_filename)
+            assert e.value == HTTPStatus.BAD_REQUEST
     finally:
         os.remove(existing_filename)
 
@@ -147,8 +146,8 @@ def test_save_existing_filename(app_file_manager: AppFileManager) -> None:
 
 def test_save_successful(app_file_manager: AppFileManager) -> None:
     save_request.filename = app_file_manager.filename or ""
-    app_file_manager.save(save_request)
     try:
+        app_file_manager.save(save_request)
         assert os.path.exists(save_request.filename)
     finally:
         os.remove(save_request.filename)

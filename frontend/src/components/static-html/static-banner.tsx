@@ -48,7 +48,7 @@ export const StaticBanner: React.FC = () => {
 };
 
 const StaticBannerDialog = () => {
-  let filename = getFilenameFromDOM() || "app.py";
+  let filename = getFilenameFromDOM() || "notebook.py";
   // Trim the path
   const lastSlash = filename.lastIndexOf("/");
   if (lastSlash !== -1) {

@@ -1,16 +1,20 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import dataclasses
+import mimetypes
 import random
 import string
 import sys
 import threading
 from collections.abc import Iterable
 from multiprocessing import shared_memory
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.utils import build_data_url
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 
 if TYPE_CHECKING:
@@ -25,7 +29,11 @@ _ALPHABET = string.ascii_letters + string.digits
 def random_filename(ext: str) -> str:
     # adapted from: https://stackoverflow.com/questions/13484726/safe-enough-8-character-short-unique-random-string  # noqa: E501
     # TODO(akshayka): should callers redraw if they get a collision?
-    tid = str(threading.get_native_id())
+    try:
+        tid = str(threading.get_native_id())
+    except AttributeError:
+        # get_native_id() not implemented in pyodide/WASM
+        tid = "0"
     basename = tid + "-" + "".join(random.choices(_ALPHABET, k=8))
     return f"{basename}.{ext}"
 
@@ -37,7 +45,11 @@ class VirtualFile:
     buffer: bytes
 
     def __init__(
-        self, filename: str, buffer: bytes, url: Optional[str] = None
+        self,
+        filename: str,
+        buffer: bytes,
+        url: Optional[str] = None,
+        as_data_url: bool = False,
     ) -> None:
         self.filename = filename
         self.buffer = buffer
@@ -46,7 +58,16 @@ class VirtualFile:
         # many bytes to read.
         # Also, URL is intentionally relative, so it can be resolved with
         # different base URLs.
-        self.url = url or f"./@file/{len(buffer)}-{filename}"
+        if not as_data_url:
+            self.url = url or f"./@file/{len(buffer)}-{filename}"
+        else:
+            self.url = url or build_data_url(
+                mimetype=cast(
+                    KnownMimeType,
+                    mimetypes.guess_type(self.filename)[0],
+                ),
+                data=base64.b64encode(buffer),
+            )
 
     @staticmethod
     def from_external_url(url: str) -> VirtualFile:
@@ -97,8 +118,12 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
                 "Failed to add virtual file to registry. "
                 "This is a bug in marimo. Please file an issue."
             )
-        self._virtual_file = VirtualFile(filename, self.buffer)
-        context.virtual_file_registry.add(self._virtual_file)
+        self._virtual_file = VirtualFile(
+            filename,
+            self.buffer,
+            as_data_url=not context.virtual_files_supported,
+        )
+        context.virtual_file_registry.add(self._virtual_file, context)
 
     def dispose(self, context: "RuntimeContext", deletion: bool) -> bool:
         # Remove the file if the refcount is 0, or if the cell is being
@@ -164,7 +189,12 @@ class VirtualFileRegistry:
             return self.registry[filename].refcount
         return 0
 
-    def add(self, virtual_file: VirtualFile) -> None:
+    def add(
+        self, virtual_file: VirtualFile, context: "RuntimeContext"
+    ) -> None:
+        if not context.virtual_files_supported:
+            return
+
         key = virtual_file.filename
         if key in self.registry:
             LOGGER.debug(

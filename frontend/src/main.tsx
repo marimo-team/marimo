@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { ErrorBoundary } from "./components/editor/boundary/ErrorBoundary";
@@ -31,13 +30,11 @@ const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 try {
   root.render(
-    <React.StrictMode>
-      <Provider store={store}>
-        <ThemeProvider>
-          <MarimoApp />
-        </ThemeProvider>
-      </Provider>
-    </React.StrictMode>,
+    <Provider store={store}>
+      <ThemeProvider>
+        <MarimoApp />
+      </ThemeProvider>
+    </Provider>,
   );
 } catch (error) {
   // Most likely, configuration failed to parse.

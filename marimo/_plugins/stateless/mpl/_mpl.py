@@ -14,15 +14,7 @@ import mimetypes
 import signal
 import threading
 from pathlib import Path
-from typing import Any, Optional, Tuple
-
-import uvicorn
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import HTMLResponse, Response
-from starlette.routing import Mount, Route, WebSocketRoute
-from starlette.staticfiles import StaticFiles
-from starlette.websockets import WebSocket
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
@@ -35,6 +27,9 @@ from marimo._runtime.context import (
 )
 from marimo._server.utils import find_free_port
 from marimo._utils.signals import get_signals
+
+if TYPE_CHECKING:
+    from starlette.applications import Starlette
 
 
 class FigureManagers:
@@ -76,6 +71,12 @@ def create_application(
     from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]  # noqa: E501
         FigureManagerWebAgg,
     )
+    from starlette.applications import Starlette
+    from starlette.requests import Request
+    from starlette.responses import HTMLResponse, Response
+    from starlette.routing import Mount, Route, WebSocketRoute
+    from starlette.staticfiles import StaticFiles
+    from starlette.websockets import WebSocket
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")
@@ -183,6 +184,8 @@ _app: Optional[Starlette] = None
 
 def get_or_create_application() -> Starlette:
     global _app
+
+    import uvicorn
 
     if _app is None:
         host = "localhost"

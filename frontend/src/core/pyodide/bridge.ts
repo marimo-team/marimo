@@ -1,0 +1,346 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Logger } from "@/utils/Logger";
+import { CellId } from "../cells/ids";
+import {
+  CodeCompletionRequest,
+  EditRequests,
+  FileListRequest,
+  FileListResponse,
+  FormatRequest,
+  FormatResponse,
+  InstantiateRequest,
+  RunRequests,
+  SaveAppConfigRequest,
+  SaveCellConfigRequest,
+  SaveKernelRequest,
+  SaveUserConfigRequest,
+  SendFunctionRequest,
+  SendStdin,
+  ValueUpdate,
+} from "../network/types";
+import { IReconnectingWebSocket } from "../websocket/types";
+import { fileStore } from "./store";
+import { isPyodide } from "./utils";
+import {
+  RawBridge,
+  WorkerClientPayload,
+  WorkerServerPayload,
+} from "./worker/types";
+import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
+import { Deferred } from "@/utils/Deferred";
+import InlineWorker from "./worker/worker?worker&inline";
+
+export type BridgeFunctionAndPayload = {
+  [P in keyof RawBridge]: {
+    functionName: P;
+    payload: Parameters<RawBridge[P]>[0];
+  };
+}[keyof RawBridge];
+
+export class PyodideBridge implements RunRequests, EditRequests {
+  static INSTANCE = new PyodideBridge();
+
+  private worker!: Worker;
+  private messageConsumer: ((message: string) => void) | undefined;
+  private fetcher = new DeferredRequestRegistry<
+    BridgeFunctionAndPayload,
+    unknown
+  >("bridge", async (requestId, request) => {
+    this.postMessage({
+      type: "call-function",
+      id: requestId,
+      functionName: request.functionName,
+      payload: request.payload,
+    });
+  });
+
+  public initialized = new Deferred<void>();
+
+  constructor() {
+    if (isPyodide()) {
+      this.worker = new InlineWorker();
+      this.worker.onmessage = this.handleWorkerMessage;
+    }
+  }
+
+  private setCode = async () => {
+    const code = await fileStore.readFile();
+    this.postMessage({ type: "set-code", code: code || "" });
+  };
+
+  private handleWorkerMessage = async (
+    event: MessageEvent<WorkerClientPayload>,
+  ) => {
+    if (event.data.type === "ready") {
+      await this.setCode();
+    }
+    if (event.data.type === "initialized") {
+      this.initialized.resolve();
+    }
+    if (event.data.type === "message") {
+      this.messageConsumer?.(event.data.message);
+    }
+    if (event.data.type === "error") {
+      Logger.error(event.data.error);
+      this.fetcher.reject(event.data.id, new Error(event.data.error));
+    }
+    if (event.data.type === "response") {
+      this.fetcher.resolve(event.data.id, event.data.response);
+    }
+  };
+
+  private postMessage = (message: WorkerServerPayload) => {
+    this.worker.postMessage(message);
+  };
+
+  consumeMessages = (consumer: (message: string) => void) => {
+    this.messageConsumer = consumer;
+    this.postMessage({ type: "start-messages" });
+  };
+
+  sendRename = async (filename: string | null): Promise<null> => {
+    if (filename === null) {
+      return null;
+    }
+    await this.fetcher.request({
+      functionName: "rename_file",
+      payload: filename,
+    });
+    return null;
+  };
+
+  sendSave = async (request: SaveKernelRequest): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "save",
+      payload: request,
+    });
+    const code = await this.readCode();
+    if (code.contents) {
+      fileStore.saveFile(code.contents);
+    }
+    return null;
+  };
+
+  sendStdin = async (request: SendStdin): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "put_input",
+      payload: request.text,
+    });
+    return null;
+  };
+
+  sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "load_packages",
+      payload: codes.join("\n"),
+    });
+
+    await this.putControlRequest({
+      execution_requests: cellIds.map((cellId, index) => ({
+        cell_id: cellId,
+        code: codes[index],
+      })),
+    });
+    return null;
+  };
+  sendInterrupt = async (): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "interrupt",
+      payload: undefined,
+    });
+    return null;
+  };
+  sendShutdown = async (): Promise<null> => {
+    window.close();
+    return null;
+  };
+  sendFormat = async (
+    request: FormatRequest,
+  ): Promise<Record<CellId, string>> => {
+    const response = await this.fetcher.request({
+      functionName: "format",
+      payload: request,
+    });
+    return (response as FormatResponse).codes;
+  };
+  sendDeleteCell = async (cellId: CellId): Promise<null> => {
+    await this.putControlRequest({
+      cell_id: cellId,
+    });
+    return null;
+  };
+
+  sendCodeCompletionRequest = async (
+    request: CodeCompletionRequest,
+  ): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "code_complete",
+      payload: request,
+    });
+    return null;
+  };
+
+  saveUserConfig = (request: SaveUserConfigRequest): Promise<null> => {
+    throw new Error("Method not implemented.");
+  };
+
+  saveAppConfig = async (request: SaveAppConfigRequest): Promise<null> => {
+    await this.fetcher.request({
+      functionName: "save_app_config",
+      payload: request,
+    });
+    return null;
+  };
+
+  saveCellConfig = async (request: SaveCellConfigRequest): Promise<null> => {
+    await this.putControlRequest({
+      configs: request.configs,
+    });
+    return null;
+  };
+
+  sendRestart = async (): Promise<null> => {
+    window.location.reload();
+    return null;
+  };
+
+  readCode = async (): Promise<{ contents: string }> => {
+    const response = await this.fetcher.request({
+      functionName: "read_code",
+      payload: undefined,
+    });
+    return response as { contents: string };
+  };
+
+  openFile = (request: { path: string }): Promise<null> => {
+    throw new Error("Method not implemented.");
+  };
+
+  sendListFiles = async (
+    request: FileListRequest,
+  ): Promise<FileListResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "list_files",
+      payload: request,
+    });
+    return response as FileListResponse;
+  };
+  sendComponentValues = async (valueUpdates: ValueUpdate[]): Promise<null> => {
+    await this.putControlRequest({
+      ids_and_values: valueUpdates.map((update) => [
+        update.objectId,
+        update.value,
+      ]),
+    });
+    return null;
+  };
+
+  sendInstantiate = async (request: InstantiateRequest): Promise<null> => {
+    return null;
+  };
+
+  sendFunctionRequest = async (request: SendFunctionRequest): Promise<null> => {
+    await this.putControlRequest({
+      function_call: request,
+    });
+    return null;
+  };
+
+  private putControlRequest = async (operation: object) => {
+    await this.fetcher.request({
+      functionName: "put_control_request",
+      payload: operation,
+    });
+  };
+}
+
+export class PyodideWebsocket implements IReconnectingWebSocket {
+  CONNECTING = WebSocket.CONNECTING;
+  OPEN = WebSocket.OPEN;
+  CLOSING = WebSocket.CLOSING;
+  CLOSED = WebSocket.CLOSED;
+  binaryType = "blob" as BinaryType;
+  bufferedAmount = 0;
+  extensions = "";
+  protocol = "";
+  url = "";
+
+  onclose = null;
+  onerror = null;
+  onmessage = null;
+  onopen = null;
+
+  openSubscriptions = new Set<() => void>();
+  closeSubscriptions = new Set<() => void>();
+  messageSubscriptions = new Set<(event: MessageEvent) => void>();
+  errorSubscriptions = new Set<(event: Event) => void>();
+
+  constructor(private bridge: PyodideBridge) {}
+
+  private consumeMessages() {
+    this.bridge.consumeMessages((message) => {
+      this.messageSubscriptions.forEach((callback) => {
+        callback({ data: message } as MessageEvent);
+      });
+    });
+  }
+
+  addEventListener(type: unknown, callback: any, options?: unknown): void {
+    switch (type) {
+      case "open":
+        this.openSubscriptions.add(callback);
+        // Call open right away
+        callback();
+        break;
+      case "close":
+        this.closeSubscriptions.add(callback);
+        break;
+      case "message":
+        this.messageSubscriptions.add(callback);
+        // Don't start consuming messages until we have a message listener
+        this.consumeMessages();
+        break;
+      case "error":
+        this.errorSubscriptions.add(callback);
+        break;
+    }
+  }
+
+  removeEventListener(type: unknown, callback: any, options?: unknown): void {
+    switch (type) {
+      case "open":
+        this.openSubscriptions.delete(callback);
+        break;
+      case "close":
+        this.closeSubscriptions.delete(callback);
+        break;
+      case "message":
+        this.messageSubscriptions.delete(callback);
+        break;
+      case "error":
+        this.errorSubscriptions.delete(callback);
+        break;
+    }
+  }
+
+  dispatchEvent(event: Event): boolean {
+    throw new Error("Method not implemented.");
+  }
+
+  readyState = WebSocket.OPEN;
+  retryCount = 0;
+  shouldReconnect = false;
+
+  reconnect(code?: number | undefined, reason?: string | undefined): void {
+    throw new Error("Method not implemented.");
+  }
+
+  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
+    throw new Error("Method not implemented.");
+  }
+
+  close() {
+    return;
+  }
+}

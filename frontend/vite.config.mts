@@ -9,6 +9,7 @@ const HOST = process.env.HOST || "127.0.0.1";
 const TARGET = `http://${HOST}:${SERVER_PORT}`;
 const isDev = process.env.NODE_ENV === "development";
 const isStorybook = process.env.npm_lifecycle_script?.includes("storybook");
+const isPyodide = process.env.PYODIDE === "true";
 
 const htmlDevPlugin = (): Plugin => {
   return {
@@ -16,6 +17,19 @@ const htmlDevPlugin = (): Plugin => {
     name: "html-transform",
     transformIndexHtml: async (html) => {
       if (isStorybook) {
+        return html;
+      }
+
+      if (isPyodide) {
+        html = html.replace("{{ base_url }}", "");
+        html = html.replace("{{ title }}", "marimo");
+        html = html.replace("{{ user_config }}", JSON.stringify({}));
+        html = html.replace("{{ app_config }}", JSON.stringify({}));
+        html = html.replace("{{ server_token }}", "");
+        html = html.replace("{{ version }}", "0.2.0");
+        html = html.replace("{{ filename }}", "notebook.py");
+        html = html.replace("{{ mode }}", "edit");
+        html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
         return html;
       }
 

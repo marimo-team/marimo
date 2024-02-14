@@ -32,7 +32,7 @@ test("keeps re-renders from growing", async ({ page }) => {
   // unexpectedly, it is a sign that something is causing cells to re-render.
   // It is also ok to decrease the count if we find a way to reduce the number
   // of renders.
-  expect(cellRenderCount).toBe("8");
+  expect(cellRenderCount).toBe("4");
 });
 
 /**
