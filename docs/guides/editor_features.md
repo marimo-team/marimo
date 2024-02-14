@@ -6,6 +6,23 @@ GitHub copilot, code formatting, HTML export, a feedback form, and more.
 
 This guide introduces some of these features.
 
+## Settings
+
+The editor exposes of a number of settings for the current notebook,
+as well as user-wide configuration that will apply to all your notebooks.
+These settings include the option to display the current notebook in
+full width, to use vim keybindings, to enable GitHub copilot, and more.
+
+To access these settings, click the gear icon in the top-right of the editor.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-settings.png"/>
+<figcaption>Click the gear icon to access notebook and editor settings.</figcaption>
+</figure>
+</div>
+
+
 ## Overview panels
 
 marimo ships with the following IDE-like panels that help provide an overview
