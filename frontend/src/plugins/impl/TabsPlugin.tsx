@@ -53,9 +53,22 @@ const TabComponent = ({
   children,
 }: PropsWithChildren<TabComponentProps>): JSX.Element => {
   // We use the index since labels are raw HTML and can't be used as keys
-  const selectedTab = value || "0";
+  // Tabs default to the first tab if the value is not set
+  const [internalValue, setInternalValue] = React.useState(value || "0");
+
+  const handleChange = (newValue: T) => {
+    setInternalValue(newValue);
+    setValue(newValue);
+  };
+
+  // Reset the internal value if the value is changed externally
+  // and not empty
+  if (value !== internalValue && !!value) {
+    setInternalValue(value);
+  }
+
   return (
-    <Tabs value={selectedTab} onValueChange={setValue}>
+    <Tabs value={internalValue} onValueChange={handleChange}>
       <TabsList>
         {tabs.map((tab, index) => (
           <TabsTrigger key={index} value={index.toString()}>

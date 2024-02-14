@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { store } from "@/core/state/jotai";
 import { atom, useAtomValue } from "jotai";
-import { useEffect, useState } from "react";
 import { userConfigAtom } from "@/core/config/config";
 
 export type Theme = "light" | "dark" | "system";
@@ -39,26 +38,6 @@ const resolvedThemeAtom = atom((get) => {
  * This is stored in the user config.
  */
 export function useTheme(): { theme: ResolvedTheme } {
-  const theme = useAtomValue(resolvedThemeAtom);
-  return { theme };
-}
-
-function getTheme(): ResolvedTheme {
-  return store.get(resolvedThemeAtom);
-}
-
-/**
- * Plugins are in a different react tree, so we cannot use useAtom as it looks
- * for an existing Provider in the react tree.
- * Instead we need to subscribe to the atom directly.
- */
-export function useThemeForPlugin(): { theme: ResolvedTheme } {
-  const [theme, setTheme] = useState(getTheme());
-  useEffect(() => {
-    return store.sub(resolvedThemeAtom, () => {
-      setTheme(getTheme());
-    });
-  }, []);
-
+  const theme = useAtomValue(resolvedThemeAtom, { store });
   return { theme };
 }

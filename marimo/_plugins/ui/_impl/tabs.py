@@ -75,14 +75,14 @@ class tabs(UIElement[str, str]):
         tab_labels = list(md(label).text for label in tabs.keys())
 
         index = (
-            self._tab_keys.index(value)
+            str(self._tab_keys.index(value))
             if value in self._tab_keys and tabs
-            else 0
+            else None
         )
 
         super().__init__(
             component_name=self._name,
-            initial_value=str(index),
+            initial_value=index or "",
             label=label,
             args={"tabs": tab_labels},
             on_change=on_change,
@@ -90,5 +90,7 @@ class tabs(UIElement[str, str]):
         )
 
     def _convert_value(self, value: str) -> str:
+        if not value:
+            return self._tab_keys[0]
         index = int(value)
         return self._tab_keys[index]

@@ -4,7 +4,7 @@ import mermaid from "mermaid";
 import type { MermaidConfig } from "mermaid";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Logger } from "@/utils/Logger";
-import { useThemeForPlugin } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 
 interface Props {
   diagram: string;
@@ -64,7 +64,7 @@ const Mermaid: React.FC<Props> = ({ diagram }) => {
   // eslint-disable-next-line react/hook-use-state
   const [id] = useState(() => randomAlpha());
 
-  const darkMode = useThemeForPlugin().theme === "dark";
+  const darkMode = useTheme().theme === "dark";
   mermaid.initialize({
     ...DEFAULT_CONFIG,
     theme: darkMode ? "dark" : "forest",
