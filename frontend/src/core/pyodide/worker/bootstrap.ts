@@ -18,7 +18,7 @@ export async function bootstrap() {
   // Install marimo
   const baseUrl =
     process.env.NODE_ENV === "production"
-      ? `${window.location.origin}/registry`
+      ? `https://marimo.app/registry`
       : "http://localhost:8000/dist";
   await pyodide.runPythonAsync(`
     import micropip

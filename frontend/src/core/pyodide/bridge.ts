@@ -29,6 +29,7 @@ import {
 } from "./worker/types";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { Deferred } from "@/utils/Deferred";
+import InlineWorker from "./worker/worker?worker&inline";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -58,9 +59,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   constructor() {
     if (isPyodide()) {
-      this.worker = new Worker(new URL("worker/worker.ts", import.meta.url), {
-        type: "module",
-      });
+      this.worker = new InlineWorker();
       this.worker.onmessage = this.handleWorkerMessage;
     }
   }

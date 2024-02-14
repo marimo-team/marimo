@@ -11,36 +11,13 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo running in WASM! 🌊🍃")
-    return (mo,)
-
-
-@app.cell
-def __():
-    import micropip
-    import asyncio
-
-    # Most packages will be automatically installed,
-    # These can be found: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-    # For those that are not, you can use this `install` function
-    # e.g. install("altair")
-
-    def install(pkg):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(micropip.install(pkg))
-
-    return asyncio, install, micropip
-
-
-@app.cell
-def __(install):
-    install("pandas")
-    return
+    return mo,
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return (slider,)
+    return slider,
 
 
 @app.cell
@@ -59,15 +36,37 @@ def __(mo, slider):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
-    mo.md(
+    mo.accordion(
+        {
+            "Installing packages": mo.md(
+                """
+        Most packages will be automatically installed,
+        These can be found at [packages-in-pyodide](https://pyodide.org/en/stable/usage/packages-in-pyodide.html).
+        
+        For those that are not, you can use this `install` function
+
+        ```python
+        install("altair")
+        ```
         """
-        Tip: This is a tutorial notebook. You can create your own notebooks
-        by entering `marimo edit` at the command line.
-        """
-    ).callout()
+            )
+        }
+    )
     return
+
+
+@app.cell(hide_code=True)
+def __():
+    import micropip
+    import asyncio
+
+
+    def install(pkg):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(micropip.install(pkg))
+    return asyncio, install, micropip
 
 
 @app.cell(hide_code=True)
@@ -121,7 +120,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return (changed,)
+    return changed,
 
 
 @app.cell(hide_code=True)
@@ -210,13 +209,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return (icon,)
+    return icon,
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return (repetitions,)
+    return repetitions,
 
 
 @app.cell
@@ -458,7 +457,7 @@ def __():
            """
         ),
     }
-    return (tips,)
+    return tips,
 
 
 if __name__ == "__main__":
