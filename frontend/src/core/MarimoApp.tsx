@@ -2,7 +2,7 @@
 import "../css/index.css";
 import "iconify-icon";
 
-import { useEffect } from "react";
+import { PropsWithChildren, memo, useEffect } from "react";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
 import { initializePlugins } from "../plugins/plugins";
 import { App } from "./App";
@@ -24,24 +24,13 @@ import { LargeSpinner } from "@/components/icons/large-spinner";
 /**
  * The root component of the Marimo app.
  */
-export const MarimoApp: React.FC = () => {
+export const MarimoApp: React.FC = memo(() => {
   const [userConfig] = useUserConfig();
   const [appConfig] = useAppConfig();
-
-  const { loading } = useAsyncData(async () => {
-    if (isPyodide()) {
-      await PyodideBridge.INSTANCE.initialized.promise;
-    }
-    return true;
-  }, []);
 
   useEffect(() => {
     initializePlugins();
   }, []);
-
-  if (loading) {
-    return <LargeSpinner />;
-  }
 
   const body =
     initialMode === "read" ? (
@@ -62,23 +51,45 @@ export const MarimoApp: React.FC = () => {
     <ErrorBoundary>
       <TooltipProvider>
         <DayPickerProvider initialProps={{}}>
-          <ModalProvider>
-            <CssVariables
-              variables={{
-                "--marimo-code-editor-font-size": toRem(
-                  userConfig.display.code_editor_font_size,
-                ),
-              }}
-            >
-              {body}
-            </CssVariables>
-          </ModalProvider>
+          <PyodideLoader>
+            <ModalProvider>
+              <CssVariables
+                variables={{
+                  "--marimo-code-editor-font-size": toRem(
+                    userConfig.display.code_editor_font_size,
+                  ),
+                }}
+              >
+                {body}
+              </CssVariables>
+            </ModalProvider>
+          </PyodideLoader>
         </DayPickerProvider>
       </TooltipProvider>
     </ErrorBoundary>
   );
-};
+});
+MarimoApp.displayName = "MarimoApp";
 
 function toRem(px: number) {
   return `${px / 16}rem`;
 }
+
+export const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
+  if (!isPyodide()) {
+    return children;
+  }
+
+  // isPyodide() is constant, so this is safe
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { loading } = useAsyncData(async () => {
+    await PyodideBridge.INSTANCE.initialized.promise;
+    return true;
+  }, []);
+
+  if (loading) {
+    return <LargeSpinner />;
+  }
+
+  return children;
+};
