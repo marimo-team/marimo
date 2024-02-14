@@ -19,7 +19,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
-import { useThemeForPlugin } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
 import { asURL } from "@/utils/url";
 
@@ -141,7 +141,7 @@ const LoadedVegaComponent = ({
   fieldSelection,
   spec,
 }: VegaComponentProps<T>): JSX.Element => {
-  const { theme } = useThemeForPlugin();
+  const { theme } = useTheme();
   const vegaView = useRef<View>();
   const [error, setError] = useState<Error>();
 

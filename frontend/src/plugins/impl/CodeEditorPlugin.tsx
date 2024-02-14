@@ -3,7 +3,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Labeled } from "./common/labeled";
-import { Theme, useThemeForPlugin } from "@/theme/useTheme";
+import { Theme, useTheme } from "@/theme/useTheme";
 import { lazy } from "react";
 
 type T = string;
@@ -51,7 +51,7 @@ interface CodeEditorComponentProps extends Data {
 }
 
 const CodeEditorComponent = (props: CodeEditorComponentProps) => {
-  const { theme } = useThemeForPlugin();
+  const { theme } = useTheme();
   const finalTheme = props.theme || theme;
   const minHeight = props.minHeight ? `${props.minHeight}px` : "70px";
 

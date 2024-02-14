@@ -36,7 +36,7 @@ import { renderError } from "./BadPlugin";
 import { renderHTML } from "./RenderHTML";
 import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
-import { useThemeForPlugin } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
 import { getUIElementObjectId } from "@/core/dom/UIElement";
 import { PluginFunctions } from "./rpc";
@@ -86,7 +86,7 @@ function PluginSlotInternal<T>(
 ): JSX.Element {
   const [childNodes, setChildNodes] = useState<ReactNode>(children);
   const [value, setValue] = useState<T>(getInitialValue());
-  const { theme } = useThemeForPlugin();
+  const { theme } = useTheme();
 
   const [parsedResult, setParsedResult] = useState(() => {
     return plugin.validator.safeParse(parseDataset(hostElement));

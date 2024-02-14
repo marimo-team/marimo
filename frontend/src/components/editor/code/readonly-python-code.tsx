@@ -8,7 +8,7 @@ import { CopyIcon, EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Events } from "@/utils/events";
 import { toast } from "@/components/ui/use-toast";
-import { useThemeForPlugin } from "@/theme/useTheme";
+import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/python";
 
@@ -20,7 +20,7 @@ export const ReadonlyPythonCode = memo(
       initiallyHideCode?: boolean;
     } & ReactCodeMirrorProps,
   ) => {
-    const { theme } = useThemeForPlugin();
+    const { theme } = useTheme();
     const { code, className, initiallyHideCode, ...rest } = props;
     const [hideCode, setHideCode] = useState(initiallyHideCode);
 
