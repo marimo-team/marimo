@@ -1244,6 +1244,8 @@ def launch_kernel(
             LOGGER.debug("kernel queue.get() failed %s", e)
             break
         LOGGER.debug("received request %s", request)
+        if isinstance(request, StopRequest):
+            break
         kernel.handle_message(request)
 
     if stdout is not None:
