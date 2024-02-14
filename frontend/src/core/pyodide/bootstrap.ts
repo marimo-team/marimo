@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { APP_FILE_PATH, mountFilesystem } from "./fs";
-import { Logger } from "@/utils/Logger";
 
 declare let loadPyodide: undefined | (() => Promise<PyodideInterface>);
 
