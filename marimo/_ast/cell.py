@@ -227,6 +227,28 @@ def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
 
 
+def _is_coroutine(code: Optional[CodeType]) -> bool:
+    if code is None:
+        return False
+    return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+
+async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:
+    if cell.body is None:
+        return None
+    assert cell.last_expr is not None
+
+    if _is_coroutine(cell.body):
+        await eval(cell.body, glbls)
+    else:
+        exec(cell.body, glbls)
+
+    if _is_coroutine(cell.last_expr):
+        return await eval(cell.last_expr, glbls)
+    else:
+        return eval(cell.last_expr, glbls)
+
+
 def execute_cell(cell: Cell, glbls: dict[Any, Any]) -> Any:
     if cell.body is None:
         return None

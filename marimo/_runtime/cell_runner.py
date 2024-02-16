@@ -7,7 +7,7 @@ from collections.abc import Container
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._ast.cell import CellId_t, execute_cell
+from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
 from marimo._ast.compiler import cell_id_from_filename
 from marimo._loggers import marimo_logger
 from marimo._runtime import dataflow
@@ -220,11 +220,11 @@ class Runner:
         error_msg = format_traceback(self.graph)
         sys.stderr.write(error_msg)
 
-    def run(self, cell_id: CellId_t) -> RunResult:
+    async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         cell = self.graph.cells[cell_id]
         try:
-            return_value = execute_cell(cell, self.glbls)
+            return_value = await execute_cell_async(cell, self.glbls)
             run_result = RunResult(output=return_value, exception=None)
         except MarimoInterrupt as e:
             # User interrupt

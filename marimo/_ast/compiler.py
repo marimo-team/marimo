@@ -51,7 +51,9 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(code: str, cell_id: CellId_t) -> Cell:
+def compile_cell(
+    code: str, cell_id: CellId_t, allow_await: bool = False
+) -> Cell:
     module = ast.parse(code, mode="exec")
     if not module.body:
         # either empty code or just comments
@@ -88,8 +90,9 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
             last_expr_filename,
             ast.unparse(expr) if not isinstance(expr, str) else "None",
         )
-    body = compile(module, body_filename, mode="exec")
-    last_expr = compile(expr, last_expr_filename, mode="eval")
+    flags = 0 if not allow_await else ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
+    body = compile(module, body_filename, mode="exec", flags=flags)
+    last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
 
     glbls = {name for name in v.defs if not is_local(name)}
     return Cell(
