@@ -51,9 +51,7 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(
-    code: str, cell_id: CellId_t, allow_await: bool = True
-) -> Cell:
+def compile_cell(code: str, cell_id: CellId_t) -> Cell:
     module = compile(
         code,
         "<unknown>",
@@ -95,7 +93,7 @@ def compile_cell(
             last_expr_filename,
             ast.unparse(expr) if not isinstance(expr, str) else "None",
         )
-    flags = 0 if not allow_await else ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
+    flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
     body = compile(module, body_filename, mode="exec", flags=flags)
     last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
 

@@ -68,6 +68,18 @@ class TestGeneration:
         )
 
     @staticmethod
+    def test_generate_filecontents_async() -> None:
+        cell_one = "import numpy as np\nimport asyncio"
+        cell_two = "x = 0\nxx = 1\nawait asyncio.sleep(1)"
+        cell_three = "async def _():\n    await asyncio.sleep(x)"
+        codes = [cell_one, cell_two, cell_three]
+        names = ["one", "two", "three"]
+        contents = generate_filecontents(codes, names)
+        assert contents == get_expected_filecontents(
+            "test_generate_filecontents_async"
+        )
+
+    @staticmethod
     def test_generate_filecontents_single_cell() -> None:
         cell_one = "import numpy as np"
         codes = [cell_one]

@@ -176,6 +176,11 @@ class Kernel:
     Args:
 
     - cell_configs: initial configuration for each cell
+    - app_metadata: metadata about the notebook
+    - stream: object used to communicate with the server/outside world
+    - stdout: replacement for sys.stdout
+    - stderr: replacement for sys.stderr
+    - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     """
 
@@ -841,9 +846,12 @@ class Kernel:
     ) -> None:
         """Run cells and their descendants.
 
+
         The cells may be cells already existing in the graph or new cells.
         Adds the cells in `execution_requests` to the graph before running
         them.
+
+        Cells may use top-level await, which is why this function is async.
         """
 
         await self._run_cells(
@@ -1245,8 +1253,6 @@ def launch_kernel(
         else:
             signal.signal(signal.SIGTERM, sigterm_handler)
 
-    # The control loop is asynchronous only because we allow
-    # user code to use top-level await; nothing else is awaited.
     async def control_loop() -> None:
         while True:
             try:
@@ -1260,6 +1266,10 @@ def launch_kernel(
                 break
             await kernel.handle_message(request)
 
+    # The control loop is asynchronous only because we allow user code to use
+    # top-level await; nothing else is awaited. Don't introduce async
+    # primitives anywhere else in the runtime unless there is a *very* good
+    # reason; prefer using threads (for performance and clarity).
     asyncio.run(control_loop())
 
     if stdout is not None:
