@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
+
 from marimo._ast.app import App
 from marimo._ast.cell import CellFunction, CellFuncType
 
@@ -75,3 +77,22 @@ def test_decorator_with_unknown_args() -> None:
     assert cell_function.__name__ == "__"
     assert cell_function.__call__ is not None
     assert cell_function.__call__() == (4,)
+
+
+async def test_decorator_async() -> None:
+    # Decorator uncalled
+    @app.cell
+    async def __(asyncio) -> tuple[int]:
+        await asyncio.sleep(0.1)
+        z = 3 + 3
+        return (z,)
+
+    assert inspect.iscoroutinefunction(cell_function)
+    assert cell_function.cell.config.disabled is False
+    assert len(cell_function.args) == 1
+    assert cell_function.__name__ == "__"
+    assert cell_function.__call__ is not None
+
+    import asyncio
+
+    assert (await cell_function(asyncio)) == (6,)

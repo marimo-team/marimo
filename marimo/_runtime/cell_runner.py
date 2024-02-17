@@ -7,7 +7,7 @@ from collections.abc import Container
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
-from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
+from marimo._ast.cell import CellId_t, execute_cell_async
 from marimo._ast.compiler import cell_id_from_filename
 from marimo._loggers import marimo_logger
 from marimo._runtime import dataflow

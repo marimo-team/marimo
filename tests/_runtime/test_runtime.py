@@ -600,7 +600,9 @@ async def test_disable_and_reenable_tree(
     assert not k.graph.cells[er_5.cell_id].stale
 
 
-async def test_disable_consecutive(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_disable_consecutive(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),
@@ -645,7 +647,9 @@ async def test_disable_consecutive(k: Kernel, exec_req: ExecReqProvider) -> None
     assert not k.graph.cells[er_2.cell_id].stale
 
 
-async def test_disable_syntax_error(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_disable_syntax_error(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),

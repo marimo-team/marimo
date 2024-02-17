@@ -128,7 +128,6 @@ class Cell:
             if data.module is not None
         )
 
-    @property
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
@@ -187,12 +186,7 @@ def cell_function(
     parameters = list(signature.parameters.keys())
     return_names = sorted(defn for defn in cell.defs)
 
-    @functools.wraps(f)
-    def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
-        """Wrapper for executing cell using the function's signature.
-
-        Alternative for passing a globals dict
-        """
+    def _prepare_args(*args: Any, **kwargs: Any) -> dict[Any, Any]:
         glbls = {}
         glbls.update(defaults)
         pos = 0
@@ -214,17 +208,41 @@ def cell_function(
                 )
             else:
                 glbls[kwarg] = value
+        return glbls
 
-        # we use execute_cell instead of calling `f` directly because
-        # we want to obtain the cell's HTML output, which is the last
-        # expression in the cell body.
-        #
-        # TODO: stash output if mo.collect_outputs() context manager is active
-        #       ... or just make cell execution return the output in addition
-        #       to the defs, which might be weird because that doesn't
-        #       match the function signature
-        _ = execute_cell(cell, glbls)
+    def _returns(glbls: dict[Any, Any]) -> tuple[Any, ...]:
         return tuple(glbls[name] for name in return_names)
+
+    # Wrapper for executing cell using the function's signature.
+    #
+    # Alternative for passing a globals dict
+    #
+    # we use execute_cell instead of calling `f` directly because
+    # we want to obtain the cell's HTML output, which is the last
+    # expression in the cell body.
+    #
+    # TODO: stash output if mo.collect_outputs() context manager is active
+    #       ... or just make cell execution return the output in addition
+    #       to the defs, which might be weird because that doesn't
+    #       match the function signature
+    if inspect.iscoroutinefunction(f):
+
+        @functools.wraps(f)
+        async def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
+            glbls = _prepare_args(*args, **kwargs)
+            _ = await execute_cell_async(cell, glbls)
+            return _returns(glbls)
+
+        print(inspect.iscoroutinefunction(func))
+
+    else:
+        print("not coro")
+
+        @functools.wraps(f)
+        def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
+            glbls = _prepare_args(*args, **kwargs)
+            _ = execute_cell(cell, glbls)
+            return _returns(glbls)
 
     cell_func = cast(CellFunction[CellFuncTypeBound], func)
     cell_func.cell = cell

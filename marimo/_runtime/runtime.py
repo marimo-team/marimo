@@ -1247,7 +1247,7 @@ def launch_kernel(
 
     # The control loop is asynchronous only because we allow
     # user code to use top-level await; nothing else is awaited.
-    async def control_loop():
+    async def control_loop() -> None:
         while True:
             try:
                 request = control_queue.get()
