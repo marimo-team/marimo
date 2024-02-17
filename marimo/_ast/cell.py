@@ -71,6 +71,12 @@ class CellStatus:
     state: Optional[CellStatusType] = None
 
 
+def _is_coroutine(code: Optional[CodeType]) -> bool:
+    if code is None:
+        return False
+    return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+
 @dataclasses.dataclass(frozen=True)
 class Cell:
     # hash of code
@@ -121,6 +127,10 @@ class Cell:
             for _, data in self.variable_data.items()
             if data.module is not None
         )
+
+    @property
+    def is_coroutine(self) -> bool:
+        return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
     def set_status(self, status: CellStatusType) -> None:
         from marimo._messaging.ops import CellOp
@@ -225,12 +235,6 @@ def cell_function(
 
 def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
-
-
-def _is_coroutine(code: Optional[CodeType]) -> bool:
-    if code is None:
-        return False
-    return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
 
 
 async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:

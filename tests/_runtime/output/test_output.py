@@ -4,10 +4,10 @@ from __future__ import annotations
 from tests.conftest import ExecReqProvider, MockedKernel
 
 
-def test_spinner_removed(
+async def test_spinner_removed(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
@@ -37,13 +37,13 @@ def test_spinner_removed(
     assert found_progress
 
 
-def test_mutating_appended_outputs(
+async def test_mutating_appended_outputs(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
     # append the same object multiple times, but mutate it in between
     # appends. make sure the final output message contains the both
     # versions of the object (before and after mutation)
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """

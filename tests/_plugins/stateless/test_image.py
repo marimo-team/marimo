@@ -9,15 +9,15 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-def test_image() -> None:
+async def test_image() -> None:
     result = image(
         "https://marimo.io/logo.png",
     )
     assert result.text == "<img src='https://marimo.io/logo.png' />"
 
 
-def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -34,8 +34,8 @@ def test_image_bytes_io(k: Kernel, exec_req: ExecReqProvider) -> None:
         assert fname.endswith(".png")
 
 
-def test_image_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_image_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -52,8 +52,8 @@ def test_image_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
         assert fname.endswith(".png")
 
 
-def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -68,11 +68,11 @@ def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 # TODO(akshayka): Debug on Windows
 @pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
-def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
     # Just opens a file that exists, and make sure it gets registered
     # in the virtual path registry
     with open(__file__, encoding="utf-8") as f:
-        k.run(
+        await k.run(
             [
                 exec_req.get(
                     f"""

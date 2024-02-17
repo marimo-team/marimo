@@ -52,9 +52,14 @@ def cache(filename: str, code: str) -> None:
 
 
 def compile_cell(
-    code: str, cell_id: CellId_t, allow_await: bool = False
+    code: str, cell_id: CellId_t, allow_await: bool = True
 ) -> Cell:
-    module = ast.parse(code, mode="exec")
+    module = compile(
+        code,
+        "<unknown>",
+        mode="exec",
+        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
     if not module.body:
         # either empty code or just comments
         return Cell(
@@ -75,7 +80,7 @@ def compile_cell(
 
     expr: Union[ast.Expression, str]
     if isinstance(module.body[-1], ast.Expr):
-        expr = ast.Expression(module.body.pop().value)  # type: ignore
+        expr = ast.Expression(module.body.pop().value)
     else:
         expr = "None"
 

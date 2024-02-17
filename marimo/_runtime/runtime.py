@@ -1245,17 +1245,22 @@ def launch_kernel(
         else:
             signal.signal(signal.SIGTERM, sigterm_handler)
 
-    while True:
-        try:
-            request = control_queue.get()
-        except Exception as e:
-            # triggered on Windows when quit with Ctrl+C
-            LOGGER.debug("kernel queue.get() failed %s", e)
-            break
-        LOGGER.debug("received request %s", request)
-        if isinstance(request, StopRequest):
-            break
-        asyncio.run(kernel.handle_message(request))
+    # The control loop is asynchronous only because we allow
+    # user code to use top-level await; nothing else is awaited.
+    async def control_loop():
+        while True:
+            try:
+                request = control_queue.get()
+            except Exception as e:
+                # triggered on Windows when quit with Ctrl+C
+                LOGGER.debug("kernel queue.get() failed %s", e)
+                break
+            LOGGER.debug("received request %s", request)
+            if isinstance(request, StopRequest):
+                break
+            await kernel.handle_message(request)
+
+    asyncio.run(control_loop())
 
     if stdout is not None:
         stdout._watcher.stop()
