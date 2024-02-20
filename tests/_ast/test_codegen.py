@@ -117,6 +117,20 @@ class TestGeneration:
         assert stringified[3] == " " * 4
 
     @staticmethod
+    def test_generate_unparsable_cell_with_await() -> None:
+        code = "    await error\n\\t"
+        raw = codegen.generate_unparsable_cell(code, None, CellConfig())
+        stringified = eval("\n".join(raw.split("\n")[1:5])).split("\n")
+        # first line empty
+        assert not stringified[0]
+        # leading 4 spaces followed by source line
+        assert stringified[1] == " " * 4 + "    await error"
+        # leading 4 spaces followed by source line
+        assert stringified[2] == " " * 4 + "\\t"
+        # leading 4 spaces followed by nothing
+        assert stringified[3] == " " * 4
+
+    @staticmethod
     def test_long_line_in_main() -> None:
         cell_one = "\n".join(
             [
@@ -174,6 +188,22 @@ class TestGetCodes:
             "y = x + 1",
             "# comment\nz = np.array(x + y)",
             "# just a comment",
+        ]
+
+    @staticmethod
+    def test_get_codes_async() -> None:
+        app = codegen.get_app(get_filepath("test_generate_filecontents_async"))
+        assert app is not None
+        cell_manager = app._cell_manager
+        assert list(cell_manager.names()) == [
+            "one",
+            "two",
+            "three",
+        ]
+        assert list(cell_manager.codes()) == [
+            "import numpy as np\nimport asyncio",
+            "x = 0\nxx = 1\nawait asyncio.sleep(1)",
+            "async def _():\n    await asyncio.sleep(x)",
         ]
 
     @staticmethod
