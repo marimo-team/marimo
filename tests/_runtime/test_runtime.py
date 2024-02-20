@@ -778,3 +778,18 @@ def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
 
     assert k.globals["x"] == "/app/test.py"
+
+
+def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            (er_1 := exec_req.get("x = 0")),
+            (exec_req.get("x; y = 1")),
+        ]
+    )
+    assert k.globals["y"] == 1
+
+    # "y" should not have run, and its global state should have been
+    # invalidated
+    k.run([ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")])
+    assert "y" not in k.globals
