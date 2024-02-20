@@ -122,7 +122,7 @@ class Runner:
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
     @contextlib.contextmanager
     @staticmethod
-    def _cancel_on_sigint(future: asyncio.Future) -> Iterator[None]:
+    def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
         """ContextManager for capturing SIGINT and cancelling a future
 
         SIGINT raises in the event loop when running async code,
@@ -135,7 +135,7 @@ class Runner:
 
         # whichever future finishes first,
         # cancel the other one
-        def cancel_unless_done(f, _) -> None:
+        def cancel_unless_done(f: asyncio.Future[Any], _: Any) -> None:
             if f.cancelled() or f.done():
                 return
             f.cancel()
@@ -151,7 +151,7 @@ class Runner:
             functools.partial(cancel_unless_done, sigint_future)
         )
 
-        def handle_sigint(*_):
+        def handle_sigint(*_: Any) -> None:
             if sigint_future.cancelled() or sigint_future.done():
                 return
             # mark as done, to trigger cancellation
