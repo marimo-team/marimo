@@ -53,6 +53,26 @@ def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 0
 
 
+def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                "state, set_state = mo.state(0, allow_self_loops=True)"
+            ),
+            exec_req.get(
+                """
+                x = state()
+                if x < 3:
+                    set_state(x + 1)
+                """
+            ),
+        ]
+    )
+
+    assert k.globals["x"] == 3
+
+
 def test_update_with_function(k: Kernel, exec_req: ExecReqProvider) -> None:
     k.run(
         [
