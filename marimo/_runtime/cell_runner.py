@@ -118,8 +118,19 @@ class Runner:
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
 
+    # Adapted from
+    # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
     @contextlib.contextmanager
-    def _cancel_on_sigint(self, future: asyncio.Future) -> Iterator[None]:
+    @staticmethod
+    def _cancel_on_sigint(future: asyncio.Future) -> Iterator[None]:
+        """ContextManager for capturing SIGINT and cancelling a future
+
+        SIGINT raises in the event loop when running async code,
+        but we want it to halt a coroutine.
+
+        Ideally, it would raise KeyboardInterrupt, but this turns it into a
+        CancelledError.
+        """
         sigint_future: asyncio.Future[int] = asyncio.Future()
 
         # whichever future finishes first,
@@ -265,11 +276,11 @@ class Runner:
         cell = self.graph.cells[cell_id]
         try:
             if cell.is_coroutine():
-                coro_future = asyncio.ensure_future(
+                return_value_future = asyncio.ensure_future(
                     execute_cell_async(cell, self.glbls)
                 )
-                with self._cancel_on_sigint(coro_future):
-                    return_value = await coro_future
+                with Runner._cancel_on_sigint(return_value_future):
+                    return_value = await return_value_future
             else:
                 return_value = execute_cell(cell, self.glbls)
             run_result = RunResult(output=return_value, exception=None)
