@@ -178,7 +178,11 @@ class TransformHandlers:
             column_id: transform.aggregations
             for column_id in transform.column_ids
         }
-        return df.agg(dict_of_aggs)  # type: ignore[arg-type]
+
+        # Pandas type-checking doesn't like the fact that the values
+        # are lists of strings (function names), even though the docs permit
+        # such a value
+        return cast("pd.DataFrame", df.agg(dict_of_aggs))  # type: ignore[arg-type]
 
     @staticmethod
     def handle_select_columns(
