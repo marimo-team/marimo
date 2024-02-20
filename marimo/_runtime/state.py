@@ -13,8 +13,9 @@ T = TypeVar("T")
 class State(Generic[T]):
     """Mutable reactive state"""
 
-    def __init__(self, value: T) -> None:
+    def __init__(self, value: T, allow_self_loops: bool = False) -> None:
         self._value = value
+        self.allow_self_loops = allow_self_loops
 
     def __call__(self) -> T:
         return self._value
@@ -36,7 +37,9 @@ class State(Generic[T]):
 
 
 @mddoc
-def state(value: T) -> tuple[State[T], Callable[[T], None]]:
+def state(
+    value: T, allow_self_loops: bool = False
+) -> tuple[State[T], Callable[[T], None]]:
     """Mutable reactive state
 
     This function takes an initial value and returns:
@@ -45,8 +48,11 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     - a setter function to set the state's value
 
     When you call the setter function and update the state value in one cell,
-    all other cells that read any global variables assigned to the getter
-    will automatically run.
+    all *other* cells that read any global variables assigned to the getter
+    will automatically run. By default, the cell that called the setter
+    function won't be re-run, even if it references the getter; to allow a
+    state setter to possibly run the caller cell, use the keyword argument
+    `allow_self_loops=True`.
 
     You can use this function in conjunction with `UIElement` `on_change`
     handlers to trigger side-effects when an element's value is updated. For
@@ -110,6 +116,11 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     **Args**:
 
     - `value`: initial value of the state
+    - `allow_self_loops`: if True, if a cell calls a state setter
+      and also references its getter, the caller cell will be re-run;
+      defaults to `False`.
+
+
 
     **Returns**:
 
@@ -117,5 +128,5 @@ def state(value: T) -> tuple[State[T], Callable[[T], None]]:
     - setter function that takes a new value, or a function taking the current
       value as its argument and returning a new value
     """
-    state_instance = State(value)
+    state_instance = State(value, allow_self_loops=allow_self_loops)
     return state_instance, state_instance._set_value
