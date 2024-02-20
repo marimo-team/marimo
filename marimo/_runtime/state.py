@@ -38,7 +38,7 @@ class State(Generic[T]):
 
 @mddoc
 def state(
-    value: T, allow_self_loops=False
+    value: T, allow_self_loops: bool = False
 ) -> tuple[State[T], Callable[[T], None]]:
     """Mutable reactive state
 
