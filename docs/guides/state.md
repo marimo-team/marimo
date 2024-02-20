@@ -141,7 +141,9 @@ This rule has some important aspects:
 
 1. Only cells that read the state getter via a global variable will be run.
 2. The cell that called the setter won't be re-run, even if it references
-   the getter.
+   the getter. This restriction helps prevent against bugs that could
+   otherwise arise. To lift this restriction, and allow the caller cell
+   to be re-run, create your state with `mo.state(value, allow_self_loops=True)`.
 
 Notice how similar this rule is to the reactivity rule for UI element
 interactions.
