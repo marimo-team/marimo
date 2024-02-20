@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { TypedLocalStorage } from "@/utils/localStorage";
 import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent,
@@ -9,13 +10,13 @@ export interface FileStore {
   readFile(): string | null | Promise<string | null>;
 }
 
-const KEY = "marimo:file";
+const storage = new TypedLocalStorage<string | null>("marimo:file", null);
 const localStorageFileStore: FileStore = {
   saveFile(contents: string) {
-    localStorage.setItem(KEY, contents);
+    storage.set(contents);
   },
   readFile() {
-    return localStorage.getItem(KEY);
+    return storage.get();
   },
 };
 

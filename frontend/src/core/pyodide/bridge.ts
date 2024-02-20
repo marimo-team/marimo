@@ -30,6 +30,7 @@ import {
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { Deferred } from "@/utils/Deferred";
 import InlineWorker from "./worker/worker?worker&inline";
+import { UserConfigLocalStorage } from "../config/config-schema";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -181,8 +182,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  saveUserConfig = (request: SaveUserConfigRequest): Promise<null> => {
-    throw new Error("Method not implemented.");
+  saveUserConfig = async (request: SaveUserConfigRequest): Promise<null> => {
+    UserConfigLocalStorage.set(request.config);
+    return null;
   };
 
   saveAppConfig = async (request: SaveAppConfigRequest): Promise<null> => {

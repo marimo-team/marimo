@@ -22,6 +22,7 @@ import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { Switch } from "../ui/switch";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
+import { isPyodide } from "@/core/pyodide/utils";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -41,6 +42,8 @@ export const UserConfigForm: React.FC = () => {
         toast({ title: "Failed to save" });
       });
   };
+
+  const isWasm = isPyodide();
 
   return (
     <Form {...form}>
@@ -65,6 +68,7 @@ export const UserConfigForm: React.FC = () => {
                   <FormControl>
                     <Checkbox
                       checked={field.value === "after_delay"}
+                      disabled={field.disabled}
                       onCheckedChange={(checked) => {
                         field.onChange(checked ? "after_delay" : "off");
                       }}
@@ -105,12 +109,14 @@ export const UserConfigForm: React.FC = () => {
           <div>
             <FormField
               control={form.control}
+              disabled={isWasm}
               name="save.format_on_save"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
+                      disabled={field.disabled}
                       onCheckedChange={(checked) => {
                         field.onChange(checked);
                       }}
@@ -149,6 +155,7 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
+            disabled={isWasm}
             name="completion.activate_on_typing"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">
@@ -156,6 +163,7 @@ export const UserConfigForm: React.FC = () => {
                   <FormControl>
                     <Checkbox
                       checked={field.value}
+                      disabled={field.disabled}
                       onCheckedChange={(checked) => {
                         field.onChange(Boolean(checked));
                       }}
@@ -180,6 +188,7 @@ export const UserConfigForm: React.FC = () => {
                   <NativeSelect
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
+                    disabled={field.disabled}
                     className="inline-flex mx-2"
                   >
                     {KEYMAP_PRESETS.map((option) => (
@@ -206,6 +215,7 @@ export const UserConfigForm: React.FC = () => {
                   <NativeSelect
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
+                    disabled={field.disabled}
                     className="inline-flex mx-2"
                   >
                     {THEMES.map((option) => (
@@ -256,6 +266,7 @@ export const UserConfigForm: React.FC = () => {
                   <NativeSelect
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
+                    disabled={field.disabled}
                     className="inline-flex mx-2"
                   >
                     {["above", "below"].map((option) => (
@@ -282,6 +293,7 @@ export const UserConfigForm: React.FC = () => {
               <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
+                    disabled={field.disabled}
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
@@ -297,6 +309,7 @@ export const UserConfigForm: React.FC = () => {
           <SettingSubtitle>GitHub Copilot</SettingSubtitle>
           <FormField
             control={form.control}
+            disabled={isWasm}
             name="completion.copilot"
             render={({ field }) => (
               <div className="flex flex-col gap-2">
@@ -305,6 +318,7 @@ export const UserConfigForm: React.FC = () => {
                     <Switch
                       size={"sm"}
                       checked={field.value}
+                      disabled={field.disabled}
                       onCheckedChange={(checked) => {
                         field.onChange(Boolean(checked));
                       }}
