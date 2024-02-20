@@ -792,8 +792,10 @@ async def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert "pytest" in k.globals["x"]
 
 
-def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_cell_state_invalidated(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             (er_1 := exec_req.get("x = 0")),
             (exec_req.get("x; y = 1")),
@@ -803,7 +805,7 @@ def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
 
     # "y" should not have run, and its global state should have been
     # invalidated
-    k.run([ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")])
+    await k.run([ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")])
     assert "y" not in k.globals
 
 
