@@ -166,7 +166,8 @@ class Runner:
 
             1. The runner was not interrupted.
             2. It was not already run after its setter was called.
-            3. It isn't the cell that called the setter.
+            3. It isn't the cell that called the setter (unless the state
+               object was configured to allow self loops).
             4. It is not errored (unable to run) or cancelled.
             5. It has among its refs the state object whose setter
                was invoked.
@@ -194,7 +195,7 @@ class Runner:
                 if self._runs_after(source=cid, target=setter_cell_id):
                     continue
                 # No self-loops (3)
-                if cid == setter_cell_id:
+                if cid == setter_cell_id and not state.allow_self_loops:
                     continue
                 # No errorred/cancelled cells (4)
                 if cid in errored_cells or self.cancelled(cid):
