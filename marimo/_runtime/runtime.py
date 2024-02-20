@@ -633,6 +633,12 @@ class Kernel:
                 self.graph.cells[cid].set_status(status="stale")
             else:
                 self.graph.cells[cid].set_status(status="queued")
+            # State clean-up: don't leak names, UI elements, ...
+            #
+            # Clean-up state for all cells upfront, before running
+            # cells, to relieve memory pressure
+            self._invalidate_cell_state(cid)
+
         runner = cell_runner.Runner(
             cell_ids=cell_ids,
             graph=self.graph,
@@ -651,12 +657,11 @@ class Kernel:
         #                 which is incorrect
         # TODO(akshayka): pdb support
         LOGGER.debug("final set of cells to run %s", runner.cells_to_run)
+
         while runner.pending():
             cell_id = runner.pop_cell()
             if runner.cancelled(cell_id):
                 continue
-            # State clean-up: don't leak names, UI elements, ...
-            self._invalidate_cell_state(cell_id)
             cell = self.graph.cells[cell_id]
             if cell.stale:
                 continue
@@ -754,9 +759,8 @@ class Kernel:
         if runner.cells_to_run:
             assert runner.interrupted
             for cid in runner.cells_to_run:
-                # `cid` was not run. Its defs should be deleted.
+                # `cid` was not run
                 self.graph.cells[cid].set_status("idle")
-                self._invalidate_cell_state(cid)
                 CellOp.broadcast_error(
                     data=[MarimoInterruptionError()],
                     # these cells are transitioning from queued to stopped
@@ -769,9 +773,8 @@ class Kernel:
 
         for raising_cell in runner.cells_cancelled:
             for cid in runner.cells_cancelled[raising_cell]:
-                # `cid` was not run. Its defs should be deleted.
+                # `cid` was not run
                 self.graph.cells[cid].set_status("idle")
-                self._invalidate_cell_state(cid)
                 exception = runner.exceptions[raising_cell]
                 data: Error
                 if isinstance(exception, MarimoStopError):
