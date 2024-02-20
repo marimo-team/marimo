@@ -1,13 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import functools
+import signal
 import sys
 import traceback
 from collections.abc import Container
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from marimo._ast.cell import CellId_t, execute_cell_async
+from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
 from marimo._ast.compiler import cell_id_from_filename
 from marimo._loggers import marimo_logger
 from marimo._runtime import dataflow
@@ -113,6 +117,42 @@ class Runner:
         self._run_position = {
             cell_id: index for index, cell_id in enumerate(self.cells_to_run)
         }
+
+    @contextlib.contextmanager
+    def _cancel_on_sigint(self, future: asyncio.Future) -> Iterator[None]:
+        sigint_future: asyncio.Future[int] = asyncio.Future()
+
+        # whichever future finishes first,
+        # cancel the other one
+        def cancel_unless_done(f, _) -> None:
+            if f.cancelled() or f.done():
+                return
+            f.cancel()
+
+        # when sigint finishes,
+        # abort the coroutine with CancelledError
+        sigint_future.add_done_callback(
+            functools.partial(cancel_unless_done, future)
+        )
+        # when the main future finishes,
+        # stop watching for SIGINT events
+        future.add_done_callback(
+            functools.partial(cancel_unless_done, sigint_future)
+        )
+
+        def handle_sigint(*_):
+            if sigint_future.cancelled() or sigint_future.done():
+                return
+            # mark as done, to trigger cancellation
+            sigint_future.set_result(1)
+
+        # set the custom sigint handler during this context
+        save_sigint = signal.signal(signal.SIGINT, handle_sigint)
+        try:
+            yield
+        finally:
+            # restore the previous sigint handler
+            signal.signal(signal.SIGINT, save_sigint)
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell (and its descendants) as cancelled."""
@@ -224,11 +264,21 @@ class Runner:
         """Run a cell."""
         cell = self.graph.cells[cell_id]
         try:
-            return_value = await execute_cell_async(cell, self.glbls)
+            if cell.is_coroutine():
+                coro_future = asyncio.ensure_future(
+                    execute_cell_async(cell, self.glbls)
+                )
+                with self._cancel_on_sigint(coro_future):
+                    return_value = await coro_future
+            else:
+                return_value = execute_cell(cell, self.glbls)
             run_result = RunResult(output=return_value, exception=None)
-        except MarimoInterrupt as e:
+        except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:
             # User interrupt
             # interrupt the entire runner
+            if isinstance(e, asyncio.exceptions.CancelledError):
+                # Async cells can only be cancelled via a user interrupt
+                e = MarimoInterrupt()
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
             self.print_traceback()

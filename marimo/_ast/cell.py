@@ -233,10 +233,7 @@ def cell_function(
             _ = await execute_cell_async(cell, glbls)
             return _returns(glbls)
 
-        print(inspect.iscoroutinefunction(func))
-
     else:
-        print("not coro")
 
         @functools.wraps(f)
         def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
