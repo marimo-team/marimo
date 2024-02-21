@@ -9,7 +9,7 @@ export interface FileStore {
 }
 
 const storage = new TypedLocalStorage<string | null>("marimo:file", null);
-const localStorageFileStore: FileStore = {
+export const localStorageFileStore: FileStore = {
   saveFile(contents: string) {
     storage.set(contents);
   },
@@ -31,7 +31,7 @@ export const urlFileStore: FileStore = {
   },
 };
 
-const domElementFileStore: FileStore = {
+export const domElementFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -44,7 +44,7 @@ const domElementFileStore: FileStore = {
   },
 };
 
-const remoteDefaultFileStore: FileStore = {
+export const remoteDefaultFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -56,7 +56,7 @@ const remoteDefaultFileStore: FileStore = {
   },
 };
 
-const localFallbackFileStore: FileStore = {
+export const localFallbackFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -75,7 +75,7 @@ const localFallbackFileStore: FileStore = {
   },
 };
 
-class CompositeFileStore implements FileStore {
+export class CompositeFileStore implements FileStore {
   constructor(private stores: FileStore[]) {}
 
   saveFile(contents: string) {

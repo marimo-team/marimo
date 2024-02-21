@@ -5,6 +5,7 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
 import { isPyodide } from "../pyodide/utils";
+import { PyodideRouter } from "../pyodide/router";
 
 /**
  * Parse an attribute value as JSON.
@@ -48,9 +49,7 @@ export function serializeInitialValue(value: unknown) {
 export function getFilenameFromDOM() {
   // If we are running in Pyodide, we can get the filename from the URL
   if (isPyodide()) {
-    const filename = new URLSearchParams(window.location.search).get(
-      "filename",
-    );
+    const filename = PyodideRouter.getFilename();
     if (filename) {
       return filename;
     }

@@ -73,9 +73,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // If no filename is provided, the file will not be saved
     const code = await urlFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
-    const filename = new URLSearchParams(window.location.search).get(
-      "filename",
-    );
+    const filename = PyodideRouter.getFilename();
     this.postMessage({
       type: "set-code",
       code: code,
