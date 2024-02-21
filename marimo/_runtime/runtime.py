@@ -4,7 +4,6 @@ from __future__ import annotations
 import builtins
 import contextlib
 import dataclasses
-import functools
 import io
 import itertools
 import os
@@ -60,7 +59,7 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._runtime import cell_runner, dataflow, marimo_pdb
+from marimo._runtime import cell_runner, dataflow, marimo_pdb, patches
 from marimo._runtime.complete import complete
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -179,15 +178,6 @@ class Kernel:
     - input_override: a function that overrides the builtin input() function
     """
 
-    def patch_pdb(self, debugger: marimo_pdb.MarimoPdb) -> None:
-        import pdb
-
-        # Patch Pdb so manually instantiated debuggers create our debugger
-        pdb.Pdb = marimo_pdb.MarimoPdb  # type: ignore[misc, assignment]
-        pdb.set_trace = functools.partial(
-            marimo_pdb.set_trace, debugger=debugger
-        )
-
     def __init__(
         self,
         cell_configs: dict[CellId_t, CellConfig],
@@ -206,14 +196,11 @@ class Kernel:
         self.debugger = marimo_pdb.MarimoPdb(
             stdout=self.stdout, stdin=self.stdin
         )
-        self.patch_pdb(self.debugger)
+        patches.patch_pdb(self.debugger)
+        self._module = patches.patch_main_module(
+            file=self.app_metadata.filename, input_override=input_override
+        )
 
-        self.globals: dict[Any, Any] = {
-            "__name__": "__main__",
-            "__builtins__": globals()["__builtins__"],
-            "input": input_override,
-            "__file__": self.app_metadata.filename,
-        }
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
             cell_id: CellMetadata(config=config)
@@ -232,6 +219,10 @@ class Kernel:
         # an empty string represents the current directory
         exec("import sys; sys.path.append('')", self.globals)
         exec("import marimo as __marimo__", self.globals)
+
+    @property
+    def globals(self) -> dict[Any, Any]:
+        return self._module.__dict__
 
     def start_completion_worker(
         self, completion_queue: QueueType[CompletionRequest]
@@ -612,6 +603,12 @@ class Kernel:
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
+        # This patch is an attempt to mitigate problems caused by the fact
+        # that in run mode, kernels run in threads and share the same
+        # sys.modules. Races can still happen, but this should help in most
+        # common cases. We could also be more aggressive and run this before
+        # every cell, or even before pickle.dump/pickle.dumps()
+        patches.patch_sys_module(self._module)
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(

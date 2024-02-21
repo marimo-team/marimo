@@ -777,7 +777,7 @@ def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
 
-    assert k.globals["x"] == "/app/test.py"
+    assert "pytest" in k.globals["x"]
 
 
 def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
@@ -793,3 +793,21 @@ def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
     # invalidated
     k.run([ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")])
     assert "y" not in k.globals
+
+
+def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
+    k.run(
+        [
+            exec_req.get("import pickle"),
+            exec_req.get(
+                """
+                def foo():
+                    ...
+
+                pickle_output = None
+                pickle_output = pickle.dumps(foo)
+                """
+            ),
+        ]
+    )
+    assert k.globals["pickle_output"] is not None

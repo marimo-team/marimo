@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import sys
 import textwrap
 from typing import Any, Generator
 
@@ -82,6 +83,7 @@ class MockedKernel:
         self.stdout = MockStdout(self.stream)
         self.stderr = MockStderr(self.stream)
         self.stdin = MockStdin(self.stream)
+        self._main = sys.modules["__main__"]
 
         self.k = Kernel(
             stream=self.stream,
@@ -90,7 +92,7 @@ class MockedKernel:
             stdin=self.stdin,
             cell_configs={},
             app_metadata=AppMetadata(
-                filename="/app/test.py",
+                filename=None,
             ),
         )
 
@@ -104,6 +106,7 @@ class MockedKernel:
         teardown_context()
         self.stdout._watcher.stop()
         self.stderr._watcher.stop()
+        sys.modules["__main__"] = self._main
 
 
 # fixture that provides a kernel (and tears it down)

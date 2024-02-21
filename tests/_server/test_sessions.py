@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import queue
+import sys
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
@@ -17,6 +18,21 @@ initialize_asyncio()
 app_metadata = AppMetadata(filename="test.py")
 
 
+# TODO(akshayka): automatically do this for every test in our test suite
+def save_and_restore_main(f):
+    """Kernels swap out the main module; restore it after running tests"""
+
+    def wrapper():
+        main = sys.modules["__main__"]
+        try:
+            f()
+        finally:
+            sys.modules["__main__"] = main
+
+    return wrapper
+
+
+@save_and_restore_main
 def test_queue_manager() -> None:
     # Test with multiprocessing queues
     queue_manager_mp = QueueManager(use_multiprocessing=True)
@@ -31,6 +47,7 @@ def test_queue_manager() -> None:
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
 
 
+@save_and_restore_main
 def test_kernel_manager() -> None:
     # Mock objects and data for testing
     queue_manager = QueueManager(use_multiprocessing=False)
@@ -55,6 +72,7 @@ def test_kernel_manager() -> None:
     assert queue_manager.control_queue.empty()
 
 
+@save_and_restore_main
 def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
@@ -93,6 +111,7 @@ def test_session() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
+@save_and_restore_main
 def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN

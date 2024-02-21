@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from marimo._ast.app import App
@@ -327,3 +329,29 @@ class TestApp:
 
         # obj should not be in the defs dictionary
         assert "obj" not in defs
+
+    @staticmethod
+    def test_run_pickle() -> None:
+        app = App()
+
+        @app.cell
+        def __() -> tuple[Any]:
+            import pickle
+
+            return (pickle,)
+
+        @app.cell
+        def __() -> tuple[Any]:
+            def foo():
+                ...
+
+            return (foo,)
+
+        @app.cell
+        def __(pickle, foo) -> tuple[Any]:
+            out = pickle.dumps(foo)
+            return (out,)
+
+        _, defs = app.run()
+
+        assert defs["out"] is not None

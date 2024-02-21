@@ -33,6 +33,7 @@ from marimo._ast.errors import (
 )
 from marimo._output.rich_help import mddoc
 from marimo._runtime.dataflow import DirectedGraph, topological_sort
+from marimo._runtime.patches import patch_main_module_context
 
 LOGGER = _loggers.marimo_logger()
 
@@ -200,28 +201,36 @@ class App:
             )
 
         self._maybe_initialize()
-        glbls: dict[Any, Any] = {}
 
-        # Execute cells and collect outputs
-        outputs: dict[CellId_t, Any] = {}
-        for cid in self._execution_order:
-            cell_function = self._cell_manager.cell_data_at(cid).cell_function
-            if cell_function is not None:
-                outputs[cid] = execute_cell(cell_function.cell, glbls)
+        # No need to provide `file`, `input_override` here, since this
+        # function is only called when running as a script
+        with patch_main_module_context() as module:
+            glbls = module.__dict__
 
-        # Return
-        # - the outputs, sorted in the order that cells were added to the
-        #   graph
-        # - dict of defs -> values
-        return (
-            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids()),
-            # omit defs that were never defined at runtime, eg due to
-            # conditional definitions like
-            #
-            # if cond:
-            #   x = 0
-            {name: glbls[name] for name in self._defs if name in glbls},
-        )
+            # Execute cells and collect outputs
+            outputs: dict[CellId_t, Any] = {}
+            for cid in self._execution_order:
+                cell_function = self._cell_manager.cell_data_at(
+                    cid
+                ).cell_function
+                if cell_function is not None:
+                    outputs[cid] = execute_cell(cell_function.cell, glbls)
+
+            # Return
+            # - the outputs, sorted in the order that cells were added to the
+            #   graph
+            # - dict of defs -> values
+            return (
+                tuple(
+                    outputs[cid] for cid in self._cell_manager.valid_cell_ids()
+                ),
+                # omit defs that were never defined at runtime, eg due to
+                # conditional definitions like
+                #
+                # if cond:
+                #   x = 0
+                {name: glbls[name] for name in self._defs if name in glbls},
+            )
 
 
 class CellManager:
