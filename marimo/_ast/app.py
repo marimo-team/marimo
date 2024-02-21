@@ -202,6 +202,8 @@ class App:
 
         self._maybe_initialize()
 
+        # No need to provide `file`, `input_override` here, since this
+        # function is only called when running as a script
         with patch_main_module_context() as module:
             glbls = module.__dict__
 
