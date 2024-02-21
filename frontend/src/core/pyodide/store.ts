@@ -24,6 +24,11 @@ const URL_PARAM_KEY = "code";
 export const urlFileStore: FileStore = {
   saveFile(contents: string) {
     const url = new URL(location.href);
+    // Don't add the code if the filename is set
+    if (url.searchParams.has("filename")) {
+      return;
+    }
+
     const encoded = compressToEncodedURIComponent(contents);
     url.searchParams.set(URL_PARAM_KEY, encoded);
     history.replaceState(null, "", url.toString());
