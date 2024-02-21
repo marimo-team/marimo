@@ -15,7 +15,7 @@ def __():
 
 
 @app.cell
-def __(mo):
+def __(mo, hide_code=True):
     mo.md(
         """
         **This marimo notebook is powered by [WASM](https://webassembly.org/)**:
@@ -49,7 +49,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.accordion(
         {
