@@ -8,6 +8,8 @@ from marimo._plugins.ui._impl.altair_chart import (
     ChartSelection,
     _filter_dataframe,
 )
+from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider, MockedKernel
 
 HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
 
@@ -104,3 +106,35 @@ class TestAltairChart:
         ].values
         assert first == "value1"
         assert second == "value2"
+
+    @staticmethod
+    def test_altair_settings_when_set(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+
+        k.run(
+            [
+                exec_req.get(
+                    """
+                    import altair as alt
+                    # Reset
+                    alt.data_transformers.enable('default')
+                    initial_options = alt.data_transformers.options
+                    alt.data_transformers.disable_max_rows()
+                    options_1 = alt.data_transformers.options
+                    """
+                ),
+                exec_req.get(
+                    """
+                    import pandas as pd
+                    df = pd.DataFrame({ 'x': [1], 'y': [2]})
+                    c = alt.Chart(df).mark_point().encode(x='x', y='y')
+                    c
+                    """
+                ),
+                exec_req.get("options_2 = alt.data_transformers.options"),
+            ]
+        )
+        assert k.globals["initial_options"] == {}
+        assert k.globals["options_1"] == {"max_rows": None}
+        assert k.globals["options_2"] == {"max_rows": None}

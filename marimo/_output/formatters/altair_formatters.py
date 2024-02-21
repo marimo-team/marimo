@@ -28,9 +28,16 @@ class AltairFormatter(FormatterFactory):
 
             # It is required to set this back to the default,
             # since mo.ui.altair_chart sets it to 'marimo'
+            if alt.data_transformers.active.startswith("marimo"):
+                # Re-enable with the previous options
+                alt.data_transformers.enable(
+                    "default", **alt.data_transformers.options
+                )
             # We also change the max_rows to 20_000 (default is 5000)
             # since we are able to handle the larger sizes
-            alt.data_transformers.enable("default", max_rows=20_000)
+            # However, we only set it if it is not already set
+            if "max_rows" not in alt.data_transformers.options:
+                alt.data_transformers.options["max_rows"] = 20_000
             return (
                 "text/html",
                 (
