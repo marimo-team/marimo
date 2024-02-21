@@ -826,6 +826,7 @@ async def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
     assert k.globals["pickle_output"] is not None
 
+
 class TestAsyncIO:
     @staticmethod
     async def test_toplevel_await_allowed(
@@ -857,7 +858,7 @@ class TestAsyncIO:
                         l.append(1)
                         await asyncio.sleep(0.1)
                         l.append(2)
-                        
+
                     import asyncio
                     await asyncio.gather(f(), f())
                     """
@@ -877,7 +878,7 @@ class TestAsyncIO:
                     import asyncio
                     async def eternity():
                         await asyncio.sleep(3600)
-                        
+
                     e = None
                     try:
                         await asyncio.wait_for(eternity(), timeout=0)
@@ -897,7 +898,7 @@ class TestAsyncIO:
                 exec_req.get(
                     """
                     import asyncio
-                    future = asyncio.Future()    
+                    future = asyncio.Future()
                     future.set_result(1)
                     """
                 ),
@@ -1025,4 +1026,3 @@ class TestAsyncIO:
         )
         assert not k.errors
         assert k.globals["res"] == "done"
->>>>>>> e1c18e57 (add some tests)
