@@ -21,7 +21,7 @@ const localStorageFileStore: FileStore = {
 };
 
 const URL_PARAM_KEY = "code";
-const urlFileStore: FileStore = {
+export const urlFileStore: FileStore = {
   saveFile(contents: string) {
     const url = new URL(location.href);
     const encoded = compressToEncodedURIComponent(contents);
@@ -53,7 +53,7 @@ const remoteDefaultFileStore: FileStore = {
   },
 };
 
-const fallbackFileStore: FileStore = {
+const localFallbackFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -64,10 +64,7 @@ const fallbackFileStore: FileStore = {
       "",
       "@app.cell",
       "def __():",
-      "  import marimo as mo",
-      "  x = 1 + 1",
-      "  x",
-      "  return mo,x",
+      "  return",
       "",
       'if __name__ == "__main__":',
       "  app.run()",
@@ -93,10 +90,9 @@ class CompositeFileStore implements FileStore {
   }
 }
 
-export const fileStore = new CompositeFileStore([
-  // Prefer URL param, then local storage, then remote default, then fallback
-  urlFileStore,
+export const fallbackFileStore = new CompositeFileStore([
+  // Prefer local storage, then remote default, then fallback
   localStorageFileStore,
   remoteDefaultFileStore,
-  fallbackFileStore,
+  localFallbackFileStore,
 ]);

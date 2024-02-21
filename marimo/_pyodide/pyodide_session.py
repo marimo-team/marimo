@@ -31,6 +31,7 @@ from marimo._runtime.runtime import Kernel
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
+from marimo._server.models.base import deep_to_camel_case
 from marimo._server.models.files import (
     FileCreateRequest,
     FileCreateResponse,
@@ -223,14 +224,14 @@ class PyodideBridge:
     def read_code(self) -> str:
         contents: str = self.session.app_manager.read_file()
         response = ReadCodeResponse(contents=contents)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def format(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), FormatRequest)
         formatter = BlackFormatter(line_length=parsed.line_length)
 
         response = FormatResponse(codes=formatter.format(parsed.codes))
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def save(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), SaveRequest)
@@ -251,7 +252,7 @@ class PyodideBridge:
         root = body.path or self.file_system.get_root()
         files = self.file_system.list_files(root)
         response = FileListResponse(files=files, root=root)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def file_details(
         self,
@@ -260,7 +261,7 @@ class PyodideBridge:
         body = parse_raw(json.loads(request), FileDetailsRequest)
         file_info = self.file_system.get_details(body.path)
         response = FileDetailsResponse(file=file_info)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def create_file_or_directory(
         self,
@@ -271,7 +272,7 @@ class PyodideBridge:
             body.path, body.type, body.name
         )
         response = FileCreateResponse(success=success)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def delete_file_or_directory(
         self,
@@ -280,7 +281,7 @@ class PyodideBridge:
         body = parse_raw(json.loads(request), FileDeleteRequest)
         success = self.file_system.delete_file_or_directory(body.path)
         response = FileDeleteResponse(success=success)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def update_file_or_directory(
         self,
@@ -291,7 +292,7 @@ class PyodideBridge:
             body.path, body.new_path
         )
         response = FileUpdateResponse(success=success)
-        return json.dumps(dataclasses.asdict(response))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
 
 def launch_pyodide_kernel(

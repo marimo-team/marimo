@@ -134,8 +134,11 @@ function createNetworkRequests(): EditRequests & RunRequests {
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
-    openFile: (request) => {
-      return API.post<{ path: string }>("/kernel/open", request);
+    openFile: async (request) => {
+      await API.post<{ path: string }>("/kernel/open", request);
+      await sendRestart();
+      window.location.reload();
+      return null;
     },
     sendListFiles: (request) => {
       return API.post<{ path: string | undefined }, FileListResponse>(
