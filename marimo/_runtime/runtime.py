@@ -603,6 +603,12 @@ class Kernel:
     def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
+        # This patch is an attempt to mitigate problems caused by the fact
+        # that in run mode, kernels run in threads and share the same
+        # sys.modules. Races can still happen, but this should help in most
+        # common cases. We could also be more aggressive and run this before
+        # every cell, or even before pickle.dump/pickle.dumps()
+        patches.patch_sys_module(self._module)
         while cells_with_stale_state := self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(

@@ -18,11 +18,17 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
     pdb.set_trace = functools.partial(marimo_pdb.set_trace, debugger=debugger)
 
 
+def patch_sys_module(module: types.ModuleType) -> None:
+    sys.modules[module.__name__] = module
+
+
 def patch_main_module(
     file: str | None, input_override: Callable[[Any], str] | None
 ) -> types.ModuleType:
     """Patches __main__ so that functions are pickleable."""
 
+    # Every kernel gets its own main module, whose __dict__ attribute
+    # serves as the global namespace
     _module = types.ModuleType(
         "__main__", doc="Created for the marimo kernel."
     )
@@ -39,7 +45,18 @@ def patch_main_module(
             "__file__", sys.modules["__main__"].__file__
         )
 
-    sys.modules[_module.__name__] = _module
+    # TODO(akshayka): In run mode, this can introduce races between different
+    # kernel threads, since they each share sys.modules. Unfortunately, Python
+    # doesn't provide a way for different threads to have their own sys.modules
+    # (replacing the dict with a new one isn't guaranteed to have the intended
+    # effect, since CPython C code has a reference to the original dict).
+    # In practice, as far as I can tell, this only causes problems when using
+    # Python pickle, but there may be other subtle issues.
+    #
+    # As a workaround, the runtime can re-patch sys.modules() on each run,
+    # but the issue will still persist as a race condition. Streamlit suffers
+    # from the same issue.
+    patch_sys_module(_module)
     return _module
 
 
