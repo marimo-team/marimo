@@ -14,8 +14,8 @@ def __():
     return mo,
 
 
-@app.cell
-def __(mo, hide_code=True):
+@app.cell(hide_code=True)
+def __(mo):
     mo.md(
         """
         **This marimo notebook is powered by [WASM](https://webassembly.org/)**:
