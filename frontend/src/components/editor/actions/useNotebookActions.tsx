@@ -56,7 +56,7 @@ export function useNotebookActions() {
       label: "Share WebAssembly notebook",
       handle: async () => {
         const code = await readCode();
-        const url = createShareableLink(code.contents);
+        const url = createShareableLink({ code: code.contents });
         window.navigator.clipboard.writeText(url);
         toast({
           title: "Copied",

@@ -1,21 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
-import { APP_FILE_PATH, mountFilesystem } from "./fs";
+import { mountFilesystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge } from "./types";
 
-declare let loadPyodide: undefined | (() => Promise<PyodideInterface>);
+declare let loadPyodide:
+  | undefined
+  | ((opts: { packages: string[] }) => Promise<PyodideInterface>);
 
 export async function bootstrap() {
   if (!loadPyodide) {
     throw new Error("loadPyodide is not defined");
   }
 
-  // Load pyodide and micropip
-  const pyodide = await loadPyodide();
-  await pyodide.loadPackage("micropip");
+  // Load pyodide and packages
+  const pyodide = await loadPyodide({
+    // Perf: These get loaded while pyodide is being bootstrapped
+    // The packages can be found here: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
+    packages: ["micropip", "docutils", "Pygments"],
+  });
 
-  // Install marimo
+  // Install marimo and its dependencies
   const marimoWheel =
     process.env.NODE_ENV === "production"
       ? "marimo >= 0.2.5"
@@ -33,16 +38,17 @@ export async function bootstrap() {
         "multiprocessing.shared_memory": None,
         "multiprocessing.spawn": None,
     })
+    micropip.add_mock_package("jedi", "*", modules={
+        "jedi": None,
+        "jedi.api": None,
+    })
 
     await micropip.install(
       [
         # Subset of marimo requirements
         "${marimoWheel}",
         "markdown",
-        "jedi",
-        "docutils",
         "pymdown-extensions",
-        "pygments",
       ],
       deps=False
     );
@@ -53,13 +59,17 @@ export async function bootstrap() {
 
 export async function startSession(
   pyodide: PyodideInterface,
-  code: string,
+  opts: {
+    code: string | null;
+    fallbackCode: string;
+    filename: string | null;
+  },
 ): Promise<SerializedBridge> {
   // Set up the filesystem
-  await mountFilesystem(pyodide, code);
+  const { filename, content } = await mountFilesystem({ pyodide, ...opts });
 
   // Load packages from the code
-  await pyodide.loadPackagesFromImports(code, {
+  await pyodide.loadPackagesFromImports(content, {
     messageCallback: Logger.log,
     errorCallback: Logger.error,
   });
@@ -70,7 +80,7 @@ export async function startSession(
       import asyncio
       from marimo._pyodide.pyodide_session import create_session, instantiate
 
-      session, bridge = create_session(filename="${APP_FILE_PATH}")
+      session, bridge = create_session(filename="${filename}")
       instantiate(session)
       asyncio.create_task(session.start())
 

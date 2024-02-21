@@ -57,7 +57,7 @@ const StaticBannerDialog = () => {
 
   const href = window.location.href;
   const code = getMarimoCode();
-  const wasmLink = createShareableLink(code);
+  const wasmLink = createShareableLink({ code });
 
   return (
     <Dialog>

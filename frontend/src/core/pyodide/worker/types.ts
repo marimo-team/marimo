@@ -26,6 +26,7 @@ export interface RawBridge {
   delete_file_or_directory(request: string): Promise<string>;
   update_file_or_directory(request: string): Promise<string>;
   load_packages(request: string): Promise<string>;
+  read_file(request: string): Promise<string>;
   [Symbol.asyncIterator](): AsyncIterator<string>;
 }
 
@@ -43,12 +44,14 @@ export type WorkerServerPayload =
     }
   | {
       type: "set-code";
-      code: string;
+      code: string | null;
+      fallbackCode: string;
+      filename: string | null;
     }
   | {
       type: "call-function";
       id: RequestId;
-      functionName: keyof RawBridge | "load_packages";
+      functionName: keyof RawBridge | "load_packages" | "read_file";
       payload: {} | undefined | null;
     };
 

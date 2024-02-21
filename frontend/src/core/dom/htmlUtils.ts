@@ -4,6 +4,8 @@ import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
+import { isPyodide } from "../pyodide/utils";
+import { PyodideRouter } from "../pyodide/router";
 
 /**
  * Parse an attribute value as JSON.
@@ -45,6 +47,14 @@ export function serializeInitialValue(value: unknown) {
 }
 
 export function getFilenameFromDOM() {
+  // If we are running in Pyodide, we can get the filename from the URL
+  if (isPyodide()) {
+    const filename = PyodideRouter.getFilename();
+    if (filename) {
+      return filename;
+    }
+  }
+
   const filenameTag = document.querySelector("marimo-filename");
   assertExists(filenameTag, "marimo-filename tag not found");
   const name = filenameTag.innerHTML;

@@ -1,9 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { TypedLocalStorage } from "@/utils/localStorage";
-import {
-  compressToEncodedURIComponent,
-  decompressFromEncodedURIComponent,
-} from "lz-string";
+import { decompressFromEncodedURIComponent } from "lz-string";
+import { PyodideRouter } from "./router";
 
 export interface FileStore {
   saveFile(contents: string): void;
@@ -11,7 +9,7 @@ export interface FileStore {
 }
 
 const storage = new TypedLocalStorage<string | null>("marimo:file", null);
-const localStorageFileStore: FileStore = {
+export const localStorageFileStore: FileStore = {
   saveFile(contents: string) {
     storage.set(contents);
   },
@@ -20,24 +18,29 @@ const localStorageFileStore: FileStore = {
   },
 };
 
-const URL_PARAM_KEY = "code";
 const urlFileStore: FileStore = {
   saveFile(contents: string) {
-    const url = new URL(location.href);
-    const encoded = compressToEncodedURIComponent(contents);
-    url.searchParams.set(URL_PARAM_KEY, encoded);
-    history.replaceState(null, "", url.toString());
+    // Do nothing
   },
   readFile() {
-    const url = new URL(location.href);
-    if (!url.searchParams.has(URL_PARAM_KEY)) {
-      return null;
-    }
-    const code = url.searchParams.get(URL_PARAM_KEY);
+    const code = PyodideRouter.getCode();
     if (!code) {
       return null;
     }
     return decompressFromEncodedURIComponent(code);
+  },
+};
+
+export const domElementFileStore: FileStore = {
+  saveFile(contents: string) {
+    // Do nothing
+  },
+  readFile() {
+    const element = document.querySelector("marimo-code");
+    if (!element) {
+      return null;
+    }
+    return decodeURIComponent(element.textContent || "").trim();
   },
 };
 
@@ -53,7 +56,7 @@ const remoteDefaultFileStore: FileStore = {
   },
 };
 
-const fallbackFileStore: FileStore = {
+const emptyFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -64,10 +67,7 @@ const fallbackFileStore: FileStore = {
       "",
       "@app.cell",
       "def __():",
-      "  import marimo as mo",
-      "  x = 1 + 1",
-      "  x",
-      "  return mo,x",
+      "  return",
       "",
       'if __name__ == "__main__":',
       "  app.run()",
@@ -75,7 +75,7 @@ const fallbackFileStore: FileStore = {
   },
 };
 
-class CompositeFileStore implements FileStore {
+export class CompositeFileStore implements FileStore {
   constructor(private stores: FileStore[]) {}
 
   saveFile(contents: string) {
@@ -93,10 +93,15 @@ class CompositeFileStore implements FileStore {
   }
 }
 
-export const fileStore = new CompositeFileStore([
-  // Prefer URL param, then local storage, then remote default, then fallback
+export const notebookFileStore = new CompositeFileStore([
+  // Prefer <marimo-code>, then URL
+  domElementFileStore,
   urlFileStore,
+]);
+
+export const fallbackFileStore = new CompositeFileStore([
+  // Prefer then local storage, then remote default, then empty
   localStorageFileStore,
   remoteDefaultFileStore,
-  fallbackFileStore,
+  emptyFileStore,
 ]);

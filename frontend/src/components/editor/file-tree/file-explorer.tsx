@@ -8,7 +8,7 @@ import {
   PlaySquareIcon,
 } from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { openFile, sendListFiles, sendRestart } from "@/core/network/requests";
+import { openFile, sendListFiles } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
@@ -114,7 +114,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
   return (
     <div
       style={style}
-      className="flex items-center cursor-pointer ml-2 text-muted-foreground whitespace-nowrap"
+      className="flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap"
       onClick={(evt) => {
         if (node.data.isDirectory) {
           node.toggle();
@@ -124,7 +124,7 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
     >
       <FolderArrow node={node} />
       <span
-        className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1"
+        className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1"
         draggable={true}
         onDragStart={(e) => {
           const { path } = node.data;
@@ -163,8 +163,6 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
                     <AlertDialogAction
                       onClick={async () => {
                         await openFile({ path: node.data.path });
-                        await sendRestart();
-                        window.location.reload();
                       }}
                       aria-label="Confirm"
                     >
