@@ -8,7 +8,7 @@ import {
   PlaySquareIcon,
 } from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { openFile, sendListFiles, sendRestart } from "@/core/network/requests";
+import { openFile, sendListFiles } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
