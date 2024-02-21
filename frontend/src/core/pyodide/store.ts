@@ -1,9 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { TypedLocalStorage } from "@/utils/localStorage";
-import {
-  compressToEncodedURIComponent,
-  decompressFromEncodedURIComponent,
-} from "lz-string";
+import { decompressFromEncodedURIComponent } from "lz-string";
+import { PyodideRouter } from "./router";
 
 export interface FileStore {
   saveFile(contents: string): void;
@@ -20,29 +18,29 @@ const localStorageFileStore: FileStore = {
   },
 };
 
-const URL_PARAM_KEY = "code";
 export const urlFileStore: FileStore = {
   saveFile(contents: string) {
-    const url = new URL(location.href);
-    // Don't add the code if the filename is set
-    if (url.searchParams.has("filename")) {
-      return;
-    }
-
-    const encoded = compressToEncodedURIComponent(contents);
-    url.searchParams.set(URL_PARAM_KEY, encoded);
-    history.replaceState(null, "", url.toString());
+    // Do nothing
   },
   readFile() {
-    const url = new URL(location.href);
-    if (!url.searchParams.has(URL_PARAM_KEY)) {
-      return null;
-    }
-    const code = url.searchParams.get(URL_PARAM_KEY);
+    const code = PyodideRouter.getCode();
     if (!code) {
       return null;
     }
     return decompressFromEncodedURIComponent(code);
+  },
+};
+
+const domElementFileStore: FileStore = {
+  saveFile(contents: string) {
+    // Do nothing
+  },
+  readFile() {
+    const element = document.querySelector("marimo-code");
+    if (!element) {
+      return null;
+    }
+    return decodeURIComponent(element.textContent || "").trim();
   },
 };
 
@@ -96,7 +94,8 @@ class CompositeFileStore implements FileStore {
 }
 
 export const fallbackFileStore = new CompositeFileStore([
-  // Prefer local storage, then remote default, then fallback
+  // Prefer <marimo-code>, then local storage, then remote default, then fallback
+  domElementFileStore,
   localStorageFileStore,
   remoteDefaultFileStore,
   localFallbackFileStore,

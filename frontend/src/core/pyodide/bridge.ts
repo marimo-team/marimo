@@ -32,6 +32,7 @@ import { Deferred } from "@/utils/Deferred";
 import InlineWorker from "./worker/worker?worker&inline";
 import { UserConfigLocalStorage } from "../config/config-schema";
 import { createShareableLink } from "./share";
+import { PyodideRouter } from "./router";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -119,9 +120,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
     // Set filename in the URL params,
     // so refreshing the page will keep the filename
-    const url = new URL(window.location.href);
-    url.searchParams.set("filename", filename);
-    window.history.replaceState({}, "", url.toString());
+    PyodideRouter.setFilename(filename);
 
     await this.fetcher.request({
       functionName: "rename_file",
