@@ -18,7 +18,7 @@ export const localStorageFileStore: FileStore = {
   },
 };
 
-export const urlFileStore: FileStore = {
+const urlFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -44,7 +44,7 @@ export const domElementFileStore: FileStore = {
   },
 };
 
-export const remoteDefaultFileStore: FileStore = {
+const remoteDefaultFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -56,7 +56,7 @@ export const remoteDefaultFileStore: FileStore = {
   },
 };
 
-export const localFallbackFileStore: FileStore = {
+const emptyFileStore: FileStore = {
   saveFile(contents: string) {
     // Do nothing
   },
@@ -93,10 +93,15 @@ export class CompositeFileStore implements FileStore {
   }
 }
 
-export const fallbackFileStore = new CompositeFileStore([
-  // Prefer <marimo-code>, then local storage, then remote default, then fallback
+export const notebookFileStore = new CompositeFileStore([
+  // Prefer <marimo-code>, then URL
   domElementFileStore,
+  urlFileStore,
+]);
+
+export const fallbackFileStore = new CompositeFileStore([
+  // Prefer then local storage, then remote default, then empty
   localStorageFileStore,
   remoteDefaultFileStore,
-  localFallbackFileStore,
+  emptyFileStore,
 ]);

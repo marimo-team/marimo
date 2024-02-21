@@ -20,7 +20,7 @@ import {
   ValueUpdate,
 } from "../network/types";
 import { IReconnectingWebSocket } from "../websocket/types";
-import { fallbackFileStore, urlFileStore } from "./store";
+import { fallbackFileStore, notebookFileStore } from "./store";
 import { isPyodide } from "./utils";
 import {
   RawBridge,
@@ -71,7 +71,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Pass the code to the worker
     // If a filename is provided, it will be used to save the file
     // If no filename is provided, the file will not be saved
-    const code = await urlFileStore.readFile();
+    const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
     this.postMessage({
