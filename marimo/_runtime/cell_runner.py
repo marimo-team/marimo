@@ -120,8 +120,8 @@ class Runner:
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501
-    @contextlib.contextmanager
     @staticmethod
+    @contextlib.contextmanager
     def _cancel_on_sigint(future: asyncio.Future[Any]) -> Iterator[None]:
         """ContextManager for capturing SIGINT and cancelling a future
 
