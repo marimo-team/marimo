@@ -28,10 +28,17 @@ def patch_main_module(
     )
     _module.__dict__.setdefault("__builtin__", globals()["__builtins__"])
     _module.__dict__.setdefault("__builtins__", globals()["__builtins__"])
+
     if input_override is not None:
         _module.__dict__.setdefault("input", input_override)
+
     if file is not None:
         _module.__dict__.setdefault("__file__", file)
+    else:
+        _module.__dict__.setdefault(
+            "__file__", sys.modules["__main__"].__file__
+        )
+
     sys.modules[_module.__name__] = _module
     return _module
 

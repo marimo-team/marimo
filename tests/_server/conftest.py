@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
-from typing import Generator
+import sys
+from typing import Generator, Iterator
 
 import pytest
 import uvicorn
@@ -26,7 +27,8 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
+    main = sys.modules["__main__"]
     app.state.session_manager = get_mock_session_manager()
     app.state.config_manager = UserConfigManager()
     client = TestClient(app)
@@ -39,7 +41,8 @@ def client() -> TestClient:
     app.state.host = "localhost"
     app.state.port = 1234
     app.state.base_url = ""
-    return client
+    yield client
+    sys.modules["__main__"] = main
 
 
 def get_session_manager(client: TestClient) -> SessionManager:

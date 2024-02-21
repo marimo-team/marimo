@@ -777,7 +777,7 @@ def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
 
-    assert k.globals["x"] == "/app/test.py"
+    assert k.globals["x"].endswith("pytest")
 
 
 def test_cell_state_invalidated(k: Kernel, exec_req: ExecReqProvider) -> None:
