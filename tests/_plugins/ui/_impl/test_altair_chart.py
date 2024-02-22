@@ -108,11 +108,10 @@ class TestAltairChart:
         assert second == "value2"
 
     @staticmethod
-    def test_altair_settings_when_set(
+    async def test_altair_settings_when_set(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-
-        k.run(
+        await k.run(
             [
                 exec_req.get(
                     """
