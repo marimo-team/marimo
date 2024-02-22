@@ -355,3 +355,28 @@ class TestApp:
         _, defs = app.run()
 
         assert defs["out"] is not None
+
+    @staticmethod
+    def test_run_async() -> None:
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0.01)
+            x = 0
+            return (
+                asyncio,
+                x,
+            )
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x + 1
+            return (y,)
+
+        _, defs = app.run()
+
+        assert defs["x"] == 0
+        assert defs["y"] == 1

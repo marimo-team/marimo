@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import random
 import string
 from collections.abc import Sequence
@@ -22,7 +23,7 @@ from marimo._ast.cell import (
     CellFuncType,
     CellFuncTypeBound,
     CellId_t,
-    execute_cell,
+    execute_cell_async,
 )
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
@@ -194,7 +195,8 @@ class App:
         finally:
             self._initialized = True
 
-    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+    async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        # TODO: We'll maybe expose this in the future
         if self._unparsable:
             raise UnparsableError(
                 "This app can't be run because it has unparsable cells."
@@ -206,7 +208,6 @@ class App:
         # function is only called when running as a script
         with patch_main_module_context() as module:
             glbls = module.__dict__
-
             # Execute cells and collect outputs
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
@@ -214,7 +215,9 @@ class App:
                     cid
                 ).cell_function
                 if cell_function is not None:
-                    outputs[cid] = execute_cell(cell_function.cell, glbls)
+                    outputs[cid] = await execute_cell_async(
+                        cell_function.cell, glbls
+                    )
 
             # Return
             # - the outputs, sorted in the order that cells were added to the
@@ -231,6 +234,9 @@ class App:
                 #   x = 0
                 {name: glbls[name] for name in self._defs if name in glbls},
             )
+
+    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        return asyncio.run(self._run_async())
 
 
 class CellManager:

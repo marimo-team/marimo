@@ -7,8 +7,10 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-def test_virtual_file_creation(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_virtual_file_creation(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -25,8 +27,10 @@ def test_virtual_file_creation(k: Kernel, exec_req: ExecReqProvider) -> None:
         assert fname.endswith(".pdf")
 
 
-def test_virtual_file_deletion(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_virtual_file_deletion(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             er := exec_req.get(
                 """
@@ -42,14 +46,14 @@ def test_virtual_file_deletion(k: Kernel, exec_req: ExecReqProvider) -> None:
     for fname, _ in get_context().virtual_file_registry.registry.items():
         assert fname.endswith(".pdf")
 
-    k.delete(DeleteRequest(cell_id=er.cell_id))
+    await k.delete(DeleteRequest(cell_id=er.cell_id))
     assert not get_context().virtual_file_registry.registry
 
 
-def test_cached_virtual_file_not_deleted(
+async def test_cached_virtual_file_not_deleted(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k.run(
+    await k.run(
         [
             exec_req.get(
                 """
@@ -74,25 +78,25 @@ def test_cached_virtual_file_not_deleted(
 
     # Rerun the cell that created the vfile: make sure that the vfile
     # still exists
-    k.run([create_vfile_1])
+    await k.run([create_vfile_1])
     assert len(get_context().virtual_file_registry.registry) == 1
 
     # Create a new vfile, make sure we have two now
-    k.run([create_vfile_2 := exec_req.get("create_vfile(2)")])
+    await k.run([create_vfile_2 := exec_req.get("create_vfile(2)")])
     assert len(get_context().virtual_file_registry.registry) == 2
 
     # Remove the cells that create the vfiles
-    k.delete(DeleteRequest(cell_id=create_vfile_1.cell_id))
-    k.delete(DeleteRequest(cell_id=create_vfile_2.cell_id))
+    await k.delete(DeleteRequest(cell_id=create_vfile_1.cell_id))
+    await k.delete(DeleteRequest(cell_id=create_vfile_2.cell_id))
 
     # Reset the vfile cache
-    k.run([vfile_cache])
+    await k.run([vfile_cache])
 
 
-def test_cell_deletion_clears_vfiles(
+async def test_cell_deletion_clears_vfiles(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k.run(
+    await k.run(
         [
             exec_req.get(
                 """
@@ -116,14 +120,14 @@ def test_cell_deletion_clears_vfiles(
     assert len(get_context().virtual_file_registry.registry) == 1
 
     # Delete the vfile cache: virtual file registry should be empty
-    k.delete(DeleteRequest(cell_id=vfile_cache.cell_id))
+    await k.delete(DeleteRequest(cell_id=vfile_cache.cell_id))
     assert len(get_context().virtual_file_registry.registry) == 0
 
 
-def test_vfile_refcount_incremented(
+async def test_vfile_refcount_incremented(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k.run(
+    await k.run(
         [
             exec_req.get(
                 """
@@ -154,10 +158,10 @@ def test_vfile_refcount_incremented(
     assert get_context().virtual_file_registry.refcount(vfile) == 2
 
 
-def test_vfile_refcount_decremented(
+async def test_vfile_refcount_decremented(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k.run(
+    await k.run(
         [
             exec_req.get(
                 """
@@ -185,19 +189,21 @@ def test_vfile_refcount_decremented(
     # 0 references because HTML not bound to a variable
     # NB: this test may be flaky! refcount decremented when `__del__` is called
     # but we can't rely on when it will be called.
-    k.run([exec_req.get("gc.collect()")])
+    await k.run([exec_req.get("gc.collect()")])
     assert ctx.virtual_file_registry.refcount(vfile) == 0
 
     # this should dispose the old vfile (because its refcount is 0) and create
     # a new one
-    k.run([make_vfile])
+    await k.run([make_vfile])
     # the previous vfile should not be in the registry
     assert vfile not in ctx.virtual_file_registry.registry
     assert len(ctx.virtual_file_registry.registry) == 1
 
 
-def test_cached_vfile_disposal(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_cached_vfile_disposal(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -226,13 +232,13 @@ def test_cached_vfile_disposal(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert ctx.virtual_file_registry.refcount(vfile) == 1
 
     # clear the list, refcount should be decremented
-    k.run([exec_req.get("vfiles[:] = []")])
+    await k.run([exec_req.get("vfiles[:] = []")])
     # NB: this test may be flaky! refcount decremented when `__del__` is called
     # but we can't rely on when it will be called.
-    k.run([exec_req.get("import gc; gc.collect()")])
+    await k.run([exec_req.get("import gc; gc.collect()")])
     assert ctx.virtual_file_registry.refcount(vfile) == 0
 
     # create another vfile. the old one should be deleted
-    k.run([append_vfile])
+    await k.run([append_vfile])
     assert len(ctx.virtual_file_registry.registry) == 1
     assert vfile not in ctx.virtual_file_registry.filenames()

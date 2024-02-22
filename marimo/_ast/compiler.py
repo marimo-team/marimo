@@ -52,7 +52,12 @@ def cache(filename: str, code: str) -> None:
 
 
 def compile_cell(code: str, cell_id: CellId_t) -> Cell:
-    module = ast.parse(code, mode="exec")
+    module = compile(
+        code,
+        "<unknown>",
+        mode="exec",
+        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+    )
     if not module.body:
         # either empty code or just comments
         return Cell(
@@ -73,7 +78,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
 
     expr: Union[ast.Expression, str]
     if isinstance(module.body[-1], ast.Expr):
-        expr = ast.Expression(module.body.pop().value)  # type: ignore
+        expr = ast.Expression(module.body.pop().value)
     else:
         expr = "None"
 
@@ -88,8 +93,9 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
             last_expr_filename,
             ast.unparse(expr) if not isinstance(expr, str) else "None",
         )
-    body = compile(module, body_filename, mode="exec")
-    last_expr = compile(expr, last_expr_filename, mode="eval")
+    flags = ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
+    body = compile(module, body_filename, mode="exec", flags=flags)
+    last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
 
     glbls = {name for name in v.defs if not is_local(name)}
     return Cell(

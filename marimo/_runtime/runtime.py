@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import builtins
 import contextlib
 import dataclasses
@@ -175,6 +176,11 @@ class Kernel:
     Args:
 
     - cell_configs: initial configuration for each cell
+    - app_metadata: metadata about the notebook
+    - stream: object used to communicate with the server/outside world
+    - stdout: replacement for sys.stdout
+    - stderr: replacement for sys.stderr
+    - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     """
 
@@ -600,7 +606,7 @@ class Kernel:
         ).broadcast()
         return descendants
 
-    def _run_cells(self, cell_ids: set[CellId_t]) -> None:
+    async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
         # This patch is an attempt to mitigate problems caused by the fact
@@ -609,14 +615,18 @@ class Kernel:
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
         patches.patch_sys_module(self._module)
-        while cells_with_stale_state := self._run_cells_internal(cell_ids):
+        while cells_with_stale_state := await self._run_cells_internal(
+            cell_ids
+        ):
             LOGGER.debug("Running state updates ...")
             cell_ids = dataflow.transitive_closure(
                 self.graph, cells_with_stale_state
             )
         LOGGER.debug("Finished run.")
 
-    def _run_cells_internal(self, cell_ids: set[CellId_t]) -> set[CellId_t]:
+    async def _run_cells_internal(
+        self, cell_ids: set[CellId_t]
+    ) -> set[CellId_t]:
         """Run cells, send outputs to frontends
 
         Returns set of cells that need to be re-run due to state updates.
@@ -667,7 +677,7 @@ class Kernel:
             cell.set_status(status="running")
 
             with self._install_execution_context(cell_id) as exc_ctx:
-                run_result = runner.run(cell_id)
+                run_result = await runner.run(cell_id)
                 # Don't rebroadcast an output that was already sent
                 #
                 # 1. if run_result.output is not None, need to send it
@@ -821,29 +831,34 @@ class Kernel:
         # TODO(akshayka): Send VariableValues message for any globals
         # bound to this state object (just like UI elements)
 
-    def delete(self, request: DeleteRequest) -> None:
+    async def delete(self, request: DeleteRequest) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
         if cell_id in self.graph.cells:
-            self._run_cells(
+            await self._run_cells(
                 self.mutate_graph(
                     execution_requests=[], deletion_requests=[request]
                 )
             )
 
-    def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
+    async def run(
+        self, execution_requests: Sequence[ExecutionRequest]
+    ) -> None:
         """Run cells and their descendants.
+
 
         The cells may be cells already existing in the graph or new cells.
         Adds the cells in `execution_requests` to the graph before running
         them.
+
+        Cells may use top-level await, which is why this function is async.
         """
 
-        self._run_cells(
+        await self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
 
-    def set_cell_config(self, request: SetCellConfigRequest) -> None:
+    async def set_cell_config(self, request: SetCellConfigRequest) -> None:
         """Update cell configs.
 
         Cells that are enabled (via config) but stale are run as a side-effect.
@@ -867,11 +882,13 @@ class Kernel:
                 self.graph.disable_cell(cell_id)
 
         if cells_to_run:
-            self._run_cells(
+            await self._run_cells(
                 dataflow.transitive_closure(self.graph, cells_to_run)
             )
 
-    def set_ui_element_value(self, request: SetUIElementValueRequest) -> None:
+    async def set_ui_element_value(
+        self, request: SetUIElementValueRequest
+    ) -> None:
         """Set the value of a UI element bound to a global variable.
 
         Runs cells that reference the UI element by name.
@@ -983,7 +1000,7 @@ class Kernel:
 
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
-        self._run_cells(
+        await self._run_cells(
             dataflow.transitive_closure(self.graph, referring_cells)
         )
 
@@ -1060,7 +1077,7 @@ class Kernel:
             None,
         )
 
-    def instantiate(self, request: CreationRequest) -> None:
+    async def instantiate(self, request: CreationRequest) -> None:
         """Instantiate the kernel with cells and UIElement initial values
 
         During instantiation, UIElements can check for an initial value
@@ -1076,23 +1093,23 @@ class Kernel:
                 initial_value,
             ) in request.set_ui_element_value_request.ids_and_values:
                 self.ui_initializers[object_id] = initial_value
-            self.run(request.execution_requests)
+            await self.run(request.execution_requests)
             self.reset_ui_initializers()
 
-    def handle_message(self, request: ControlRequest) -> None:
+    async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
         The message is dispatched to the appropriate method based on its type.
         """
         if isinstance(request, CreationRequest):
-            self.instantiate(request)
+            await self.instantiate(request)
             CompletedRun().broadcast()
         elif isinstance(request, ExecuteMultipleRequest):
-            self.run(request.execution_requests)
+            await self.run(request.execution_requests)
             CompletedRun().broadcast()
         elif isinstance(request, SetCellConfigRequest):
-            self.set_cell_config(request)
+            await self.set_cell_config(request)
         elif isinstance(request, SetUIElementValueRequest):
-            self.set_ui_element_value(request)
+            await self.set_ui_element_value(request)
             CompletedRun().broadcast()
         elif isinstance(request, FunctionCallRequest):
             status, ret = self.function_call_request(request)
@@ -1103,7 +1120,7 @@ class Kernel:
             ).broadcast()
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
-            self.delete(request)
+            await self.delete(request)
         elif isinstance(request, StopRequest):
             return None
         else:
@@ -1236,17 +1253,24 @@ def launch_kernel(
         else:
             signal.signal(signal.SIGTERM, sigterm_handler)
 
-    while True:
-        try:
-            request = control_queue.get()
-        except Exception as e:
-            # triggered on Windows when quit with Ctrl+C
-            LOGGER.debug("kernel queue.get() failed %s", e)
-            break
-        LOGGER.debug("received request %s", request)
-        if isinstance(request, StopRequest):
-            break
-        kernel.handle_message(request)
+    async def control_loop() -> None:
+        while True:
+            try:
+                request = control_queue.get()
+            except Exception as e:
+                # triggered on Windows when quit with Ctrl+C
+                LOGGER.debug("kernel queue.get() failed %s", e)
+                break
+            LOGGER.debug("received request %s", request)
+            if isinstance(request, StopRequest):
+                break
+            await kernel.handle_message(request)
+
+    # The control loop is asynchronous only because we allow user code to use
+    # top-level await; nothing else is awaited. Don't introduce async
+    # primitives anywhere else in the runtime unless there is a *very* good
+    # reason; prefer using threads (for performance and clarity).
+    asyncio.run(control_loop())
 
     if stdout is not None:
         stdout._watcher.stop()

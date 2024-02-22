@@ -7,10 +7,10 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-def test_cached_element_still_registered(
+async def test_cached_element_still_registered(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k.run(
+    await k.run(
         [
             exec_req.get("import functools"),
             exec_req.get("import marimo as mo"),
@@ -30,7 +30,7 @@ def test_cached_element_still_registered(
 
     # Re-run the cell but fetch the same slider, since we're using
     # functools.cache. Make sure it's still registered!
-    k.run([construct_slider])
+    await k.run([construct_slider])
     assert get_context().ui_element_registry.get_object(s._id) == s
 
 
@@ -134,8 +134,8 @@ def test_resolve_lens_nested(executing_kernel: Kernel) -> None:
     )
 
 
-def test_lens_not_bound(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_lens_not_bound(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get(
                 """
@@ -151,8 +151,10 @@ def test_lens_not_bound(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert registry.bound_names(array._id) == set(["array"])
 
 
-def test_parent_bound_to_view(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_parent_bound_to_view(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get(
                 """

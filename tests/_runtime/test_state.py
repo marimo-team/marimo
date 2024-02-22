@@ -3,8 +3,8 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -22,8 +22,10 @@ def test_set_and_get_state(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 1
 
 
-def test_set_and_get_iteration(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_set_and_get_iteration(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -41,8 +43,8 @@ def test_set_and_get_iteration(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 5
 
 
-def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -53,8 +55,8 @@ def test_no_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 0
 
 
-def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get(
@@ -73,8 +75,10 @@ def test_allow_self_loops(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 3
 
 
-def test_update_with_function(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_update_with_function(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -86,8 +90,10 @@ def test_update_with_function(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["x"] == 1
 
 
-def test_set_to_callable_object(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_set_to_callable_object(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -109,8 +115,8 @@ def test_set_to_callable_object(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert not k.globals["x"].called
 
 
-def test_non_stale_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_non_stale_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get(
@@ -132,8 +138,8 @@ def test_non_stale_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["private"].counter == 1
 
 
-def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
-    k.run(
+async def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get("state, set_state = mo.state(0)"),
@@ -147,7 +153,7 @@ def test_cancelled_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert "y" not in k.globals
 
 
-def test_set_state_with_overridden_eq(
+async def test_set_state_with_overridden_eq(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
     create_class = """
@@ -158,7 +164,7 @@ def test_set_state_with_overridden_eq(
             sys.exit()
     a = A()
     """
-    k.run(
+    await k.run(
         [
             exec_req.get("import marimo as mo"),
             exec_req.get(create_class),

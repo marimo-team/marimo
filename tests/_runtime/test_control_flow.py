@@ -8,8 +8,8 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import Kernel
 
 
-def test_stop_false(k: Kernel) -> None:
-    k.run(
+async def test_stop_false(k: Kernel) -> None:
+    await k.run(
         [
             ExecutionRequest(
                 cell_id="0",
@@ -23,9 +23,9 @@ def test_stop_false(k: Kernel) -> None:
     assert k.globals["z"] == 2
 
 
-def test_stop_true(k: Kernel) -> None:
+async def test_stop_true(k: Kernel) -> None:
     # Populate the kernel and its globals
-    k.run(
+    await k.run(
         [
             ExecutionRequest(cell_id="0", code="x = 0; y = 1"),
             ExecutionRequest(cell_id="1", code="z = y + 1"),
@@ -36,7 +36,7 @@ def test_stop_true(k: Kernel) -> None:
     assert k.globals["z"] == 2
 
     # Force cell 0 to stop
-    k.run(
+    await k.run(
         [
             ExecutionRequest(
                 cell_id="0",
@@ -52,9 +52,9 @@ def test_stop_true(k: Kernel) -> None:
     assert "z" not in k.globals
 
 
-def test_stop_output(k: Kernel) -> None:
+async def test_stop_output(k: Kernel) -> None:
     # Run a cell through the kernel to populate graph
-    k.run(
+    await k.run(
         [
             ExecutionRequest(
                 cell_id="0",
@@ -66,7 +66,7 @@ def test_stop_output(k: Kernel) -> None:
     runner = cell_runner.Runner(
         set(["0"]), graph=k.graph, glbls=k.globals, debugger=k.debugger
     )
-    run_result = runner.run("0")
+    run_result = await runner.run("0")
     # Check that the cell was stopped and its output is the stop output
     assert run_result.output == "stopped!"
     assert isinstance(run_result.exception, control_flow.MarimoStopError)

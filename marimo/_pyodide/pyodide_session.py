@@ -337,7 +337,7 @@ def launch_pyodide_kernel(
         while True:
             request = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            kernel.handle_message(request)
+            await kernel.handle_message(request)
 
     return RestartableTask(listen)
 

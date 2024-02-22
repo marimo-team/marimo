@@ -20,10 +20,10 @@ def _has_output(
     return False
 
 
-def test_capture_stdout(
+async def test_capture_stdout(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
@@ -41,10 +41,10 @@ def test_capture_stdout(
     assert mocked_kernel.k.globals["buffer"].getvalue() == "hello"
 
 
-def test_capture_stderr(
+async def test_capture_stderr(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
@@ -62,10 +62,10 @@ def test_capture_stderr(
     assert mocked_kernel.k.globals["buffer"].getvalue() == "bye"
 
 
-def test_capture_both(
+async def test_capture_both(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             # in python < 3.9, parenthesizing multiple context managers is
             # not allowed, hence the line continuation
@@ -87,10 +87,10 @@ def test_capture_both(
     assert mocked_kernel.k.globals["stderr"].getvalue() == "bye"
 
 
-def test_redirect_stdout(
+async def test_redirect_stdout(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
@@ -109,10 +109,10 @@ def test_redirect_stdout(
     assert not _has_output(mocked_kernel.stream.messages, r".*bye.*")
 
 
-def test_redirect_stderr(
+async def test_redirect_stderr(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """
@@ -132,10 +132,10 @@ def test_redirect_stderr(
     assert not _has_output(mocked_kernel.stream.messages, r".*hello.*")
 
 
-def test_redirect_both(
+async def test_redirect_both(
     mocked_kernel: MockedKernel, exec_req: ExecReqProvider
 ) -> None:
-    mocked_kernel.k.run(
+    await mocked_kernel.k.run(
         [
             exec_req.get(
                 """

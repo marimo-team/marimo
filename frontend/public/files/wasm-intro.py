@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.2.4"
+__generated_with = "0.2.6"
 app = marimo.App()
 
 
@@ -10,8 +10,66 @@ app = marimo.App()
 def __():
     import marimo as mo
 
-    mo.md("# Welcome to marimo running in WASM! 🌊🍃")
+    mo.md("# Welcome to [marimo](https://github.com/marimo-team/marimo)! 🌊🍃")
     return mo,
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        **This marimo notebook is powered by [WASM](https://webassembly.org/)**:
+        it's running entirely in your browser!
+
+        """
+    ).callout()
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.accordion(
+        {
+            "When should I use WASM notebooks?": """
+            WASM notebooks are excellent for sharing:
+            because they run entirely in the browser, they are extremely
+            easy to share. Just open the notebook action menu at the top-right and
+            click the "Share WASM notebook" button to get a shareable URL. You can
+            also embed your notebook in other webpages via an `<iframe>`.
+
+            WASM are well-suited for quickly experimenting with code and
+            models, doing lightweight data analysis, authoring blog
+            posts, tutorials, and educational articles, and even building internal
+            tools. They are not well-suited for notebooks that do heavy
+            computation, and they don't support multi-threading nor
+            multiprocessing; for these cases, use a regular marimo notebook.
+            """
+        }
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.accordion(
+        {
+            "Installing packages in WASM notebooks": mo.md(
+                """
+        Many packages will be automatically installed,
+        These can be found at [packages-in-pyodide](https://pyodide.org/en/stable/usage/packages-in-pyodide.html).
+
+        For other packages, use micropip:
+
+        ```python
+        import micropip
+        await micropip.install("plotly")
+        import plotly
+        ```
+        """
+            )
+        }
+    )
+    return
 
 
 @app.cell
@@ -34,39 +92,6 @@ def __(mo, slider):
         """
     )
     return
-
-
-@app.cell
-def __(mo):
-    mo.accordion(
-        {
-            "Installing packages": mo.md(
-                """
-        Most packages will be automatically installed,
-        These can be found at [packages-in-pyodide](https://pyodide.org/en/stable/usage/packages-in-pyodide.html).
-        
-        For those that are not, you can use this `install` function
-
-        ```python
-        install("altair")
-        ```
-        """
-            )
-        }
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def __():
-    import micropip
-    import asyncio
-
-
-    def install(pkg):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(micropip.install(pkg))
-    return asyncio, install, micropip
 
 
 @app.cell(hide_code=True)
