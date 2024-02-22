@@ -28,8 +28,24 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     // Default to showing code if the notebook is static
     return isStaticNotebook();
   });
-  // Show code if there is at least one cell with code
-  const canShowCode = mode === "read" && cells.some((cell) => cell.code);
+  const evaluateCanShowCode = () => {
+    const cellsHaveCode = cells.some((cell) => cell.code);
+
+    // Only show code if in read mode and there is at least one cell with code
+    // If it is a state notebook, code is always included, but they can turn it off
+    // via a query parameter (include-code=false)
+
+    if (isStaticNotebook()) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const includeCode = urlParams.get("include-code");
+      return includeCode !== "false" && cellsHaveCode;
+    }
+
+    return mode === "read" && cellsHaveCode;
+  };
+
+  const canShowCode = evaluateCanShowCode();
+
   return (
     <VerticalLayoutWrapper invisible={invisible} appConfig={appConfig}>
       {cells.map((cell) => (
