@@ -33,6 +33,7 @@ import InlineWorker from "./worker/worker?worker&inline";
 import { UserConfigLocalStorage } from "../config/config-schema";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
+import { Paths } from "@/utils/paths";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -233,7 +234,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   openFile = async (request: { path: string }): Promise<null> => {
     // Open the file in a new tab by file path
-    const filename = request.path.split("/").pop();
+    const filename = Paths.basename(request.path);
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,

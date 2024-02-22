@@ -135,6 +135,6 @@ test("page renders 2 cells", async ({ page }) => {
   await expect(page.locator("h1")).toHaveText(["Cell 1", "Cell 2"]);
 });
 
-test("export as HTML", async ({ page }) => {
+test("download as HTML", async ({ page }) => {
   await exportAsHTMLAndTakeScreenshot(page);
 });

@@ -8,6 +8,7 @@ import { serializeJsonToBase64 } from "@/utils/json/base64";
 import { readCode } from "../network/requests";
 import { downloadBlob } from "@/utils/download";
 import { toast } from "@/components/ui/use-toast";
+import { Paths } from "@/utils/paths";
 
 // For Testing:
 // Flip this to `true` to use local assets instead of CDN
@@ -56,7 +57,7 @@ export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
   const html = await createStaticHTMLNotebook();
 
-  const filenameWithoutPath = filename.split("/").pop() ?? "notebook.py";
+  const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
   const filenameWithoutExtension =
     filenameWithoutPath.split(".").shift() ?? "app";
 
