@@ -1,7 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import Sequence
+
+import pytest
 
 from marimo._messaging.errors import (
     CycleError,
@@ -998,6 +1001,13 @@ class TestAsyncIO:
         assert k.globals["res"] == "done"
 
     @staticmethod
+    @pytest.mark.xfail(
+        condition=sys.platform == "win32" or sys.platform == "darwin",
+        reason=(
+            "Bug in interaction with multiprocessing on Windows, macOS; "
+            "doesn't work in Jupyter either."
+        ),
+    )
     async def test_run_in_processpool_executor(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
