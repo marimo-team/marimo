@@ -9,14 +9,14 @@ import {
 
 const appUrl = getAppUrl("kitchen_sink.py//edit");
 
-test("can screenshot and export as html", async ({ page }) => {
+test("can screenshot and download as html", async ({ page }) => {
   await page.goto(appUrl);
 
   await takeScreenshot(page, __filename);
   await exportAsHTMLAndTakeScreenshot(page);
 });
 
-test.skip("can screenshot and export as png", async ({ page }) => {
+test.skip("can screenshot and download as png", async ({ page }) => {
   await page.goto(appUrl);
 
   await exportAsPNG(page);

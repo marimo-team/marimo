@@ -19,13 +19,16 @@ import { atom, useAtom } from "jotai";
 import { useNotebookActions } from "./actions/useNotebookActions";
 import { Objects } from "@/utils/objects";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
+import { isParentAction, flattenActions } from "./actions/types";
 
 export const commandPaletteAtom = atom(false);
 
 export const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
-  const notebookActions = useNotebookActions();
+  let notebookActions = useNotebookActions();
+  notebookActions = flattenActions(notebookActions);
+
   const notebookActionsWithoutHotkeys = notebookActions.filter(
     (action) => !action.hotkey,
   );
@@ -113,7 +116,7 @@ export const CommandPalette = () => {
                 }
                 // Other action
                 const action = keyedNotebookActions[shortcut];
-                if (action) {
+                if (action && !isParentAction(action)) {
                   return renderCommandItem(action.label, action.handle);
                 }
                 return null;

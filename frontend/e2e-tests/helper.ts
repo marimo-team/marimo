@@ -86,7 +86,7 @@ export async function pressShortcut(page: Page, action: HotkeyAction) {
 }
 
 /**
- * Export as HTML
+ * Download as HTML
  *
  * Download HTML of the current notebook and take a screenshot
  */
@@ -101,7 +101,10 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
       .getByTestId("notebook-menu-dropdown")
       .click()
       .then(() => {
-        return page.getByText("Export as HTML").click();
+        return page.getByText("Download", { exact: true }).hover();
+      })
+      .then(() => {
+        return page.getByText("Download as HTML", { exact: true }).click();
       }),
   ]);
 
@@ -137,7 +140,10 @@ export async function exportAsPNG(page: Page) {
       .getByTestId("notebook-menu-dropdown")
       .click()
       .then(() => {
-        return page.getByText("Export as PNG").click();
+        return page.getByText("Download", { exact: true }).hover();
+      })
+      .then(() => {
+        return page.getByText("Download as PNG", { exact: true }).click();
       }),
   ]);
 

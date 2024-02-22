@@ -6,10 +6,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { renderMinimalShortcut } from "../shortcuts/renderShortcut";
 import { useNotebookActions } from "./actions/useNotebookActions";
+import { ActionButton } from "./actions/types";
 
 export const NotebookMenuDropdown: React.FC = () => {
   const actions = useNotebookActions();
@@ -27,22 +33,63 @@ export const NotebookMenuDropdown: React.FC = () => {
     </Button>
   );
 
+  const renderLabel = (action: ActionButton) => {
+    return (
+      <>
+        {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
+        <span className="flex-1">{action.label}</span>
+        {action.hotkey && renderMinimalShortcut(action.hotkey)}
+        {action.rightElement}
+      </>
+    );
+  };
+
+  const renderLeafAction = (action: ActionButton) => {
+    return (
+      <DropdownMenuItem
+        key={action.label}
+        variant={action.variant}
+        onSelect={(evt) => action.handle(evt)}
+        data-testid={`notebook-menu-dropdown-${action.label}`}
+      >
+        {renderLabel(action)}
+      </DropdownMenuItem>
+    );
+  };
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[220px]">
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={action.label}
-            variant={action.variant}
-            onSelect={(evt) => action.handle(evt)}
-            data-testid={`notebook-menu-dropdown-${action.label}`}
-          >
-            {action.icon && <span className="flex-0 mr-2">{action.icon}</span>}
-            <span className="flex-1">{action.label}</span>
-            {action.hotkey && renderMinimalShortcut(action.hotkey)}
-          </DropdownMenuItem>
-        ))}
+        {actions.map((action) => {
+          if (action.hidden) {
+            return null;
+          }
+
+          if (action.dropdown) {
+            return (
+              <DropdownMenuSub key={action.label}>
+                <DropdownMenuSubTrigger
+                  data-testid={`notebook-menu-dropdown-${action.label}`}
+                >
+                  {renderLabel(action)}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent>
+                    {action.dropdown.map(renderLeafAction)}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            );
+          }
+
+          return (
+            <React.Fragment key={action.label}>
+              {action.divider && <DropdownMenuSeparator />}
+              {renderLeafAction(action)}
+            </React.Fragment>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

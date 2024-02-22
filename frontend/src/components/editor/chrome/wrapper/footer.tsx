@@ -1,26 +1,23 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
-import {
-  FunctionSquareIcon,
-  XCircleIcon,
-  ScrollTextIcon,
-  NetworkIcon,
-  FileTextIcon,
-  MessageCircleQuestionIcon,
-  BookMarkedIcon,
-  FolderTreeIcon,
-} from "lucide-react";
+import { MessageCircleQuestionIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { FeedbackButton } from "../footer/feedback-button";
+import { PANEL_ICONS, PanelType } from "../types";
 
 export const Footer: React.FC = () => {
   const { selectedPanel } = useChromeState();
   const { openApplication } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
+
+  const renderIcon = (type: PanelType, className?: string) => {
+    const Icon = PANEL_ICONS[type];
+    return <Icon className={cn("h-5 w-5", className)} />;
+  };
 
   return (
     <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50">
@@ -29,54 +26,50 @@ export const Footer: React.FC = () => {
         selected={selectedPanel === "errors"}
         onClick={() => openApplication("errors")}
       >
-        <XCircleIcon
-          className={cn("h-5 w-5 mr-1", {
-            "text-destructive": errorCount > 0,
-          })}
-        />
-        <span className="font-mono mt-[0.125rem]">{errorCount}</span>
+        {renderIcon("errors", errorCount > 0 ? "text-destructive" : "")}
+        <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
       <FooterItem
         tooltip="View files"
         selected={selectedPanel === "files"}
         onClick={() => openApplication("files")}
       >
-        <FolderTreeIcon className={cn("h-5 w-5")} />
+        {renderIcon("files")}
       </FooterItem>
       <FooterItem
         tooltip="Explore variables"
         selected={selectedPanel === "variables"}
         onClick={() => openApplication("variables")}
       >
-        <FunctionSquareIcon className={cn("h-5 w-5 ")} />
+        {renderIcon("variables")}
       </FooterItem>
       <FooterItem
         tooltip="Explore dependencies"
         selected={selectedPanel === "dependencies"}
         onClick={() => openApplication("dependencies")}
       >
-        <NetworkIcon className={cn("h-5 w-5")} />
+        {renderIcon("dependencies")}
       </FooterItem>
       <FooterItem
         tooltip="View outline"
         selected={selectedPanel === "outline"}
         onClick={() => openApplication("outline")}
       >
-        <ScrollTextIcon className={cn("h-5 w-5")} />
+        {renderIcon("outline")}
       </FooterItem>
       <FooterItem
         tooltip="View documentation"
         selected={selectedPanel === "documentation"}
         onClick={() => openApplication("documentation")}
       >
-        <BookMarkedIcon className={cn("h-5 w-5")} />
+        {renderIcon("documentation")}
       </FooterItem>
       <FooterItem
         tooltip="Notebook logs"
         selected={selectedPanel === "logs"}
         onClick={() => openApplication("logs")}
       >
-        <FileTextIcon className={cn("h-5 w-5")} />
+        {renderIcon("logs")}
       </FooterItem>
 
       <FeedbackButton>

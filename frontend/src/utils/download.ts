@@ -21,7 +21,7 @@ export async function downloadHTMLAsImage(
   } catch {
     toast({
       title: "Error",
-      description: "Failed to export as PNG.",
+      description: "Failed to download as PNG.",
       variant: "danger",
     });
   } finally {

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { runDuringPresentMode } from "@/core/mode";
-import { downloadHTMLAsImage } from "@/utils/download";
+import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
 import { useSetAtom } from "jotai";
 import {
   ImageIcon,
@@ -12,6 +12,12 @@ import {
   ClipboardCopyIcon,
   Share2Icon,
   PowerSquareIcon,
+  GlobeIcon,
+  LinkIcon,
+  DownloadIcon,
+  CodeIcon,
+  PanelLeftIcon,
+  CheckIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../CommandPalette";
 import {
@@ -30,10 +36,21 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
 import { createShareableLink } from "@/core/pyodide/share";
+import { Paths } from "@/utils/paths";
+import { useChromeActions, useChromeState } from "../chrome/state";
+import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
+import { startCase } from "lodash-es";
+
+const NOOP_HANDLER = (event?: Event) => {
+  event?.preventDefault();
+  event?.stopPropagation();
+};
 
 export function useNotebookActions() {
   const [filename] = useFilename();
   const { openModal, closeModal } = useImperativeModal();
+  const { openApplication } = useChromeActions();
+  const { selectedPanel } = useChromeState();
 
   const notebook = useNotebook();
   const { updateCellConfig } = useCellActions();
@@ -46,52 +63,112 @@ export function useNotebookActions() {
   const actions: ActionButton[] = [
     {
       icon: <Share2Icon size={14} strokeWidth={1.5} />,
-      label: "Publish as HTML",
-      handle: async () => {
-        openModal(<ShareStaticNotebookModal onClose={closeModal} />);
-      },
+      label: "Share",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon: <GlobeIcon size={14} strokeWidth={1.5} />,
+          label: "Publish HTML to web",
+          handle: async () => {
+            openModal(<ShareStaticNotebookModal onClose={closeModal} />);
+          },
+        },
+        {
+          icon: <LinkIcon size={14} strokeWidth={1.5} />,
+          label: "Create WebAssembly link",
+          handle: async () => {
+            const code = await readCode();
+            const url = createShareableLink({ code: code.contents });
+            window.navigator.clipboard.writeText(url);
+            toast({
+              title: "Copied",
+              description: "Link copied to clipboard.",
+            });
+          },
+        },
+      ],
     },
     {
-      icon: <Share2Icon size={14} strokeWidth={1.5} />,
-      label: "Share WebAssembly notebook",
+      icon: <DownloadIcon size={14} strokeWidth={1.5} />,
+      label: "Download",
+      handle: NOOP_HANDLER,
+      dropdown: [
+        {
+          icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
+          label: "Download as HTML",
+          handle: async () => {
+            if (!filename) {
+              toast({
+                variant: "danger",
+                title: "Error",
+                description: "Notebooks must be named to be exported.",
+              });
+              return;
+            }
+            await downloadAsHTML({ filename });
+          },
+        },
+        {
+          icon: <ImageIcon size={14} strokeWidth={1.5} />,
+          label: "Download as PNG",
+          handle: async () => {
+            await runDuringPresentMode(async () => {
+              const app = document.getElementById("App");
+              if (!app) {
+                return;
+              }
+              await downloadHTMLAsImage(app, filename || "screenshot.png");
+            });
+          },
+        },
+        {
+          icon: <CodeIcon size={14} strokeWidth={1.5} />,
+          label: "Download Python code",
+          handle: async () => {
+            const code = await readCode();
+            downloadBlob(
+              new Blob([code.contents], { type: "text/plain" }),
+              Paths.basename(filename || "notebook.py"),
+            );
+          },
+        },
+      ],
+    },
+
+    {
+      divider: true,
+      icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
+      label: "Helper panel",
+      handle: NOOP_HANDLER,
+      dropdown: PANEL_TYPES.map((type) => {
+        const Icon = PANEL_ICONS[type];
+        return {
+          label: startCase(type),
+          rightElement: (
+            <div className="w-8 flex justify-end">
+              {selectedPanel === type && <CheckIcon size={14} />}
+            </div>
+          ),
+          icon: <Icon size={14} strokeWidth={1.5} />,
+          handle: () => openApplication(type),
+        };
+      }),
+    },
+
+    {
+      icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
+      label: "Copy code to clipboard",
+      hidden: !filename,
       handle: async () => {
         const code = await readCode();
-        const url = createShareableLink({ code: code.contents });
-        window.navigator.clipboard.writeText(url);
+        navigator.clipboard.writeText(code.contents);
         toast({
           title: "Copied",
-          description: "Link copied to clipboard.",
+          description: "Code copied to clipboard.",
         });
       },
     },
-    {
-      icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
-      label: "Export as HTML",
-      handle: async () => {
-        if (!filename) {
-          toast({
-            variant: "danger",
-            title: "Error",
-            description: "Notebooks must be named to be exported.",
-          });
-          return;
-        }
-        await downloadAsHTML({ filename });
-      },
-    },
-    {
-      icon: <ImageIcon size={14} strokeWidth={1.5} />,
-      label: "Export as PNG",
-      handle: async () => {
-        await runDuringPresentMode(async () => {
-          const app = document.getElementById("App");
-          if (!app) {
-            return;
-          }
-          await downloadHTMLAsImage(app, filename || "screenshot.png");
-        });
-      },
-    },
+
     {
       icon: <ZapIcon size={14} strokeWidth={1.5} />,
       label: "Enable all cells",
@@ -128,20 +205,7 @@ export function useNotebookActions() {
     },
 
     {
-      icon: <ClipboardCopyIcon size={14} strokeWidth={1.5} />,
-      label: "Copy code to clipboard",
-      hidden: !filename,
-      handle: async () => {
-        const code = await readCode();
-        navigator.clipboard.writeText(code.contents);
-        toast({
-          title: "Copied",
-          description: "Code copied to clipboard.",
-        });
-      },
-    },
-
-    {
+      divider: true,
       icon: <CommandIcon size={14} strokeWidth={1.5} />,
       label: "Command palette",
       hotkey: "global.commandPalette",
@@ -157,6 +221,7 @@ export function useNotebookActions() {
     },
 
     {
+      divider: true,
       icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
       label: "Restart kernel",
       variant: "danger",
