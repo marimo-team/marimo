@@ -12,8 +12,8 @@ export const UserConfigSchema = z
   .object({
     completion: z
       .object({
-        activate_on_typing: z.boolean(),
-        copilot: z.boolean(),
+        activate_on_typing: z.boolean().default(true),
+        copilot: z.boolean().default(false),
       })
       .default({ activate_on_typing: true, copilot: false }),
     save: z
