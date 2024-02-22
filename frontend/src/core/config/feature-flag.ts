@@ -2,16 +2,12 @@
 
 import { getUserConfig } from "./config";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
-  /**
-   * Allows the user to switch between different layouts.
-   */
-  layouts: boolean;
+  // None yet
 }
 
-const defaultValues: ExperimentalFeatures = {
-  layouts: false,
-};
+const defaultValues: ExperimentalFeatures = {};
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,

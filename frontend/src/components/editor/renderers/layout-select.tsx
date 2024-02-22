@@ -13,15 +13,10 @@ import {
 } from "@/components/ui/select";
 import { LayoutType } from "./types";
 import { SquareIcon, Grid3x3Icon, ListIcon } from "lucide-react";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export const LayoutSelect: React.FC = () => {
   const [layoutType, setLayoutType] = useAtom(layoutViewAtom);
   const layouts: LayoutType[] = ["vertical", "grid"];
-
-  if (!getFeatureFlag("layouts")) {
-    return null;
-  }
 
   return (
     <Select

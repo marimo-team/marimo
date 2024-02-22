@@ -63,9 +63,7 @@ export const UserConfigSchema = z
         cell_output: "above",
       }),
     experimental: z
-      .object({
-        layouts: z.boolean().optional(),
-      })
+      .object({})
       // Pass through so that we don't remove any extra keys that the user has added.
       .passthrough()
       .default({}),
