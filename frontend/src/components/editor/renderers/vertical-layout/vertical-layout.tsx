@@ -14,6 +14,7 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { outputIsStale } from "@/core/cells/cell";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isPyodide } from "@/core/pyodide/utils";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -32,16 +33,13 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     const cellsHaveCode = cells.some((cell) => cell.code);
 
     // Only show code if in read mode and there is at least one cell with code
-    // If it is a state notebook, code is always included, but they can turn it off
-    // via a query parameter (include-code=false)
 
-    if (isStaticNotebook()) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const includeCode = urlParams.get("include-code");
-      return includeCode !== "false" && cellsHaveCode;
-    }
+    // If it is a static-notebook or wasm-read-only-notebook, code is always included,
+    // but it can be turned it off via a query parameter (include-code=false)
 
-    return mode === "read" && cellsHaveCode;
+    const urlParams = new URLSearchParams(window.location.search);
+    const includeCode = urlParams.get("include-code");
+    return mode === "read" && includeCode !== "false" && cellsHaveCode;
   };
 
   const canShowCode = evaluateCanShowCode();
