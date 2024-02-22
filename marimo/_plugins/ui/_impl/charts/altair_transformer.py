@@ -29,21 +29,23 @@ class _ToCsvReturnUrlDict(TypedDict):
     format: _CsvFormatDict
 
 
-def _to_marimo_json(data: Data) -> _ToJsonReturnUrlDict:
+def _to_marimo_json(data: Data, **kwargs: Any) -> _ToJsonReturnUrlDict:
     """
     Custom implementation of altair.utils.data.to_json that
     returns a VirtualFile URL instead of writing to disk.
     """
+    del kwargs
     data_json = _data_to_json_string(data)
     virtual_file = mo_data.json(data_json.encode("utf-8"))
     return {"url": virtual_file.url, "format": {"type": "json"}}
 
 
-def _to_marimo_csv(data: Data) -> _ToCsvReturnUrlDict:
+def _to_marimo_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
     """
     Custom implementation of altair.utils.data.to_csv that
     returns a VirtualFile URL instead of writing to disk.
     """
+    del kwargs
     data_csv = _data_to_csv_string(data)
     virtual_file = mo_data.csv(data_csv.encode("utf-8"))
     return {"url": virtual_file.url, "format": {"type": "csv"}}
@@ -105,10 +107,14 @@ def register_transformers() -> None:
     """
     import altair as alt
 
+    # We keep the previous options, in case the user has set them
+    # we don't want to override them.
+    options = alt.data_transformers.options
+
     # Default to CSV. Due to the columnar nature of CSV, it is more efficient
     # than JSON for large datasets (~80% smaller file size).
     alt.data_transformers.register("marimo", _to_marimo_csv)
-    alt.data_transformers.enable("marimo")
+    alt.data_transformers.enable("marimo", **options)
 
     alt.data_transformers.register("marimo_json", _to_marimo_json)
     alt.data_transformers.register(
