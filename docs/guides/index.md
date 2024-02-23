@@ -34,9 +34,9 @@ These guides cover marimo's core concepts.
 | {doc}`state`           | Mutable, reactive state                                 |
 | {doc}`apps`            | Running notebooks as apps                               |
 | {doc}`scripts`         | Running notebooks as scripts                            |
+| {doc}`best_practices`  | Best practices when working with marimo                 |
 | {doc}`wasm`            | Running notebooks in the browser (no backend required!) |
 | {doc}`deploying/index` | Deploying marimo notebooks and apps                     |
-| {doc}`best_practices`  | Best practices when working with marimo                 |
 
 ```{admonition} Learn by doing!
 :class: tip

@@ -1,4 +1,4 @@
-# WASM Notebooks
+# WASM notebooks
 
 It's possible to run marimo **entirely in the browser** -- no backend required! marimo
 notebooks that run entirely in the browser are called **WebAssembly
@@ -7,8 +7,11 @@ notebooks**, or **WASM notebooks** for short.
 In contrast to marimo notebooks that you create with the CLI, WASM notebooks
 run without a web server and Python process; instead, the web browser executes
 your Python code. For this reason, WASM makes it extremely easy to
-share marimo notebooks, and make it possible to tinker with notebooks without
+share marimo notebooks, and makes it possible to tinker with notebooks without
 having to install Python on your machine.
+
+**Try a WASM notebook today!** Just navigate to
+[https://marimo.new](https://marimo.new).
 
 ```{admonition} WASM?
 :class: note
@@ -18,38 +21,67 @@ marimo-in-the-browser is powered by a technology called
 name "WASM notebook".
 ```
 
-**You can try a WASM notebook today!** Just navigate to
-[https://marimo.new](https://marimo.new).
+```{admonition} When should I use WASM notebooks?
+:class: note
 
-**Common use cases.** XXX bullets
+WASM notebooks are excellent for sharing your work, quickly experimenting with
+code and models, doing lightweight data exploration, authoring blog posts,
+tutorials, and educational materials, and even building tools. They are
+not well-suited for notebooks that do heavy computation.
+```
 
-XXX TODO
+```{admonition} Issues?
+:class: warning
 
-- marimo.new: playground
-- marimo.app: opens whatever you were last working on (tutorials)
-- read mode (?mode=read) (XXX short links?)
+WASM notebooks are a new feature. If you run into
+problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
+```
 
-- running as an app
-
-- packages: preloaded, micropip
-
-- use cases
-  - embedding
-  - embedding a REPL in a webpage (iframe)
-  - embedding a notebook in a webpage
-  - embedding an app in a webpage
-  - sharing
-  - playground
 
 ## Creating and sharing WASM notebooks
 
-XXX TODO
+WASM notebooks run at [marimo.app](https://marimo.app).
 
-- go from local -> shareable with Get WebAssembly Link
+### Creating new notebooks
 
-- from `marimo.new` - scratch pad / blank notebook
-- from `marimo.app` : load your most recent notebook
-  - from `Get short link`
+To create a new WASM notebook, just visit
+[marimo.new](https://marimo.new).
+
+Think of [marimo.new](https://marimo.new) as your own personal
+scratchpad for experimenting with code, data, and models and for prototyping
+tools, available to you at all times and on all devices.
+
+```{admonition} Saving WASM notebooks
+:class: tip
+
+When you save a WASM notebook, a copy of your code is saved to your
+web browser's local storage. When you return to [marimo.app](https://marimo.app),
+the last notebook you worked on will be re-opened.
+```
+
+### Creating shareable permalinks
+
+At [marimo.app](https://marimo.app), save your notebook and then click the
+`Create short URL` button to generate a shareable permalink to your
+notebook.
+
+XXX pic or vid
+
+Please be aware that marimo permalinks are publicly accessible.
+
+### Creating WASM notebooks from local notebooks
+
+In the marimo editor's notebook action menu, use `Share > Create WebAssembly
+link` to get a `marimo.app/...` URL representing your notebook: 
+
+XXX pic or vid
+
+WASM notebooks come with common Python packages installed, but you may need to
+[install additional packages using micropip](#installing-packages).
+
+The obtained URL encodes your notebook code as a parameter, so it can be
+quite long. If you want a URL that's easier to share, you can [create a
+shareable permalink](#creating-shareable-permalinks).
 
 ## Installing packages
 
@@ -77,29 +109,6 @@ import plotly
 
 <iframe src="https://marimo.app/l/wvz76s?embed=true" width=800 height=300>
 </iframe>
-
-## Limitations
-
-WASM lets you get up and running with marimo instantly, and makes sharing
-marimo notebooks frictionless. That said, WASM notebooks do have some
-limitations.
-
-**Packages.** Not all packages are available in WASM notebooks; see [Pyodide's
-documentation](https://pyodide.org/en/stable/usage/packages-in-pyodide.html),
-to learn more about which packages are supported.
-
-**Threading and multi-processing.** WASM notebooks do not support multithreading
-and multiprocessing. This may change in the future.
-
-**Code completion.** Code completion and docstring hints are not
-currently supported. This restriction will be removed in the future.
-
-In general, WASM notebooks are not well-suited for notebooks that do heavy computation
-or rely on packages not supported by Pyodide. In contrast, they are excellent
-for sharing your work, quickly experimenting with code and models, doing
-lightweight data analysis, authoring blog posts, tutorials, and educational
-articles, and even building internal tools.
-
 
 ## Configuration
 
@@ -165,13 +174,13 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
 
 ```html
 <iframe
-	src="https://marimo.app/?slug=c7h6pz&embed=true"
+	src="https://marimo.app/l/c7h6pz?embed=true"
 	width="800"
 	height="300"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/?slug=c7h6pz&embed=true" width="800" height="600"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="800" height="600"></iframe>
 
 After obtaining a URL to your
 notebook,
@@ -183,10 +192,28 @@ You can optionally render embedded notebooks in read-only mode by appending
 
 ```html
 <iframe
-	src="https://marimo.app/?slug=c7h6pz&mode=read"
+	src="https://marimo.app/l/c7h6pz?mode=read&embed=true"
 	width="800"
 	height="300"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/?slug=c7h6pz&mode=read&embed=true" width="800" height="600"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="800" height="600"></iframe>
+
+## Limitations
+
+While WASM notebooks let you get up and running with marimo instantly, they
+have some limitations.
+
+**Packages.** Not all packages are available in WASM notebooks; see [Pyodide's
+documentation on supported packages.](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
+
+
+**Code completion.** Code completion and docstring hints are not
+currently supported. This will be fixed in the future.
+
+**PDB.** PDB is not currently supported. This may be fixed in the future.
+
+**Threading and multi-processing.** WASM notebooks do not support multithreading
+and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
+

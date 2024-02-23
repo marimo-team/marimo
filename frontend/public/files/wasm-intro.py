@@ -37,8 +37,8 @@ def __(mo):
             click the "Share WASM notebook" button to get a shareable URL. You can
             also embed your notebook in other webpages via an `<iframe>`.
 
-            WASM are well-suited for quickly experimenting with code and
-            models, doing lightweight data analysis, authoring blog
+            WASM notebooks are well-suited for quickly experimenting with code
+            and models, doing lightweight data analysis, authoring blog
             posts, tutorials, and educational articles, and even building internal
             tools. They are not well-suited for notebooks that do heavy
             computation, and they don't support multi-threading nor
