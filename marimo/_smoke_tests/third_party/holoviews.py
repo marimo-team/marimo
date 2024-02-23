@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.2.2"
+__generated_with = "0.2.7"
 app = marimo.App()
 
 
@@ -93,8 +94,36 @@ def __():
     import hvplot.pandas
     from bokeh.sampledata.penguins import data as df
 
-    df.hvplot.scatter(x='bill_length_mm', y='bill_depth_mm', by='species')
+    df.hvplot.scatter(x="bill_length_mm", y="bill_depth_mm", by="species")
     return df, hvplot
+
+
+@app.cell
+def __(mo):
+    mo.md("# Composed Views")
+    return
+
+
+@app.cell
+def __():
+    import polars as pl
+    from hvplot import polars
+
+    df3 = pl.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]})
+    df4 = pl.DataFrame({"x": [1, 2, 3], "y": [3, 2.5, 3]})
+    return df3, df4, pl, polars
+
+
+@app.cell
+def __(df3, df4):
+    df3.hvplot.line("x", "y") * df4.hvplot.line("x", "y")
+    return
+
+
+@app.cell
+def __(df3, df4):
+    df3.hvplot.line("x", "y") + df4.hvplot.line("x", "y")
+    return
 
 
 if __name__ == "__main__":
