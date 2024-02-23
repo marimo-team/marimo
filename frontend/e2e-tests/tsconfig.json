@@ -14,7 +14,7 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "useUnknownInCatchVariables": true,
-    "skipLibCheck": true,
+    "skipLibCheck": true
   },
-  "include": ["*"],
+  "include": ["*"]
 }
