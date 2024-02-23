@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 const plugin = require("tailwindcss/plugin");
+const { fontFamily } = require("tailwindcss/defaultTheme");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -96,8 +97,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        prose: "var(--text-font)",
-        code: "var(--monospace-font)",
+        prose: ["var(--text-font)", ...fontFamily.sans],
+        code: ["var(--monospace-font)", ...fontFamily.mono],
+        heading: ["var(--heading-font)", ...fontFamily.sans],
       },
       borderRadius: {
         lg: "var(--radius)",

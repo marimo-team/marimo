@@ -11,7 +11,7 @@ import {
   sendShutdown,
 } from "@/core/network/requests";
 
-import { Controls } from "@/components/editor/Controls";
+import { Controls } from "@/components/editor/controls/Controls";
 import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
 import { FilenameForm } from "@/components/editor/FilenameForm";
 import { WebSocketState } from "./websocket/types";

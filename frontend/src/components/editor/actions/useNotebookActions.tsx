@@ -19,7 +19,7 @@ import {
   PanelLeftIcon,
   CheckIcon,
 } from "lucide-react";
-import { commandPaletteAtom } from "../CommandPalette";
+import { commandPaletteAtom } from "../controls/command-palette";
 import {
   disabledCellIds,
   enabledCellIds,

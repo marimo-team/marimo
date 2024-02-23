@@ -78,10 +78,12 @@ export const CellActionsDropdown = ({ children, ...props }: Props) => {
                     <CommandItem
                       key={action.label}
                       onSelect={() => {
+                        if (action.disableClick) {
+                          return;
+                        }
                         action.handle();
                         setOpen(false);
                       }}
-                      disabled={action.disableClick}
                       variant={action.variant}
                     >
                       <div className="flex items-center flex-1">
