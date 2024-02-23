@@ -13,9 +13,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { renderMinimalShortcut } from "../shortcuts/renderShortcut";
-import { useNotebookActions } from "./actions/useNotebookActions";
-import { ActionButton } from "./actions/types";
+import { renderMinimalShortcut } from "../../shortcuts/renderShortcut";
+import { useNotebookActions } from "../actions/useNotebookActions";
+import { ActionButton } from "../actions/types";
 
 export const NotebookMenuDropdown: React.FC = () => {
   const actions = useNotebookActions();

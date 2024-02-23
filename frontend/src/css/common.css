@@ -1,6 +1,10 @@
 /* Hover actions */
-.hover-action {
-  display: none !important;
+
+/* Ignore for touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .hover-action {
+    display: none !important;
+  }
 }
 
 .hover-action:hover {

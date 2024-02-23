@@ -1,18 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { AlertDialogDestructiveAction } from "../ui/alert-dialog";
-import { Button } from "./inputs/Inputs";
-import { Tooltip } from "../ui/tooltip";
-import { useImperativeModal } from "../modal/ImperativeModal";
+import { AlertDialogDestructiveAction } from "../../ui/alert-dialog";
+import { Button } from "../inputs/Inputs";
+import { Tooltip } from "../../ui/tooltip";
+import { useImperativeModal } from "../../modal/ImperativeModal";
 import { XIcon } from "lucide-react";
 
-interface ShutdownButtonProps {
+interface Props {
   onShutdown: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export const ShutdownButton = ({
-  onShutdown,
-}: ShutdownButtonProps): JSX.Element => {
+export const ShutdownButton: React.FC<Props> = ({ onShutdown }) => {
   const { openConfirm, closeModal } = useImperativeModal();
 
   return (

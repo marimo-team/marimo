@@ -10,7 +10,7 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { DayPickerProvider } from "react-day-picker";
-import { CommandPalette } from "../components/editor/CommandPalette";
+import { CommandPalette } from "../components/editor/controls/command-palette";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
 import { AppChrome } from "../components/editor/chrome/wrapper/app-chrome";
@@ -20,6 +20,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { isPyodide } from "./pyodide/utils";
 import { PyodideBridge } from "./pyodide/bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
+import { TailwindIndicator } from "@/components/indicator";
 
 /**
  * The root component of the Marimo app.
@@ -62,6 +63,7 @@ export const MarimoApp: React.FC = memo(() => {
               >
                 {body}
               </CssVariables>
+              <TailwindIndicator />
             </ModalProvider>
           </PyodideLoader>
         </DayPickerProvider>

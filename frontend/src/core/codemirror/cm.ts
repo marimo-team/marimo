@@ -112,6 +112,9 @@ export const basicBundle = (
       // Having fixed position prevents tooltips from being repositioned
       // and bouncing distractingly
       position: "fixed",
+      // This the z-index multiple tooltips being stacked
+      // For example, if we have a hover tooltip and a completion tooltip
+      parent: document.querySelector<HTMLElement>("#App") ?? undefined,
     }),
     scrollActiveLineIntoView(),
     theme === "dark" ? oneDark : [],

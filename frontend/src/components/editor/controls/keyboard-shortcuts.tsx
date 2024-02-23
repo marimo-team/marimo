@@ -1,33 +1,32 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useRef } from "react";
-import { KeyboardIcon } from "lucide-react";
+import { useState } from "react";
 
-import { Button } from "@/components/editor/inputs/Inputs";
-import { useHotkey } from "../../hooks/useHotkey";
-import { Tooltip } from "../ui/tooltip";
-import { Kbd } from "../ui/kbd";
+import { useHotkey } from "../../../hooks/useHotkey";
+import { Kbd } from "../../ui/kbd";
 import {
   Dialog,
   DialogContent,
   DialogPortal,
   DialogOverlay,
-  DialogTrigger,
+  DialogHeader,
   DialogTitle,
-} from "../ui/dialog";
-import { prettyPrintHotkey, renderShortcut } from "../shortcuts/renderShortcut";
+} from "../../ui/dialog";
+import { prettyPrintHotkey } from "../../shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction, HotkeyGroup } from "@/core/hotkeys/hotkeys";
 
-export const KeyboardShortcuts = (): JSX.Element => {
-  const ref = useRef<HTMLButtonElement | null>(null);
+export const KeyboardShortcuts: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
 
-  useHotkey("global.showHelp", () => {
-    ref.current?.click();
-  });
+  useHotkey("global.showHelp", () => setIsOpen((v) => !v));
+
+  if (!isOpen) {
+    return null;
+  }
 
   const renderItem = (action: HotkeyAction) => {
     const hotkey = HOTKEYS.getHotkey(action);
     return (
-      <div className="keyboard-shortcut" key={action}>
+      <div className="keyboard-shortcut flex flex-col" key={action}>
         <div className="flex gap-1">
           {prettyPrintHotkey(hotkey.key).map((key) => (
             <Kbd key={key}>{key}</Kbd>
@@ -42,7 +41,7 @@ export const KeyboardShortcuts = (): JSX.Element => {
   const renderGroup = (group: HotkeyGroup) => {
     const items = groups[group];
     return (
-      <div className="keyboard-shortcut-group">
+      <div className="keyboard-shortcut-group gap-2 flex flex-col">
         <h3 className="text-lg font-medium">{group}</h3>
 
         {items.map((item) => renderItem(item))}
@@ -51,23 +50,17 @@ export const KeyboardShortcuts = (): JSX.Element => {
   };
 
   return (
-    <Dialog>
-      <Tooltip content={renderShortcut("global.showHelp")}>
-        <DialogTrigger asChild={true}>
-          <Button ref={ref} shape="rectangle" color="white">
-            <KeyboardIcon className="help-icon" strokeWidth={1.5} />
-          </Button>
-        </DialogTrigger>
-      </Tooltip>
-
+    <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
       {/* Manually portal so we can adjust positioning: shortcuts modal is too large to offset from top for some screens. */}
       <DialogPortal className="sm:items-center sm:top-0">
         <DialogOverlay />
         <DialogContent
           usePortal={false}
-          className="max-h-[90vh] overflow-y-auto min-w-[850px]"
+          className="max-h-screen sm:max-h-[90vh] overflow-y-auto sm:max-w-[850px]"
         >
-          <DialogTitle>Shortcuts</DialogTitle>
+          <DialogHeader>
+            <DialogTitle>Shortcuts</DialogTitle>
+          </DialogHeader>
           <div className="flex flex-row gap-3">
             <div className="w-1/2">
               {renderGroup("Editing")}

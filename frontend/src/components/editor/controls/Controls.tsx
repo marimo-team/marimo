@@ -10,19 +10,20 @@ import {
 
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/editor/inputs/Inputs";
-import { KeyboardShortcuts } from "@/components/editor/KeyboardShortcuts";
-import { ShutdownButton } from "@/components/editor/ShutdownButton";
+import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
+import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
 import { RecoveryButton } from "@/components/editor/RecoveryButton";
 
-import { Tooltip } from "../ui/tooltip";
-import { renderShortcut } from "../shortcuts/renderShortcut";
-import { useCellActions } from "../../core/cells/cells";
-import { AppConfigButton } from "../app-config/app-config-button";
-import { LayoutSelect } from "./renderers/layout-select";
-import { NotebookMenuDropdown } from "@/components/editor/notebook-menu-dropdown";
+import { Tooltip } from "../../ui/tooltip";
+import { renderShortcut } from "../../shortcuts/renderShortcut";
+import { useCellActions } from "../../../core/cells/cells";
+import { AppConfigButton } from "../../app-config/app-config-button";
+import { LayoutSelect } from "../renderers/layout-select";
+import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
 import { AppConfig } from "@/core/config/config-schema";
-import { useShouldShowInterrupt } from "./cell/useShouldShowInterrupt";
+import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
+import { CommandPaletteButton } from "./command-palette-button";
 
 interface ControlsProps {
   filename: string | null;
@@ -142,6 +143,7 @@ export const Controls = ({
           </Button>
         </Tooltip>
 
+        <CommandPaletteButton />
         <KeyboardShortcuts />
       </div>
 

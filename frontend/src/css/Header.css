@@ -60,7 +60,6 @@
   /* [shortcut] [auto:whitespace] [description] */
   grid-template-columns: 1fr auto 1fr;
   display: grid;
-  margin: 15px 5px;
   align-items: baseline;
 }
 
