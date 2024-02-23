@@ -8,6 +8,7 @@ import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
+import { useLayoutEffect } from "react";
 
 const ansiUp = new AnsiUp();
 
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
+  const ref = React.useRef<HTMLDivElement>(null);
   const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
 
   /* The debugger UI needs some work. For now just use the regular
@@ -36,6 +38,25 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
   const hasOutputs = consoleOutputs.length > 0;
 
+  // Keep scroll at the bottom if it is within 120px of the bottom,
+  // so when we add new content, it will lock to the bottom
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+    // N.B. This won't handle large jumps in the scroll position
+    // if there is a lot of content added at once.
+    // This is 'good enough' for now.
+    const threshold = 120;
+
+    const scrollOffset = el.scrollHeight - el.clientHeight;
+    const distanceFromBottom = scrollOffset - el.scrollTop;
+    if (distanceFromBottom < threshold) {
+      el.scrollTop = scrollOffset;
+    }
+  });
+
   if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {
     return null;
   }
@@ -50,6 +71,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     <div
       title={stale ? "This console output is stale" : undefined}
       data-testid="console-output-area"
+      ref={ref}
       className={cn(
         "console-output-area overflow-hidden rounded-b-lg",
         stale && "marimo-output-stale",
