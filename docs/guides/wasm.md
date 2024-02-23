@@ -62,10 +62,8 @@ the last notebook you worked on will be re-opened.
 ### Creating shareable permalinks
 
 At [marimo.app](https://marimo.app), save your notebook and then click the
-`Create short URL` button to generate a shareable permalink to your
+`Create permalink` button to generate a shareable permalink to your
 notebook.
-
-XXX pic or vid
 
 Please be aware that marimo permalinks are publicly accessible.
 
@@ -74,7 +72,12 @@ Please be aware that marimo permalinks are publicly accessible.
 In the marimo editor's notebook action menu, use `Share > Create WebAssembly
 link` to get a `marimo.app/...` URL representing your notebook: 
 
-XXX pic or vid
+<div align="center">
+<figure>
+<img src="/_static/share-wasm-link.gif"/>
+</figure>
+</div>
+
 
 WASM notebooks come with common Python packages installed, but you may need to
 [install additional packages using micropip](#installing-packages).
