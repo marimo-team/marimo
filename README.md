@@ -102,8 +102,6 @@ marimo run your_notebook.py
 
 <img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-_This app is deployed on [marimo cloud](https://marimo.io/cloud)._
-
 **Execute as scripts.** marimo notebooks can be executed as scripts at the
 command line:
 

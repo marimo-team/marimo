@@ -9,12 +9,23 @@
   deploying_marimo_cloud
 ```
 
-These guides help you deploy marimo notebooks and apps to your cloud or ours.
+These guides help you deploy marimo notebooks.
 
-|                               |                                                     |
-| :---------------------------- | :-------------------------------------------------- |
-| {doc}`deploying_docker`       | Deploying marimo notebooks and apps with Docker     |
-| {doc}`deploying_marimo_cloud` | Deploying marimo notebooks and apps to marimo cloud |
+|                                 |                                                           |
+| :------------------------------ | :-------------------------------------------------------- |
+| {doc}`deploying_docker`         | Deploying marimo notebooks and apps with Docker           |
+| {doc}`deploying_public_gallery` | Deploying marimo notebooks and apps to our public gallery |
+
+```{admonition} Sharing notebooks on the public web
+:class: tip
+
+To share notebooks on the public web, try using [WASM
+notebooks](../../guides/wasm.md), an implementation of marimo that runs
+entirely in the browser -- no backend required.
+
+WASM notebooks support most but not all Python features and packages. See our
+[guide on WASM notebooks](../../guides/wasm.md) to learn more.
+```
 
 ## Health and status endpoints
 
