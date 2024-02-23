@@ -21,6 +21,7 @@ name "WASM notebook".
 **You can try a WASM notebook today!** Just navigate to
 [https://marimo.new](https://marimo.new).
 
+**Common use cases.** XXX bullets
 
 XXX TODO
 
@@ -40,11 +41,65 @@ XXX TODO
   - sharing
   - playground
 
-## Creating a WASM notebook
+## Creating and sharing WASM notebooks
+
+XXX TODO
 
 - go from local -> shareable with Get WebAssembly Link
-- from local notebook
-- from `marimo.app` (create short link)
+
+- from `marimo.new` - scratch pad / blank notebook
+- from `marimo.app` : load your most recent notebook
+  - from `Get short link`
+
+## Installing packages
+
+WASM notebooks come with many packages pre-installed, including
+NumPy, SciPy, scikit-learn, pandas, and matplotlib; see [Pyodide's
+documentation](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
+for a full list.
+
+To install other packages, use `micropip`:
+
+In one cell, import micropip:
+
+```python
+import micropip
+```
+
+In the next one, install packages:
+
+```python
+await micropip.install("plotly")
+import plotly
+```
+
+**Try it!** A WASM notebook is embedded below. Try installing a package.
+
+<iframe src="https://marimo.app/l/wvz76s?embed=true" width=800 height=300>
+</iframe>
+
+## Limitations
+
+WASM lets you get up and running with marimo instantly, and makes sharing
+marimo notebooks frictionless. That said, WASM notebooks do have some
+limitations.
+
+**Packages.** Not all packages are available in WASM notebooks; see [Pyodide's
+documentation](https://pyodide.org/en/stable/usage/packages-in-pyodide.html),
+to learn more about which packages are supported.
+
+**Threading and multi-processing.** WASM notebooks do not support multithreading
+and multiprocessing. This may change in the future.
+
+**Code completion.** Code completion and docstring hints are not
+currently supported. This restriction will be removed in the future.
+
+In general, WASM notebooks are not well-suited for notebooks that do heavy computation
+or rely on packages not supported by Pyodide. In contrast, they are excellent
+for sharing your work, quickly experimenting with code and models, doing
+lightweight data analysis, authoring blog posts, tutorials, and educational
+articles, and even building internal tools.
+
 
 ## Configuration
 
@@ -56,9 +111,8 @@ To view a notebook in read-only mode, with
 code cells locked, append `&mode=read` to your URL's list of query parameters
 (or `?mode=read` if your URL doesn't have a query string).
 
-Examples:
+Example:
 
-- `https://marimo.app/?slug=c7h6pz&mode=read`
 - `https://marimo.app/l/83qamt?mode=read`
 
 ### Embed
@@ -66,10 +120,10 @@ Examples:
 To hide the `marimo.app` header, append `&embed=true` to your URL's list of query
 parameters (or `?embed=true` if your URL doesn't have a query string).
 
-Examples:
+Example:
 
-- `https://marimo.app/?slug=c7h6pz&embed=true`
 - `https://marimo.app/l/83qamt?embed=true`
+- `https://marimo.app/l/83qamt?mode=read&embed=true`
 
 See the [section on embedding](#embedding) for examples of how to embed marimo
 notebooks in your own webpages.
@@ -95,18 +149,26 @@ Use the following snippet to embed a blank marimo notebook into your web page,
 providing your users with an interactive code playground.
 
 ```html
-<iframe src="https://marimo.app/?slug=aojjhb&embed=true" width="800" height="300"></iframe>
+<iframe
+	src="https://marimo.app/l/aojjhb?embed=true"
+	width="800"
+	height="300"
+></iframe>
 ```
 
-<iframe src="https://marimo.app/?slug=aojjhb&embed=true" width="800" height="300"></iframe>
+<iframe src="https://marimo.app/l/aojjhb?embed=true" width="800" height="300"></iframe>
 
 ### Embedding an existing notebook
 
 To embed existing marimo notebooks into a webpage, first, [obtain a
-URL to your notebook](#creating-a-wasm-notebook), then put it in an iframe.
+URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an iframe.
 
 ```html
-<iframe src="https://marimo.app/?slug=c7h6pz&embed=true" width="800" height="300"></iframe>
+<iframe
+	src="https://marimo.app/?slug=c7h6pz&embed=true"
+	width="800"
+	height="300"
+></iframe>
 ```
 
 <iframe src="https://marimo.app/?slug=c7h6pz&embed=true" width="800" height="600"></iframe>
