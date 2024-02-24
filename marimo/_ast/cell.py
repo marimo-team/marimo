@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
+import weakref
 from types import CodeType
 from typing import Any, Callable, Literal, Optional
 
@@ -142,18 +143,40 @@ class CellImpl:
         raise NotImplementedError
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class Cell:
+    from marimo._ast.app import InternalApp
+
+    # Function from which this cell was created
     _f: Callable[..., Any]
+
+    # Internal cell representation
     _cell: CellImpl
+
+    # App to which this cell belongs
+    #
+    # - weakref to prevent ref cycle
+    # - optional to allow for creation of cells that don't belong to app object
+    _app_ref: weakref.ref[InternalApp] | None
 
     @property
     def name(self) -> str:
         return self._f.__name__
 
+    @property
+    def _app(self) -> InternalApp:
+        assert self._app_ref is not None
+        _app_obj = self._app_ref()
+        assert _app_obj is not None
+        return _app_obj
+
+    def _register_app(self, app: InternalApp) -> None:
+        self._app_ref = weakref.ref(app)
+
     def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
         # TODO(akshayka): implement
-        raise NotImplementedError
+        app = self._app
+        return app.run_cell(cell=self, kwargs=kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         del args

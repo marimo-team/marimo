@@ -250,6 +250,7 @@ class CellManager:
         func: Callable[..., Any] | None,
         disabled: bool,
         hide_code: bool,
+        app: InternalApp | None = None,
     ) -> Cell | Callable[..., Cell]:
         cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
 
@@ -257,6 +258,8 @@ class CellManager:
             cell = cell_factory(func, cell_id=self.create_cell_id())
             cell._cell.configure(cell_config)
             self._register_cell(cell)
+            if app is not None:
+                cell._register_app(app)
             return cell
 
         if func is None:
@@ -409,3 +412,13 @@ class InternalApp:
             )
         self._app._cell_manager = new_cell_manager
         return self
+
+    def run_cell(
+        self, cell: Cell, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        self._app._maybe_initialize()
+        # TODO(akshayka):
+        # - substitute refs[kwargs]
+        # - for unsubstituted refs, get parents
+        # - run parents + this cell in topo order
+        raise NotImplementedError
