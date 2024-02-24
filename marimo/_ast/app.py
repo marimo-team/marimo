@@ -417,8 +417,24 @@ class InternalApp:
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
         self._app._maybe_initialize()
-        # TODO(akshayka):
-        # - substitute refs[kwargs]
-        # - for unsubstituted refs, get parents
-        # - run parents + this cell in topo order
+        cell_impl = cell._cell
+
+        # Substitute kwargs for refs
+        glbls: dict[str, Any] = {}
+        for argname, argvalue in kwargs.items():
+            if argname in cell_impl.refs:
+                glbls[argname] = argvalue
+            else:
+                raise ValueError(
+                    f"Cell {cell.name} got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+        # TODO
+        # get the transitive closure of parents defining unsubstituted refs
+        substitutions = set(kwargs.values())
+        unsubstituted_refs = cell_impl.refs - substitutions
+
+        # TODO:
+        # run collected cells in the correct order; return output, defs dict
         raise NotImplementedError
