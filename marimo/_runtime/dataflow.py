@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellId_t
+from marimo._ast.cell import CellId_t, CellImpl
 from marimo._ast.compiler import code_key
 from marimo._ast.visitor import Name
 
@@ -21,7 +21,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass(frozen=True)
 class DirectedGraph:
     # Nodes in the graph
-    cells: dict[CellId_t, Cell] = field(default_factory=dict)
+    cells: dict[CellId_t, CellImpl] = field(default_factory=dict)
 
     # Edge (u, v) means v is a child of u, i.e., v has a reference
     # to something defined in u
@@ -85,7 +85,7 @@ class DirectedGraph:
                     queue.append((cid, next_path))
         return []
 
-    def register_cell(self, cell_id: CellId_t, cell: Cell) -> None:
+    def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
         """Add a cell to the graph.
 
         Mutates the graph, acquiring `self.lock`.

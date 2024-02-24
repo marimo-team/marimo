@@ -12,16 +12,12 @@ from typing import (
     Iterable,
     Literal,
     Optional,
-    Union,
-    cast,
 )
 
 from marimo import _loggers
 from marimo._ast.cell import (
+    Cell,
     CellConfig,
-    CellFunction,
-    CellFuncType,
-    CellFuncTypeBound,
     CellId_t,
     execute_cell_async,
 )
@@ -76,8 +72,8 @@ class CellData:
     # Cell config
     config: CellConfig
 
-    # Callable cell, or None if cell was not parsable
-    cell_function: Optional[CellFunction[CellFuncType]]
+    # The original cell, or None if cell was not parsable
+    cell: Optional[Cell]
 
 
 @mddoc
@@ -107,15 +103,12 @@ class App:
 
     def cell(
         self,
-        func: Optional[CellFuncTypeBound] = None,
+        func: Callable[..., Any] | None = None,
         *,
         disabled: bool = False,
         hide_code: bool = False,
         **kwargs: Any,
-    ) -> Union[
-        Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
-        CellFunction[CellFuncTypeBound],
-    ]:
+    ) -> Cell | Callable[[Callable[..., Any]], Cell]:
         """A decorator to add a cell to the app
 
         This decorator can be called with or without parentheses. Each of the
@@ -167,8 +160,8 @@ class App:
             return
 
         # Add cells to graph
-        for cell_id, cell_fn in self._cell_manager.valid_cells():
-            self._graph.register_cell(cell_id, cell_fn.cell)
+        for cell_id, cell in self._cell_manager.valid_cells():
+            self._graph.register_cell(cell_id, cell._cell)
         self._defs = self._graph.definitions.keys()
 
         try:
@@ -211,13 +204,9 @@ class App:
             # Execute cells and collect outputs
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
-                cell_function = self._cell_manager.cell_data_at(
-                    cid
-                ).cell_function
-                if cell_function is not None:
-                    outputs[cid] = await execute_cell_async(
-                        cell_function.cell, glbls
-                    )
+                cell = self._cell_manager.cell_data_at(cid).cell
+                if cell is not None:
+                    outputs[cid] = await execute_cell_async(cell._cell, glbls)
 
             # Return
             # - the outputs, sorted in the order that cells were added to the
@@ -258,50 +247,37 @@ class CellManager:
 
     def cell_decorator(
         self,
-        func: Optional[CellFuncTypeBound],
+        func: Callable[..., Any] | None,
         disabled: bool,
         hide_code: bool,
-    ) -> Union[
-        Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
-        CellFunction[CellFuncTypeBound],
-    ]:
+    ) -> Cell | Callable[..., Cell]:
         cell_config = CellConfig(disabled=disabled, hide_code=hide_code)
+
+        def _register(func: Callable[..., Any]) -> Cell:
+            cell = cell_factory(func, cell_id=self.create_cell_id())
+            cell._cell.configure(cell_config)
+            self._register_cell(cell)
+            return cell
 
         if func is None:
             # If the decorator was used with parentheses, func will be None,
             # and we return a decorator that takes the decorated function as an
             # argument
-            def decorator(
-                func: CellFuncTypeBound,
-            ) -> CellFunction[CellFuncTypeBound]:
-                cell_function = cell_factory(
-                    func, cell_id=self.create_cell_id()
-                )
-                cell_function.cell.configure(cell_config)
-                self._register_cell_function(cell_function)
-                return cell_function
+            def decorator(func: Callable[..., Any]) -> Cell:
+                return _register(func)
 
-            return cast(
-                Callable[[CellFuncType], CellFunction[CellFuncTypeBound]],
-                decorator,
-            )
+            return decorator
+        else:
+            return _register(func)
 
-        # If the decorator was used without parentheses, func will be the
-        # decorated function
-        cell_function = cell_factory(func, cell_id=self.create_cell_id())
-        cell_function.cell.configure(cell_config)
-        self._register_cell_function(cell_function)
-        return cell_function
-
-    def _register_cell_function(
-        self, cell_function: CellFunction[CellFuncTypeBound]
-    ) -> None:
+    def _register_cell(self, cell: Cell) -> None:
+        cell_impl = cell._cell
         self.register_cell(
-            cell_id=cell_function.cell.cell_id,
-            code=cell_function.cell.code,
-            name=cell_function.__name__,
-            config=cell_function.cell.config,
-            cell_function=cast(CellFunction[CellFuncType], cell_function),
+            cell_id=cell_impl.cell_id,
+            code=cell_impl.code,
+            name=cell.name,
+            config=cell_impl.config,
+            cell=cell,
         )
 
     def register_cell(
@@ -310,7 +286,7 @@ class CellManager:
         code: str,
         config: Optional[CellConfig],
         name: str = "__",
-        cell_function: Optional[CellFunction[CellFuncType]] = None,
+        cell: Optional[Cell] = None,
     ) -> None:
         if cell_id is None:
             cell_id = self.create_cell_id()
@@ -320,7 +296,7 @@ class CellManager:
             code=code,
             name=name,
             config=config or CellConfig(),
-            cell_function=cell_function,
+            cell=cell,
         )
 
     def register_unparsable_cell(
@@ -343,7 +319,7 @@ class CellManager:
             code=code,
             config=cell_config,
             name=name or "__",
-            cell_function=None,
+            cell=None,
         )
 
     def names(self) -> Iterable[str]:
@@ -360,26 +336,26 @@ class CellManager:
 
     def valid_cells(
         self,
-    ) -> Iterable[tuple[CellId_t, CellFunction[CellFuncType]]]:
+    ) -> Iterable[tuple[CellId_t, Cell]]:
         """Return cells and functions for each valid cell."""
         for cell_data in self._cell_data.values():
-            if cell_data.cell_function is not None:
-                yield (cell_data.cell_id, cell_data.cell_function)
+            if cell_data.cell is not None:
+                yield (cell_data.cell_id, cell_data.cell)
 
     def valid_cell_ids(self) -> Iterable[CellId_t]:
         for cell_data in self._cell_data.values():
-            if cell_data.cell_function is not None:
+            if cell_data.cell is not None:
                 yield cell_data.cell_id
 
     def cell_ids(self) -> Iterable[CellId_t]:
         """Cell IDs in the order they were registered."""
         return self._cell_data.keys()
 
-    def cell_functions(
+    def cells(
         self,
-    ) -> Iterable[Optional[CellFunction[CellFuncType]]]:
+    ) -> Iterable[Optional[Cell]]:
         for cell_data in self._cell_data.values():
-            yield cell_data.cell_function
+            yield cell_data.cell
 
     def config_map(self) -> dict[CellId_t, CellConfig]:
         return {cid: cd.config for cid, cd in self._cell_data.items()}

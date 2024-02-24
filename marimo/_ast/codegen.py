@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
-from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
 
@@ -56,7 +56,7 @@ def _to_decorator(config: Optional[CellConfig]) -> str:
 
 
 def to_functiondef(
-    cell: Cell, name: str, unshadowed_builtins: Optional[set[Name]] = None
+    cell: CellImpl, name: str, unshadowed_builtins: Optional[set[Name]] = None
 ) -> str:
     # unshadowed builtins is the set of builtins that haven't been
     # overridden (shadowed) by other cells in the app. These names
@@ -150,7 +150,7 @@ def generate_filecontents(
     config: Optional[_AppConfig] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
-    cell_function_data: list[Union[Cell, tuple[str, CellConfig]]] = []
+    cell_data: list[Union[CellImpl, tuple[str, CellConfig]]] = []
     defs: set[Name] = set()
 
     cell_id = 0
@@ -160,15 +160,15 @@ def generate_filecontents(
                 cell_config
             )
             defs |= cell.defs
-            cell_function_data.append(cell)
+            cell_data.append(cell)
         except SyntaxError:
-            cell_function_data.append((code, cell_config))
+            cell_data.append((code, cell_config))
         cell_id += 1
 
     unshadowed_builtins = set(builtins.__dict__.keys()) - defs
     fndefs: list[str] = []
-    for data, name in zip(cell_function_data, names):
-        if isinstance(data, Cell):
+    for data, name in zip(cell_data, names):
+        if isinstance(data, CellImpl):
             fndefs.append(to_functiondef(data, name, unshadowed_builtins))
         else:
             fndefs.append(

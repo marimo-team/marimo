@@ -3,19 +3,9 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import functools
 import inspect
 from types import CodeType
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    Optional,
-    Protocol,
-    Tuple,
-    TypeVar,
-    cast,
-)
+from typing import Any, Callable, Literal, Optional
 
 from marimo._ast.visitor import Name, VariableData
 from marimo._utils.deep_merge import deep_merge
@@ -54,13 +44,14 @@ CellConfigKeys = frozenset(
     {field.name for field in dataclasses.fields(CellConfig)}
 )
 
-"""
-idle: cell has run with latest inputs
-queued: cell is queued to run
-running: cell is running
-stale: cell hasn't run with latest inputs, and can't run (disabled)
-disabled-transitively: cell is disabled because a parent is disabled
-"""
+
+# Cell Statuses
+#
+# idle: cell has run with latest inputs
+# queued: cell is queued to run
+# running: cell is running
+# stale: cell hasn't run with latest inputs, and can't run (disabled)
+# disabled-transitively: cell is disabled because a parent is disabled
 CellStatusType = Literal[
     "idle", "queued", "running", "stale", "disabled-transitively"
 ]
@@ -78,7 +69,7 @@ def _is_coroutine(code: Optional[CodeType]) -> bool:
 
 
 @dataclasses.dataclass(frozen=True)
-class Cell:
+class CellImpl:
     # hash of code
     key: int
     code: str
@@ -99,7 +90,7 @@ class Cell:
     # status: status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
 
-    def configure(self, update: dict[str, Any] | CellConfig) -> Cell:
+    def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cel config.
 
         `update` can be a partial config.
@@ -147,112 +138,37 @@ class Cell:
         assert self.cell_id is not None
         CellOp.broadcast_status(cell_id=self.cell_id, status=status)
 
-
-CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
-# Cumbersome, but used to ensure function types don't get erased in decorators
-# or creation of CellFunction
-CellFuncTypeBound = TypeVar(
-    "CellFuncTypeBound",
-    bound=Callable[..., Optional[Tuple[Any, ...]]],
-)
+    def run(self, **kwargs: Any) -> Any:
+        raise NotImplementedError
 
 
-class CellFunction(Protocol[CellFuncTypeBound]):
-    """Wraps a function from which a Cell object was created."""
+@dataclasses.dataclass(frozen=True)
+class Cell:
+    _f: Callable[..., Any]
+    _cell: CellImpl
 
-    cell: Cell
-    # function name
-    __name__: str
-    # function code
-    code: str
-    # arg names of wrapped function
-    args: set[str]
-    __call__: CellFuncTypeBound
+    @property
+    def name(self) -> str:
+        return self._f.__name__
 
+    def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+        # TODO(akshayka): implement
+        raise NotImplementedError
 
-def cell_function(
-    cell: Cell, args: set[str], code: str, f: CellFuncTypeBound
-) -> CellFunction[CellFuncTypeBound]:
-    signature = inspect.signature(f)
-
-    n_args = 0
-    defaults = {}
-    for name, value in signature.parameters.items():
-        if value.default != inspect.Parameter.empty:
-            defaults[name] = value.default
-        else:
-            n_args += 1
-
-    parameters = list(signature.parameters.keys())
-    return_names = sorted(defn for defn in cell.defs)
-
-    def _prepare_args(*args: Any, **kwargs: Any) -> dict[Any, Any]:
-        glbls = {}
-        glbls.update(defaults)
-        pos = 0
-        for arg in args:
-            glbls[parameters[pos]] = arg
-            pos += 1
-        if pos < n_args:
-            raise TypeError(
-                f.__name__
-                + f"() missing {n_args - pos} required arguments: "
-                + " and ".join(f"'{p}'" for p in parameters[pos:n_args])
-            )
-
-        for kwarg, value in kwargs.items():
-            if kwarg not in parameters:
-                raise TypeError(
-                    f.__name__
-                    + "() got an unexpected keyword argument '{kwarg}'"
-                )
-            else:
-                glbls[kwarg] = value
-        return glbls
-
-    def _returns(glbls: dict[Any, Any]) -> tuple[Any, ...]:
-        return tuple(glbls[name] for name in return_names)
-
-    # Wrapper for executing cell using the function's signature.
-    #
-    # Alternative for passing a globals dict
-    #
-    # we use execute_cell instead of calling `f` directly because
-    # we want to obtain the cell's HTML output, which is the last
-    # expression in the cell body.
-    #
-    # TODO: stash output if mo.collect_outputs() context manager is active
-    #       ... or just make cell execution return the output in addition
-    #       to the defs, which might be weird because that doesn't
-    #       match the function signature
-    if inspect.iscoroutinefunction(f):
-
-        @functools.wraps(f)
-        async def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
-            glbls = _prepare_args(*args, **kwargs)
-            _ = await execute_cell_async(cell, glbls)
-            return _returns(glbls)
-
-    else:
-
-        @functools.wraps(f)
-        def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
-            glbls = _prepare_args(*args, **kwargs)
-            _ = execute_cell(cell, glbls)
-            return _returns(glbls)
-
-    cell_func = cast(CellFunction[CellFuncTypeBound], func)
-    cell_func.cell = cell
-    cell_func.args = args
-    cell_func.code = code
-    return cell_func
+    def __call__(self, *args, **kwargs) -> None:
+        del args
+        del kwargs
+        raise RuntimeError(
+            f"Calling marimo cell's using `{self.name}()` is not supported. "
+            f"Use {self.name}.run() instead. See the docs more for info."
+        )
 
 
 def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
 
 
-async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:
+async def execute_cell_async(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
     if cell.body is None:
         return None
     assert cell.last_expr is not None
@@ -268,7 +184,7 @@ async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:
         return eval(cell.last_expr, glbls)
 
 
-def execute_cell(cell: Cell, glbls: dict[Any, Any]) -> Any:
+def execute_cell(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
     if cell.body is None:
         return None
     assert cell.last_expr is not None
