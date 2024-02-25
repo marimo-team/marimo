@@ -111,7 +111,7 @@ class App:
 
     def __del__(self) -> None:
         if self._loop is not None:
-            self._loop.stop()
+            self._loop.call_soon_threadsafe(self._loop.stop)
 
     def cell(
         self,
