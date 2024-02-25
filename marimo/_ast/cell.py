@@ -175,7 +175,7 @@ class Cell:
         raise RuntimeError(
             f"Calling marimo cell's using `{self.name}()` is not supported. "
             f"Use `outputs, defs = {self.name}.run()` instead, "
-            f"or  await `outputs, defs = {self.name}.run_async()` for "
+            f"or  `await outputs, defs = {self.name}.run_async()` for "
             "WASM notebooks. See docs more for info."
         )
 
