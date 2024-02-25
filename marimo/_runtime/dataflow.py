@@ -281,17 +281,24 @@ class DirectedGraph:
 
 
 def transitive_closure(
-    graph: DirectedGraph, cell_ids: set[CellId_t]
+    graph: DirectedGraph, cell_ids: set[CellId_t], children: bool = True
 ) -> set[CellId_t]:
-    """Return a set of the passed-in cells and their descendants."""
+    """Return a set of the passed-in cells and their descendants or ancestors
+
+    If children is True, returns descendants; otherwise, returns ancestors
+    """
     cells = set()
     queue = list(cell_ids)
+
+    def relatives(cid: CellId_t) -> set[CellId_t]:
+        return graph.children[cid] if children else graph.parents[cid]
+
     while queue:
         cid = queue.pop(0)
         cells.add(cid)
-        for child_id in graph.children[cid]:
-            if child_id not in cells:
-                queue.append(child_id)
+        for relative in relatives(cid):
+            if relative not in cells:
+                queue.append(relative)
     return cells
 
 

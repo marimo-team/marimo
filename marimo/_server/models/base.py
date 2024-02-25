@@ -18,7 +18,7 @@ def to_camel_case(snake_str: str) -> str:
 
 def deep_to_camel_case(snake_dict: Any) -> dict[str, Any]:
     if isinstance(snake_dict, list):
-        return [deep_to_camel_case(item) for item in snake_dict]  # type: ignore
+        return [deep_to_camel_case(item) for item in snake_dict]  # type: ignore  # noqa: E501
     if isinstance(snake_dict, str):
         return to_camel_case(snake_dict)  # type: ignore
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import random
 import string
+import threading
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import (
@@ -29,7 +30,11 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._output.rich_help import mddoc
-from marimo._runtime.dataflow import DirectedGraph, topological_sort
+from marimo._runtime.dataflow import (
+    DirectedGraph,
+    topological_sort,
+    transitive_closure,
+)
 from marimo._runtime.patches import patch_main_module_context
 
 LOGGER = _loggers.marimo_logger()
@@ -101,6 +106,13 @@ class App:
         self._unparsable = False
         self._initialized = False
 
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_runner: threading.Thread | None = None
+
+    def __del__(self) -> None:
+        if self._loop is not None:
+            self._loop.stop()
+
     def cell(
         self,
         func: Callable[..., Any] | None = None,
@@ -135,7 +147,9 @@ class App:
         """
         del kwargs
 
-        return self._cell_manager.cell_decorator(func, disabled, hide_code)
+        return self._cell_manager.cell_decorator(
+            func, disabled, hide_code, app=InternalApp(self)
+        )
 
     def _unparsable_cell(
         self,
@@ -227,6 +241,71 @@ class App:
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
         return asyncio.run(self._run_async())
 
+    async def _run_cell(
+        self, cell: Cell, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        self._maybe_initialize()
+        cell_impl = cell._cell
+        for argname in kwargs:
+            if argname not in cell_impl.refs:
+                raise ValueError(
+                    f"Cell {cell.name} got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+        # Get the transitive closure of parents defining unsubstituted refs
+        substitutions = set(kwargs.values())
+        unsubstituted_refs = cell_impl.refs - substitutions
+        graph = self._graph
+        parent_ids = set(
+            [
+                parent_id
+                for parent_id in graph.parents[cell_impl.cell_id]
+                if graph.cells[parent_id].refs.intersection(unsubstituted_refs)
+            ]
+        )
+        ancestor_ids = transitive_closure(graph, parent_ids, children=False)
+
+        glbls: dict[str, Any] = {}
+        for cid in topological_sort(graph, ancestor_ids):
+            await execute_cell_async(graph.cells[cid], glbls)
+
+        # Substitute kwargs for refs
+        for argname, argvalue in kwargs.items():
+            if argname in cell_impl.refs:
+                glbls[argname] = argvalue
+            else:
+                raise ValueError(
+                    f"Cell {cell.name} got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+        output = await execute_cell_async(
+            graph.cells[cell_impl.cell_id], glbls
+        )
+        defs = {name: glbls[name] for name in cell_impl.defs if name in glbls}
+        return output, defs
+
+    def _run_cell_sync(
+        self, cell: Cell, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self._run_cell(cell, kwargs))
+
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+        if self._loop_runner is None:
+            self._loop_runner = threading.Thread(
+                target=self._loop.run_forever, name="Async Runner", daemon=True
+            )
+            self._loop_runner.start()
+        future = asyncio.run_coroutine_threadsafe(
+            self._run_cell(cell, kwargs), self._loop
+        )
+        return future.result()
+
 
 class CellManager:
     """
@@ -257,9 +336,7 @@ class CellManager:
         def _register(func: Callable[..., Any]) -> Cell:
             cell = cell_factory(func, cell_id=self.create_cell_id())
             cell._cell.configure(cell_config)
-            self._register_cell(cell)
-            if app is not None:
-                cell._register_app(app)
+            self._register_cell(cell, app=app)
             return cell
 
         if func is None:
@@ -273,7 +350,11 @@ class CellManager:
         else:
             return _register(func)
 
-    def _register_cell(self, cell: Cell) -> None:
+    def _register_cell(
+        self, cell: Cell, app: InternalApp | None = None
+    ) -> None:
+        if app is not None:
+            cell._register_app(app)
         cell_impl = cell._cell
         self.register_cell(
             cell_id=cell_impl.cell_id,
@@ -413,28 +494,12 @@ class InternalApp:
         self._app._cell_manager = new_cell_manager
         return self
 
-    def run_cell(
+    async def run_cell(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
-        self._app._maybe_initialize()
-        cell_impl = cell._cell
+        return await self._app._run_cell(cell, kwargs)
 
-        # Substitute kwargs for refs
-        glbls: dict[str, Any] = {}
-        for argname, argvalue in kwargs.items():
-            if argname in cell_impl.refs:
-                glbls[argname] = argvalue
-            else:
-                raise ValueError(
-                    f"Cell {cell.name} got unexpected argument {argname}"
-                    f"The allowed arguments are {cell_impl.refs}."
-                )
-
-        # TODO
-        # get the transitive closure of parents defining unsubstituted refs
-        substitutions = set(kwargs.values())
-        unsubstituted_refs = cell_impl.refs - substitutions
-
-        # TODO:
-        # run collected cells in the correct order; return output, defs dict
-        raise NotImplementedError
+    def run_cell_sync(
+        self, cell: Cell, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        return self._app._run_cell_sync(cell, kwargs)

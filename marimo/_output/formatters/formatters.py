@@ -118,7 +118,7 @@ def register_formatters() -> None:
 
         # Use the __get__ descriptor to bind find_spec to this finder object,
         # to make sure self/cls gets passed
-        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.

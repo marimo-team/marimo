@@ -4,14 +4,16 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
-import weakref
 from types import CodeType
-from typing import Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from marimo._ast.visitor import Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
+
+if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
 
 
 @dataclasses.dataclass
@@ -139,14 +141,9 @@ class CellImpl:
         assert self.cell_id is not None
         CellOp.broadcast_status(cell_id=self.cell_id, status=status)
 
-    def run(self, **kwargs: Any) -> Any:
-        raise NotImplementedError
-
 
 @dataclasses.dataclass
 class Cell:
-    from marimo._ast.app import InternalApp
-
     # Function from which this cell was created
     _f: Callable[..., Any]
 
@@ -154,36 +151,32 @@ class Cell:
     _cell: CellImpl
 
     # App to which this cell belongs
-    #
-    # - weakref to prevent ref cycle
-    # - optional to allow for creation of cells that don't belong to app object
-    _app_ref: weakref.ref[InternalApp] | None
+    _app: InternalApp | None = None
 
     @property
     def name(self) -> str:
         return self._f.__name__
 
-    @property
-    def _app(self) -> InternalApp:
-        assert self._app_ref is not None
-        _app_obj = self._app_ref()
-        assert _app_obj is not None
-        return _app_obj
-
     def _register_app(self, app: InternalApp) -> None:
-        self._app_ref = weakref.ref(app)
+        self._app = app
+
+    async def run_async(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+        assert self._app is not None
+        return await self._app.run_cell(cell=self, kwargs=kwargs)
 
     def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
-        # TODO(akshayka): implement
-        app = self._app
-        return app.run_cell(cell=self, kwargs=kwargs)
+        assert self._app is not None
+        return self._app.run_cell_sync(cell=self, kwargs=kwargs)
 
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
         del args
         del kwargs
+        # TODO: docs link
         raise RuntimeError(
             f"Calling marimo cell's using `{self.name}()` is not supported. "
-            f"Use {self.name}.run() instead. See the docs more for info."
+            f"Use `outputs, defs = {self.name}.run()` instead, "
+            f"or  await `outputs, defs = {self.name}.run_async()` for "
+            "WASM notebooks. See docs more for info."
         )
 
 
