@@ -65,7 +65,7 @@ def test_decorator_with_unknown_args() -> None:
     assert cell.run() == (None, {"x": 4})
 
 
-def test_decorator_async() -> None:
+async def test_decorator_async() -> None:
     # Decorator uncalled
     async def __(asyncio) -> tuple[int]:
         await asyncio.sleep(0.1)
@@ -82,7 +82,7 @@ def test_decorator_async() -> None:
 
     import asyncio
 
-    assert cell.run(asyncio=asyncio) == (None, {"z": 6})
+    assert await cell.run_async(asyncio=asyncio) == (None, {"z": 6})
 
 
 # TODO(akshayka): test cell.run() with multiple cells in graph, outputs, ...

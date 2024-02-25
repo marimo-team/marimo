@@ -162,9 +162,27 @@ class Cell:
 
     async def run_async(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
         assert self._app is not None
-        return await self._app.run_cell(cell=self, kwargs=kwargs)
+        return await self._app.run_cell_async(cell=self, kwargs=kwargs)
 
     def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+        """Run this cell and return its visual output and definitions
+
+        **Note**: If this cell is a coroutine function (starting with `async`),
+        or if its ancestors are coroutine functions, `run_async` should be used
+        instead.
+
+
+        **Returns**:
+        - a tuple `(output, defs)`, where `output` is the cell's last
+          expression and `defs` is a `dict` mapping the cell's defined
+          names to their values.
+
+        **Raises**:
+
+        - `RuntimeError`, if the wrapped function is a coroutine function,
+          or if any of the ancestors required to produce its refs are
+          coroutiine functions
+        """
         assert self._app is not None
         return self._app.run_cell_sync(cell=self, kwargs=kwargs)
 

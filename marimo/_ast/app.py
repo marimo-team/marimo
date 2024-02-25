@@ -18,8 +18,10 @@ from typing import (
 from marimo import _loggers
 from marimo._ast.cell import (
     Cell,
+    CellImpl,
     CellConfig,
     CellId_t,
+    execute_cell,
     execute_cell_async,
 )
 from marimo._ast.compiler import cell_factory
@@ -241,18 +243,30 @@ class App:
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
         return asyncio.run(self._run_async())
 
-    async def _run_cell(
-        self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, dict[str, Any]]:
-        self._maybe_initialize()
-        cell_impl = cell._cell
-        for argname in kwargs:
-            if argname not in cell_impl.refs:
+    # TODO: logic could go in dataflow
+    def _returns(
+        self, cell_impl: CellImpl, glbls: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {name: glbls[name] for name in cell_impl.defs if name in glbls}
+
+    def _substitute_refs(
+        self,
+        cell_impl: CellImpl,
+        glbls: dict[str, Any],
+        kwargs: dict[str, Any],
+    ) -> None:
+        for argname, argvalue in kwargs.items():
+            if argname in cell_impl.refs:
+                glbls[argname] = argvalue
+            else:
                 raise ValueError(
-                    f"Cell {cell.name} got unexpected argument {argname}"
+                    f"Cell got unexpected argument {argname}"
                     f"The allowed arguments are {cell_impl.refs}."
                 )
 
+    def _get_ancestors(
+        self, cell_impl: CellImpl, kwargs: dict[str, Any]
+    ) -> set[CellId_t]:
         # Get the transitive closure of parents defining unsubstituted refs
         substitutions = set(kwargs.values())
         unsubstituted_refs = cell_impl.refs - substitutions
@@ -264,47 +278,69 @@ class App:
                 if graph.cells[parent_id].refs.intersection(unsubstituted_refs)
             ]
         )
-        ancestor_ids = transitive_closure(graph, parent_ids, children=False)
+        return transitive_closure(graph, parent_ids, children=False)
 
+    def _validate_kwargs(
+        self, cell_impl: CellImpl, kwargs: dict[str, Any]
+    ) -> None:
+        for argname in kwargs:
+            if argname not in cell_impl.refs:
+                raise ValueError(
+                    f"Cell got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+    async def _run_cell_async(
+        self, cell: Cell, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        self._maybe_initialize()
+
+        cell_impl = cell._cell
+        self._validate_kwargs(cell_impl, kwargs)
+        ancestor_ids = self._get_ancestors(cell_impl, kwargs)
+
+        graph = self._graph
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
             await execute_cell_async(graph.cells[cid], glbls)
 
-        # Substitute kwargs for refs
-        for argname, argvalue in kwargs.items():
-            if argname in cell_impl.refs:
-                glbls[argname] = argvalue
-            else:
-                raise ValueError(
-                    f"Cell {cell.name} got unexpected argument {argname}"
-                    f"The allowed arguments are {cell_impl.refs}."
-                )
-
+        self._substitute_refs(cell_impl, glbls, kwargs)
         output = await execute_cell_async(
             graph.cells[cell_impl.cell_id], glbls
         )
-        defs = {name: glbls[name] for name in cell_impl.defs if name in glbls}
+        defs = self._returns(cell_impl, glbls)
         return output, defs
 
     def _run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self._run_cell(cell, kwargs))
-
-        if self._loop is None:
-            self._loop = asyncio.new_event_loop()
-        if self._loop_runner is None:
-            self._loop_runner = threading.Thread(
-                target=self._loop.run_forever, name="Async Runner", daemon=True
+        self._maybe_initialize()
+        if cell._cell.is_coroutine():
+            raise RuntimeError(
+                "A coroutine function can't be run synchronously."
+                f"Use `await {cell.name}.run_async()` instead"
             )
-            self._loop_runner.start()
-        future = asyncio.run_coroutine_threadsafe(
-            self._run_cell(cell, kwargs), self._loop
-        )
-        return future.result()
+
+        cell_impl = cell._cell
+        self._validate_kwargs(cell_impl, kwargs)
+        ancestor_ids = self._get_ancestors(cell_impl, kwargs)
+
+        graph = self._graph
+        if any(graph.cells[cid].is_coroutine() for cid in ancestor_ids):
+            raise RuntimeError(
+                f"The cell {cell.name} has an ancestor that is a "
+                "coroutine (async) cell."
+                f"Use `await {cell.name}.run_async()` instead"
+            )
+
+        glbls: dict[str, Any] = {}
+        for cid in topological_sort(graph, ancestor_ids):
+            execute_cell(graph.cells[cid], glbls)
+
+        self._substitute_refs(cell_impl, glbls, kwargs)
+        output = execute_cell(graph.cells[cell_impl.cell_id], glbls)
+        defs = self._returns(cell_impl, glbls)
+        return output, defs
 
 
 class CellManager:
@@ -494,10 +530,10 @@ class InternalApp:
         self._app._cell_manager = new_cell_manager
         return self
 
-    async def run_cell(
+    async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
-        return await self._app._run_cell(cell, kwargs)
+        return await self._app._run_cell_async(cell, kwargs)
 
     def run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
