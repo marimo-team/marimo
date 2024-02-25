@@ -18,10 +18,8 @@ from typing import (
 from marimo import _loggers
 from marimo._ast.cell import (
     Cell,
-    CellImpl,
     CellConfig,
     CellId_t,
-    execute_cell,
     execute_cell_async,
 )
 from marimo._ast.compiler import cell_factory

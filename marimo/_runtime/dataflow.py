@@ -441,7 +441,7 @@ class Runner:
         if cell_impl.is_coroutine():
             raise RuntimeError(
                 "A coroutine function can't be run synchronously."
-                f"Use `run_async()` instead"
+                "Use `run_async()` instead"
             )
 
         Runner._validate_kwargs(cell_impl, kwargs)
@@ -449,7 +449,7 @@ class Runner:
 
         if any(graph.cells[cid].is_coroutine() for cid in ancestor_ids):
             raise RuntimeError(
-                f"Cell has an ancestor that is a "
+                "Cell has an ancestor that is a "
                 "coroutine (async) cell. Use `run_async()` instead"
             )
 
