@@ -6,7 +6,10 @@ import { SerializedBridge } from "./types";
 
 declare let loadPyodide:
   | undefined
-  | ((opts: { packages: string[] }) => Promise<PyodideInterface>);
+  | ((opts: {
+      packages: string[];
+      indexURL: string;
+    }) => Promise<PyodideInterface>);
 
 export async function bootstrap() {
   if (!loadPyodide) {
@@ -18,41 +21,45 @@ export async function bootstrap() {
     // Perf: These get loaded while pyodide is being bootstrapped
     // The packages can be found here: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
     packages: ["micropip", "docutils", "Pygments"],
+    // Without this, this fails in Firefox with
+    // `Could not extract indexURL path from pyodide module`
+    // This fixes for Firefox and does not break Chrome/others
+    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/",
   });
 
   // Install marimo and its dependencies
   const marimoWheel =
     process.env.NODE_ENV === "production"
       ? "marimo >= 0.2.5"
-      : "http://localhost:8000/dist/marimo-0.2.6-py3-none-any.whl";
+      : "http://localhost:8000/dist/marimo-0.2.8-py3-none-any.whl";
   await pyodide.runPythonAsync(`
-    import micropip
+  import micropip
 
-    micropip.add_mock_package("multiprocessing", "*", modules={
-        "multiprocessing": None,
-        "multiprocessing.connection": None,
-        "multiprocessing.context": None,
-        "multiprocessing.managers": None,
-        "multiprocessing.pool": None,
-        "multiprocessing.sharedctypes": None,
-        "multiprocessing.shared_memory": None,
-        "multiprocessing.spawn": None,
-    })
-    micropip.add_mock_package("jedi", "*", modules={
-        "jedi": None,
-        "jedi.api": None,
-    })
+  micropip.add_mock_package("multiprocessing", "*", modules={
+    "multiprocessing": None,
+    "multiprocessing.connection": None,
+    "multiprocessing.context": None,
+    "multiprocessing.managers": None,
+    "multiprocessing.pool": None,
+    "multiprocessing.sharedctypes": None,
+    "multiprocessing.shared_memory": None,
+    "multiprocessing.spawn": None,
+  })
+  micropip.add_mock_package("jedi", "*", modules={
+    "jedi": None,
+    "jedi.api": None,
+  })
 
-    await micropip.install(
-      [
-        # Subset of marimo requirements
-        "${marimoWheel}",
-        "markdown",
-        "pymdown-extensions",
-      ],
-      deps=False
+  await micropip.install(
+    [
+      # Subset of marimo requirements
+      "${marimoWheel}",
+      "markdown",
+      "pymdown-extensions",
+    ],
+    deps=False
     );
-  `);
+    `);
 
   return pyodide;
 }
