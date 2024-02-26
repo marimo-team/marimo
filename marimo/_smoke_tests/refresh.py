@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.1"
+__generated_with = "0.2.8"
 app = marimo.App()
 
 
@@ -29,7 +30,7 @@ def __(mo, random, reset_button):
 
 @app.cell
 def __(mo):
-    refresh = mo.ui.refresh(options=["1s", "10s", "1m"])
+    refresh = mo.ui.refresh(options=["1s", "10s", "1m", "100ms"])
     mo.md(f"Choose an interval to guess {refresh}")
     return refresh,
 
