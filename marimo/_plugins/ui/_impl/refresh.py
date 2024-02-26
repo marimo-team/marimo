@@ -18,6 +18,12 @@ class refresh(UIElement[int, int]):
 
     You can also combine multiple time units (e.g. "1m 30s").
 
+    Note: The refresh interval may not be exact, as it depends on the
+    time it takes to render the content and the time it takes to send
+    the content to the client. Also, due to the buffering of UI element
+    changes, if the downstream cells take a long time to render, the
+    refresh interval may be longer than expected.
+
     **Example.**
 
     ```python

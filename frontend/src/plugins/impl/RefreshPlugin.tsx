@@ -29,13 +29,15 @@ interface Data {
   label?: string | null;
 }
 
+const MIN_INTERVAL = 0.1;
+
 const zodTimestring = z.string().superRefine((s, ctx) => {
   try {
     const seconds = timestring(s);
-    if (seconds < 1) {
+    if (seconds < MIN_INTERVAL) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Must be greater than 1 second.",
+        message: `Must be greater than ${MIN_INTERVAL} seconds.`,
       });
     }
     return;
@@ -52,8 +54,12 @@ export class RefreshPlugin implements IPlugin<Value, Data> {
   tagName = "marimo-refresh";
 
   validator = z.object({
-    options: z.array(z.union([zodTimestring, z.number().min(1)])).default([]),
-    defaultInterval: z.union([zodTimestring, z.number().min(1)]).optional(),
+    options: z
+      .array(z.union([zodTimestring, z.number().min(MIN_INTERVAL)]))
+      .default([]),
+    defaultInterval: z
+      .union([zodTimestring, z.number().min(MIN_INTERVAL)])
+      .optional(),
     label: z.string().nullable(),
   });
 
