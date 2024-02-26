@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
-from types import CodeType, MethodType
+from types import CodeType
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from marimo._ast.visitor import Name, VariableData
@@ -214,34 +214,11 @@ class Cell:
     def _register_app(self, app: InternalApp) -> None:
         self._app = app
 
-    def __getattr__(self, attr: str) -> Any:
-        if attr == "run":
-            if self._is_coroutine():
-
-                async def run(
-                    self, **kwargs: Any
-                ) -> tuple[Any, dict[str, Any]]:
-                    assert self._app is not None
-                    return await self._app.run_cell_async(
-                        cell=self, kwargs=kwargs
-                    )
-
-                self.run = MethodType(run, self)
-            else:
-
-                def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
-                    assert self._app is not None
-                    return self._app.run_cell_sync(cell=self, kwargs=kwargs)
-
-                self.run = MethodType(run, self)
-            return self.run
-        raise AttributeError(f"'Cell' object has no attribute '{attr}'")
-
-    async def _run_async(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+    async def run_async(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
         assert self._app is not None
         return await self._app.run_cell_async(cell=self, kwargs=kwargs)
 
-    def _run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+    def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
         """Run this cell and return its visual output and definitions
 
         **Note**: If this cell is a coroutine function (starting with `async`),
