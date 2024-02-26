@@ -71,7 +71,6 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new JsonOutputPlugin(),
   new ProgressPlugin(),
   new StatPlugin(),
-  new TabsPlugin(),
   new TexPlugin(),
   new MermaidPlugin(),
 ];

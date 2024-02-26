@@ -141,6 +141,9 @@ class slider(UIElement[Numeric, Numeric]):
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
+    - `orientation`: the orientation of the slider,
+        either "horizontal" or "vertical"
+    - `show_value`: whether to display the current value of the slider
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -154,6 +157,8 @@ class slider(UIElement[Numeric, Numeric]):
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
+        show_value: bool = False,
         *,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
@@ -194,6 +199,8 @@ class slider(UIElement[Numeric, Numeric]):
                 "stop": stop,
                 "step": step if step is not None else None,
                 "debounce": debounce,
+                "orientation": orientation,
+                "show-value": show_value,
             },
             on_change=on_change,
         )

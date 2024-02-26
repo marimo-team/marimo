@@ -22,13 +22,27 @@ const Slider = React.forwardRef<
     <SliderPrimitive.Root
       ref={ref}
       className={cn(
-        "relative flex w-full touch-none select-none items-center hover:cursor-pointer",
+        "relative flex touch-none select-none hover:cursor-pointer",
+        "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
+        "data-[orientation=vertical]:h-full data-[orientation=vertical]:justify-center",
         className,
       )}
       {...props}
     >
-      <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60">
-        <SliderPrimitive.Range className="absolute h-full bg-blue-500 dark:bg-primary" />
+      <SliderPrimitive.Track
+        className={cn(
+          "relative grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60",
+          "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full",
+          "data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2",
+        )}
+      >
+        <SliderPrimitive.Range
+          className={cn(
+            "absolute bg-blue-500 dark:bg-primary",
+            "data-[orientation=horizontal]:h-full",
+            "data-[orientation=vertical]:w-full",
+          )}
+        />
       </SliderPrimitive.Track>
       <TooltipProvider>
         <TooltipRoot delayDuration={0} open={open}>
