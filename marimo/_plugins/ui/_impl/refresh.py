@@ -21,7 +21,7 @@ class refresh(UIElement[int, int]):
     **Example.**
 
     ```python
-    refresh_button = mo.ui.refresh_button(
+    refresh_button = mo.ui.refresh(
         options=["1m", "5m 30s", "10m"],
         default_interval="10m",
     )
