@@ -78,7 +78,7 @@ const SliderComponent = ({
       <div
         className={cn(
           "flex items-center gap-2",
-          orientation === "vertical" && "items-end",
+          orientation === "vertical" && "items-end justify-center w-full",
         )}
       >
         <Slider
@@ -107,7 +107,9 @@ const SliderComponent = ({
           }}
         />
         {showValue && (
-          <div className="text-xs text-muted-foreground">{internalValue}</div>
+          <div className="text-xs text-muted-foreground min-w-[16px]">
+            {internalValue}
+          </div>
         )}
       </div>
     </Labeled>
