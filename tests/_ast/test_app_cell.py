@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Awaitable
 
 from marimo._ast.app import App
 
@@ -82,7 +83,9 @@ async def test_decorator_async() -> None:
 
     import asyncio
 
-    assert await cell.run_async(asyncio=asyncio) == (None, {"z": 6})
+    result = cell.run(asyncio=asyncio)
+    assert isinstance(result, Awaitable)
+    assert await result == (None, {"z": 6})
 
 
 # TODO(akshayka): test cell.run() with multiple cells in graph, outputs, ...

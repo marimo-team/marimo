@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
+from collections.abc import Awaitable
 from types import CodeType
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
@@ -166,25 +167,25 @@ class Cell:
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
         assert self._app is not None
-        self._is_coro_cached = self._app.runner.is_coroutine(
+        self._is_coro_cached: bool = self._app.runner.is_coroutine(
             self._cell.cell_id
         )
         return self._is_coro_cached
 
     def _help(self) -> Html:
-        from marimo._output.md import md
         from marimo._output.formatting import as_html
+        from marimo._output.md import md
 
         signature_prefix = "Async " if self._is_coroutine() else ""
         execute_str_refs = (
-            f"output, defs = await {self.name}(**refs)"
+            f"output, defs = await {self.name}.run(**refs)"
             if self._is_coroutine()
-            else f"output, defs = {self.name}(**refs)"
+            else f"output, defs = {self.name}.run(**refs)"
         )
         execute_str_no_refs = (
-            f"output, defs = await {self.name}()"
+            f"output, defs = await {self.name}.run()"
             if self._is_coroutine()
-            else f"output, defs = {self.name}()"
+            else f"output, defs = {self.name}.run()"
         )
 
         return md(
@@ -214,38 +215,35 @@ class Cell:
     def _register_app(self, app: InternalApp) -> None:
         self._app = app
 
-    async def run_async(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
-        assert self._app is not None
-        return await self._app.run_cell_async(cell=self, kwargs=kwargs)
-
-    def run(self, **kwargs: Any) -> tuple[Any, dict[str, Any]]:
+    def run(
+        self, **kwargs: Any
+    ) -> tuple[Any, dict[str, Any]] | Awaitable[tuple[Any, dict[str, Any]]]:
         """Run this cell and return its visual output and definitions
 
+
         **Note**: If this cell is a coroutine function (starting with `async`),
-        or if its ancestors are coroutine functions, `run_async` should be used
-        instead.
+        or if any of its ancestors are coroutine functions, then this
+        function will return an awaitable.
 
 
         **Returns**:
-        - a tuple `(output, defs)`, where `output` is the cell's last
-          expression and `defs` is a `dict` mapping the cell's defined
-          names to their values.
 
-        **Raises**:
-
-        - `RuntimeError`, if the wrapped function is a coroutine function,
-          or if any of the ancestors required to produce its refs are
-          coroutiine functions
+        - a tuple `(output, defs)`, or an awaitable of the same, where `output`
+          is the cell's last expression and `defs` is a `dict` mapping the
+          cell's defined names to their values.
         """
         assert self._app is not None
-        return self._app.run_cell_sync(cell=self, kwargs=kwargs)
+        if self._is_coroutine():
+            return self._app.run_cell_async(cell=self, kwargs=kwargs)
+        else:
+            return self._app.run_cell_sync(cell=self, kwargs=kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         del args
         del kwargs
         # TODO: docs link
         raise RuntimeError(
-            f"Calling marimo cell's using `{self.name}()` is not supported. "
+            f"Calling marimo cells using `{self.name}()` is not supported. "
             f"Use `outputs, defs = {self.name}.run()` instead, "
             f"or  `await outputs, defs = {self.name}.run_async()` for "
             "WASM notebooks. See docs more for info."
