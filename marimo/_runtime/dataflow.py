@@ -401,6 +401,14 @@ class Runner:
                     f"The allowed arguments are {cell_impl.refs}."
                 )
 
+    def is_coroutine(self, cell_id: CellId_t) -> bool:
+        return self._graph.cells[cell_id].is_coroutine() or any(
+            self._graph.cells[cid].is_coroutine()
+            for cid in self._get_ancestors(
+                self._graph.cells[cell_id], kwargs={}
+            )
+        )
+
     async def run_cell_async(
         self, cell_id: CellId_t, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
@@ -440,7 +448,7 @@ class Runner:
         cell_impl = graph.cells[cell_id]
         if cell_impl.is_coroutine():
             raise RuntimeError(
-                "A coroutine function can't be run synchronously."
+                "A coroutine function can't be run synchronously. "
                 "Use `run_async()` instead"
             )
 

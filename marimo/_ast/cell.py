@@ -14,6 +14,7 @@ CellId_t = str
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
+    from marimo._output.hypertext import Html
 
 
 @dataclasses.dataclass
@@ -156,6 +157,59 @@ class Cell:
     @property
     def name(self) -> str:
         return self._f.__name__
+
+    @property
+    def __name__(self) -> str:
+        return self.name
+
+    def _is_coroutine(self) -> bool:
+        if hasattr(self, "_is_coro_cached"):
+            return self._is_coro_cached
+        assert self._app is not None
+        self._is_coro_cached = self._app.runner.is_coroutine(
+            self._cell.cell_id
+        )
+        return self._is_coro_cached
+
+    def _help(self) -> Html:
+        from marimo._output.md import md
+        from marimo._output.formatting import as_html
+
+        signature_prefix = "Async " if self._is_coroutine() else ""
+        execute_str_refs = (
+            f"output, defs = await {self.name}(**refs)"
+            if self._is_coroutine()
+            else f"output, defs = {self.name}(**refs)"
+        )
+        execute_str_no_refs = (
+            f"output, defs = await {self.name}()"
+            if self._is_coroutine()
+            else f"output, defs = {self.name}()"
+        )
+
+        return md(
+            f"""
+            **{signature_prefix}Cell `{self.name}`**
+
+            You can execute this cell using
+
+            `{execute_str_refs}`
+
+            where `refs` is a dictionary mapping a subset of the
+            cell's references to values. Missing refs will be automatically
+            computed. To automatically compute all refs, simply run with
+
+            `{execute_str_no_refs}`
+
+            **References:**
+
+            {as_html(list(self._cell.refs))}
+
+            **Definitions:**
+
+            {as_html(list(self._cell.defs))}
+            """
+        )
 
     def _register_app(self, app: InternalApp) -> None:
         self._app = app

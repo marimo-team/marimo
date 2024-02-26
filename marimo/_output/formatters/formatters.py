@@ -6,6 +6,7 @@ from typing import Any, Callable, Sequence
 
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
+from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
@@ -33,6 +34,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
 # third-party module import. These formatters' register methods need to be
 # fast: we don't want their registration to noticeably delay program start-up.
 NATIVE_FACTORIES: Sequence[FormatterFactory] = [
+    CellFormatter(),
     StructuresFormatter(),
 ]
 

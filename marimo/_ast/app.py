@@ -98,7 +98,7 @@ class App:
 
         self._cell_manager = CellManager()
         self._graph = dataflow.DirectedGraph()
-        self._graph_runner = dataflow.Runner(self._graph)
+        self._runner = dataflow.Runner(self._graph)
 
         self._unparsable = False
         self._initialized = False
@@ -162,12 +162,13 @@ class App:
         self._unparsable = True
 
     def _maybe_initialize(self) -> None:
-        assert not self._unparsable
+        if self._unparsable:
+            raise RuntimeError(
+                "This notebook has cells with syntax errors, "
+                "so it cannot be initialized."
+            )
 
         if self._initialized:
-            LOGGER.warning(
-                "App was initialized twice. This is probably a bug in marimo."
-            )
             return
 
         # Add cells to graph
@@ -242,15 +243,13 @@ class App:
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
         self._maybe_initialize()
-        return await self._graph_runner.run_cell_async(
-            cell._cell.cell_id, kwargs
-        )
+        return await self._runner.run_cell_async(cell._cell.cell_id, kwargs)
 
     def _run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, dict[str, Any]]:
         self._maybe_initialize()
-        return self._graph_runner.run_cell_sync(cell._cell.cell_id, kwargs)
+        return self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
 
 
 class CellManager:
@@ -415,6 +414,11 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    @property
+    def runner(self) -> dataflow.Runner:
+        self._app._maybe_initialize()
+        return self._app._runner
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
