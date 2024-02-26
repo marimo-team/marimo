@@ -2,7 +2,6 @@
 import { useState } from "react";
 
 import { useHotkey } from "../../../hooks/useHotkey";
-import { Kbd } from "../../ui/kbd";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../ui/dialog";
-import { prettyPrintHotkey } from "../../shortcuts/renderShortcut";
+import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction, HotkeyGroup } from "@/core/hotkeys/hotkeys";
 
 export const KeyboardShortcuts: React.FC = () => {
@@ -27,11 +26,7 @@ export const KeyboardShortcuts: React.FC = () => {
     const hotkey = HOTKEYS.getHotkey(action);
     return (
       <div className="keyboard-shortcut flex flex-col" key={action}>
-        <div className="flex gap-1">
-          {prettyPrintHotkey(hotkey.key).map((key) => (
-            <Kbd key={key}>{key}</Kbd>
-          ))}
-        </div>
+        <KeyboardHotkeys shortcut={hotkey.key} />
         <span>{hotkey.name.toLowerCase()}</span>
       </div>
     );

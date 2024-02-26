@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/command";
 import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
-import { Kbd } from "../../ui/kbd";
-import { prettyPrintHotkey } from "../../shortcuts/renderShortcut";
+import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom } from "jotai";
 import { useNotebookActions } from "../actions/useNotebookActions";
@@ -73,11 +72,7 @@ export const CommandPalette = () => {
       >
         <span>{hotkey.name}</span>
         <CommandShortcut>
-          <span className="flex ml-2 gap-1">
-            {prettyPrintHotkey(hotkey.key).map((key) => (
-              <Kbd key={key}>{key}</Kbd>
-            ))}
-          </span>
+          <KeyboardHotkeys shortcut={hotkey.key} />
         </CommandShortcut>
       </CommandItem>
     );
