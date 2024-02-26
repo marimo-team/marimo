@@ -24,6 +24,25 @@ describe("collapseConsoleOutputs", () => {
     expect(result[0].data).toMatchInlineSnapshot(`"Hello World"`);
   });
 
+  it("should collapse last two text/plain outputs on the same channel if they end in newlines", () => {
+    const consoleOutputs: OutputMessage[] = [
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello\n",
+        timestamp: 0,
+      },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "World\n",
+        timestamp: 0,
+      },
+    ];
+    const result = collapseConsoleOutputs(consoleOutputs);
+    expect(result[0].data).toMatchInlineSnapshot(`"Hello\nWorld\n"`);
+  });
+
   it("should not collapse outputs on different channels", () => {
     const consoleOutputs: OutputMessage[] = [
       {

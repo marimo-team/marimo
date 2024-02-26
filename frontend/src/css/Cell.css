@@ -353,8 +353,7 @@
 
 /* ------------------------------ Output Areas ------------------------------ */
 
-.output-area,
-.console-output-area {
+.output-area {
   max-width: inherit;
   width: 100%;
 

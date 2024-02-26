@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import { OutputMessage } from "@/core/kernel/messages";
 import { formatOutput } from "../Output";
 import { cn } from "@/utils/cn";
@@ -8,7 +8,6 @@ import { NameCellContentEditable } from "../actions/name-cell-input";
 import { CellId } from "@/core/cells/ids";
 import { Input } from "@/components/ui/input";
 import { AnsiUp } from "ansi_up";
-import { useLayoutEffect } from "react";
 
 const ansiUp = new AnsiUp();
 
@@ -40,6 +39,9 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
   // Keep scroll at the bottom if it is within 120px of the bottom,
   // so when we add new content, it will lock to the bottom
+  //
+  // We use flex flex-col-reverse to handle this, but it doesn't
+  // always work perfectly when moved form the bottom and back.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) {
@@ -67,18 +69,20 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     );
   };
 
+  const reversedOutputs = [...consoleOutputs].reverse();
+
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
       data-testid="console-output-area"
       ref={ref}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
       )}
     >
-      {consoleOutputs.map((output, idx) => {
+      {reversedOutputs.map((output, idx) => {
         if (output.channel === "pdb") {
           return null;
         }
