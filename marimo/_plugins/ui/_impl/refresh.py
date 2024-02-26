@@ -25,6 +25,7 @@ class refresh(UIElement[int, int]):
         options=["1m", "5m 30s", "10m"],
         default_interval="10m",
     )
+    refresh_button
     ```
 
     **Attributes.**
