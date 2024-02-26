@@ -37,7 +37,6 @@ WASM notebooks are a new feature. If you run into
 problems, please open a [GitHub issue](https://github.com/marimo-team/marimo/issues).
 ```
 
-
 ## Creating and sharing WASM notebooks
 
 WASM notebooks run at [marimo.app](https://marimo.app).
@@ -70,14 +69,13 @@ Please be aware that marimo permalinks are publicly accessible.
 ### Creating WASM notebooks from local notebooks
 
 In the marimo editor's notebook action menu, use `Share > Create WebAssembly
-link` to get a `marimo.app/...` URL representing your notebook: 
+link` to get a `marimo.app/...` URL representing your notebook:
 
 <div align="center">
 <figure>
 <img src="/_static/share-wasm-link.gif"/>
 </figure>
 </div>
-
 
 WASM notebooks come with common Python packages installed, but you may need to
 [install additional packages using micropip](#installing-packages).
@@ -162,9 +160,9 @@ providing your users with an interactive code playground.
 
 ```html
 <iframe
-	src="https://marimo.app/l/aojjhb?embed=true"
-	width="800"
-	height="300"
+  src="https://marimo.app/l/aojjhb?embed=true"
+  width="800"
+  height="300"
 ></iframe>
 ```
 
@@ -177,9 +175,9 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
 
 ```html
 <iframe
-	src="https://marimo.app/l/c7h6pz?embed=true"
-	width="800"
-	height="300"
+  src="https://marimo.app/l/c7h6pz?embed=true"
+  width="800"
+  height="300"
 ></iframe>
 ```
 
@@ -195,9 +193,9 @@ You can optionally render embedded notebooks in read-only mode by appending
 
 ```html
 <iframe
-	src="https://marimo.app/l/c7h6pz?mode=read&embed=true"
-	width="800"
-	height="300"
+  src="https://marimo.app/l/c7h6pz?mode=read&embed=true"
+  width="800"
+  height="300"
 ></iframe>
 ```
 
@@ -211,7 +209,6 @@ have some limitations.
 **Packages.** Not all packages are available in WASM notebooks; see [Pyodide's
 documentation on supported packages.](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
 
-
 **Code completion.** Code completion and docstring hints are not
 currently supported. This will be fixed in the future.
 
@@ -220,3 +217,9 @@ currently supported. This will be fixed in the future.
 **Threading and multi-processing.** WASM notebooks do not support multithreading
 and multiprocessing. [This may be fixed in the future](https://github.com/pyodide/pyodide/issues/237).
 
+## Browser support
+
+WASM notebooks are supported in the latest versions of Chrome, Firefox, Edge, and Safari.
+
+Chrome is the recommended browser for WASM notebooks as it seems to have the
+best performance and compatibility.
