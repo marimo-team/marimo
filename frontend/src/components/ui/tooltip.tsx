@@ -33,17 +33,21 @@ const Tooltip: React.FC<
     children: React.ReactNode;
     asChild?: boolean;
     side?: TooltipPrimitive.TooltipContentProps["side"];
+    tabIndex?: number;
   } & React.ComponentPropsWithoutRef<typeof TooltipRoot>
 > = ({
   content,
   children,
   usePortal = true,
   asChild = true,
+  tabIndex,
   side,
   ...rootProps
 }) => (
   <TooltipRoot disableHoverableContent={true} {...rootProps}>
-    <TooltipTrigger asChild={asChild}>{children}</TooltipTrigger>
+    <TooltipTrigger asChild={asChild} tabIndex={tabIndex}>
+      {children}
+    </TooltipTrigger>
     {usePortal ? (
       <TooltipPrimitive.TooltipPortal>
         <TooltipContent side={side}>{content}</TooltipContent>

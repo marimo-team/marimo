@@ -12,6 +12,10 @@ export interface CopilotSignInInitiateResult {
 export interface CopilotSignInConfirmParams {
   userCode: string;
 }
+
+/**
+ * Copilot account status.
+ */
 export type CopilotStatus =
   | "SignedIn"
   | "AlreadySignedIn"
@@ -19,6 +23,12 @@ export type CopilotStatus =
   | "NotAuthorized"
   | "NotSignedIn"
   | "OK";
+
+/**
+ * Copilot status.
+ */
+export type CopilotRequestStatus = "InProgress" | "Warning" | "Normal";
+
 export interface CopilotSignInConfirmResult {
   status: CopilotStatus;
   user: string;
@@ -44,6 +54,7 @@ export interface CopilotGetCompletionsParams {
     };
   };
 }
+
 export interface CopilotGetCompletionsResult {
   completions: Array<{
     text: string;

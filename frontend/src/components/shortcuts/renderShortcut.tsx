@@ -26,16 +26,15 @@ export const KeyboardHotkeys: React.FC<{ shortcut: string }> = ({
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
         if (symbol) {
           return (
-            <Kbd key={label}>
-              <Tooltip
-                key={label}
-                content={label}
-                asChild={false}
-                delayDuration={300}
-              >
-                {symbol}
-              </Tooltip>
-            </Kbd>
+            <Tooltip
+              asChild={false}
+              tabIndex={-1}
+              key={label}
+              content={label}
+              delayDuration={300}
+            >
+              <Kbd key={label}>{symbol}</Kbd>
+            </Tooltip>
           );
         }
         return <Kbd key={label}>{capitalize(label)}</Kbd>;
@@ -53,7 +52,12 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
         if (symbol) {
           return (
-            <Tooltip key={label} content={label} delayDuration={300}>
+            <Tooltip
+              key={label}
+              content={label}
+              delayDuration={300}
+              tabIndex={-1}
+            >
               <span key={label}>{symbol}</span>
             </Tooltip>
           );
