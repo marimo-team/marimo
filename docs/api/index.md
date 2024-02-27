@@ -16,6 +16,7 @@
   control_flow
   html
   state
+  cell
   debugging
 ```
 
@@ -40,4 +41,5 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
+| {doc}`cell`          | Run cells defined in another notebook                     |
 | {doc}`debugging`     | Debugging utilities                                       |
