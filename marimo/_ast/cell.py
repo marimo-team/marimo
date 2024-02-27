@@ -146,6 +146,28 @@ class CellImpl:
 
 @dataclasses.dataclass
 class Cell:
+    """An executable notebook cell
+
+    `A Cell` object can be executed as a function via its `run()` method, which
+    returns the cell's last expression (output) and a mapping from its defined
+    names to its values.
+
+    Cells can be named via the marimo editor in the browser, or by
+    changing the cell's function name in the notebook file. Named
+    cells can then be executed for use in other notebooks, or to test
+    in unit tests.
+
+    For example:
+
+    ```python
+    from my_notebook import my_cell
+
+    output, definitions = my_cell.run()
+    ```
+
+    See the documentation of `run` for info and examples.
+    """
+
     # Function from which this cell was created
     _f: Callable[..., Any]
 
