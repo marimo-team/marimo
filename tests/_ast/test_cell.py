@@ -173,17 +173,32 @@ class TestCellRun:
         assert f.run() == (None, {})
 
     @staticmethod
-    def help_smoke() -> None:
-        app = App()
+    def test_import() -> None:
+        from cell_data.named_cells import f, g, h
 
-        @app.cell
-        async def f(x):
-            await x
-            return
+        assert f.name == "f"
+        assert g.name == "g"
+        assert h.name == "h"
 
-        @app.cell
-        def g():
-            return
+        assert f.run() == (None, {"x": 0})
+        assert g.run() == (None, {"y": 1})
+        assert h.run() == (2, {"z": 2})
 
-        assert "Async" in f._help().text
-        assert "Async" not in g._help().text
+        assert g.run(x=1) == (None, {"y": 2})
+        assert h.run(y=2) == (3, {"z": 3})
+
+
+def help_smoke() -> None:
+    app = App()
+
+    @app.cell
+    async def f(x):
+        await x
+        return
+
+    @app.cell
+    def g():
+        return
+
+    assert "Async" in f._help().text
+    assert "Async" not in g._help().text
