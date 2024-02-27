@@ -99,6 +99,7 @@ module.exports = {
       fontFamily: {
         prose: ["var(--text-font)", ...fontFamily.sans],
         code: ["var(--monospace-font)", ...fontFamily.mono],
+        mono: ["var(--monospace-font)", ...fontFamily.mono],
         heading: ["var(--heading-font)", ...fontFamily.sans],
       },
       borderRadius: {

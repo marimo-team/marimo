@@ -18,6 +18,7 @@ import {
   CodeIcon,
   PanelLeftIcon,
   CheckIcon,
+  KeyboardIcon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
@@ -40,6 +41,7 @@ import { Paths } from "@/utils/paths";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
 import { startCase } from "lodash-es";
+import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -56,6 +58,7 @@ export function useNotebookActions() {
   const { updateCellConfig } = useCellActions();
   const restartKernel = useRestartKernel();
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
+  const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
   const disabledCells = disabledCellIds(notebook);
   const enabledCells = enabledCellIds(notebook);
@@ -210,6 +213,13 @@ export function useNotebookActions() {
       label: "Command palette",
       hotkey: "global.commandPalette",
       handle: () => setCommandPaletteOpen((open) => !open),
+    },
+
+    {
+      icon: <KeyboardIcon size={14} strokeWidth={1.5} />,
+      label: "Keyboard shortcuts",
+      hotkey: "global.showHelp",
+      handle: () => setKeyboardShortcutsOpen((open) => !open),
     },
 
     {

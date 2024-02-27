@@ -79,9 +79,13 @@ export function copilotServer() {
   });
 }
 
+const DEVELOPMENT_WS_PORT = 27_180;
 export function createWsUrl(): string {
   // TODO: this should be configurable, but instead we add a 0 and hope it is free
-  const LSP_PORT = window.location.port + 0;
+  const LSP_PORT =
+    process.env.NODE_ENV === "development"
+      ? DEVELOPMENT_WS_PORT
+      : window.location.port + 0;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   return `${protocol}://${window.location.hostname}:${LSP_PORT}/copilot`;
 }

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
+import type {
   CompletionItem,
   CompletionList,
   CompletionParams,
@@ -7,8 +7,8 @@ import {
   DidOpenTextDocumentParams,
   Hover,
   HoverParams,
-  VersionedTextDocumentIdentifier,
 } from "vscode-languageserver-protocol";
+import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 
 import { LanguageServerClient } from "codemirror-languageserver";
 import {
@@ -26,10 +26,11 @@ import {
 } from "./types";
 import { isCopilotEnabled } from "./state";
 import { getCodes } from "./getCodes";
+import { Logger } from "@/utils/Logger";
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
-  checkStatus: [{}, { status: CopilotStatus }];
+  checkStatus: [{}, { status: CopilotStatus; user: string }];
   signInInitiate: [CopilotSignInInitiateParams, CopilotSignInInitiateResult];
   signInConfirm: [CopilotSignInConfirmParams, CopilotSignInConfirmResult];
   signOut: [CopilotSignOutParams, CopilotSignOutResult];
@@ -111,7 +112,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   async signedIn() {
-    const { status } = await this._request("checkStatus", {});
+    const { status, user } = await this._request("checkStatus", {});
+    Logger.debug("Copilot#signedIn", status, user);
     return (
       status === "SignedIn" || status === "AlreadySignedIn" || status === "OK"
     );

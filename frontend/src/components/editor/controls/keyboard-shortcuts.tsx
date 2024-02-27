@@ -1,6 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useState } from "react";
-
 import { useHotkey } from "../../../hooks/useHotkey";
 import {
   Dialog,
@@ -12,9 +10,12 @@ import {
 } from "../../ui/dialog";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction, HotkeyGroup } from "@/core/hotkeys/hotkeys";
+import { atom, useAtom } from "jotai";
+
+export const keyboardShortcutsAtom = atom(false);
 
 export const KeyboardShortcuts: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useAtom(keyboardShortcutsAtom);
 
   useHotkey("global.showHelp", () => setIsOpen((v) => !v));
 

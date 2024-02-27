@@ -48,7 +48,7 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
   const keys = hotkey.key.split("-");
 
   return (
-    <DropdownMenuShortcut className="flex gap-1 items-center font-mono">
+    <DropdownMenuShortcut className="flex gap-1 items-center">
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
         if (symbol) {
           return (
@@ -91,10 +91,6 @@ interface KeyData {
 }
 
 const KEY_MAPPINGS: Record<string, KeyData> = {
-  enter: {
-    symbols: { mac: "↩", default: "↵" },
-    label: "Enter",
-  },
   ctrl: {
     symbols: { mac: "⌃", default: "Ctrl" },
     label: "Control",
