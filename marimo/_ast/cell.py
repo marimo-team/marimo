@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Mapping
 from types import CodeType
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
@@ -227,7 +227,10 @@ class Cell:
 
     def run(
         self, **refs: Any
-    ) -> tuple[Any, dict[str, Any]] | Awaitable[tuple[Any, dict[str, Any]]]:
+    ) -> (
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]]
+    ):
         """Run this cell and return its visual output and definitions
 
         Use this method to run **named cells** and retrieve their output and
@@ -239,7 +242,7 @@ class Cell:
 
         **Example.** marimo cells can be given names either through the
         editor cell menu or by manually changing the function name in the
-        notebook file. For example, consider a single notebook `notebook.py`:
+        notebook file. For example, consider a notebook `notebook.py`:
 
         ```python
         import marimo
@@ -252,7 +255,7 @@ class Cell:
             return (mo,)
 
         @app.cell
-        def variables():
+        def __():
             x = 0
             y = 1
             return (x, y)
@@ -272,33 +275,30 @@ class Cell:
         ```python
         from notebook import add
 
-        # defs["z"] contains the value of `z`, in this case `1`
-        markdown_output, defs = add.run()
+        # `output` is the markdown rendered by `add`
+        # defs["z"] == `1`
+        output, defs = add.run()
         ```
 
-        When `run` is called without arguments, it automatically computes
-        the values that the cell depends on (in this case, `mo`, `x`, and `y`).
-        You can override these values by providing any subset of them as
-        keyword arguments. For example,
+        When `run` is called without arguments, it automatically computes the
+        values that the cell depends on (in this case, `mo`, `x`, and `y`). You
+        can override these values by providing any subset of them as keyword
+        arguments. For example,
 
         ```python
         # defs["z"] == 4
-        markdown_output, defs = add.run(x=2, y=2)
+        output, defs = add.run(x=2, y=2)
         ```
 
-        **Tip.** If the values of `defs` contain UI elements that are shown
-        in the output, make sure to assign them to global variables if you
-        want their values to be updated. For example,
+        **Defined UI Elements.** If the cell's `output` has UI elements
+        that are in `defs`, interacting with the output in the frontend will
+        trigger reactive execution of cells that reference the `defs` object.
+        For example, if `output` has a slider defined by the cell, then
+        scrubbing the slider will cause cells that reference `defs` to run.
 
-        ```python
-        output_with_slider, defs = mycell.run()
-        slider = defs["slider"]
-        output_with_slider
-        ```
-
-        **Note.** If this cell is a coroutine function (starting with `async`),
-        or if any of its ancestors are coroutine functions, then you'll
-        need to `await` the result: `output, defs = await cell.run()`.
+        **Async cells.** If this cell is a coroutine function (starting with
+        `async`), or if any of its ancestors are coroutine functions, then
+        you'll need to `await` the result: `output, defs = await cell.run()`.
         You can check whether the result is an awaitable using:
 
         ```python
@@ -311,17 +311,16 @@ class Cell:
             output, defs = ret
         ```
 
-
         **Arguments**:
 
         - You may pass values for any of this cell's references as keyword
           arguments. marimo will automatically compute values for any refs
-          that are not provided by executing the parent cells that compute them
+          that are not provided by executing the parent cells that compute them.
 
         **Returns**:
 
         - a tuple `(output, defs)`, or an awaitable of the same, where `output`
-          is the cell's last expression and `defs` is a `dict` mapping the
+          is the cell's last expression and `defs` is a `Mapping` from the
           cell's defined names to their values.
         """
         assert self._app is not None

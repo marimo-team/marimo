@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.2.8"
@@ -25,15 +26,20 @@ def __(mo):
 
 @app.cell
 def __(display_slider):
-    _o, _d = display_slider.run()
-    slider = _d["slider"]
-    _o
-    return slider,
+    slider_output, slider_defs = display_slider.run()
+    slider_output, slider_defs
+    return slider_defs, slider_output
 
 
 @app.cell
-def __(slider):
-    slider.value
+def __(mo):
+    mo.md("_Notice that set-ui-element value requests make it into the defs_")
+    return
+
+
+@app.cell
+def __(slider_defs):
+    slider_defs["slider"].value
     return
 
 

@@ -4,23 +4,12 @@ from __future__ import annotations
 import asyncio
 import random
 import string
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Literal,
-    Optional,
-)
+from typing import Any, Callable, Iterable, Literal, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import (
-    Cell,
-    CellConfig,
-    CellId_t,
-    execute_cell_async,
-)
+from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -28,6 +17,7 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
 from marimo._runtime.patches import patch_main_module_context
@@ -74,6 +64,25 @@ class CellData:
 
     # The original cell, or None if cell was not parsable
     cell: Optional[Cell]
+
+
+class _Namespace(Mapping[str, object]):
+    def __init__(self, dictionary: dict[str, object]) -> None:
+        self._dict = dictionary
+
+    def __getitem__(self, item: str) -> object:
+        return self._dict[item]
+
+    def __iter__(self):
+        return iter(self._dict)
+
+    def __len__(self):
+        return len(self._dict)
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        from marimo._plugins.stateless.tree import tree
+
+        return tree(self._dict)._mime_()
 
 
 @mddoc
@@ -233,15 +242,19 @@ class App:
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, _Namespace]:
         self._maybe_initialize()
-        return await self._runner.run_cell_async(cell._cell.cell_id, kwargs)
+        output, defs = await self._runner.run_cell_async(
+            cell._cell.cell_id, kwargs
+        )
+        return output, _Namespace(defs)
 
     def _run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, _Namespace]:
         self._maybe_initialize()
-        return self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
+        output, defs = self._runner.run_cell_sync(cell._cell.cell_id, kwargs)
+        return output, _Namespace(defs)
 
 
 class CellManager:
@@ -438,10 +451,10 @@ class InternalApp:
 
     async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, _Namespace]:
         return await self._app._run_cell_async(cell, kwargs)
 
     def run_cell_sync(
         self, cell: Cell, kwargs: dict[str, Any]
-    ) -> tuple[Any, dict[str, Any]]:
+    ) -> tuple[Any, _Namespace]:
         return self._app._run_cell_sync(cell, kwargs)
