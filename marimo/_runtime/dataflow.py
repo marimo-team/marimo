@@ -352,7 +352,17 @@ def topological_sort(
 
 
 class Runner:
-    """Utility class for running individual cells in a graph"""
+    """Utility for running individual cells in a graph
+
+    This class provides methods to a run a cell in the graph and obtain its
+    output (last expression) and the values of its defs.
+
+    If needed, the runner will recursively compute the values of the cell's
+    refs by executing its ancestors. Refs can also be substituted by the
+    caller.
+
+    TODO(akshayka): Add an API for caching defs across cell runs.
+    """
 
     def __init__(self, graph: DirectedGraph) -> None:
         self._graph = graph
@@ -387,7 +397,7 @@ class Runner:
             [
                 parent_id
                 for parent_id in graph.parents[cell_impl.cell_id]
-                if graph.cells[parent_id].refs.intersection(unsubstituted_refs)
+                if graph.cells[parent_id].defs.intersection(unsubstituted_refs)
             ]
         )
         return transitive_closure(graph, parent_ids, children=False)

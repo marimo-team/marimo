@@ -170,6 +170,10 @@ class Cell:
         return self._cell.defs
 
     def _is_coroutine(self) -> bool:
+        """Whether this cell is a coroutine function.
+
+        If True, then this cell's `run` method returns an awaitable.
+        """
         if hasattr(self, "_is_coro_cached"):
             return self._is_coro_cached
         assert self._app is not None
