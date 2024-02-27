@@ -333,12 +333,14 @@ class Cell:
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         del args
         del kwargs
-        # TODO: docs link
+        if self._is_coroutine():
+            call_str = f"`outputs, defs = await {self.name}.run()`"
+        else:
+            call_str = f"`outputs, defs = {self.name}.run()`"
+
         raise RuntimeError(
             f"Calling marimo cells using `{self.name}()` is not supported. "
-            f"Use `outputs, defs = {self.name}.run()` instead, "
-            f"or  `await outputs, defs = {self.name}.run_async()` for "
-            "WASM notebooks. See docs more for info."
+            f"Use {call_str} instead. "
         )
 
 
