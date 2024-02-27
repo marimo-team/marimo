@@ -225,6 +225,14 @@ const Form = ({
     setInternalValue(UI_ELEMENT_REGISTRY.lookupValue(elementId));
   }, [elementId]);
 
+  // Edge case: the Form plugin may be re-created in Python with the same
+  // wrapped `elementId`, meaning the value of the wrapped element
+  // can change without the plugin generating an event
+  const wrappedValue = UI_ELEMENT_REGISTRY.lookupValue(elementId);
+  if (wrappedValue !== internalValue) {
+    setInternalValue(wrappedValue);
+  }
+
   useEffect(() => {
     // Spy on when the plugin generates an event (MarimoValueInputEvent)
     const handleUpdate = (e: MarimoValueInputEventType) => {
