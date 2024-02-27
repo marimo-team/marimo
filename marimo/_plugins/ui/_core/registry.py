@@ -88,11 +88,9 @@ class UIElementRegistry:
                 value, object_id
             ):
                 bindings.add(name)
-            elif (
-                isinstance(value, _Namespace)
-                and self._find_bindings_in_namespace(object_id, value)
-                is not None
-            ):
+            elif isinstance(
+                value, _Namespace
+            ) and self._find_bindings_in_namespace(object_id, value):
                 bindings.add(name)
         return bindings
 
