@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import random
 import string
-import threading
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import (
@@ -102,13 +101,6 @@ class App:
 
         self._unparsable = False
         self._initialized = False
-
-        self._loop: asyncio.AbstractEventLoop | None = None
-        self._loop_runner: threading.Thread | None = None
-
-    def __del__(self) -> None:
-        if self._loop is not None:
-            self._loop.call_soon_threadsafe(self._loop.stop)
 
     def cell(
         self,
