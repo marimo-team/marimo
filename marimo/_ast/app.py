@@ -6,7 +6,15 @@ import random
 import string
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Iterable, Iterator, Literal, Optional, Mapping
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Mapping,
+    Optional,
+)
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async
