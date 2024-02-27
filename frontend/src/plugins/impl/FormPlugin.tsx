@@ -63,7 +63,7 @@ export const FormPlugin = createPlugin("marimo-form")
       clearButtonLabel: z.string().default("Clear"),
       clearButtonTooltip: z.string().optional(),
       shouldValidate: z.boolean().optional(),
-    })
+    }),
   )
   .withFunctions<Functions>({
     validate: rpc
@@ -127,7 +127,7 @@ export const FormWrapper = <T,>({
           const response = await validate({ value: newValue }).catch(
             (error_) => {
               setError(error_.message ?? "Error validating");
-            }
+            },
           );
           if (response != null) {
             setError(response);
@@ -178,7 +178,7 @@ export const FormWrapper = <T,>({
               >
                 {clearButtonLabel}
               </Button>,
-              clearButtonTooltip
+              clearButtonTooltip,
             )}
           {withTooltip(
             <Button
@@ -189,7 +189,7 @@ export const FormWrapper = <T,>({
               {loading && <Loader2Icon className="h-4 w-4 mr-2 animate-spin" />}
               {submitButtonLabel}
             </Button>,
-            submitButtonTooltip
+            submitButtonTooltip,
           )}
         </div>
       </div>
@@ -216,7 +216,7 @@ const Form = ({
   // value of the plugin, which is the value of the wrapped plugin when
   // the submit button was last clicked/activated.
   const [internalValue, setInternalValue] = useState<T>(
-    UI_ELEMENT_REGISTRY.lookupValue(elementId)
+    UI_ELEMENT_REGISTRY.lookupValue(elementId),
   );
 
   // The Form may be rendered before the child plugin is, so after mount
