@@ -6,7 +6,7 @@ import random
 import string
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Iterable, Literal, Optional
+from typing import Any, Callable, Iterable, Iterator, Literal, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async
@@ -73,10 +73,10 @@ class _Namespace(Mapping[str, object]):
     def __getitem__(self, item: str) -> object:
         return self._dict[item]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._dict)
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
