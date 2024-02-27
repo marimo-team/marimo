@@ -5,6 +5,7 @@ import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
+import { cn } from "@/utils/cn";
 
 type T = number;
 
@@ -14,6 +15,8 @@ interface Data {
   step?: T;
   label: string | null;
   debounce: boolean;
+  orientation: "horizontal" | "vertical";
+  showValue: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -26,6 +29,8 @@ export class SliderPlugin implements IPlugin<T, Data> {
     stop: z.number(),
     step: z.number().optional(),
     debounce: z.boolean().default(false),
+    orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
+    showValue: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -52,6 +57,8 @@ const SliderComponent = ({
   stop,
   step,
   debounce,
+  orientation,
+  showValue,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -63,28 +70,48 @@ const SliderComponent = ({
   }, [value]);
 
   return (
-    <Labeled label={label} id={id}>
-      <Slider
-        id={id}
-        className={"relative flex items-center select-none w-36"}
-        value={[internalValue]}
-        min={start}
-        max={stop}
-        step={step}
-        // Triggered on all value changes
-        onValueChange={([nextValue]) => {
-          setInternalValue(nextValue);
-          if (!debounce) {
-            setValue(nextValue);
-          }
-        }}
-        // Triggered on mouse up
-        onValueCommit={([nextValue]) => {
-          if (debounce) {
-            setValue(nextValue);
-          }
-        }}
-      />
+    <Labeled
+      label={label}
+      id={id}
+      align={orientation === "horizontal" ? "left" : "top"}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-2",
+          orientation === "vertical" && "items-end justify-center w-full",
+        )}
+      >
+        <Slider
+          id={id}
+          className={cn(
+            "relative flex items-center select-none",
+            "data-[orientation=horizontal]:w-36 data-[orientation=vertical]:h-36",
+          )}
+          value={[internalValue]}
+          min={start}
+          max={stop}
+          step={step}
+          orientation={orientation}
+          // Triggered on all value changes
+          onValueChange={([nextValue]) => {
+            setInternalValue(nextValue);
+            if (!debounce) {
+              setValue(nextValue);
+            }
+          }}
+          // Triggered on mouse up
+          onValueCommit={([nextValue]) => {
+            if (debounce) {
+              setValue(nextValue);
+            }
+          }}
+        />
+        {showValue && (
+          <div className="text-xs text-muted-foreground min-w-[16px]">
+            {internalValue}
+          </div>
+        )}
+      </div>
     </Labeled>
   );
 };
