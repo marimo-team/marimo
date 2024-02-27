@@ -18,7 +18,7 @@ export function useElapsedTime(initialStartTimeMs: Milliseconds) {
     }, step);
 
     return () => clearInterval(interval);
-  });
+  }, []);
 
   return endTime - startTime.current;
 }
