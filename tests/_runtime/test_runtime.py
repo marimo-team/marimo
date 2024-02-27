@@ -830,6 +830,28 @@ async def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["pickle_output"] is not None
 
 
+async def test_set_ui_element_value_with_cell_run(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # This test imports a cell from another notebook that defines a UI element
+    # It then sets a value on the UI element, and makes sure that reactivity
+    # flows through the defs mapping that is returned
+    await k.run(
+        [
+            exec_req.get(
+                "from runtime_data.cell_ui_element import make_slider"
+            ),
+            exec_req.get("output, defs = make_slider.run()"),
+            exec_req.get("slider_value = defs['slider'].value + 1"),
+        ]
+    )
+    assert k.globals["defs"]["slider"].value == 0
+    element_id = k.globals["defs"]["slider"]._id
+    await k.set_ui_element_value(SetUIElementValueRequest([(element_id, 5)]))
+    assert k.globals["defs"]["slider"].value == 5
+    assert k.globals["slider_value"] == 6
+
+
 class TestAsyncIO:
     @staticmethod
     async def test_toplevel_await_allowed(
