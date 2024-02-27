@@ -20,7 +20,7 @@ export async function bootstrap() {
   const pyodide = await loadPyodide({
     // Perf: These get loaded while pyodide is being bootstrapped
     // The packages can be found here: https://pyodide.org/en/stable/usage/packages-in-pyodide.html
-    packages: ["micropip", "docutils", "Pygments"],
+    packages: ["micropip", "docutils", "Pygments", "jedi"],
     // Without this, this fails in Firefox with
     // `Could not extract indexURL path from pyodide module`
     // This fixes for Firefox and does not break Chrome/others
@@ -44,10 +44,6 @@ export async function bootstrap() {
       "multiprocessing.sharedctypes": None,
       "multiprocessing.shared_memory": None,
       "multiprocessing.spawn": None,
-    })
-    micropip.add_mock_package("jedi", "*", modules={
-      "jedi": None,
-      "jedi.api": None,
     })
 
     await micropip.install(

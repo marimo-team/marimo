@@ -305,7 +305,6 @@ def launch_pyodide_kernel(
     app_metadata: AppMetadata,
 ) -> RestartableTask:
     LOGGER.debug("Launching kernel")
-    del completion_queue
 
     # Create communication channels
     stream = PyodideStream(on_message, input_queue)
@@ -333,11 +332,23 @@ def launch_pyodide_kernel(
 
         register_formatters()
 
-    async def listen() -> None:
+    async def listen_messages() -> None:
         while True:
             request = await control_queue.get()
             LOGGER.debug("received request %s", request)
             await kernel.handle_message(request)
+
+    async def listen_completion() -> None:
+        while True:
+            request = await completion_queue.get()
+            LOGGER.debug("received completion request %s", request)
+            # 5 is arbitrary, but is a good limit:
+            # too high will cause long load times
+            # too low can be not as useful
+            kernel.code_completion(request, docstrings_limit=5)
+
+    async def listen() -> None:
+        await asyncio.gather(listen_messages(), listen_completion())
 
     return RestartableTask(listen)
 

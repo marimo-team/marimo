@@ -155,7 +155,6 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            disabled={isWasm}
             name="completion.activate_on_typing"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">
