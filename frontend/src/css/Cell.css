@@ -353,10 +353,10 @@
 
 /* ------------------------------ Output Areas ------------------------------ */
 
-.output-area,
-.console-output-area {
+.output-area {
   max-width: inherit;
   width: 100%;
+  padding: 0.25rem 1.85rem;
 
   /* Prevent floated elements from extending out of the output areas and into
    * the editor. */
@@ -374,10 +374,6 @@
   opacity: 0.2;
   transition: opacity 300ms;
   transition-delay: 200ms;
-}
-
-.output-area {
-  padding: 0.25rem 1.85rem;
 }
 
 .console-output-area {

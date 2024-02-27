@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import { OutputMessage } from "@/core/kernel/messages";
 import { formatOutput } from "../Output";
 import { cn } from "@/utils/cn";
@@ -21,6 +21,7 @@ interface Props {
 }
 
 export const ConsoleOutput = (props: Props): React.ReactNode => {
+  const ref = React.useRef<HTMLDivElement>(null);
   const { consoleOutputs, stale, cellName, cellId, onSubmitDebugger } = props;
 
   /* The debugger UI needs some work. For now just use the regular
@@ -36,6 +37,28 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
   const hasOutputs = consoleOutputs.length > 0;
 
+  // Keep scroll at the bottom if it is within 120px of the bottom,
+  // so when we add new content, it will lock to the bottom
+  //
+  // We use flex flex-col-reverse to handle this, but it doesn't
+  // always work perfectly when moved form the bottom and back.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+    // N.B. This won't handle large jumps in the scroll position
+    // if there is a lot of content added at once.
+    // This is 'good enough' for now.
+    const threshold = 120;
+
+    const scrollOffset = el.scrollHeight - el.clientHeight;
+    const distanceFromBottom = scrollOffset - el.scrollTop;
+    if (distanceFromBottom < threshold) {
+      el.scrollTop = scrollOffset;
+    }
+  });
+
   if (!hasOutputs && cellName === DEFAULT_CELL_NAME) {
     return null;
   }
@@ -46,17 +69,20 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
     );
   };
 
+  const reversedOutputs = [...consoleOutputs].reverse();
+
   return (
     <div
       title={stale ? "This console output is stale" : undefined}
       data-testid="console-output-area"
+      ref={ref}
       className={cn(
-        "console-output-area overflow-hidden rounded-b-lg",
+        "console-output-area overflow-hidden rounded-b-lg flex flex-col-reverse w-full",
         stale && "marimo-output-stale",
         hasOutputs ? "p-5" : "p-3",
       )}
     >
-      {consoleOutputs.map((output, idx) => {
+      {reversedOutputs.map((output, idx) => {
         if (output.channel === "pdb") {
           return null;
         }

@@ -1,37 +1,64 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { OutputMessage } from "@/core/kernel/messages";
+import { invariant } from "@/utils/invariant";
 
-// collapses the last text/plain cells with the preceding one on the same
-// channel (if any), and handles bare carriage returns ("\r")
+/**
+ * Collapses the last text/plain cells with the preceding one on the same
+ * channel (if any), and handles bare carriage returns ("\r").
+ */
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
-  let nextOutput = consoleOutputs[consoleOutputs.length - 1];
-  if (nextOutput.mimetype !== "text/plain") {
+  if (consoleOutputs.length < 2) {
+    return handleCarriageReturns(consoleOutputs);
+  }
+
+  const lastOutput = consoleOutputs[consoleOutputs.length - 1];
+  const secondLastOutput = consoleOutputs[consoleOutputs.length - 2];
+
+  if (shouldCollapse(lastOutput, secondLastOutput)) {
+    invariant(typeof lastOutput.data === "string", "expected string");
+    invariant(typeof secondLastOutput.data === "string", "expected string");
+
+    secondLastOutput.data += lastOutput.data;
+    consoleOutputs.pop();
+  }
+
+  return handleCarriageReturns(consoleOutputs);
+}
+
+function shouldCollapse(
+  lastOutput: OutputMessage,
+  secondLastOutput: OutputMessage,
+): boolean {
+  const isTextPlain =
+    lastOutput.mimetype === "text/plain" &&
+    secondLastOutput.mimetype === "text/plain";
+  if (!isTextPlain) {
+    return false;
+  }
+  const isSameChannel = lastOutput.channel === secondLastOutput.channel;
+  const isNotStdin = lastOutput.channel !== "stdin";
+
+  return isTextPlain && isSameChannel && isNotStdin;
+}
+
+function handleCarriageReturns(
+  consoleOutputs: OutputMessage[],
+): OutputMessage[] {
+  if (consoleOutputs.length === 0) {
     return consoleOutputs;
   }
 
-  // Skip stdin
-  if (
-    consoleOutputs.length >= 2 &&
-    consoleOutputs[consoleOutputs.length - 2].mimetype === "text/plain" &&
-    consoleOutputs[consoleOutputs.length - 2].channel === nextOutput.channel &&
-    nextOutput.channel !== "stdin"
-  ) {
-    consoleOutputs.pop();
-    // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-    consoleOutputs[consoleOutputs.length - 1].data += nextOutput.data;
-    nextOutput = consoleOutputs[consoleOutputs.length - 1];
-  }
-
-  if (nextOutput.mimetype !== "text/plain") {
+  const lastOutput = consoleOutputs[consoleOutputs.length - 1];
+  if (lastOutput.mimetype !== "text/plain") {
     return consoleOutputs;
   }
 
   // eslint-disable-next-line no-control-regex
   const carriagePattern = new RegExp("\r[^\n]", "g");
   // collapse carriage returns in the final output's data
-  let text = nextOutput.data;
+  let text = lastOutput.data;
   let carriageIdx = text.search(carriagePattern);
   while (carriageIdx > -1) {
     // find the newline character preceding the carriage return, if any
@@ -54,6 +81,6 @@ export function collapseConsoleOutputs(
     carriageIdx = text.search(carriagePattern);
   }
 
-  consoleOutputs[consoleOutputs.length - 1].data = text;
+  lastOutput.data = text;
   return consoleOutputs;
 }

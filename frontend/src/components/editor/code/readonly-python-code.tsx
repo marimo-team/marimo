@@ -25,7 +25,12 @@ export const ReadonlyPythonCode = memo(
     const [hideCode, setHideCode] = useState(initiallyHideCode);
 
     return (
-      <div className={cn("relative hover-actions-parent w-full", className)}>
+      <div
+        className={cn(
+          "relative hover-actions-parent w-full overflow-hidden",
+          className,
+        )}
+      >
         {hideCode && <HideCodeButton onClick={() => setHideCode(false)} />}
         {!hideCode && <FloatingCopyButton text={code} />}
         <CodeMirror
