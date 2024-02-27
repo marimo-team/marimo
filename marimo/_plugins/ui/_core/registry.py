@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import sys
 import weakref
-from collections.abc import Mapping
-from typing import Any, Dict, Iterable, TypeVar, Union
+from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias

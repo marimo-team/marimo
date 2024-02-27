@@ -4,9 +4,9 @@ from __future__ import annotations
 import ast
 import dataclasses
 import inspect
-from collections.abc import Awaitable, Mapping
+from collections.abc import Awaitable
 from types import CodeType
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
 from marimo._ast.visitor import Name, VariableData
 from marimo._utils.deep_merge import deep_merge

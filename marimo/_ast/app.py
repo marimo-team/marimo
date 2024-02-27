@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import random
 import string
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Iterable, Iterator, Literal, Optional
+from typing import Any, Callable, Iterable, Iterator, Literal, Optional, Mapping
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async

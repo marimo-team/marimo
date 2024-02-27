@@ -27,13 +27,19 @@ def __(mo):
 @app.cell
 def __(display_slider):
     slider_output, slider_defs = display_slider.run()
-    slider_output, slider_defs
+    slider_output
     return slider_defs, slider_output
 
 
 @app.cell
 def __(mo):
     mo.md("_Notice that set-ui-element value requests make it into the defs_")
+    return
+
+
+@app.cell
+def __(slider_defs):
+    slider_defs
     return
 
 
