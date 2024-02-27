@@ -160,8 +160,14 @@ class Cell:
         return self._f.__name__
 
     @property
-    def __name__(self) -> str:
-        return self.name
+    def refs(self) -> set[str]:
+        """The references that this cell takes as input"""
+        return self._cell.refs
+
+    @property
+    def defs(self) -> set[str]:
+        """The definitions made by this cell"""
+        return self._cell.defs
 
     def _is_coroutine(self) -> bool:
         if hasattr(self, "_is_coro_cached"):
@@ -204,11 +210,11 @@ class Cell:
 
             **References:**
 
-            {as_html(list(self._cell.refs))}
+            {as_html(list(self.refs))}
 
             **Definitions:**
 
-            {as_html(list(self._cell.defs))}
+            {as_html(list(self.defs))}
             """
         )
 
@@ -216,15 +222,97 @@ class Cell:
         self._app = app
 
     def run(
-        self, **kwargs: Any
+        self, **refs: Any
     ) -> tuple[Any, dict[str, Any]] | Awaitable[tuple[Any, dict[str, Any]]]:
         """Run this cell and return its visual output and definitions
 
+        Use this method to run **named cells** and retrieve their output and
+        definitions.
 
-        **Note**: If this cell is a coroutine function (starting with `async`),
-        or if any of its ancestors are coroutine functions, then this
-        function will return an awaitable.
+        This lets you use reuse cells defined in one notebook in another
+        notebook or Python file. It also makes it possible to write and execute
+        unit tests for notebook cells using a test framework like `pytest`.
 
+        **Example.** marimo cells can be given names either through the
+        editor cell menu or by manually changing the function name in the
+        notebook file. For example, consider a single notebook `notebook.py`:
+
+        ```python
+        import marimo
+
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def variables():
+            x = 0
+            y = 1
+            return (x, y)
+
+        @app.cell
+        def add(mo, x, y):
+            z = x + y
+            mo.md(f"The value of z is {z}")
+            return (z,)
+
+        if __name__ == "__main__":
+            app.run()
+        ```
+
+        To reuse the `add` cell in another notebook, you'd simply write
+
+        ```python
+        from notebook import add
+
+        # defs["z"] contains the value of `z`, in this case `1`
+        markdown_output, defs = add.run()
+        ```
+
+        When `run` is called without arguments, it automatically computes
+        the values that the cell depends on (in this case, `mo`, `x`, and `y`).
+        You can override these values by providing any subset of them as
+        keyword arguments. For example,
+
+        ```python
+        # defs["z"] == 4
+        markdown_output, defs = add.run(x=2, y=2)
+        ```
+
+        **Tip.** If the values of `defs` contain UI elements that are shown
+        in the output, make sure to assign them to global variables if you
+        want their values to be updated. For example,
+
+        ```python
+        output_with_slider, defs = mycell.run()
+        slider = defs["slider"]
+        output_with_slider
+        ```
+
+        **Note.** If this cell is a coroutine function (starting with `async`),
+        or if any of its ancestors are coroutine functions, then you'll
+        need to `await` the result: `output, defs = await cell.run()`.
+        You can check whether the result is an awaitable using:
+
+        ```python
+        from collections.abc import Awaitable
+
+        ret = cell.run()
+        if isinstance(ret, Awaitable):
+            output, defs = await ret
+        else:
+            output, defs = ret
+        ```
+
+
+        **Arguments**:
+
+        - You may pass values for any of this cell's references as keyword
+          arguments. marimo will automatically compute values for any refs
+          that are not provided by executing the parent cells that compute them
 
         **Returns**:
 
@@ -234,9 +322,9 @@ class Cell:
         """
         assert self._app is not None
         if self._is_coroutine():
-            return self._app.run_cell_async(cell=self, kwargs=kwargs)
+            return self._app.run_cell_async(cell=self, kwargs=refs)
         else:
-            return self._app.run_cell_sync(cell=self, kwargs=kwargs)
+            return self._app.run_cell_sync(cell=self, kwargs=refs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         del args
