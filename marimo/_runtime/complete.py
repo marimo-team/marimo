@@ -200,7 +200,7 @@ def _drain_queue(
     return request
 
 
-def complete(
+def completion_worker(
     completion_queue: QueueType[CompletionRequest],
     graph: dataflow.DirectedGraph,
     stream: Stream,
@@ -209,80 +209,94 @@ def complete(
 
     while True:
         request = _drain_queue(completion_queue)
-        if not request.document.strip():
-            _write_no_completions(stream, request.id)
-            continue
+        complete(request, graph, stream)
 
-        with graph.lock:
-            codes = [
-                graph.cells[cid].code
-                for cid in dataflow.topological_sort(
-                    graph,
-                    set(graph.cells.keys()) - set([request.cell_id]),
-                )
-            ]
 
-        try:
-            script = jedi.Script("\n".join(codes + [request.document]))
-            completions = script.complete()
-            prefix_length = (
-                completions[0].get_completion_prefix_length()
-                if completions
-                else 0
+def complete(
+    request: CompletionRequest,
+    graph: dataflow.DirectedGraph,
+    stream: Stream,
+    docstrings_limit: int = 1000,
+) -> None:
+    if not request.document.strip():
+        _write_no_completions(stream, request.id)
+        return
+
+    with graph.lock:
+        codes = [
+            graph.cells[cid].code
+            for cid in dataflow.topological_sort(
+                graph,
+                set(graph.cells.keys()) - set([request.cell_id]),
             )
+        ]
 
-            # Only complete an empty symbol (prefix length == 0) when we're
-            # using dot notation; this prevents autocomplete from kicking in at
-            # awkward times, such as when parentheses are first opened
-            if (
-                prefix_length == 0
-                and len(request.document) >= 1
-                and request.document[-1] != "."
-            ):
-                # Don't complete ...
-                completions = []
+    try:
+        script = jedi.Script("\n".join(codes + [request.document]))
+        completions = script.complete()
+        prefix_length = (
+            completions[0].get_completion_prefix_length() if completions else 0
+        )
 
-                # Get docstring in function context. A bit of a hack, since
-                # this isn't actually a completion, just a tooltip.
-                #
-                # If no completions, we might be getting a signature ...
-                # for example, if the document is "mo.ui.slider(start=1,
-                signatures = script.get_signatures()
-                if signatures:
-                    _write_completion_result(
-                        stream=stream,
-                        completion_id=request.id,
-                        prefix_length=0,
-                        options=[
-                            CompletionOption(
-                                name=signatures[0].name,
-                                type="tooltip",
-                                completion_info=_get_completion_info(
-                                    signatures[0]
-                                ),
-                            )
-                        ],
-                    )
-                    continue
+        # Only complete an empty symbol (prefix length == 0) when we're
+        # using dot notation; this prevents autocomplete from kicking in at
+        # awkward times, such as when parentheses are first opened
+        if (
+            prefix_length == 0
+            and len(request.document) >= 1
+            and request.document[-1] != "."
+        ):
+            # Don't complete ...
+            completions = []
 
-            if not completions:
-                # If there are still no completions, then bail.
-                _write_no_completions(stream, request.id)
-                continue
+            # Get docstring in function context. A bit of a hack, since
+            # this isn't actually a completion, just a tooltip.
+            #
+            # If no completions, we might be getting a signature ...
+            # for example, if the document is "mo.ui.slider(start=1,
+            signatures = script.get_signatures()
+            if signatures:
+                _write_completion_result(
+                    stream=stream,
+                    completion_id=request.id,
+                    prefix_length=0,
+                    options=[
+                        CompletionOption(
+                            name=signatures[0].name,
+                            type="tooltip",
+                            completion_info=_get_completion_info(
+                                signatures[0]
+                            ),
+                        )
+                    ],
+                )
+                return
 
-            prefix = request.document[-prefix_length:]
+        if not completions:
+            # If there are still no completions, then bail.
+            _write_no_completions(stream, request.id)
+            return
+
+        prefix = request.document[-prefix_length:]
+        if len(completions) < docstrings_limit:
             options = [
                 _get_completion_options(c, script)
                 for c in completions
                 if _should_include_name(c.name, prefix)
             ]
-            _write_completion_result(
-                stream=stream,
-                completion_id=request.id,
-                prefix_length=prefix_length,
-                options=options,
-            )
-        except Exception as e:
-            # jedi failed to provide completion
-            LOGGER.debug("Completion with jedi failed: ", str(e))
-            _write_no_completions(stream, request.id)
+        else:
+            options = [
+                CompletionOption(name=c.name, type=c.type, completion_info="")
+                for c in completions
+                if _should_include_name(c.name, prefix)
+            ]
+        _write_completion_result(
+            stream=stream,
+            completion_id=request.id,
+            prefix_length=prefix_length,
+            options=options,
+        )
+    except Exception as e:
+        # jedi failed to provide completion
+        LOGGER.debug("Completion with jedi failed: ", str(e))
+        _write_no_completions(stream, request.id)
