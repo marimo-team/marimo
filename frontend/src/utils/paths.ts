@@ -29,9 +29,9 @@ export class PathBuilder {
     return (parts.pop() ?? "") as FilePath;
   }
 
-  dirname(path: FilePath): string {
+  dirname(path: FilePath): FilePath {
     const parts = path.split(this.deliminator);
     parts.pop();
-    return parts.join(this.deliminator);
+    return parts.join(this.deliminator) as FilePath;
   }
 }
