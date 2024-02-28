@@ -266,10 +266,13 @@ class PyodideBridge:
         request: str,
     ) -> str:
         body = parse_raw(json.loads(request), FileCreateRequest)
-        success = self.file_system.create_file_or_directory(
-            body.path, body.type, body.name
-        )
-        response = FileCreateResponse(success=success)
+        try:
+            info = self.file_system.create_file_or_directory(
+                body.path, body.type, body.name, body.contents
+            )
+            response = FileCreateResponse(success=True, info=info)
+        except Exception as e:
+            response = FileCreateResponse(success=False, message=str(e))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def delete_file_or_directory(
@@ -286,10 +289,13 @@ class PyodideBridge:
         request: str,
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
-        success = self.file_system.update_file_or_directory(
-            body.path, body.new_path
-        )
-        response = FileUpdateResponse(success=success)
+        try:
+            info = self.file_system.update_file_or_directory(
+                body.path, body.new_path
+            )
+            response = FileUpdateResponse(success=True, info=info)
+        except Exception as e:
+            response = FileUpdateResponse(success=False, message=str(e))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
 

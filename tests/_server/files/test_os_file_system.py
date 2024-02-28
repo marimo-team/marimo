@@ -19,14 +19,29 @@ class TestOSFileSystem(unittest.TestCase):
 
     def test_create_file(self):
         test_file_name = "test_file.txt"
-        self.fs.create_file_or_directory(self.test_dir, "file", test_file_name)
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, None
+        )
         expected_path = os.path.join(self.test_dir, test_file_name)
+        assert os.path.exists(expected_path)
+
+    def test_create_file_with_duplicate_name(self):
+        test_file_name = "test_file.txt"
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, None
+        )
+        # Create a file with the same name
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, None
+        )
+        # Expecting a new file with a different name
+        expected_path = os.path.join(self.test_dir, "test_file_1.txt")
         assert os.path.exists(expected_path)
 
     def test_create_directory(self):
         test_dir_name = "test_dir"
         self.fs.create_file_or_directory(
-            self.test_dir, "directory", test_dir_name
+            self.test_dir, "directory", test_dir_name, None
         )
         expected_path = os.path.join(self.test_dir, test_dir_name)
         assert os.path.isdir(expected_path)
@@ -40,21 +55,20 @@ class TestOSFileSystem(unittest.TestCase):
 
     def test_get_details(self):
         test_file_name = "test_file.txt"
-        self.fs.create_file_or_directory(self.test_dir, "file", test_file_name)
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, "some content"
+        )
         file_info = self.fs.get_details(
             os.path.join(self.test_dir, test_file_name)
         )
         assert isinstance(file_info, FileDetailsResponse)
         assert file_info.file.name == test_file_name
         assert file_info.mime_type == "text/plain"
+        assert file_info.contents == "some content"
 
     def test_get_details_marimo_file(self):
         test_file_name = "app.py"
-        self.fs.create_file_or_directory(self.test_dir, "file", test_file_name)
-        file_path = os.path.join(self.test_dir, test_file_name)
-        with open(file_path, "w") as f:
-            f.write(
-                """
+        content = """
             import marimo
             app = marimo.App()
 
@@ -66,8 +80,10 @@ class TestOSFileSystem(unittest.TestCase):
             if __name__ == "__main__":
                 app.run()
             """
-            )
-            f.close()
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, content
+        )
+        file_path = os.path.join(self.test_dir, test_file_name)
         file_info = self.fs.get_details(file_path)
         assert isinstance(file_info, FileDetailsResponse)
         assert file_info.file.is_marimo_file

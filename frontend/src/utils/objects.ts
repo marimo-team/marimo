@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 export const Objects = {
+  EMPTY: Object.freeze({}) as Record<string, never>,
+
   mapValues<T, U, K extends string | number>(
     obj: Record<K, T>,
     mapper: (value: T, key: K) => U,

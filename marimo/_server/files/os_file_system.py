@@ -2,7 +2,7 @@
 import mimetypes
 import os
 import shutil
-from typing import List
+from typing import List, Optional
 
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
@@ -49,10 +49,10 @@ class OSFileSystem(FileSystem):
 
         return files
 
-    def get_details(self, path: str) -> FileDetailsResponse:
+    def _get_file_info(self, path: str) -> FileInfo:
         stat = os.stat(path)
         is_directory = os.path.isdir(path)
-        file_info = FileInfo(
+        return FileInfo(
             id=path,
             path=path,
             name=os.path.basename(path),
@@ -60,7 +60,10 @@ class OSFileSystem(FileSystem):
             is_marimo_file=not is_directory and self._is_marimo_file(path),
             last_modified_date=stat.st_mtime,
         )
-        contents = self.open_file(path) if not is_directory else None
+
+    def get_details(self, path: str) -> FileDetailsResponse:
+        file_info = self._get_file_info(path)
+        contents = self.open_file(path) if not file_info.is_directory else None
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
             file=file_info, contents=contents, mime_type=mime_type
@@ -78,32 +81,40 @@ class OSFileSystem(FileSystem):
             return file.read()
 
     def create_file_or_directory(
-        self, path: str, file_type: str, name: str
-    ) -> bool:
+        self,
+        path: str,
+        file_type: str,
+        name: str,
+        contents: Optional[str],
+    ) -> FileInfo:
         full_path = os.path.join(path, name)
-        try:
-            if file_type == "directory":
-                os.makedirs(full_path)
-            else:
-                with open(full_path, "w"):
-                    pass  # Create an empty file
-            return True
-        except Exception:
-            return False
+        # If the file already exists, generate a new name
+        if os.path.exists(full_path):
+            i = 1
+            name_without_extension, extension = os.path.splitext(name)
+            while True:
+                new_name = f"{name_without_extension}_{i}{extension}"
+                new_full_path = os.path.join(path, new_name)
+                if not os.path.exists(new_full_path):
+                    full_path = new_full_path
+                    break
+                i += 1
+
+        if file_type == "directory":
+            os.makedirs(full_path)
+        else:
+            with open(full_path, "w") as file:
+                if contents:
+                    file.write(contents)
+        return self.get_details(full_path).file
 
     def delete_file_or_directory(self, path: str) -> bool:
-        try:
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-            else:
-                os.remove(path)
-            return True
-        except Exception:
-            return False
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+        return True
 
-    def update_file_or_directory(self, path: str, new_path: str) -> bool:
-        try:
-            shutil.move(path, new_path)
-            return True
-        except Exception:
-            return False
+    def update_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+        shutil.move(path, new_path)
+        return self.get_details(new_path).file

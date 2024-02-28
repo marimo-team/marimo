@@ -61,10 +61,14 @@ async def create_file_or_directory(
 ) -> FileCreateResponse:
     """Create a new file or directory."""
     body = await parse_request(request, cls=FileCreateRequest)
-    success = file_system.create_file_or_directory(
-        body.path, body.type, body.name
-    )
-    return FileCreateResponse(success=success)
+    try:
+        info = file_system.create_file_or_directory(
+            body.path, body.type, body.name, body.contents
+        )
+        return FileCreateResponse(success=True, info=info)
+    except Exception as e:
+        LOGGER.error(f"Error creating file or directory: {e}")
+        return FileCreateResponse(success=False, message=str(e))
 
 
 @router.post("/delete")
@@ -75,8 +79,13 @@ async def delete_file_or_directory(
 ) -> FileDeleteResponse:
     """Delete a file or directory."""
     body = await parse_request(request, cls=FileDeleteRequest)
-    success = file_system.delete_file_or_directory(body.path)
-    return FileDeleteResponse(success=success)
+    try:
+        file_system.get_details(body.path)
+        success = file_system.delete_file_or_directory(body.path)
+        return FileDeleteResponse(success=success)
+    except Exception as e:
+        LOGGER.error(f"Error deleting file or directory: {e}")
+        return FileDeleteResponse(success=False, message=str(e))
 
 
 @router.post("/update")
@@ -87,5 +96,10 @@ async def update_file_or_directory(
 ) -> FileUpdateResponse:
     """Rename or move a file or directory."""
     body = await parse_request(request, cls=FileUpdateRequest)
-    success = file_system.update_file_or_directory(body.path, body.new_path)
-    return FileUpdateResponse(success=success)
+    try:
+        file_system.get_details(body.path)
+        info = file_system.update_file_or_directory(body.path, body.new_path)
+        return FileUpdateResponse(success=True, info=info)
+    except Exception as e:
+        LOGGER.error(f"Error updating file or directory: {e}")
+        return FileUpdateResponse(success=False, message=str(e))

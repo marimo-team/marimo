@@ -75,6 +75,17 @@ export function vegaLoadData(
   });
 }
 
+export function parseCsvData(csvData: string, handleBigInt = true): object[] {
+  if (handleBigInt) {
+    enableBigInt();
+  }
+  const data = read(csvData, { type: "csv", parse: "auto" });
+  if (handleBigInt) {
+    disableBigInt();
+  }
+  return data;
+}
+
 export function uniquifyColumnNames(csvData: string): string {
   if (!csvData || !csvData.includes(",")) {
     return csvData;

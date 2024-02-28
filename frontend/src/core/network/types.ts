@@ -121,6 +121,7 @@ export interface FileCreateRequest {
   path: FilePath;
   type: "file" | "directory";
   name: string;
+  contents: string | undefined;
 }
 
 export interface FileDeleteRequest {
@@ -135,6 +136,7 @@ export interface FileUpdateRequest {
 export interface FileOperationResponse {
   success: boolean;
   message: string | undefined;
+  info: FileInfo | undefined;
 }
 
 export interface FileDetailsResponse {
