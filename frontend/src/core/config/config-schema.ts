@@ -68,25 +68,45 @@ export const UserConfigSchema = z
       .passthrough()
       .default({}),
   })
-  // Pass through so that we don't remove any extra keys that the user has added.
-  .passthrough();
+  // Pass through so that we don't remove any extra keys that the user has added
+  .passthrough()
+  .default({
+    completion: { activate_on_typing: true, copilot: false },
+    save: {
+      autosave: "after_delay",
+      autosave_delay: 1000,
+      format_on_save: false,
+    },
+    formatting: { line_length: 79 },
+    keymap: { preset: "default" },
+    runtime: { auto_instantiate: true },
+    display: {
+      theme: "light",
+      code_editor_font_size: 14,
+      cell_output: "above",
+    },
+    experimental: {},
+  });
 export type UserConfig = z.infer<typeof UserConfigSchema>;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
-export const AppConfigSchema = z.object({
-  width: z.enum(["full", "normal"]).default("normal"),
-});
+export const AppConfigSchema = z
+  .object({
+    width: z.enum(["full", "normal"]).default("normal"),
+  })
+  .default({ width: "normal" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {
   try {
     return AppConfigSchema.parse(JSON.parse(getRawMarimoAppConfig()));
   } catch (error) {
-    throw new Error(
+    Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
     );
+    return AppConfigSchema.parse({});
   }
 }
 
@@ -105,9 +125,10 @@ export function parseUserConfig() {
     }
     return parsed;
   } catch (error) {
-    throw new Error(
+    Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
     );
+    return UserConfigSchema.parse({});
   }
 }
 
