@@ -8,7 +8,6 @@ import {
   ChevronRightIcon,
   CopyIcon,
   Edit3Icon,
-  FolderPlusIcon,
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,
@@ -42,7 +41,6 @@ import { cn } from "@/utils/cn";
 import { FileViewer } from "./file-viewer";
 import { treeAtom, openStateAtom } from "./state";
 import { useFileExplorerUpload } from "./upload";
-import { RequestingTree } from "./requesting-tree";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -130,13 +128,7 @@ export const FileExplorer: React.FC<{
 
 const INDENT_STEP = 15;
 
-const Toolbar = ({
-  onRefresh,
-  tree,
-}: {
-  onRefresh: () => void;
-  tree: RequestingTree;
-}) => {
+const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
   const { getRootProps, getInputProps } = useFileExplorerUpload({
     noDrag: true,
     noDragEventsBubbling: true,
