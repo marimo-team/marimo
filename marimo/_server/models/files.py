@@ -47,6 +47,8 @@ class FileCreateRequest:
     type: str
     # The name of the file or directory
     name: str
+    # The contents of the file
+    contents: Optional[str] = None
 
 
 @dataclass
@@ -81,6 +83,7 @@ class FileCreateResponse:
     success: bool
     # Additional information, e.g., error message
     message: Optional[str] = None
+    info: Optional[FileInfo] = None
 
 
 @dataclass
@@ -95,3 +98,4 @@ class FileUpdateResponse:
     success: bool
     # Additional information, e.g., error message
     message: Optional[str] = None
+    info: Optional[FileInfo] = None

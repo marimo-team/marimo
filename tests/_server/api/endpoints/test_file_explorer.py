@@ -50,6 +50,7 @@ def test_create_and_delete_file_or_directory(client: TestClient) -> None:
             "path": test_dir,
             "type": "file",
             "name": "new_file.txt",
+            "contents": "",
         },
     )
     assert response.status_code == 200, response.text

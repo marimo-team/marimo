@@ -7,7 +7,6 @@ import { isNumber } from "lodash-es";
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
 const previousIntegerParser = typeParsers.integer;
-const previousNumberParser = typeParsers.number;
 // We need to use BigInt for numbers to support large numbers
 const bigIntIntegerParser = (v: string) => {
   if (v === "") {
@@ -15,21 +14,13 @@ const bigIntIntegerParser = (v: string) => {
   }
   return isNumber(Number.parseInt(v)) ? BigInt(v) : "";
 };
-const bigIntNumberParser = (v: string) => {
-  if (v === "") {
-    return "";
-  }
-  return isNumber(Number.parseFloat(v)) ? BigInt(v) : "";
-};
 
 function enableBigInt() {
   typeParsers.integer = bigIntIntegerParser;
-  typeParsers.number = bigIntNumberParser;
 }
 
 function disableBigInt() {
   typeParsers.integer = previousIntegerParser;
-  typeParsers.number = previousNumberParser;
 }
 
 export const vegaLoader = createLoader();
@@ -73,6 +64,17 @@ export function vegaLoadData(
 
     return results;
   });
+}
+
+export function parseCsvData(csvData: string, handleBigInt = true): object[] {
+  if (handleBigInt) {
+    enableBigInt();
+  }
+  const data = read(csvData, { type: "csv", parse: "auto" });
+  if (handleBigInt) {
+    disableBigInt();
+  }
+  return data;
 }
 
 export function uniquifyColumnNames(csvData: string): string {

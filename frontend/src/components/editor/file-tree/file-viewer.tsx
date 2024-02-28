@@ -1,11 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { generateColumns } from "@/components/data-table/columns";
+import { DataTable } from "@/components/data-table/data-table";
 import { sendFileDetails } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { parseCsvData } from "@/plugins/impl/vega/loader";
+import { Objects } from "@/utils/objects";
 import { EditorView } from "@codemirror/view";
-import React from "react";
+import React, { useMemo } from "react";
 
 interface Props {
   file: FileInfo;
@@ -36,6 +40,14 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
     );
   }
 
+  if (data.mimeType === "text/csv") {
+    return (
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <CsvViewer contents={data.contents} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       <AnyLanguageCodeMirror
@@ -51,6 +63,23 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
   );
 };
 
+const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
+  const data = useMemo(() => parseCsvData(contents), [contents]);
+  const columns = useMemo(() => generateColumns(data, [], null), [data]);
+
+  return (
+    <DataTable
+      data={data}
+      columns={columns}
+      wrapperClassName="h-full justify-between pb-1 px-1"
+      pagination={true}
+      pageSize={10}
+      className="rounded-none border-b flex overflow-hidden"
+      rowSelection={Objects.EMPTY}
+    />
+  );
+};
+
 const mimeToLanguage: Record<string, string> = {
   "application/javascript": "javascript",
   "text/markdown": "markdown",
@@ -60,5 +89,6 @@ const mimeToLanguage: Record<string, string> = {
   "application/json": "json",
   "application/xml": "xml",
   "text/x-yaml": "yaml",
-  default: "text",
+  "text/csv": "markdown",
+  default: "markdown",
 };

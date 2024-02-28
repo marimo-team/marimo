@@ -26,6 +26,7 @@ import { DownloadActionProps, DownloadAs } from "./download-actions";
 import { cn } from "@/utils/cn";
 
 interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
+  wrapperClassName?: string;
   className?: string;
   columns: Array<ColumnDef<TData, TValue>>;
   data: TData[];
@@ -37,6 +38,7 @@ interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
 }
 
 export const DataTable = <TData, TValue>({
+  wrapperClassName,
   className,
   columns,
   data,
@@ -73,7 +75,7 @@ export const DataTable = <TData, TValue>({
   });
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
       <div className={cn(className || "rounded-md border")}>
         <Table>
           <TableHeader>
@@ -124,7 +126,7 @@ export const DataTable = <TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex align-items justify-between">
+      <div className="flex align-items justify-between flex-shrink-0">
         {pagination ? <DataTablePagination table={table} /> : <div />}
         {downloadAs && <DownloadAs downloadAs={downloadAs} />}
       </div>

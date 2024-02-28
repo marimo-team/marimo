@@ -11,16 +11,11 @@ import {
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,
+  UploadIcon,
   ViewIcon,
 } from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
-import {
-  openFile,
-  sendCreateFileOrFolder,
-  sendDeleteFileOrFolder,
-  sendListFiles,
-  sendRenameFileOrFolder,
-} from "@/core/network/requests";
+import { openFile } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
@@ -31,8 +26,8 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogAction } from "@/components/ui/alert-dialog";
-import { atom, useAtom } from "jotai";
-import { Button } from "@/components/ui/button";
+import { useAtom } from "jotai";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 import {
   DropdownMenu,
@@ -43,20 +38,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import { RequestingTree } from "./requesting-tree";
 import { FileViewer } from "./file-viewer";
-
-// State lives outside of the component
-// to preserve the state when the component is unmounted
-const treeAtom = atom<RequestingTree>(
-  new RequestingTree({
-    listFiles: sendListFiles,
-    createFileOrFolder: sendCreateFileOrFolder,
-    deleteFileOrFolder: sendDeleteFileOrFolder,
-    renameFileOrFolder: sendRenameFileOrFolder,
-  }),
-);
-const openStateAtom = atom<Record<string, boolean>>({});
+import { treeAtom, openStateAtom } from "./state";
+import { useFileExplorerUpload } from "./upload";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -145,8 +129,26 @@ export const FileExplorer: React.FC<{
 const INDENT_STEP = 15;
 
 const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { getRootProps, getInputProps } = useFileExplorerUpload({
+    noDrag: true,
+    noDragEventsBubbling: true,
+  });
+
   return (
     <div className="flex items-center justify-end px-2 flex-shrink-0 border-b">
+      <Tooltip content="Upload file">
+        <button
+          {...getRootProps({})}
+          className={buttonVariants({
+            variant: "text",
+            size: "xs",
+            className: "mb-0",
+          })}
+        >
+          <UploadIcon size={16} />
+        </button>
+      </Tooltip>
+      <input {...getInputProps({})} type="file" />
       <Tooltip content="Refresh">
         <Button onClick={onRefresh} variant="text" size="xs" className="mb-0">
           <RefreshCcwIcon size={16} />
@@ -200,12 +202,7 @@ const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
   );
 };
 
-const Node = ({
-  node,
-  style,
-  tree,
-  dragHandle,
-}: NodeRendererProps<FileInfo>) => {
+const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const fileType: FileType = node.data.isDirectory
     ? "directory"
     : guessFileType(node.data.name);
