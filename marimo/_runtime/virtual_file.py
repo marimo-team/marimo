@@ -9,7 +9,6 @@ import string
 import sys
 import threading
 from collections.abc import Iterable
-from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
@@ -21,6 +20,10 @@ if TYPE_CHECKING:
     from marimo._runtime.context import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
+
+if "pyodide" not in sys.modules:
+    # the shared_memory module is not supported in the Pyodide distribution
+    from multiprocessing import shared_memory
 
 
 _ALPHABET = string.ascii_letters + string.digits

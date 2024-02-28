@@ -31,20 +31,9 @@ export async function bootstrap() {
   const marimoWheel =
     process.env.NODE_ENV === "production"
       ? "marimo >= 0.2.5"
-      : "http://localhost:8000/dist/marimo-0.2.8-py3-none-any.whl";
+      : "http://localhost:8000/dist/marimo-0.2.9-py3-none-any.whl";
   await pyodide.runPythonAsync(`
     import micropip
-
-    micropip.add_mock_package("multiprocessing", "*", modules={
-      "multiprocessing": None,
-      "multiprocessing.connection": None,
-      "multiprocessing.context": None,
-      "multiprocessing.managers": None,
-      "multiprocessing.pool": None,
-      "multiprocessing.sharedctypes": None,
-      "multiprocessing.shared_memory": None,
-      "multiprocessing.spawn": None,
-    })
 
     await micropip.install(
       [
