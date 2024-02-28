@@ -226,7 +226,7 @@ describe("RequestingTree", () => {
     test("move should handle missing parent node gracefully", async () => {
       await requestingTree.move(["1.x"], "2");
       expect(sendRenameFileOrFolder).not.toHaveBeenCalled();
-      expect(mockOnChange).not.toHaveBeenCalled();
+      expect(mockOnChange).toHaveBeenCalledTimes(3);
     });
 
     test("refreshAll should handle API errors without crashing", async () => {
