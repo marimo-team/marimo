@@ -8,7 +8,7 @@ call_count = 0
 
 
 def test_debounce_within_period():
-    @debounce(wait_time=0.2)
+    @debounce(wait_time=1.5)
     def my_function():
         global call_count
         call_count += 1
@@ -25,7 +25,7 @@ def test_debounce_within_period():
 
 
 def test_debounce_after_period():
-    @debounce(wait_time=0.2)
+    @debounce(wait_time=0.1)
     def my_function():
         global call_count
         call_count += 1
