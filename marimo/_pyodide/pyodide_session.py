@@ -38,7 +38,6 @@ from marimo._server.models.files import (
     FileDeleteRequest,
     FileDeleteResponse,
     FileDetailsRequest,
-    FileDetailsResponse,
     FileListRequest,
     FileListResponse,
     FileUpdateRequest,
@@ -259,8 +258,7 @@ class PyodideBridge:
         request: str,
     ) -> str:
         body = parse_raw(json.loads(request), FileDetailsRequest)
-        file_info = self.file_system.get_details(body.path)
-        response = FileDetailsResponse(file=file_info)
+        response = self.file_system.get_details(body.path)
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def create_file_or_directory(

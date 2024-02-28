@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from marimo._server.models.files import FileInfo
+from marimo._server.models.files import FileDetailsResponse, FileInfo
 
 
 class FileSystem(ABC):
@@ -17,7 +17,7 @@ class FileSystem(ABC):
         pass
 
     @abstractmethod
-    def get_details(self, path: str) -> FileInfo:
+    def get_details(self, path: str) -> FileDetailsResponse:
         """Get details of a specific file or directory."""
         pass
 

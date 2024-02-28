@@ -50,8 +50,7 @@ async def file_details(
 ) -> FileDetailsResponse:
     """Get details of a specific file or directory."""
     body = await parse_request(request, cls=FileDetailsRequest)
-    file_info = file_system.get_details(body.path)
-    return FileDetailsResponse(file=file_info)
+    return file_system.get_details(body.path)
 
 
 @router.post("/create")

@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
+import mimetypes
 import os
 import shutil
 from typing import List
 
 from marimo._server.files.file_system import FileSystem
-from marimo._server.models.files import FileInfo
+from marimo._server.models.files import FileDetailsResponse, FileInfo
 
 IGNORE_LIST = [
     "__pycache__",
@@ -48,16 +49,21 @@ class OSFileSystem(FileSystem):
 
         return files
 
-    def get_details(self, path: str) -> FileInfo:
+    def get_details(self, path: str) -> FileDetailsResponse:
         stat = os.stat(path)
         is_directory = os.path.isdir(path)
-        return FileInfo(
+        file_info = FileInfo(
             id=path,
             path=path,
             name=os.path.basename(path),
             is_directory=is_directory,
             is_marimo_file=not is_directory and self._is_marimo_file(path),
             last_modified_date=stat.st_mtime,
+        )
+        contents = self.open_file(path) if not is_directory else None
+        mime_type = mimetypes.guess_type(path)[0]
+        return FileDetailsResponse(
+            file=file_info, contents=contents, mime_type=mime_type
         )
 
     def _is_marimo_file(self, path: str) -> bool:

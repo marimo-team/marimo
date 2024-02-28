@@ -72,12 +72,8 @@ class FileListResponse:
 @dataclass
 class FileDetailsResponse:
     file: FileInfo
-
-
-@dataclass
-class FileOpenResponse:
-    # The content of the file
-    content: str
+    contents: Optional[str] = None
+    mime_type: Optional[str] = None
 
 
 @dataclass

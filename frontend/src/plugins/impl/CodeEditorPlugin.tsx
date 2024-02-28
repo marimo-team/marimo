@@ -4,7 +4,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 
 import { Labeled } from "./common/labeled";
 import { Theme, useTheme } from "@/theme/useTheme";
-import { lazy } from "react";
+import { LazyAnyLanguageCodeMirror } from "./code/LazyAnyLanguageCodeMirror";
 
 type T = string;
 
@@ -40,10 +40,6 @@ export class CodeEditorPlugin implements IPlugin<T, Data> {
     );
   }
 }
-
-const LazyAnyLanguageCodeMirror = lazy(
-  () => import("./code/any-language-editor"),
-);
 
 interface CodeEditorComponentProps extends Data {
   value: T;
