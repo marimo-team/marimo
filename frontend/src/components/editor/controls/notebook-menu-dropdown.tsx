@@ -16,6 +16,7 @@ import {
 import { renderMinimalShortcut } from "../../shortcuts/renderShortcut";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import { ActionButton } from "../actions/types";
+import { getMarimoVersion } from "@/core/dom/marimo-tag";
 
 export const NotebookMenuDropdown: React.FC = () => {
   const actions = useNotebookActions();
@@ -90,6 +91,10 @@ export const NotebookMenuDropdown: React.FC = () => {
             </React.Fragment>
           );
         })}
+        <DropdownMenuSeparator />
+        <div className="flex-1 px-2 text-xs text-muted-foreground">
+          <span>Version: {getMarimoVersion()}</span>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
