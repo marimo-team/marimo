@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 from helpers.md2rst import md2rst
 from helpers.sections import PublicMethods
+from helpers.marimo_embed import MarimoEmbed
 from helpers.copy_readme import ReadmePartDirective
 
 import marimo
@@ -130,3 +131,4 @@ def setup(app):
     # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#docstring-preprocessing
     app.connect("autodoc-process-docstring", md2rst)
     app.add_directive("readmepart", ReadmePartDirective)
+    app.add_directive("marimo-embed", MarimoEmbed)

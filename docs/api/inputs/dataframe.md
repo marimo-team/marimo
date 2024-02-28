@@ -18,7 +18,20 @@ Supported transforms are:
 - Group By
 - Aggregate
 
-<!-- <iframe class="demo large" src="https://components.marimo.io/?component=dataframe" frameborder="no"></iframe> -->
+```{eval-rst}
+.. marimo-embed::
+    :size: large
+    :app_width: full
+
+    @app.cell
+    def __():
+        import pandas as pd
+        import pyodide
+        csv = pyodide.http.open_url("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
+        df = pd.read_csv(csv)
+        mo.ui.dataframe(df)
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.dataframe

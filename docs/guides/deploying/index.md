@@ -6,7 +6,7 @@
   :hidden:
 
   deploying_docker
-  deploying_marimo_cloud
+  deploying_public_gallery
 ```
 
 These guides help you deploy marimo notebooks.

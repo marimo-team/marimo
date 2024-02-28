@@ -1,8 +1,20 @@
 # Refresh
 
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        refresh = mo.ui.refresh(
+          label="Refresh",
+          options=["1s", "5s", "10s", "30s"]
+        )
+        return
 
-
-<iframe class="demo" src="https://components.marimo.io/?component=refresh" frameborder="no"></iframe>
+    @app.cell
+    def __():
+        mo.hstack([refresh, refresh.value])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.refresh

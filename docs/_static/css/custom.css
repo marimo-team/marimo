@@ -38,6 +38,10 @@ iframe.demo {
   border-radius: 5px;
 }
 
+.autosummary > table {
+  width: 98%;
+}
+
 iframe.demo.medium {
   height: 400px;
 }

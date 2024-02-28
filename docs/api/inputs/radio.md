@@ -1,6 +1,18 @@
 # Radio
 
-<iframe class="demo" src="https://components.marimo.io/?component=radio" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        options = ["Apples", "Oranges", "Pears"]
+        radio = mo.ui.radio(options=options)
+        return
+
+    @app.cell
+    def __():
+        mo.hstack([radio, mo.md(f"Has value: {radio.value}")])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.radio

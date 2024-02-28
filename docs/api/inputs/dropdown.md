@@ -1,6 +1,18 @@
 # Dropdown
 
-<iframe class="demo" src="https://components.marimo.io/?component=dropdown" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        options = ["Apples", "Oranges", "Pears"]
+        dropdown = mo.ui.dropdown(options=options)
+        return
+
+    @app.cell
+    def __():
+        mo.hstack([dropdown, mo.md(f"Has value: {dropdown.value}")])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.dropdown

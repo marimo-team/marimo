@@ -9,7 +9,6 @@
   batch
   button
   checkbox
-  chart
   code_editor
   dataframe
   data_explorer
@@ -42,7 +41,6 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.batch
   marimo.ui.button
   marimo.ui.checkbox
-  marimo.ui.chart
   marimo.ui.code_editor
   marimo.ui.dataframe
   marimo.ui.data_explorer
@@ -68,3 +66,14 @@ To use a UI element, assign it to a global variable and output it in a cell.
 When you interact with the frontend element, the Python object's `value`
 attribute is automatically updated, and all cells referencing that object
 automatically run with the element's latest value.
+
+## Integrations
+
+```{eval-rst}
+.. autosummary::
+  :nosignatures:
+
+  marimo.ui.altair_chart
+  marimo.ui.plotly
+  marimo.mpl.interactive
+```

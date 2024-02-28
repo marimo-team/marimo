@@ -7,7 +7,6 @@
 
   accordion
   callout
-  image
   justify
   stacks
   tree

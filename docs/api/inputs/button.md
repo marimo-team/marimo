@@ -1,6 +1,12 @@
 # Button
 
-<iframe class="demo" src="https://components.marimo.io/?component=button" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        mo.ui.button(label="Click me")
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.button

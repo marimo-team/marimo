@@ -1,6 +1,18 @@
 # Multiselect
 
-<iframe class="demo" src="https://components.marimo.io/?component=multiselect" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        options = ["Apples", "Oranges", "Pears"]
+        multiselect = mo.ui.multiselect(options=options)
+        return
+
+    @app.cell
+    def __():
+        mo.hstack([multiselect, mo.md(f"Has value: {multiselect.value}")])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.multiselect

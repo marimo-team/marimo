@@ -8,7 +8,35 @@ For more information about plotting, see the [plotting guide](../guides/plotting
 
 ## Reactive charts with Altair
 
-<iframe class="demo large" src="https://components.marimo.io/?component=altair-chart" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    :size: large
+
+    @app.cell
+    def __():
+        import pandas as pd
+        import pyodide
+        import micropip
+        await micropip.install('altair')
+        return
+
+    @app.cell
+    def __():
+        import altair as alt
+        cars = pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
+
+        chart = alt.Chart(cars).mark_point().encode(
+            x='Horsepower',
+            y='Miles_per_Gallon',
+            color='Origin'
+        )
+        return
+
+    @app.cell
+    def __():
+        mo.vstack([chart, mo.ui.table(chart.value)])
+        return
+```
 
 ```{eval-rst}
 .. autofunction:: marimo.ui.altair_chart
