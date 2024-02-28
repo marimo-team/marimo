@@ -3,24 +3,19 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import functools
 import inspect
+from collections.abc import Awaitable
 from types import CodeType
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    Optional,
-    Protocol,
-    Tuple,
-    TypeVar,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
 from marimo._ast.visitor import Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
+
+if TYPE_CHECKING:
+    from marimo._ast.app import InternalApp
+    from marimo._output.hypertext import Html
 
 
 @dataclasses.dataclass
@@ -54,13 +49,14 @@ CellConfigKeys = frozenset(
     {field.name for field in dataclasses.fields(CellConfig)}
 )
 
-"""
-idle: cell has run with latest inputs
-queued: cell is queued to run
-running: cell is running
-stale: cell hasn't run with latest inputs, and can't run (disabled)
-disabled-transitively: cell is disabled because a parent is disabled
-"""
+
+# Cell Statuses
+#
+# idle: cell has run with latest inputs
+# queued: cell is queued to run
+# running: cell is running
+# stale: cell hasn't run with latest inputs, and can't run (disabled)
+# disabled-transitively: cell is disabled because a parent is disabled
 CellStatusType = Literal[
     "idle", "queued", "running", "stale", "disabled-transitively"
 ]
@@ -78,7 +74,7 @@ def _is_coroutine(code: Optional[CodeType]) -> bool:
 
 
 @dataclasses.dataclass(frozen=True)
-class Cell:
+class CellImpl:
     # hash of code
     key: int
     code: str
@@ -99,7 +95,7 @@ class Cell:
     # status: status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
 
-    def configure(self, update: dict[str, Any] | CellConfig) -> Cell:
+    def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cel config.
 
         `update` can be a partial config.
@@ -148,111 +144,233 @@ class Cell:
         CellOp.broadcast_status(cell_id=self.cell_id, status=status)
 
 
-CellFuncType = Callable[..., Optional[Tuple[Any, ...]]]
-# Cumbersome, but used to ensure function types don't get erased in decorators
-# or creation of CellFunction
-CellFuncTypeBound = TypeVar(
-    "CellFuncTypeBound",
-    bound=Callable[..., Optional[Tuple[Any, ...]]],
-)
+@dataclasses.dataclass
+class Cell:
+    """An executable notebook cell
 
+    `A Cell` object can be executed as a function via its `run()` method, which
+    returns the cell's last expression (output) and a mapping from its defined
+    names to its values.
 
-class CellFunction(Protocol[CellFuncTypeBound]):
-    """Wraps a function from which a Cell object was created."""
+    Cells can be named via the marimo editor in the browser, or by
+    changing the cell's function name in the notebook file. Named
+    cells can then be executed for use in other notebooks, or to test
+    in unit tests.
 
-    cell: Cell
-    # function name
-    __name__: str
-    # function code
-    code: str
-    # arg names of wrapped function
-    args: set[str]
-    __call__: CellFuncTypeBound
+    For example:
 
+    ```python
+    from my_notebook import my_cell
 
-def cell_function(
-    cell: Cell, args: set[str], code: str, f: CellFuncTypeBound
-) -> CellFunction[CellFuncTypeBound]:
-    signature = inspect.signature(f)
+    output, definitions = my_cell.run()
+    ```
 
-    n_args = 0
-    defaults = {}
-    for name, value in signature.parameters.items():
-        if value.default != inspect.Parameter.empty:
-            defaults[name] = value.default
+    See the documentation of `run` for info and examples.
+    """
+
+    # Function from which this cell was created
+    _f: Callable[..., Any]
+
+    # Internal cell representation
+    _cell: CellImpl
+
+    # App to which this cell belongs
+    _app: InternalApp | None = None
+
+    @property
+    def name(self) -> str:
+        return self._f.__name__
+
+    @property
+    def refs(self) -> set[str]:
+        """The references that this cell takes as input"""
+        return self._cell.refs
+
+    @property
+    def defs(self) -> set[str]:
+        """The definitions made by this cell"""
+        return self._cell.defs
+
+    def _is_coroutine(self) -> bool:
+        """Whether this cell is a coroutine function.
+
+        If True, then this cell's `run` method returns an awaitable.
+        """
+        if hasattr(self, "_is_coro_cached"):
+            return self._is_coro_cached
+        assert self._app is not None
+        self._is_coro_cached: bool = self._app.runner.is_coroutine(
+            self._cell.cell_id
+        )
+        return self._is_coro_cached
+
+    def _help(self) -> Html:
+        from marimo._output.formatting import as_html
+        from marimo._output.md import md
+
+        signature_prefix = "Async " if self._is_coroutine() else ""
+        execute_str_refs = (
+            f"output, defs = await {self.name}.run(**refs)"
+            if self._is_coroutine()
+            else f"output, defs = {self.name}.run(**refs)"
+        )
+        execute_str_no_refs = (
+            f"output, defs = await {self.name}.run()"
+            if self._is_coroutine()
+            else f"output, defs = {self.name}.run()"
+        )
+
+        return md(
+            f"""
+            **{signature_prefix}Cell `{self.name}`**
+
+            You can execute this cell using
+
+            `{execute_str_refs}`
+
+            where `refs` is a dictionary mapping a subset of the
+            cell's references to values. Missing refs will be automatically
+            computed. To automatically compute all refs, simply run with
+
+            `{execute_str_no_refs}`
+
+            **References:**
+
+            {as_html(list(self.refs))}
+
+            **Definitions:**
+
+            {as_html(list(self.defs))}
+            """
+        )
+
+    def _register_app(self, app: InternalApp) -> None:
+        self._app = app
+
+    def run(
+        self, **refs: Any
+    ) -> (
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]]
+    ):
+        """Run this cell and return its visual output and definitions
+
+        Use this method to run **named cells** and retrieve their output and
+        definitions.
+
+        This lets you use reuse cells defined in one notebook in another
+        notebook or Python file. It also makes it possible to write and execute
+        unit tests for notebook cells using a test framework like `pytest`.
+
+        **Example.** marimo cells can be given names either through the
+        editor cell menu or by manually changing the function name in the
+        notebook file. For example, consider a notebook `notebook.py`:
+
+        ```python
+        import marimo
+
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return (mo,)
+
+        @app.cell
+        def __():
+            x = 0
+            y = 1
+            return (x, y)
+
+        @app.cell
+        def add(mo, x, y):
+            z = x + y
+            mo.md(f"The value of z is {z}")
+            return (z,)
+
+        if __name__ == "__main__":
+            app.run()
+        ```
+
+        To reuse the `add` cell in another notebook, you'd simply write
+
+        ```python
+        from notebook import add
+
+        # `output` is the markdown rendered by `add`
+        # defs["z"] == `1`
+        output, defs = add.run()
+        ```
+
+        When `run` is called without arguments, it automatically computes the
+        values that the cell depends on (in this case, `mo`, `x`, and `y`). You
+        can override these values by providing any subset of them as keyword
+        arguments. For example,
+
+        ```python
+        # defs["z"] == 4
+        output, defs = add.run(x=2, y=2)
+        ```
+
+        **Defined UI Elements.** If the cell's `output` has UI elements
+        that are in `defs`, interacting with the output in the frontend will
+        trigger reactive execution of cells that reference the `defs` object.
+        For example, if `output` has a slider defined by the cell, then
+        scrubbing the slider will cause cells that reference `defs` to run.
+
+        **Async cells.** If this cell is a coroutine function (starting with
+        `async`), or if any of its ancestors are coroutine functions, then
+        you'll need to `await` the result: `output, defs = await cell.run()`.
+        You can check whether the result is an awaitable using:
+
+        ```python
+        from collections.abc import Awaitable
+
+        ret = cell.run()
+        if isinstance(ret, Awaitable):
+            output, defs = await ret
         else:
-            n_args += 1
+            output, defs = ret
+        ```
 
-    parameters = list(signature.parameters.keys())
-    return_names = sorted(defn for defn in cell.defs)
+        **Arguments**:
 
-    def _prepare_args(*args: Any, **kwargs: Any) -> dict[Any, Any]:
-        glbls = {}
-        glbls.update(defaults)
-        pos = 0
-        for arg in args:
-            glbls[parameters[pos]] = arg
-            pos += 1
-        if pos < n_args:
-            raise TypeError(
-                f.__name__
-                + f"() missing {n_args - pos} required arguments: "
-                + " and ".join(f"'{p}'" for p in parameters[pos:n_args])
-            )
+        - You may pass values for any of this cell's references as keyword
+          arguments. marimo will automatically compute values for any refs
+          that are not provided by executing the parent cells that compute
+          them.
 
-        for kwarg, value in kwargs.items():
-            if kwarg not in parameters:
-                raise TypeError(
-                    f.__name__
-                    + "() got an unexpected keyword argument '{kwarg}'"
-                )
-            else:
-                glbls[kwarg] = value
-        return glbls
+        **Returns**:
 
-    def _returns(glbls: dict[Any, Any]) -> tuple[Any, ...]:
-        return tuple(glbls[name] for name in return_names)
+        - a tuple `(output, defs)`, or an awaitable of the same, where `output`
+          is the cell's last expression and `defs` is a `Mapping` from the
+          cell's defined names to their values.
+        """
+        assert self._app is not None
+        if self._is_coroutine():
+            return self._app.run_cell_async(cell=self, kwargs=refs)
+        else:
+            return self._app.run_cell_sync(cell=self, kwargs=refs)
 
-    # Wrapper for executing cell using the function's signature.
-    #
-    # Alternative for passing a globals dict
-    #
-    # we use execute_cell instead of calling `f` directly because
-    # we want to obtain the cell's HTML output, which is the last
-    # expression in the cell body.
-    #
-    # TODO: stash output if mo.collect_outputs() context manager is active
-    #       ... or just make cell execution return the output in addition
-    #       to the defs, which might be weird because that doesn't
-    #       match the function signature
-    if inspect.iscoroutinefunction(f):
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        del args
+        del kwargs
+        if self._is_coroutine():
+            call_str = f"`outputs, defs = await {self.name}.run()`"
+        else:
+            call_str = f"`outputs, defs = {self.name}.run()`"
 
-        @functools.wraps(f)
-        async def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
-            glbls = _prepare_args(*args, **kwargs)
-            _ = await execute_cell_async(cell, glbls)
-            return _returns(glbls)
-
-    else:
-
-        @functools.wraps(f)
-        def func(*args: Any, **kwargs: Any) -> tuple[Any, ...]:
-            glbls = _prepare_args(*args, **kwargs)
-            _ = execute_cell(cell, glbls)
-            return _returns(glbls)
-
-    cell_func = cast(CellFunction[CellFuncTypeBound], func)
-    cell_func.cell = cell
-    cell_func.args = args
-    cell_func.code = code
-    return cell_func
+        raise RuntimeError(
+            f"Calling marimo cells using `{self.name}()` is not supported. "
+            f"Use {call_str} instead. "
+        )
 
 
 def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
 
 
-async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:
+async def execute_cell_async(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
     if cell.body is None:
         return None
     assert cell.last_expr is not None
@@ -268,7 +386,7 @@ async def execute_cell_async(cell: Cell, glbls: dict[Any, Any]) -> Any:
         return eval(cell.last_expr, glbls)
 
 
-def execute_cell(cell: Cell, glbls: dict[Any, Any]) -> Any:
+def execute_cell(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
     if cell.body is None:
         return None
     assert cell.last_expr is not None

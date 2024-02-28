@@ -2,97 +2,90 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Awaitable
 
 from marimo._ast.app import App
-from marimo._ast.cell import CellFunction, CellFuncType
-
-# Arg capture
-cell_function: CellFunction[CellFuncType] = None  # type: ignore[assignment]
-
-
-def mock_register_cell(cf: CellFunction[CellFuncType]) -> None:
-    global cell_function
-    cell_function = cf
-
-
-app = App()
-app._cell_manager._register_cell_function = mock_register_cell  # type: ignore[method-assign, assignment] # noqa: E501
 
 
 def test_decorator_called() -> None:
-    # Decorator called
-    @app.cell()
     def mock_func1() -> tuple[int]:
         x = 2 + 2
         return (x,)
 
-    assert cell_function.cell.code == "x = 2 + 2"
-    assert cell_function.cell.config.disabled is False
-    assert len(cell_function.args) == 0
-    assert cell_function.__name__ == "mock_func1"
-    assert cell_function.__call__ is not None
-    assert cell_function.__call__() == (4,)
+    app = App()
+    cell = app.cell()(mock_func1)
+    assert cell is not None
+    assert cell._cell.code == "x = 2 + 2"
+    assert cell._cell.config.disabled is False
+    assert cell.name == "mock_func1"
+    assert cell.run() == (None, {"x": 4})
 
 
 def test_decorator_uncalled() -> None:
-    # Decorator uncalled
-    @app.cell
     def __() -> tuple[int]:
         z = 3 + 3
         return (z,)
 
-    assert cell_function.cell.code == "z = 3 + 3"
-    assert cell_function.cell.config.disabled is False
-    assert len(cell_function.args) == 0
-    assert cell_function.__name__ == "__"
-    assert cell_function.__call__ is not None
-    assert cell_function.__call__() == (6,)
+    app = App()
+    cell = app.cell(__)
+    assert cell is not None
+    assert cell._cell.code == "z = 3 + 3"
+    assert cell._cell.config.disabled is False
+    assert cell.name == "__"
+    assert cell.run() == (None, {"z": 6})
 
 
 def test_decorator_with_args() -> None:
-    # Decorator with args
-    @app.cell(disabled=True)
     def mock_func3(x: int) -> tuple[int]:
         y = x + 2
         return (y,)
 
-    assert cell_function.cell.code == "y = x + 2"
-    assert cell_function.cell.config.disabled is True
-    assert cell_function.args == {"x"}
-    assert cell_function.__name__ == "mock_func3"
-    assert cell_function.__call__ is not None
-    assert cell_function.__call__(2) == (4,)
+    app = App()
+    cell = app.cell(disabled=True)(mock_func3)
+    assert cell is not None
+
+    assert cell._cell.code == "y = x + 2"
+    assert cell._cell.config.disabled is True
+    assert cell.name == "mock_func3"
+    assert cell.run(x=1) == (None, {"y": 3})
 
 
 def test_decorator_with_unknown_args() -> None:
     # Decorator with unknown args
-    @app.cell(foo=True)
     def __() -> tuple[int]:
         x = 2 + 2
         return (x,)
 
-    assert cell_function.cell.code == "x = 2 + 2"
-    assert cell_function.cell.config.disabled is False
-    assert len(cell_function.args) == 0
-    assert cell_function.__name__ == "__"
-    assert cell_function.__call__ is not None
-    assert cell_function.__call__() == (4,)
+    app = App()
+    cell = app.cell(foo=True)(__)
+    assert cell is not None
+
+    assert cell._cell.code == "x = 2 + 2"
+    assert cell._cell.config.disabled is False
+    assert cell.name == "__"
+    assert cell.run() == (None, {"x": 4})
 
 
 async def test_decorator_async() -> None:
     # Decorator uncalled
-    @app.cell
     async def __(asyncio) -> tuple[int]:
         await asyncio.sleep(0.1)
         z = 3 + 3
         return (z,)
 
-    assert inspect.iscoroutinefunction(cell_function)
-    assert cell_function.cell.config.disabled is False
-    assert len(cell_function.args) == 1
-    assert cell_function.__name__ == "__"
-    assert cell_function.__call__ is not None
+    app = App()
+    cell = app.cell(__)
+    assert cell is not None
+
+    assert inspect.iscoroutinefunction(cell._f)
+    assert cell._cell.config.disabled is False
+    assert cell.name == "__"
 
     import asyncio
 
-    assert (await cell_function(asyncio)) == (6,)
+    result = cell.run(asyncio=asyncio)
+    assert isinstance(result, Awaitable)
+    assert await result == (None, {"z": 6})
+
+
+# TODO(akshayka): test cell.run() with multiple cells in graph, outputs, ...

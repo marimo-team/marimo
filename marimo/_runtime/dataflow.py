@@ -4,10 +4,15 @@ from __future__ import annotations
 import threading
 from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellId_t
+from marimo._ast.cell import (
+    CellId_t,
+    CellImpl,
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._ast.compiler import code_key
 from marimo._ast.visitor import Name
 
@@ -21,7 +26,7 @@ LOGGER = _loggers.marimo_logger()
 @dataclass(frozen=True)
 class DirectedGraph:
     # Nodes in the graph
-    cells: dict[CellId_t, Cell] = field(default_factory=dict)
+    cells: dict[CellId_t, CellImpl] = field(default_factory=dict)
 
     # Edge (u, v) means v is a child of u, i.e., v has a reference
     # to something defined in u
@@ -85,7 +90,7 @@ class DirectedGraph:
                     queue.append((cid, next_path))
         return []
 
-    def register_cell(self, cell_id: CellId_t, cell: Cell) -> None:
+    def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
         """Add a cell to the graph.
 
         Mutates the graph, acquiring `self.lock`.
@@ -281,17 +286,24 @@ class DirectedGraph:
 
 
 def transitive_closure(
-    graph: DirectedGraph, cell_ids: set[CellId_t]
+    graph: DirectedGraph, cell_ids: set[CellId_t], children: bool = True
 ) -> set[CellId_t]:
-    """Return a set of the passed-in cells and their descendants."""
+    """Return a set of the passed-in cells and their descendants or ancestors
+
+    If children is True, returns descendants; otherwise, returns ancestors
+    """
     cells = set()
     queue = list(cell_ids)
+
+    def relatives(cid: CellId_t) -> set[CellId_t]:
+        return graph.children[cid] if children else graph.parents[cid]
+
     while queue:
         cid = queue.pop(0)
         cells.add(cid)
-        for child_id in graph.children[cid]:
-            if child_id not in cells:
-                queue.append(child_id)
+        for relative in relatives(cid):
+            if relative not in cells:
+                queue.append(relative)
     return cells
 
 
@@ -337,3 +349,133 @@ def topological_sort(
                 roots.append(child)
     # TODO make sure parents for each id is empty, otherwise cycle
     return sorted_cell_ids
+
+
+class Runner:
+    """Utility for running individual cells in a graph
+
+    This class provides methods to a run a cell in the graph and obtain its
+    output (last expression) and the values of its defs.
+
+    If needed, the runner will recursively compute the values of the cell's
+    refs by executing its ancestors. Refs can also be substituted by the
+    caller.
+
+    TODO(akshayka): Add an API for caching defs across cell runs.
+    """
+
+    def __init__(self, graph: DirectedGraph) -> None:
+        self._graph = graph
+
+    @staticmethod
+    def _returns(cell_impl: CellImpl, glbls: dict[str, Any]) -> dict[str, Any]:
+        return {name: glbls[name] for name in cell_impl.defs if name in glbls}
+
+    @staticmethod
+    def _substitute_refs(
+        cell_impl: CellImpl,
+        glbls: dict[str, Any],
+        kwargs: dict[str, Any],
+    ) -> None:
+        for argname, argvalue in kwargs.items():
+            if argname in cell_impl.refs:
+                glbls[argname] = argvalue
+            else:
+                raise ValueError(
+                    f"Cell got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+    def _get_ancestors(
+        self, cell_impl: CellImpl, kwargs: dict[str, Any]
+    ) -> set[CellId_t]:
+        # Get the transitive closure of parents defining unsubstituted refs
+        graph = self._graph
+        substitutions = set(kwargs.values())
+        unsubstituted_refs = cell_impl.refs - substitutions
+        parent_ids = set(
+            [
+                parent_id
+                for parent_id in graph.parents[cell_impl.cell_id]
+                if graph.cells[parent_id].defs.intersection(unsubstituted_refs)
+            ]
+        )
+        return transitive_closure(graph, parent_ids, children=False)
+
+    @staticmethod
+    def _validate_kwargs(cell_impl: CellImpl, kwargs: dict[str, Any]) -> None:
+        for argname in kwargs:
+            if argname not in cell_impl.refs:
+                raise ValueError(
+                    f"Cell got unexpected argument {argname}"
+                    f"The allowed arguments are {cell_impl.refs}."
+                )
+
+    def is_coroutine(self, cell_id: CellId_t) -> bool:
+        return self._graph.cells[cell_id].is_coroutine() or any(
+            self._graph.cells[cid].is_coroutine()
+            for cid in self._get_ancestors(
+                self._graph.cells[cell_id], kwargs={}
+            )
+        )
+
+    async def run_cell_async(
+        self, cell_id: CellId_t, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        """Run a possibly async cell and its ancestors
+
+        Substitutes kwargs as refs for the cell, omitting ancestors that
+        whose refs are substituted.
+        """
+        graph = self._graph
+        cell_impl = graph.cells[cell_id]
+        Runner._validate_kwargs(cell_impl, kwargs)
+        ancestor_ids = self._get_ancestors(cell_impl, kwargs)
+
+        glbls: dict[str, Any] = {}
+        for cid in topological_sort(graph, ancestor_ids):
+            await execute_cell_async(graph.cells[cid], glbls)
+
+        Runner._substitute_refs(cell_impl, glbls, kwargs)
+        output = await execute_cell_async(
+            graph.cells[cell_impl.cell_id], glbls
+        )
+        defs = Runner._returns(cell_impl, glbls)
+        return output, defs
+
+    def run_cell_sync(
+        self, cell_id: CellId_t, kwargs: dict[str, Any]
+    ) -> tuple[Any, dict[str, Any]]:
+        """Run a synchronous cell and its ancestors
+
+        Substitutes kwargs as refs for the cell, omitting ancestors that
+        whose refs are substituted.
+
+        Raises a `RuntimeError` if the cell or any of its unsubstituted
+        ancestors are coroutine functions.
+        """
+        graph = self._graph
+        cell_impl = graph.cells[cell_id]
+        if cell_impl.is_coroutine():
+            raise RuntimeError(
+                "A coroutine function can't be run synchronously. "
+                "Use `run_async()` instead"
+            )
+
+        Runner._validate_kwargs(cell_impl, kwargs)
+        ancestor_ids = self._get_ancestors(cell_impl, kwargs)
+
+        if any(graph.cells[cid].is_coroutine() for cid in ancestor_ids):
+            raise RuntimeError(
+                "Cell has an ancestor that is a "
+                "coroutine (async) cell. Use `run_async()` instead"
+            )
+
+        glbls: dict[str, Any] = {}
+        for cid in topological_sort(graph, ancestor_ids):
+            execute_cell(graph.cells[cid], glbls)
+
+        self._substitute_refs(cell_impl, glbls, kwargs)
+        output = execute_cell(graph.cells[cell_impl.cell_id], glbls)
+        defs = Runner._returns(cell_impl, glbls)
+        return output, defs

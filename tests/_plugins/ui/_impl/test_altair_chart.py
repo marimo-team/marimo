@@ -9,7 +9,7 @@ from marimo._plugins.ui._impl.altair_chart import (
     _filter_dataframe,
 )
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider, MockedKernel
+from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.has_pandas() and DependencyManager.has_altair()
 

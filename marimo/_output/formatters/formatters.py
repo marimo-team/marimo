@@ -6,6 +6,7 @@ from typing import Any, Callable, Sequence
 
 from marimo._output.formatters.altair_formatters import AltairFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
+from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.leafmap_formatters import LeafmapFormatter
@@ -33,6 +34,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
 # third-party module import. These formatters' register methods need to be
 # fast: we don't want their registration to noticeably delay program start-up.
 NATIVE_FACTORIES: Sequence[FormatterFactory] = [
+    CellFormatter(),
     StructuresFormatter(),
 ]
 
@@ -118,7 +120,7 @@ def register_formatters() -> None:
 
         # Use the __get__ descriptor to bind find_spec to this finder object,
         # to make sure self/cls gets passed
-        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]
+        finder.find_spec = find_spec.__get__(finder)  # type: ignore[method-assign]  # noqa: E501
 
     # These factories are for builtins or other things that don't require a
     # package import. So we can register them at program start-up.

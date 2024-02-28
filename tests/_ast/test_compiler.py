@@ -84,9 +84,9 @@ class TestCellFactory:
             x = 10  # noqa: F841
             y = 20  # noqa: F841
 
-        cf = compiler.cell_factory(f, cell_id="0")
-        assert cf.cell.defs == {"x", "y"}
-        assert not cf.cell.refs
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.defs == {"x", "y"}
+        assert not cell._cell.refs
 
     @staticmethod
     def test_refs() -> None:
@@ -95,9 +95,9 @@ class TestCellFactory:
         def f() -> None:
             x = y  # noqa: F841 F821
 
-        cf = compiler.cell_factory(f, cell_id="0")
-        assert cf.cell.defs == {"x"}
-        assert cf.cell.refs == {"y"}
+        cell = compiler.cell_factory(f, cell_id="0")
+        assert cell._cell.defs == {"x"}
+        assert cell._cell.refs == {"y"}
 
 
 def test_cell_id_from_filename() -> None:

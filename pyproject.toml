@@ -132,7 +132,9 @@ exclude = [
     "marimo/_test_utils/codegen_data",
     "marimo/_test_utils/_tutorials",
     "tests/_ast/codegen_data",
+    "tests/_ast/cell_data",
     "tests/_cli/ipynb_data",
+    "tests/_runtime/runtime_data",
     "frontend",
     "docs",
     "build",
@@ -171,7 +173,9 @@ extend-exclude = """
 (
     ^/examples/*
     | ^/tests/_ast/codegen_data/*
+    | ^/tests/_ast/cell_data/*
     | ^/tests/_cli/ipynb_data/*
+    | ^/tests/_runtime/runtime_data/*
     | ^/marimo/_tutorials/*
     | ^/marimo/_smoke_tests/*
 )
@@ -182,7 +186,9 @@ strict = true
 exclude = [
     'examples',
     'tests/_ast/codegen_data',
+    'tests/_ast/cell_data',
     'tests/_cli/ipynb_data',
+    'tests/_runtime/runtime_data',
     'marimo/_tutorials/',
     'marimo/_smoke_tests/',
 ]

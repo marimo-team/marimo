@@ -14,6 +14,7 @@ marimo is designed to be:
 
 __all__ = [
     "App",
+    "Cell",
     "MarimoStopError",
     "accordion",
     "as_html",
@@ -54,6 +55,7 @@ __all__ = [
 __version__ = "0.2.8"
 
 from marimo._ast.app import App
+from marimo._ast.cell import Cell
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html

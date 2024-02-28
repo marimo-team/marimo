@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import sys
 import weakref
-from typing import Any, Dict, Iterable, TypeVar, Union
+from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
 else:
     from typing import TypeAlias
 
+from marimo._ast.app import _Namespace
 from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
@@ -71,22 +72,32 @@ class UIElementRegistry:
                 return self._has_parent_id(element, parent_id)
         return False
 
-    def _register_bindings(self, object_id: UIElementId) -> None:
-        kernel = get_context().kernel
+    def _find_bindings_in_namespace(
+        self, object_id: UIElementId, glbls: Mapping[str, Any]
+    ) -> set[str]:
         # Get all variable names that are either:
         #   1. bound to this UI element, or
         #   2. bound to a view (child) of this element
-        names = set(
-            [
-                name
-                for name in kernel.globals
-                if (
-                    isinstance(kernel.globals[name], UIElement)
-                    and self._has_parent_id(kernel.globals[name], object_id)
-                )
-            ]
+        #
+        # Also introspects _Namespace objects, including the name of the
+        # _Namespace if it contains `object_id`
+        bindings: set[str] = set()
+        for name, value in glbls.items():
+            if isinstance(value, UIElement) and self._has_parent_id(
+                value, object_id
+            ):
+                bindings.add(name)
+            elif isinstance(
+                value, _Namespace
+            ) and self._find_bindings_in_namespace(object_id, value):
+                bindings.add(name)
+        return bindings
+
+    def _register_bindings(self, object_id: UIElementId) -> None:
+        kernel = get_context().kernel
+        self._bindings[object_id] = self._find_bindings_in_namespace(
+            object_id, kernel.globals
         )
-        self._bindings[object_id] = names
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:

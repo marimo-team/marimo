@@ -10,14 +10,12 @@ import textwrap
 import token as token_types
 from collections.abc import Iterator
 from tokenize import TokenInfo, tokenize
-from typing import Optional, Set, Union, cast
+from typing import Any, Callable, Optional, Union
 
 from marimo._ast.cell import (
     Cell,
-    CellFunction,
-    CellFuncTypeBound,
     CellId_t,
-    cell_function,
+    CellImpl,
 )
 from marimo._ast.visitor import ScopedVisitor, is_local
 from marimo._utils.tmpdir import get_tmpdir
@@ -51,7 +49,7 @@ def cache(filename: str, code: str) -> None:
     )
 
 
-def compile_cell(code: str, cell_id: CellId_t) -> Cell:
+def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
     module = compile(
         code,
         "<unknown>",
@@ -60,7 +58,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
     )
     if not module.body:
         # either empty code or just comments
-        return Cell(
+        return CellImpl(
             key=hash(""),
             code=code,
             mod=module,
@@ -98,7 +96,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
     last_expr = compile(expr, last_expr_filename, mode="eval", flags=flags)
 
     glbls = {name for name in v.defs if not is_local(name)}
-    return Cell(
+    return CellImpl(
         # keyed by original (user) code, for cache lookups
         key=code_key(code),
         code=code,
@@ -118,9 +116,9 @@ def compile_cell(code: str, cell_id: CellId_t) -> Cell:
 
 
 def cell_factory(
-    f: CellFuncTypeBound,
+    f: Callable[..., Any],
     cell_id: CellId_t,
-) -> CellFunction[CellFuncTypeBound]:
+) -> Cell:
     """Creates a cell from a function.
 
     The signature and returns of the function are not used
@@ -220,13 +218,4 @@ def cell_factory(
             # handle return written on same line as last statement in cell
             cell_code += "\n" + lines[end_line][:return_offset]
 
-    arg_names = set(p.arg for p in tree.body[0].args.args)  # type: ignore
-    # TODO(akshayka): use the name of the function as the basename (if not __)
-    # for parse_cell
-    ret = cell_function(
-        compile_cell(cell_code, cell_id=cell_id),
-        cast(Set[str], arg_names),
-        function_code,
-        f,
-    )
-    return ret
+    return Cell(_f=f, _cell=compile_cell(cell_code, cell_id=cell_id))
