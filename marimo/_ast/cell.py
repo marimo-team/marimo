@@ -148,7 +148,7 @@ class CellImpl:
 class Cell:
     """An executable notebook cell
 
-    `A Cell` object can be executed as a function via its `run()` method, which
+    A `Cell` object can be executed as a function via its `run()` method, which
     returns the cell's last expression (output) and a mapping from its defined
     names to its values.
 
