@@ -75,7 +75,11 @@ export function generateColumns<T>(
       cell: ({ renderValue, getValue }) => {
         const value = getValue();
         if (isPrimitiveOrNullish(value)) {
-          return renderValue();
+          const rendered = renderValue();
+          if (rendered == null) {
+            return "";
+          }
+          return String(rendered);
         }
         return <MimeCell value={value} />;
       },
@@ -144,5 +148,6 @@ function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
     return true;
   }
-  return typeof value !== "object";
+  const isObject = typeof value === "object";
+  return !isObject;
 }
