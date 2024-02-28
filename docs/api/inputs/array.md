@@ -1,6 +1,13 @@
 # Array
 
-<iframe class="demo medium" src="https://components.marimo.io/?component=array" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+  @app.cell
+  def __():
+      wish = mo.ui.text(placeholder="Wish")
+      mo.ui.array([wish] * 3, label="Three wishes")
+      return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.array

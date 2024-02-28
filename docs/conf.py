@@ -9,6 +9,7 @@
 import datetime
 import os
 import sys
+from docs.helpers.marimo_embed import MarimoEmbed
 
 # If modules to document with autodoc (or sphinx extensions) are in another
 # directory, add these directories to sys.path here. If the directory is
@@ -130,3 +131,4 @@ def setup(app):
     # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#docstring-preprocessing
     app.connect("autodoc-process-docstring", md2rst)
     app.add_directive("readmepart", ReadmePartDirective)
+    app.add_directive("marimo-embed", MarimoEmbed)
