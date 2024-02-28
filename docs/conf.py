@@ -9,7 +9,6 @@
 import datetime
 import os
 import sys
-from docs.helpers.marimo_embed import MarimoEmbed
 
 # If modules to document with autodoc (or sphinx extensions) are in another
 # directory, add these directories to sys.path here. If the directory is
@@ -23,6 +22,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 from helpers.md2rst import md2rst
 from helpers.sections import PublicMethods
+from helpers.marimo_embed import MarimoEmbed
 from helpers.copy_readme import ReadmePartDirective
 
 import marimo
