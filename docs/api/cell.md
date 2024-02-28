@@ -1,7 +1,7 @@
 # Cell
 
 ```{eval-rst}
-.. autoclass:: marimo.ACell
+.. autoclass:: marimo.Cell
   :members:
 
   .. autoclasstoc::
