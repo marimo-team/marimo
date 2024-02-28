@@ -10,6 +10,7 @@ import marimo._runtime.output._output as output
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._utils.debounce import debounce
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -82,6 +83,11 @@ class _Progress(Html):
             self.subtitle = subtitle
 
         self._text = self._get_text()
+        self.debounced_flush()
+
+    @debounce(0.15)
+    def debounced_flush(self) -> None:
+        """Flush the output to the UI"""
         output.flush()
 
     def clear(self) -> None:
@@ -93,6 +99,7 @@ class _Progress(Html):
         output.remove(self)
 
     def close(self) -> None:
+        output.flush()  # Flush one last time before closing
         self.closed = True
 
     def _get_text(self) -> str:
@@ -256,6 +263,9 @@ def progress_bar(
 
     You can optionally provide a title and subtitle to show
     during iteration, and a title/subtitle to show upon completion.
+
+    For performance reasons, the progress bar is only updated in the UI
+    every 150ms.
 
     **Args.**
 

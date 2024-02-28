@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.63"
+__generated_with = "0.2.9"
 app = marimo.App()
 
 
@@ -24,7 +25,11 @@ def __(mo, time):
 @app.cell
 def __(mo, time):
     for _ in mo.status.progress_bar(
-        range(10), title="Loading", subtitle="Please wait", show_eta=True, show_rate=True
+        range(10),
+        title="Loading",
+        subtitle="Please wait",
+        show_eta=True,
+        show_rate=True,
     ):
         time.sleep(0.5)
     return
@@ -47,6 +52,14 @@ def __(mo, time):
         time.sleep(1)
     mo.ui.table([1, 2, 3])
     return
+
+
+@app.cell
+def __(mo, time):
+    # Fast updates should be debounced for performance
+    for i in mo.status.progress_bar(range(1000)):
+        time.sleep(0.001)
+    return i,
 
 
 if __name__ == "__main__":
