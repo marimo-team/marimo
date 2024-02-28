@@ -97,6 +97,33 @@ yield_error,yield_center
       ]
     `);
   });
+
+  it("should parse csv data with out of bound integers", async () => {
+    const csvData = `id\n912312851340981241284`;
+
+    vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+    const data = await vegaLoadData(
+      csvData,
+      { type: "csv", parse: "auto" },
+      true,
+    );
+    expect(data).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 912312851340981241284n,
+        },
+      ]
+    `);
+
+    const dataWithoutFlag = await vegaLoadData(csvData, { type: "csv" }, false);
+    expect(dataWithoutFlag).toMatchInlineSnapshot(`
+      [
+        {
+          "id": 912312851340981300000,
+        },
+      ]
+    `);
+  });
 });
 
 describe("uniquifyColumnNames", () => {

@@ -2,9 +2,35 @@
 // @ts-expect-error - no types
 import { loader as createLoader, read, typeParsers } from "vega-loader";
 import { DataFormat } from "./types";
+import { isNumber } from "lodash-es";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
+const previousIntegerParser = typeParsers.integer;
+const previousNumberParser = typeParsers.number;
+// We need to use BigInt for numbers to support large numbers
+const bigIntIntegerParser = (v: string) => {
+  if (v === "") {
+    return "";
+  }
+  return isNumber(Number.parseInt(v)) ? BigInt(v) : "";
+};
+const bigIntNumberParser = (v: string) => {
+  if (v === "") {
+    return "";
+  }
+  return isNumber(Number.parseFloat(v)) ? BigInt(v) : "";
+};
+
+function enableBigInt() {
+  typeParsers.integer = bigIntIntegerParser;
+  typeParsers.number = bigIntNumberParser;
+}
+
+function disableBigInt() {
+  typeParsers.integer = previousIntegerParser;
+  typeParsers.number = previousNumberParser;
+}
 
 export const vegaLoader = createLoader();
 
@@ -16,6 +42,7 @@ export const vegaLoader = createLoader();
 export function vegaLoadData(
   url: string,
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
+  handleBigInt = false,
 ): Promise<object[]> {
   return vegaLoader.load(url).then((csvData: string) => {
     // CSV data comes columnar and may have duplicate column names.
@@ -27,12 +54,24 @@ export function vegaLoadData(
     // we would need to store the data in columnar format.
     csvData = uniquifyColumnNames(csvData);
 
-    // Always set parse to auto for csv data, to be able to parse dates and floats
-    if (format && format.type === "csv") {
-      // csv -> json
-      return read(csvData, { ...format, parse: "auto" });
+    // We support enabling/disabling since the Table enables it
+    // but Vega does not support BigInts
+    if (handleBigInt) {
+      enableBigInt();
     }
-    return read(csvData, format);
+
+    // Always set parse to auto for csv data, to be able to parse dates and floats
+    const results =
+      format && format.type === "csv"
+        ? // csv -> json
+          read(csvData, { ...format, parse: "auto" })
+        : read(csvData, format);
+
+    if (handleBigInt) {
+      disableBigInt();
+    }
+
+    return results;
   });
 }
 
