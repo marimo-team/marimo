@@ -125,20 +125,20 @@ export class RequestingTree {
       ...ids.map((id) => this.delegate.find(id)?.data.path),
     ].filter(Boolean);
     // Request all folders in parallel, and catch any errors
-    const datas = await Promise.all(
+    const data = await Promise.all(
       openFolders.map((path) =>
         this.callbacks.listFiles({ path: path }).catch(() => ({ files: [] })),
       ),
     );
 
     for (const [idx, openFolder] of openFolders.entries()) {
-      const data = datas[idx];
+      const datum = data[idx];
       if (openFolder === this.rootPath) {
-        this.delegate = new SimpleTree(data.files);
+        this.delegate = new SimpleTree(datum.files);
       } else {
         this.delegate.update({
           id: openFolder,
-          changes: { children: data.files },
+          changes: { children: datum.files },
         });
       }
     }
