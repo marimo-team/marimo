@@ -11,6 +11,7 @@ import {
 } from "./tooltip";
 import { useBoolean } from "../../hooks/useBoolean";
 import { TooltipPortal } from "@radix-ui/react-tooltip";
+import { prettyNumber } from "@/utils/numbers";
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
@@ -58,7 +59,7 @@ const Slider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 1 && (
               <TooltipContent key={props.value[0]}>
-                {props.value[0]}
+                {prettyNumber(props.value[0])}
               </TooltipContent>
             )}
           </TooltipPortal>

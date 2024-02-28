@@ -6,6 +6,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
+import { prettyNumber } from "@/utils/numbers";
 
 type T = number;
 
@@ -108,7 +109,7 @@ const SliderComponent = ({
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {internalValue}
+            {prettyNumber(internalValue)}
           </div>
         )}
       </div>
