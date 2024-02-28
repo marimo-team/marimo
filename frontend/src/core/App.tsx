@@ -48,8 +48,8 @@ import { CellId, HTMLCellId } from "./cells/ids";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import { getSerializedLayout } from "./layout/layout";
-import { useAtom } from "jotai";
+import { getSerializedLayout, layoutDataAtom } from "./layout/layout";
+import { useAtom, useAtomValue } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
@@ -69,6 +69,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
+  const layoutData = useAtomValue(layoutDataAtom);
   const { openModal, closeModal, openAlert } = useImperativeModal();
 
   const isEditing = viewState.mode === "edit";
@@ -91,12 +92,12 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const { connStatus } = useMarimoWebSocket({
     autoInstantiate:
       userConfig.runtime.auto_instantiate || viewState.mode === "read",
-    setCells: (cells) => {
+    setCells: (cells, layout) => {
       setCells(cells);
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);
       const configs = cells.map((cell) => cell.config);
-      setLastSavedNotebook({ names, codes, configs });
+      setLastSavedNotebook({ names, codes, configs, layout });
     },
     sessionId: getSessionId(),
   });
@@ -125,7 +126,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
-  const needsSave = notebookNeedsSave(notebook, lastSavedNotebook);
+  const needsSave = notebookNeedsSave(notebook, layoutData, lastSavedNotebook);
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
@@ -161,7 +162,12 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
             formatAll(updateCellCode);
           }
         }
-        setLastSavedNotebook({ names: cellNames, codes, configs });
+        setLastSavedNotebook({
+          names: cellNames,
+          codes,
+          configs,
+          layout: layoutData,
+        });
       })
       .catch((error) => {
         openAlert(error.message);

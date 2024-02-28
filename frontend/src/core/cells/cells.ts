@@ -32,6 +32,8 @@ import { CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64ToJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
+import { LayoutData } from "../layout/layout";
+import { isEqual } from "lodash-es";
 
 /**
  * The state of the notebook.
@@ -76,6 +78,7 @@ export interface LastSavedNotebook {
   codes: string[];
   configs: CellConfig[];
   names: string[];
+  layout: LayoutData;
 }
 
 /**
@@ -595,7 +598,7 @@ function updateCellData(
 
 /// ATOMS
 
-const notebookAtom = atom<NotebookState>(initialNotebookState());
+export const notebookAtom = atom<NotebookState>(initialNotebookState());
 
 const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
@@ -723,6 +726,7 @@ export function notebookIsRunning(state: NotebookState) {
 
 export function notebookNeedsSave(
   state: NotebookState,
+  layout: LayoutData,
   lastSavedNotebook: LastSavedNotebook | undefined,
 ) {
   if (!lastSavedNotebook) {
@@ -736,7 +740,8 @@ export function notebookNeedsSave(
   return (
     !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
     !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
-    !arrayShallowEquals(names, lastSavedNotebook.names)
+    !arrayShallowEquals(names, lastSavedNotebook.names) ||
+    !isEqual(layout, lastSavedNotebook.layout)
   );
 }
 

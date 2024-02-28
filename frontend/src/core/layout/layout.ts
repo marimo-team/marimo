@@ -7,6 +7,8 @@ import { atom } from "jotai";
 import { getNotebook, notebookCells } from "../cells/cells";
 import { store } from "../state/jotai";
 
+export type LayoutData = GridLayout | undefined;
+
 /**
  * The currently selected layout type to show.
  */
@@ -15,7 +17,7 @@ export const layoutViewAtom = atom<LayoutType>("vertical");
 /**
  * The layout data
  */
-export const layoutDataAtom = atom<GridLayout | undefined>(undefined);
+export const layoutDataAtom = atom<LayoutData>(undefined);
 
 /**
  * Get the serialized layout data, to be used when saving.
