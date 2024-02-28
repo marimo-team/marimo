@@ -23,7 +23,7 @@ available in Python as a Pandas dataframe_!
     :size: large
 
     @app.cell
-    def __():
+    async def __():
         import pandas as pd
         import pyodide
         import micropip

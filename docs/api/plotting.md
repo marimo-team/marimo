@@ -13,7 +13,7 @@ For more information about plotting, see the [plotting guide](../guides/plotting
     :size: large
 
     @app.cell
-    def __():
+    async def __():
         import pandas as pd
         import pyodide
         import micropip
