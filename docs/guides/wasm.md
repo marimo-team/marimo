@@ -209,9 +209,6 @@ have some limitations.
 **Packages.** Not all packages are available in WASM notebooks; see [Pyodide's
 documentation on supported packages.](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
 
-**Code completion.** Code completion and docstring hints are not
-currently supported. This will be fixed in the future.
-
 **PDB.** PDB is not currently supported. This may be fixed in the future.
 
 **Threading and multi-processing.** WASM notebooks do not support multithreading
