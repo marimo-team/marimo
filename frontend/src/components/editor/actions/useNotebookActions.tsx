@@ -115,13 +115,24 @@ export function useNotebookActions() {
           icon: <ImageIcon size={14} strokeWidth={1.5} />,
           label: "Download as PNG",
           handle: async () => {
+            const toasted = toast({
+              title: "Starting download",
+              description: "Downloading as PNG...",
+            });
+
             await runDuringPresentMode(async () => {
               const app = document.getElementById("App");
               if (!app) {
                 return;
               }
+
+              // Wait 2 seconds for the app to render
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
               await downloadHTMLAsImage(app, filename || "screenshot.png");
             });
+
+            toasted.dismiss();
           },
         },
         {
