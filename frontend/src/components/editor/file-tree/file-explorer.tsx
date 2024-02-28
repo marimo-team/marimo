@@ -163,10 +163,10 @@ const Show = ({ node }: { node: NodeApi<FileInfo> }) => {
     <span
       className="flex-1"
       onClick={(e) => {
-        e.stopPropagation();
         if (node.data.isDirectory) {
           return;
         }
+        e.stopPropagation();
         node.select();
       }}
     >
