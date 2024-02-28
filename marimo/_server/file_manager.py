@@ -21,7 +21,6 @@ LOGGER = _loggers.marimo_logger()
 class AppFileManager:
     def __init__(self, filename: Optional[str]) -> None:
         self.filename = filename
-        self.path = self._get_file_path(filename)
         self.app = self._load_app(self.path)
 
     @staticmethod
@@ -111,14 +110,13 @@ class AppFileManager:
             self._create_file(new_filename)
 
         self.filename = new_filename
-        self.path = self._get_file_path(new_filename)
 
-    @staticmethod
-    def _get_file_path(filename: Optional[str]) -> Optional[str]:
-        if filename is None:
+    @property
+    def path(self) -> Optional[str]:
+        if self.filename is None:
             return None
         try:
-            return os.path.abspath(filename)
+            return os.path.abspath(self.filename)
         except AttributeError:
             return None
 

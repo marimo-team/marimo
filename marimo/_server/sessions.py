@@ -396,7 +396,6 @@ class SessionManager:
         lsp_server: LspServer,
     ) -> None:
         self.filename = filename
-        self.path = self._get_file_path(filename)
         self.mode = mode
         self.development_mode = development_mode
         self.quiet = quiet
@@ -439,7 +438,7 @@ class SessionManager:
         or opened another file.
         """
         self.filename = filename
-        self.app_metadata.filename = self._get_file_path(filename)
+        self.app_metadata.filename = self.path
 
     def create_session(
         self, session_id: SessionId, session_consumer: SessionConsumer
@@ -507,12 +506,12 @@ class SessionManager:
         )
         return None
 
-    @staticmethod
-    def _get_file_path(filename: Optional[str]) -> Optional[str]:
-        if filename is None:
+    @property
+    def path(self) -> Optional[str]:
+        if self.filename is None:
             return None
         try:
-            return os.path.abspath(filename)
+            return os.path.abspath(self.filename)
         except AttributeError:
             return None
 
