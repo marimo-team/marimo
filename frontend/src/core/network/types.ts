@@ -4,6 +4,7 @@ import { LayoutType } from "@/components/editor/renderers/types";
 import { CellId } from "../cells/ids";
 import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
+import { FilePath } from "@/utils/paths";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -100,7 +101,7 @@ export interface ValueUpdate {
 
 export interface FileInfo {
   id: string;
-  path: string;
+  path: FilePath;
   name: string;
   isDirectory: boolean;
   isMarimoFile: boolean;
@@ -108,12 +109,38 @@ export interface FileInfo {
 }
 
 export interface FileListRequest {
-  path: string | undefined;
+  path: FilePath | undefined;
 }
 
 export interface FileListResponse {
   files: FileInfo[];
-  root: string;
+  root: FilePath;
+}
+
+export interface FileCreateRequest {
+  path: FilePath;
+  type: "file" | "directory";
+  name: string;
+}
+
+export interface FileDeleteRequest {
+  path: FilePath;
+}
+
+export interface FileUpdateRequest {
+  path: FilePath;
+  newPath: FilePath;
+}
+
+export interface FileOperationResponse {
+  success: boolean;
+  message: string | undefined;
+}
+
+export interface FileDetailsResponse {
+  file: FileInfo;
+  mimeType: string | undefined;
+  contents: string | undefined;
 }
 
 /**
@@ -146,4 +173,14 @@ export interface EditRequests {
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
+  sendCreateFileOrFolder: (
+    request: FileCreateRequest,
+  ) => Promise<FileOperationResponse>;
+  sendDeleteFileOrFolder: (
+    request: FileDeleteRequest,
+  ) => Promise<FileOperationResponse>;
+  sendRenameFileOrFolder: (
+    request: FileUpdateRequest,
+  ) => Promise<FileOperationResponse>;
+  sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
 }

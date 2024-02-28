@@ -2,8 +2,13 @@
 import type { RequestId } from "@/core/network/DeferredRequestRegistry";
 import type {
   CodeCompletionRequest,
+  FileCreateRequest,
+  FileDeleteRequest,
+  FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileOperationResponse,
+  FileUpdateRequest,
   FormatRequest,
   FormatResponse,
   SaveAppConfigRequest,
@@ -21,10 +26,16 @@ export interface RawBridge {
   save_app_config(request: SaveAppConfigRequest): Promise<string>;
   rename_file(request: string): Promise<string>;
   list_files(request: FileListRequest): Promise<FileListResponse>;
-  file_details(request: string): Promise<string>;
-  create_file_or_directory(request: string): Promise<string>;
-  delete_file_or_directory(request: string): Promise<string>;
-  update_file_or_directory(request: string): Promise<string>;
+  file_details(request: { path: string }): Promise<FileDetailsResponse>;
+  create_file_or_directory(
+    request: FileCreateRequest,
+  ): Promise<FileOperationResponse>;
+  delete_file_or_directory(
+    request: FileDeleteRequest,
+  ): Promise<FileOperationResponse>;
+  update_file_or_directory(
+    request: FileUpdateRequest,
+  ): Promise<FileOperationResponse>;
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
   [Symbol.asyncIterator](): AsyncIterator<string>;

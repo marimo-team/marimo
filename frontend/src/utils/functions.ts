@@ -3,6 +3,9 @@ export const Functions = {
   NOOP: () => {
     return;
   },
+  ASYNC_NOOP: async () => {
+    return;
+  },
   THROW: () => {
     throw new Error("Should not be called");
   },

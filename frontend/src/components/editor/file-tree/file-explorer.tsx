@@ -1,14 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { NodeApi, NodeRendererProps, Tree, SimpleTree } from "react-arborist";
+import { NodeApi, NodeRendererProps, Tree } from "react-arborist";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  ArrowLeftIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CopyIcon,
+  Edit3Icon,
+  MoreVerticalIcon,
   PlaySquareIcon,
+  RefreshCcwIcon,
+  ViewIcon,
 } from "lucide-react";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { openFile, sendListFiles } from "@/core/network/requests";
+import {
+  openFile,
+  sendCreateFileOrFolder,
+  sendDeleteFileOrFolder,
+  sendListFiles,
+  sendRenameFileOrFolder,
+} from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
@@ -17,93 +29,183 @@ import {
   guessFileType,
 } from "./types";
 import { toast } from "@/components/ui/use-toast";
-import { Tooltip } from "@/components/ui/tooltip";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogAction } from "@/components/ui/alert-dialog";
 import { atom, useAtom } from "jotai";
+import { Button } from "@/components/ui/button";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip } from "@/components/ui/tooltip";
+import { cn } from "@/utils/cn";
+import { RequestingTree } from "./requesting-tree";
+import { FileViewer } from "./file-viewer";
 
 // State lives outside of the component
 // to preserve the state when the component is unmounted
-const treeAtom = atom<SimpleTree<FileInfo>>(new SimpleTree<FileInfo>([]));
+const treeAtom = atom<RequestingTree>(
+  new RequestingTree({
+    listFiles: sendListFiles,
+    createFileOrFolder: sendCreateFileOrFolder,
+    deleteFileOrFolder: sendDeleteFileOrFolder,
+    renameFileOrFolder: sendRenameFileOrFolder,
+  }),
+);
 const openStateAtom = atom<Record<string, boolean>>({});
 
 export const FileExplorer: React.FC<{
   height: number;
 }> = ({ height }) => {
-  const [tree, setTree] = useAtom(treeAtom);
+  const [tree] = useAtom(treeAtom);
+  const [data, setData] = useState<FileInfo[]>([]);
   const [openState, setOpenState] = useAtom(openStateAtom);
+  const [openFile, setOpenFile] = useState<FileInfo | null>(null);
 
   useOnMount(() => {
-    if (tree.data.length > 0) {
-      return;
-    }
-    // Fetch initial data on mount
-    sendListFiles({ path: undefined }).then((data) => {
-      setTree(new SimpleTree(data.files));
-    });
+    void tree.initialize(setData);
   });
 
-  // This is a HACK so that we don't opt into react-arborist's drag and drop
-  // Their DnD implementation is removable and it causes issues with our
-  // our own DnD
-  const element = document.getElementById("noop-dnd-container");
-  if (!element) {
-    return null;
+  if (openFile) {
+    return (
+      <>
+        <div className="flex items-center pl-1 pr-3 flex-shrink-0 border-b justify-between">
+          <Button
+            onClick={() => setOpenFile(null)}
+            variant="text"
+            size="xs"
+            className="mb-0"
+          >
+            <ArrowLeftIcon size={16} />
+          </Button>
+          <span className="font-bold">{openFile.name}</span>
+        </div>
+        <FileViewer file={openFile} />
+      </>
+    );
   }
 
   return (
     <>
+      <Toolbar
+        onRefresh={() =>
+          tree.refreshAll(Object.keys(openState).filter((id) => openState[id]))
+        }
+      />
       <Tree<FileInfo>
         width="100%"
-        height={height}
+        height={height - 26}
         className="h-full"
-        data={tree.data}
-        dndRootElement={element}
+        data={data}
         initialOpenState={openState}
         openByDefault={false}
-        onToggle={(id) => {
-          const node = tree.find(id);
-          if (!node) {
+        // Hide the drop cursor
+        renderCursor={() => null}
+        // Disable dropping files into files
+        disableDrop={({ parentNode }) => !parentNode.data.isDirectory}
+        onRename={async ({ id, name }) => {
+          await tree.rename(id, name);
+        }}
+        onMove={async ({ dragIds, parentId }) => {
+          await tree.move(dragIds, parentId);
+        }}
+        onSelect={(nodes) => {
+          const first = nodes[0];
+          if (!first) {
             return;
           }
-          if (!node.data.isDirectory) {
-            return;
+          if (!first.data.isDirectory) {
+            setOpenFile(first.data);
           }
-
-          // We may attempt to load empty directories multiple times
-          // but that is fine
-          if (node.children && node.children.length > 0) {
-            // Already loaded
-            return;
-          }
-
-          sendListFiles({ path: id }).then((data) => {
-            tree.update({ id, changes: { children: data.files } });
-            setTree(new SimpleTree(tree.data));
+        }}
+        onToggle={async (id) => {
+          const result = await tree.expand(id);
+          if (result) {
             const prevOpen = openState[id] ?? false;
             setOpenState({ ...openState, [id]: !prevOpen });
-          });
+          }
         }}
         padding={15}
         rowHeight={30}
         indent={INDENT_STEP}
         overscanCount={1000}
-        // Disable all interactions
+        // Disable multi-selection
         disableMultiSelection={true}
-        disableDrag={true}
-        disableDrop={true}
-        disableEdit={true}
       >
         {Node}
       </Tree>
-      <div id="noop-dnd-container" />
     </>
   );
 };
 
 const INDENT_STEP = 15;
 
-const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
+const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
+  return (
+    <div className="flex items-center justify-end px-2 flex-shrink-0 border-b">
+      <Tooltip content="Refresh">
+        <Button onClick={onRefresh} variant="text" size="xs" className="mb-0">
+          <RefreshCcwIcon size={16} />
+        </Button>
+      </Tooltip>
+    </div>
+  );
+};
+
+const Show = ({ node }: { node: NodeApi<FileInfo> }) => {
+  return (
+    <span
+      className="flex-1"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (node.data.isDirectory) {
+          return;
+        }
+        node.select();
+      }}
+    >
+      {node.data.name}
+    </span>
+  );
+};
+
+const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+    // Select everything, but the extension
+    ref.current?.setSelectionRange(0, node.data.name.lastIndexOf("."));
+  }, [node.data.name]);
+
+  return (
+    <input
+      ref={ref}
+      className="flex-1 bg-transparent border border-border text-muted-foreground"
+      defaultValue={node.data.name}
+      onClick={(e) => e.stopPropagation()}
+      onBlur={() => node.reset()}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          node.reset();
+        }
+        if (e.key === "Enter") {
+          node.submit(e.currentTarget.value);
+        }
+      }}
+    />
+  );
+};
+
+const Node = ({
+  node,
+  style,
+  tree,
+  dragHandle,
+}: NodeRendererProps<FileInfo>) => {
   const fileType: FileType = node.data.isDirectory
     ? "directory"
     : guessFileType(node.data.name);
@@ -111,69 +213,117 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
   const Icon = FILE_TYPE_ICONS[fileType];
   const { openConfirm } = useImperativeModal();
 
+  const handleOpenMarimoFile = async (evt: Event) => {
+    evt.stopPropagation();
+    evt.preventDefault();
+    openConfirm({
+      title: "Open notebook",
+      description:
+        "This will close the current notebook and open the selected notebook. You'll lose all data that's in memory.",
+      confirmAction: (
+        <AlertDialogAction
+          onClick={async () => {
+            await openFile({ path: node.data.path });
+          }}
+          aria-label="Confirm"
+        >
+          Open
+        </AlertDialogAction>
+      ),
+    });
+  };
+
   return (
     <div
       style={style}
-      className="flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap"
+      ref={dragHandle}
+      className={cn(
+        "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group",
+      )}
+      draggable={true}
       onClick={(evt) => {
+        evt.stopPropagation();
         if (node.data.isDirectory) {
           node.toggle();
-          evt.stopPropagation();
         }
       }}
     >
       <FolderArrow node={node} />
       <span
-        className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1"
-        draggable={true}
-        onDragStart={(e) => {
-          const { path } = node.data;
-          const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
-          e.dataTransfer.setData("text/plain", pythonCode);
-          e.stopPropagation();
-        }}
-        onClick={() => {
-          if (node.data.isDirectory) {
-            return;
-          }
-
-          toast({
-            title: "Copied to clipboard",
-            description:
-              "Code to open the file has been copied to your clipboard. You can also drag and drop this file into the editor",
-          });
-          const { path } = node.data;
-          const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
-          navigator.clipboard.writeText(pythonCode);
-        }}
+        className={cn(
+          "flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1",
+          node.willReceiveDrop &&
+            node.data.isDirectory &&
+            "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
+        )}
       >
         <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />
-        <span className="flex-1">{node.data.name}</span>
-        {node.data.isMarimoFile ? (
-          <Tooltip content="Open file">
-            <PlaySquareIcon
-              strokeWidth={1.5}
-              onClick={async (e) => {
-                e.stopPropagation();
-                openConfirm({
-                  title: "Open notebook",
+        {node.isEditing ? <Edit node={node} /> : <Show node={node} />}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger
+            asChild={true}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="text"
+              tabIndex={-1}
+              size="xs"
+              className="mb-0"
+              aria-label="More options"
+            >
+              <MoreVerticalIcon
+                strokeWidth={2}
+                className="w-5 h-5 hidden group-hover:block"
+              />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="no-print w-[220px]"
+            onClick={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            {!node.data.isDirectory && (
+              <DropdownMenuItem onSelect={() => node.select()}>
+                <ViewIcon className="mr-2" size={14} strokeWidth={1.5} />
+                Open file
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onSelect={() => node.edit()}>
+              <Edit3Icon className="mr-2" size={14} strokeWidth={1.5} />
+              Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                toast({
+                  title: "Copied to clipboard",
                   description:
-                    "This will close the current notebook and open the selected notebook. You'll lose all data that's in memory.",
-                  confirmAction: (
-                    <AlertDialogAction
-                      onClick={async () => {
-                        await openFile({ path: node.data.path });
-                      }}
-                      aria-label="Confirm"
-                    >
-                      Open
-                    </AlertDialogAction>
-                  ),
+                    "Code to open the file has been copied to your clipboard. You can also drag and drop this file into the editor",
                 });
+                const { path } = node.data;
+                const pythonCode = PYTHON_CODE_FOR_FILE_TYPE[fileType](path);
+                navigator.clipboard.writeText(pythonCode);
               }}
-            />
-          </Tooltip>
-        ) : null}
+            >
+              <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
+              Copy snippet to clipboard
+            </DropdownMenuItem>
+            {node.data.isMarimoFile && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleOpenMarimoFile}>
+                  <PlaySquareIcon
+                    className="mr-2"
+                    size={14}
+                    strokeWidth={1.5}
+                  />
+                  Open notebook
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </span>
     </div>
   );

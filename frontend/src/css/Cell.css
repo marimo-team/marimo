@@ -305,15 +305,16 @@
 
 .cm-editor {
   font-size: var(--marimo-code-editor-font-size);
+}
+
+/* .Cell is needed to take precedence over codemirror's generated class ... */
+.Cell .cm-editor {
   border: 1px solid transparent;
   padding: 3px;
 
   /* leave some room for UI elements inside the code editor */
   padding-right: 24px;
-}
 
-/* .Cell is needed to take precedence over codemirror's generated class ... */
-.Cell .cm-editor {
   &.cm-focused {
     outline: 0;
 

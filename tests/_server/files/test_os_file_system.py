@@ -3,7 +3,7 @@ import unittest
 from tempfile import TemporaryDirectory
 
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.files import FileInfo
+from marimo._server.models.files import FileDetailsResponse
 
 
 class TestOSFileSystem(unittest.TestCase):
@@ -44,8 +44,9 @@ class TestOSFileSystem(unittest.TestCase):
         file_info = self.fs.get_details(
             os.path.join(self.test_dir, test_file_name)
         )
-        assert isinstance(file_info, FileInfo)
-        assert file_info.name == test_file_name
+        assert isinstance(file_info, FileDetailsResponse)
+        assert file_info.file.name == test_file_name
+        assert file_info.mime_type == "text/plain"
 
     def test_get_details_marimo_file(self):
         test_file_name = "app.py"
@@ -68,8 +69,8 @@ class TestOSFileSystem(unittest.TestCase):
             )
             f.close()
         file_info = self.fs.get_details(file_path)
-        assert isinstance(file_info, FileInfo)
-        assert file_info.is_marimo_file
+        assert isinstance(file_info, FileDetailsResponse)
+        assert file_info.file.is_marimo_file
 
     def test_open_file(self):
         test_file_name = "test_file.txt"

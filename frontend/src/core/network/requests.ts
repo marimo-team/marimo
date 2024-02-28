@@ -23,6 +23,11 @@ import {
   EditRequests,
   SendStdin,
   FileListResponse,
+  FileCreateRequest,
+  FileOperationResponse,
+  FileDeleteRequest,
+  FileUpdateRequest,
+  FileDetailsResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -146,6 +151,30 @@ function createNetworkRequests(): EditRequests & RunRequests {
         request,
       );
     },
+    sendCreateFileOrFolder: (request) => {
+      return API.post<FileCreateRequest, FileOperationResponse>(
+        "/files/create",
+        request,
+      );
+    },
+    sendDeleteFileOrFolder: (request) => {
+      return API.post<FileDeleteRequest, FileOperationResponse>(
+        "/files/delete",
+        request,
+      );
+    },
+    sendRenameFileOrFolder: (request) => {
+      return API.post<FileUpdateRequest, FileOperationResponse>(
+        "/files/update",
+        request,
+      );
+    },
+    sendFileDetails: (request: { path: string }) => {
+      return API.post<{ path: string }, FileDetailsResponse>(
+        "/files/file_details",
+        request,
+      );
+    },
   };
 }
 
@@ -169,6 +198,10 @@ export const {
   readCode,
   openFile,
   sendListFiles,
+  sendCreateFileOrFolder,
+  sendDeleteFileOrFolder,
+  sendRenameFileOrFolder,
+  sendFileDetails,
 } = isPyodide()
   ? PyodideBridge.INSTANCE
   : isStaticNotebook()

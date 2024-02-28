@@ -3,6 +3,7 @@
 import { bootstrap, startSession } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
 import {
+  RawBridge,
   SerializedBridge,
   WorkerClientPayload,
   WorkerServerPayload,
@@ -119,8 +120,8 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
       id,
     });
 
-    // Sync the filesystem if we're saving or renaming a file
-    if (functionName === "save" || functionName === "rename_file") {
+    // Sync the filesystem if we're saving, creating, deleting, or renaming a file
+    if (namesThatRequireSync.has(functionName)) {
       await syncFileSystem(self.pyodide);
     }
   } catch (error) {
@@ -132,6 +133,14 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
     }
   }
 };
+
+const namesThatRequireSync = new Set<keyof RawBridge>([
+  "save",
+  "rename_file",
+  "create_file_or_directory",
+  "delete_file_or_directory",
+  "update_file_or_directory",
+]);
 
 function postMessage(message: WorkerClientPayload) {
   self.postMessage(message);

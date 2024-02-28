@@ -5,8 +5,13 @@ import { CellId } from "../cells/ids";
 import {
   CodeCompletionRequest,
   EditRequests,
+  FileCreateRequest,
+  FileDeleteRequest,
+  FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileOperationResponse,
+  FileUpdateRequest,
   FormatRequest,
   FormatResponse,
   InstantiateRequest,
@@ -67,7 +72,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       this.worker.onmessage = this.handleWorkerMessage;
     }
   }
-
   private setCode = async () => {
     // Pass the code to the worker
     // If a filename is provided, it will be used to save the file
@@ -272,6 +276,46 @@ export class PyodideBridge implements RunRequests, EditRequests {
       function_call: request,
     });
     return null;
+  };
+
+  sendCreateFileOrFolder = async (
+    request: FileCreateRequest,
+  ): Promise<FileOperationResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "create_file_or_directory",
+      payload: request,
+    });
+    return response as FileOperationResponse;
+  };
+
+  sendDeleteFileOrFolder = async (
+    request: FileDeleteRequest,
+  ): Promise<FileOperationResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "delete_file_or_directory",
+      payload: request,
+    });
+    return response as FileOperationResponse;
+  };
+
+  sendRenameFileOrFolder = async (
+    request: FileUpdateRequest,
+  ): Promise<FileOperationResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "update_file_or_directory",
+      payload: request,
+    });
+    return response as FileOperationResponse;
+  };
+
+  sendFileDetails = async (request: {
+    path: string;
+  }): Promise<FileDetailsResponse> => {
+    const response = await this.fetcher.request({
+      functionName: "file_details",
+      payload: request,
+    });
+    return response as FileDetailsResponse;
   };
 
   private putControlRequest = async (operation: object) => {
