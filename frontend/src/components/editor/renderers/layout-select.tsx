@@ -13,10 +13,16 @@ import {
 } from "@/components/ui/select";
 import { LayoutType } from "./types";
 import { SquareIcon, Grid3x3Icon, ListIcon } from "lucide-react";
+import { isPyodide } from "@/core/pyodide/utils";
 
 export const LayoutSelect: React.FC = () => {
   const [layoutType, setLayoutType] = useAtom(layoutViewAtom);
   const layouts: LayoutType[] = ["vertical", "grid"];
+
+  // Layouts are not supported in Pyodide
+  if (isPyodide()) {
+    return null;
+  }
 
   return (
     <Select

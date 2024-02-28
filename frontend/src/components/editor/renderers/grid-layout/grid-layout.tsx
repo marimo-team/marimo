@@ -150,8 +150,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         // Disable animations and add padding when reading
         isReading && "disable-animation px-4 ",
         // Add border styles
-        layout.bordered &&
-          "border-t border-x rounded-t shadow-sm overflow-hidden",
+        layout.bordered && "border-t border-x rounded-t shadow-sm",
         // Add additional padding if bordered when reading
         layout.bordered && isReading && "pt-4 w-[calc(100%-2rem)]",
         !layout.maxWidth && "min-w-[800px]",

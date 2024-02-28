@@ -14,7 +14,7 @@ import { CellData } from "../cells/types";
 import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
-import { layoutDataAtom, layoutViewAtom } from "../layout/layout";
+import { LayoutData, layoutDataAtom, layoutViewAtom } from "../layout/layout";
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
@@ -36,7 +36,7 @@ import { generateUUID } from "@/utils/uuid";
 export function useMarimoWebSocket(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  setCells: (cells: CellData[]) => void;
+  setCells: (cells: CellData[], layout: LayoutData) => void;
 }) {
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);
@@ -94,11 +94,13 @@ export function useMarimoWebSocket(opts: {
           });
         });
 
+        let layoutData: LayoutData = undefined;
         if (layout) {
           setLayoutView(layout.type);
-          setLayoutData(deserializeLayout(layout.type, layout.data, cells));
+          layoutData = deserializeLayout(layout.type, layout.data, cells);
+          setLayoutData(layoutData);
         }
-        setCells(cells);
+        setCells(cells, layoutData);
 
         // If resumed, we don't need to instantiate the UI elements,
         // and we should read in th existing values from the kernel.
