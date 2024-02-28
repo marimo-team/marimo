@@ -1,18 +1,18 @@
 import time
 from functools import wraps
-from typing import Any, Callable, TypeVar, Union, cast
+from typing import Any, Callable, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., None])
 
 
-def debounce(wait_time: Union[float, int]) -> Callable[[F], F]:
+def debounce(wait_time: float) -> Callable[[F], F]:
     """
     Decorator to prevent a function from being called more than once every
     wait_time seconds.
     """
 
     def decorator(func: F) -> F:
-        last_called = 0
+        last_called: float = 0
 
         @wraps(func)
         def wrapped(*args: Any, **kwargs: Any) -> None:
