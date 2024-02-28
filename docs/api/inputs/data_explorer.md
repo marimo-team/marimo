@@ -9,7 +9,20 @@ In order to use the dataframe UI element, you must have the `pandas` package ins
 You can install it with `pip install pandas`.
 ```
 
-<!-- <iframe class="demo large" src="https://components.marimo.io/?component=data_explorer" frameborder="no"></iframe> -->
+```{eval-rst}
+.. marimo-embed::
+    :size: large
+    :app_width: full
+
+    @app.cell
+    def __():
+        import pandas as pd
+        import pyodide
+        csv = pyodide.http.open_url("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
+        df = pd.read_csv(csv)
+        mo.ui.data_explorer(df)
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.data_explorer

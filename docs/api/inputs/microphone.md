@@ -1,6 +1,17 @@
 # Microphone
 
-<iframe class="demo" src="https://components.marimo.io/?component=microphone" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        microphone = mo.ui.microphone(label="Drop a beat!")
+        return
+
+    @app.cell
+    def __():
+        mo.hstack([microphone, mo.audio(microphone.value)])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.microphone

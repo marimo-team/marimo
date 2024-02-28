@@ -64,7 +64,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
       {canShowCode && (
         <div
           className={cn(
-            "right-0 top-0 z-10 m-4",
+            "right-0 top-0 z-50 m-4",
             // If the notebook is static, we have a banner at the top, so
             // we can't use fixed positioning. Ideally this is sticky, but the
             // current dom structure makes that difficult.
@@ -74,6 +74,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           <Button
             variant="secondary"
             onClick={() => setShowCode((prev) => !prev)}
+            size="sm"
             data-testid="show-code"
           >
             <Code2Icon className="w-4 h-4 mr-2" />

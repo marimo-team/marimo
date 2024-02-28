@@ -52,7 +52,7 @@ const buttonVariants = cva(
           activeCommon,
         ),
         secondary: cn(
-          "bg-secondary text-secondary-foreground hover:bg-secondary/60",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
           "border border-input shadow-smSolid",
           activeCommon,
         ),

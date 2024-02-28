@@ -1,6 +1,12 @@
 # File
 
-<iframe class="demo medium" src="https://components.marimo.io/?component=file" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        mo.vstack([mo.ui.file(kind="button"), mo.ui.file(kind="area")])
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.file

@@ -18,7 +18,35 @@ available in Python as a Pandas dataframe_!
 
 ## Reactive plots! ⚡
 
-<!-- <iframe class="demo" src="https://components.marimo.io/?component=slider" frameborder="no"></iframe> -->
+```{eval-rst}
+.. marimo-embed::
+    :size: large
+
+    @app.cell
+    def __():
+        import pandas as pd
+        import pyodide
+        import micropip
+        await micropip.install('altair')
+        return
+
+    @app.cell
+    def __():
+        import altair as alt
+        cars = pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
+
+        chart = alt.Chart(cars).mark_point().encode(
+            x='Horsepower',
+            y='Miles_per_Gallon',
+            color='Origin'
+        )
+        return
+
+    @app.cell
+    def __():
+        mo.vstack([chart, mo.ui.table(chart.value)])
+        return
+```
 
 Use [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) to easily
 create interactive, selectable plots: _selections you make on the frontend are

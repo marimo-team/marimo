@@ -3,8 +3,8 @@ from docutils import nodes
 import urllib.parse
 
 
-def uri_encode(code: str) -> str:
-    return urllib.parse.quote(code)
+def uri_encode_component(code: str) -> str:
+    return urllib.parse.quote(code, safe="~()*!.'")
 
 
 class MarimoEmbed(Directive):
@@ -12,25 +12,39 @@ class MarimoEmbed(Directive):
     optional_arguments = 0
     final_argument_whitespace = True
     has_content = True
+    option_spec = {
+        # default, medium, large
+        "size": str,
+        # read, edit
+        "mode": str,
+        # normal, full
+        "app_width": str,
+    }
 
     def run(self):
+        # Configs
+        size = self.options.get("size", "default")
+        mode = self.options.get("mode", "read")
+        app_width = self.options.get("app_width", "normal")
+
         header = "\n".join(
             [
                 "import marimo",
-                "app = marimo.App()",
+                f'app = marimo.App(width="{app_width}")',
+                "",
+            ]
+        )
+        footer = "\n".join(
+            [
+                "",
                 "@app.cell",
                 "def __():",
                 "    import marimo as mo",
                 "    return",
-                "",
             ]
         )
-        body = header + "\n".join(self.content)
-        # default, medium, large
-        size = self.options.get("size", "default")
-        # read, edit
-        mode = self.options.get("mode", "read")
-        encoded_code = uri_encode(body)
+        body = header + "\n".join(self.content) + footer
+        encoded_code = uri_encode_component(body)
 
         # Create an iframe of the app
         html = f"""

@@ -1,6 +1,21 @@
 # Batch
 
-<iframe class="demo medium" src="https://components.marimo.io/?component=batch" frameborder="no"></iframe>
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        el = mo.md("{start} → {end}").batch(
+            start=mo.ui.date(label="Start Date"),
+            end=mo.ui.date(label="End Date")
+        )
+        el
+        return
+
+    @app.cell
+    def __():
+        el.value
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.batch

@@ -1,6 +1,12 @@
 # Code Editor
 
-<!-- <iframe class="demo" src="https://components.marimo.io/?component=code_editor" frameborder="no"></iframe> -->
+```{eval-rst}
+.. marimo-embed::
+    @app.cell
+    def __():
+        mo.ui.code_editor(label="Code Editor", language="python")
+        return
+```
 
 ```{eval-rst}
 .. autoclass:: marimo.ui.code_editor
