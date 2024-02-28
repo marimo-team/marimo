@@ -2,7 +2,6 @@ import time
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast
 
-# Define a type variable for the decorator to work with functions of any signature
 F = TypeVar("F", bound=Callable[..., None])
 
 
