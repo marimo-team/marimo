@@ -17,6 +17,12 @@ class AltairFormatter(FormatterFactory):
         import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
+        from marimo._plugins.ui._impl.charts.altair_transformer import (
+            register_transformers,
+        )
+
+        # add marimo transformers
+        register_transformers()
 
         @formatting.formatter(altair.TopLevelMixin)
         def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
