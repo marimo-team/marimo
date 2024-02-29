@@ -41,6 +41,7 @@ export interface CellEditorProps
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
+      | "clearSerializedEditorState"
     > {
   runCell: () => void;
   theme: Theme;
@@ -73,6 +74,7 @@ const CellEditorInternal = ({
   moveCell,
   moveToNextCell,
   updateCellConfig,
+  clearSerializedEditorState,
   userConfig,
   editorViewRef,
   hidden,
@@ -211,6 +213,8 @@ const CellEditorInternal = ({
         ),
       });
       shouldFocus = true;
+      // Clear the serialized state so that we don't re-create the editor next time
+      clearSerializedEditorState({ cellId });
     }
 
     if (
@@ -254,6 +258,7 @@ const CellEditorInternal = ({
     handleDelete,
     runCell,
     serializedEditorState,
+    clearSerializedEditorState,
   ]);
 
   useLayoutEffect(() => {
