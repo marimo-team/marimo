@@ -79,7 +79,8 @@ const SliderComponent = ({
       <div
         className={cn(
           "flex items-center gap-2",
-          orientation === "vertical" && "items-end justify-center w-full",
+          orientation === "vertical" &&
+            "items-end inline-flex justify-center self-center mx-2",
         )}
       >
         <Slider
