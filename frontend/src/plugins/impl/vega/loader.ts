@@ -12,7 +12,18 @@ const bigIntIntegerParser = (v: string) => {
   if (v === "") {
     return "";
   }
-  return isNumber(Number.parseInt(v)) ? BigInt(v) : "";
+
+  if (isNumber(Number.parseInt(v))) {
+    try {
+      return BigInt(v);
+    } catch {
+      // Floats like 2.0 are parseable as ints but not
+      // as BigInt
+      return previousIntegerParser(v);
+    }
+  } else {
+    return "";
+  }
 };
 
 function enableBigInt() {
