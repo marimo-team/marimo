@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
+import { isPyodide } from "../pyodide/utils";
 
 export const isEmbedded =
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
@@ -10,7 +11,7 @@ export const isEmbedded =
 // we have to dispatch keyboard events in the parent window.
 // See https://github.com/microsoft/vscode/issues/65452#issuecomment-586036474
 export function maybeRegisterVSCodeBindings() {
-  if (!isEmbedded) {
+  if (!isEmbedded || isPyodide()) {
     return;
   }
   Logger.log("Registering VS Code bindings");
