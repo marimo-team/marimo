@@ -83,6 +83,7 @@ export interface CellProps
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
+      | "clearSerializedEditorState"
       | "setStdinResponse"
       | "sendToBottom"
       | "sendToTop"
@@ -131,6 +132,7 @@ const CellComponent = (
     setStdinResponse,
     moveToNextCell,
     updateCellConfig,
+    clearSerializedEditorState,
     sendToBottom,
     sendToTop,
     userConfig,
@@ -407,6 +409,7 @@ const CellComponent = (
             moveCell={moveCell}
             moveToNextCell={moveToNextCell}
             updateCellConfig={updateCellConfig}
+            clearSerializedEditorState={clearSerializedEditorState}
             userConfig={userConfig}
             editorViewRef={editorView}
             hidden={cellConfig.hide_code}

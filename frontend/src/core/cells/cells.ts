@@ -316,6 +316,15 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       };
     }
   },
+  clearSerializedEditorState: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+    return updateCellData(state, cellId, (cell) => {
+      return {
+        ...cell,
+        serializedEditorState: null,
+      };
+    });
+  },
   updateCellCode: (
     state,
     action: {

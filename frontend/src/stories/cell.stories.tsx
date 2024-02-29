@@ -47,6 +47,7 @@ const props: CellProps = {
   sendToTop: Logger.log,
   updateCellConfig: Logger.log,
   setStdinResponse: Logger.log,
+  clearSerializedEditorState: Logger.log,
   config: {},
   userConfig: {
     completion: {

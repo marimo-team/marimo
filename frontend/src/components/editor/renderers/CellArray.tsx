@@ -45,6 +45,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
     moveCell,
     moveToNextCell,
     updateCellConfig,
+    clearSerializedEditorState,
     focusCell,
     createNewCell,
     focusBottomCell,
@@ -124,6 +125,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
           moveToNextCell={moveToNextCell}
           setStdinResponse={setStdinResponse}
           updateCellConfig={updateCellConfig}
+          clearSerializedEditorState={clearSerializedEditorState}
           moveCell={moveCell}
           mode={mode}
           appClosed={connStatus.state !== WebSocketState.OPEN}
