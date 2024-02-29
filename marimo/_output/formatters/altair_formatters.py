@@ -28,7 +28,7 @@ class AltairFormatter(FormatterFactory):
 
             # It is required to set this back to the default,
             # since mo.ui.altair_chart sets it to 'marimo'
-            if alt.data_transformers.active.startswith("marimo"):
+            if alt.data_transformers.active == "marimo":
                 # Re-enable with the previous options
                 alt.data_transformers.enable(
                     "default", **alt.data_transformers.options
