@@ -227,7 +227,11 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
                 vega_spec["autosize"] = "fit-x"
 
         # Selection for binned charts is not yet implemented
-        if _has_binning(vega_spec):
+        has_chart_selection = chart_selection is not False
+        has_legend_selection = legend_selection is not False
+        if _has_binning(vega_spec) and (
+            has_chart_selection or has_legend_selection
+        ):
             sys.stderr.write(
                 "Binning + selection is not yet supported in "
                 "marimo.ui.chart.\n"

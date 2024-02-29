@@ -38,7 +38,6 @@ export interface RawBridge {
   ): Promise<FileOperationResponse>;
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
-  [Symbol.asyncIterator](): AsyncIterator<string>;
 }
 
 export type SerializedBridge = {
