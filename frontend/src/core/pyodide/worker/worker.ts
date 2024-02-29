@@ -11,6 +11,7 @@ import {
 import { invariant } from "../../../utils/invariant";
 import { Deferred } from "../../../utils/Deferred";
 import { syncFileSystem } from "./fs";
+import { MessageBuffer } from "./message-buffer";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -23,6 +24,9 @@ async function loadPyodideAndPackages() {
   self.pyodide = await bootstrap();
 }
 const pyodideReadyPromise = loadPyodideAndPackages();
+const messageBuffer = new MessageBuffer((m: string) =>
+  postMessage({ type: "message", message: m }),
+);
 
 // Initialize the session
 const bridgeReady = new Deferred<SerializedBridge>();
@@ -36,11 +40,12 @@ function startSessionWithCode(opts: {
     return;
   }
   started = true;
-  startSession(self.pyodide, opts).then((bridge) => {
+  startSession(self.pyodide, opts, messageBuffer.push).then((bridge) => {
     bridgeReady.resolve(bridge);
     postMessage({ type: "initialized" });
   });
 }
+
 async function getBridge() {
   return bridgeReady.promise;
 }
@@ -55,16 +60,9 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
     return;
   }
 
-  // Run forever, waiting for messages from the Python bridge
   if (event.data.type === "start-messages") {
-    const done = false;
-
-    while (!done) {
-      const bridge = await getBridge();
-      for await (const message of bridge) {
-        postMessage({ type: "message", message });
-      }
-    }
+    // Flush the message buffer
+    messageBuffer.start();
 
     return;
   }

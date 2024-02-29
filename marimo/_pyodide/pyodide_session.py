@@ -73,18 +73,14 @@ def instantiate(session: PyodideSession) -> None:
 
 def create_session(
     filename: str,
+    message_callback: Callable[[str], None],
 ) -> tuple[PyodideSession, PyodideBridge]:
-    queue = asyncio.Queue[dict[str, Any]]()
-
     def write_kernel_message(op: KernelMessage) -> None:
-        queue.put_nowait({"op": op[0], "data": op[1]})
+        message_callback(json.dumps({"op": op[0], "data": op[1]}))
 
     app_file_manager = AppFileManager(filename=filename)
     app = app_file_manager.app
-
-    app_metadata = AppMetadata(
-        filename=filename,
-    )
+    app_metadata = AppMetadata(filename=filename)
 
     session = PyodideSession(
         app_file_manager, SessionMode.EDIT, write_kernel_message, app_metadata
@@ -108,7 +104,7 @@ def create_session(
         )
     )
 
-    bridge = PyodideBridge(queue, session)
+    bridge = PyodideBridge(session)
 
     return session, bridge
 
@@ -190,17 +186,10 @@ class PyodideSession:
 class PyodideBridge:
     def __init__(
         self,
-        queue: asyncio.Queue[dict[str, Any]],
         session: PyodideSession,
     ):
-        self.queue = queue
         self.session = session
         self.file_system = OSFileSystem()
-
-    async def __aiter__(self) -> Any:
-        while True:
-            op = await self.queue.get()
-            yield json.dumps(op)
 
     def put_control_request(self, request: str) -> None:
         @dataclasses.dataclass

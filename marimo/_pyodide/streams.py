@@ -157,7 +157,7 @@ class PyodideStdin(Stdin):
         CellOp(
             cell_id=self.stream.cell_id,
             console=CellOutput(
-                channel=CellChannel.STDERR,
+                channel=CellChannel.STDIN,
                 mimetype="text/plain",
                 data=prompt,
             ),

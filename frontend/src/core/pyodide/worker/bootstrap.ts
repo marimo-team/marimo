@@ -31,7 +31,7 @@ export async function bootstrap() {
   const marimoWheel =
     process.env.NODE_ENV === "production"
       ? "marimo >= 0.2.5"
-      : "http://localhost:8000/dist/marimo-0.2.9-py3-none-any.whl";
+      : "http://localhost:8000/dist/marimo-0.2.10-py3-none-any.whl";
   await pyodide.runPythonAsync(`
     import micropip
 
@@ -56,9 +56,18 @@ export async function startSession(
     fallbackCode: string;
     filename: string | null;
   },
+  messageCallback: (data: string) => void,
 ): Promise<SerializedBridge> {
   // Set up the filesystem
   const { filename, content } = await mountFilesystem({ pyodide, ...opts });
+
+  // We pass down a messenger object to the code
+  // This is used to have synchronous communication between the JS and Python code
+  // Previously, we used a queue, but this would not properly flush the queue
+  // during processing of a cell's code.
+  //
+  // This adds a messenger object to the global scope (import js; js.messenger.callback)
+  self.messenger = { callback: messageCallback };
 
   // Load packages from the code
   await pyodide.loadPackagesFromImports(content, {
@@ -70,14 +79,19 @@ export async function startSession(
     `
       print("[py] Starting marimo...")
       import asyncio
+      import js
       from marimo._pyodide.pyodide_session import create_session, instantiate
 
-      session, bridge = create_session(filename="${filename}")
+      assert js.messenger, "messenger is not defined"
+
+      session, bridge = create_session(filename="${filename}", message_callback=js.messenger.callback)
       instantiate(session)
       asyncio.create_task(session.start())
 
       bridge`,
   );
+
+  self.bridge = bridge;
 
   return bridge;
 }
