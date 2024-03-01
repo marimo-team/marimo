@@ -35,7 +35,7 @@ available in Python as a Pandas dataframe_!
     @app.cell
     def __():
         cars = pd.DataFrame(json.loads(
-          pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
+          pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
         ))
 
         chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
