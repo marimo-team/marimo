@@ -17,6 +17,12 @@ export type {
   SelectionType,
 } from "vega-lite/build/src/selection";
 export type { DataFormat } from "vega-lite/build/src/data";
+export type {
+  LayerSpec,
+  UnitSpec,
+  GenericFacetSpec,
+  FacetedUnitSpec,
+} from "vega-lite/build/src/spec";
 
 export type VegaLiteUnitSpec = TopLevelUnitSpec<Field>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

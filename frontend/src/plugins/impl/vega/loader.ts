@@ -54,7 +54,9 @@ export function vegaLoadData(
     // We make the column names unique by appending a number to the end of
     // each duplicate column name. If we want to preserve the original key
     // we would need to store the data in columnar format.
-    csvData = uniquifyColumnNames(csvData);
+    if (typeof csvData === "string") {
+      csvData = uniquifyColumnNames(csvData);
+    }
 
     // We support enabling/disabling since the Table enables it
     // but Vega does not support BigInts

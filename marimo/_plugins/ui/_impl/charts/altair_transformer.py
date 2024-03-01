@@ -109,13 +109,10 @@ def register_transformers() -> None:
 
     # We keep the previous options, in case the user has set them
     # we don't want to override them.
-    options = alt.data_transformers.options
 
     # Default to CSV. Due to the columnar nature of CSV, it is more efficient
     # than JSON for large datasets (~80% smaller file size).
     alt.data_transformers.register("marimo", _to_marimo_csv)
-    alt.data_transformers.enable("marimo", **options)
-
     alt.data_transformers.register("marimo_json", _to_marimo_json)
     alt.data_transformers.register(
         "marimo_csv",

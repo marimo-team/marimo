@@ -14,14 +14,13 @@ import { debounce } from "lodash-es";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";
 
-import { vegaLoadData } from "./loader";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { fixRelativeUrl } from "./fix-relative-url";
 
 import "./vega.css";
 import { useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
-import { asURL } from "@/utils/url";
+import { resolveVegaSpecData } from "./resolve-data";
 
 interface Data {
   spec: VegaLiteSpec;
@@ -85,34 +84,7 @@ export const VegaComponent = ({
     // otherwise it will try to load it internally and flicker
     // Instead we can handle the loading state ourselves,
     // and show the previous chart until the new one is ready
-
-    if (!spec || !spec.data) {
-      return spec;
-    }
-
-    if (!("url" in spec.data)) {
-      return spec;
-    }
-
-    // Parse URL
-    let url: URL;
-    try {
-      url = asURL(spec.data.url);
-    } catch {
-      return spec;
-    }
-
-    const data = await vegaLoadData(url.href, spec.data.format);
-    return {
-      ...spec,
-      data: {
-        name: url.pathname,
-      },
-      datasets: {
-        ...spec.datasets,
-        [url.pathname]: data,
-      },
-    } as VegaLiteSpec;
+    return resolveVegaSpecData(spec);
   }, [spec]);
 
   if (!resolvedSpec) {
