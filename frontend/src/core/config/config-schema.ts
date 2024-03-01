@@ -92,9 +92,10 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
+export const APP_WIDTHS = ["normal", "medium", "full"] as const;
 export const AppConfigSchema = z
   .object({
-    width: z.enum(["full", "normal"]).default("normal"),
+    width: z.enum(APP_WIDTHS).default("normal"),
   })
   .default({ width: "normal" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

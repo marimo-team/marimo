@@ -41,7 +41,7 @@ class _AppConfig:
     a single marimo program.
     """
 
-    width: Literal["normal", "full"] = "normal"
+    width: Literal["normal", "medium", "full"] = "normal"
 
     # The file path of the layout file, relative to the app file.
     layout_file: Optional[str] = None

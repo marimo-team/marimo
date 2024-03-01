@@ -7,11 +7,16 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
-import { AppConfig, AppConfigSchema } from "../../core/config/config-schema";
+import {
+  AppConfig,
+  AppConfigSchema,
+  APP_WIDTHS,
+} from "../../core/config/config-schema";
+import { NativeSelect } from "../ui/native-select";
 import { toast } from "../ui/use-toast";
 import { useAppConfig } from "@/core/config/config";
-import { Switch } from "@/components/ui/switch";
 import { saveAppConfig } from "@/core/network/requests";
 import { SettingTitle, SettingDescription } from "./common";
 import { useEffect } from "react";
@@ -49,23 +54,31 @@ export const AppConfigForm: React.FC = () => {
       >
         <div>
           <SettingTitle>Application Config</SettingTitle>
-          <SettingDescription>Settings applied to this app</SettingDescription>
+          <SettingDescription>
+            Settings applied to this notebook
+          </SettingDescription>
         </div>
         <FormField
           control={form.control}
           name="width"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+            <FormItem>
+              <FormLabel>Width</FormLabel>
               <FormControl>
-                <Switch
-                  checked={field.value === "full"}
-                  size="sm"
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked ? "full" : "normal");
-                  }}
-                />
+                <NativeSelect
+                  onChange={(e) => field.onChange(e.target.value)}
+                  value={field.value}
+                  disabled={field.disabled}
+                  className="inline-flex mx-2"
+                >
+                  {APP_WIDTHS.map((option) => (
+                    <option value={option} key={option}>
+                      {option}
+                    </option>
+                  ))}
+                </NativeSelect>
               </FormControl>
-              <FormLabel className="font-normal">Full-width</FormLabel>
+              <FormMessage />
             </FormItem>
           )}
         />

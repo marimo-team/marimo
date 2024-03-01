@@ -21,7 +21,9 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
         className={cn(
           // Large mobile bottom padding due to mobile browser navigation bar
           "m-auto pb-24 sm:pb-12",
-          appConfig.width !== "full" && "max-w-contentWidth min-w-[400px]",
+          appConfig.width === "normal" && "max-w-contentWidth min-w-[400px]",
+          appConfig.width === "medium" &&
+            "max-w-contentWidthMedium min-w-[400px]",
           // Hide the cells for a fake loading effect, to avoid flickering
           invisible && "invisible",
         )}

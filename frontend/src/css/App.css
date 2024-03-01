@@ -20,6 +20,7 @@ html {
 
 :root {
   --content-width: 740px;
+  --content-width-medium: 1110px;
   --monospace-font: "Fira Mono";
   --text-font: "PT Sans", sans-serif;
   --heading-font: "Lora", serif;
