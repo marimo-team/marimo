@@ -25,11 +25,11 @@ For more information about plotting, see the [plotting guide](../guides/plotting
         import altair as alt
         cars = pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
 
-        chart = alt.Chart(cars).mark_point().encode(
+        chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
             x='Horsepower',
             y='Miles_per_Gallon',
             color='Origin'
-        )
+        ))
         return
 
     @app.cell
