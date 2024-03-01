@@ -46,6 +46,7 @@ module.exports = {
       },
       maxWidth: {
         contentWidth: "var(--content-width)",
+        contentWidthMedium: "var(--content-width-medium)",
       },
       padding: {
         18: "4.5rem",
