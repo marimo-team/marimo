@@ -26,7 +26,7 @@ For more information about plotting, see the [plotting guide](../guides/plotting
     def __():
         cars = pd.DataFrame(json.loads(
           pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
-        )
+        ))
 
         chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
             x='Horsepower',
