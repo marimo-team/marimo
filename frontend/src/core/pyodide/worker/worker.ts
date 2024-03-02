@@ -93,6 +93,19 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
       postMessage({ type: "response", response: file, id });
       return;
     }
+    // Special case to lazily install black on format
+    // Don't return early; still need to ask the pyodide kernel to run
+    // the formatter
+    if (functionName === "format") {
+      await self.pyodide.runPythonAsync(`
+        import micropip
+
+        try:
+          import black
+        except ModuleNotFoundError:
+          await micropip.install("black")
+        `);
+    }
 
     // Perform the function call to the Python bridge
     const bridge = await getBridge();
