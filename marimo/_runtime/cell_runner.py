@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
-from marimo._ast.compiler import cell_id_from_filename
 from marimo._loggers import marimo_logger
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
@@ -27,54 +26,6 @@ if TYPE_CHECKING:
 def cell_filename(cell_id: CellId_t) -> str:
     """Filename to use when running cells through exec."""
     return f"<cell-{cell_id}>"
-
-
-def format_traceback(graph: dataflow.DirectedGraph) -> str:
-    """Formats the current exception on the stack."""
-    # all three values are guaranteed to be non-None because an
-    # exception is on the stack:
-    # https://docs.python.org/3/library/sys.html#sys.exc_info
-    exc_type, exc_value, tb = sys.exc_info()
-    # custom traceback formatting strips out marimo internals
-    # and adds source code from cells
-    frames = traceback.extract_tb(tb)
-    error_msg_lines = []
-    found_cell_frame = False
-    for filename, lineno, fn_name, text in frames:
-        filename_cell_id = cell_id_from_filename(filename)
-        in_cell = filename_cell_id is not None
-        if in_cell:
-            found_cell_frame = True
-        if not found_cell_frame:
-            continue
-
-        line = "  "
-        if in_cell:
-            # TODO: hyperlink to cell ... should the traceback
-            # be assembled in the frontend?
-            line += f"Cell {filename}, "
-        else:
-            line += f"File {filename}, "
-        line += f"line {lineno}"
-
-        if fn_name != "<module>":
-            line += f", in {fn_name}"
-        error_msg_lines.append(line)
-
-        if filename_cell_id is not None:
-            lines = graph.cells[filename_cell_id].code.split("\n")
-            error_msg_lines.append("    " + lines[lineno - 1].strip())
-        else:
-            error_msg_lines.append("    " + text.strip())
-
-    return (
-        "Traceback (most recent call last):\n"
-        + "\n".join(error_msg_lines)
-        + "\n"
-        + exc_type.__name__  # type: ignore
-        + ": "
-        + str(exc_value)
-    )
 
 
 @dataclass
@@ -263,14 +214,6 @@ class Runner:
         """Get the next cell to run."""
         return self.cells_to_run.pop(0)
 
-    def print_traceback(self) -> None:
-        """Print a traceback to stderr.
-
-        Must be called when there is an exception on the stack.
-        """
-        error_msg = format_traceback(self.graph)
-        sys.stderr.write(error_msg)
-
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
         cell = self.graph.cells[cell_id]
@@ -292,7 +235,7 @@ class Runner:
                 e = MarimoInterrupt()
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
-            self.print_traceback()
+            traceback.print_exc(file=sys.stderr)
         except MarimoStopError as e:
             # Raised by mo.stop().
             # cancel only the descendants of this cell
@@ -307,7 +250,7 @@ class Runner:
             # - SystemExit should kill the process
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
-            self.print_traceback()
+            traceback.print_exc(file=sys.stderr)
         finally:
             # if a debugger is active, force it to skip past marimo code.
             try:
