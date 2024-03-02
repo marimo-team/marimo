@@ -27,19 +27,22 @@ available in Python as a Pandas dataframe_!
         import pandas as pd
         import pyodide
         import micropip
+        import json
         await micropip.install('altair')
+        import altair as alt
         return
 
     @app.cell
     def __():
-        import altair as alt
-        cars = pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json')
+        cars = pd.DataFrame(json.loads(
+          pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
+        ))
 
-        chart = alt.Chart(cars).mark_point().encode(
+        chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
             x='Horsepower',
             y='Miles_per_Gallon',
             color='Origin'
-        )
+        ))
         return
 
     @app.cell
