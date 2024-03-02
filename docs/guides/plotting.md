@@ -1,8 +1,8 @@
 # Plotting
 
 marimo supports most major plotting libraries, including Matplotlib, Seaborn,
-Plotly, and Altair. Just import your plotting library of choice and use it
-as you normally would.
+Plotly, Altair, and HoloViews. Just import your plotting library of choice and
+use it as you normally would.
 
 For Altair and Plotly plots, marimo does something special: use
 [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) or
@@ -20,6 +20,12 @@ available in Python as a Pandas dataframe_!
 ```
 
 ## Reactive plots! ⚡
+
+```{admonition} Requirements
+:class: warning
+Reactive plots currently require Altair or Plotly. Install with `pip install altair`
+or `pip install plotly`, depending on which library you are using.
+```
 
 ### Altair
 
@@ -65,12 +71,6 @@ automatically made available as Pandas dataframes in Python._
 <img src="/_static/docs-intro.gif" width="600px"/>
 </figure>
 </div>
-
-```{admonition} Requirements
-:class: warning
-Reactive plots currently require Altair. Install it with `pip install altair`
-In the future, we may make other plotting libraries reactive.
-```
 
 Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
 to make it **reactive**: select data on the frontend, access it via the chart's
