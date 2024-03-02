@@ -1,22 +1,33 @@
 # Plotting
 
 marimo supports most major plotting libraries, including Matplotlib, Seaborn,
-Plotly, and Altair. Just import your plotting library of choice and use it
-as you normally would.
+Plotly, Altair, and HoloViews. Just import your plotting library of choice and
+use it as you normally would.
 
-For Altair plots, marimo does something special: use [`mo.ui.altair_chart`](#reactive-plots)
-to connect frontend selections to Python!
+For Altair and Plotly plots, marimo does something special: use
+[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) or
+[`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly) to connect frontend
+selections to Python!
 
 ```{admonition} Reactive plots!
 :class: important
 
 marimo supports reactive plots via
-[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)! Select and
+[`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart) and
+[`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly)! Select and
 filter with your mouse, and marimo _automatically makes the selected data
 available in Python as a Pandas dataframe_!
 ```
 
 ## Reactive plots! ⚡
+
+```{admonition} Requirements
+:class: warning
+Reactive plots currently require Altair or Plotly. Install with `pip install altair`
+or `pip install plotly`, depending on which library you are using.
+```
+
+### Altair
 
 ```{eval-rst}
 .. marimo-embed::
@@ -61,19 +72,13 @@ automatically made available as Pandas dataframes in Python._
 </figure>
 </div>
 
-```{admonition} Requirements
-:class: warning
-Reactive plots currently require Altair. Install it with `pip install altair`
-In the future, we may make other plotting libraries reactive.
-```
-
 Wrap an Altair chart in [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
 to make it **reactive**: select data on the frontend, access it via the chart's
 `value` attribute (`chart.value`).
 
 _Reactive plots are just one way that marimo **makes your data tangible**._
 
-### Example
+#### Example
 
 ```python
 import marimo as mo
@@ -99,7 +104,7 @@ chart = mo.ui.altair_chart(chart)
 mo.vstack([chart, chart.value.head()])
 ```
 
-### Learning Altair
+#### Learning Altair
 
 If you're new to **Altair**, we highly recommend exploring the
 [Altair documentation](https://altair-viz.github.io/). Altair provides
@@ -110,7 +115,7 @@ Altair is based on [Vega-Lite](https://vega.github.io/vega-lite/), an
 exceptional tool for creating interactive charts that serves as the backbone
 for marimo's reactive charting capabilities.
 
-#### Concepts
+##### Concepts
 
 ```{admonition} Learn by doing? Skip this section!
 :class: warning
@@ -150,7 +155,7 @@ encodings. For example, if you use a `mark_point` and an `x` encoding, marimo
 will automatically add a brush selection to the chart. If you add a `color`
 encoding, marimo will add a legend and a click selection.
 
-### Automatic Selections
+#### Automatic Selections
 
 By default [`mo.ui.altair_chart`](../api/plotting.md#marimo.ui.altair_chart)
 will make the chart and legend selectable. Depending on the mark type, the
@@ -168,7 +173,7 @@ You may still add your own selection parameters via Altair or Vega-Lite.
 marimo will not override your selections.
 ```
 
-### Altair transformations
+#### Altair transformations
 
 Altair supports a variety of transformations, such as filtering, aggregation, and sorting. These transformations can be used to create more complex and nuanced visualizations. For example, you can use a filter to show only the points that meet a certain condition, or use an aggregation to show the average value of a variable.
 
@@ -180,6 +185,44 @@ pip install "vegafusion[embed]>=1.4.0"
 # Or with conda using:
 conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0"
 ```
+
+### Plotly
+
+```{eval-rst}
+.. marimo-embed::
+    :size: large
+
+    @app.cell(hide_code=True)
+    async def __():
+        import micropip
+        await micropip.install("pandas")
+        await micropip.install("plotly")
+        import plotly.express as px
+        return micropip, px
+
+
+    @app.cell
+    def __(px):
+        plot = mo.ui.plotly(
+          px.scatter(x=[0, 1, 4, 9, 16], y=[0, 1, 2, 3, 4], width=600, height=300)
+        )
+        plot
+        return plot
+
+
+    @app.cell
+    def __(plot):
+        plot.value
+        return
+```
+
+Use [`mo.ui.plotly`](../api/plotting.md#marimo.ui.plotly) to create
+selectable Plotly plots whose values are sent back to Python on selection.
+
+```{eval-rst}
+.. autofunction:: marimo.ui.plotly
+```
+
 
 ## matplotlib
 
