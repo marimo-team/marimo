@@ -86,7 +86,7 @@ export const UserConfigForm: React.FC = () => {
               <FormItem className="mb-2">
                 <FormLabel>Autosave delay (seconds)</FormLabel>
                 <FormControl>
-                  <span className="inline-flex mx-2">
+                  <span className="inline-flex mr-2">
                     <Input
                       type="number"
                       className="m-0 w-20 inline-flex"
@@ -137,7 +137,7 @@ export const UserConfigForm: React.FC = () => {
                   Maximum line length when formatting code.
                 </FormDescription>
                 <FormControl>
-                  <span className="inline-flex mx-2">
+                  <span className="inline-flex mr-2">
                     <Input
                       type="number"
                       className="m-0 w-20 inline-flex"
@@ -188,7 +188,7 @@ export const UserConfigForm: React.FC = () => {
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
-                    className="inline-flex mx-2"
+                    className="inline-flex mr-2"
                   >
                     {KEYMAP_PRESETS.map((option) => (
                       <option value={option} key={option}>
@@ -215,7 +215,7 @@ export const UserConfigForm: React.FC = () => {
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
-                    className="inline-flex mx-2"
+                    className="inline-flex mr-2"
                   >
                     {THEMES.map((option) => (
                       <option value={option} key={option}>
@@ -235,7 +235,7 @@ export const UserConfigForm: React.FC = () => {
               <FormItem className="mb-2">
                 <FormLabel>Code editor font size</FormLabel>
                 <FormControl>
-                  <span className="inline-flex mx-2">
+                  <span className="inline-flex mr-2">
                     <Input
                       type="number"
                       className="m-0 w-20 inline-flex"
@@ -266,7 +266,7 @@ export const UserConfigForm: React.FC = () => {
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
-                    className="inline-flex mx-2"
+                    className="inline-flex mr-2"
                   >
                     {["above", "below"].map((option) => (
                       <option value={option} key={option}>

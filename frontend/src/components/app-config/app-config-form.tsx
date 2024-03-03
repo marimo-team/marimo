@@ -69,7 +69,7 @@ export const AppConfigForm: React.FC = () => {
                   onChange={(e) => field.onChange(e.target.value)}
                   value={field.value}
                   disabled={field.disabled}
-                  className="inline-flex mx-2"
+                  className="inline-flex mr-2"
                 >
                   {APP_WIDTHS.map((option) => (
                     <option value={option} key={option}>
