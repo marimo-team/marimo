@@ -40,17 +40,15 @@ as an app by clicking the preview button in the bottom-left of the editor.
 ### Vertical layout
 
 The default layout is the vertical layout: cell outputs are concatenated
-vertically and code is hidden. This natural layout is a good fit for
-very many applications. When combined with marimo's [built-in
-functions for laying out outputs](../api/layouts/index.md), as well
-as its configurable app widths (configure via the notebook settings menu),
-the vertical layout can successfully support a wide breadth of application
-user interfaces.
+vertically and code is hidden. When combined with marimo's [built-in functions
+for laying out outputs](../api/layouts/index.md), as well as its configurable
+app widths (configure via the notebook settings menu), the vertical layout can
+successfully support a wide breadth of application user interfaces.
 
 ### Grid layout
 
 If you prefer a drag-and-drop experience over
-[programmatic layout ](../api/layouts/index.md), consider using marimo's grid
+[programmatic layout](../api/layouts/index.md), consider using marimo's grid
 editor for making your apps: with this editor, you simply drag outputs onto a
 grid to arrange them on the page.
 
