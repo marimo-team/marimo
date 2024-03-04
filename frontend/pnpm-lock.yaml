@@ -74,6 +74,9 @@ dependencies:
   '@radix-ui/colors':
     specifier: ^3.0.0
     version: 3.0.0
+  '@radix-ui/primitive':
+    specifier: ^1.0.1
+    version: 1.0.1
   '@radix-ui/react-accordion':
     specifier: ^1.1.2
     version: 1.1.2(@types/react-dom@18.2.19)(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
@@ -83,6 +86,9 @@ dependencies:
   '@radix-ui/react-checkbox':
     specifier: ^1.0.4
     version: 1.0.4(@types/react-dom@18.2.19)(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
+  '@radix-ui/react-compose-refs':
+    specifier: ^1.0.1
+    version: 1.0.1(@types/react@18.2.58)(react@18.2.0)
   '@radix-ui/react-context-menu':
     specifier: ^2.1.5
     version: 2.1.5(@types/react-dom@18.2.19)(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
@@ -131,6 +137,9 @@ dependencies:
   '@radix-ui/react-tooltip':
     specifier: ^1.0.7
     version: 1.0.7(@types/react-dom@18.2.19)(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
+  '@radix-ui/react-use-callback-ref':
+    specifier: ^1.0.1
+    version: 1.0.1(@types/react@18.2.58)(react@18.2.0)
   '@radix-ui/react-use-controllable-state':
     specifier: ^1.0.1
     version: 1.0.1(@types/react@18.2.58)(react@18.2.0)
@@ -284,6 +293,9 @@ dependencies:
   reactflow:
     specifier: ^11.10.4
     version: 11.10.4(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
+  swiper:
+    specifier: ^11.0.7
+    version: 11.0.7
   tailwind-merge:
     specifier: ^2.2.1
     version: 2.2.1
@@ -15643,6 +15655,11 @@ packages:
       css-what: 6.1.0
       csso: 5.0.5
       picocolors: 1.0.0
+    dev: false
+
+  /swiper@11.0.7:
+    resolution: {integrity: sha512-cDfglW1B6uSmB6eB6pNmzDTNLmZtu5bWWa1vak0RU7fOI9qHjMzl7gVBvYSl34b0RU2N11HxxETJqQ5LeqI1cA==}
+    engines: {node: '>= 4.7.0'}
     dev: false
 
   /symbol-tree@3.2.4:

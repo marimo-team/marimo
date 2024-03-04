@@ -21,6 +21,7 @@ import "./vega.css";
 import { useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
 import { resolveVegaSpecData } from "./resolve-data";
+import { Events } from "@/utils/events";
 
 interface Data {
   spec: VegaLiteSpec;
@@ -186,14 +187,20 @@ const LoadedVegaComponent = ({
           <div className="text-md">{error.stack}</div>
         </Alert>
       )}
-      <VegaLite
-        spec={selectableSpec}
-        theme={theme === "dark" ? "dark" : undefined}
-        actions={actions}
-        signalListeners={signalListeners}
-        onError={handleError}
-        onNewView={handleNewView}
-      />
+      <div
+        className="contents"
+        // Capture the pointer down event to prevent the parent from handling it
+        onPointerDown={Events.stopPropagation()}
+      >
+        <VegaLite
+          spec={selectableSpec}
+          theme={theme === "dark" ? "dark" : undefined}
+          actions={actions}
+          signalListeners={signalListeners}
+          onError={handleError}
+          onNewView={handleNewView}
+        />
+      </div>
     </>
   );
 };
