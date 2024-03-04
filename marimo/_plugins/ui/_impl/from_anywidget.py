@@ -1,3 +1,4 @@
+import weakref
 from typing import TYPE_CHECKING, Any, Dict
 
 import marimo._output.data.data as mo_data
@@ -7,9 +8,20 @@ from marimo._plugins.ui._core.ui_element import UIElement
 if TYPE_CHECKING:
     import anywidget
 
+# Weak dictionary
+# When the widget is deleted, the UIElement will be deleted as well
+cache = weakref.WeakKeyDictionary["anywidget.AnyWidget", UIElement[Any, Any]]()
+
+
+def from_anywidget(widget: "anywidget.AnyWidget") -> UIElement[Any, Any]:
+    """Create a UIElement from an AnyWidget."""
+    if widget not in cache:
+        cache[widget] = _anywidget(widget)
+    return cache[widget]
+
 
 @mddoc
-class from_anywidget(UIElement[Any, Any]):
+class _anywidget(UIElement[Any, Any]):
     """Create a UIElement from an AnyWidget."""
 
     def __init__(self, widget: "anywidget.AnyWidget"):

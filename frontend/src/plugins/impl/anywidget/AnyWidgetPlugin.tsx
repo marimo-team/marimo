@@ -117,7 +117,7 @@ class Model<T extends Record<string, any>> {
   }
 
   public set<K extends keyof T>(key: K, value: T[K]): void {
-    this.data[key] = value;
+    this.data = { ...this.data, [key]: value };
     this.emit(`change:${key as K & string}`, value);
   }
 

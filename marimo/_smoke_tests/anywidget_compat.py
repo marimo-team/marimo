@@ -6,6 +6,12 @@ app = marimo.App()
 
 @app.cell
 def __():
+    import marimo as mo
+    return mo,
+
+
+@app.cell
+def __():
     import anywidget
     import traitlets
 
@@ -48,6 +54,7 @@ def __():
 
 @app.cell
 def __(CounterWidget):
+    # Non-reactive
     w = CounterWidget()
     w
     return w,
@@ -56,6 +63,31 @@ def __(CounterWidget):
 @app.cell
 def __(w):
     w.trait_values()["count"]
+    return
+
+
+@app.cell
+def __(CounterWidget, mo):
+    w_reactive = mo.ui.anywidget(CounterWidget())
+    w_reactive
+    return w_reactive,
+
+
+@app.cell
+def __(w_reactive):
+    w_reactive
+    return
+
+
+@app.cell
+def __(w_reactive):
+    w_reactive.value
+    return
+
+
+@app.cell
+def __(w_reactive):
+    w_reactive.widget.trait_values()["count"]
     return
 
 
