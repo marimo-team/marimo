@@ -223,7 +223,8 @@ class Kernel:
         self.state_updates: dict[State[Any], CellId_t] = {}
 
         # an empty string represents the current directory
-        exec("import sys; sys.path.append('')", self.globals)
+        patches.patch_micropip(self.globals)
+        exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
     @property
