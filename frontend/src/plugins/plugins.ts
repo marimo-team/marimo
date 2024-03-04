@@ -35,6 +35,7 @@ import { PlotlyPlugin } from "./impl/plotly/PlotlyPlugin";
 import { CodeEditorPlugin } from "./impl/CodeEditorPlugin";
 import { DataExplorerPlugin } from "./impl/data-explorer/DataExplorerPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
+import { AnyWidgetPlugin } from "./impl/anywidget/AnyWidgetPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -61,6 +62,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new PlotlyPlugin(),
   DataExplorerPlugin,
   DataFramePlugin,
+  new AnyWidgetPlugin(),
 ];
 
 // List of output / layout plugins
