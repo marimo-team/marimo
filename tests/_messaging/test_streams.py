@@ -22,14 +22,18 @@ class TestStdin:
     async def test_readline_installed(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        await k.run([exec_req.get("output = sys.stdin.readline()")])
+        await k.run(
+            [exec_req.get("import sys; output = sys.stdin.readline()")]
+        )
         assert k.globals["output"] == ""
 
     @staticmethod
     async def test_readlines_installed(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        await k.run([exec_req.get("output = sys.stdin.readlines()")])
+        await k.run(
+            [exec_req.get("import sys; output = sys.stdin.readlines()")]
+        )
         assert k.globals["output"] == [""]
 
 
@@ -40,7 +44,7 @@ class TestStdout:
 
     @staticmethod
     async def test_fileno(k: Kernel, exec_req: ExecReqProvider) -> None:
-        await k.run([exec_req.get("fileno = sys.stdout.fileno()")])
+        await k.run([exec_req.get("import sys; fileno = sys.stdout.fileno()")])
         assert k.globals["fileno"] is not None
 
     @staticmethod
@@ -82,7 +86,7 @@ class TestStderr:
 
     @staticmethod
     async def test_fileno(k: Kernel, exec_req: ExecReqProvider) -> None:
-        await k.run([exec_req.get("fileno = sys.stderr.fileno()")])
+        await k.run([exec_req.get("import sys; fileno = sys.stderr.fileno()")])
         assert k.globals["fileno"] is not None
 
     @staticmethod
