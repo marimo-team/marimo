@@ -62,6 +62,13 @@ def __(CounterWidget):
 
 @app.cell
 def __(w):
+    # Non-reactive, but class is cached
+    w
+    return
+
+
+@app.cell
+def __(w):
     w.trait_values()["count"]
     return
 
