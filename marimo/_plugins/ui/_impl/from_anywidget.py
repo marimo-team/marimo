@@ -20,15 +20,18 @@ def from_anywidget(widget: "anywidget.AnyWidget") -> UIElement[Any, Any]:
     return cache[widget]
 
 
+T = Dict[str, Any]
+
+
 @mddoc
-class _anywidget(UIElement[Any, Any]):
+class _anywidget(UIElement[T, T]):
     """Create a UIElement from an AnyWidget."""
 
     def __init__(self, widget: "anywidget.AnyWidget"):
         self.widget = widget
 
         # Get all the traits of the widget
-        args: Dict[str, Any] = widget.trait_values()
+        args: T = widget.trait_values()
         ignored_traits = [
             "comm",
             "layout",
@@ -40,10 +43,10 @@ class _anywidget(UIElement[Any, Any]):
         # Remove ignored traits
         for trait_name in ignored_traits:
             args.pop(trait_name, None)
-        # Remove all that start with _
+        # Remove all private traits
         args = {k: v for k, v in args.items() if not k.startswith("_")}
 
-        def on_change(change: Any) -> None:
+        def on_change(change: T) -> None:
             for key, value in change.items():
                 widget.set_trait(key, value)
 
@@ -55,11 +58,11 @@ class _anywidget(UIElement[Any, Any]):
             initial_value=args,
             label="",
             args={
-                "js-url": mo_data.js(js).url if js else "",
+                "js-url": mo_data.js(js).url if js else "",  # type: ignore
                 "css": css,
             },
             on_change=on_change,
         )
 
-    def _convert_value(self, value: Any) -> Any:
+    def _convert_value(self, value: T) -> T:
         return value
