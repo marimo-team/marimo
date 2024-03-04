@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.2.13"
-app = marimo.App()
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -96,6 +96,31 @@ def __(w_reactive):
 def __(w_reactive):
     w_reactive.widget.trait_values()["count"]
     return
+
+
+@app.cell
+def __():
+    import altair as alt
+    import pandas as pd
+    return alt, pd
+
+
+@app.cell
+def __(mo):
+    from drawdata import ScatterWidget
+
+    dd_widget = mo.ui.anywidget(ScatterWidget())
+    dd_widget
+    return ScatterWidget, dd_widget
+
+
+@app.cell(hide_code=True)
+def __(alt, dd_widget, mo, pd):
+    mo.stop(not dd_widget.value["data"])
+    df = pd.DataFrame(dd_widget.value["data"])
+    chart = alt.Chart(df).mark_point().encode(x="x", y="y", color="color")
+    mo.ui.altair_chart(chart)
+    return chart, df
 
 
 if __name__ == "__main__":
