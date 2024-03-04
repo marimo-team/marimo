@@ -18,6 +18,7 @@ import {
   TextCursorInputIcon,
   EyeIcon,
   EyeOffIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
@@ -27,6 +28,9 @@ import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
 import { useRunCell } from "../cell/useRunCells";
 import { NameCellInput } from "./name-cell-input";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { useSetAtom } from "jotai";
+import { aiCompletionCellAtom } from "@/core/ai/state";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -55,6 +59,7 @@ export function useCellActionButtons({
     sendToBottom,
   } = useCellActions();
   const runCell = useRunCell(cellId);
+  const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -107,6 +112,17 @@ export function useCellActionButtons({
           status === "disabled-transitively" ||
           config.disabled === true,
         handle: () => runCell(),
+      },
+      {
+        icon: <SparklesIcon size={13} strokeWidth={1.5} />,
+        label: "AI completion",
+        hidden: !getFeatureFlag("ai"),
+        handle: () => {
+          setAiCompletionCell((current) =>
+            current === cellId ? null : cellId,
+          );
+        },
+        hotkey: "cell.aiCompletion",
       },
       {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,

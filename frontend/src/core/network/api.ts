@@ -26,9 +26,7 @@ export const API = {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Xsrftoken": getXsrfCookie(),
-        "Marimo-Session-Id": getSessionId(),
-        "Marimo-Server-Token": getServerTokenOnce(),
+        ...API.headers(),
       },
       body: JSON.stringify(body),
     })
@@ -48,5 +46,12 @@ export const API = {
         Logger.error(`Error requesting ${fullUrl}`, error);
         throw error;
       });
+  },
+  headers() {
+    return {
+      "X-Xsrftoken": getXsrfCookie(),
+      "Marimo-Session-Id": getSessionId(),
+      "Marimo-Server-Token": getServerTokenOnce(),
+    };
   },
 };

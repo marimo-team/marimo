@@ -5,9 +5,13 @@ import { getUserConfig } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
   // None yet
+  ai: boolean;
 }
 
-const defaultValues: ExperimentalFeatures = {};
+const defaultValues: ExperimentalFeatures = {
+  ai: true, // remove before merged
+  // ai: process.env.NODE_ENV === "development",
+};
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,

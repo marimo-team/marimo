@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional, TypeVar
 
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, Response
+from starlette.responses import (
+    FileResponse,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+)
 from starlette.routing import Mount, Router
 
 from marimo import _loggers
@@ -42,6 +47,8 @@ class APIRouter(Router):
             async def wrapper_func(request: Request) -> Response:
                 response = await func(request=request)
                 if isinstance(response, FileResponse):
+                    return response
+                if isinstance(response, StreamingResponse):
                     return response
 
                 if dataclasses.is_dataclass(response):

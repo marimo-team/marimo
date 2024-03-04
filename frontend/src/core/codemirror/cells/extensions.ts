@@ -21,6 +21,7 @@ export interface MovementCallbacks
   focusUp: () => void;
   focusDown: () => void;
   toggleHideCode: () => boolean;
+  aiCellCompletion: () => boolean;
 }
 
 /**
@@ -43,6 +44,7 @@ export function cellMovementBundle(
     sendToBottom,
     moveToNextCell,
     toggleHideCode,
+    aiCellCompletion,
   } = callbacks;
 
   const hotkeys: KeyBinding[] = [
@@ -217,6 +219,18 @@ export function cellMovementBundle(
           // Focus on the parent element
           document.getElementById(HTMLCellId.create(cellId))?.focus();
         } else {
+          ev.contentDOM.focus();
+        }
+        return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.aiCompletion").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        const closed = aiCellCompletion();
+        if (closed) {
           ev.contentDOM.focus();
         }
         return true;

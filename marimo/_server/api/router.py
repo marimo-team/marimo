@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 
 
+from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
 from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.editing import router as editing_router
@@ -22,6 +23,7 @@ app_router.include_router(files_router, prefix="/api/kernel", name="files")
 app_router.include_router(
     file_explorer, prefix="/api/files", name="file_explorer"
 )
+app_router.include_router(ai_router, prefix="/api/ai", name="ai")
 app_router.include_router(health_router)
 app_router.include_router(ws_router)
 app_router.include_router(assets_router)
