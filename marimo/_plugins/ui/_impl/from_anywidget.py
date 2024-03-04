@@ -6,7 +6,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    import anywidget
+    import anywidget  # type: ignore [import-not-found]
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
@@ -50,15 +50,15 @@ class _anywidget(UIElement[T, T]):
             for key, value in change.items():
                 widget.set_trait(key, value)
 
-        js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore
-        css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore
+        js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]
+        css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]
 
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=args,
             label="",
             args={
-                "js-url": mo_data.js(js).url if js else "",  # type: ignore
+                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]
                 "css": css,
             },
             on_change=on_change,
