@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import time
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast

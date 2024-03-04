@@ -24,6 +24,8 @@ def patch_sys_module(module: types.ModuleType) -> None:
 
 
 def patch_micropip(glbls: dict[Any, Any]) -> None:
+    """Mock micropip with no-ops"""
+
     definitions = textwrap.dedent(
         """\
 from importlib.abc import Loader, MetaPathFinder
@@ -90,8 +92,11 @@ del Loader; del MetaPathFinder
     )
 
     exec(definitions, glbls)
+
+    # append the finder to the end of meta_path, in case the user
+    # already has a package called micropip
     exec(
-        "import sys; sys.meta_path.insert(0, _MicropipFinder()); del sys",
+        "import sys; sys.meta_path.append(_MicropipFinder()); del sys",
         glbls,
     )
 

@@ -15,13 +15,14 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
     from marimo._runtime.context import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
 
-if "pyodide" not in sys.modules:
+if not is_pyodide():
     # the shared_memory module is not supported in the Pyodide distribution
     from multiprocessing import shared_memory
 
