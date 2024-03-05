@@ -12,6 +12,12 @@ import "./merge-editor.css";
 import { cn } from "@/utils/cn";
 import { toast } from "@/components/ui/use-toast";
 import { prettyError } from "@/utils/errors";
+import { Label } from "@/components/ui/label";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useAtom } from "jotai";
+import { includeOtherCellsAtom } from "@/core/ai/state";
+import { Checkbox } from "@/components/ui/checkbox";
+import { getCodes } from "@/core/codemirror/copilot/getCodes";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -34,6 +40,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
   enabled,
   children,
 }) => {
+  const [includeOtherCells, setIncludeOtherCells] = useAtom(
+    includeOtherCellsAtom,
+  );
+
   const {
     completion,
     input,
@@ -46,6 +56,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     api: "/api/ai/completion",
     headers: API.headers(),
     body: {
+      includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,
     },
     onError: (error) => {
@@ -91,10 +102,15 @@ export const AiCompletionEditor: React.FC<Props> = ({
               e.preventDefault();
               handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
             }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              declineChange();
+              setCompletion("");
+            }
           }}
         />
         {isLoading && (
-          <Button variant="text" size="xs" className="mr-6" onClick={stop}>
+          <Button variant="text" size="xs" className="mb-0" onClick={stop}>
             <Loader2Icon className="animate-spin mr-1" size={14} />
             Stop
           </Button>
@@ -103,6 +119,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           <Button
             variant="text"
             size="xs"
+            className="mb-0"
             disabled={isLoading}
             onClick={() => {
               acceptChange(completion);
@@ -112,6 +129,24 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <span className="text-[var(--grass-11)] opacity-100">Accept</span>
           </Button>
         )}
+        <div className="h-full w-px bg-border mx-2" />
+        <Tooltip content="Include code from other cells">
+          <div className="flex flex-row items-start gap-1">
+            <Checkbox
+              id="include-other-cells"
+              checked={includeOtherCells}
+              onCheckedChange={(checked) =>
+                setIncludeOtherCells(Boolean(checked))
+              }
+            />
+            <Label
+              htmlFor="include-other-cells"
+              className="text-muted-foreground text-xs"
+            >
+              Include all code
+            </Label>
+          </div>
+        </Tooltip>
         <Button
           variant="text"
           size="icon"

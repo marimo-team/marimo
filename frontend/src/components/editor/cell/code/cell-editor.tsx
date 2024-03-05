@@ -2,7 +2,14 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import useEvent from "react-use-event-hook";
@@ -23,6 +30,7 @@ import { HideCodeButton } from "../../code/readonly-python-code";
 import { AiCompletionEditor } from "./ai-completion-editor";
 import { useAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
+import { mergeRefs } from "@/utils/mergeRefs";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -73,7 +81,6 @@ const CellEditorInternal = ({
   hidden,
 }: CellEditorProps) => {
   const [canUseMarkdown, setCanUseMarkdown] = useState(false);
-
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
@@ -310,13 +317,46 @@ const CellEditorInternal = ({
           </div>
         )}
         {hidden && <HideCodeButton onClick={showCode} />}
-        <div
-          className={cn("cm", hidden && "opacity-20 h-8 overflow-hidden")}
+        <CellCodeMirrorEditor
+          className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
+          editorView={editorViewRef.current}
           ref={editorViewParentRef}
         />
       </div>
     </AiCompletionEditor>
   );
 };
+
+const CellCodeMirrorEditor = React.forwardRef(
+  (
+    props: {
+      className?: string;
+      editorView: EditorView | null;
+    },
+    ref: React.Ref<HTMLDivElement>,
+  ) => {
+    const { className, editorView } = props;
+    const internalRef = useRef<HTMLDivElement>(null);
+
+    // If this gets unmounted/remounted, we need to re-append the editorView
+    useEffect(() => {
+      if (editorView === null) {
+        return;
+      }
+      if (internalRef.current === null) {
+        return;
+      }
+      // Has no children, so we can replaceChildren
+      if (internalRef.current.children.length === 0) {
+        internalRef.current.append(editorView.dom);
+      }
+    }, [editorView, internalRef]);
+
+    return (
+      <div className={cn("cm", className)} ref={mergeRefs(ref, internalRef)} />
+    );
+  },
+);
+CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
 export const CellEditor = memo(CellEditorInternal);

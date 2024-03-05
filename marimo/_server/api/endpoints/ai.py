@@ -48,14 +48,18 @@ async def ai_completion(
     client = OpenAI(api_key=key)
 
     system_prompt = (
-        "You are a helpful assistant that can answer questions about python. "
-        "Reply with Python and only Python. Don't use markdown. "
-        "If you need to comment, use the # symbol."
+        "You are a helpful assistant that can answer questions "
+        "about python code. You can only output python code. "
+        "Do not describe the code, just write the code."
     )
 
     prompt = body.prompt
+    if body.include_other_code:
+        prompt = (
+            f"{prompt}\n\nCode from other cells:\n{body.include_other_code}"
+        )
     if body.code.strip():
-        prompt = f"{prompt}\n\nMy previous code:\n{body.code}"
+        prompt = f"{prompt}\n\nCurrent code:\n{body.code}"
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",

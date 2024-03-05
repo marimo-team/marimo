@@ -171,7 +171,7 @@ const DEFAULT_HOT_KEY = {
   "cell.aiCompletion": {
     name: "AI completion",
     group: "Editing",
-    key: "Mod-Shift-.",
+    key: "Mod-Shift-e",
   },
 
   // Global Actions
