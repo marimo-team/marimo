@@ -87,6 +87,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._server.types import QueueType
+from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
@@ -222,8 +223,10 @@ class Kernel:
         # was invoked. New state updates evict older ones.
         self.state_updates: dict[State[Any], CellId_t] = {}
 
+        if not is_pyodide():
+            patches.patch_micropip(self.globals)
         # an empty string represents the current directory
-        exec("import sys; sys.path.append('')", self.globals)
+        exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
     @property

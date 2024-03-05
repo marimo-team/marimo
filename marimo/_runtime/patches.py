@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import sys
+import textwrap
 import types
 from typing import Any, Callable, Iterator
 
@@ -22,10 +23,92 @@ def patch_sys_module(module: types.ModuleType) -> None:
     sys.modules[module.__name__] = module
 
 
+def patch_micropip(glbls: dict[Any, Any]) -> None:
+    """Mock micropip with no-ops"""
+
+    definitions = textwrap.dedent(
+        """\
+from importlib.abc import Loader, MetaPathFinder
+
+class _MicropipFinder(MetaPathFinder):
+
+
+    def find_spec(self, fullname, path, target=None):
+        from importlib.util import spec_from_loader
+
+        if fullname == 'micropip':
+            return spec_from_loader(fullname, _MicropipLoader())
+        return None
+
+
+class _MicropipLoader(Loader):
+    def create_module(self, spec):
+        del spec
+        # use default spec creation
+        return None
+
+    def exec_module(self, module):
+        import textwrap
+
+        code = textwrap.dedent(
+'''\
+def _warn_uninstalled(prefix=""):
+    import sys
+    sys.stderr.write(prefix + 'micropip is only available in WASM notebooks.')
+
+async def install(
+    requirements, keep_going=False, deps=True,
+    credentials=None, pre=False, index_urls=None, *,
+    verbose=False
+):
+    _warn_uninstalled(prefix=f'{requirements} was not installed: ')
+
+def list():
+    _warn_uninstalled()
+
+def freeze():
+    _warn_uninstalled()
+
+def add_mock_package(name, version, *, modules=None, persistent=False):
+    _warn_uninstalled()
+
+def list_mock_packages():
+    _warn_uninstalled()
+
+def remove_mock_package(name):
+    _warn_uninstalled()
+
+def uninstall(packages, *, verbose=False):
+    _warn_uninstalled()
+
+def set_index_urls(urls):
+    _warn_uninstalled()
+'''
+    )
+        exec(code, vars(module))
+
+del Loader; del MetaPathFinder
+"""
+    )
+
+    exec(definitions, glbls)
+
+    # append the finder to the end of meta_path, in case the user
+    # already has a package called micropip
+    exec(
+        "import sys; sys.meta_path.append(_MicropipFinder()); del sys",
+        glbls,
+    )
+
+
 def patch_main_module(
     file: str | None, input_override: Callable[[Any], str] | None
 ) -> types.ModuleType:
-    """Patches __main__ so that functions are pickleable."""
+    """Patches __main__ module
+
+    - Makes functions pickleable
+    - Loads some overrides and mocks into globals
+    """
 
     # Every kernel gets its own main module, whose __dict__ attribute
     # serves as the global namespace
