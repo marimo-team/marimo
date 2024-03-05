@@ -51,6 +51,7 @@ async def ai_completion(
         "You are a helpful assistant that can answer questions "
         "about python code. You can only output python code. "
         "Do not describe the code, just write the code."
+        "Do not output markdown or backticks."
     )
 
     prompt = body.prompt
@@ -77,9 +78,19 @@ async def ai_completion(
         stream=True,
     )
 
+    # If it starts or ends with markdown, remove it
     def stream_response():
         for chunk in response:
-            yield chunk.choices[0].delta.content or ""
+            content = chunk.choices[0].delta.content
+            if content:
+                if content.startswith("```python"):
+                    yield content[9:]
+                if content.startswith("```"):
+                    yield content[4:]
+                elif content.endswith("```"):
+                    yield content[:-3]
+                else:
+                    yield content or ""
 
     return StreamingResponse(
         content=stream_response(),
