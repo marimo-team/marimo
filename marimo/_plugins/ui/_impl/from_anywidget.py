@@ -3,6 +3,7 @@ import weakref
 from typing import TYPE_CHECKING, Any, Dict
 
 import marimo._output.data.data as mo_data
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -11,11 +12,19 @@ if TYPE_CHECKING:
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache = weakref.WeakKeyDictionary["anywidget.AnyWidget", UIElement[Any, Any]]()
+if DependencyManager.has_anywidget():
+    import anywidget  # type: ignore [import-not-found]
+
+    cache = weakref.WeakKeyDictionary[
+        anywidget.AnyWidget, UIElement[Any, Any]
+    ]()
+else:
+    cache = None
 
 
 def from_anywidget(widget: "anywidget.AnyWidget") -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
+    assert cache is not None
     if widget not in cache:
         cache[widget] = _anywidget(widget)
     return cache[widget]
