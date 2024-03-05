@@ -112,6 +112,8 @@ testoptional = [
     # polars 0.19.13 requires building maturn from source, but we don't
     # have the rust toolchain installed on CI
     "polars==0.19.12",
+    "anywidget~=0.9.3",
+    "openai~=1.12.0",
 ]
 
 [project.urls]
