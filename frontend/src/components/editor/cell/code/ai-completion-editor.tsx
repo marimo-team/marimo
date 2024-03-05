@@ -171,7 +171,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           />
         </CodeMirrorMerge>
       )}
-      {!completion && children}
+      {(!completion || !enabled) && children}
     </div>
   );
 };
