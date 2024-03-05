@@ -24,8 +24,9 @@ const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
   currentCode: string;
+  onChange: (code: string) => void;
   declineChange: () => void;
-  acceptChange: (code: string) => void;
+  acceptChange: (rightHandCode: string) => void;
   enabled: boolean;
   /**
    * Children shown when there is no completion
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export const AiCompletionEditor: React.FC<Props> = ({
+  onChange,
   currentCode,
   declineChange,
   acceptChange,
@@ -162,7 +164,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
       </div>
       {completion && enabled && (
         <CodeMirrorMerge className="cm">
-          <Original value={currentCode} extensions={baseExtensions} />
+          <Original
+            onChange={onChange}
+            value={currentCode}
+            extensions={baseExtensions}
+          />
           <Modified
             value={completion}
             editable={false}

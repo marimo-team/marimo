@@ -295,6 +295,15 @@ const CellEditorInternal = ({
         setAiCompletionCell(null);
         editorViewRef.current?.focus();
       }}
+      onChange={(newCode) => {
+        editorViewRef.current?.dispatch({
+          changes: {
+            from: 0,
+            to: editorViewRef.current.state.doc.length,
+            insert: newCode,
+          },
+        });
+      }}
       acceptChange={(newCode) => {
         editorViewRef.current?.dispatch({
           changes: {
