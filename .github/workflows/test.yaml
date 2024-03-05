@@ -64,7 +64,7 @@ jobs:
         run: pnpm turbo build
 
   test_python:
-    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }} with ${{ matrix.dependencies }} dependencies
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     defaults:
