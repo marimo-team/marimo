@@ -6,6 +6,7 @@
   :hidden:
 
   accordion
+  carousel
   callout
   justify
   stacks
@@ -25,6 +26,7 @@ them but just render their children in a certain way.
   :nosignatures:
 
   marimo.accordion
+  marimo.carousel
   marimo.callout
   marimo.center
   marimo.hstack

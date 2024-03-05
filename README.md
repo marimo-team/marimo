@@ -36,6 +36,8 @@ productionize notebooks as pipelines or interactive web apps.
 pip install marimo && marimo tutorial intro
 ```
 
+_Try marimo at [our online playground](https://marimo.app/l/c7h6pz), which runs entirely in the browser!_
+
 _Jump to the [quickstart](#quickstart) for a primer on our CLI._
 
 ## A reactive programming environment

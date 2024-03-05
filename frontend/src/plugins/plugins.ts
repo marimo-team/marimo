@@ -23,6 +23,7 @@ import { AccordionPlugin } from "./layout/AccordionPlugin";
 import { CalloutPlugin } from "./layout/CalloutPlugin";
 import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { TabsPlugin } from "./impl/TabsPlugin";
+import { CarouselPlugin } from "./layout/CarouselPlugin";
 import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";
@@ -67,6 +68,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
 const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new AccordionPlugin(),
   new CalloutPlugin(),
+  new CarouselPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
   new ProgressPlugin(),

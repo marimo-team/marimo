@@ -1,0 +1,24 @@
+.swiper-button-prev,
+.swiper-button-next {
+  height: 100%;
+  top: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  padding: 0 15px;
+  transition: opacity 0.3s;
+  font-weight: 900;
+  margin-top: 0;
+
+  --swiper-navigation-sides-offset: 0;
+  --swiper-navigation-size: 20px;
+  --swiper-theme-color: var(--text);
+
+  &.swiper-button-disabled {
+    opacity: 0;
+  }
+
+  &:hover:not(.swiper-button-disabled) {
+    opacity: 1;
+  }
+}

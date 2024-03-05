@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import socket
 import sys
 
 if sys.version_info < (3, 9):
@@ -107,6 +108,20 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     host = app.state.host
     port = app.state.port
     base_url = app.state.base_url
+
+    try:
+        # pretty printing:
+        # if the address maps to localhost, print "localhost" to stdout
+        if (
+            socket.getnameinfo((host, port), socket.NI_NOFQDN)[0]
+            == "localhost"
+        ):
+            host = "localhost"
+    except Exception:
+        # aggressive try/except in case of platform-specific quirks;
+        # nothing to handle, since the `try` logic is just for pretty
+        # printing the host name
+        ...
 
     # Startup message
     if not manager.quiet:

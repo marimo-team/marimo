@@ -17,6 +17,7 @@ __all__ = [
     "Cell",
     "MarimoStopError",
     "accordion",
+    "carousel",
     "as_html",
     "audio",
     "callout",
@@ -66,6 +67,7 @@ from marimo._plugins.stateless import mpl, status
 from marimo._plugins.stateless.accordion import accordion
 from marimo._plugins.stateless.audio import audio
 from marimo._plugins.stateless.callout import callout
+from marimo._plugins.stateless.carousel import carousel
 from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
