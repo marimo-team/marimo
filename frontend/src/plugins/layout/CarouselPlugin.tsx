@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, useEffect } from "react";
 import { z } from "zod";
 import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { Swiper, SwiperSlide, SwiperRef } from "swiper/react";
@@ -55,6 +55,12 @@ const CarouselComponent = ({
     setIsFullscreen(!!document.fullscreenElement);
   });
 
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  }, [isFullscreen]);
+
   return (
     <Swiper
       ref={el}
@@ -84,7 +90,7 @@ const CarouselComponent = ({
           <SwiperSlide key={index}>
             <div
               className={cn(
-                "h-full w-full flex items-center justify-center box-border",
+                "h-full w-full flex items-center justify-center box-border overflow-hidden",
                 isFullscreen ? "p-20" : "p-6",
               )}
             >
@@ -105,15 +111,9 @@ const CarouselComponent = ({
           if (document.fullscreenElement) {
             await document.exitFullscreen();
             setIsFullscreen(false);
-            requestAnimationFrame(() => {
-              window.dispatchEvent(new Event("resize"));
-            });
           } else {
             await domEl.requestFullscreen();
             setIsFullscreen(true);
-            requestAnimationFrame(() => {
-              window.dispatchEvent(new Event("resize"));
-            });
           }
         }}
         className="absolute bottom-0 right-0 z-10 mx-1 mb-0"
