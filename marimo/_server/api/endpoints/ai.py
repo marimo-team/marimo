@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from typing import Generator
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -28,7 +29,7 @@ async def ai_completion(
     request: Request,
 ) -> StreamingResponse:
     try:
-        from openai import OpenAI
+        from openai import OpenAI  # type: ignore[import-not-found]
     except ImportError:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not installed"
@@ -79,7 +80,7 @@ async def ai_completion(
     )
 
     # If it starts or ends with markdown, remove it
-    def stream_response():
+    def stream_response() -> Generator[str, None, None]:
         for chunk in response:
             content = chunk.choices[0].delta.content
             if content:
