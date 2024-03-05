@@ -78,13 +78,23 @@ jobs:
         python-version: ["3.8"]
         include:
           - os: ubuntu-latest
-            python-version: "3.8"
-          - os: ubuntu-latest
             python-version: "3.9"
+            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.11"
+            dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.12"
+            dependencies: "core"
+          - os: ubuntu-latest
+            python-version: "3.9"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.11"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.12"
+            dependencies: "core,optional"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
