@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import weakref
-from typing import TYPE_CHECKING, Any, Dict
-
-from altair import Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 import marimo._output.data.data as mo_data
 from marimo._dependencies.dependencies import DependencyManager
