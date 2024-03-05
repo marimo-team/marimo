@@ -2,12 +2,10 @@
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from random import choice
 from typing import Any, List
 from unittest.mock import MagicMock, patch
 
 from starlette.testclient import TestClient
-from sympy import content
 
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
@@ -24,6 +22,7 @@ HEADERS = {
 def test_completion_without_token(
     client: TestClient, openai_mock: Any
 ) -> None:
+    del openai_mock
     filename = get_session_manager(client).filename
     assert filename
 

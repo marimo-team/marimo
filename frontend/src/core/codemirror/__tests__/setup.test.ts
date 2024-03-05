@@ -23,6 +23,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     showPlaceholder: false,
     cellMovementCallbacks: {
       onRun: namedFunction("onRun"),
+      aiCellCompletion: namedFunction("aiCellCompletion"),
       deleteCell: namedFunction("deleteCell"),
       createAbove: namedFunction("createAbove"),
       createBelow: namedFunction("createBelow"),

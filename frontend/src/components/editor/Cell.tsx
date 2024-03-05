@@ -318,7 +318,9 @@ const CellComponent = (
         }
         return cellId;
       });
-      derefNotNull(editorView).focus();
+      if (closed) {
+        derefNotNull(editorView).focus();
+      }
     },
   });
 
