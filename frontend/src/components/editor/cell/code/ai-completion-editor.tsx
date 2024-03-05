@@ -161,7 +161,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         </Button>
       </div>
       {completion && enabled && (
-        <CodeMirrorMerge>
+        <CodeMirrorMerge className="cm">
           <Original value={currentCode} extensions={baseExtensions} />
           <Modified
             value={completion}
