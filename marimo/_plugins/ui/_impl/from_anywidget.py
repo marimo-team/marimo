@@ -26,7 +26,30 @@ T = Dict[str, Any]
 
 @mddoc
 class _anywidget(UIElement[T, T]):
-    """Create a UIElement from an AnyWidget."""
+    """
+    Create a UIElement from an AnyWidget.
+
+    **Example.**
+
+    ```python
+    from drawdata import ScatterWidget
+    import marimo as mo
+
+    widget = mo.ui.anywidget(ScatterWidget())
+
+    # In another cell, access its value
+    widget.value
+    ```
+
+    **Attributes.**
+
+    - `value`: The value of the widget's traits as a dictionary.
+    - `widget`: The widget being wrapped.
+
+    **Initialization Args.**
+
+    - `widget`: The widget to wrap.
+    """
 
     def __init__(self, widget: "anywidget.AnyWidget"):
         self.widget = widget

@@ -28,6 +28,7 @@
   tabs
   text
   text_area
+  anywidget
 ```
 
 marimo comes packaged with interactive UI elements that you can use to build
@@ -76,4 +77,5 @@ automatically run with the element's latest value.
   marimo.ui.altair_chart
   marimo.ui.plotly
   marimo.mpl.interactive
+  marimo.ui.anywidget
 ```
