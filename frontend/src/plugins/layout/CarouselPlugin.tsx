@@ -105,9 +105,15 @@ const CarouselComponent = ({
           if (document.fullscreenElement) {
             await document.exitFullscreen();
             setIsFullscreen(false);
+            requestAnimationFrame(() => {
+              window.dispatchEvent(new Event("resize"));
+            });
           } else {
             await domEl.requestFullscreen();
             setIsFullscreen(true);
+            requestAnimationFrame(() => {
+              window.dispatchEvent(new Event("resize"));
+            });
           }
         }}
         className="absolute bottom-0 right-0 z-10 mx-1 mb-0"
