@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from typing import Any, List
 from unittest.mock import MagicMock, patch
 
+import pytest
 from starlette.testclient import TestClient
 
+from marimo._dependencies.dependencies import DependencyManager
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
 
@@ -16,8 +18,11 @@ HEADERS = {
     "Marimo-Server-Token": "fake-token",
 }
 
+HAS_DEPS = DependencyManager.has_openai()
+
 
 @with_session(SESSION_ID)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @patch("openai.OpenAI")
 def test_completion_without_token(
     client: TestClient, openai_mock: Any
@@ -57,6 +62,7 @@ class FakeChoices:
 
 
 @with_session(SESSION_ID)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @patch("openai.OpenAI")
 def test_completion_without_code(client: TestClient, openai_mock: Any) -> None:
     filename = get_session_manager(client).filename
@@ -90,6 +96,7 @@ def test_completion_without_code(client: TestClient, openai_mock: Any) -> None:
 
 
 @with_session(SESSION_ID)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @patch("openai.OpenAI")
 def test_completion_with_code(client: TestClient, openai_mock: Any) -> None:
     filename = get_session_manager(client).filename
