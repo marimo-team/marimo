@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import weakref
 from typing import TYPE_CHECKING, Any, Dict
 

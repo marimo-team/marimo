@@ -108,6 +108,11 @@ class DependencyManager:
         return importlib.util.find_spec("plotly") is not None
 
     @staticmethod
+    def has_anywidget() -> bool:
+        """Return True if anywidget is installed."""
+        return importlib.util.find_spec("anywidget") is not None
+
+    @staticmethod
     def has_watchdog() -> bool:
         """Return True if watchdog is installed."""
         return importlib.util.find_spec("watchdog") is not None

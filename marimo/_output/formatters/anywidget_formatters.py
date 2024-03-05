@@ -12,7 +12,7 @@ class AnyWidgetFormatter(FormatterFactory):
         return "anywidget"
 
     def register(self) -> None:
-        import anywidget
+        import anywidget  # type: ignore [import-not-found]
 
         from marimo._output import formatting
 
