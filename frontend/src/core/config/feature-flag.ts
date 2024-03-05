@@ -9,8 +9,7 @@ export interface ExperimentalFeatures {
 }
 
 const defaultValues: ExperimentalFeatures = {
-  ai: true, // remove before merged
-  // ai: process.env.NODE_ENV === "development",
+  ai: process.env.NODE_ENV === "development",
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
