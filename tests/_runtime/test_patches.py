@@ -4,7 +4,6 @@ from __future__ import annotations
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
-
 from tests.conftest import ExecReqProvider
 
 
