@@ -21,31 +21,6 @@ HEADERS = {
 HAS_DEPS = DependencyManager.has_openai()
 
 
-@with_session(SESSION_ID)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@patch("openai.OpenAI")
-def test_completion_without_token(
-    client: TestClient, openai_mock: Any
-) -> None:
-    del openai_mock
-    filename = get_session_manager(client).filename
-    assert filename
-
-    response = client.post(
-        "/api/ai/completion",
-        headers=HEADERS,
-        json={
-            "prompt": "Help me create a dataframe",
-            "include_other_code": "",
-            "code": "",
-        },
-    )
-    assert response.status_code == 400, response.text
-    assert response.json() == {
-        "detail": "OpenAI API key not found in environment"
-    }
-
-
 @dataclass
 class Delta:
     content: str
@@ -61,23 +36,18 @@ class FakeChoices:
     choices: List[Choice]
 
 
-@with_session(SESSION_ID)
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@patch("openai.OpenAI")
-def test_completion_without_code(client: TestClient, openai_mock: Any) -> None:
-    filename = get_session_manager(client).filename
-    assert filename
+class TestAiEndpoints:
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch("openai.OpenAI")
+    def test_completion_without_token(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        del openai_mock
+        filename = get_session_manager(client).filename
+        assert filename
 
-    oaiclient = MagicMock()
-    openai_mock.return_value = oaiclient
-
-    oaiclient.chat.completions.create.return_value = [
-        FakeChoices(
-            choices=[Choice(delta=Delta(content="import pandas as pd"))]
-        )
-    ]
-
-    with fake_openai_env():
         response = client.post(
             "/api/ai/completion",
             headers=HEADERS,
@@ -87,48 +57,88 @@ def test_completion_without_code(client: TestClient, openai_mock: Any) -> None:
                 "code": "",
             },
         )
-        assert response.status_code == 200, "nope"
-        # Assert the prompt it was called with
-        prompt = oaiclient.chat.completions.create.call_args.kwargs[
-            "messages"
-        ][1]["content"]
-        assert prompt == ("Help me create a dataframe")
+        assert response.status_code == 400, response.text
+        assert response.json() == {
+            "detail": "OpenAI API key not found in environment"
+        }
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @patch("openai.OpenAI")
+    def test_completion_without_code(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        filename = get_session_manager(client).filename
+        assert filename
 
-@with_session(SESSION_ID)
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@patch("openai.OpenAI")
-def test_completion_with_code(client: TestClient, openai_mock: Any) -> None:
-    filename = get_session_manager(client).filename
-    assert filename
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
 
-    oaiclient = MagicMock()
-    openai_mock.return_value = oaiclient
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="import pandas as pd"))]
+            )
+        ]
 
-    oaiclient.chat.completions.create.return_value = [
-        FakeChoices(
-            choices=[Choice(delta=Delta(content="import pandas as pd"))]
-        )
-    ]
+        with fake_openai_env():
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "include_other_code": "",
+                    "code": "",
+                },
+            )
+            assert response.status_code == 200, "nope"
+            # Assert the prompt it was called with
+            prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][1]["content"]
+            assert prompt == ("Help me create a dataframe")
 
-    with fake_openai_env():
-        response = client.post(
-            "/api/ai/completion",
-            headers=HEADERS,
-            json={
-                "prompt": "Help me create a dataframe",
-                "code": "import pandas as pd",
-                "include_other_code": "",
-            },
-        )
-        assert response.status_code == 200, response.text
-        # Assert the prompt it was called with
-        prompt = oaiclient.chat.completions.create.call_args.kwargs[
-            "messages"
-        ][1]["content"]
-        assert prompt == (
-            "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"
-        )
+    @staticmethod
+    @with_session(SESSION_ID)
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @patch("openai.OpenAI")
+    def test_completion_with_code(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        filename = get_session_manager(client).filename
+        assert filename
+
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="import pandas as pd"))]
+            )
+        ]
+
+        with fake_openai_env():
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "import pandas as pd",
+                    "include_other_code": "",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the prompt it was called with
+            prompt = oaiclient.chat.completions.create.call_args.kwargs[
+                "messages"
+            ][1]["content"]
+            assert prompt == (
+                "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
+            )
 
 
 @contextmanager
