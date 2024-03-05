@@ -11,15 +11,14 @@ if TYPE_CHECKING:
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache = weakref.WeakKeyDictionary[Any, UIElement[Any, Any]]()
+cache = weakref.WeakKeyDictionary[Any, Any]()
 
 
 def from_anywidget(widget: "anywidget.AnyWidget") -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    assert cache is not None
     if widget not in cache:
         cache[widget] = _anywidget(widget)
-    return cache[widget]
+    return cache[widget]  # type: ignore[no-any-return]
 
 
 T = Dict[str, Any]
