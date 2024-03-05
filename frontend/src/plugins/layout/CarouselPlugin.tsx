@@ -12,6 +12,7 @@ import {
 } from "swiper/modules";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
+import { useEventListener } from "@/hooks/useEventListener";
 
 import "swiper/css";
 import "swiper/css/virtual";
@@ -49,6 +50,10 @@ const CarouselComponent = ({
 }: PropsWithChildren<CarouselComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  useEventListener(document, "fullscreenchange", () => {
+    setIsFullscreen(!!document.fullscreenElement);
+  });
 
   return (
     <Swiper

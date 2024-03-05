@@ -3,7 +3,7 @@
   height: 100%;
   top: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.1);
   opacity: 0;
   padding: 0 15px;
   transition: opacity 0.3s;
@@ -12,7 +12,7 @@
 
   --swiper-navigation-sides-offset: 0;
   --swiper-navigation-size: 20px;
-  --swiper-theme-color: white;
+  --swiper-theme-color: var(--text);
 
   &.swiper-button-disabled {
     opacity: 0;
