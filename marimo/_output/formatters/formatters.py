@@ -5,6 +5,7 @@ import sys
 from typing import Any, Callable, Sequence
 
 from marimo._output.formatters.altair_formatters import AltairFormatter
+from marimo._output.formatters.anywidget_formatters import AnyWidgetFormatter
 from marimo._output.formatters.bokeh_formatters import BokehFormatter
 from marimo._output.formatters.cell import CellFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
@@ -28,6 +29,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     LeafmapFormatter.package_name(): LeafmapFormatter(),
     BokehFormatter.package_name(): BokehFormatter(),
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
+    AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a

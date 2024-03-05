@@ -117,6 +117,20 @@ def json(
     return any_data(data, ext="json")  # type: ignore
 
 
+def js(data: str) -> VirtualFile:
+    """Create a virtual file for JavaScript data.
+
+    **Args.**
+
+    - data: JavaScript data as a string
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    return any_data(data, ext="js")
+
+
 def html(data: str) -> VirtualFile:
     """Create a virtual file for HTML data.
 
