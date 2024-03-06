@@ -32,7 +32,7 @@ if HAS_DEPS:
 class TestAnywidget:
     @staticmethod
     async def test_instances(k: Kernel, exec_req: ExecReqProvider) -> None:
-        import _anywidget
+        import anywidget as _anywidget
 
         await k.run(
             [
