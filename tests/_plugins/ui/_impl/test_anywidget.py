@@ -4,17 +4,17 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.from_anywidget import _anywidget
+from marimo._plugins.ui._impl.from_anywidget import anywidget
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = DependencyManager.has_anywidget()
 
 if HAS_DEPS:
-    import anywidget
+    import anywidget as _anywidget
     import traitlets
 
-    class CounterWidget(anywidget.AnyWidget):
+    class CounterWidget(_anywidget.AnyWidget):
         _esm = """
         function render({ model, el }) {
             let getCount = () => model.get("count");
@@ -32,7 +32,7 @@ if HAS_DEPS:
 class TestAnywidget:
     @staticmethod
     async def test_instances(k: Kernel, exec_req: ExecReqProvider) -> None:
-        import anywidget
+        import anywidget as _anywidget
 
         await k.run(
             [
@@ -66,7 +66,7 @@ as_marimo_element = mo.ui.anywidget(base_widget)
         )
         assert k.globals["are_same"] is True
         assert k.globals["are_different"] is True
-        assert isinstance(k.globals["base_widget"], anywidget.AnyWidget)
+        assert isinstance(k.globals["base_widget"], _anywidget.AnyWidget)
         assert "marimo-anywidget" in k.globals["as_marimo_element"].text
 
     @staticmethod
@@ -105,5 +105,5 @@ as_marimo_element = mo.ui.anywidget(base_widget)
                 ),
             ]
         )
-        assert isinstance(k.globals["w"], _anywidget)
+        assert isinstance(k.globals["w"], anywidget)
         assert k.globals["w_value"]["count"] == 10

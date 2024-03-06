@@ -65,8 +65,8 @@ widget.value
 ---
 
 ```{eval-rst}
-.. autoclass:: marimo._plugins.ui._impl.from_anywidget._anywidget
+.. autoclass:: marimo.ui.anywidget
   :members:
 
-  .. autoclasstoc:: marimo._plugins.ui._impl.from_anywidget._anywidget
+  .. autoclasstoc:: marimo._plugins.ui._impl.from_anywidget.anywidget
 ```

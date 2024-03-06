@@ -7,17 +7,20 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    import anywidget  # type: ignore [import-not-found, unused-ignore]
+    from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
+        AnyWidget,
+    )
+
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]
+cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
-def from_anywidget(widget: "anywidget.AnyWidget") -> UIElement[Any, Any]:
+def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
     if widget not in cache:
-        cache[widget] = _anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]
+        cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]
     return cache[widget]
 
 
@@ -25,7 +28,7 @@ T = Dict[str, Any]
 
 
 @mddoc
-class _anywidget(UIElement[T, T]):
+class anywidget(UIElement[T, T]):
     """
     Create a UIElement from an AnyWidget.
 
@@ -51,7 +54,7 @@ class _anywidget(UIElement[T, T]):
     - `widget`: The widget to wrap.
     """
 
-    def __init__(self, widget: "anywidget.AnyWidget"):
+    def __init__(self, widget: "AnyWidget"):
         self.widget = widget
 
         # Get all the traits of the widget
