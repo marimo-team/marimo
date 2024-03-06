@@ -57,6 +57,7 @@ export interface IPlugin<
   D = Record<string, never>,
   F extends PluginFunctions = {},
 > {
+  cssStyles?: string[];
   /**
    * The html tag name to render the plugin.
    */

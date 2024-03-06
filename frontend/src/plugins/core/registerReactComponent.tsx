@@ -391,6 +391,13 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       }
       // Add all stylesheets to the shadow root
       shadowRoot.adoptedStyleSheets = [...styleSheetCache.values()];
+
+      // Custom styles provided by the plugin
+      if (plugin.cssStyles) {
+        const style = document.createElement("style");
+        style.textContent = plugin.cssStyles.join("\n");
+        shadowRoot.append(style);
+      }
     }
 
     private copyStylesFallback() {
