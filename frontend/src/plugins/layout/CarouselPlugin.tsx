@@ -74,7 +74,8 @@ const CarouselComponent = ({
       zoom={{
         maxRatio: 5,
       }}
-      simulateTouch={true}
+      // touch controls interfere with UI elements
+      simulateTouch={false}
       keyboard={{
         enabled: true,
         onlyInViewport: true,

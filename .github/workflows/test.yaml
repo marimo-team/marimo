@@ -81,6 +81,9 @@ jobs:
             python-version: "3.9"
             dependencies: "core"
           - os: ubuntu-latest
+            python-version: "3.10"
+            dependencies: "core"
+          - os: ubuntu-latest
             python-version: "3.11"
             dependencies: "core"
           - os: ubuntu-latest
@@ -88,6 +91,9 @@ jobs:
             dependencies: "core"
           - os: ubuntu-latest
             python-version: "3.9"
+            dependencies: "core,optional"
+          - os: ubuntu-latest
+            python-version: "3.10"
             dependencies: "core,optional"
           - os: ubuntu-latest
             python-version: "3.11"
