@@ -30,7 +30,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     LeafmapFormatter.package_name(): LeafmapFormatter(),
     BokehFormatter.package_name(): BokehFormatter(),
     HoloViewsFormatter.package_name(): HoloViewsFormatter(),
-    #IPythonFormatter.package_name(): IPythonFormatter(),
+    IPythonFormatter.package_name(): IPythonFormatter(),
     AnyWidgetFormatter.package_name(): AnyWidgetFormatter(),
 }
 

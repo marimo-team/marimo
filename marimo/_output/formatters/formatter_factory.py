@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Optional
+from typing import Callable, Optional
 
 
 # Abstract base class for formatters that are installed at runtime.
@@ -20,9 +20,12 @@ class FormatterFactory(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def register(self) -> None:
+    def register(self) -> Callable[[], None] | None:
         """Registers formatters.
 
         Formatters can be registered using the formatters.formatter decorator.
+
+        Optionally returns a handle to undo side-effects, such as module
+        patches.
         """
         raise NotImplementedError

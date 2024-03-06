@@ -7,6 +7,7 @@ import textwrap
 from typing import Any, Generator
 
 import pytest
+
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import (
