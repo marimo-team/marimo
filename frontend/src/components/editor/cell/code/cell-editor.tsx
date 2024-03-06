@@ -2,17 +2,16 @@
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import {
+import React, {
   memo,
   useCallback,
   useEffect,
   useRef,
-  useLayoutEffect,
   useState,
+  useMemo,
 } from "react";
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
-import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
 import { CellActions, useCellActions } from "@/core/cells/cells";
 import { CellRuntimeState, CellData, CellConfig } from "@/core/cells/types";
@@ -28,6 +27,10 @@ import { LanguageToggle } from "./language-toggle";
 import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
+import { AiCompletionEditor } from "./ai-completion-editor";
+import { useAtom } from "jotai";
+import { aiCompletionCellAtom } from "@/core/ai/state";
+import { mergeRefs } from "@/utils/mergeRefs";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -46,7 +49,6 @@ export interface CellEditorProps
   runCell: () => void;
   theme: Theme;
   showPlaceholder: boolean;
-  mode: AppMode;
   editorViewRef: React.MutableRefObject<EditorView | null>;
   /**
    * If true, the cell is allowed to be focus on.
@@ -65,7 +67,6 @@ const CellEditorInternal = ({
   code,
   status,
   serializedEditorState,
-  mode,
   runCell,
   updateCellCode,
   createNewCell,
@@ -80,13 +81,11 @@ const CellEditorInternal = ({
   hidden,
 }: CellEditorProps) => {
   const [canUseMarkdown, setCanUseMarkdown] = useState(false);
-
+  const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   const loading = status === "running" || status === "queued";
-  const editing = mode === "edit";
-  const reading = mode === "read";
   const { sendToTop, sendToBottom } = useCellActions();
 
   const handleDelete = useEvent(() => {
@@ -131,11 +130,7 @@ const CellEditorInternal = ({
     return newConfig.hide_code || false;
   });
 
-  useEffect(() => {
-    if (reading) {
-      return;
-    }
-
+  const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
@@ -155,6 +150,17 @@ const CellEditorInternal = ({
         sendToBottom,
         moveToNextCell,
         toggleHideCode,
+        aiCellCompletion: () => {
+          let closed = false;
+          setAiCompletionCell((v) => {
+            if (v === cellId) {
+              closed = true;
+              return null;
+            }
+            return cellId;
+          });
+          return closed;
+        },
       },
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
@@ -175,6 +181,30 @@ const CellEditorInternal = ({
       })),
     );
 
+    return extensions;
+  }, [
+    cellId,
+    userConfig.keymap,
+    userConfig.completion,
+    theme,
+    showPlaceholder,
+    createAbove,
+    createBelow,
+    focusUp,
+    focusDown,
+    moveUp,
+    moveDown,
+    moveToNextCell,
+    sendToTop,
+    sendToBottom,
+    toggleHideCode,
+    updateCellCode,
+    handleDelete,
+    runCell,
+    setAiCompletionCell,
+  ]);
+
+  useEffect(() => {
     // Should focus will be true if its a newly created editor
     let shouldFocus: boolean;
     if (serializedEditorState === null) {
@@ -237,42 +267,16 @@ const CellEditorInternal = ({
         });
       });
     }
-
     // We don't want to re-run this effect when `allowFocus` or `code` changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    reading,
-    cellId,
-    userConfig.completion.activate_on_typing,
-    userConfig.keymap,
-    theme,
-    showPlaceholder,
-    createAbove,
-    createBelow,
-    focusUp,
-    focusDown,
-    moveUp,
-    moveDown,
-    moveToNextCell,
-    updateCellCode,
-    handleDelete,
-    runCell,
-    serializedEditorState,
+    editorViewRef,
+    extensions,
+    userConfig.completion,
     clearSerializedEditorState,
+    cellId,
+    serializedEditorState,
   ]);
-
-  useLayoutEffect(() => {
-    if (editorViewRef.current === null) {
-      return;
-    }
-    if (
-      editing &&
-      editorViewParentRef.current !== null &&
-      editorViewRef.current !== null
-    ) {
-      editorViewParentRef.current.replaceChildren(editorViewRef.current.dom);
-    }
-  }, [editing, editorViewRef]);
 
   const showCode = async () => {
     if (hidden) {
@@ -284,22 +288,84 @@ const CellEditorInternal = ({
   };
 
   return (
-    <>
-      {canUseMarkdown && (
-        <div className="absolute top-1 right-1">
-          <LanguageToggle
-            editorView={derefNotNull(editorViewRef)}
-            canUseMarkdown={canUseMarkdown}
-          />
-        </div>
-      )}
-      {hidden && <HideCodeButton onClick={showCode} />}
-      <div
-        className={cn("cm", hidden && "opacity-20 h-8 overflow-hidden")}
-        ref={editorViewParentRef}
-      />
-    </>
+    <AiCompletionEditor
+      enabled={aiCompletionCell === cellId}
+      currentCode={code}
+      declineChange={() => {
+        setAiCompletionCell(null);
+        editorViewRef.current?.focus();
+      }}
+      onChange={(newCode) => {
+        editorViewRef.current?.dispatch({
+          changes: {
+            from: 0,
+            to: editorViewRef.current.state.doc.length,
+            insert: newCode,
+          },
+        });
+      }}
+      acceptChange={(newCode) => {
+        editorViewRef.current?.dispatch({
+          changes: {
+            from: 0,
+            to: editorViewRef.current.state.doc.length,
+            insert: newCode,
+          },
+        });
+        editorViewRef.current?.focus();
+        setAiCompletionCell(null);
+      }}
+    >
+      <div className="relative w-full">
+        {canUseMarkdown && (
+          <div className="absolute top-1 right-1">
+            <LanguageToggle
+              editorView={derefNotNull(editorViewRef)}
+              canUseMarkdown={canUseMarkdown}
+            />
+          </div>
+        )}
+        {hidden && <HideCodeButton onClick={showCode} />}
+        <CellCodeMirrorEditor
+          className={cn(hidden && "opacity-20 h-8 overflow-hidden")}
+          editorView={editorViewRef.current}
+          ref={editorViewParentRef}
+        />
+      </div>
+    </AiCompletionEditor>
   );
 };
+
+const CellCodeMirrorEditor = React.forwardRef(
+  (
+    props: {
+      className?: string;
+      editorView: EditorView | null;
+    },
+    ref: React.Ref<HTMLDivElement>,
+  ) => {
+    const { className, editorView } = props;
+    const internalRef = useRef<HTMLDivElement>(null);
+
+    // If this gets unmounted/remounted, we need to re-append the editorView
+    useEffect(() => {
+      if (editorView === null) {
+        return;
+      }
+      if (internalRef.current === null) {
+        return;
+      }
+      // Has no children, so we can replaceChildren
+      if (internalRef.current.children.length === 0) {
+        internalRef.current.append(editorView.dom);
+      }
+    }, [editorView, internalRef]);
+
+    return (
+      <div className={cn("cm", className)} ref={mergeRefs(ref, internalRef)} />
+    );
+  },
+);
+CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
 export const CellEditor = memo(CellEditorInternal);

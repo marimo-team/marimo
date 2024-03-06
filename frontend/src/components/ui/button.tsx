@@ -56,7 +56,7 @@ const buttonVariants = cva(
           "border border-input shadow-smSolid",
           activeCommon,
         ),
-        text: cn("opacity-60 hover:opacity-100", "active:opacity-100"),
+        text: cn("opacity-80 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
           "hover:bg-accent hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
           activeCommon,
@@ -69,7 +69,7 @@ const buttonVariants = cva(
         xs: "h-7 px-2 rounded-md text-xs",
         sm: "h-9 px-3 rounded-md",
         lg: "h-11 px-8 rounded-md",
-        icon: "h-6 w-6",
+        icon: "h-6 w-6 mb-0",
       },
       disabled: {
         true: "opacity-50 pointer-events-none",

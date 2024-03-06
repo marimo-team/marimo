@@ -41,6 +41,8 @@ import { outputIsStale } from "@/core/cells/cell";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
+import { useSetAtom } from "jotai";
+import { aiCompletionCellAtom } from "@/core/ai/state";
 
 /**
  * Imperative interface of the cell.
@@ -146,6 +148,7 @@ const CellComponent = (
   Logger.debug("Rendering Cell", cellId);
   const cellRef = useRef<HTMLDivElement>(null);
   const editorView = useRef<EditorView | null>(null);
+  const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
   const needsRun = edited || interrupted;
   const loading = status === "running" || status === "queued";
@@ -306,6 +309,19 @@ const CellComponent = (
     "cell.focusUp": () => moveToNextCell({ cellId, before: true }),
     "cell.sendToBottom": () => sendToBottom({ cellId }),
     "cell.sendToTop": () => sendToTop({ cellId }),
+    "cell.aiCompletion": () => {
+      let closed = false;
+      setAiCompletionCell((v) => {
+        if (v === cellId) {
+          closed = true;
+          return null;
+        }
+        return cellId;
+      });
+      if (closed) {
+        derefNotNull(editorView).focus();
+      }
+    },
   });
 
   useKeydownOnElement(editing ? cellRef.current : null, {
@@ -400,7 +416,6 @@ const CellComponent = (
             code={code}
             status={status}
             serializedEditorState={serializedEditorState}
-            mode={mode}
             runCell={handleRun}
             updateCellCode={updateCellCode}
             createNewCell={createNewCell}

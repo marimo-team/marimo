@@ -16,7 +16,7 @@ jobs:
   test_frontend:
     name: 🖥️ Lint, test, build frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./frontend
@@ -64,7 +64,7 @@ jobs:
         run: pnpm turbo build
 
   test_python:
-    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }}
+    name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }} with ${{ matrix.dependencies }} dependencies
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     defaults:
@@ -74,24 +74,27 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        exclude:
-          - os: macos-latest
-            python-version: "3.8"
-          - os: macos-latest
+        dependencies: ["core", "core,optional"]
+        python-version: ["3.8"]
+        include:
+          - os: ubuntu-latest
             python-version: "3.9"
-          - os: macos-latest
+            dependencies: "core"
+          - os: ubuntu-latest
             python-version: "3.11"
-          - os: macos-latest
+            dependencies: "core"
+          - os: ubuntu-latest
             python-version: "3.12"
-          - os: windows-latest
-            python-version: "3.8"
-          - os: windows-latest
+            dependencies: "core"
+          - os: ubuntu-latest
             python-version: "3.9"
-          - os: windows-latest
+            dependencies: "core,optional"
+          - os: ubuntu-latest
             python-version: "3.11"
-          - os: windows-latest
+            dependencies: "core,optional"
+          - os: ubuntu-latest
             python-version: "3.12"
+            dependencies: "core,optional"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
@@ -137,6 +140,7 @@ jobs:
           mypy --config-file pyproject.toml marimo/
       # Test with minimal dependencies
       - name: Test with minimal dependencies
+        if: ${{ matrix.dependencies == 'core' }}
         run: |
           python -m venv marimo-test-env
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -149,6 +153,7 @@ jobs:
           pytest -v tests/ -k "not test_cli"
       # Test with optional dependencies
       - name: Test with optional dependencies
+        if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
           python -m venv marimo-test-optional-env
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -158,7 +163,12 @@ jobs:
           fi
           python -m pip install --upgrade pip
           pip install .[testcore,testoptional]
-          pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
+          # Only collect coverage on the 3.11
+          if [ "${{ matrix.python-version }}" == "3.11" ]; then
+            pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
+          else
+            pytest -v tests/ -k "not test_cli"
+          fi
       - name: Upload coverage reports to Codecov
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
         uses: codecov/codecov-action@v3

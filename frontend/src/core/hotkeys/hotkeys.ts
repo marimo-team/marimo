@@ -168,6 +168,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-h",
   },
+  "cell.aiCompletion": {
+    name: "AI completion",
+    group: "Editing",
+    key: "Mod-Shift-e",
+  },
 
   // Global Actions
   "global.hideCode": {

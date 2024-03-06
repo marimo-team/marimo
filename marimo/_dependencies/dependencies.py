@@ -83,6 +83,11 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def has_openai() -> bool:
+        """Return True if openai is installed."""
+        return importlib.util.find_spec("openai") is not None
+
+    @staticmethod
     def has_pandas() -> bool:
         """Return True if pandas is installed."""
         return importlib.util.find_spec("pandas") is not None

@@ -31,17 +31,20 @@ Learn more from the [official Python tutorial](https://docs.python.org/3/tutoria
 
 To install marimo, run the following in a terminal:
 
-
 ::::{tab-set}
 :::{tab-item} install with pip
+
 ```bash
 pip install marimo
 ```
+
 :::
 :::{tab-item} install with conda
+
 ```bash
 conda install -c conda-forge marimo
 ```
+
 :::
 ::::
 
@@ -76,7 +79,7 @@ Create and edit notebooks with `marimo edit`.
 marimo edit
 ```
 
-- marimo saves notebooks as Python files, which you can edit using: 
+- marimo saves notebooks as Python files, which you can edit using:
 
 ```bash
 marimo edit your_notebook.py
@@ -106,9 +109,9 @@ Because marimo is different from traditional notebooks, your converted notebook
 will likely have errors that you'll need to fix. marimo will guide you through
 fixing them when you open it with `marimo edit`.
 
-## Github Copilot
+## GitHub Copilot
 
-The marimo editor natively supports [Github Copilot](https://copilot.github.com/),
+The marimo editor natively supports [GitHub Copilot](https://copilot.github.com/),
 an AI pair programmer, similar to VS Code.
 
 _Get started with Copilot_:
