@@ -7,7 +7,6 @@ import textwrap
 from typing import Any, Generator
 
 import pytest
-
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._messaging.streams import (
@@ -16,10 +15,7 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
-from marimo._runtime.context import (
-    initialize_context,
-    teardown_context,
-)
+from marimo._runtime.context import initialize_context, teardown_context
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 

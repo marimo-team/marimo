@@ -121,3 +121,8 @@ class DependencyManager:
     def has_watchdog() -> bool:
         """Return True if watchdog is installed."""
         return importlib.util.find_spec("watchdog") is not None
+
+    @staticmethod
+    def has_ipython() -> bool:
+        """Return True if IPython is installed."""
+        return importlib.util.find_spec("IPython") is not None

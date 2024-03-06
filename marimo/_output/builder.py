@@ -93,6 +93,7 @@ class _HTMLBuilder:
         height: Optional[str] = None,
         style: Optional[str] = None,
         onload: Optional[str] = None,
+        **kwargs: str,
     ) -> str:
         params: List[Tuple[str, Union[str, None]]] = []
         if src:
@@ -107,6 +108,8 @@ class _HTMLBuilder:
             params.append(("style", style))
         if onload:
             params.append(("onload", onload))
+        for key, value in kwargs.items():
+            params.append((key, value))
 
         if len(params) == 0:
             return "<iframe />"
