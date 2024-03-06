@@ -40,7 +40,7 @@ from marimo._plugins.ui._impl.batch import batch
 from marimo._plugins.ui._impl.data_explorer import data_explorer
 from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
 from marimo._plugins.ui._impl.dictionary import dictionary
-from marimo._plugins.ui._impl.from_anywidget import _anywidget as anywidget
+from marimo._plugins.ui._impl.from_anywidget import anywidget
 from marimo._plugins.ui._impl.input import (
     button,
     checkbox,
