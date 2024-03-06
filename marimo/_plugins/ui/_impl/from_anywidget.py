@@ -7,13 +7,14 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from anywidget import (
-        AnyWidget,  # type: ignore [import-not-found, unused-ignore]
+    from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
+        AnyWidget,
     )
+
 
 # Weak dictionary
 # When the widget is deleted, the UIElement will be deleted as well
-cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]
+cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
 
 
 def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
