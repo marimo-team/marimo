@@ -42,7 +42,7 @@ const AnyWidgetSlot = (props: IPluginProps<T, Data>) => {
   } = useAsyncData(async () => {
     const baseUrl = document.baseURI;
     const url = new URL(jsUrl, baseUrl).toString();
-    return await import(url);
+    return await import(/* @vite-ignore */ url);
   }, []);
 
   // Mount the CSS

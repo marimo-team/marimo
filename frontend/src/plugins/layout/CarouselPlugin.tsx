@@ -14,13 +14,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { useEventListener } from "@/hooks/useEventListener";
 
-import "swiper/css";
-import "swiper/css/virtual";
-import "swiper/css/keyboard";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
-import "swiper/css/scrollbar";
 import "./carousel.css";
+import swiperCss from "swiper/css?inline";
+import swiperCssVirtual from "swiper/css/virtual?inline";
+import swiperCssKeyboard from "swiper/css/keyboard?inline";
+import swiperCssNavigation from "swiper/css/navigation?inline";
+import swiperCssPagination from "swiper/css/pagination?inline";
+import swiperCssScrollbar from "swiper/css/scrollbar?inline";
 
 interface Data {
   index?: string | null;
@@ -34,6 +34,15 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
     index: z.string().nullish(),
     height: z.union([z.string(), z.number()]).nullish(),
   });
+
+  cssStyles = [
+    swiperCss,
+    swiperCssVirtual,
+    swiperCssKeyboard,
+    swiperCssNavigation,
+    swiperCssPagination,
+    swiperCssScrollbar,
+  ];
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
@@ -64,7 +73,7 @@ const CarouselComponent = ({
   return (
     <Swiper
       ref={el}
-      className="relative w-full border rounded bg-background"
+      className="relative w-full border rounded bg-background mo-carousel"
       spaceBetween={50}
       style={{
         height: isFullscreen ? "100%" : height || "550px",

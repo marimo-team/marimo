@@ -70,7 +70,7 @@ const htmlDevPlugin = (): Plugin => {
         devDoc.head.append(element);
       });
 
-      return devDoc.documentElement.outerHTML;
+      return "<!DOCTYPE html>\n" + devDoc.documentElement.outerHTML;
     },
   };
 };
