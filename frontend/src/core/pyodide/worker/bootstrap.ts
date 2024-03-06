@@ -31,7 +31,7 @@ export async function bootstrap() {
   const marimoWheel =
     process.env.NODE_ENV === "production"
       ? "marimo >= 0.2.5"
-      : "http://localhost:8000/dist/marimo-0.2.13-py3-none-any.whl";
+      : "http://localhost:8000/dist/marimo-0.2.14-py3-none-any.whl";
   await pyodide.runPythonAsync(`
     import micropip
 
