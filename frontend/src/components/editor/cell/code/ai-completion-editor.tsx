@@ -84,7 +84,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   ];
 
   return (
-    <div className="flex flex-col w-full rounded-[inherit]">
+    <div className="flex flex-col w-full rounded-[inherit] overflow-hidden">
       <div
         className={cn(
           "flex items-center gap-2 border-b px-3 transition-[height] rounded-[inherit] rounded-b-none duration-300 overflow-hidden",
