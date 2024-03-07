@@ -194,6 +194,7 @@ exclude = [
     'marimo/_tutorials/',
     'marimo/_smoke_tests/',
 ]
+warn_unused_ignores=false
 
 # tutorials shouldn't be type-checked (should be excluded), but they
 # get included anyway, maybe due to import following; this is coarse but works

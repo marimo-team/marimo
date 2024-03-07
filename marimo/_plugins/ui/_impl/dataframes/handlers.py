@@ -182,7 +182,7 @@ class TransformHandlers:
         # Pandas type-checking doesn't like the fact that the values
         # are lists of strings (function names), even though the docs permit
         # such a value
-        return cast("pd.DataFrame", df.agg(dict_of_aggs))  # type: ignore[arg-type]  # noqa: E501
+        return cast("pd.DataFrame", df.agg(dict_of_aggs))  # type: ignore  # noqa: E501
 
     @staticmethod
     def handle_select_columns(

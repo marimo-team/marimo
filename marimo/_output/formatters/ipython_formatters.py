@@ -15,7 +15,7 @@ class IPythonFormatter(FormatterFactory):
         return "IPython"
 
     def register(self) -> Callable[[], None]:
-        import IPython.display
+        import IPython.display  # type:ignore
 
         from marimo._output import formatting
         from marimo._runtime.output import _output
