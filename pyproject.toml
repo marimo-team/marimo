@@ -113,6 +113,7 @@ testoptional = [
     # have the rust toolchain installed on CI
     "polars==0.19.12",
     "anywidget~=0.9.3",
+    "ipython~=8.12.3",
     "openai~=1.12.0",
 ]
 
@@ -194,6 +195,7 @@ exclude = [
     'marimo/_tutorials/',
     'marimo/_smoke_tests/',
 ]
+warn_unused_ignores=false
 
 # tutorials shouldn't be type-checked (should be excluded), but they
 # get included anyway, maybe due to import following; this is coarse but works

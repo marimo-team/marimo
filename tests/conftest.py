@@ -16,10 +16,7 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
-from marimo._runtime.context import (
-    initialize_context,
-    teardown_context,
-)
+from marimo._runtime.context import initialize_context, teardown_context
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
