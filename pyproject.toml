@@ -113,6 +113,7 @@ testoptional = [
     # have the rust toolchain installed on CI
     "polars==0.19.12",
     "anywidget~=0.9.3",
+    "ipython~=8.22.2",
     "openai~=1.12.0",
 ]
 
