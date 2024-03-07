@@ -25,7 +25,7 @@ async function loadPyodideAndPackages() {
 }
 const pyodideReadyPromise = loadPyodideAndPackages();
 const messageBuffer = new MessageBuffer((m: string) =>
-  postMessage({ type: "message", message: m }),
+  postMessage({ type: "message", message: m })
 );
 
 // Initialize the session
@@ -73,7 +73,7 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
     if (functionName === "load_packages") {
       invariant(
         typeof payload === "string",
-        "Expected a string payload for load_packages",
+        "Expected a string payload for load_packages"
       );
       await self.pyodide.loadPackagesFromImports(payload, {
         messageCallback: console.log,
@@ -87,10 +87,21 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
     if (functionName === "read_file") {
       invariant(
         typeof payload === "string",
-        "Expected a string payload for read_file",
+        "Expected a string payload for read_file"
       );
       const file = self.pyodide.FS.readFile(payload, { encoding: "utf8" });
       postMessage({ type: "response", response: file, id });
+      return;
+    }
+    // Special case for interrupting kernel execution
+    if (functionName == "interrupt") {
+      invariant(
+        payload instanceof Uint8Array,
+        "Expected a Uint8Array payload for interrupt"
+      );
+      console.log("Setting interrupt buffer");
+      self.pyodide.setInterruptBuffer(payload);
+      postMessage({ type: "response", response: null, id });
       return;
     }
     // Special case to lazily install black on format

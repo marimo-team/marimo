@@ -35,7 +35,6 @@ from marimo._messaging.ops import (
     CompletedRun,
     FunctionCallResult,
     HumanReadableStatus,
-    Interrupted,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -60,7 +59,13 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._runtime import cell_runner, dataflow, marimo_pdb, patches
+from marimo._runtime import (
+    cell_runner,
+    dataflow,
+    handlers,
+    marimo_pdb,
+    patches,
+)
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -1207,59 +1212,19 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters()
 
-        SHUTTING_DOWN = False
-
-        def interrupt_handler(signum: int, frame: Any) -> None:
-            """Tries to interrupt the kernel."""
-            del signum
-            del frame
-
-            LOGGER.debug("interrupt request received")
-            # TODO(akshayka): if kernel is in `run` but not executing,
-            # it won't be interrupted, which isn't right ... but the
-            # probability of that happening is low.
-            if kernel.execution_context is not None:
-                Interrupted().broadcast()
-                raise MarimoInterrupt
-
-        def sigterm_handler(signum: int, frame: Any) -> None:
-            """Cleans up the kernel ands exit."""
-            del signum
-            del frame
-
-            nonlocal SHUTTING_DOWN
-            if SHUTTING_DOWN:
-                # give previous SIGTERM a chance to quit ... makes
-                # sure this method is reentrant
-                return
-            SHUTTING_DOWN = True
-
-            get_context().virtual_file_registry.shutdown()
-            # Force this process to exit.
-            #
-            # We use os._exit() instead of sys.exit() because we don't want the
-            # child process to also run atexit handlers, which may result in
-            # undefined behavior. Using sys.exit() on Linux sometimes causes
-            # the parent process to hang on shutdown, leading to orphaned
-            # processes and port.
-            #
-            # TODO(akshayka): The Python docs say this method is appropriate
-            # for processes created with fork(), but they don't say anything
-            # about processes made with spawn. macOS and Windows default to
-            # spawn. If we have further issues with clean exits, we might
-            # investigate here.
-            #
-            # https://docs.python.org/3/library/os.html#os._exit
-            # https://www.unixguide.net/unix/programming/1.1.3.shtml
-            os._exit(0)
-
-        signal.signal(signal.SIGINT, interrupt_handler)
+        signal.signal(
+            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
+        )
 
         if sys.platform == "win32" or sys.platform == "cygwin":
             # windows doesn't handle SIGTERM
-            signal.signal(signal.SIGBREAK, sigterm_handler)
+            signal.signal(
+                signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
+            )
         else:
-            signal.signal(signal.SIGTERM, sigterm_handler)
+            signal.signal(
+                signal.SIGTERM, handlers.construct_sigterm_handler(kernel)
+            )
 
     async def control_loop() -> None:
         while True:
