@@ -69,6 +69,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   constructor() {
     if (isPyodide()) {
       this.worker = new InlineWorker();
+      console.log("ISOLATED?");
+      console.log(crossOriginIsolated);
       this.worker.onmessage = this.handleWorkerMessage;
     }
   }

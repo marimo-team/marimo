@@ -16,6 +16,8 @@ export async function bootstrap() {
     throw new Error("loadPyodide is not defined");
   }
 
+  console.log("BOOTSTRAP, CONTEXT ISOLATED?");
+  console.log(crossOriginIsolated);
   // Load pyodide and packages
   const pyodide = await loadPyodide({
     // Perf: These get loaded while pyodide is being bootstrapped
@@ -56,7 +58,7 @@ export async function startSession(
     fallbackCode: string;
     filename: string | null;
   },
-  messageCallback: (data: string) => void,
+  messageCallback: (data: string) => void
 ): Promise<SerializedBridge> {
   // Set up the filesystem
   const { filename, content } = await mountFilesystem({ pyodide, ...opts });
@@ -88,7 +90,7 @@ export async function startSession(
       instantiate(session)
       asyncio.create_task(session.start())
 
-      bridge`,
+      bridge`
   );
 
   self.bridge = bridge;
