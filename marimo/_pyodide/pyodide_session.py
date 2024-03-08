@@ -176,10 +176,6 @@ class PyodideSession:
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
-    def interrupt(self) -> None:
-        assert self.kernel_task is not None
-        self.kernel_task.restart()
-
     def put_input(self, text: str) -> None:
         self._queue_manager.input_queue.put_nowait(text)
 
@@ -202,9 +198,6 @@ class PyodideBridge:
 
     def put_input(self, text: str) -> None:
         self.session.put_input(text)
-
-    def interrupt(self) -> None:
-        self.session.interrupt()
 
     def code_complete(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), requests.CompletionRequest)
@@ -320,12 +313,11 @@ def launch_pyodide_kernel(
         stream=stream,
         virtual_files_supported=False,
     )
-    signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(kernel))
 
     if is_edit_mode:
-        from marimo._output.formatters.formatters import register_formatters
-
-        register_formatters()
+        signal.signal(
+            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
+        )
 
     async def listen_messages() -> None:
         while True:

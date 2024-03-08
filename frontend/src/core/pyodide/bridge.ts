@@ -51,7 +51,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
   private worker!: Worker;
-  private interruptBuffer!: Uint8Array;
+  private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
   private fetcher = new DeferredRequestRegistry<
     BridgeFunctionAndPayload,
@@ -70,10 +70,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
   constructor() {
     if (isPyodide()) {
       this.worker = new InlineWorker();
-      console.log("ISOLATED?");
-      console.log(crossOriginIsolated);
-      this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
       this.worker.onmessage = this.handleWorkerMessage;
+      if (crossOriginIsolated) {
+        // Pyodide handles interrupts through SharedArrayBuffers, which
+        // only work in secure (crossOriginIsolated) contexts
+        this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
+        this.fetcher.request({
+          functionName: "set_interrupt_buffer",
+          payload: this.interruptBuffer,
+        });
+      } else {
+        console.warn(
+          "Not running in a secure context; interrupts are not available.",
+        );
+      }
     }
   }
   private setCode = async () => {
@@ -92,7 +102,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private handleWorkerMessage = async (
-    event: MessageEvent<WorkerClientPayload>
+    event: MessageEvent<WorkerClientPayload>,
   ) => {
     if (event.data.type === "ready") {
       await this.setCode();
@@ -157,10 +167,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
-    // Clear the buffer in case it was accidentally left set
-    // Pyodide says it automatically clears the buffer, but it also recommends
-    // manually clearing it just in case ...
-    this.interruptBuffer[0] = 0;
     await this.fetcher.request({
       functionName: "load_packages",
       payload: codes.join("\n"),
@@ -175,12 +181,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendInterrupt = async (): Promise<null> => {
-    console.log("sending interrupt");
-    this.interruptBuffer[0] = 2;
-    await this.fetcher.request({
-      functionName: "interrupt",
-      payload: this.interruptBuffer,
-    });
+    if (this.interruptBuffer !== undefined) {
+      // 2 sends a SIGINT
+      this.interruptBuffer[0] = 2;
+    }
     return null;
   };
   sendShutdown = async (): Promise<null> => {
@@ -188,7 +192,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendFormat = async (
-    request: FormatRequest
+    request: FormatRequest,
   ): Promise<Record<CellId, string>> => {
     const response = await this.fetcher.request({
       functionName: "format",
@@ -204,7 +208,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendCodeCompletionRequest = async (
-    request: CodeCompletionRequest
+    request: CodeCompletionRequest,
   ): Promise<null> => {
     await this.fetcher.request({
       functionName: "code_complete",
@@ -259,7 +263,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendListFiles = async (
-    request: FileListRequest
+    request: FileListRequest,
   ): Promise<FileListResponse> => {
     const response = await this.fetcher.request({
       functionName: "list_files",
@@ -289,7 +293,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendCreateFileOrFolder = async (
-    request: FileCreateRequest
+    request: FileCreateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "create_file_or_directory",
@@ -299,7 +303,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendDeleteFileOrFolder = async (
-    request: FileDeleteRequest
+    request: FileDeleteRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "delete_file_or_directory",
@@ -309,7 +313,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRenameFileOrFolder = async (
-    request: FileUpdateRequest
+    request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "update_file_or_directory",
