@@ -100,7 +100,6 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
         payload instanceof Uint8Array,
         "Expected a Uint8Array payload for interrupt",
       );
-      console.log("Setting interrupt buffer");
       self.pyodide.setInterruptBuffer(payload);
       postMessage({ type: "response", response: null, id });
       return;
