@@ -93,6 +93,17 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
       postMessage({ type: "response", response: file, id });
       return;
     }
+
+    // Special case for installing the interrupt buffer
+    if (functionName == "set_interrupt_buffer") {
+      invariant(
+        payload instanceof Uint8Array,
+        "Expected a Uint8Array payload for interrupt",
+      );
+      self.pyodide.setInterruptBuffer(payload);
+      postMessage({ type: "response", response: null, id });
+      return;
+    }
     // Special case to lazily install black on format
     // Don't return early; still need to ask the pyodide kernel to run
     // the formatter

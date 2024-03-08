@@ -51,6 +51,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
   private worker!: Worker;
+  private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
   private fetcher = new DeferredRequestRegistry<
     BridgeFunctionAndPayload,
@@ -70,6 +71,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
     if (isPyodide()) {
       this.worker = new InlineWorker();
       this.worker.onmessage = this.handleWorkerMessage;
+      if (crossOriginIsolated) {
+        // Pyodide handles interrupts through SharedArrayBuffers, which
+        // only work in secure (crossOriginIsolated) contexts
+        this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
+        this.fetcher.request({
+          functionName: "set_interrupt_buffer",
+          payload: this.interruptBuffer,
+        });
+      } else {
+        console.warn(
+          "Not running in a secure context; interrupts are not available.",
+        );
+      }
     }
   }
   private setCode = async () => {
@@ -167,10 +181,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendInterrupt = async (): Promise<null> => {
-    await this.fetcher.request({
-      functionName: "interrupt",
-      payload: undefined,
-    });
+    if (this.interruptBuffer !== undefined) {
+      // 2 sends a SIGINT
+      this.interruptBuffer[0] = 2;
+    }
     return null;
   };
   sendShutdown = async (): Promise<null> => {

@@ -18,7 +18,7 @@ import type {
 export interface RawBridge {
   put_control_request(operation: object): Promise<string>;
   put_input(input: string): Promise<string>;
-  interrupt(): Promise<string>;
+  interrupt(buffer: Uint8Array): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   format(request: FormatRequest): Promise<FormatResponse>;
@@ -38,6 +38,7 @@ export interface RawBridge {
   ): Promise<FileOperationResponse>;
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
+  set_interrupt_buffer(request: Uint8Array): Promise<string>;
 }
 
 export type SerializedBridge = {
