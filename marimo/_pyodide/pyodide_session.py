@@ -291,6 +291,10 @@ def launch_pyodide_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
 ) -> RestartableTask:
+    from marimo._output.formatters.formatters import register_formatters
+
+    register_formatters()
+
     LOGGER.debug("Launching kernel")
 
     # Create communication channels
