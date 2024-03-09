@@ -58,7 +58,7 @@ A tutorial notebook should open in your browser.
 
 ```{admonition} Installation issues?
 
-Having installation issues? Reach out to us [at Github](https://github.com/marimo-team/marimo/issues) or [on Discord](https://discord.gg/JE7nhX6mD8).
+Having installation issues? Reach out to us [at GitHub](https://github.com/marimo-team/marimo/issues) or [on Discord](https://discord.gg/JE7nhX6mD8).
 ```
 
 ## Tutorials

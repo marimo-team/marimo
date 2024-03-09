@@ -78,6 +78,10 @@ export type WorkerClientPayload =
       type: "initialized";
     }
   | {
+      type: "initialized-error";
+      error: string;
+    }
+  | {
       type: "error";
       id: RequestId;
       error: string;

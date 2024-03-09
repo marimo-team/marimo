@@ -605,7 +605,7 @@ class LspServer:
         if binpath is None:
             LOGGER.error("Node.js not found; cannot start LSP server.")
             return Alert(
-                title="Github Copilot: Connection Error",
+                title="GitHub Copilot: Connection Error",
                 description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",  # noqa: E501
                 variant="danger",
             )

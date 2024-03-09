@@ -84,13 +84,18 @@ export const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
 
   // isPyodide() is constant, so this is safe
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { loading } = useAsyncData(async () => {
+  const { loading, error } = useAsyncData(async () => {
     await PyodideBridge.INSTANCE.initialized.promise;
     return true;
   }, []);
 
   if (loading) {
     return <LargeSpinner />;
+  }
+
+  // Propagate back up to our error boundary
+  if (error) {
+    throw error;
   }
 
   return children;

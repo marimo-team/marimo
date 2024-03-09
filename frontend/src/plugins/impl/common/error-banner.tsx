@@ -37,11 +37,13 @@ export const ErrorBanner = ({
         <span className="line-clamp-4">{message}</span>
       </Banner>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent className="max-w-[80%]">
+        <AlertDialogContent className="max-w-[80%] max-h-[80%] overflow-hidden flex flex-col">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-error">Error</AlertDialogTitle>
           </AlertDialogHeader>
-          <div className="text-error text-sm p-2 font-mono">{message}</div>
+          <pre className="text-error text-sm p-2 font-mono overflow-auto">
+            {message}
+          </pre>
           <AlertDialogFooter>
             <AlertDialogAction autoFocus={true} onClick={() => setOpen(false)}>
               Ok

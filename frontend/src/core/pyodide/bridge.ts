@@ -110,6 +110,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     if (event.data.type === "initialized") {
       this.initialized.resolve();
     }
+    if (event.data.type === "initialized-error") {
+      this.initialized.reject(new Error(event.data.error));
+    }
     if (event.data.type === "message") {
       this.messageConsumer?.(event.data.message);
     }
@@ -286,9 +289,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendFunctionRequest = async (request: SendFunctionRequest): Promise<null> => {
-    await this.putControlRequest({
-      function_call: request,
-    });
+    await this.putControlRequest(request);
     return null;
   };
 
