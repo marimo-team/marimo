@@ -12,7 +12,7 @@ import { invariant } from "../../../utils/invariant";
 import { Deferred } from "../../../utils/Deferred";
 import { syncFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
-import { prettyError } from "@/utils/errors";
+import { prettyError } from "../../../utils/errors";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
