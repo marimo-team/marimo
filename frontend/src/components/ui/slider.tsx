@@ -31,6 +31,7 @@ const Slider = React.forwardRef<
       {...props}
     >
       <SliderPrimitive.Track
+        data-testid="track"
         className={cn(
           "relative grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60",
           "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full",
@@ -38,6 +39,7 @@ const Slider = React.forwardRef<
         )}
       >
         <SliderPrimitive.Range
+          data-testid="range"
           className={cn(
             "absolute bg-blue-500 dark:bg-primary",
             "data-[orientation=horizontal]:h-full",
@@ -49,6 +51,7 @@ const Slider = React.forwardRef<
         <TooltipRoot delayDuration={0} open={open}>
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
+              data-testid="thumb"
               className="block h-4 w-4 rounded-full shadow-xsSolid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
