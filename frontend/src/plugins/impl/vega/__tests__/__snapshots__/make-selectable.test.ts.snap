@@ -517,10 +517,10 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
             "test": {
               "and": [
                 {
-                  "param": "select_point",
+                  "param": "select_point_1",
                 },
                 {
-                  "param": "select_interval",
+                  "param": "select_interval_1",
                 },
               ],
             },
@@ -542,7 +542,7 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
       },
       "params": [
         {
-          "name": "select_point",
+          "name": "select_point_1",
           "select": {
             "encodings": [
               "x",
@@ -552,7 +552,7 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
           },
         },
         {
-          "name": "select_interval",
+          "name": "select_interval_1",
           "select": {
             "encodings": [
               "x",
@@ -571,5 +571,135 @@ exports[`makeSelectable > should work for multi-layered charts 1`] = `
     },
   ],
   "width": "container",
+}
+`;
+
+exports[`makeSelectable > should work for multi-layered charts with different selections 1`] = `
+{
+  "layer": [
+    {
+      "encoding": {
+        "opacity": {
+          "condition": {
+            "test": {
+              "and": [
+                {
+                  "param": "select_point_0",
+                },
+                {
+                  "param": "select_interval_0",
+                },
+              ],
+            },
+            "value": 1,
+          },
+          "value": 0.2,
+        },
+        "x": {
+          "aggregate": "min",
+          "field": "temp_min",
+          "scale": {
+            "domain": [
+              -15,
+              45,
+            ],
+          },
+          "title": "Temperature (°C)",
+          "type": "quantitative",
+        },
+        "x2": {
+          "aggregate": "max",
+          "field": "temp_max",
+        },
+        "y": {
+          "field": "date",
+          "timeUnit": "month",
+          "title": null,
+          "type": "ordinal",
+        },
+      },
+      "mark": {
+        "cornerRadius": 10,
+        "cursor": "pointer",
+        "height": 10,
+        "tooltip": true,
+        "type": "bar",
+      },
+      "params": [
+        {
+          "name": "select_point_0",
+          "select": {
+            "encodings": [
+              "y",
+            ],
+            "type": "point",
+          },
+        },
+        {
+          "name": "select_interval_0",
+          "select": {
+            "encodings": [
+              "y",
+            ],
+            "mark": {
+              "fill": "#669EFF",
+              "fillOpacity": 0.07,
+              "stroke": "#669EFF",
+              "strokeOpacity": 0.4,
+            },
+            "type": "interval",
+          },
+        },
+      ],
+    },
+    {
+      "encoding": {
+        "text": {
+          "aggregate": "min",
+          "field": "temp_min",
+          "type": "quantitative",
+        },
+        "x": {
+          "aggregate": "min",
+          "field": "temp_min",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "date",
+          "timeUnit": "month",
+          "type": "ordinal",
+        },
+      },
+      "mark": {
+        "align": "right",
+        "dx": -5,
+        "type": "text",
+      },
+    },
+    {
+      "encoding": {
+        "text": {
+          "aggregate": "max",
+          "field": "temp_max",
+          "type": "quantitative",
+        },
+        "x": {
+          "aggregate": "max",
+          "field": "temp_max",
+          "type": "quantitative",
+        },
+        "y": {
+          "field": "date",
+          "timeUnit": "month",
+          "type": "ordinal",
+        },
+      },
+      "mark": {
+        "align": "left",
+        "dx": 5,
+        "type": "text",
+      },
+    },
+  ],
 }
 `;

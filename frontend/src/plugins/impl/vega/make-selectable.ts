@@ -45,7 +45,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
         return subSpec;
       }
       let resolvedSpec = subSpec as VegaLiteUnitSpec;
-      resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection);
+      resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection, idx);
       resolvedSpec = makeChartInteractive(resolvedSpec);
       return resolvedSpec;
     });
@@ -58,7 +58,7 @@ export function makeSelectable<T extends VegaLiteSpec>(
 
   let resolvedSpec: VegaLiteUnitSpec = spec;
   resolvedSpec = makeLegendSelectable(resolvedSpec, fieldSelection);
-  resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection);
+  resolvedSpec = makeChartSelectable(resolvedSpec, chartSelection, undefined);
   resolvedSpec = makeChartInteractive(resolvedSpec);
 
   return resolvedSpec as T;
@@ -99,6 +99,11 @@ function makeLegendSelectable(
 function makeChartSelectable(
   spec: VegaLiteUnitSpec,
   chartSelection: boolean | "interval" | "point",
+  /**
+   * If the spec is part of a layer, we need to know the layer number.
+   * This is so we can give unique names to the parameters.
+   */
+  layerNum: number | undefined,
 ): VegaLiteUnitSpec {
   // If chartSelection is false, we don't do anything
   if (chartSelection === false) {
@@ -112,6 +117,11 @@ function makeChartSelectable(
     return spec;
   }
 
+  // We don't do anything if the mark is text
+  if (mark === "text") {
+    return spec;
+  }
+
   const resolvedChartSelection =
     chartSelection === true ? getBestSelectionForMark(mark) : [chartSelection];
 
@@ -120,7 +130,9 @@ function makeChartSelectable(
   }
 
   const params = resolvedChartSelection.map((selectionType) =>
-    selectionType === "interval" ? Params.interval(spec) : Params.point(spec),
+    selectionType === "interval"
+      ? Params.interval(spec, layerNum)
+      : Params.point(spec, layerNum),
   );
 
   const nextParams = [...(spec.params || []), ...params];
@@ -140,6 +152,12 @@ function makeChartInteractive<T extends GenericVegaSpec>(spec: T): T {
   const paramNames = params.map((param) => param.name);
 
   if (params.length === 0) {
+    return spec;
+  }
+
+  const mark = Marks.getMarkType(spec.mark);
+  // We don't do anything if the mark is text
+  if (mark === "text") {
     return spec;
   }
 
