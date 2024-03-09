@@ -287,8 +287,68 @@ describe("makeSelectable", () => {
     expect(newSpec).toMatchSnapshot();
 
     expect(getSelectionParamNames(newSpec)).toEqual([
-      "select_point",
-      "select_interval",
+      "select_point_1",
+      "select_interval_1",
+    ]);
+  });
+
+  it("should work for multi-layered charts with different selections", () => {
+    const spec = {
+      layer: [
+        {
+          mark: { type: "bar", cornerRadius: 10, height: 10 },
+          encoding: {
+            x: {
+              aggregate: "min",
+              field: "temp_min",
+              scale: { domain: [-15, 45] },
+              title: "Temperature (°C)",
+              type: "quantitative",
+            },
+            x2: { aggregate: "max", field: "temp_max" },
+            y: {
+              field: "date",
+              timeUnit: "month",
+              title: null,
+              type: "ordinal",
+            },
+          },
+        },
+        {
+          mark: { type: "text", align: "right", dx: -5 },
+          encoding: {
+            text: {
+              aggregate: "min",
+              field: "temp_min",
+              type: "quantitative",
+            },
+            x: { aggregate: "min", field: "temp_min", type: "quantitative" },
+            y: { field: "date", timeUnit: "month", type: "ordinal" },
+          },
+        },
+        {
+          mark: { type: "text", align: "left", dx: 5 },
+          encoding: {
+            text: {
+              aggregate: "max",
+              field: "temp_max",
+              type: "quantitative",
+            },
+            x: { aggregate: "max", field: "temp_max", type: "quantitative" },
+            y: { field: "date", timeUnit: "month", type: "ordinal" },
+          },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {
+      chartSelection: true,
+    });
+
+    expect(newSpec).toMatchSnapshot();
+    expect(getSelectionParamNames(newSpec)).toEqual([
+      "select_point_0",
+      "select_interval_0",
     ]);
   });
 });

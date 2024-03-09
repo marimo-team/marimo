@@ -12,8 +12,15 @@ import { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
 import { uniq } from "lodash-es";
 
 const ParamNames = {
-  LEGEND_SELECTION: "legend_selection",
-  SELECT: "select",
+  point(layerNum: number | undefined) {
+    return layerNum == null ? "select_point" : `select_point_${layerNum}`;
+  },
+  interval(layerNum: number | undefined) {
+    return layerNum == null ? "select_interval" : `select_interval_${layerNum}`;
+  },
+  legendSelection(field: string) {
+    return `legend_selection_${field}`;
+  },
   HIGHLIGHT: "highlight",
 };
 
@@ -24,9 +31,12 @@ export const Params = {
       select: { type: "point", on: "mouseover" },
     };
   },
-  interval(spec: VegaLiteUnitSpec): SelectionParameter<"interval"> {
+  interval(
+    spec: VegaLiteUnitSpec,
+    layerNum: number | undefined,
+  ): SelectionParameter<"interval"> {
     return {
-      name: `${ParamNames.SELECT}_interval`,
+      name: ParamNames.interval(layerNum),
       select: {
         type: "interval",
         encodings: getEncodingAxisForMark(spec),
@@ -39,9 +49,12 @@ export const Params = {
       },
     };
   },
-  point(spec: VegaLiteUnitSpec): SelectionParameter<"point"> {
+  point(
+    spec: VegaLiteUnitSpec,
+    layerNum: number | undefined,
+  ): SelectionParameter<"point"> {
     return {
-      name: `${ParamNames.SELECT}_point`,
+      name: ParamNames.point(layerNum),
       select: {
         type: "point",
         encodings: getEncodingAxisForMark(spec),
@@ -50,7 +63,7 @@ export const Params = {
   },
   legend(field: string): SelectionParameter<"point"> {
     return {
-      name: `${ParamNames.LEGEND_SELECTION}_${field}`,
+      name: ParamNames.legendSelection(field),
       select: {
         type: "point",
         fields: [field],
