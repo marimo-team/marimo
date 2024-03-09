@@ -1,0 +1,8 @@
+/* Both the `marimo-ui-element` and its child should be displayed as if they were not wrapped in a custom element. */
+marimo-ui-element {
+  display: contents;
+
+  > * {
+    display: contents;
+  }
+}

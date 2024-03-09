@@ -208,7 +208,7 @@ test("slider", async ({ page }) => {
   // Verify output
   await helper.verifyOutput("1");
   // Move slider
-  await element.dragTo(page.locator("marimo-slider"));
+  await element.dragTo(page.getByTestId("track"));
   // Verify output
   await helper.verifyOutput("6");
 
@@ -326,7 +326,7 @@ test("complex - array", async ({ page }) => {
   await expect(date).toBeVisible();
   // Fill
   await textbox.fill("hi marimo");
-  await slider.dragTo(page.locator("marimo-slider").first());
+  await slider.dragTo(page.getByTestId("track").first());
   await date.fill("2020-01-20");
   // Verify output
   await expect(

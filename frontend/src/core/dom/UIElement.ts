@@ -7,6 +7,8 @@ import { defineCustomElement } from "./defineCustomElement";
 import { MarimoValueInputEventType, marimoValueInputEvent } from "./events";
 import { UI_ELEMENT_REGISTRY } from "./uiregistry";
 
+import "./ui-element.css";
+
 const UI_ELEMENT_TAG_NAME = "MARIMO-UI-ELEMENT";
 
 interface IUIElement extends HTMLElement {
