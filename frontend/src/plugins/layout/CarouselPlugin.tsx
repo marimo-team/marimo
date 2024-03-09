@@ -61,6 +61,11 @@ const CarouselComponent = ({
   const [isFullscreen, setIsFullscreen] = React.useState(false);
 
   useEventListener(document, "fullscreenchange", () => {
+    if (document.fullscreenElement) {
+      el.current?.swiper.keyboard.enable();
+    } else {
+      el.current?.swiper.keyboard.disable();
+    }
     setIsFullscreen(!!document.fullscreenElement);
   });
 
@@ -86,8 +91,8 @@ const CarouselComponent = ({
       // touch controls interfere with UI elements
       simulateTouch={false}
       keyboard={{
-        enabled: true,
-        onlyInViewport: true,
+        // Only enable keyboard controls when in fullscreen
+        enabled: isFullscreen,
       }}
       navigation={true}
       pagination={{
@@ -99,6 +104,15 @@ const CarouselComponent = ({
         return (
           <SwiperSlide key={index}>
             <div
+              onKeyDown={(e) => {
+                // If the target is from a marimo element, stop propagation
+                if (
+                  e.target instanceof HTMLElement &&
+                  e.target.tagName.toLocaleLowerCase().startsWith("marimo-")
+                ) {
+                  e.stopPropagation();
+                }
+              }}
               className={cn(
                 "h-full w-full flex items-center justify-center box-border overflow-hidden",
                 isFullscreen ? "p-20" : "p-6",
