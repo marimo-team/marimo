@@ -5,6 +5,7 @@ import {
   FallbackProps,
 } from "react-error-boundary";
 import { Button } from "../../ui/button";
+import { Constants } from "@/core/constants";
 
 export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
   return (
@@ -14,14 +15,25 @@ export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
   );
 };
 
-export const container =
-  "flex-1 flex items-center justify-center flex-col space-y-4";
-
 const FallbackComponent: React.FC<FallbackProps> = (props) => {
   return (
-    <div className={container}>
-      <h1>Something went wrong</h1>
-      <p>{props.error?.message}</p>
+    <div className="flex-1 flex items-center justify-center flex-col space-y-4 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold">Something went wrong</h1>
+      <pre className="text-xs bg-muted/40 border rounded-md p-4">
+        {props.error?.message}
+      </pre>
+      <div>
+        If this is an issue with marimo, please report it on{" "}
+        <a
+          href={Constants.issuesPage}
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          GitHub
+        </a>
+        .
+      </div>
       <Button onClick={props.resetErrorBoundary} variant="outline">
         Try again
       </Button>

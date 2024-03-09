@@ -15,7 +15,7 @@ Before sending a pull request, make sure to do the following:
 
 _Please reach out to the marimo team before starting work on a large
 contribution._ Get in touch at
-[Github issues](https://github.com/marimo-team/marimo/issues)
+[GitHub issues](https://github.com/marimo-team/marimo/issues)
 or [on Discord](https://discord.gg/JE7nhX6mD8).
 
 ## Building from source

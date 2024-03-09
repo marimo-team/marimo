@@ -12,6 +12,7 @@ import { invariant } from "../../../utils/invariant";
 import { Deferred } from "../../../utils/Deferred";
 import { syncFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
+import { prettyError } from "../../../utils/errors";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -21,7 +22,12 @@ declare const self: Window & {
 async function loadPyodideAndPackages() {
   // @ts-expect-error ehh TypeScript
   await import("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
-  self.pyodide = await bootstrap();
+  try {
+    self.pyodide = await bootstrap();
+  } catch (error) {
+    console.error("Error bootstrapping", error);
+    postMessage({ type: "initialized-error", error: prettyError(error) });
+  }
 }
 const pyodideReadyPromise = loadPyodideAndPackages();
 const messageBuffer = new MessageBuffer((m: string) =>
