@@ -41,10 +41,17 @@ export async function bootstrap() {
         "${marimoWheel}",
         "markdown",
         "pymdown-extensions",
+        "pyodide_http",
       ],
       deps=False
       );
     `);
+
+  // Patch the built-in urllib
+  pyodide.runPython(`
+    import pyodide_http
+    pyodide_http.patch_urllib()
+  `);
 
   return pyodide;
 }
@@ -56,7 +63,7 @@ export async function startSession(
     fallbackCode: string;
     filename: string | null;
   },
-  messageCallback: (data: string) => void,
+  messageCallback: (data: string) => void
 ): Promise<SerializedBridge> {
   // Set up the filesystem
   const { filename, content } = await mountFilesystem({ pyodide, ...opts });
@@ -88,7 +95,7 @@ export async function startSession(
       instantiate(session)
       asyncio.create_task(session.start())
 
-      bridge`,
+      bridge`
   );
 
   self.bridge = bridge;
