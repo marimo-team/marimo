@@ -20,6 +20,7 @@ from marimo._pyodide.streams import (
 from marimo._runtime import handlers, requests
 from marimo._runtime.context import initialize_context
 from marimo._runtime.input_override import input_override
+from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -298,6 +299,7 @@ def launch_pyodide_kernel(
     stdout = PyodideStdout(stream)
     stderr = PyodideStderr(stream)
     stdin = PyodideStdin(stream) if is_edit_mode else None
+    debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
     kernel = Kernel(
         cell_configs=configs,
@@ -307,6 +309,7 @@ def launch_pyodide_kernel(
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
+        debugger_override=debugger,
     )
     initialize_context(
         kernel=kernel,
