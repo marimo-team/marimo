@@ -17,6 +17,7 @@ from marimo._messaging.streams import (
     ThreadSafeStream,
 )
 from marimo._runtime.context import initialize_context, teardown_context
+from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 
@@ -91,6 +92,7 @@ class MockedKernel:
             app_metadata=AppMetadata(
                 filename=None,
             ),
+            debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
         )
 
         initialize_context(

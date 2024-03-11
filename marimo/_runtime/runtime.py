@@ -188,6 +188,7 @@ class Kernel:
     - stderr: replacement for sys.stderr
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
+    - debugger_override: a replacement for the built-in Pdb
     """
 
     def __init__(
@@ -199,16 +200,18 @@ class Kernel:
         stderr: Stderr | None,
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
+        debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-        self.debugger = marimo_pdb.MarimoPdb(
-            stdout=self.stdout, stdin=self.stdin
-        )
-        patches.patch_pdb(self.debugger)
+
+        self.debugger = debugger_override
+        if self.debugger is not None:
+            patches.patch_pdb(self.debugger)
+
         self._module = patches.patch_main_module(
             file=self.app_metadata.filename, input_override=input_override
         )
@@ -1178,6 +1181,11 @@ def launch_kernel(
     # TODO(akshayka): stdin in run mode? input(prompt) uses stdout, which
     # isn't currently available in run mode.
     stdin = ThreadSafeStdin(stream) if is_edit_mode else None
+    debugger = (
+        marimo_pdb.MarimoPdb(stdout=stdout, stdin=stdin)
+        if is_edit_mode
+        else None
+    )
 
     kernel = Kernel(
         cell_configs=configs,
@@ -1187,6 +1195,7 @@ def launch_kernel(
         stderr=stderr,
         stdin=stdin,
         input_override=input_override,
+        debugger_override=debugger,
     )
     initialize_context(
         kernel=kernel,

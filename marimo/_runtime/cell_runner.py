@@ -48,7 +48,7 @@ class Runner:
         cell_ids: set[CellId_t],
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
-        debugger: MarimoPdb,
+        debugger: MarimoPdb | None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -257,7 +257,8 @@ class Runner:
                 # Bdb defines the botframe attribute and sets it to non-None
                 # when it starts up
                 if (
-                    hasattr(self.debugger, "botframe")
+                    self.debugger is not None
+                    and hasattr(self.debugger, "botframe")
                     and self.debugger.botframe is not None
                 ):
                     self.debugger.set_continue()
