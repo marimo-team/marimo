@@ -63,7 +63,7 @@ export async function startSession(
     fallbackCode: string;
     filename: string | null;
   },
-  messageCallback: (data: string) => void
+  messageCallback: (data: string) => void,
 ): Promise<SerializedBridge> {
   // Set up the filesystem
   const { filename, content } = await mountFilesystem({ pyodide, ...opts });
@@ -95,7 +95,7 @@ export async function startSession(
       instantiate(session)
       asyncio.create_task(session.start())
 
-      bridge`
+      bridge`,
   );
 
   self.bridge = bridge;
