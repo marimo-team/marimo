@@ -7,7 +7,7 @@ on:
       - main
 jobs:
   upload_dev_wheel:
-    name: 📤 Publish release
+    name: 📤 Publish dev release
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -59,7 +59,7 @@ jobs:
           pip install .
           python -m build
 
-      - name: 📤 Upload to PyPI
+      - name: 📤 Upload to TestPyPI
         env:
           TWINE_USERNAME: ${{ secrets.TEST_PYPI_USER }}
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
