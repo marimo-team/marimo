@@ -1,0 +1,66 @@
+name: Publish release
+
+# Publish development release to test pypi on pushes to main
+on:
+  push:
+    branches:
+      - main
+jobs:
+  upload_dev_wheel:
+    name: 📤 Publish dev release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: ⎔ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "pnpm"
+          cache-dependency-path: "**/pnpm-lock.yaml"
+          registry-url: "https://registry.npmjs.org"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 📦 Build frontend
+        run: make fe
+
+      - name: 🐍 Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: 🔨 Patch version number
+        run: |
+          # patch __init__.py version to be of the form
+          # X.Y.dev{n-commits-since-last-tag}+g<sha-short>
+          sha_short=`git rev-parse --short ${{ github.sha }}`
+          n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
+          suffix=".dev${n_commits}+g${sha_short}"
+          sed -i "/__version__/s/\"$/${suffix}\"/" marimo/__init__.py
+
+      - name: 📦 Build marimo
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+          pip install .
+          python -m build
+
+      - name: 📤 Upload to TestPyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.TEST_PYPI_USER }}
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
+        run: twine upload --repository testpypi --skip-existing dist/*
