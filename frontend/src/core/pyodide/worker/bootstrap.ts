@@ -41,10 +41,17 @@ export async function bootstrap() {
         "${marimoWheel}",
         "markdown",
         "pymdown-extensions",
+        "pyodide_http",
       ],
       deps=False
       );
     `);
+
+  // Patch the built-in urllib
+  pyodide.runPython(`
+    import pyodide_http
+    pyodide_http.patch_urllib()
+  `);
 
   return pyodide;
 }
