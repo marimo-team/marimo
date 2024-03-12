@@ -90,6 +90,7 @@ jobs:
 
       - name: 📝 Comment PR
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             try {
@@ -101,7 +102,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pullRequest.data.items[0].number,
-                body: '🚀 Development release published. You may be able to view the changes at https://marimo.app?v${{ env.MARIMO_VERSION }}
+                body: '🚀 Development release published. You may be able to view the changes at https://marimo.app?v${{ env.MARIMO_VERSION }}'
               });
             } catch (err) {
               // ignore
