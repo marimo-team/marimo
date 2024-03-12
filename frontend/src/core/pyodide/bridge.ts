@@ -39,6 +39,7 @@ import { UserConfigLocalStorage } from "../config/config-schema";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
 import { Paths } from "@/utils/paths";
+import { getMarimoVersion } from "../dom/marimo-tag";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -69,7 +70,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   constructor() {
     if (isPyodide()) {
-      this.worker = new InlineWorker();
+      this.worker = new InlineWorker({
+        name: getMarimoVersion(),
+      });
       this.worker.onmessage = this.handleWorkerMessage;
       if (crossOriginIsolated) {
         // Pyodide handles interrupts through SharedArrayBuffers, which

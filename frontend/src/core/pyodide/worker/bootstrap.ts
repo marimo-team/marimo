@@ -27,23 +27,34 @@ export async function bootstrap() {
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/",
   });
 
+  // If is a dev release, we need to install from test.pypi.org
+  if (getMarimoVersion().includes("dev")) {
+    await pyodide.runPythonAsync(`
+    import micropip
+
+    await micropip.install(
+      [
+        "${getMarimoWheel()}",
+      ],
+      deps=False,
+      index_urls="https://test.pypi.org/pypi/{package_name}/json"
+      );
+    `);
+  }
+
   // Install marimo and its dependencies
-  const marimoWheel =
-    process.env.NODE_ENV === "production"
-      ? "marimo >= 0.2.5"
-      : "http://localhost:8000/dist/marimo-0.3.2-py3-none-any.whl";
   await pyodide.runPythonAsync(`
     import micropip
 
     await micropip.install(
       [
         # Subset of marimo requirements
-        "${marimoWheel}",
+        "${getMarimoWheel()}",
         "markdown",
         "pymdown-extensions",
         "pyodide_http",
       ],
-      deps=False
+      deps=False,
       );
     `);
 
@@ -101,4 +112,19 @@ export async function startSession(
   self.bridge = bridge;
 
   return bridge;
+}
+
+function getMarimoVersion() {
+  return self.name; // We store the version in the worker name
+}
+
+function getMarimoWheel() {
+  const version = getMarimoVersion();
+  if (!version) {
+    return "marimo >= 0.3.0";
+  }
+  if (version === "local") {
+    return "http://localhost:8000/dist/marimo-0.3.2-py3-none-any.whl";
+  }
+  return `marimo==${version}`;
 }
