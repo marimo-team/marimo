@@ -26,7 +26,7 @@ const htmlDevPlugin = (): Plugin => {
         html = html.replace("{{ user_config }}", JSON.stringify({}));
         html = html.replace("{{ app_config }}", JSON.stringify({}));
         html = html.replace("{{ server_token }}", "");
-        html = html.replace("{{ version }}", "0.2.0");
+        html = html.replace("{{ version }}", "local");
         html = html.replace("{{ filename }}", "notebook.py");
         html = html.replace("{{ mode }}", "edit");
         html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
