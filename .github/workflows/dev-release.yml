@@ -6,7 +6,7 @@ on:
     branches:
       - main
 jobs:
-  upload_dev_wheel:
+  publish_dev_release:
     name: 📤 Publish dev release
     runs-on: ubuntu-latest
     defaults:
@@ -47,7 +47,7 @@ jobs:
           cache: "pip"
 
       # patch __init__.py version to be of the form
-      # X.Y.<Z+1>.dev{n-commits-since-last-tag}
+      # X.Y.<Z+1>-dev{n-commits-since-last-tag}
       - name: 🔨 Patch version number
         run: |
           # Get the version number and increment patch
@@ -57,7 +57,7 @@ jobs:
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
           # Form the new version, which is one patch ahead of the last version
           # so installing from Test PyPI does the right thing
-          NEW_VERSION="${incremented_version}.dev${n_commits}"
+          NEW_VERSION="${incremented_version}-dev${n_commits}"
           sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
@@ -72,3 +72,16 @@ jobs:
           TWINE_USERNAME: ${{ secrets.TEST_PYPI_USER }}
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_PASSWORD }}
         run: twine upload --repository testpypi --skip-existing dist/*
+
+      - name: 📦 Update package.json version from CLI
+        working-directory: frontend
+        run: |
+          echo "Updating package.json version to $(marimo --version)"
+          npm version $(marimo --version) --no-git-tag-version
+
+      - name: 📤 Upload to npm
+        working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
