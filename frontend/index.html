@@ -24,14 +24,21 @@
 
     <script data-marimo="true">
       function __resizeIframe(obj) {
-        // Resize the iframe to the height of the content
-        obj.style.height =
-          obj.contentWindow.document.documentElement.scrollHeight + "px";
+        var scrollbarHeight = 20; // Max between windows, mac, and linux
+        
+        function setHeight() {
+          var element = obj.contentWindow.document.documentElement;
+          var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+          var height = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+          obj.style.height = `${height}px`;
+        }
+
+        // Resize the iframe to the height of the content and bottom scrollbar height
+        setHeight();
         
         // Resize the iframe when the content changes
         const resizeObserver = new ResizeObserver((entries) => {
-          obj.style.height =
-            obj.contentWindow.document.documentElement.scrollHeight + "px";
+          setHeight();
         });
         resizeObserver.observe(obj.contentWindow.document.body);
       }
