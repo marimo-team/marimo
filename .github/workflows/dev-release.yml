@@ -46,13 +46,19 @@ jobs:
           python-version: "3.10"
           cache: "pip"
 
+      # patch __init__.py version to be of the form
+      # X.Y.<Z+1>.dev{n-commits-since-last-tag}
       - name: 🔨 Patch version number
         run: |
-          # patch __init__.py version to be of the form
-          # X.Y.dev{n-commits-since-last-tag}
+          # Get the version number and increment patch
+          # - assumes version is on a line of the form __version__ == "x.y.z"
+          incremented_version=`grep '__version__' marimo/__init__.py | awk '{print $3}' | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}'`
+          # Get the number of commits since last tag
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
-          suffix=".dev${n_commits}"
-          sed -i "/__version__/s/\"$/${suffix}\"/" marimo/__init__.py
+          # Form the new version, which is one patch ahead of the last version
+          # so installing from Test PyPI does the right thing
+          NEW_VERSION="${incremented_version}.dev${n_commits}"
+          sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
         run: |
