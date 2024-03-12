@@ -57,8 +57,10 @@ jobs:
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
           # Form the new version, which is one patch ahead of the last version
           # so installing from Test PyPI does the right thing
-          NEW_VERSION="${incremented_version}-dev${n_commits}"
-          sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" marimo/__init__.py
+          MARIMO_VERSION="${incremented_version}-dev${n_commits}"
+          # Set the version in the environment for later steps
+          echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
+          sed -i "s/__version__ = \".*\"/__version__ = \"$MARIMO_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
         run: |
@@ -76,8 +78,8 @@ jobs:
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
         run: |
-          echo "Updating package.json version to $(marimo --version)"
-          npm version $(marimo --version) --no-git-tag-version
+          echo "Updating package.json version to ${{ env.MARIMO_VERSION }}"
+          npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
 
       - name: 📤 Upload to npm
         working-directory: frontend
@@ -85,3 +87,22 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
+
+      - name: 📝 Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const pullRequest = await github.rest.search.issuesAndPullRequests({
+                q: context.sha
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pullRequest.data.items[0].number,
+                body: '🚀 Development release published. You may be able to view the changes at https://marimo.app?v${{ env.MARIMO_VERSION }}
+              });
+            } catch (err) {
+              // ignore
+            }
