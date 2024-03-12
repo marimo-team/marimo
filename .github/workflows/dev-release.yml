@@ -19,6 +19,9 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
+        with:
+          # get tag history for version number
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v2
         with:
@@ -46,10 +49,9 @@ jobs:
       - name: 🔨 Patch version number
         run: |
           # patch __init__.py version to be of the form
-          # X.Y.dev{n-commits-since-last-tag}+g<sha-short>
-          sha_short=`git rev-parse --short ${{ github.sha }}`
+          # X.Y.dev{n-commits-since-last-tag}
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
-          suffix=".dev${n_commits}+g${sha_short}"
+          suffix=".dev${n_commits}"
           sed -i "/__version__/s/\"$/${suffix}\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
