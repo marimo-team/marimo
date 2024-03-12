@@ -80,7 +80,7 @@ def test_arithmetic() -> None:
     assert len(codes) == 2
     assert codes[0] == "x = 0\nx"
     assert codes[1] == "x + 1"
-    assert names == ["_", "_"]
+    assert names == ["__", "__"]
 
 
 def test_blank() -> None:
@@ -88,7 +88,7 @@ def test_blank() -> None:
 
     assert len(codes) == 1
     assert codes[0] == ""
-    assert names == ["_"]
+    assert names == ["__"]
 
 
 def test_unparsable() -> None:
@@ -97,4 +97,4 @@ def test_unparsable() -> None:
     assert len(codes) == 2
     assert codes[0] == "!echo hello, world\n\nx = 0"
     assert codes[1] == "x"
-    assert names == ["_", "_"]
+    assert names == ["__", "__"]

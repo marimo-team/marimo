@@ -52,6 +52,6 @@ def convert(notebook: dict[str, Any]) -> str:
 
     return codegen.generate_filecontents(
         sources,
-        ["_" for _ in sources],
+        ["__" for _ in sources],
         [CellConfig() for _ in range(len(sources))],
     )
