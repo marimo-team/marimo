@@ -57,7 +57,7 @@ jobs:
           n_commits=`git rev-list $(git describe --tags --abbrev=0)..HEAD --count`
           # Form the new version, which is one patch ahead of the last version
           # so installing from Test PyPI does the right thing
-          NEW_VERSION="{incremented_version}.dev${n_commits}"
+          NEW_VERSION="${incremented_version}.dev${n_commits}"
           sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" marimo/__init__.py
 
       - name: 📦 Build marimo
