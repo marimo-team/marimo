@@ -31,6 +31,7 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
+    Banner,
     CellOp,
     CompletedRun,
     FunctionCallResult,
@@ -75,6 +76,7 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
+from marimo._runtime.packages import missing_packages
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -774,6 +776,22 @@ class Kernel:
                     cell_id=cell_id,
                     status=cell.status,
                 )
+
+            if isinstance(run_result.exception, ModuleNotFoundError):
+                missing_pkgs = list(
+                    set().union(
+                        *[
+                            missing_packages(cell)
+                            for cell in self.graph.cells.values()
+                        ]
+                    )
+                )
+                Banner(
+                    title="Missing packages.",
+                    description=str(missing_pkgs),
+                    variant="danger",
+                    action="restart",
+                ).broadcast()
 
             if get_global_context().mpl_installed:
                 # ensures that every cell gets a fresh axis.
