@@ -32,7 +32,7 @@ class FileSystem(ABC):
         path: str,
         file_type: str,
         name: str,
-        contents: Optional[str],
+        contents: Optional[list[int]],
     ) -> FileInfo:
         """
         Create a new file or directory

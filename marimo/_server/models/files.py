@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -48,7 +50,7 @@ class FileCreateRequest:
     # The name of the file or directory
     name: str
     # The contents of the file
-    contents: Optional[list[int]] = None
+    contents: Optional[List[int]] = None
 
 
 @dataclass

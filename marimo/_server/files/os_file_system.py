@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import mimetypes
 import os
 import shutil
@@ -61,10 +63,12 @@ class OSFileSystem(FileSystem):
             last_modified_date=stat.st_mtime,
         )
 
-    def get_details(self, path: str, mode: str = "r") -> FileDetailsResponse:
+    def get_details(
+        self, path: str, encoding: str | None = None
+    ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
         contents = (
-            self.open_file(path, mode=mode)
+            self.open_file(path, encoding=encoding)
             if not file_info.is_directory
             else None
         )
@@ -80,8 +84,8 @@ class OSFileSystem(FileSystem):
         with open(path, "r") as file:
             return "app = marimo.App(" in file.read()
 
-    def open_file(self, path: str, mode="r") -> str:
-        with open(path, mode) as file:
+    def open_file(self, path: str, encoding: str | None = None) -> str:
+        with open(path, mode="r", encoding=encoding) as file:
             return file.read()
 
     def create_file_or_directory(
@@ -110,7 +114,7 @@ class OSFileSystem(FileSystem):
             with open(full_path, "wb") as file:
                 if contents:
                     file.write(bytes(contents))
-        return self.get_details(full_path, mode="rb").file
+        return self.get_details(full_path, encoding="latin-1").file
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
