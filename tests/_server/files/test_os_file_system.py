@@ -56,7 +56,10 @@ class TestOSFileSystem(unittest.TestCase):
     def test_get_details(self):
         test_file_name = "test_file.txt"
         self.fs.create_file_or_directory(
-            self.test_dir, "file", test_file_name, "some content"
+            self.test_dir,
+            "file",
+            test_file_name,
+            "some content".encode("utf-8"),
         )
         file_info = self.fs.get_details(
             os.path.join(self.test_dir, test_file_name)
@@ -81,7 +84,7 @@ class TestOSFileSystem(unittest.TestCase):
                 app.run()
             """
         self.fs.create_file_or_directory(
-            self.test_dir, "file", test_file_name, content
+            self.test_dir, "file", test_file_name, content.encode("utf-8")
         )
         file_path = os.path.join(self.test_dir, test_file_name)
         file_info = self.fs.get_details(file_path)

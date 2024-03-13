@@ -93,7 +93,7 @@ class OSFileSystem(FileSystem):
         path: str,
         file_type: str,
         name: str,
-        contents: Optional[list[int]],
+        contents: Optional[bytes],
     ) -> FileInfo:
         full_path = os.path.join(path, name)
         # If the file already exists, generate a new name
@@ -113,7 +113,9 @@ class OSFileSystem(FileSystem):
         else:
             with open(full_path, "wb") as file:
                 if contents:
-                    file.write(bytes(contents))
+                    file.write(contents)
+        # encoding latin-1 to get an invertible representation of the
+        # bytes as a string ...
         return self.get_details(full_path, encoding="latin-1").file
 
     def delete_file_or_directory(self, path: str) -> bool:

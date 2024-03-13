@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
+
 from starlette.authentication import requires
 from starlette.requests import Request
 
@@ -50,6 +52,8 @@ async def file_details(
 ) -> FileDetailsResponse:
     """Get details of a specific file or directory."""
     body = await parse_request(request, cls=FileDetailsRequest)
+    # This fails if the file isn't encoded as utf-8
+    # TODO: support returning raw bytes
     return file_system.get_details(body.path)
 
 
@@ -62,8 +66,14 @@ async def create_file_or_directory(
     """Create a new file or directory."""
     body = await parse_request(request, cls=FileCreateRequest)
     try:
+        decoded_contents = (
+            base64.b64decode(body.contents)
+            if body.contents is not None
+            else None
+        )
+
         info = file_system.create_file_or_directory(
-            body.path, body.type, body.name, body.contents
+            body.path, body.type, body.name, decoded_contents
         )
         return FileCreateResponse(success=True, info=info)
     except Exception as e:

@@ -121,7 +121,8 @@ export interface FileCreateRequest {
   path: FilePath;
   type: "file" | "directory";
   name: string;
-  contents: number[] | undefined;
+  // base64 representation of contents
+  contents: string | undefined;
 }
 
 export interface FileDeleteRequest {

@@ -49,8 +49,8 @@ class FileCreateRequest:
     type: str
     # The name of the file or directory
     name: str
-    # The contents of the file
-    contents: Optional[List[int]] = None
+    # The contents of the file, base64-encoded
+    contents: Optional[str] = None
 
 
 @dataclass
