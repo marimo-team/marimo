@@ -121,6 +121,7 @@ export interface FileCreateRequest {
   path: FilePath;
   type: "file" | "directory";
   name: string;
+  // base64 representation of contents
   contents: string | undefined;
 }
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import dataclasses
 import json
 import signal
@@ -251,8 +252,16 @@ class PyodideBridge:
     ) -> str:
         body = parse_raw(json.loads(request), FileCreateRequest)
         try:
+            # If we need to eliminate the overhead associated with
+            # base64-encoding/decoding the file contents, we could try pushing
+            # filesystem operations into JavaScript
+            decoded_contents = (
+                base64.b64decode(body.contents)
+                if body.contents is not None
+                else None
+            )
             info = self.file_system.create_file_or_directory(
-                body.path, body.type, body.name, body.contents
+                body.path, body.type, body.name, decoded_contents
             )
             response = FileCreateResponse(success=True, info=info)
         except Exception as e:

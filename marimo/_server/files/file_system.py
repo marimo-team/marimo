@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -32,7 +34,7 @@ class FileSystem(ABC):
         path: str,
         file_type: str,
         name: str,
-        contents: Optional[str],
+        contents: Optional[bytes],
     ) -> FileInfo:
         """
         Create a new file or directory

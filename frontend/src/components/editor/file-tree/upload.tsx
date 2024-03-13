@@ -2,6 +2,7 @@
 import { toast } from "@/components/ui/use-toast";
 import { sendCreateFileOrFolder } from "@/core/network/requests";
 import { FilePath } from "@/utils/paths";
+import { serializeBlob } from "@/utils/blob";
 import { DropzoneOptions, useDropzone } from "react-dropzone";
 import { refreshRoot } from "./state";
 
@@ -37,11 +38,17 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
     },
     onDrop: async (acceptedFiles) => {
       for (const file of acceptedFiles) {
+        // File contents are sent base64-encoded to support arbitrary
+        // bytes data
+        //
+        // get the raw base64-encoded data from a string starting with
+        // data:*/*;base64,
+        const base64 = (await serializeBlob(file)).split(",")[1];
         await sendCreateFileOrFolder({
           path: "" as FilePath, // add to root
           type: "file",
           name: file.name,
-          contents: await file.text(),
+          contents: base64,
         }).catch((error) => {
           console.error(error);
           toast({

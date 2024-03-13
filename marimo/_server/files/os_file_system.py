@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import mimetypes
 import os
 import shutil
@@ -61,9 +63,15 @@ class OSFileSystem(FileSystem):
             last_modified_date=stat.st_mtime,
         )
 
-    def get_details(self, path: str) -> FileDetailsResponse:
+    def get_details(
+        self, path: str, encoding: str | None = None
+    ) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
-        contents = self.open_file(path) if not file_info.is_directory else None
+        contents = (
+            self.open_file(path, encoding=encoding)
+            if not file_info.is_directory
+            else None
+        )
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
             file=file_info, contents=contents, mime_type=mime_type
@@ -76,8 +84,8 @@ class OSFileSystem(FileSystem):
         with open(path, "r") as file:
             return "app = marimo.App(" in file.read()
 
-    def open_file(self, path: str) -> str:
-        with open(path, "r") as file:
+    def open_file(self, path: str, encoding: str | None = None) -> str:
+        with open(path, mode="r", encoding=encoding) as file:
             return file.read()
 
     def create_file_or_directory(
@@ -85,7 +93,7 @@ class OSFileSystem(FileSystem):
         path: str,
         file_type: str,
         name: str,
-        contents: Optional[str],
+        contents: Optional[bytes],
     ) -> FileInfo:
         full_path = os.path.join(path, name)
         # If the file already exists, generate a new name
@@ -103,10 +111,12 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             os.makedirs(full_path)
         else:
-            with open(full_path, "w") as file:
+            with open(full_path, "wb") as file:
                 if contents:
                     file.write(contents)
-        return self.get_details(full_path).file
+        # encoding latin-1 to get an invertible representation of the
+        # bytes as a string ...
+        return self.get_details(full_path, encoding="latin-1").file
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):

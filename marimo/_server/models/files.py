@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -47,7 +49,7 @@ class FileCreateRequest:
     type: str
     # The name of the file or directory
     name: str
-    # The contents of the file
+    # The contents of the file, base64-encoded
     contents: Optional[str] = None
 
 
