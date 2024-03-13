@@ -61,10 +61,10 @@ class OSFileSystem(FileSystem):
             last_modified_date=stat.st_mtime,
         )
 
-    def get_details(self, path: str) -> FileDetailsResponse:
+    def get_details(self, path: str, mode: str = "r") -> FileDetailsResponse:
         file_info = self._get_file_info(path)
         contents = (
-            self.open_file(path, mode="rb")
+            self.open_file(path, mode=mode)
             if not file_info.is_directory
             else None
         )
@@ -110,7 +110,7 @@ class OSFileSystem(FileSystem):
             with open(full_path, "wb") as file:
                 if contents:
                     file.write(bytes(contents))
-        return self.get_details(full_path).file
+        return self.get_details(full_path, mode="rb").file
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
