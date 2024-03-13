@@ -63,7 +63,11 @@ class OSFileSystem(FileSystem):
 
     def get_details(self, path: str) -> FileDetailsResponse:
         file_info = self._get_file_info(path)
-        contents = self.open_file(path) if not file_info.is_directory else None
+        contents = (
+            self.open_file(path, mode="rb")
+            if not file_info.is_directory
+            else None
+        )
         mime_type = mimetypes.guess_type(path)[0]
         return FileDetailsResponse(
             file=file_info, contents=contents, mime_type=mime_type
@@ -76,8 +80,8 @@ class OSFileSystem(FileSystem):
         with open(path, "r") as file:
             return "app = marimo.App(" in file.read()
 
-    def open_file(self, path: str) -> str:
-        with open(path, "r") as file:
+    def open_file(self, path: str, mode="r") -> str:
+        with open(path, mode) as file:
             return file.read()
 
     def create_file_or_directory(
@@ -85,7 +89,7 @@ class OSFileSystem(FileSystem):
         path: str,
         file_type: str,
         name: str,
-        contents: Optional[str],
+        contents: Optional[list[int]],
     ) -> FileInfo:
         full_path = os.path.join(path, name)
         # If the file already exists, generate a new name
@@ -103,9 +107,9 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             os.makedirs(full_path)
         else:
-            with open(full_path, "w") as file:
+            with open(full_path, "wb") as file:
                 if contents:
-                    file.write(contents)
+                    file.write(bytes(contents))
         return self.get_details(full_path).file
 
     def delete_file_or_directory(self, path: str) -> bool:

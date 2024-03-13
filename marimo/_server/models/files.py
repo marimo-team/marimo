@@ -48,7 +48,7 @@ class FileCreateRequest:
     # The name of the file or directory
     name: str
     # The contents of the file
-    contents: Optional[str] = None
+    contents: Optional[list[int]] = None
 
 
 @dataclass

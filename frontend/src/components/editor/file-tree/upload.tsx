@@ -37,11 +37,12 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
     },
     onDrop: async (acceptedFiles) => {
       for (const file of acceptedFiles) {
+        const buffer = Array.from(new Uint8Array(await file.arrayBuffer()));
         await sendCreateFileOrFolder({
           path: "" as FilePath, // add to root
           type: "file",
           name: file.name,
-          contents: await file.text(),
+          contents: buffer,
         }).catch((error) => {
           console.error(error);
           toast({

@@ -121,7 +121,7 @@ export interface FileCreateRequest {
   path: FilePath;
   type: "file" | "directory";
   name: string;
-  contents: string | undefined;
+  contents: number[] | undefined;
 }
 
 export interface FileDeleteRequest {
