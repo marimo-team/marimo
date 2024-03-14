@@ -76,7 +76,7 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
-from marimo._runtime.packages import missing_packages
+from marimo._runtime.packages import PackageManager
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -87,6 +87,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
@@ -223,6 +224,7 @@ class Kernel:
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
+        self.package_manager = PackageManager(self.graph)
 
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
@@ -627,6 +629,9 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
+        if not cell_ids:
+            return
+
         # This patch is an attempt to mitigate problems caused by the fact
         # that in run mode, kernels run in threads and share the same
         # sys.modules. Races can still happen, but this should help in most
@@ -778,20 +783,14 @@ class Kernel:
                 )
 
             if isinstance(run_result.exception, ModuleNotFoundError):
-                missing_pkgs = list(
-                    set().union(
-                        *[
-                            missing_packages(cell)
-                            for cell in self.graph.cells.values()
-                        ]
-                    )
-                )
-                Banner(
-                    title="Missing packages.",
-                    description=str(missing_pkgs),
-                    variant="danger",
-                    action="restart",
-                ).broadcast()
+                missing_packages = self.package_manager.missing_packages()
+                if missing_packages:
+                    Banner(
+                        title="Missing packages.",
+                        description=str(missing_packages),
+                        variant="danger",
+                        action="restart",
+                    ).broadcast()
 
             if get_global_context().mpl_installed:
                 # ensures that every cell gets a fresh axis.
@@ -1130,6 +1129,20 @@ class Kernel:
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
 
+    async def install_missing_packages(self) -> None:
+        # TODO: stdout/stderr output needs to go somewhere in frontend!
+        #   But don't have a cell ID associated with it; it's just ... shell ...
+        installed_modules = self.package_manager.install_missing_packages()
+        cells_to_run = set().union(
+            *[
+                self.graph.get_referring_cells(module)
+                for module in installed_modules
+            ]
+        )
+        await self._run_cells(
+            dataflow.transitive_closure(self.graph, cells_to_run)
+        )
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
         The message is dispatched to the appropriate method based on its type.
@@ -1155,6 +1168,8 @@ class Kernel:
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             await self.delete(request)
+        elif isinstance(request, InstallMissingPackagesRequest):
+            await self.install_missing_packages()
         elif isinstance(request, StopRequest):
             return None
         else:

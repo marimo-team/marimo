@@ -72,6 +72,11 @@ class CompletionRequest:
     cell_id: CellId_t
 
 
+@dataclass
+class InstallMissingPackagesRequest:
+    ...
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     CreationRequest,
@@ -80,4 +85,5 @@ ControlRequest = Union[
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
+    InstallMissingPackagesRequest,
 ]
