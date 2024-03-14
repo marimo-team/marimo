@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { bootstrap, startSession } from "./bootstrap";
+import { DefaultWasmController } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
-import { RawBridge, SerializedBridge } from "./types";
+import { RawBridge, SerializedBridge, WasmController } from "./types";
 import { Deferred } from "../../../utils/Deferred";
 import { syncFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
@@ -16,9 +16,11 @@ import {
 import { ParentSchema } from "../rpc";
 import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
+import { invariant } from "../../../utils/invariant";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
+  controller: WasmController;
   rpc: ReturnType<typeof createRPC>;
 };
 
@@ -27,7 +29,12 @@ async function loadPyodideAndPackages() {
   // @ts-expect-error ehh TypeScript
   await import("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
   try {
-    self.pyodide = await bootstrap();
+    const version = getMarimoVersion();
+    const controller = await getController(version);
+    self.controller = controller;
+    self.pyodide = await controller.bootstrap({
+      version,
+    });
   } catch (error) {
     console.error("Error bootstrapping", error);
     rpc.send.initializedError({
@@ -36,10 +43,21 @@ async function loadPyodideAndPackages() {
   }
 }
 
+// Load the controller
+// Falls back to the default controller
+async function getController(version: string) {
+  try {
+    const controller = await import(`/wasm/controller.js?version=${version}`);
+    return controller;
+  } catch {
+    return new DefaultWasmController();
+  }
+}
+
 const pyodideReadyPromise = loadPyodideAndPackages();
-const messageBuffer = new MessageBuffer((message: string) =>
-  rpc.send.kernelMessage({ message }),
-);
+const messageBuffer = new MessageBuffer((message: string) => {
+  rpc.send.kernelMessage({ message });
+});
 const bridgeReady = new Deferred<SerializedBridge>();
 let started = false;
 
@@ -62,7 +80,11 @@ const requestHandler = createRPCRequestHandler({
 
     started = true;
     try {
-      const bridge = await startSession(self.pyodide, opts, messageBuffer.push);
+      invariant(self.controller, "Controller not loaded");
+      const bridge = await self.controller.startSession({
+        ...opts,
+        onMessage: messageBuffer.push,
+      });
       bridgeReady.resolve(bridge);
       rpc.send.initialized({});
     } catch (error) {
@@ -199,3 +221,7 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
   "delete_file_or_directory",
   "update_file_or_directory",
 ]);
+
+function getMarimoVersion() {
+  return self.name; // We store the version in the worker name
+}
