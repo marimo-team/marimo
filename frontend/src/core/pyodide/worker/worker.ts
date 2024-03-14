@@ -47,7 +47,9 @@ async function loadPyodideAndPackages() {
 // Falls back to the default controller
 async function getController(version: string) {
   try {
-    const controller = await import(`/wasm/controller.js?version=${version}`);
+    const controller = await import(
+      /* @vite-ignore */ `/wasm/controller.js?version=${version}`
+    );
     return controller;
   } catch {
     return new DefaultWasmController();

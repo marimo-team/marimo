@@ -3,7 +3,7 @@ import type { PyodideInterface } from "pyodide";
 import { mountFilesystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge, WasmController } from "./types";
-import { invariant } from "@/utils/invariant";
+import { invariant } from "../../../utils/invariant";
 
 declare let loadPyodide: (opts: {
   packages: string[];
