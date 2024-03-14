@@ -116,7 +116,7 @@ function getMarimoVersion() {
 
 function getMarimoWheel() {
   const version = getMarimoVersion();
-  if (!version || version === "local") {
+  if (!version) {
     return "marimo >= 0.3.0";
   }
   if (version === "local") {
