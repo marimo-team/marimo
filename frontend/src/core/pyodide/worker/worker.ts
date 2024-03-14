@@ -2,20 +2,24 @@
 
 import { bootstrap, startSession } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
-import {
-  RawBridge,
-  SerializedBridge,
-  WorkerClientPayload,
-  WorkerServerPayload,
-} from "./types";
-import { invariant } from "../../../utils/invariant";
+import { RawBridge, SerializedBridge } from "./types";
 import { Deferred } from "../../../utils/Deferred";
 import { syncFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
 import { prettyError } from "../../../utils/errors";
+import {
+  createWorkerParentTransport,
+  createRPC,
+  createRPCRequestHandler,
+  type RPCSchema,
+} from "rpc-anywhere";
+import { ParentSchema } from "../rpc";
+import { Logger } from "@/utils/Logger";
+import { TRANSPORT_ID } from "./constants";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
+  rpc: ReturnType<typeof createRPC>;
 };
 
 // Initialize pyodide
@@ -26,90 +30,91 @@ async function loadPyodideAndPackages() {
     self.pyodide = await bootstrap();
   } catch (error) {
     console.error("Error bootstrapping", error);
-    postMessage({ type: "initialized-error", error: prettyError(error) });
+    rpc.send.initializedError({
+      error: prettyError(error),
+    });
   }
 }
-const pyodideReadyPromise = loadPyodideAndPackages();
-const messageBuffer = new MessageBuffer((m: string) =>
-  postMessage({ type: "message", message: m }),
-);
 
-// Initialize the session
+const pyodideReadyPromise = loadPyodideAndPackages();
+const messageBuffer = new MessageBuffer((message: string) =>
+  rpc.send.kernelMessage({ message }),
+);
 const bridgeReady = new Deferred<SerializedBridge>();
 let started = false;
-function startSessionWithCode(opts: {
-  code: string | null;
-  fallbackCode: string;
-  filename: string | null;
-}) {
-  if (started) {
-    return;
-  }
-  started = true;
-  startSession(self.pyodide, opts, messageBuffer.push).then((bridge) => {
-    bridgeReady.resolve(bridge);
-    postMessage({ type: "initialized" });
-  });
-}
 
-async function getBridge() {
-  return bridgeReady.promise;
-}
+// Handle RPC requests
+const requestHandler = createRPCRequestHandler({
+  /**
+   * Start the session
+   */
+  startSession: async (opts: {
+    code: string | null;
+    fallbackCode: string;
+    filename: string | null;
+  }) => {
+    await pyodideReadyPromise; // Make sure loading is done
 
-self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
-  // make sure loading is done
-  await pyodideReadyPromise;
+    if (started) {
+      Logger.warn("Session already started");
+      return;
+    }
 
-  // Start the session
-  if (event.data.type === "set-code") {
-    startSessionWithCode(event.data);
-    return;
-  }
-
-  if (event.data.type === "start-messages") {
-    // Flush the message buffer
-    messageBuffer.start();
-
-    return;
-  }
-
-  const { id, functionName, payload } = event.data;
-  try {
-    // Special case for loading packages
-    if (functionName === "load_packages") {
-      invariant(
-        typeof payload === "string",
-        "Expected a string payload for load_packages",
-      );
-      await self.pyodide.loadPackagesFromImports(payload, {
-        messageCallback: console.log,
-        errorCallback: console.error,
+    started = true;
+    try {
+      const bridge = await startSession(self.pyodide, opts, messageBuffer.push);
+      bridgeReady.resolve(bridge);
+      rpc.send.initialized({});
+    } catch (error) {
+      rpc.send.initializedError({
+        error: prettyError(error),
       });
+    }
+    return;
+  },
 
-      postMessage({ type: "response", response: null, id });
-      return;
-    }
-    // Special case for reading a file
-    if (functionName === "read_file") {
-      invariant(
-        typeof payload === "string",
-        "Expected a string payload for read_file",
-      );
-      const file = self.pyodide.FS.readFile(payload, { encoding: "utf8" });
-      postMessage({ type: "response", response: file, id });
-      return;
-    }
+  /**
+   * Load packages
+   */
+  loadPackages: async (packages: string) => {
+    await pyodideReadyPromise; // Make sure loading is done
 
-    // Special case for installing the interrupt buffer
-    if (functionName == "set_interrupt_buffer") {
-      invariant(
-        payload instanceof Uint8Array,
-        "Expected a Uint8Array payload for interrupt",
-      );
-      self.pyodide.setInterruptBuffer(payload);
-      postMessage({ type: "response", response: null, id });
-      return;
-    }
+    await self.pyodide.loadPackagesFromImports(packages, {
+      messageCallback: console.log,
+      errorCallback: console.error,
+    });
+  },
+
+  /**
+   * Read a file
+   */
+  readFile: async (filename: string) => {
+    await pyodideReadyPromise; // Make sure loading is done
+
+    const file = self.pyodide.FS.readFile(filename, { encoding: "utf8" });
+    return file;
+  },
+
+  /**
+   * Set the interrupt buffer
+   */
+  setInterruptBuffer: async (payload: Uint8Array) => {
+    await pyodideReadyPromise; // Make sure loading is done
+
+    self.pyodide.setInterruptBuffer(payload);
+  },
+
+  /**
+   * Call a function on the bridge
+   */
+  bridge: async (opts: {
+    functionName: keyof RawBridge;
+    payload: {} | undefined | null;
+  }) => {
+    await pyodideReadyPromise; // Make sure loading is done
+
+    const { functionName, payload } = opts;
+
     // Special case to lazily install black on format
     // Don't return early; still need to ask the pyodide kernel to run
     // the formatter
@@ -125,7 +130,8 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
     }
 
     // Perform the function call to the Python bridge
-    const bridge = await getBridge();
+    const bridge = await bridgeReady.promise;
+
     // Serialize the payload
     const payloadString =
       payload == null
@@ -133,6 +139,7 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
         : typeof payload === "string"
           ? payload
           : JSON.stringify(payload);
+
     // Make the request
     const response =
       payloadString == null
@@ -141,26 +148,49 @@ self.onmessage = async (event: MessageEvent<WorkerServerPayload>) => {
         : // @ts-expect-error ehh TypeScript
           await bridge[functionName](payloadString);
 
-    // Post the response back to the main thread
-    postMessage({
-      type: "response",
-      response: typeof response === "string" ? JSON.parse(response) : response,
-      id,
-    });
-
     // Sync the filesystem if we're saving, creating, deleting, or renaming a file
     if (namesThatRequireSync.has(functionName)) {
-      await syncFileSystem(self.pyodide);
+      void syncFileSystem(self.pyodide, false);
     }
-  } catch (error) {
-    console.error("Error in worker", error);
-    if (error instanceof Error) {
-      postMessage({ type: "error", error: error.message, id });
-    } else {
-      postMessage({ type: "error", error: String(error), id });
-    }
-  }
-};
+
+    // Post the response back to the main thread
+    return typeof response === "string" ? JSON.parse(response) : response;
+  },
+});
+
+// create the iframe's schema
+export type WorkerSchema = RPCSchema<
+  {
+    messages: {
+      // Emitted when the worker is ready
+      ready: {};
+      // Emitted when the kernel sends a message
+      kernelMessage: { message: string };
+      // Emitted when the Pyodide is initialized
+      initialized: {};
+      // Emitted when the Pyodide fails to initialize
+      initializedError: { error: string };
+    };
+  },
+  typeof requestHandler
+>;
+
+const rpc = createRPC<WorkerSchema, ParentSchema>({
+  transport: createWorkerParentTransport({
+    transportId: TRANSPORT_ID,
+  }),
+  requestHandler,
+});
+
+self.rpc = rpc;
+rpc.send("ready", {});
+
+/// Listeners
+// When the consumer is ready, start the message buffer
+rpc.addMessageListener("consumerReady", async () => {
+  await pyodideReadyPromise; // Make sure loading is done
+  messageBuffer.start();
+});
 
 const namesThatRequireSync = new Set<keyof RawBridge>([
   "save",
@@ -169,9 +199,3 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
   "delete_file_or_directory",
   "update_file_or_directory",
 ]);
-
-function postMessage(message: WorkerClientPayload) {
-  self.postMessage(message);
-}
-
-postMessage({ type: "ready" });

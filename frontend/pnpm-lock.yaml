@@ -299,6 +299,9 @@ dependencies:
   reactflow:
     specifier: ^11.10.4
     version: 11.10.4(@types/react@18.2.58)(react-dom@18.2.0)(react@18.2.0)
+  rpc-anywhere:
+    specifier: ^1.7.0
+    version: 1.7.0
   swiper:
     specifier: ^11.0.7
     version: 11.0.7
@@ -361,6 +364,9 @@ devDependencies:
   '@swc-jotai/react-refresh':
     specifier: ^0.1.0
     version: 0.1.0
+  '@types/emscripten':
+    specifier: ^1.39.10
+    version: 1.39.10
   '@types/katex':
     specifier: ^0.16.7
     version: 0.16.7
@@ -6492,8 +6498,8 @@ packages:
     resolution: {integrity: sha512-ZmiaE3wglXVWBM9fyVC17aGPkLo/UgaOjEiI2FXQfyczrCefORPxIe+2dVmnmk3zkVIbizjrlQzmPGhSYGXG5g==}
     dev: true
 
-  /@types/emscripten@1.39.6:
-    resolution: {integrity: sha512-H90aoynNhhkQP6DRweEjJp5vfUVdIj7tdPLsu7pq89vODD/lcugKfZOsfgwpvM6XUewEp2N5dCg1Uf3Qe55Dcg==}
+  /@types/emscripten@1.39.10:
+    resolution: {integrity: sha512-TB/6hBkYQJxsZHSqyeuO1Jt0AB/bW6G7rHt9g7lML7SOF6lbgcHvw/Lr+69iqN0qxgXLhWKScAon73JNnptuDw==}
     dev: true
 
   /@types/escodegen@0.0.6:
@@ -6544,6 +6550,16 @@ packages:
       fast-json-stable-stringify: 2.1.0
     dev: false
 
+  /@types/filesystem@0.0.35:
+    resolution: {integrity: sha512-1eKvCaIBdrD2mmMgy5dwh564rVvfEhZTWVQQGRNn0Nt4ZEnJ0C8oSUCzvMKRA4lGde5oEVo+q2MrTTbV/GHDCQ==}
+    dependencies:
+      '@types/filewriter': 0.0.33
+    dev: false
+
+  /@types/filewriter@0.0.33:
+    resolution: {integrity: sha512-xFU8ZXTw4gd358lb2jw25nxY9QAgqn2+bKKjKOYfNCzN4DKCFetK7sPtrlpg66Ywe3vWY9FNxprZawAh9wfJ3g==}
+    dev: false
+
   /@types/find-cache-dir@3.2.1:
     resolution: {integrity: sha512-frsJrz2t/CeGifcu/6uRo4b+SzAwT4NYCVPu1GN8IB9XTzrpPkGuV0tmh9mN+/L0PklAlsC3u5Fxt0ju00LXIw==}
 
@@ -6563,6 +6579,10 @@ packages:
     dependencies:
       '@types/node': 20.8.10
     dev: true
+
+  /@types/har-format@1.2.15:
+    resolution: {integrity: sha512-RpQH4rXLuvTXKR0zqHq3go0RVXYv/YVqv4TnPH95VbwUxZdQlK1EtcMvQvMpDngHbt13Csh9Z4qT9AbkiQH5BA==}
+    dev: false
 
   /@types/humanize-duration@3.27.4:
     resolution: {integrity: sha512-yaf7kan2Sq0goxpbcwTQ+8E9RP6HutFBPv74T/IA/ojcHKhuKVlk2YFYyHhWZeLvZPzzLE3aatuQB4h0iqyyUA==}
@@ -6752,6 +6772,10 @@ packages:
   /@types/uuid@9.0.7:
     resolution: {integrity: sha512-WUtIVRUZ9i5dYXefDEAI7sh9/O7jGvHg7Df/5O/gtH3Yabe5odI3UWopVR1qbPXQtvOxWu3mM4XxlYeZtMWF4g==}
     dev: true
+
+  /@types/webextension-polyfill@0.10.7:
+    resolution: {integrity: sha512-10ql7A0qzBmFB+F+qAke/nP1PIonS0TXZAOMVOxEUsm+lGSW6uwVcISFNa0I4Oyj0884TZVWGGMIWeXOVSNFHw==}
+    dev: false
 
   /@types/yargs-parser@21.0.0:
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
@@ -7332,7 +7356,7 @@ packages:
     resolution: {integrity: sha512-6xm38yGVIa6mKm/DUCF2zFFJhERh/QWp1ufm4cNUvxsONBmfPg8uZ9pZBdOmF6qFGr/HlT6ABBkCSx/dlEtvWg==}
     engines: {node: '>=12 <14 || 14.2 - 14.9 || >14.10.0'}
     dependencies:
-      '@types/emscripten': 1.39.6
+      '@types/emscripten': 1.39.10
       tslib: 1.14.1
     dev: true
 
@@ -7990,6 +8014,14 @@ packages:
   /browser-assert@1.2.1:
     resolution: {integrity: sha512-nfulgvOR6S4gt9UKCeGJOuSGBPGiFT6oQ/2UBnvTY/5aQ1PnksW72fhZkM30DzoRRv2WpwZf1vHHEr3mtuXIWQ==}
     dev: true
+
+  /browser-namespace@1.4.0:
+    resolution: {integrity: sha512-9b4yNTNs+8HVPssSq8RSZMRunf+G4cVQ2PMtOTn+uEVFOW5C0Uo+eGXuJ5LfxS1UDph5oAdWj92thPyxVhpqXg==}
+    dependencies:
+      '@types/filesystem': 0.0.35
+      '@types/har-format': 1.2.15
+      '@types/webextension-polyfill': 0.10.7
+    dev: false
 
   /browserify-zlib@0.1.4:
     resolution: {integrity: sha512-19OEpq7vWgsH6WkvkBJQDFvJS1uPcbFOQ4v9CU839dO+ZZXUZO6XpE6hNCqvlIIj+4fZvRiJ6DsAQ382GwiyTQ==}
@@ -15113,6 +15145,12 @@ packages:
       '@rollup/rollup-win32-x64-msvc': 4.9.0
       fsevents: 2.3.3
     dev: true
+
+  /rpc-anywhere@1.7.0:
+    resolution: {integrity: sha512-/MgRTK/5iOh7EmYz5uZAmHX0DNg9PdbyjVgDtLX4WwoWHmpI8uh9We877U6KizxPDlmeDslq/2MnS7kZXWR8Cw==}
+    dependencies:
+      browser-namespace: 1.4.0
+    dev: false
 
   /rrweb-cssom@0.6.0:
     resolution: {integrity: sha512-APM0Gt1KoXBz0iIkkdB/kfvGOwC4UuJFeG/c+yV7wSc7q96cG/kJ0HiYCnzivD9SB53cLV1MlHFNfOuPaadYSw==}

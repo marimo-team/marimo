@@ -4,12 +4,10 @@ import { mountFilesystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge } from "./types";
 
-declare let loadPyodide:
-  | undefined
-  | ((opts: {
-      packages: string[];
-      indexURL: string;
-    }) => Promise<PyodideInterface>);
+declare let loadPyodide: (opts: {
+  packages: string[];
+  indexURL: string;
+}) => Promise<PyodideInterface>;
 
 export async function bootstrap() {
   if (!loadPyodide) {
@@ -109,8 +107,6 @@ export async function startSession(
       bridge`,
   );
 
-  self.bridge = bridge;
-
   return bridge;
 }
 
@@ -120,7 +116,7 @@ function getMarimoVersion() {
 
 function getMarimoWheel() {
   const version = getMarimoVersion();
-  if (!version) {
+  if (!version || version === "local") {
     return "marimo >= 0.3.0";
   }
   if (version === "local") {
