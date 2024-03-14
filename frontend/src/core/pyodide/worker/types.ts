@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { RequestId } from "@/core/network/DeferredRequestRegistry";
+import type { PyodideInterface } from "pyodide";
 import type {
   CodeCompletionRequest,
   FileCreateRequest,
@@ -14,6 +14,26 @@ import type {
   SaveAppConfigRequest,
   SaveKernelRequest,
 } from "../../network/types";
+
+export interface WasmController {
+  /**
+   * Prepare the wasm environment
+   * @param opts.version - The marimo version
+   */
+  bootstrap(opts: { version: string }): Promise<PyodideInterface>;
+  /**
+   * Start the session
+   * @param opts.code - The code to start with
+   * @param opts.fallbackCode - The code to fallback to
+   * @param opts.filename - The filename to start with
+   */
+  startSession(opts: {
+    code: string | null;
+    fallbackCode: string;
+    filename: string | null;
+    onMessage: (message: string) => void;
+  }): Promise<SerializedBridge>;
+}
 
 export interface RawBridge {
   put_control_request(operation: object): Promise<string>;
@@ -47,46 +67,3 @@ export type SerializedBridge = {
     ? (payload: string) => Promise<string>
     : RawBridge[P];
 };
-
-export type WorkerServerPayload =
-  | {
-      type: "start-messages";
-    }
-  | {
-      type: "set-code";
-      code: string | null;
-      fallbackCode: string;
-      filename: string | null;
-    }
-  | {
-      type: "call-function";
-      id: RequestId;
-      functionName: keyof RawBridge | "load_packages" | "read_file";
-      payload: {} | undefined | null;
-    };
-
-export type WorkerClientPayload =
-  | {
-      type: "response";
-      id: RequestId;
-      response: unknown;
-    }
-  | {
-      type: "ready";
-    }
-  | {
-      type: "initialized";
-    }
-  | {
-      type: "initialized-error";
-      error: string;
-    }
-  | {
-      type: "error";
-      id: RequestId;
-      error: string;
-    }
-  | {
-      type: "message";
-      message: string;
-    };

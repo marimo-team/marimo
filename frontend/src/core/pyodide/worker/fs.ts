@@ -3,6 +3,10 @@ import type { PyodideInterface } from "pyodide";
 
 const FALLBACK_FILE = "notebook.py";
 
+export function getFS(pyodide: PyodideInterface): typeof FS {
+  return pyodide.FS;
+}
+
 export async function mountFilesystem(opts: {
   pyodide: PyodideInterface;
   code: string | null;
@@ -13,21 +17,22 @@ export async function mountFilesystem(opts: {
   filename: string;
 }> {
   const { pyodide, filename, code, fallbackCode } = opts;
+  const FS = getFS(pyodide);
 
   // This is our home directory
   const mountDir = "/marimo";
   // Mount the filesystem
-  await pyodide.FS.mkdir(mountDir);
-  await pyodide.FS.mount(pyodide.FS.filesystems.IDBFS, { root: "." }, mountDir);
+  await FS.mkdir(mountDir);
+  await FS.mount(pyodide.FS.filesystems.IDBFS, { root: "." }, mountDir);
 
-  await syncFileSystem(pyodide, "start");
+  await syncFileSystem(pyodide, true);
 
   // Change to the mounted directory
-  await pyodide.FS.chdir(mountDir);
+  FS.chdir(mountDir);
 
   const readIfExist = (filename: string) => {
     try {
-      return pyodide.FS.readFile(filename, { encoding: "utf8" });
+      return FS.readFile(filename, { encoding: "utf8" });
     } catch {
       return null;
     }
@@ -47,7 +52,7 @@ export async function mountFilesystem(opts: {
     }
 
     // If the filename does not exist in the FS, write the content to the file
-    await pyodide.FS.writeFile(filename, content, { encoding: "utf8" });
+    FS.writeFile(filename, content);
     return {
       content,
       filename,
@@ -55,7 +60,7 @@ export async function mountFilesystem(opts: {
   }
 
   // If there is no filename, write the code to the last used file
-  await pyodide.FS.writeFile(FALLBACK_FILE, content, { encoding: "utf8" });
+  FS.writeFile(FALLBACK_FILE, content);
   return {
     content: content,
     filename: FALLBACK_FILE,
@@ -64,12 +69,12 @@ export async function mountFilesystem(opts: {
 
 export function syncFileSystem(
   pyodide: PyodideInterface,
-  type?: "start",
+  populate: boolean,
 ): Promise<void> {
   // Sync the filesystem. This brings IndexedDBFS up to date with the in-memory filesystem
   // `true` when starting up, `false` when shutting down
   return new Promise<void>((resolve, reject) => {
-    pyodide.FS.syncfs(type === "start", (err: Error) => {
+    getFS(pyodide).syncfs(populate, (err: Error) => {
       if (err) {
         reject(err);
         return;
