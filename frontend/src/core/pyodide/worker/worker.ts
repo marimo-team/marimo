@@ -14,7 +14,7 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import { ParentSchema } from "../rpc";
-import { Logger } from "@/utils/Logger";
+import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
 
 declare const self: Window & {
