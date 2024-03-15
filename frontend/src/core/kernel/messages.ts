@@ -260,6 +260,7 @@ export type OperationMessage =
       };
     }
   | {
+      // transient toast
       op: "alert";
       data: {
         title: string;
@@ -268,11 +269,22 @@ export type OperationMessage =
       };
     }
   | {
+      // permanent notification
       op: "banner";
       data: {
         title: string;
         description: string;
         variant?: "danger";
         action?: "restart";
+      };
+    }
+  | {
+      // permanent alert (requires action)
+      op: "package-alert";
+      data: {
+        title: string;
+        description: string;
+        variant?: "danger";
+        action: "install"
       };
     };

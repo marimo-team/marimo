@@ -31,11 +31,11 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
-    Banner,
     CellOp,
     CompletedRun,
     FunctionCallResult,
     HumanReadableStatus,
+    PackageAlert,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -76,7 +76,7 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
-from marimo._runtime.packages import PackageManager
+from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -785,11 +785,8 @@ class Kernel:
             if isinstance(run_result.exception, ModuleNotFoundError):
                 missing_packages = self.package_manager.missing_packages()
                 if missing_packages:
-                    Banner(
-                        title="Missing packages.",
-                        description=str(missing_packages),
-                        variant="danger",
-                        action="restart",
+                    PackageAlert(
+                        packages=list(missing_packages),
                     ).broadcast()
 
             if get_global_context().mpl_installed:

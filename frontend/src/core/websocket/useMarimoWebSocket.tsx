@@ -28,6 +28,7 @@ import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { Objects } from "@/utils/objects";
 import { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
+import { usePackageAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
 
 /**
@@ -49,6 +50,7 @@ export function useMarimoWebSocket(opts: {
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
+  const { addAlert } = usePackageAlertActions();
 
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
@@ -177,7 +179,7 @@ export function useMarimoWebSocket(opts: {
             name: v.name,
             declaredBy: v.declared_by,
             usedBy: v.used_by,
-          })),
+          }))
         );
         return;
       case "variable-values":
@@ -186,7 +188,7 @@ export function useMarimoWebSocket(opts: {
             name: v.name,
             dataType: v.datatype,
             value: v.value,
-          })),
+          }))
         );
         return;
       case "alert":
@@ -200,6 +202,12 @@ export function useMarimoWebSocket(opts: {
         return;
       case "banner":
         addBanner({
+          ...msg.data,
+          id: generateUUID(),
+        });
+        return;
+      case "package-alert":
+        addAlert({
           ...msg.data,
           id: generateUUID(),
         });

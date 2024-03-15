@@ -288,6 +288,12 @@ class Alert(Op):
 
 
 @dataclass
+class PackageAlert(Op):
+    name: ClassVar[str] = "package-alert"
+    packages: List[str]
+
+
+@dataclass
 class Reconnected(Op):
     name: ClassVar[str] = "reconnected"
 
@@ -380,6 +386,7 @@ MessageOperation = Union[
     CompletionResult,
     Alert,
     Banner,
+    PackageAlert,
     Variables,
     VariableValues,
 ]

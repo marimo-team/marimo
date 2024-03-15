@@ -3,12 +3,21 @@ import importlib.util
 import urllib.request
 import subprocess
 
-from marimo._ast.cell import CellImpl
 from marimo._runtime.dataflow import DirectedGraph
-from marimo._runtime.module_name_to_pypi_name import MODULE_NAME_TO_PYPI_NAME
+from marimo._runtime.packages.module_name_to_pypi_name import (
+    MODULE_NAME_TO_PYPI_NAME,
+)
 
 
 class PackageManager:
+    """Tracks modules/packages used by a collection of cells
+
+    Most methods operate on module names, not package names, since the main
+    purpose of this class is to attempt to install packages that make
+    missing modules available.
+
+    Currently specialized to PyPI.
+    """
     def __init__(self, graph: DirectedGraph) -> None:
         self.graph = graph
         # modules that do not have corresponding packages on PyPI;
@@ -31,7 +40,8 @@ class PackageManager:
             for mod in cell.imported_modules
         )
 
-    def on_pypi(self, module: str) -> bool:
+    # UNUSED
+    def _on_pypi(self, module: str) -> bool:
         package = self.canonicalize(module)
         response = urllib.request.urlopen(
             f"pypi.org/search?q={package}"
