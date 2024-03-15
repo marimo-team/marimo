@@ -788,7 +788,7 @@ class Kernel:
                 missing_packages = self.package_manager.missing_packages()
                 if missing_packages:
                     MissingPackageAlert(
-                        packages=list(missing_packages),
+                        packages=list(sorted(missing_packages)),
                     ).broadcast()
 
             if get_global_context().mpl_installed:
@@ -1133,7 +1133,7 @@ class Kernel:
 
         Runs cells affected by successful installation.
         """
-        missing_modules = self.package_manager.missing_modules()
+        missing_modules = list(sorted(self.package_manager.missing_modules()))
         statuses: PackageStatusType = {}
         for mod in missing_modules:
             statuses[mod] = "queued"

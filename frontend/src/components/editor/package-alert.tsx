@@ -22,13 +22,7 @@ import {
 import React from "react";
 import { Button } from "../ui/button";
 import { PackageInstallationStatus } from "@/core/kernel/messages";
-import { get } from "lodash-es";
-//import { useRestartKernel } from "./actions/useRestartKernel";
 
-// TODO On install click, installation alert removed and instead we render installation progress ...
-// - check mark if package installation succeeded
-// - packageXIcon if failed
-// - installation logs stay in terminal for now ... TODO to route to frontend
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
   const { addPackageAlert, clearPackageAlert } = useAlertActions();
@@ -40,7 +34,10 @@ export const PackageAlert: React.FC = (props) => {
   if (isMissingPackageAlert(packageAlert)) {
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
-        <Banner kind="danger" className="flex flex-col rounded py-3 px-5">
+        <Banner
+          kind="danger"
+          className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left"
+        >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
               <PackageXIcon className="w-5 h-5 inline-block mr-2" />
@@ -58,8 +55,11 @@ export const PackageAlert: React.FC = (props) => {
             <div>
               <p>The following modules were not found:</p>
               <ul className="list-disc ml-4 mt-1">
-                {packageAlert.packages.map((pkg) => (
-                  <li className="flex items-center gap-1 font-mono text-sm">
+                {packageAlert.packages.map((pkg, index) => (
+                  <li
+                    className="flex items-center gap-1 font-mono text-sm"
+                    key={index}
+                  >
                     <BoxIcon size="1rem" />
                     {pkg}
                   </li>
@@ -77,9 +77,12 @@ export const PackageAlert: React.FC = (props) => {
       </div>
     );
   } else if (isInstallingPackageAlert(packageAlert)) {
-    console.log(packageAlert.packages);
     const { status, title, titleIcon, description } =
       getInstallationStatusElements(packageAlert.packages);
+    if (status === "installed") {
+      setTimeout(() => clearPackageAlert(packageAlert.id), 10_000);
+    }
+
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
         <Banner
@@ -101,8 +104,7 @@ export const PackageAlert: React.FC = (props) => {
           </div>
           <div
             className={cn(
-              "flex flex-col gap-4 justify-between items-start text-accent-foreground text-base",
-              status === "failed" && "text-muted-foreground",
+              "flex flex-col gap-4 justify-between items-start text-muted-foreground text-base",
               status === "installed" && "text-accent-foreground"
             )}
           >
@@ -114,6 +116,7 @@ export const PackageAlert: React.FC = (props) => {
                     <li
                       className={cn(
                         "flex items-center gap-1 font-mono text-sm",
+                        st === "installing" && "font-semibold",
                         st === "failed" && "text-destructive",
                         st === "installed" && "text-accent-foreground",
                         st === "installed" &&
