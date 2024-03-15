@@ -28,7 +28,7 @@ import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { Objects } from "@/utils/objects";
 import { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
-import { usePackageAlertActions } from "../alerts/state";
+import { useAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
 
 /**
@@ -50,7 +50,7 @@ export function useMarimoWebSocket(opts: {
   const setLayoutData = useSetAtom(layoutDataAtom);
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
-  const { addAlert } = usePackageAlertActions();
+  const { addPackageAlert } = useAlertActions();
 
   const handleMessage = (e: MessageEvent<string>) => {
     const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
@@ -206,10 +206,16 @@ export function useMarimoWebSocket(opts: {
           id: generateUUID(),
         });
         return;
-      case "package-alert":
-        addAlert({
+      case "missing-package-alert":
+        addPackageAlert({
           ...msg.data,
-          id: generateUUID(),
+          kind: "missing",
+        });
+        return;
+      case "installing-package-alert":
+        addPackageAlert({
+          ...msg.data,
+          kind: "installing",
         });
         return;
       default:

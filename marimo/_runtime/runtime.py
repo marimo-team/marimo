@@ -35,7 +35,7 @@ from marimo._messaging.ops import (
     CompletedRun,
     FunctionCallResult,
     HumanReadableStatus,
-    PackageAlert,
+    MissingPackageAlert,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -785,7 +785,7 @@ class Kernel:
             if isinstance(run_result.exception, ModuleNotFoundError):
                 missing_packages = self.package_manager.missing_packages()
                 if missing_packages:
-                    PackageAlert(
+                    MissingPackageAlert(
                         packages=list(missing_packages),
                     ).broadcast()
 

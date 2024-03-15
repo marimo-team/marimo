@@ -1,50 +1,73 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { createReducer } from "@/utils/createReducer";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 
-interface PackageAlert {
-  id: string;
+interface MissingPackageAlert {
+  kind: "missing";
   packages: string[];
 }
 
-/** * Alerts with actions.
+interface InstallingPackageAlert {
+  kind: "installing";
+  packages: PackageInstallationStatus;
+}
+
+export function isMissingPackageAlert(
+  alert: MissingPackageAlert | InstallingPackageAlert
+): alert is MissingPackageAlert {
+  return alert.kind === "missing";
+}
+
+export function isInstallingPackageAlert(
+  alert: MissingPackageAlert | InstallingPackageAlert
+): alert is InstallingPackageAlert {
+  return alert.kind === "installing";
+}
+
+/** Prominent alerts.
  *
- * Right now we only have one type of alert, for missing packages
- * with an option to install them; at most one such alert is ever stored.
- *
- * If in the future we have other kinds of alerts, we can generalize
- * this interface.
+ * Right now we only have one type of alert.
  */
-interface PackageAlertState {
-  alert: PackageAlert | null;
+interface AlertState {
+  packageAlert: MissingPackageAlert | InstallingPackageAlert | null;
 }
 
 const { reducer, createActions } = createReducer(
-  () => ({ alert: null }) as PackageAlertState,
+  () => ({ packageAlert: null }) as AlertState,
   {
-    addAlert: (state, alert: PackageAlert) => {
-      return { alert: alert };
+    addPackageAlert: (
+      state,
+      alert: MissingPackageAlert | InstallingPackageAlert
+    ) => {
+      return {
+        ...state,
+        packageAlert: alert,
+      };
     },
-    clearAlert: () => {
-      return { alert: null };
+
+    clearPackageAlert: (state) => {
+      return { ...state, packageAlert: null };
     },
   }
 );
 
-const packageAlertAtom = atom<PackageAlertState>({ alert: null });
+const alertAtom = atom<AlertState>({
+  packageAlert: null,
+});
 
 /**
  * React hook to get the Alert state.
  */
-export const usePackageAlert = () => useAtomValue(packageAlertAtom);
+export const useAlerts = () => useAtomValue(alertAtom);
 
 /**
  * React hook to get the Alerts actions.
  */
-export function usePackageAlertActions() {
-  const setState = useSetAtom(packageAlertAtom);
+export function useAlertActions() {
+  const setState = useSetAtom(alertAtom);
   return useMemo(() => {
     const actions = createActions((action) => {
       setState((state) => reducer(state, action));

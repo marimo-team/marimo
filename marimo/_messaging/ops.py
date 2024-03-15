@@ -288,8 +288,8 @@ class Alert(Op):
 
 
 @dataclass
-class PackageAlert(Op):
-    name: ClassVar[str] = "package-alert"
+class MissingPackageAlert(Op):
+    name: ClassVar[str] = "missing-package-alert"
     packages: List[str]
 
 
@@ -386,7 +386,7 @@ MessageOperation = Union[
     CompletionResult,
     Alert,
     Banner,
-    PackageAlert,
+    MissingPackageAlert,
     Variables,
     VariableValues,
 ]
