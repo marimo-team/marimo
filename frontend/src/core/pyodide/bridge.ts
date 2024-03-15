@@ -27,14 +27,19 @@ import {
 import { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isPyodide } from "./utils";
-import { RawBridge } from "./worker/types";
+import {
+  RawBridge,
+  WorkerClientPayload,
+  WorkerServerPayload,
+} from "./worker/types";
+import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { Deferred } from "@/utils/Deferred";
+import InlineWorker from "./worker/worker?worker&inline";
 import { UserConfigLocalStorage } from "../config/config-schema";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
 import { Paths } from "@/utils/paths";
 import { getMarimoVersion } from "../dom/marimo-tag";
-import { getWorkerRPC } from "./rpc";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -46,78 +51,91 @@ export type BridgeFunctionAndPayload = {
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
-  private rpc!: ReturnType<typeof getWorkerRPC>;
+  private worker!: Worker;
   private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
+  private fetcher = new DeferredRequestRegistry<
+    BridgeFunctionAndPayload,
+    unknown
+  >("bridge", async (requestId, request) => {
+    this.postMessage({
+      type: "call-function",
+      id: requestId,
+      functionName: request.functionName,
+      payload: request.payload,
+    });
+  });
 
   public initialized = new Deferred<void>();
 
   constructor() {
     if (isPyodide()) {
-      // Create a worker
-      const worker = new Worker(
-        // eslint-disable-next-line unicorn/relative-url-style
-        new URL("./worker/worker.ts", import.meta.url),
-        {
-          type: "module",
-          // Pass the version to the worker
-          /* @vite-ignore */
-          name: getMarimoVersion(),
-        },
-      );
-
-      // Create the RPC
-      this.rpc = getWorkerRPC(worker);
-
-      // Listeners
-      this.rpc.addMessageListener("ready", () => {
-        this.startSession();
+      this.worker = new InlineWorker({
+        name: getMarimoVersion(),
       });
-      this.rpc.addMessageListener("initialized", () => {
-        this.setInterruptBuffer();
-        this.initialized.resolve();
-      });
-      this.rpc.addMessageListener("initializedError", ({ error }) => {
-        this.initialized.reject(new Error(error));
-      });
-      this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-        this.messageConsumer?.(message);
-      });
+      this.worker.onmessage = this.handleWorkerMessage;
+      if (crossOriginIsolated) {
+        // Pyodide handles interrupts through SharedArrayBuffers, which
+        // only work in secure (crossOriginIsolated) contexts
+        this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
+        this.fetcher.request({
+          functionName: "set_interrupt_buffer",
+          payload: this.interruptBuffer,
+        });
+      } else {
+        console.warn(
+          "Not running in a secure context; interrupts are not available.",
+        );
+      }
     }
   }
-
-  private async startSession() {
+  private setCode = async () => {
     // Pass the code to the worker
     // If a filename is provided, it will be used to save the file
     // If no filename is provided, the file will not be saved
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
-    await this.rpc.proxy.request.startSession({
-      code,
+    this.postMessage({
+      type: "set-code",
+      code: code,
       fallbackCode: fallbackCode || "",
       filename,
     });
-  }
+  };
 
-  private setInterruptBuffer() {
-    // Set up the interrupt buffer
-    if (crossOriginIsolated) {
-      // Pyodide handles interrupts through SharedArrayBuffers, which
-      // only work in secure (crossOriginIsolated) contexts
-      this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
-      this.rpc.proxy.request.setInterruptBuffer(this.interruptBuffer);
-    } else {
-      Logger.warn(
-        "Not running in a secure context; interrupts are not available.",
-      );
+  private handleWorkerMessage = async (
+    event: MessageEvent<WorkerClientPayload>,
+  ) => {
+    if (event.data.type === "ready") {
+      await this.setCode();
     }
-  }
+    if (event.data.type === "initialized") {
+      this.initialized.resolve();
+    }
+    if (event.data.type === "initialized-error") {
+      this.initialized.reject(new Error(event.data.error));
+    }
+    if (event.data.type === "message") {
+      this.messageConsumer?.(event.data.message);
+    }
+    if (event.data.type === "error") {
+      Logger.error(event.data.error);
+      this.fetcher.reject(event.data.id, new Error(event.data.error));
+    }
+    if (event.data.type === "response") {
+      this.fetcher.resolve(event.data.id, event.data.response);
+    }
+  };
 
-  consumeMessages(consumer: (message: string) => void) {
+  private postMessage = (message: WorkerServerPayload) => {
+    this.worker.postMessage(message);
+  };
+
+  consumeMessages = (consumer: (message: string) => void) => {
     this.messageConsumer = consumer;
-    this.rpc.proxy.send.consumerReady({});
-  }
+    this.postMessage({ type: "start-messages" });
+  };
 
   sendRename = async (filename: string | null): Promise<null> => {
     if (filename === null) {
@@ -127,7 +145,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // so refreshing the page will keep the filename
     PyodideRouter.setFilename(filename);
 
-    await this.rpc.proxy.request.bridge({
+    await this.fetcher.request({
       functionName: "rename_file",
       payload: filename,
     });
@@ -135,7 +153,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendSave = async (request: SaveKernelRequest): Promise<null> => {
-    await this.rpc.proxy.request.bridge({
+    await this.fetcher.request({
       functionName: "save",
       payload: request,
     });
@@ -147,7 +165,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendStdin = async (request: SendStdin): Promise<null> => {
-    await this.rpc.proxy.request.bridge({
+    await this.fetcher.request({
       functionName: "put_input",
       payload: request.text,
     });
@@ -155,7 +173,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
-    await this.rpc.proxy.request.loadPackages(codes.join("\n"));
+    await this.fetcher.request({
+      functionName: "load_packages",
+      payload: codes.join("\n"),
+    });
 
     await this.putControlRequest({
       execution_requests: cellIds.map((cellId, index) => ({
@@ -179,7 +200,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendFormat = async (
     request: FormatRequest,
   ): Promise<Record<CellId, string>> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "format",
       payload: request,
     });
@@ -195,7 +216,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCodeCompletionRequest = async (
     request: CodeCompletionRequest,
   ): Promise<null> => {
-    await this.rpc.proxy.request.bridge({
+    await this.fetcher.request({
       functionName: "code_complete",
       payload: request,
     });
@@ -208,7 +229,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   saveAppConfig = async (request: SaveAppConfigRequest): Promise<null> => {
-    await this.rpc.proxy.request.bridge({
+    await this.fetcher.request({
       functionName: "save_app_config",
       payload: request,
     });
@@ -228,7 +249,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   readCode = async (): Promise<{ contents: string }> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "read_code",
       payload: undefined,
     });
@@ -250,7 +271,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendListFiles = async (
     request: FileListRequest,
   ): Promise<FileListResponse> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "list_files",
       payload: request,
     });
@@ -278,7 +299,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCreateFileOrFolder = async (
     request: FileCreateRequest,
   ): Promise<FileOperationResponse> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "create_file_or_directory",
       payload: request,
     });
@@ -288,7 +309,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendDeleteFileOrFolder = async (
     request: FileDeleteRequest,
   ): Promise<FileOperationResponse> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "delete_file_or_directory",
       payload: request,
     });
@@ -298,7 +319,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendRenameFileOrFolder = async (
     request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "update_file_or_directory",
       payload: request,
     });
@@ -308,19 +329,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendFileDetails = async (request: {
     path: string;
   }): Promise<FileDetailsResponse> => {
-    const response = await this.rpc.proxy.request.bridge({
+    const response = await this.fetcher.request({
       functionName: "file_details",
       payload: request,
     });
     return response as FileDetailsResponse;
   };
 
-  private async putControlRequest(operation: object) {
-    await this.rpc.proxy.request.bridge({
+  private putControlRequest = async (operation: object) => {
+    await this.fetcher.request({
       functionName: "put_control_request",
       payload: operation,
     });
-  }
+  };
 }
 
 export class PyodideWebsocket implements IReconnectingWebSocket {
