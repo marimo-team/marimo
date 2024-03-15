@@ -95,15 +95,19 @@ jobs:
           script: |
             try {
               const pullRequest = await github.rest.search.issuesAndPullRequests({
-                q: context.sha
+                q: `sha:${context.sha} is:pr is:merged`
               });
 
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pullRequest.data.items[0].number,
-                body: '🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${{ env.MARIMO_VERSION }}'
-              });
+              if (pullRequest.data.items.length > 0) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pullRequest.data.items[0].number,
+                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${process.env.MARIMO_VERSION}`
+                });
+              } else {
+                console.log("No merged PR found for this SHA.");
+              }
             } catch (err) {
               console.error(err);
             }
