@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { cn } from "@/utils/cn";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
@@ -13,13 +14,15 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import {
   PackageXIcon,
   BoxIcon,
-  BoxesIcon,
+  CheckIcon,
   DownloadCloudIcon,
   PackageCheckIcon,
   XIcon,
 } from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
+import { PackageInstallationStatus } from "@/core/kernel/messages";
+import { get } from "lodash-es";
 //import { useRestartKernel } from "./actions/useRestartKernel";
 
 // TODO On install click, installation alert removed and instead we render installation progress ...
@@ -36,7 +39,7 @@ export const PackageAlert: React.FC = (props) => {
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200]">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
         <Banner kind="danger" className="flex flex-col rounded py-3 px-5">
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
@@ -46,7 +49,7 @@ export const PackageAlert: React.FC = (props) => {
             <Button
               variant="text"
               size="icon"
-              onClick={() => clearPackageAlert()}
+              onClick={() => clearPackageAlert(packageAlert.id)}
             >
               <XIcon className="w-5 h-5" />
             </Button>
@@ -56,7 +59,7 @@ export const PackageAlert: React.FC = (props) => {
               <p>The following modules were not found:</p>
               <ul className="list-disc ml-4 mt-1">
                 {packageAlert.packages.map((pkg) => (
-                  <li className="flex items-center gap-1 font-mono">
+                  <li className="flex items-center gap-1 font-mono text-sm">
                     <BoxIcon size="1rem" />
                     {pkg}
                   </li>
@@ -75,13 +78,14 @@ export const PackageAlert: React.FC = (props) => {
     );
   } else if (isInstallingPackageAlert(packageAlert)) {
     console.log(packageAlert.packages);
-    const title = "Installing packages";
-    const titleIcon = (
-      <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />
-    );
+    const { status, title, titleIcon, description } =
+      getInstallationStatusElements(packageAlert.packages);
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200]">
-        <Banner kind="info" className="flex flex-col rounded pt-3 pb-4 px-5">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
+        <Banner
+          kind={status === "failed" ? "danger" : "info"}
+          className="flex flex-col rounded pt-3 pb-4 px-5"
+        >
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
               {titleIcon}
@@ -90,21 +94,35 @@ export const PackageAlert: React.FC = (props) => {
             <Button
               variant="text"
               size="icon"
-              onClick={() => clearPackageAlert()}
+              onClick={() => clearPackageAlert(packageAlert.id)}
             >
               <XIcon className="w-5 h-5" />
             </Button>
           </div>
-          <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground">
+          <div
+            className={cn(
+              "flex flex-col gap-4 justify-between items-start text-accent-foreground text-base",
+              status === "failed" && "text-muted-foreground",
+              status === "installed" && "text-accent-foreground"
+            )}
+          >
             <div>
+              <p>{description}</p>
               <ul className="list-disc ml-4 mt-1">
                 {Object.entries(packageAlert.packages).map(
-                  ([pkg, status], index) => (
+                  ([pkg, st], index) => (
                     <li
-                      className="flex items-center gap-1 font-mono"
+                      className={cn(
+                        "flex items-center gap-1 font-mono text-sm",
+                        st === "failed" && "text-destructive",
+                        st === "installed" && "text-accent-foreground",
+                        st === "installed" &&
+                          status === "failed" &&
+                          "text-muted-foreground"
+                      )}
                       key={index}
                     >
-                      <ProgressIcon status={status} />
+                      <ProgressIcon status={st} />
                       {pkg}
                     </li>
                   )
@@ -121,6 +139,38 @@ export const PackageAlert: React.FC = (props) => {
   }
 };
 
+function getInstallationStatusElements(packages: PackageInstallationStatus) {
+  const statuses = Object.entries(packages).map(([_, status]) => status);
+  const status = statuses.some((st) => st === "queued" || st === "installing")
+    ? "installing"
+    : statuses.some((st) => st === "failed")
+    ? "failed"
+    : "installed";
+
+  if (status === "installing") {
+    return {
+      status: "installing",
+      title: "Installing packages",
+      titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
+      description: "Installing packages:",
+    };
+  } else if (status === "installed") {
+    return {
+      status: "installed",
+      title: "All packages installed!",
+      titleIcon: <PackageCheckIcon className="w-5 h-5 inline-block mr-2" />,
+      description: "Installed packages:",
+    };
+  } else {
+    return {
+      status: "failed",
+      title: "Some packages failed to install",
+      titleIcon: <PackageXIcon className="w-5 h-5 inline-block mr-2" />,
+      description: "See terminal for error logs.",
+    };
+  }
+}
+
 const ProgressIcon = ({
   status,
 }: {
@@ -132,9 +182,9 @@ const ProgressIcon = ({
     case "installing":
       return <DownloadCloudIcon size="1rem" />;
     case "installed":
-      return <PackageCheckIcon size="1rem" />;
+      return <CheckIcon size="1rem" />;
     case "failed":
-      return <PackageXIcon size="1rem" />;
+      return <XIcon size="1rem" />;
     default:
       logNever(status);
       return null;
@@ -160,9 +210,7 @@ const InstallPackagesButton = ({
   packages: string[];
   addPackageAlert: any;
 }) => {
-  //const restartKernel = useRestartKernel();
   return (
-    //<Button variant="outline" size="sm" onClick={restartKernel}>
     <Button
       variant="outline"
       size="sm"

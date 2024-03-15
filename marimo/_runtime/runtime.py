@@ -1129,6 +1129,10 @@ class Kernel:
             self.reset_ui_initializers()
 
     async def install_missing_packages(self) -> None:
+        """Attempts to install packages for modules that cannot be imported
+
+        Runs cells affected by successful installation.
+        """
         missing_modules = self.package_manager.missing_modules()
         statuses: PackageStatusType = {}
         for mod in missing_modules:
@@ -1149,11 +1153,10 @@ class Kernel:
         installed_modules = [
             mod for mod in statuses if statuses[mod] == "installed"
         ]
-        cells_to_run = set().union(
-            *[
-                self.graph.get_defining_cells(module)
-                for module in installed_modules
-            ]
+        cells_to_run = set(
+            cid
+            for module in installed_modules
+            if (cid := self.package_manager.defining_cell(module)) is not None
         )
         await self._run_cells(
             dataflow.transitive_closure(self.graph, cells_to_run)

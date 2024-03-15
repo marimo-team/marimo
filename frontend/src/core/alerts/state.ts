@@ -6,11 +6,13 @@ import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 
 interface MissingPackageAlert {
+  id: string;
   kind: "missing";
   packages: string[];
 }
 
 interface InstallingPackageAlert {
+  id: string;
   kind: "installing";
   packages: PackageInstallationStatus;
 }
@@ -36,7 +38,7 @@ interface AlertState {
 }
 
 const { reducer, createActions } = createReducer(
-  () => ({ packageAlert: null }) as AlertState,
+  () => ({ packageAlert: null } as AlertState),
   {
     addPackageAlert: (
       state,
@@ -48,8 +50,12 @@ const { reducer, createActions } = createReducer(
       };
     },
 
-    clearPackageAlert: (state) => {
-      return { ...state, packageAlert: null };
+    clearPackageAlert: (state, id: string) => {
+      if (state.packageAlert !== null && state.packageAlert.id === id) {
+        return { ...state, packageAlert: null };
+      } else {
+        return state;
+      }
     },
   }
 );

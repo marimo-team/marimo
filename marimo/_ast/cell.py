@@ -124,6 +124,20 @@ class CellImpl:
             if data.module is not None
         )
 
+    def module_to_variable(self, module: str) -> Name | None:
+        """Returns the variable name corresponding to an imported module
+
+        Relevant for imports "as" imports, eg
+
+        import matplotlib.pyplot as plt
+
+        In this case the module is "matplotlib" but the name is "plt".
+        """
+        for name, data in self.variable_data.items():
+            if data.module == module:
+                return name
+        return None
+
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 

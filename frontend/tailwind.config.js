@@ -41,8 +41,9 @@ module.exports = {
         smNeutral: "var(--light-shadow)",
         mdNeutral: "var(--medium-shadow)",
         lgNeutral: "var(--heavy-shadow)",
-        // error shadows
+        // accent/error shadows
         smError: "var(--light-shadow-error)",
+        smAccent: "var(--light-shadow-accent)",
       },
       maxWidth: {
         contentWidth: "var(--content-width)",

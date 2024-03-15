@@ -7,7 +7,7 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.packages.module_name_to_pypi_name import (
     MODULE_NAME_TO_PYPI_NAME,
 )
-from typing import Iterator
+from marimo._ast.cell import CellId_t
 
 
 class PackageManager:
@@ -27,12 +27,19 @@ class PackageManager:
         # other than trying to install it ...
         self._excluded_modules: set[str] = set()
 
-    def canonicalize(self, module_name: str) -> str:
+    def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name on PyPI."""
         if module_name in MODULE_NAME_TO_PYPI_NAME:
             return MODULE_NAME_TO_PYPI_NAME[module_name]
         else:
             return module_name
+
+    def defining_cell(self, module_name: str) -> CellId_t | None:
+        """Get the cell id of the cell importing module_name"""
+        for cell_id, cell in self.graph.cells.items():
+            if cell.module_to_variable(module_name) is not None:
+                return cell_id
+        return None
 
     def modules(self) -> set[str]:
         """Modules imported by cells."""
@@ -44,7 +51,7 @@ class PackageManager:
 
     # UNUSED
     def _on_pypi(self, module: str) -> bool:
-        package = self.canonicalize(module)
+        package = self.module_to_package(module)
         response = urllib.request.urlopen(
             f"pypi.org/search?q={package}"
         ).read()
@@ -66,7 +73,9 @@ class PackageManager:
 
     def missing_packages(self) -> set[str]:
         """Candidate installed packages that cells appear to rely on"""
-        return set(self.canonicalize(mod) for mod in self.missing_modules())
+        return set(
+            self.module_to_package(mod) for mod in self.missing_modules()
+        )
 
     def install_module(self, module: str) -> bool:
         """Attempt to install a package that makes this module available.
@@ -77,7 +86,7 @@ class PackageManager:
         Returns True if installation succeeded, else False
         """
         completed_process = subprocess.run(
-            ["pip", "install", self.canonicalize(module)]
+            ["pip", "install", self.module_to_package(module)]
         )
         if completed_process.returncode != 0:
             self._excluded_modules.add(module)
