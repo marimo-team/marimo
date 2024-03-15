@@ -35,6 +35,7 @@ import { PyodideRouter } from "./router";
 import { Paths } from "@/utils/paths";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
+import InlineWorker from "./worker/worker?worker&inline";
 
 export type BridgeFunctionAndPayload = {
   [P in keyof RawBridge]: {
@@ -55,16 +56,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   constructor() {
     if (isPyodide()) {
       // Create a worker
-      const worker = new Worker(
-        // eslint-disable-next-line unicorn/relative-url-style
-        new URL("./worker/worker.ts", import.meta.url),
-        {
-          type: "module",
-          // Pass the version to the worker
-          /* @vite-ignore */
-          name: getMarimoVersion(),
-        },
-      );
+      const worker = new InlineWorker({
+        name: getMarimoVersion(),
+      });
 
       // Create the RPC
       this.rpc = getWorkerRPC(worker);
