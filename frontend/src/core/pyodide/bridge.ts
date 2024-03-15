@@ -55,10 +55,24 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   constructor() {
     if (isPyodide()) {
-      // Create a worker
-      const worker = new InlineWorker({
-        name: getMarimoVersion(),
-      });
+      // Create a worker, try by URL then inline
+      let worker: Worker;
+      const version = getMarimoVersion();
+      if (window.Worker) {
+        try {
+          worker = new Worker(new URL("worker/worker", import.meta.url), {
+            type: "module",
+            /* @vite-ignore */
+            name: version,
+          });
+        } catch {
+          Logger.debug("Failed to create worker by URL, trying inline.");
+          worker = new InlineWorker({ name: version });
+        }
+      } else {
+        Logger.debug("Worker not available, using inline worker.");
+        worker = new InlineWorker({ name: version });
+      }
 
       // Create the RPC
       this.rpc = getWorkerRPC(worker);
