@@ -7,6 +7,7 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.packages.module_name_to_pypi_name import (
     MODULE_NAME_TO_PYPI_NAME,
 )
+from typing import Iterator
 
 
 class PackageManager:
@@ -18,6 +19,7 @@ class PackageManager:
 
     Currently specialized to PyPI.
     """
+
     def __init__(self, graph: DirectedGraph) -> None:
         self.graph = graph
         # modules that do not have corresponding packages on PyPI;
@@ -49,19 +51,22 @@ class PackageManager:
         return "no results" not in response
 
     def missing_modules(self) -> set[str]:
-        """Modules that will fail to import."""
-        return set(
-            mod
-            for mod in self.modules()
-            if importlib.util.find_spec(mod) is None
+        """Modules that will fail to import
+
+        Excludes modules that failed to install  from PyPI
+        """
+        return (
+            set(
+                mod
+                for mod in self.modules()
+                if importlib.util.find_spec(mod) is None
+            )
+            - self._excluded_modules
         )
 
     def missing_packages(self) -> set[str]:
         """Candidate installed packages that cells appear to rely on"""
-        return set(
-            self.canonicalize(mod)
-            for mod in self.missing_modules() - self._excluded_modules
-        )
+        return set(self.canonicalize(mod) for mod in self.missing_modules())
 
     def install_module(self, module: str) -> bool:
         """Attempt to install a package that makes this module available.
@@ -71,20 +76,10 @@ class PackageManager:
 
         Returns True if installation succeeded, else False
         """
-        ret = subprocess.run(["pip", "install", self.canonicalize(module)])
-        if ret != 0:
+        completed_process = subprocess.run(
+            ["pip", "install", self.canonicalize(module)]
+        )
+        if completed_process.returncode != 0:
             self._excluded_modules.add(module)
             return False
         return True
-
-    def install_missing_packages(self) -> set[str]:
-        """Attempt to install packages for all missing modules.
-
-        Returns a set of module names that were installed.
-        """
-        installed = set()
-        missing_modules = self.missing_modules()
-        for module in missing_modules - self._excluded_modules:
-            if self.install_module(module):
-                installed.add(module)
-        return installed

@@ -213,6 +213,8 @@ export function useMarimoWebSocket(opts: {
         });
         return;
       case "installing-package-alert":
+        console.log("package alert");
+        console.log(msg.data);
         addPackageAlert({
           ...msg.data,
           kind: "installing",

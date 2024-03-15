@@ -74,6 +74,7 @@ class CompletionRequest:
 
 @dataclass
 class InstallMissingPackagesRequest:
+    # TODO: package manager (pip/conda/...), index URL (index/channel/...)
     ...
 
 

@@ -1,5 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { PackageInstallationStatus } from "@/core/kernel/messages";
+
+import { RuntimeState } from "@/core/kernel/RuntimeState";
+import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
   useAlertActions,
@@ -8,7 +10,14 @@ import {
 } from "@/core/alerts/state";
 import { logNever } from "@/utils/assertNever";
 import { Banner } from "@/plugins/impl/common/error-banner";
-import { PackageXIcon, BoxIcon, DownloadCloudIcon, XIcon } from "lucide-react";
+import {
+  PackageXIcon,
+  BoxIcon,
+  BoxesIcon,
+  DownloadCloudIcon,
+  PackageCheckIcon,
+  XIcon,
+} from "lucide-react";
 import React from "react";
 import { Button } from "../ui/button";
 //import { useRestartKernel } from "./actions/useRestartKernel";
@@ -65,13 +74,18 @@ export const PackageAlert: React.FC = (props) => {
       </div>
     );
   } else if (isInstallingPackageAlert(packageAlert)) {
+    console.log(packageAlert.packages);
+    const title = "Installing packages";
+    const titleIcon = (
+      <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />
+    );
     return (
       <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200]">
-        <Banner kind="info" className="flex flex-col rounded py-3 px-5">
+        <Banner kind="info" className="flex flex-col rounded pt-3 pb-4 px-5">
           <div className="flex justify-between">
             <span className="font-bold text-lg flex items-center mb-2">
-              <PackageXIcon className="w-5 h-5 inline-block mr-2" />
-              Installing packages ... Hang tight!
+              {titleIcon}
+              {title}
             </span>
             <Button
               variant="text"
@@ -83,14 +97,18 @@ export const PackageAlert: React.FC = (props) => {
           </div>
           <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground">
             <div>
-              <p>The following modules were not found:</p>
               <ul className="list-disc ml-4 mt-1">
-                {packageAlert.packages.map((pkg) => (
-                  <li className="flex items-center gap-1 font-mono">
-                    <BoxIcon size="1rem" />
-                    {pkg.name}
-                  </li>
-                ))}
+                {Object.entries(packageAlert.packages).map(
+                  ([pkg, status], index) => (
+                    <li
+                      className="flex items-center gap-1 font-mono"
+                      key={index}
+                    >
+                      <ProgressIcon status={status} />
+                      {pkg}
+                    </li>
+                  )
+                )}
               </ul>
             </div>
           </div>
@@ -103,15 +121,36 @@ export const PackageAlert: React.FC = (props) => {
   }
 };
 
-function installPackages(packages: string[], addPackageAlert: any) {
-  const packageStatus = packages.map((pkg) => {
-    return { name: pkg, status: "queued" };
-  }) as PackageInstallationStatus;
+const ProgressIcon = ({
+  status,
+}: {
+  status: "queued" | "installing" | "installed" | "failed";
+}) => {
+  switch (status) {
+    case "queued":
+      return <BoxIcon size="1rem" />;
+    case "installing":
+      return <DownloadCloudIcon size="1rem" />;
+    case "installed":
+      return <PackageCheckIcon size="1rem" />;
+    case "failed":
+      return <PackageXIcon size="1rem" />;
+    default:
+      logNever(status);
+      return null;
+  }
+};
+
+async function installPackages(packages: string[], addPackageAlert: any) {
+  const packageStatus = Object.fromEntries(
+    packages.map((pkg) => [pkg, "queued"])
+  );
   addPackageAlert({
     kind: "installing",
     packages: packageStatus,
   });
-  // TODO: send package install request
+  RuntimeState.INSTANCE.registerRunStart();
+  await sendInstallMissingPackages({});
 }
 
 const InstallPackagesButton = ({

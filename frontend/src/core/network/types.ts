@@ -94,6 +94,8 @@ export interface SendStdin {
   text: string;
 }
 
+export interface SendInstallMissingPackages {}
+
 export interface ValueUpdate {
   objectId: string;
   value: unknown;
@@ -171,18 +173,21 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
+  sendInstallMissingPackages: (
+    request: SendInstallMissingPackages
+  ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (
-    request: FileCreateRequest,
+    request: FileCreateRequest
   ) => Promise<FileOperationResponse>;
   sendDeleteFileOrFolder: (
-    request: FileDeleteRequest,
+    request: FileDeleteRequest
   ) => Promise<FileOperationResponse>;
   sendRenameFileOrFolder: (
-    request: FileUpdateRequest,
+    request: FileUpdateRequest
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
 }

@@ -22,6 +22,7 @@ import {
   RunRequests,
   EditRequests,
   SendStdin,
+  SendInstallMissingPackages,
   FileListResponse,
   FileCreateRequest,
   FileOperationResponse,
@@ -46,7 +47,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
         {
           objectIds: objectIds,
           values: values,
-        },
+        }
       );
     },
     sendRestart: () => {
@@ -61,15 +62,15 @@ function createNetworkRequests(): EditRequests & RunRequests {
       // Validate same length
       invariant(
         request.cellIds.length === request.codes.length,
-        "cell ids and codes must be the same length",
+        "cell ids and codes must be the same length"
       );
       invariant(
         request.codes.length === request.names.length,
-        "cell ids and names must be the same length",
+        "cell ids and names must be the same length"
       );
       invariant(
         request.codes.length === request.configs.length,
-        "cell ids and configs must be the same length",
+        "cell ids and configs must be the same length"
       );
 
       return API.post<SaveKernelRequest>("/kernel/save", request);
@@ -77,7 +78,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendFormat: (request: FormatRequest) => {
       return API.post<FormatRequest, FormatResponse>(
         "/kernel/format",
-        request,
+        request
       ).then((res) => res.codes);
     },
     sendInterrupt: () => {
@@ -99,7 +100,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
       // Validate same length
       invariant(
         request.objectIds.length === request.values.length,
-        "must be the same length",
+        "must be the same length"
       );
 
       return API.post<InstantiateRequest>("/kernel/instantiate", request);
@@ -112,13 +113,13 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendCodeCompletionRequest: (request) => {
       return API.post<CodeCompletionRequest>(
         "/kernel/code_autocomplete",
-        request,
+        request
       );
     },
     saveUserConfig: (request) => {
       return API.post<SaveUserConfigRequest>(
         "/kernel/save_user_config",
-        request,
+        request
       );
     },
     saveAppConfig: (request) => {
@@ -127,7 +128,7 @@ function createNetworkRequests(): EditRequests & RunRequests {
     saveCellConfig: (request) => {
       return API.post<SaveCellConfigRequest>(
         "/kernel/set_cell_config",
-        request,
+        request
       );
     },
     sendFunctionRequest: (request) => {
@@ -135,6 +136,12 @@ function createNetworkRequests(): EditRequests & RunRequests {
     },
     sendStdin: (request) => {
       return API.post<SendStdin>("/kernel/stdin", request);
+    },
+    sendInstallMissingPackages: (request) => {
+      return API.post<SendInstallMissingPackages>(
+        "/kernel/install_missing_packages",
+        request
+      );
     },
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
@@ -148,31 +155,31 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendListFiles: (request) => {
       return API.post<{ path: string | undefined }, FileListResponse>(
         "/files/list_files",
-        request,
+        request
       );
     },
     sendCreateFileOrFolder: (request) => {
       return API.post<FileCreateRequest, FileOperationResponse>(
         "/files/create",
-        request,
+        request
       );
     },
     sendDeleteFileOrFolder: (request) => {
       return API.post<FileDeleteRequest, FileOperationResponse>(
         "/files/delete",
-        request,
+        request
       );
     },
     sendRenameFileOrFolder: (request) => {
       return API.post<FileUpdateRequest, FileOperationResponse>(
         "/files/update",
-        request,
+        request
       );
     },
     sendFileDetails: (request: { path: string }) => {
       return API.post<{ path: string }, FileDetailsResponse>(
         "/files/file_details",
-        request,
+        request
       );
     },
   };
@@ -195,6 +202,7 @@ export const {
   saveAppConfig,
   saveCellConfig,
   sendFunctionRequest,
+  sendInstallMissingPackages,
   readCode,
   openFile,
   sendListFiles,
@@ -205,5 +213,5 @@ export const {
 } = isPyodide()
   ? PyodideBridge.INSTANCE
   : isStaticNotebook()
-    ? createStaticRequests()
-    : createNetworkRequests();
+  ? createStaticRequests()
+  : createNetworkRequests();

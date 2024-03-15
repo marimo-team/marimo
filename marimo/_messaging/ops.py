@@ -293,6 +293,18 @@ class MissingPackageAlert(Op):
     packages: List[str]
 
 
+# package name => installation status
+PackageStatusType = Dict[
+    str, Literal["queued", "installing", "installed", "failed"]
+]
+
+
+@dataclass
+class InstallingPackageAlert(Op):
+    name: ClassVar[str] = "installing-package-alert"
+    packages: PackageStatusType
+
+
 @dataclass
 class Reconnected(Op):
     name: ClassVar[str] = "reconnected"

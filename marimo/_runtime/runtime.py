@@ -35,7 +35,9 @@ from marimo._messaging.ops import (
     CompletedRun,
     FunctionCallResult,
     HumanReadableStatus,
+    InstallingPackageAlert,
     MissingPackageAlert,
+    PackageStatusType,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -1127,12 +1129,29 @@ class Kernel:
             self.reset_ui_initializers()
 
     async def install_missing_packages(self) -> None:
-        # TODO: stdout/stderr output needs to go somewhere in frontend!
-        #   But don't have a cell ID associated with it; it's just ... shell ...
-        installed_modules = self.package_manager.install_missing_packages()
+        missing_modules = self.package_manager.missing_modules()
+        statuses: PackageStatusType = {}
+        for mod in missing_modules:
+            statuses[mod] = "queued"
+
+        InstallingPackageAlert(packages=statuses).broadcast()
+        for mod in missing_modules:
+            statuses[mod] = "installing"
+            InstallingPackageAlert(packages=statuses).broadcast()
+            if self.package_manager.install_module(mod):
+                print("Installed ", mod)
+                statuses[mod] = "installed"
+                InstallingPackageAlert(packages=statuses).broadcast()
+            else:
+                statuses[mod] = "failed"
+                InstallingPackageAlert(packages=statuses).broadcast()
+
+        installed_modules = [
+            mod for mod in statuses if statuses[mod] == "installed"
+        ]
         cells_to_run = set().union(
             *[
-                self.graph.get_referring_cells(module)
+                self.graph.get_defining_cells(module)
                 for module in installed_modules
             ]
         )
@@ -1142,6 +1161,7 @@ class Kernel:
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
+
         The message is dispatched to the appropriate method based on its type.
         """
         if isinstance(request, CreationRequest):
@@ -1167,6 +1187,7 @@ class Kernel:
             await self.delete(request)
         elif isinstance(request, InstallMissingPackagesRequest):
             await self.install_missing_packages()
+            CompletedRun().broadcast()
         elif isinstance(request, StopRequest):
             return None
         else:

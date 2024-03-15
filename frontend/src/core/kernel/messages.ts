@@ -155,10 +155,12 @@ export interface FunctionCallResultMessage {
     status: HumanReadableStatus;
 }
 
-export type PackageInstallationStatus = Array<{
-    name: string;
-    status: "queued" | "installing" | "installed" | "failed";
-}>;
+export type PackageInstallationStatus = {
+    /**
+     * Package name => status
+     */
+    [key: string]: "queued" | "installing" | "installed" | "failed";
+};
 
 /**
  * Message sent from the frontend to the kernel via the websocket.
