@@ -390,10 +390,21 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
+        missing_packages_before_deletion = (
+            self.package_manager.missing_packages()
+        )
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
+        missing_packages_after_deletion = (
+            self.package_manager.missing_packages()
+        )
+        if missing_packages_after_deletion != missing_packages_before_deletion:
+            MissingPackageAlert(
+                packages=list(sorted(missing_packages_after_deletion)),
+            ).broadcast()
+
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )
@@ -784,13 +795,6 @@ class Kernel:
                     status=cell.status,
                 )
 
-            if isinstance(run_result.exception, ModuleNotFoundError):
-                missing_packages = self.package_manager.missing_packages()
-                if missing_packages:
-                    MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
-                    ).broadcast()
-
             if get_global_context().mpl_installed:
                 # ensures that every cell gets a fresh axis.
                 exec("__marimo__._output.mpl.close_figures()", self.globals)
@@ -845,6 +849,16 @@ class Kernel:
                     cell_id=cid,
                     status="idle",
                 )
+
+        if any(
+            isinstance(e, ModuleNotFoundError)
+            for e in runner.exceptions.values()
+        ):
+            missing_packages = self.package_manager.missing_packages()
+            if missing_packages:
+                MissingPackageAlert(
+                    packages=list(sorted(missing_packages)),
+                ).broadcast()
 
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates, self.errors
@@ -1133,25 +1147,32 @@ class Kernel:
 
         Runs cells affected by successful installation.
         """
+        # Package manager operates on module names
         missing_modules = list(sorted(self.package_manager.missing_modules()))
-        statuses: PackageStatusType = {}
-        for mod in missing_modules:
-            statuses[mod] = "queued"
 
-        InstallingPackageAlert(packages=statuses).broadcast()
+        # Frontend shows package names, not module names
+        package_statuses: PackageStatusType = {
+            self.package_manager.module_to_package(mod): "queued"
+            for mod in missing_modules
+        }
+        InstallingPackageAlert(packages=package_statuses).broadcast()
+
         for mod in missing_modules:
-            statuses[mod] = "installing"
-            InstallingPackageAlert(packages=statuses).broadcast()
+            pkg = self.package_manager.module_to_package(mod)
+            package_statuses[pkg] = "installing"
+            InstallingPackageAlert(packages=package_statuses).broadcast()
             if self.package_manager.install_module(mod):
                 print("Installed ", mod)
-                statuses[mod] = "installed"
-                InstallingPackageAlert(packages=statuses).broadcast()
+                package_statuses[pkg] = "installed"
+                InstallingPackageAlert(packages=package_statuses).broadcast()
             else:
-                statuses[mod] = "failed"
-                InstallingPackageAlert(packages=statuses).broadcast()
+                package_statuses[pkg] = "failed"
+                InstallingPackageAlert(packages=package_statuses).broadcast()
 
         installed_modules = [
-            mod for mod in statuses if statuses[mod] == "installed"
+            self.package_manager.package_to_module(pkg)
+            for pkg in package_statuses
+            if package_statuses[pkg] == "installed"
         ]
         cells_to_run = set(
             cid

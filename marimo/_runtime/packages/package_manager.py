@@ -26,6 +26,9 @@ class PackageManager:
         # no good way to determine whether or not we should exclude a package
         # other than trying to install it ...
         self._excluded_modules: set[str] = set()
+        self._package_to_module = {
+            v: k for k, v in MODULE_NAME_TO_PYPI_NAME.items()
+        }
 
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name on PyPI."""
@@ -33,6 +36,14 @@ class PackageManager:
             return MODULE_NAME_TO_PYPI_NAME[module_name]
         else:
             return module_name
+
+    def package_to_module(self, package_name: str) -> str:
+        """Canonicalizes a package name to a module name."""
+        return (
+            self._package_to_module[package_name]
+            if package_name in self._package_to_module
+            else package_name
+        )
 
     def defining_cell(self, module_name: str) -> CellId_t | None:
         """Get the cell id of the cell importing module_name"""

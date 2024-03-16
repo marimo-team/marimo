@@ -51,9 +51,9 @@ export const PackageAlert: React.FC = (props) => {
               <XIcon className="w-5 h-5" />
             </Button>
           </div>
-          <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground">
+          <div className="flex flex-col gap-4 justify-between items-start text-muted-foreground text-base">
             <div>
-              <p>The following modules were not found:</p>
+              <p>The following packages were not found:</p>
               <ul className="list-disc ml-4 mt-1">
                 {packageAlert.packages.map((pkg, index) => (
                   <li
