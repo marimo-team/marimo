@@ -6,7 +6,7 @@
     "build": "pnpm run build:ts && pnpm run build:deps"
   },
   "dependencies": {
-    "copilot-node-server": "1.19.2"
+    "copilot-node-server": "1.20.1"
   },
   "devDependencies": {
     "@sourcegraph/vscode-ws-jsonrpc": "0.0.3-fork",
