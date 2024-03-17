@@ -92,7 +92,7 @@
     "js-cookie": "^3.0.5",
     "katex": "^0.16.9",
     "lodash-es": "^4.17.21",
-    "lucide-react": "^0.338.0",
+    "lucide-react": "^0.340.0",
     "lz-string": "^1.5.0",
     "mermaid": "^10.8.0",
     "partysocket": "0.0.25",
