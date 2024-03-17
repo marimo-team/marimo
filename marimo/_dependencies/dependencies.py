@@ -124,7 +124,7 @@ class DependencyManager:
 
     @staticmethod
     def has_pillow() -> bool:
-        """Return True if plotly is installed."""
+        """Return True if pillow is installed."""
         return importlib.util.find_spec("PIL") is not None
 
     @staticmethod

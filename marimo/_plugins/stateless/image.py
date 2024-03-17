@@ -47,8 +47,9 @@ def _normalize_image(src: ImageLike) -> Image:
 
     **Raises.**
 
-    - `ImportError`: If the required `PIL` or `numpy` packages are not
+    - `ModuleNotFoundError`: If the required `PIL` or `numpy` packages are not
         available.
+    - `ValueError`: If the input is not a valid image-like object.
     """
     if (
         isinstance(src, list)
@@ -56,13 +57,13 @@ def _normalize_image(src: ImageLike) -> Image:
         or hasattr(src, "toarray")
     ):
         DependencyManager.require_pillow(
-            "to render images from arrays in" " `mo.image`"
+            "to render images from arrays in `mo.image`"
         )
         from PIL import Image as _Image
 
         if not hasattr(src, "__array_interface__"):
             DependencyManager.require_numpy(
-                "to render images from generic" "  arrays in `mo.image`"
+                "to render images from generic arrays in `mo.image`"
             )
             import numpy
 
