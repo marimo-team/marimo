@@ -68,6 +68,21 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def require_pillow(why: str) -> None:
+        """
+        Raise an ModuleNotFoundError if pillow is not installed.
+
+        Args:
+            why: A string of the form "for <reason>" that will be appended
+
+        """
+        if not DependencyManager.has_pillow():
+            raise ModuleNotFoundError(
+                f"pillow is required {why}. "
+                + "You can install it with 'pip install pillow'"
+            ) from None
+
+    @staticmethod
     def require_plotly(why: str) -> None:
         """
         Raise an ModuleNotFoundError if plotly is not installed.
@@ -106,6 +121,11 @@ class DependencyManager:
     def has_altair() -> bool:
         """Return True if altair is installed."""
         return importlib.util.find_spec("altair") is not None
+
+    @staticmethod
+    def has_pillow() -> bool:
+        """Return True if pillow is installed."""
+        return importlib.util.find_spec("PIL") is not None
 
     @staticmethod
     def has_plotly() -> bool:

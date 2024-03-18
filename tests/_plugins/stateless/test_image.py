@@ -3,10 +3,13 @@ import sys
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.image import image
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+
+HAS_DEPS = DependencyManager.has_numpy() and DependencyManager.has_pillow()
 
 
 async def test_image() -> None:
@@ -64,6 +67,43 @@ async def test_image_str(k: Kernel, exec_req: ExecReqProvider) -> None:
         ]
     )
     assert len(get_context().virtual_file_registry.registry) == 0
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+async def test_image_array(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                data = [[[255, 0, 0], [0, 255, 0], [0, 0, 255]]]
+                image = mo.image(data)
+                """
+            ),
+        ]
+    )
+    assert len(get_context().virtual_file_registry.registry) == 1
+    for fname, _ in get_context().virtual_file_registry.registry.items():
+        assert fname.endswith(".png")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+async def test_image_numpy(k: Kernel, exec_req: ExecReqProvider) -> None:
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import marimo as mo
+                import numpy as np
+                data = np.random.rand(10, 10)
+                image = mo.image(data)
+                """
+            ),
+        ]
+    )
+    assert len(get_context().virtual_file_registry.registry) == 1
+    for fname, _ in get_context().virtual_file_registry.registry.items():
+        assert fname.endswith(".png")
 
 
 # TODO(akshayka): Debug on Windows
