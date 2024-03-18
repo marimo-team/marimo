@@ -9,6 +9,7 @@ interface MissingPackageAlert {
   id: string;
   kind: "missing";
   packages: string[];
+  isolated: boolean;
 }
 
 interface InstallingPackageAlert {

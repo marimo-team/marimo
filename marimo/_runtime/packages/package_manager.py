@@ -1,13 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 import importlib.util
-import urllib.request
+import os
 import subprocess
+import sys
+import urllib.request
 
+from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.packages.module_name_to_pypi_name import (
     MODULE_NAME_TO_PYPI_NAME,
 )
-from marimo._ast.cell import CellId_t
+from marimo._utils.platform import is_pyodide
 
 
 class PackageManager:
@@ -103,3 +106,27 @@ class PackageManager:
             self._excluded_modules.add(module)
             return False
         return True
+
+    @staticmethod
+    def in_virtual_environment() -> bool:
+        """Returns True if a venv/virtualenv is activated"""
+        # https://stackoverflow.com/questions/1871549/how-to-determine-if-python-is-running-inside-a-virtualenv/40099080#40099080  # noqa: E501
+        base_prefix = (
+            getattr(sys, "base_prefix", None)
+            or getattr(sys, "real_prefix", None)
+            or sys.prefix
+        )
+        return sys.prefix != base_prefix
+
+    @staticmethod
+    def in_conda_env() -> bool:
+        return "CONDA_DEFAULT_ENV" in os.environ
+
+    @staticmethod
+    def is_python_isolated() -> bool:
+        """Returns True if not using system Python"""
+        return (
+            PackageManager.in_virtual_environment()
+            or PackageManager.in_conda_env()
+            or is_pyodide()
+        )

@@ -291,6 +291,7 @@ class Alert(Op):
 class MissingPackageAlert(Op):
     name: ClassVar[str] = "missing-package-alert"
     packages: List[str]
+    isolated: bool
 
 
 # package name => installation status
@@ -399,6 +400,7 @@ MessageOperation = Union[
     Alert,
     Banner,
     MissingPackageAlert,
+    InstallingPackageAlert,
     Variables,
     VariableValues,
 ]

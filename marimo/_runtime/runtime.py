@@ -403,6 +403,7 @@ class Kernel:
         if missing_packages_after_deletion != missing_packages_before_deletion:
             MissingPackageAlert(
                 packages=list(sorted(missing_packages_after_deletion)),
+                isolated=PackageManager.is_python_isolated(),
             ).broadcast()
 
         get_context().cell_lifecycle_registry.dispose(
@@ -858,6 +859,7 @@ class Kernel:
             if missing_packages:
                 MissingPackageAlert(
                     packages=list(sorted(missing_packages)),
+                    isolated=self.package_manager.is_python_isolated(),
                 ).broadcast()
 
         cells_with_stale_state = runner.resolve_state_updates(

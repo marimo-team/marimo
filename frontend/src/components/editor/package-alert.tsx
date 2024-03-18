@@ -67,10 +67,24 @@ export const PackageAlert: React.FC = (props) => {
               </ul>
             </div>
             <div className="ml-auto">
-              <InstallPackagesButton
-                packages={packageAlert.packages}
-                addPackageAlert={addPackageAlert}
-              />
+              {packageAlert.isolated ? (
+                <InstallPackagesButton
+                  packages={packageAlert.packages}
+                  addPackageAlert={addPackageAlert}
+                />
+              ) : (
+                <p>
+                  If you set up a{" "}
+                  <a
+                    href="https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments"
+                    className="text-accent-foreground hover:underline"
+                    target="_blank"
+                  >
+                    virtual environment
+                  </a>
+                  , marimo can install these packages for you.
+                </p>
+              )}
             </div>
           </div>
         </Banner>

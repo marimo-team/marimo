@@ -283,6 +283,7 @@ export type OperationMessage =
           data: {
               kind: "missing";
               packages: string[];
+              isolated: boolean;
           };
       }
     | {
