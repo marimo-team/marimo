@@ -5,27 +5,27 @@ import { createReducer } from "@/utils/createReducer";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 
-interface MissingPackageAlert {
+export interface MissingPackageAlert {
   id: string;
   kind: "missing";
   packages: string[];
   isolated: boolean;
 }
 
-interface InstallingPackageAlert {
+export interface InstallingPackageAlert {
   id: string;
   kind: "installing";
   packages: PackageInstallationStatus;
 }
 
 export function isMissingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert
+  alert: MissingPackageAlert | InstallingPackageAlert,
 ): alert is MissingPackageAlert {
   return alert.kind === "missing";
 }
 
 export function isInstallingPackageAlert(
-  alert: MissingPackageAlert | InstallingPackageAlert
+  alert: MissingPackageAlert | InstallingPackageAlert,
 ): alert is InstallingPackageAlert {
   return alert.kind === "installing";
 }
@@ -39,11 +39,11 @@ interface AlertState {
 }
 
 const { reducer, createActions } = createReducer(
-  () => ({ packageAlert: null } as AlertState),
+  () => ({ packageAlert: null }) as AlertState,
   {
     addPackageAlert: (
       state,
-      alert: MissingPackageAlert | InstallingPackageAlert
+      alert: MissingPackageAlert | InstallingPackageAlert,
     ) => {
       return {
         ...state,
@@ -52,13 +52,11 @@ const { reducer, createActions } = createReducer(
     },
 
     clearPackageAlert: (state, id: string) => {
-      if (state.packageAlert !== null && state.packageAlert.id === id) {
-        return { ...state, packageAlert: null };
-      } else {
-        return state;
-      }
+      return state.packageAlert !== null && state.packageAlert.id === id
+        ? { ...state, packageAlert: null }
+        : state;
     },
-  }
+  },
 );
 
 const alertAtom = atom<AlertState>({

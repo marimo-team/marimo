@@ -179,7 +179,7 @@ export function useMarimoWebSocket(opts: {
             name: v.name,
             declaredBy: v.declared_by,
             usedBy: v.used_by,
-          }))
+          })),
         );
         return;
       case "variable-values":
@@ -188,7 +188,7 @@ export function useMarimoWebSocket(opts: {
             name: v.name,
             dataType: v.datatype,
             value: v.value,
-          }))
+          })),
         );
         return;
       case "alert":

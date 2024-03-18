@@ -21,7 +21,6 @@ import {
   SaveKernelRequest,
   SaveUserConfigRequest,
   SendFunctionRequest,
-  SendInstallMissingPackages,
   SendStdin,
   ValueUpdate,
 } from "../network/types";
@@ -85,7 +84,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         });
       } else {
         console.warn(
-          "Not running in a secure context; interrupts are not available."
+          "Not running in a secure context; interrupts are not available.",
         );
       }
     }
@@ -106,7 +105,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   private handleWorkerMessage = async (
-    event: MessageEvent<WorkerClientPayload>
+    event: MessageEvent<WorkerClientPayload>,
   ) => {
     if (event.data.type === "ready") {
       await this.setCode();
@@ -199,7 +198,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendFormat = async (
-    request: FormatRequest
+    request: FormatRequest,
   ): Promise<Record<CellId, string>> => {
     const response = await this.fetcher.request({
       functionName: "format",
@@ -215,7 +214,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
   sendInstallMissingPackages = async (): Promise<null> => null;
   sendCodeCompletionRequest = async (
-    request: CodeCompletionRequest
+    request: CodeCompletionRequest,
   ): Promise<null> => {
     await this.fetcher.request({
       functionName: "code_complete",
@@ -270,7 +269,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendListFiles = async (
-    request: FileListRequest
+    request: FileListRequest,
   ): Promise<FileListResponse> => {
     const response = await this.fetcher.request({
       functionName: "list_files",
@@ -298,7 +297,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendCreateFileOrFolder = async (
-    request: FileCreateRequest
+    request: FileCreateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "create_file_or_directory",
@@ -308,7 +307,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendDeleteFileOrFolder = async (
-    request: FileDeleteRequest
+    request: FileDeleteRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "delete_file_or_directory",
@@ -318,7 +317,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRenameFileOrFolder = async (
-    request: FileUpdateRequest
+    request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.fetcher.request({
       functionName: "update_file_or_directory",

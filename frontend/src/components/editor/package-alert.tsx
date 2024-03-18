@@ -6,10 +6,11 @@ import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
   useAlertActions,
+  MissingPackageAlert,
+  InstallingPackageAlert,
   isMissingPackageAlert,
   isInstallingPackageAlert,
 } from "@/core/alerts/state";
-import { logNever } from "@/utils/assertNever";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import {
   PackageXIcon,
@@ -22,6 +23,8 @@ import {
 import React from "react";
 import { Button } from "../ui/button";
 import { PackageInstallationStatus } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
+import { generateUUID } from "@/utils/uuid";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -79,6 +82,7 @@ export const PackageAlert: React.FC = (props) => {
                     href="https://docs.python.org/3/tutorial/venv.html#creating-virtual-environments"
                     className="text-accent-foreground hover:underline"
                     target="_blank"
+                    rel="noreferrer"
                   >
                     virtual environment
                   </a>
@@ -119,7 +123,7 @@ export const PackageAlert: React.FC = (props) => {
           <div
             className={cn(
               "flex flex-col gap-4 justify-between items-start text-muted-foreground text-base",
-              status === "installed" && "text-accent-foreground"
+              status === "installed" && "text-accent-foreground",
             )}
           >
             <div>
@@ -135,14 +139,14 @@ export const PackageAlert: React.FC = (props) => {
                         st === "installed" && "text-accent-foreground",
                         st === "installed" &&
                           status === "failed" &&
-                          "text-muted-foreground"
+                          "text-muted-foreground",
                       )}
                       key={index}
                     >
                       <ProgressIcon status={st} />
                       {pkg}
                     </li>
-                  )
+                  ),
                 )}
               </ul>
             </div>
@@ -160,9 +164,9 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
   const statuses = Object.entries(packages).map(([_, status]) => status);
   const status = statuses.some((st) => st === "queued" || st === "installing")
     ? "installing"
-    : statuses.some((st) => st === "failed")
-    ? "failed"
-    : "installed";
+    : statuses.includes("failed")
+      ? "failed"
+      : "installed";
 
   if (status === "installing") {
     return {
@@ -208,11 +212,17 @@ const ProgressIcon = ({
   }
 };
 
-async function installPackages(packages: string[], addPackageAlert: any) {
+async function installPackages(
+  packages: string[],
+  addPackageAlert: (
+    alert: MissingPackageAlert | InstallingPackageAlert,
+  ) => void,
+) {
   const packageStatus = Object.fromEntries(
-    packages.map((pkg) => [pkg, "queued"])
-  );
+    packages.map((pkg) => [pkg, "queued"]),
+  ) as PackageInstallationStatus;
   addPackageAlert({
+    id: generateUUID(),
     kind: "installing",
     packages: packageStatus,
   });
@@ -225,7 +235,9 @@ const InstallPackagesButton = ({
   addPackageAlert,
 }: {
   packages: string[];
-  addPackageAlert: any;
+  addPackageAlert: (
+    alert: MissingPackageAlert | InstallingPackageAlert,
+  ) => void;
 }) => {
   return (
     <Button

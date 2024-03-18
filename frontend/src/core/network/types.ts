@@ -94,7 +94,10 @@ export interface SendStdin {
   text: string;
 }
 
-export interface SendInstallMissingPackages {}
+// In the future may include things like package manager, index URL, ...
+export interface SendInstallMissingPackages {
+  [key: string]: never;
+}
 
 export interface ValueUpdate {
   objectId: string;
@@ -174,20 +177,20 @@ export interface EditRequests {
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
   sendInstallMissingPackages: (
-    request: SendInstallMissingPackages
+    request: SendInstallMissingPackages,
   ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (
-    request: FileCreateRequest
+    request: FileCreateRequest,
   ) => Promise<FileOperationResponse>;
   sendDeleteFileOrFolder: (
-    request: FileDeleteRequest
+    request: FileDeleteRequest,
   ) => Promise<FileOperationResponse>;
   sendRenameFileOrFolder: (
-    request: FileUpdateRequest
+    request: FileUpdateRequest,
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
 }
