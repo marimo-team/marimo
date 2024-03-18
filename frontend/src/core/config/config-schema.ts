@@ -7,6 +7,7 @@ import {
 } from "../dom/marimo-tag";
 import { ZodLocalStorage } from "@/utils/localStorage";
 import { isPyodide } from "../pyodide/utils";
+import { repl } from "@/utils/repl";
 
 export const UserConfigSchema = z
   .object({
@@ -15,7 +16,7 @@ export const UserConfigSchema = z
         activate_on_typing: z.boolean().default(true),
         copilot: z.boolean().default(false),
       })
-      .default({ activate_on_typing: true, copilot: false }),
+      .default({}),
     save: z
       .object({
         autosave: z.enum(["off", "after_delay"]).default("after_delay"),
@@ -27,11 +28,7 @@ export const UserConfigSchema = z
           .default(1000),
         format_on_save: z.boolean().default(false),
       })
-      .default({
-        autosave: "after_delay",
-        autosave_delay: 1000,
-        format_on_save: false,
-      }),
+      .default({}),
     formatting: z
       .object({
         line_length: z
@@ -40,28 +37,24 @@ export const UserConfigSchema = z
           .default(79)
           .transform((n) => Math.min(n, 1000)),
       })
-      .default({ line_length: 79 }),
+      .default({}),
     keymap: z
       .object({
         preset: z.enum(["default", "vim"]).default("default"),
       })
-      .default({ preset: "default" }),
+      .default({}),
     runtime: z
       .object({
-        auto_instantiate: z.boolean(),
+        auto_instantiate: z.boolean().default(true),
       })
-      .default({ auto_instantiate: true }),
+      .default({}),
     display: z
       .object({
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
       })
-      .default({
-        theme: "light",
-        code_editor_font_size: 14,
-        cell_output: "above",
-      }),
+      .default({}),
     experimental: z
       .object({
         ai: z.boolean().optional(),
@@ -73,20 +66,12 @@ export const UserConfigSchema = z
   // Pass through so that we don't remove any extra keys that the user has added
   .passthrough()
   .default({
-    completion: { activate_on_typing: true, copilot: false },
-    save: {
-      autosave: "after_delay",
-      autosave_delay: 1000,
-      format_on_save: false,
-    },
-    formatting: { line_length: 79 },
-    keymap: { preset: "default" },
-    runtime: { auto_instantiate: true },
-    display: {
-      theme: "light",
-      code_editor_font_size: 14,
-      cell_output: "above",
-    },
+    completion: {},
+    save: {},
+    formatting: {},
+    keymap: {},
+    runtime: {},
+    display: {},
     experimental: {},
   });
 export type UserConfig = z.infer<typeof UserConfigSchema>;
@@ -113,7 +98,7 @@ export function parseAppConfig() {
   }
 }
 
-export function parseUserConfig() {
+export function parseUserConfig(): UserConfig {
   try {
     // For Pyodide, we use the local storage to store the user config.
     if (isPyodide()) {
@@ -138,5 +123,16 @@ export function parseUserConfig() {
 export const UserConfigLocalStorage = new ZodLocalStorage<UserConfig>(
   "marimo:user-config",
   UserConfigSchema,
-  UserConfigSchema.parse({}),
+  () => parseUserConfig(),
 );
+
+function setFeatureFlag(
+  feature: keyof UserConfig["experimental"],
+  value: boolean,
+) {
+  const userConfig = UserConfigLocalStorage.get();
+  userConfig.experimental[feature] = value;
+  UserConfigLocalStorage.set(userConfig);
+}
+
+repl(setFeatureFlag, "setFeatureFlag");
