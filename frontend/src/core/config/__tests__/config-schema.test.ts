@@ -11,7 +11,7 @@ test("default AppConfig", () => {
   `);
 });
 
-test("default UserConfig", () => {
+test("default UserConfig - empty", () => {
   const defaultConfig = UserConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
@@ -41,4 +41,56 @@ test("default UserConfig", () => {
       },
     }
   `);
+});
+
+test("default UserConfig - one level", () => {
+  const defaultConfig = UserConfigSchema.parse({
+    completion: {},
+    save: {},
+    formatting: {},
+    keymap: {},
+    runtime: {},
+    display: {},
+    experimental: {},
+  });
+  expect(defaultConfig).toMatchInlineSnapshot(`
+    {
+      "completion": {
+        "activate_on_typing": true,
+        "copilot": false,
+      },
+      "display": {
+        "cell_output": "above",
+        "code_editor_font_size": 14,
+        "theme": "light",
+      },
+      "experimental": {},
+      "formatting": {
+        "line_length": 79,
+      },
+      "keymap": {
+        "preset": "default",
+      },
+      "runtime": {
+        "auto_instantiate": true,
+      },
+      "save": {
+        "autosave": "after_delay",
+        "autosave_delay": 1000,
+        "format_on_save": false,
+      },
+    }
+  `);
+
+  expect(
+    UserConfigSchema.parse({
+      completion: {},
+      save: {},
+      formatting: {},
+      keymap: {},
+      runtime: {},
+      display: {},
+      experimental: {},
+    }),
+  ).toEqual(UserConfigSchema.parse({}));
 });
