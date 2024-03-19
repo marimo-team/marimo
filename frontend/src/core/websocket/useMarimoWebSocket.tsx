@@ -210,7 +210,6 @@ export function useMarimoWebSocket(opts: {
         addPackageAlert({
           ...msg.data,
           kind: "missing",
-          id: generateUUID(),
         });
         return;
       case "installing-package-alert":
@@ -219,7 +218,6 @@ export function useMarimoWebSocket(opts: {
         addPackageAlert({
           ...msg.data,
           kind: "installing",
-          id: generateUUID(),
         });
         return;
       default:

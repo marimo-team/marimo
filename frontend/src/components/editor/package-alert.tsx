@@ -24,7 +24,6 @@ import React from "react";
 import { Button } from "../ui/button";
 import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
-import { generateUUID } from "@/utils/uuid";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -161,12 +160,13 @@ export const PackageAlert: React.FC = (props) => {
 };
 
 function getInstallationStatusElements(packages: PackageInstallationStatus) {
-  const statuses = Object.entries(packages).map(([_, status]) => status);
-  const status = statuses.some((st) => st === "queued" || st === "installing")
-    ? "installing"
-    : statuses.includes("failed")
-      ? "failed"
-      : "installed";
+  const statuses = new Set(Object.values(packages));
+  const status =
+    statuses.has("queued") || statuses.has("installing")
+      ? "installing"
+      : statuses.has("failed")
+        ? "failed"
+        : "installed";
 
   if (status === "installing") {
     return {
@@ -195,7 +195,7 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
 const ProgressIcon = ({
   status,
 }: {
-  status: "queued" | "installing" | "installed" | "failed";
+  status: PackageInstallationStatus[string];
 }) => {
   switch (status) {
     case "queued":
@@ -222,7 +222,6 @@ async function installPackages(
     packages.map((pkg) => [pkg, "queued"]),
   ) as PackageInstallationStatus;
   addPackageAlert({
-    id: generateUUID(),
     kind: "installing",
     packages: packageStatus,
   });

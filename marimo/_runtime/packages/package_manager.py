@@ -9,7 +9,7 @@ import sys
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.packages.module_name_to_pypi_name import (
-    MODULE_NAME_TO_PYPI_NAME,
+    module_name_to_pypi_name,
 )
 from marimo._utils.platform import is_pyodide
 
@@ -30,22 +30,38 @@ class PackageManager:
         # no good way to determine whether or not we should exclude a package
         # other than trying to install it ...
         self._excluded_modules: set[str] = set()
-        self._package_to_module = {
-            v: k for k, v in MODULE_NAME_TO_PYPI_NAME.items()
-        }
+        self._module_name_to_pypi_name: dict[str, str] | None = None
+        self._pypi_name_to_module_name: dict[str, str] | None = None
+
+    def _initialize_mappings(self) -> None:
+        if self._module_name_to_pypi_name is None:
+            self._module_name_to_pypi_name = module_name_to_pypi_name()
+
+        if self._pypi_name_to_module_name is None:
+            self._pypi_name_to_module_name = {
+                v: k for k, v in self._module_name_to_pypi_name.items()
+            }
 
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name on PyPI."""
-        if module_name in MODULE_NAME_TO_PYPI_NAME:
-            return MODULE_NAME_TO_PYPI_NAME[module_name]
+        if self._module_name_to_pypi_name is None:
+            self._initialize_mappings()
+        assert self._module_name_to_pypi_name is not None
+
+        if module_name in self._module_name_to_pypi_name:
+            return self._module_name_to_pypi_name[module_name]
         else:
             return module_name.replace("_", "-")
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""
+        if self._pypi_name_to_module_name is None:
+            self._initialize_mappings()
+        assert self._pypi_name_to_module_name is not None
+
         return (
-            self._package_to_module[package_name]
-            if package_name in self._package_to_module
+            self._pypi_name_to_module_name[package_name]
+            if package_name in self._pypi_name_to_module_name
             else package_name.replace("-", "_")
         )
 

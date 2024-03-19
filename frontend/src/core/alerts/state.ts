@@ -2,18 +2,19 @@
 
 import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { createReducer } from "@/utils/createReducer";
+import { generateUUID } from "@/utils/uuid";
 import { atom, useAtomValue, useSetAtom } from "jotai";
 import { useMemo } from "react";
 
+type Identified<T> = { id: string } & T;
+
 export interface MissingPackageAlert {
-  id: string;
   kind: "missing";
   packages: string[];
   isolated: boolean;
 }
 
 export interface InstallingPackageAlert {
-  id: string;
   kind: "installing";
   packages: PackageInstallationStatus;
 }
@@ -35,7 +36,10 @@ export function isInstallingPackageAlert(
  * Right now we only have one type of alert.
  */
 interface AlertState {
-  packageAlert: MissingPackageAlert | InstallingPackageAlert | null;
+  packageAlert:
+    | Identified<MissingPackageAlert>
+    | Identified<InstallingPackageAlert>
+    | null;
 }
 
 const { reducer, createActions } = createReducer(
@@ -47,7 +51,7 @@ const { reducer, createActions } = createReducer(
     ) => {
       return {
         ...state,
-        packageAlert: alert,
+        packageAlert: { id: generateUUID(), ...alert },
       };
     },
 
