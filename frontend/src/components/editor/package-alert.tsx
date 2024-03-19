@@ -227,7 +227,7 @@ async function installPackages(
     packages: packageStatus,
   });
   RuntimeState.INSTANCE.registerRunStart();
-  await sendInstallMissingPackages({});
+  await sendInstallMissingPackages({ manager: "pip" });
 }
 
 const InstallPackagesButton = ({

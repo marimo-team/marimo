@@ -84,7 +84,7 @@ class PackageManager:
             self.module_to_package(mod) for mod in self.missing_modules()
         )
 
-    def install_module(self, module: str) -> bool:
+    async def install_module(self, module: str) -> bool:
         """Attempt to install a package that makes this module available.
 
         If installation fails, removes this module from candidate list of
@@ -92,14 +92,28 @@ class PackageManager:
 
         Returns True if installation succeeded, else False
         """
-        # TODO(akshayka): support micropip
-        completed_process = subprocess.run(
-            ["pip", "install", self.module_to_package(module)]
-        )
-        if completed_process.returncode != 0:
+        install_succeeded = False
+
+        if is_pyodide():
+            import micropip  # type: ignore
+
+            try:
+                await micropip.install(self.module_to_package(module))
+                install_succeeded = True
+            except ValueError:
+                ...
+        else:
+            install_succeeded = (
+                subprocess.run(
+                    ["pip", "install", self.module_to_package(module)]
+                ).returncode
+                == 0
+            )
+
+        if not install_succeeded:
             self._excluded_modules.add(module)
-            return False
-        return True
+
+        return install_succeeded
 
     @staticmethod
     def in_virtual_environment() -> bool:

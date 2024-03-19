@@ -401,12 +401,7 @@ class Kernel:
         missing_packages_after_deletion = (
             self.package_manager.missing_packages()
         )
-        if (
-            missing_packages_after_deletion != missing_packages_before_deletion
-            and not is_pyodide()
-        ):
-            # TODO(akshayka): Remove is_pyodide() when PackageManager supports
-            # pyodide
+        if missing_packages_after_deletion != missing_packages_before_deletion:
             # Deleting a cell can make the set of missing packages smaller
             MissingPackageAlert(
                 packages=list(sorted(missing_packages_after_deletion)),
@@ -858,13 +853,9 @@ class Kernel:
                     status="idle",
                 )
 
-        if (
-            any(
-                isinstance(e, ModuleNotFoundError)
-                for e in runner.exceptions.values()
-            )
-            # TODO(akshayka): Remove when PackageManager supports pyodide
-            and not is_pyodide()
+        if any(
+            isinstance(e, ModuleNotFoundError)
+            for e in runner.exceptions.values()
         ):
             missing_packages = self.package_manager.missing_packages()
             if missing_packages:
@@ -1174,8 +1165,7 @@ class Kernel:
             pkg = self.package_manager.module_to_package(mod)
             package_statuses[pkg] = "installing"
             InstallingPackageAlert(packages=package_statuses).broadcast()
-            if self.package_manager.install_module(mod):
-                print("Installed ", mod)
+            if await self.package_manager.install_module(mod):
                 package_statuses[pkg] = "installed"
                 InstallingPackageAlert(packages=package_statuses).broadcast()
             else:

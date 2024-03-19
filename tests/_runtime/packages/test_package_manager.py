@@ -50,12 +50,12 @@ def test_missing_modules() -> None:
     assert mgr.missing_packages() == set(["does", "super-fake-package"])
 
 
-def test_missing_module_excluded_after_failed_install() -> None:
+async def test_missing_module_excluded_after_failed_install() -> None:
     mgr = PackageManager(graph := DirectedGraph())
     # almost surely does not exist
     graph.register_cell("0", parse_cell("import asdfasdfasdfasdfqwerty"))
     assert mgr.missing_packages() == set(["asdfasdfasdfasdfqwerty"])
-    mgr.install_module("asdfasdfasdfasdfqwerty")
+    assert not await mgr.install_module("asdfasdfasdfasdfqwerty")
     # package should be removed from missing_packages if it failed to
     # install -- shouldn't try to reinstall packages that weren't
     # found on the index
