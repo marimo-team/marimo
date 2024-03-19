@@ -99,12 +99,16 @@ export function parseAppConfig() {
 }
 
 export function parseUserConfig(): UserConfig {
-  try {
-    // For Pyodide, we use the local storage to store the user config.
-    if (isPyodide()) {
-      return UserConfigLocalStorage.get();
-    }
+  // For Pyodide, we use the local storage to store the user config.
+  if (isPyodide()) {
+    return UserConfigLocalStorage.get();
+  }
 
+  return parseUserConfigDOM();
+}
+
+function parseUserConfigDOM(): UserConfig {
+  try {
     const parsed = UserConfigSchema.parse(JSON.parse(getRawMarimoUserConfig()));
     for (const [key, value] of Object.entries(parsed.experimental)) {
       if (value === true) {
@@ -123,7 +127,7 @@ export function parseUserConfig(): UserConfig {
 export const UserConfigLocalStorage = new ZodLocalStorage<UserConfig>(
   "marimo:user-config",
   UserConfigSchema,
-  () => parseUserConfig(),
+  () => parseUserConfigDOM(),
 );
 
 function setFeatureFlag(
