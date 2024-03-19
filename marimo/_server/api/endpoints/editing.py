@@ -80,6 +80,7 @@ async def stdin(request: Request) -> BaseResponse:
     return SuccessResponse()
 
 
+# TODO(akshayka): allow in run mode when in pyodide
 @router.post("/install_missing_packages")
 @requires("edit")
 async def install_missing_packages(request: Request) -> BaseResponse:
