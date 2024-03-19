@@ -30,6 +30,9 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.packages.pypi_package_manager import (
+    MicropipPackageManager,
+)
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
@@ -314,6 +317,7 @@ def launch_pyodide_kernel(
         stdin=stdin,
         input_override=input_override,
         debugger_override=debugger,
+        package_manager=MicropipPackageManager(),
     )
     initialize_context(
         kernel=kernel,

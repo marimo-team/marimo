@@ -1,50 +1,19 @@
-# Copyright 2024 Marimo. All rights reserved.
-from __future__ import annotations
-
-import abc
 import subprocess
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
+from marimo._runtime.packages.package_manager import PackageManager
 from marimo._utils.platform import is_pyodide
 
 
-class PackageManager(abc.ABC):
-    """Interface for a package manager that can install packages.
-
-    Most methods operate on module names, not package names, since the main
-    purpose of this class is to attempt to install packages that make
-    missing modules available.
-    """
-
-    @abc.abstractmethod
-    def module_to_package(self, module_name: str) -> str:
-        """Canonicalizes a module name to a package name."""
-        ...
-
-    @abc.abstractmethod
-    def package_to_module(self, package_name: str) -> str:
-        """Canonicalizes a package name to a module name."""
-        ...
-
-    @abc.abstractmethod
-    async def install(self, package: str) -> bool:
-        """Attempt to install a package that makes this module available.
-
-        Returns True if installation succeeded, else False.
-        """
-        ...
-
-
-class PipPackageManager(PackageManager):
+class PypiPackageManager(PackageManager):
     """Implements installation for both pip and micropip.
 
     Can fork into two different classes if needed.
     """
 
     def __init__(self) -> None:
-        super().__init__()
         self._module_name_to_pypi_name: dict[str, str] | None = None
         self._pypi_name_to_module_name: dict[str, str] | None = None
 
@@ -80,20 +49,19 @@ class PipPackageManager(PackageManager):
             else package_name.replace("-", "_")
         )
 
+
+class PipPackageManager(PypiPackageManager):
     async def install(self, package: str) -> bool:
-        install_succeeded = False
+        return subprocess.run(["pip", "install", package]).returncode == 0
 
-        if is_pyodide():
-            import micropip  # type: ignore
 
-            try:
-                await micropip.install(package)
-                install_succeeded = True
-            except ValueError:
-                ...
-        else:
-            install_succeeded = (
-                subprocess.run(["pip", "install", package]).returncode == 0
-            )
+class MicropipPackageManager(PypiPackageManager):
+    async def install(self, package: str) -> bool:
+        assert is_pyodide()
+        import micropip  # type: ignore
 
-        return install_succeeded
+        try:
+            await micropip.install(package)
+            return True
+        except ValueError:
+            return False
