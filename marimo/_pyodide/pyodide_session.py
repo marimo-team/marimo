@@ -21,6 +21,9 @@ from marimo._runtime import handlers, requests
 from marimo._runtime.context import initialize_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.packages.pypi_package_manager import (
+    MicropipPackageManager,
+)
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -30,9 +33,6 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
-from marimo._runtime.packages.pypi_package_manager import (
-    MicropipPackageManager,
-)
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode

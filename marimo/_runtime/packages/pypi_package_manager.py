@@ -1,3 +1,6 @@
+# Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import subprocess
 
 from marimo._runtime.packages.module_name_to_pypi_name import (
