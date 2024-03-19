@@ -2,12 +2,6 @@
 from __future__ import annotations
 
 import abc
-import subprocess
-
-from marimo._runtime.packages.module_name_to_pypi_name import (
-    module_name_to_pypi_name,
-)
-from marimo._utils.platform import is_pyodide
 
 
 class PackageManager(abc.ABC):
