@@ -397,10 +397,17 @@ class Kernel:
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
+
         missing_packages_after_deletion = (
             self.package_manager.missing_packages()
         )
-        if missing_packages_after_deletion != missing_packages_before_deletion:
+        if (
+            missing_packages_after_deletion != missing_packages_before_deletion
+            and not is_pyodide()
+        ):
+            # TODO(akshayka): Remove is_pyodide() when PackageManager supports
+            # pyodide
+            # Deleting a cell can make the set of missing packages smaller
             MissingPackageAlert(
                 packages=list(sorted(missing_packages_after_deletion)),
                 isolated=PackageManager.is_python_isolated(),
@@ -851,9 +858,13 @@ class Kernel:
                     status="idle",
                 )
 
-        if any(
-            isinstance(e, ModuleNotFoundError)
-            for e in runner.exceptions.values()
+        if (
+            any(
+                isinstance(e, ModuleNotFoundError)
+                for e in runner.exceptions.values()
+            )
+            # TODO(akshayka): Remove when PackageManager supports pyodide
+            and not is_pyodide()
         ):
             missing_packages = self.package_manager.missing_packages()
             if missing_packages:

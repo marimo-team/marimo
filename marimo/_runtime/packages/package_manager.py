@@ -5,7 +5,6 @@ import importlib.util
 import os
 import subprocess
 import sys
-import urllib.request
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import DirectedGraph
@@ -40,14 +39,14 @@ class PackageManager:
         if module_name in MODULE_NAME_TO_PYPI_NAME:
             return MODULE_NAME_TO_PYPI_NAME[module_name]
         else:
-            return module_name
+            return module_name.replace("_", "-")
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""
         return (
             self._package_to_module[package_name]
             if package_name in self._package_to_module
-            else package_name
+            else package_name.replace("-", "_")
         )
 
     def defining_cell(self, module_name: str) -> CellId_t | None:
@@ -64,14 +63,6 @@ class PackageManager:
             for cell in self.graph.cells.values()
             for mod in cell.imported_modules
         )
-
-    # UNUSED
-    def _on_pypi(self, module: str) -> bool:
-        package = self.module_to_package(module)
-        response = urllib.request.urlopen(
-            f"pypi.org/search?q={package}"
-        ).read()
-        return "no results" not in response
 
     def missing_modules(self) -> set[str]:
         """Modules that will fail to import
@@ -101,6 +92,7 @@ class PackageManager:
 
         Returns True if installation succeeded, else False
         """
+        # TODO(akshayka): support micropip
         completed_process = subprocess.run(
             ["pip", "install", self.module_to_package(module)]
         )
