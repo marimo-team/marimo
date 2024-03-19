@@ -645,9 +645,6 @@ class Kernel:
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
 
-        if not cell_ids:
-            return
-
         # This patch is an attempt to mitigate problems caused by the fact
         # that in run mode, kernels run in threads and share the same
         # sys.modules. Races can still happen, but this should help in most
@@ -1182,9 +1179,10 @@ class Kernel:
             for module in installed_modules
             if (cid := self.package_manager.defining_cell(module)) is not None
         )
-        await self._run_cells(
-            dataflow.transitive_closure(self.graph, cells_to_run)
-        )
+        if cells_to_run:
+            await self._run_cells(
+                dataflow.transitive_closure(self.graph, cells_to_run)
+            )
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
