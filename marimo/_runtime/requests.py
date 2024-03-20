@@ -72,6 +72,12 @@ class CompletionRequest:
     cell_id: CellId_t
 
 
+@dataclass
+class InstallMissingPackagesRequest:
+    # TODO: package manager (pip/conda/...), index URL (index/channel/...)
+    manager: str
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     CreationRequest,
@@ -80,4 +86,5 @@ ControlRequest = Union[
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
+    InstallMissingPackagesRequest,
 ]

@@ -22,6 +22,7 @@ import {
   RunRequests,
   EditRequests,
   SendStdin,
+  SendInstallMissingPackages,
   FileListResponse,
   FileCreateRequest,
   FileOperationResponse,
@@ -136,6 +137,12 @@ function createNetworkRequests(): EditRequests & RunRequests {
     sendStdin: (request) => {
       return API.post<SendStdin>("/kernel/stdin", request);
     },
+    sendInstallMissingPackages: (request) => {
+      return API.post<SendInstallMissingPackages>(
+        "/kernel/install_missing_packages",
+        request,
+      );
+    },
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
     },
@@ -195,6 +202,7 @@ export const {
   saveAppConfig,
   saveCellConfig,
   sendFunctionRequest,
+  sendInstallMissingPackages,
   readCode,
   openFile,
   sendListFiles,

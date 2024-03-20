@@ -155,6 +155,13 @@ export interface FunctionCallResultMessage {
   status: HumanReadableStatus;
 }
 
+export interface PackageInstallationStatus {
+  /**
+   * Package name => status
+   */
+  [key: string]: "queued" | "installing" | "installed" | "failed";
+}
+
 /**
  * Message sent from the frontend to the kernel via the websocket.
  */
@@ -260,6 +267,7 @@ export type OperationMessage =
       };
     }
   | {
+      // transient toast / alert
       op: "alert";
       data: {
         title: string;
@@ -268,6 +276,24 @@ export type OperationMessage =
       };
     }
   | {
+      // permanent alert (requires action)
+      op: "missing-package-alert";
+      data: {
+        kind: "missing";
+        packages: string[];
+        isolated: boolean;
+      };
+    }
+  | {
+      // permanent alert (requires action)
+      op: "installing-package-alert";
+      data: {
+        kind: "installing";
+        packages: PackageInstallationStatus;
+      };
+    }
+  | {
+      // permanent notification
       op: "banner";
       data: {
         title: string;

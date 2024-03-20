@@ -7,6 +7,7 @@ from starlette.requests import Request
 from marimo._runtime.requests import (
     CompletionRequest,
     DeleteRequest,
+    InstallMissingPackagesRequest,
     SetCellConfigRequest,
 )
 from marimo._server.api.deps import AppState
@@ -76,4 +77,15 @@ async def stdin(request: Request) -> BaseResponse:
     body = await parse_request(request, cls=StdinRequest)
     app_state.require_current_session().put_input(body.text)
 
+    return SuccessResponse()
+
+
+# TODO(akshayka): allow in run mode when in pyodide
+@router.post("/install_missing_packages")
+@requires("edit")
+async def install_missing_packages(request: Request) -> BaseResponse:
+    """Install missing packages"""
+    app_state = AppState(request)
+    body = await parse_request(request, cls=InstallMissingPackagesRequest)
+    app_state.require_current_session().put_control_request(body)
     return SuccessResponse()

@@ -224,5 +224,6 @@ wheres = "wheres"
 
 [tool.typos.files]
 extend-exclude = [
-    "MultiSelectPlugin.test.ts"
+    "MultiSelectPlugin.test.ts",
+    "module_name_to_pypi_name.py"
 ]

@@ -248,6 +248,9 @@ class Runner:
             # - KeyboardInterrupt shouldn't be raised, since marimo
             #   redirects it to a MarimoInterrupt
             # - SystemExit should kill the process
+            if isinstance(e, ModuleNotFoundError):
+                self.missing_packages = True
+
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
             traceback.print_exc(file=sys.stderr)

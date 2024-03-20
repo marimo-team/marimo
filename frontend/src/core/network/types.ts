@@ -94,6 +94,11 @@ export interface SendStdin {
   text: string;
 }
 
+// In the future may include things like package manager, index URL, ...
+export interface SendInstallMissingPackages {
+  manager: "pip";
+}
+
 export interface ValueUpdate {
   objectId: string;
   value: unknown;
@@ -172,6 +177,9 @@ export interface EditRequests {
   saveAppConfig: (request: SaveAppConfigRequest) => Promise<null>;
   saveCellConfig: (request: SaveCellConfigRequest) => Promise<null>;
   sendRestart: () => Promise<null>;
+  sendInstallMissingPackages: (
+    request: SendInstallMissingPackages,
+  ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests

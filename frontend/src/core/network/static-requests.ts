@@ -56,5 +56,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendDeleteFileOrFolder: throwNotInEditMode,
     sendRenameFileOrFolder: throwNotInEditMode,
     sendFileDetails: throwNotInEditMode,
+    sendInstallMissingPackages: throwNotInEditMode,
   };
 }

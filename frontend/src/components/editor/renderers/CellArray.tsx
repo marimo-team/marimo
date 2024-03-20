@@ -22,6 +22,7 @@ import { useDelayVisibility } from "./vertical-layout/useDelayVisibility";
 import { useChromeActions } from "../chrome/state";
 import { Functions } from "@/utils/functions";
 import { NotebookBanner } from "../notebook-banner";
+import { PackageAlert } from "@/components/editor/package-alert";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -97,6 +98,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
       invisible={invisible}
       appConfig={appConfig}
     >
+      <PackageAlert />
       <NotebookBanner />
       {cells.map((cell) => (
         <Cell

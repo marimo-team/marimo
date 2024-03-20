@@ -58,8 +58,8 @@ export const ErrorBanner = ({
 const bannerStyle = cva("text-sm p-2 border whitespace-pre-wrap", {
   variants: {
     kind: {
-      danger: `text-error border-[var(--red-6)] bg-[var(--red-2)]`,
-      info: `text-primary border-[var(--blue-6)] bg-[var(--blue-2)]`,
+      danger: `text-error border-[var(--red-6)] shadow-smError bg-[var(--red-1)]`,
+      info: `text-primary border-[var(--blue-6)] shadow-smAccent bg-[var(--blue-1)]`,
       warn: `text-warning border-[var(--yellow-6)] bg-[var(--yellow-2)]`,
     },
     clickable: {

@@ -35,6 +35,9 @@ from marimo._messaging.ops import (
     CompletedRun,
     FunctionCallResult,
     HumanReadableStatus,
+    InstallingPackageAlert,
+    MissingPackageAlert,
+    PackageStatusType,
     RemoveUIElements,
     VariableDeclaration,
     Variables,
@@ -75,6 +78,10 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
+from marimo._runtime.packages.module_registry import ModuleRegistry
+from marimo._runtime.packages.package_manager import PackageManager
+from marimo._runtime.packages.pypi_package_manager import PipPackageManager
+from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -85,6 +92,7 @@ from marimo._runtime.requests import (
     ExecuteMultipleRequest,
     ExecutionRequest,
     FunctionCallRequest,
+    InstallMissingPackagesRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
@@ -201,6 +209,7 @@ class Kernel:
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
+        package_manager: PackageManager | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.stream = stream
@@ -221,6 +230,10 @@ class Kernel:
             cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
+        self.module_registry = ModuleRegistry(
+            self.graph, excluded_modules=set()
+        )
+        self.package_manager = package_manager
 
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
@@ -384,10 +397,31 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
+        missing_modules_before_deletion = (
+            self.module_registry.missing_modules()
+        )
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
+
+        missing_modules_after_deletion = self.module_registry.missing_modules()
+        if (
+            self.package_manager is not None
+            and missing_modules_after_deletion
+            != missing_modules_before_deletion
+        ):
+            # Deleting a cell can make the set of missing packages smaller
+            MissingPackageAlert(
+                packages=list(
+                    sorted(
+                        self.package_manager.module_to_package(mod)
+                        for mod in missing_modules_after_deletion
+                    )
+                ),
+                isolated=is_python_isolated(),
+            ).broadcast()
+
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )
@@ -830,6 +864,23 @@ class Kernel:
                     status="idle",
                 )
 
+        if (
+            any(
+                isinstance(e, ModuleNotFoundError)
+                for e in runner.exceptions.values()
+            )
+            and self.package_manager is not None
+        ):
+            missing_packages = [
+                self.package_manager.module_to_package(mod)
+                for mod in self.module_registry.missing_modules()
+            ]
+            if missing_packages:
+                MissingPackageAlert(
+                    packages=list(sorted(missing_packages)),
+                    isolated=is_python_isolated(),
+                ).broadcast()
+
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates, self.errors
         )
@@ -1112,8 +1163,52 @@ class Kernel:
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
 
+    async def install_missing_packages(self) -> None:
+        """Attempts to install packages for modules that cannot be imported
+
+        Runs cells affected by successful installation.
+        """
+        assert self.package_manager is not None
+        # Package manager operates on module names
+        missing_modules = list(sorted(self.module_registry.missing_modules()))
+
+        # Frontend shows package names, not module names
+        package_statuses: PackageStatusType = {
+            self.package_manager.module_to_package(mod): "queued"
+            for mod in missing_modules
+        }
+        InstallingPackageAlert(packages=package_statuses).broadcast()
+
+        for mod in missing_modules:
+            pkg = self.package_manager.module_to_package(mod)
+            package_statuses[pkg] = "installing"
+            InstallingPackageAlert(packages=package_statuses).broadcast()
+            if await self.package_manager.install(pkg):
+                package_statuses[pkg] = "installed"
+                InstallingPackageAlert(packages=package_statuses).broadcast()
+            else:
+                package_statuses[pkg] = "failed"
+                self.module_registry.excluded_modules.add(mod)
+                InstallingPackageAlert(packages=package_statuses).broadcast()
+
+        installed_modules = [
+            self.package_manager.package_to_module(pkg)
+            for pkg in package_statuses
+            if package_statuses[pkg] == "installed"
+        ]
+        cells_to_run = set(
+            cid
+            for module in installed_modules
+            if (cid := self.module_registry.defining_cell(module)) is not None
+        )
+        if cells_to_run:
+            await self._run_cells(
+                dataflow.transitive_closure(self.graph, cells_to_run)
+            )
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
+
         The message is dispatched to the appropriate method based on its type.
         """
         if isinstance(request, CreationRequest):
@@ -1137,6 +1232,9 @@ class Kernel:
             CompletedRun().broadcast()
         elif isinstance(request, DeleteRequest):
             await self.delete(request)
+        elif isinstance(request, InstallMissingPackagesRequest):
+            await self.install_missing_packages()
+            CompletedRun().broadcast()
         elif isinstance(request, StopRequest):
             return None
         else:
@@ -1196,6 +1294,7 @@ def launch_kernel(
         stdin=stdin,
         input_override=input_override,
         debugger_override=debugger,
+        package_manager=PipPackageManager(),
     )
     initialize_context(
         kernel=kernel,

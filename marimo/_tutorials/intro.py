@@ -1,8 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.88"
+__generated_with = "0.3.2"
 app = marimo.App()
+
+
+@app.cell
+def __():
+    import foo
+    return foo,
 
 
 @app.cell

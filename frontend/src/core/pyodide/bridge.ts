@@ -21,6 +21,7 @@ import {
   SaveKernelRequest,
   SaveUserConfigRequest,
   SendFunctionRequest,
+  SendInstallMissingPackages,
   SendStdin,
   ValueUpdate,
 } from "../network/types";
@@ -191,7 +192,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     return null;
   };
-
+  sendInstallMissingPackages = async (
+    request: SendInstallMissingPackages,
+  ): Promise<null> => {
+    this.putControlRequest(request);
+    return null;
+  };
   sendCodeCompletionRequest = async (
     request: CodeCompletionRequest,
   ): Promise<null> => {
