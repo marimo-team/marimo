@@ -15,7 +15,6 @@ import {
   APP_WIDTHS,
 } from "../../core/config/config-schema";
 import { NativeSelect } from "../ui/native-select";
-import { toast } from "../ui/use-toast";
 import { useAppConfig } from "@/core/config/config";
 import { saveAppConfig } from "@/core/network/requests";
 import { SettingTitle, SettingDescription } from "./common";
@@ -37,7 +36,6 @@ export const AppConfigForm: React.FC = () => {
       })
       .catch(() => {
         setConfig(values);
-        toast({ title: "Failed to save" });
       });
   };
 

@@ -195,3 +195,5 @@ export interface EditRequests {
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
 }
+
+export type RequestKey = keyof (EditRequests & RunRequests);

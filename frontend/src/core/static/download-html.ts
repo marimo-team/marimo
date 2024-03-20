@@ -7,7 +7,6 @@ import { StaticVirtualFiles } from "./types";
 import { serializeJsonToBase64 } from "@/utils/json/base64";
 import { readCode } from "../network/requests";
 import { downloadBlob } from "@/utils/download";
-import { toast } from "@/components/ui/use-toast";
 import { Paths } from "@/utils/paths";
 
 // For Testing:
@@ -29,14 +28,7 @@ export async function createStaticHTMLNotebook() {
       ? window.location.origin
       : `https://cdn.jsdelivr.net/npm/@marimo-team/frontend@${version}/dist`;
 
-  const codeResponse = await readCode().catch((error) => {
-    toast({
-      variant: "danger",
-      title: "Error",
-      description: error.message,
-    });
-    throw error;
-  });
+  const codeResponse = await readCode();
 
   const html = constructHTML({
     notebookState: notebook,

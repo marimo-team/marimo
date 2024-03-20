@@ -154,24 +154,20 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       filename,
       configs,
       layout: getSerializedLayout(),
-    })
-      .then(() => {
-        if (userInitiated) {
-          toast({ title: "Notebook saved" });
-          if (userConfig.save.format_on_save) {
-            formatAll(updateCellCode);
-          }
+    }).then(() => {
+      if (userInitiated) {
+        toast({ title: "Notebook saved" });
+        if (userConfig.save.format_on_save) {
+          formatAll(updateCellCode);
         }
-        setLastSavedNotebook({
-          names: cellNames,
-          codes,
-          configs,
-          layout: layoutData,
-        });
-      })
-      .catch((error) => {
-        openAlert(error.message);
+      }
+      setLastSavedNotebook({
+        names: cellNames,
+        codes,
+        configs,
+        layout: layoutData,
       });
+    });
   });
 
   // Save the notebook with the current filename, only if the filename exists

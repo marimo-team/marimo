@@ -7,7 +7,7 @@ declare module "*.svg" {
 
 // Stricter lib types
 interface Body {
-  json(): Promise<unknown>;
+  json<T = unknown>(): Promise<T>;
 }
 
 // Stricter lib types

@@ -49,13 +49,6 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
           type: "file",
           name: file.name,
           contents: base64,
-        }).catch((error) => {
-          console.error(error);
-          toast({
-            title: "File upload failed",
-            description: error.message,
-            variant: "danger",
-          });
         });
       }
       await refreshRoot();
