@@ -14,6 +14,10 @@ export interface ActionButton {
   rightElement?: React.ReactNode;
   hotkey?: HotkeyAction;
   handle: (event?: Event) => void;
+  /**
+   * Special handler for headless contexts: e.g. a command palette.
+   */
+  handleHeadless?: (event?: Event) => void;
   divider?: boolean;
   dropdown?: ActionButton[];
 }

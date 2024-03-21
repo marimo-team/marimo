@@ -21,9 +21,14 @@ export function useRunStaleCells() {
 /**
  * Creates a function that runs the cell with the given id.
  */
-export function useRunCell(cellId: CellId) {
+export function useRunCell(cellId: CellId | undefined) {
   const runCells = useRunCells();
-  const runCell = useEvent(() => runCells([cellId]));
+  const runCell = useEvent(() => {
+    if (cellId === undefined) {
+      return;
+    }
+    runCells([cellId]);
+  });
   return runCell;
 }
 

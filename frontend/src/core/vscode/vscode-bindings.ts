@@ -2,6 +2,7 @@
 
 import { Logger } from "@/utils/Logger";
 import { isPyodide } from "../pyodide/utils";
+import { isPlatformMac } from "../hotkeys/shortcuts";
 
 export const isEmbedded =
   // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
@@ -32,8 +33,11 @@ function registerCopyPaste() {
 
   window.addEventListener("cut", () => {
     const selection = window.getSelection()?.toString() ?? "";
-    // clear
-    document.execCommand("insertText", false, "");
+    // Only run this on mac
+    if (isPlatformMac()) {
+      // clear
+      document.execCommand("insertText", false, "");
+    }
     sendToPanelManager({
       command: "cut",
       text: selection,
@@ -44,7 +48,9 @@ function registerCopyPaste() {
     const message = event.data;
     switch (message.command) {
       case "paste":
-        document.execCommand("insertText", false, message.text);
+        if (isPlatformMac()) {
+          document.execCommand("insertText", false, message.text);
+        }
         return;
     }
   });

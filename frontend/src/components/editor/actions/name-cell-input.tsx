@@ -13,8 +13,8 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import React, { useRef, useState } from "react";
 
-interface Props {
-  className?: string;
+interface Props
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   value: string;
   onChange: (newName: string) => void;
   placeholder?: string;
@@ -24,6 +24,7 @@ export const NameCellInput: React.FC<Props> = ({
   value,
   onChange,
   placeholder,
+  ...props
 }) => {
   const ref = useRef<HTMLInputElement>(null);
   const inputProps = useCellNameInput(value, onChange);
@@ -52,6 +53,7 @@ export const NameCellInput: React.FC<Props> = ({
       placeholder={placeholder}
       className="shadow-none! hover:shadow-none focus:shadow-none focus-visible:shadow-none"
       onKeyDown={Events.onEnter(Events.stopPropagation())}
+      {...props}
     />
   );
 };

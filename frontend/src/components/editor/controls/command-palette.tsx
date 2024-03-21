@@ -14,17 +14,22 @@ import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import { HOTKEYS, HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import { Objects } from "@/utils/objects";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { isParentAction, flattenActions } from "../actions/types";
+import { useCellActionButtons } from "../actions/useCellActionButton";
+import { lastFocusedCellAtom } from "@/core/cells/focus";
 
 export const commandPaletteAtom = atom(false);
 
 export const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
+  const lastFocusedCell = useAtomValue(lastFocusedCellAtom);
+  let cellActions = useCellActionButtons({ cell: lastFocusedCell }).flat();
+  cellActions = flattenActions(cellActions);
   let notebookActions = useNotebookActions();
   notebookActions = flattenActions(notebookActions);
 
@@ -78,7 +83,11 @@ export const CommandPalette = () => {
     );
   };
 
-  const renderCommandItem = (label: string, handle: () => void) => {
+  const renderCommandItem = (
+    label: string,
+    handle: () => void,
+    hotkey?: HotkeyAction,
+  ) => {
     return (
       <CommandItem
         onSelect={() => {
@@ -92,6 +101,11 @@ export const CommandPalette = () => {
         value={label}
       >
         <span>{label}</span>
+        {hotkey && (
+          <CommandShortcut>
+            <KeyboardHotkeys shortcut={HOTKEYS.getHotkey(hotkey).key} />
+          </CommandShortcut>
+        )}
       </CommandItem>
     );
   };
@@ -112,7 +126,10 @@ export const CommandPalette = () => {
                 // Other action
                 const action = keyedNotebookActions[shortcut];
                 if (action && !isParentAction(action)) {
-                  return renderCommandItem(action.label, action.handle);
+                  return renderCommandItem(
+                    action.label,
+                    action.handleHeadless || action.handle,
+                  );
                 }
                 return null;
               })}
@@ -131,7 +148,19 @@ export const CommandPalette = () => {
             if (recentCommandsSet.has(action.label)) {
               return null; // Don't show recent commands in the main list
             }
-            return renderCommandItem(action.label, action.handle);
+            return renderCommandItem(
+              action.label,
+              action.handleHeadless || action.handle,
+            );
+          })}
+          {cellActions.map((action) => {
+            if (recentCommandsSet.has(action.label)) {
+              return null; // Don't show recent commands in the main list
+            }
+            return renderCommandItem(
+              `Cell > ${action.label}`,
+              action.handleHeadless || action.handle,
+            );
           })}
         </CommandGroup>
       </CommandList>
