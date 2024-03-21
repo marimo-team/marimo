@@ -43,6 +43,7 @@ if __name__ == "__main__":
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
+        package_manager="pip",
     )
     sm.server_token = "fake-token"
     return sm
