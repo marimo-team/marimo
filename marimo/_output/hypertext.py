@@ -67,8 +67,9 @@ class Html(MIME):
         )
 
         try:
-            ctx = get_context()
+            self.ctx = get_context()
         except ContextNotInitializedError:
+            self.ctx = None
             return
 
         # Virtual File Refcounting
@@ -80,9 +81,9 @@ class Html(MIME):
         #
         # flatten the text to make sure searching isn't broken by newlines
         flat_text = flatten_string(self._text)
-        for virtual_filename in ctx.virtual_file_registry.filenames():
+        for virtual_filename in self.ctx.virtual_file_registry.filenames():
             if virtual_filename in flat_text:
-                ctx.virtual_file_registry.reference(virtual_filename)
+                self.ctx.virtual_file_registry.reference(virtual_filename)
                 self._virtual_filenames.append(virtual_filename)
 
     def __del__(self) -> None:
@@ -92,18 +93,9 @@ class Html(MIME):
         this method.
         """
 
-        from marimo._runtime.context import (
-            ContextNotInitializedError,
-            get_context,
-        )
-
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            return
-
-        for f in self._virtual_filenames:
-            ctx.virtual_file_registry.dereference(f)
+        if self.ctx is not None:
+            for f in self._virtual_filenames:
+                self.ctx.virtual_file_registry.dereference(f)
 
     @property
     def text(self) -> str:
