@@ -24,6 +24,7 @@
   - [How do I use dotenv?](#faq-dotenv)
   - [What packages can I use?](#faq-packages)
   - [How do I use marimo on a remote server?](#faq-remote)
+  - [How do I make marimo accessible on all network interfaces?](#faq-interfaces)
   - [How do I deploy apps?](#faq-app-deploy)
   - [Is marimo free?](#faq-marimo-free)
 
@@ -406,6 +407,16 @@ You may also want to set a custom host and port:
 
 ```bash
 marimo edit notebook.py --headless --host 0.0.0.0 --port 8080
+```
+
+<a name="faq-interfaces"></a>
+
+### How do I make marimo accessible on all network interfaces?
+
+Use `--host 0.0.0.0` with `marimo edit`, `marimo run`, or `marimo tutorial`:
+
+```bash
+marimo edit notebook.py --host 0.0.0.0
 ```
 
 <a name="faq-app-deploy"></a>
