@@ -29,6 +29,16 @@ class InterruptHandler:
                 lambda signum, frame: self._interrupt_handler(),  # noqa: ARG005,E501
             )
 
+    def restore_interrupt_handler(self) -> None:
+        # Restore the original signal handler so re-entering Ctrl+C raises a
+        # keyboard interrupt instead of calling this function again (input is
+        # not re-entrant, so it's not safe to call this function again)
+        try:
+            self.loop.remove_signal_handler(signal.SIGINT)
+        except NotImplementedError:
+            # Windows
+            signal.signal(signal.SIGINT, self.original_handler)
+
     def _interrupt_handler(self) -> None:
         # Restore the original signal handler so re-entering Ctrl+C raises a
         # keyboard interrupt instead of calling this function again (input is

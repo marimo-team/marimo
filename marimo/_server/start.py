@@ -13,6 +13,7 @@ from marimo._server.utils import (
     import_files,
     initialize_asyncio,
 )
+from marimo._server.uvicorn_utils import initialize_signals
 
 DEFAULT_PORT = 2718
 
@@ -63,6 +64,7 @@ def start(
     app.state.base_url = base_url
     app.state.config_manager = user_config_mgr
 
+    initialize_signals()
     server = uvicorn.Server(
         uvicorn.Config(
             app,
@@ -94,7 +96,7 @@ def start(
             timeout_graceful_shutdown=1,
         )
     )
-
     app.state.server = server
+
     initialize_asyncio()
     server.run()
