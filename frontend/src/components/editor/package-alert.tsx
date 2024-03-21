@@ -1,5 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { DefaultValues, useForm } from "react-hook-form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { saveUserConfig } from "@/core/network/requests";
+import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
+import { NativeSelect } from "../ui/native-select";
 import { cn } from "@/utils/cn";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendInstallMissingPackages } from "@/core/network/requests";
@@ -25,6 +37,7 @@ import { Button } from "../ui/button";
 import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { useUserConfig } from "@/core/config/config";
+import { isPyodide } from "@/core/pyodide/utils";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -71,13 +84,22 @@ export const PackageAlert: React.FC = (props) => {
                 ))}
               </ul>
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex flex-row items-baseline">
               {packageAlert.isolated ? (
-                <InstallPackagesButton
-                  packages={packageAlert.packages}
-                  manager={userConfig.package_management.manager}
-                  addPackageAlert={addPackageAlert}
-                />
+                <>
+                  <InstallPackagesButton
+                    packages={packageAlert.packages}
+                    manager={userConfig.package_management.manager}
+                    addPackageAlert={addPackageAlert}
+                  />
+
+                  {isPyodide() ? null : (
+                    <>
+                      <span className="px-2 text-sm">with</span>{" "}
+                      <PackageManagerForm />
+                    </>
+                  )}
+                </>
               ) : (
                 <p>
                   If you set up a{" "}
@@ -254,7 +276,59 @@ const InstallPackagesButton = ({
       onClick={() => installPackages(packages, manager, addPackageAlert)}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
-      <span className="font-semibold">Install with {manager}</span>
+      <span className="font-semibold">Install</span>
     </Button>
+  );
+};
+
+export const PackageManagerForm: React.FC = () => {
+  const [config, setConfig] = useUserConfig();
+
+  // Create form
+  const form = useForm<UserConfig>({
+    resolver: zodResolver(UserConfigSchema),
+    defaultValues: config as DefaultValues<UserConfig>,
+  });
+
+  const onSubmit = async (values: UserConfig) => {
+    await saveUserConfig({ config: values }).then(() => {
+      setConfig(values);
+    });
+  };
+
+  return (
+    <Form {...form}>
+      <form
+        onChange={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-5"
+      >
+        <div className="flex flex-col gap-3">
+          <FormField
+            control={form.control}
+            name="package_management.manager"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="install-package-manager-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="inline-flex mr-2"
+                  >
+                    {["pip", "uv", "rye"].map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </form>
+    </Form>
   );
 };
