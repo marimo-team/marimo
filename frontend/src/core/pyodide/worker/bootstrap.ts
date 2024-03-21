@@ -139,7 +139,7 @@ function getMarimoWheel(version: string) {
     return "marimo >= 0.3.0";
   }
   if (version === "local") {
-    return "http://localhost:8000/dist/marimo-0.3.3-py3-none-any.whl";
+    return "http://localhost:8000/dist/marimo-0.3.4-py3-none-any.whl";
   }
   return `marimo==${version}`;
 }
