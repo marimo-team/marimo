@@ -14,7 +14,7 @@ export function keymapBundle(
   callbacks: {
     focusUp: () => void;
     focusDown: () => void;
-    deleteCell: () => void;
+    deleteCell: (deleteIfFirst?: boolean) => void;
   },
 ): Extension[] {
   switch (config.preset) {
@@ -28,6 +28,20 @@ export function keymapBundle(
             run: (cm) => {
               cm.contentDOM.blur();
               return true;
+            },
+          },
+        ]),
+        keymap.of([
+          {
+            key: "Backspace",
+            preventDefault: true,
+            run: (cm) => {
+              // Delete cell if it is empty and it is not the first cell
+              if (cm.state.doc.toString() === "") {
+                callbacks.deleteCell(false);
+                return true;
+              }
+              return false;
             },
           },
         ]),

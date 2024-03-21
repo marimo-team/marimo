@@ -13,7 +13,7 @@ import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 export interface MovementCallbacks
   extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
   onRun: () => void;
-  deleteCell: () => void;
+  deleteCell: (deleteIfFirst?: boolean) => void;
   createAbove: () => void;
   createBelow: () => void;
   moveUp: () => void;

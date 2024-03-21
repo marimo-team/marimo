@@ -250,13 +250,15 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       scrollKey: cellId,
     };
   },
-  deleteCell: (state, action: { cellId: CellId }) => {
+  deleteCell: (state, action: { cellId: CellId; deleteIfFirst?: boolean }) => {
     const cellId = action.cellId;
-    if (state.cellIds.length === 1) {
+    const index = state.cellIds.indexOf(cellId);
+    // Default to deleting the first cell if not specified
+    const deleteIfFirst = action.deleteIfFirst ?? true;
+    if (state.cellIds.length === 1 || (!deleteIfFirst && index === 0)) {
       return state;
     }
 
-    const index = state.cellIds.indexOf(cellId);
     const cellKey = state.cellIds[index];
     const focusIndex = index === 0 ? 1 : index - 1;
     const scrollKey = state.cellIds[focusIndex];

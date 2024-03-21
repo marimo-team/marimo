@@ -88,13 +88,13 @@ const CellEditorInternal = ({
   const loading = status === "running" || status === "queued";
   const { sendToTop, sendToBottom } = useCellActions();
 
-  const handleDelete = useEvent(() => {
+  const handleDelete = useEvent((deleteIfFirst?: boolean) => {
     // Cannot delete running cells, since we're waiting for their output.
     if (loading) {
       return false;
     }
 
-    deleteCell({ cellId });
+    deleteCell({ cellId, deleteIfFirst });
     return true;
   });
 
