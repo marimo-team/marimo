@@ -31,6 +31,13 @@ import { NameCellInput } from "./name-cell-input";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import {
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -40,14 +47,11 @@ export interface CellActionButtonProps
   hasOutput: boolean;
 }
 
-export function useCellActionButtons({
-  cellId,
-  config,
-  editorView,
-  name,
-  hasOutput,
-  status,
-}: CellActionButtonProps) {
+interface Props {
+  cell: CellActionButtonProps | null;
+}
+
+export function useCellActionButtons({ cell }: Props) {
   const {
     createNewCell: createCell,
     updateCellConfig,
@@ -58,8 +62,14 @@ export function useCellActionButtons({
     sendToTop,
     sendToBottom,
   } = useCellActions();
-  const runCell = useRunCell(cellId);
+  const runCell = useRunCell(cell?.cellId);
+  const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+
+  if (!cell) {
+    return [];
+  }
+  const { cellId, config, editorView, name, hasOutput, status } = cell;
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -93,6 +103,32 @@ export function useCellActionButtons({
         handle: (evt) => {
           evt?.stopPropagation();
           evt?.preventDefault();
+        },
+        handleHeadless: () => {
+          openModal(
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Rename cell</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="cell-name">Cell name</Label>
+                <NameCellInput
+                  placeholder={`cell_${cellId}`}
+                  value={name}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openModal(null);
+                    }
+                  }}
+                  onChange={(newName) =>
+                    updateCellName({ cellId, name: newName })
+                  }
+                />
+              </div>
+            </DialogContent>,
+          );
         },
         rightElement: (
           <NameCellInput

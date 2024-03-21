@@ -32,7 +32,7 @@ interface Props extends CellActionButtonProps {
 
 export const CellActionsDropdown = ({ children, ...props }: Props) => {
   const [open, setOpen] = useState(false);
-  const actions = useCellActionButtons(props);
+  const actions = useCellActionButtons({ cell: props });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

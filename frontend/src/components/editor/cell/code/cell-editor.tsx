@@ -28,9 +28,10 @@ import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
 import { AiCompletionEditor } from "./ai-completion-editor";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
+import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -82,6 +83,7 @@ const CellEditorInternal = ({
 }: CellEditorProps) => {
   const [canUseMarkdown, setCanUseMarkdown] = useState(false);
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
+  const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
@@ -316,7 +318,10 @@ const CellEditorInternal = ({
         setAiCompletionCell(null);
       }}
     >
-      <div className="relative w-full">
+      <div
+        className="relative w-full"
+        onFocus={() => setLastFocusedCellId(cellId)}
+      >
         {canUseMarkdown && (
           <div className="absolute top-1 right-1">
             <LanguageToggle

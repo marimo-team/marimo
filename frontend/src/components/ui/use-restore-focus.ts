@@ -14,6 +14,10 @@ export function useRestoreFocus() {
   };
 
   const onCloseAutoFocus = (evt: Event) => {
+    // If the current focus is the body, restore focus to the last focused element
+    if (document.activeElement !== document.body) {
+      return;
+    }
     if (lastFocused instanceof HTMLElement) {
       lastFocused.focus();
     }

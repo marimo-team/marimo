@@ -25,7 +25,7 @@ interface Props extends CellActionButtonProps {
 }
 
 export const CellActionsContextMenu = ({ children, ...props }: Props) => {
-  const actions = useCellActionButtons(props);
+  const actions = useCellActionButtons({ cell: props });
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
 
