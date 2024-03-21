@@ -22,7 +22,7 @@ export const API = {
     } = {},
   ): Promise<RESP> {
     const baseUrl = opts.baseUrl ?? document.baseURI;
-    const fullUrl = `${baseUrl}${url}`;
+    const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
       headers: {
