@@ -28,6 +28,7 @@ def session_manager():
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
+        package_manager="pip",
     )
 
 
