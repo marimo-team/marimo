@@ -7,6 +7,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
+from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
@@ -63,14 +64,12 @@ class Html(MIME):
 
         from marimo._runtime.context import (
             ContextNotInitializedError,
-            RuntimeContext,
             get_context,
         )
 
         try:
-            self.ctx: RuntimeContext | None = get_context()
+            ctx = get_context()
         except ContextNotInitializedError:
-            self.ctx = None
             return
 
         # Virtual File Refcounting
@@ -82,9 +81,9 @@ class Html(MIME):
         #
         # flatten the text to make sure searching isn't broken by newlines
         flat_text = flatten_string(self._text)
-        for virtual_filename in self.ctx.virtual_file_registry.filenames():
+        for virtual_filename in ctx.virtual_file_registry.filenames():
             if virtual_filename in flat_text:
-                self.ctx.virtual_file_registry.reference(virtual_filename)
+                ctx.virtual_file_registry.reference(virtual_filename)
                 self._virtual_filenames.append(virtual_filename)
 
     def __del__(self) -> None:
@@ -93,10 +92,24 @@ class Html(MIME):
         Subclasses MUST implement a __del__ method that ends by calling
         this method.
         """
+        if python_exiting():
+            # imports can fail when python is exiting; clean-up
+            # is not important when exiting anyway
+            return
 
-        if self.ctx is not None:
+        from marimo._runtime.context import (
+            ContextNotInitializedError,
+            get_context,
+        )
+
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            return
+
+        if ctx is not None:
             for f in self._virtual_filenames:
-                self.ctx.virtual_file_registry.dereference(f)
+                ctx.virtual_file_registry.dereference(f)
 
     @property
     def text(self) -> str:
