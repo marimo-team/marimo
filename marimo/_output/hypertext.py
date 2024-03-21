@@ -63,11 +63,12 @@ class Html(MIME):
 
         from marimo._runtime.context import (
             ContextNotInitializedError,
+            RuntimeContext,
             get_context,
         )
 
         try:
-            self.ctx = get_context()
+            self.ctx: RuntimeContext | None = get_context()
         except ContextNotInitializedError:
             self.ctx = None
             return
