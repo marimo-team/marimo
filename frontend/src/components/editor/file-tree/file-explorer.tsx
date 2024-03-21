@@ -41,6 +41,7 @@ import { cn } from "@/utils/cn";
 import { FileViewer } from "./file-viewer";
 import { treeAtom, openStateAtom } from "./state";
 import { useFileExplorerUpload } from "./upload";
+import { isPyodide } from "@/core/pyodide/utils";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -281,7 +282,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             onClick={(e) => e.stopPropagation()}
             onCloseAutoFocus={(e) => e.preventDefault()}
           >
-            {!node.data.isDirectory && (
+            {/* Not shown in Pyodide */}
+            {!node.data.isDirectory && !isPyodide() && (
               <DropdownMenuItem onSelect={() => node.select()}>
                 <ViewIcon className="mr-2" size={14} strokeWidth={1.5} />
                 Open file

@@ -4,11 +4,6 @@ import { Logger } from "../../utils/Logger";
 import { getMarimoServerToken } from "../dom/marimo-tag";
 import { getSessionId } from "../kernel/session";
 
-export function getXsrfCookie(): string {
-  const r = document.cookie.match("\\b_xsrf=([^;]*)\\b");
-  return r ? r[1] : "";
-}
-
 const getServerTokenOnce = once(() => {
   return getMarimoServerToken();
 });
@@ -49,7 +44,6 @@ export const API = {
   },
   headers() {
     return {
-      "X-Xsrftoken": getXsrfCookie(),
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": getServerTokenOnce(),
     };

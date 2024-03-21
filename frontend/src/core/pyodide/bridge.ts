@@ -28,7 +28,6 @@ import {
 import { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isPyodide } from "./utils";
-import { RawBridge } from "./worker/types";
 import { Deferred } from "@/utils/Deferred";
 import { UserConfigLocalStorage } from "../config/config-schema";
 import { createShareableLink } from "./share";
@@ -36,13 +35,6 @@ import { PyodideRouter } from "./router";
 import { Paths } from "@/utils/paths";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
-
-export type BridgeFunctionAndPayload = {
-  [P in keyof RawBridge]: {
-    functionName: P;
-    payload: Parameters<RawBridge[P]>[0];
-  };
-}[keyof RawBridge];
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();

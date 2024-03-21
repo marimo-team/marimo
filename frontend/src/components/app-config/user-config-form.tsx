@@ -13,7 +13,6 @@ import {
 import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
-import { toast } from "../ui/use-toast";
 import { saveUserConfig } from "../../core/network/requests";
 import { useUserConfig } from "../../core/config/config";
 import { NativeSelect } from "../ui/native-select";
@@ -34,13 +33,9 @@ export const UserConfigForm: React.FC = () => {
   });
 
   const onSubmit = async (values: UserConfig) => {
-    await saveUserConfig({ config: values })
-      .then(() => {
-        setConfig(values);
-      })
-      .catch(() => {
-        toast({ title: "Failed to save" });
-      });
+    await saveUserConfig({ config: values }).then(() => {
+      setConfig(values);
+    });
   };
 
   const isWasm = isPyodide();
