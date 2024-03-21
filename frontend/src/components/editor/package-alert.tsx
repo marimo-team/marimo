@@ -49,6 +49,7 @@ export const PackageAlert: React.FC = (props) => {
             </span>
             <Button
               variant="text"
+              data-testid="remove-banner-button"
               size="icon"
               onClick={() => clearPackageAlert(packageAlert.id)}
             >
@@ -116,6 +117,7 @@ export const PackageAlert: React.FC = (props) => {
             </span>
             <Button
               variant="text"
+              data-testid="remove-banner-button"
               size="icon"
               onClick={() => clearPackageAlert(packageAlert.id)}
             >
@@ -247,6 +249,7 @@ const InstallPackagesButton = ({
   return (
     <Button
       variant="outline"
+      data-testid="install-packages-button"
       size="sm"
       onClick={() => installPackages(packages, manager, addPackageAlert)}
     >

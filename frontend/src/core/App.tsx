@@ -447,13 +447,19 @@ const SaveDialog = (props: {
         </div>
         <DialogFooter>
           <Button
+            data-testid="cancel-save-dialog-button"
             aria-label={cancelButtonLabel}
             variant="secondary"
             onClick={onClose}
           >
             Cancel
           </Button>
-          <Button aria-label="Save" variant="default" type="submit">
+          <Button
+            data-testid="submit-save-dialog-button"
+            aria-label="Save"
+            variant="default"
+            type="submit"
+          >
             Save
           </Button>
         </DialogFooter>

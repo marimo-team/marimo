@@ -64,6 +64,7 @@ export const AppConfigForm: React.FC = () => {
               <FormLabel>Width</FormLabel>
               <FormControl>
                 <NativeSelect
+                  data-testid="app-width-select"
                   onChange={(e) => field.onChange(e.target.value)}
                   value={field.value}
                   disabled={field.disabled}

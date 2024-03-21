@@ -69,6 +69,7 @@ const DatePicker = (props: DatePickerProps): JSX.Element => {
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Input
+        data-testid="marimo-plugin-date-picker"
         ref={inputRef}
         type="date"
         className={cn({

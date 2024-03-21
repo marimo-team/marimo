@@ -13,15 +13,22 @@ const getServerTokenOnce = once(() => {
  * strong types.
  */
 export const API = {
-  post<REQ, RESP = null>(url: string, body: REQ): Promise<RESP> {
-    const BASE_URL = `${document.baseURI}api`;
-
-    const fullUrl = BASE_URL + url;
+  post<REQ, RESP = null>(
+    url: string,
+    body: REQ,
+    opts: {
+      headers?: Record<string, string>;
+      baseUrl?: string;
+    } = {},
+  ): Promise<RESP> {
+    const baseUrl = opts.baseUrl ?? document.baseURI;
+    const fullUrl = `${baseUrl}api${url}`;
     return fetch(fullUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         ...API.headers(),
+        ...opts.headers,
       },
       body: JSON.stringify(body),
     })

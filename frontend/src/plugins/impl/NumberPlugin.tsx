@@ -63,6 +63,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Input
+        data-testid="marimo-plugin-number-input"
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         ref={inputRef}
         type="number"

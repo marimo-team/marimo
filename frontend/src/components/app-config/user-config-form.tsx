@@ -62,6 +62,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
                     <Checkbox
+                      data-testid="autosave-checkbox"
                       checked={field.value === "after_delay"}
                       disabled={field.disabled}
                       onCheckedChange={(checked) => {
@@ -83,6 +84,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormControl>
                   <span className="inline-flex mr-2">
                     <Input
+                      data-testid="autosave-delay-input"
                       type="number"
                       className="m-0 w-20 inline-flex"
                       disabled={
@@ -110,6 +112,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
                     <Checkbox
+                      data-testid="format-on-save-checkbox"
                       checked={field.value}
                       disabled={field.disabled}
                       onCheckedChange={(checked) => {
@@ -134,6 +137,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormControl>
                   <span className="inline-flex mr-2">
                     <Input
+                      data-testid="line-length-input"
                       type="number"
                       className="m-0 w-20 inline-flex"
                       {...field}
@@ -156,6 +160,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
                     <Checkbox
+                      data-testid="autocomplete-checkbox"
                       checked={field.value}
                       disabled={field.disabled}
                       onCheckedChange={(checked) => {
@@ -180,6 +185,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Keymap</FormLabel>
                 <FormControl>
                   <NativeSelect
+                    data-testid="keymap-select"
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
@@ -207,6 +213,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Theme</FormLabel>
                 <FormControl>
                   <NativeSelect
+                    data-testid="theme-select"
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
@@ -232,6 +239,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormControl>
                   <span className="inline-flex mr-2">
                     <Input
+                      data-testid="code-editor-font-size-input"
                       type="number"
                       className="m-0 w-20 inline-flex"
                       {...field}
@@ -258,6 +266,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Cell output area</FormLabel>
                 <FormControl>
                   <NativeSelect
+                    data-testid="cell-output-select"
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
@@ -290,6 +299,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Manager</FormLabel>
                 <FormControl>
                   <NativeSelect
+                    data-testid="package-manager-select"
                     onChange={(e) => field.onChange(e.target.value)}
                     value={field.value}
                     disabled={field.disabled}
@@ -316,6 +326,7 @@ export const UserConfigForm: React.FC = () => {
               <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                 <FormControl>
                   <Checkbox
+                    data-testid="auto-instantiate-checkbox"
                     disabled={field.disabled}
                     checked={field.value}
                     onCheckedChange={field.onChange}
@@ -339,6 +350,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormItem className="flex flex-row items-center space-x-2 space-y-0">
                   <FormControl>
                     <Switch
+                      data-testid="copilot-switch"
                       size={"sm"}
                       checked={field.value}
                       disabled={field.disabled}

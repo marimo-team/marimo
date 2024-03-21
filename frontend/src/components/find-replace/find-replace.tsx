@@ -105,6 +105,7 @@ export const FindReplace: React.FC = () => {
       >
         <div className="absolute top-0 right-0">
           <Button
+            data-testid="close-find-replace-button"
             onClick={() => dispatch({ type: "setIsOpen", isOpen: false })}
             size="xs"
             variant="text"
@@ -115,6 +116,7 @@ export const FindReplace: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex flex-col flex-2 gap-2 w-[55%]">
             <Input
+              data-testid="find-input"
               value={state.findText}
               autoFocus={true}
               className="mr-2 mb-0"
@@ -133,6 +135,7 @@ export const FindReplace: React.FC = () => {
               }}
             />
             <Input
+              data-testid="replace-input"
               value={state.replaceText}
               placeholder="Replace"
               onChange={(e) => {
@@ -184,6 +187,7 @@ export const FindReplace: React.FC = () => {
             </div>
             <div className="flex items-center gap-[2px]">
               <Button
+                data-testid="replace-next-button"
                 size="xs"
                 variant="outline"
                 className="h-6 text-xs"
@@ -193,6 +197,7 @@ export const FindReplace: React.FC = () => {
                 Replace Next
               </Button>
               <Button
+                data-testid="replace-all-button"
                 size="xs"
                 variant="outline"
                 className="h-6 text-xs"
@@ -207,6 +212,7 @@ export const FindReplace: React.FC = () => {
                     title: "Replaced all occurrences",
                     action: (
                       <Button
+                        data-testid="undo-replace-all-button"
                         size="sm"
                         variant="outline"
                         onClick={() => {
@@ -228,12 +234,22 @@ export const FindReplace: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <Tooltip content="Find Previous">
-            <Button size="xs" variant="secondary" onClick={() => findPrev()}>
+            <Button
+              data-testid="find-prev-button"
+              size="xs"
+              variant="secondary"
+              onClick={() => findPrev()}
+            >
               <ArrowLeftIcon className="w-4 h-4" />
             </Button>
           </Tooltip>
           <Tooltip content="Find Next">
-            <Button size="xs" variant="secondary" onClick={() => findNext()}>
+            <Button
+              data-testid="find-next-button"
+              size="xs"
+              variant="secondary"
+              onClick={() => findNext()}
+            >
               <ArrowRightIcon className="w-4 h-4" />
             </Button>
           </Tooltip>

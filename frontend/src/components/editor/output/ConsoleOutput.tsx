@@ -93,6 +93,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
               <div key={idx} className="flex gap-2 items-center">
                 {renderText(output.data)}
                 <Input
+                  data-testid="console-input"
                   type="text"
                   autoComplete="off"
                   autoFocus={true}

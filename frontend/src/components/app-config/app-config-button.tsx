@@ -16,6 +16,7 @@ export const AppConfigButton = () => {
       <PopoverTrigger asChild={true}>
         <Button
           aria-label="Config"
+          data-testid="app-config-button"
           shape="circle"
           size="small"
           className="h-[27px] w-[27px]"

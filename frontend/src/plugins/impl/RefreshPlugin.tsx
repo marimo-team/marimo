@@ -119,6 +119,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
     <Labeled label={data.label}>
       <span className="inline-flex items-center text-secondary-foreground rounded shadow-smSolid">
         <Button
+          data-testid="marimo-plugin-refresh-button"
           variant="secondary"
           size="icon"
           className={cn(
@@ -133,6 +134,7 @@ const RefreshComponent = ({ setValue, data }: IPluginProps<Value, Data>) => {
           />
         </Button>
         <NativeSelect
+          data-testid="marimo-plugin-refresh-select"
           onChange={(e) => {
             setSelected(e.target.value);
           }}

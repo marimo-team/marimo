@@ -155,7 +155,11 @@ export const TransformPanel: React.FC<Props> = ({
               <div className="flex flex-col items-center justify-center flex-grow gap-3">
                 <MousePointerSquareDashedIcon className="w-8 h-8  text-muted-foreground" />
                 <AddTransformDropdown onAdd={handleAddTransform}>
-                  <Button variant="text" size="xs">
+                  <Button
+                    data-testid="marimo-plugin-data-frames-add-transform"
+                    variant="text"
+                    size="xs"
+                  >
                     <div className="text-sm">Select a transform to begin</div>
                   </Button>
                 </AddTransformDropdown>
@@ -218,6 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex flex-row flex-shrink-0">
         <AddTransformDropdown onAdd={onAdd}>
           <Button
+            data-testid="marimo-plugin-data-frames-add-transform"
             variant="text"
             className="w-full rounded-none m-0 hover:text-accent-foreground"
             size="xs"

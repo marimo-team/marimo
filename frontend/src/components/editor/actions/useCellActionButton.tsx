@@ -160,6 +160,7 @@ export function useCellActionButtons({
         label: config.disabled === true ? "Enable cell" : "Disable cell",
         rightElement: (
           <Switch
+            data-testid="cell-disable-switch"
             checked={!config.disabled}
             size="sm"
             onCheckedChange={toggleDisabled}

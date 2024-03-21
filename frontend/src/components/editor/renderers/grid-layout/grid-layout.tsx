@@ -386,6 +386,7 @@ const GridControls: React.FC<{
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="columns">Columns</Label>
         <Input
+          data-testid="grid-columns-input"
           id="columns"
           type="number"
           value={layout.columns}
@@ -403,6 +404,7 @@ const GridControls: React.FC<{
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="rowHeight">Row Height (px)</Label>
         <Input
+          data-testid="grid-row-height-input"
           id="rowHeight"
           type="number"
           value={layout.rowHeight}
@@ -420,6 +422,7 @@ const GridControls: React.FC<{
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="maxWidth">Max Width (px)</Label>
         <Input
+          data-testid="grid-max-width-input"
           id="maxWidth"
           type="number"
           value={layout.maxWidth}
@@ -440,6 +443,7 @@ const GridControls: React.FC<{
           Bordered
         </Label>
         <Switch
+          data-testid="grid-bordered-switch"
           id="lock"
           checked={layout.bordered}
           size="sm"
@@ -457,6 +461,7 @@ const GridControls: React.FC<{
           Lock Grid
         </Label>
         <Switch
+          data-testid="grid-lock-switch"
           id="lock"
           checked={isLocked}
           size="sm"
@@ -604,6 +609,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
           <DropdownMenuItem onSelect={() => setIsScrollable(!isScrollable)}>
             <span className="flex-1">Scrollable</span>
             <Switch
+              data-testid="grid-scrollable-switch"
               checked={isScrollable}
               size="sm"
               onCheckedChange={setIsScrollable}

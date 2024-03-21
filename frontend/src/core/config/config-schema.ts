@@ -5,9 +5,6 @@ import {
   getRawMarimoAppConfig,
   getRawMarimoUserConfig,
 } from "../dom/marimo-tag";
-import { ZodLocalStorage } from "@/utils/localStorage";
-import { isPyodide } from "../pyodide/utils";
-import { repl } from "@/utils/repl";
 
 export const UserConfigSchema = z
   .object({
@@ -102,15 +99,6 @@ export function parseAppConfig() {
 }
 
 export function parseUserConfig(): UserConfig {
-  // For Pyodide, we use the local storage to store the user config.
-  if (isPyodide()) {
-    return UserConfigLocalStorage.get();
-  }
-
-  return parseUserConfigDOM();
-}
-
-function parseUserConfigDOM(): UserConfig {
   try {
     const parsed = UserConfigSchema.parse(JSON.parse(getRawMarimoUserConfig()));
     for (const [key, value] of Object.entries(parsed.experimental)) {
@@ -126,20 +114,3 @@ function parseUserConfigDOM(): UserConfig {
     return UserConfigSchema.parse({});
   }
 }
-
-export const UserConfigLocalStorage = new ZodLocalStorage<UserConfig>(
-  "marimo:user-config",
-  UserConfigSchema,
-  () => parseUserConfigDOM(),
-);
-
-function setFeatureFlag(
-  feature: keyof UserConfig["experimental"],
-  value: boolean,
-) {
-  const userConfig = UserConfigLocalStorage.get();
-  userConfig.experimental[feature] = value;
-  UserConfigLocalStorage.set(userConfig);
-}
-
-repl(setFeatureFlag, "setFeatureFlag");

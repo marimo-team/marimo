@@ -38,7 +38,12 @@ const CheckboxComponent = ({
 
   return (
     <Labeled label={data.label} align="right" id={id}>
-      <Checkbox checked={value} onCheckedChange={onClick} id={id} />
+      <Checkbox
+        data-testid="marimo-plugin-checkbox"
+        checked={value}
+        onCheckedChange={onClick}
+        id={id}
+      />
     </Labeled>
   );
 };

@@ -154,6 +154,7 @@ function renderZodSchema<T extends FieldValues, S>(
               <FormDescription>{description}</FormDescription>
               <FormControl>
                 <Checkbox
+                  data-testid="marimo-plugin-data-frames-boolean-checkbox"
                   checked={field.value}
                   onCheckedChange={field.onChange}
                 />
@@ -173,6 +174,7 @@ function renderZodSchema<T extends FieldValues, S>(
           render={({ field }) => (
             <Button
               size="xs"
+              data-testid="marimo-plugin-data-frames-random-number-button"
               variant="secondary"
               onClick={() => {
                 field.onChange(randomNumber());
@@ -317,7 +319,10 @@ function renderZodSchema<T extends FieldValues, S>(
           return (
             <div className="flex flex-col">
               <FormLabel>{label}</FormLabel>
-              <NativeSelect {...field}>
+              <NativeSelect
+                data-testid="marimo-plugin-data-frames-union-select"
+                {...field}
+              >
                 {types.map((type: string) => {
                   return (
                     <option key={type} value={type}>
@@ -425,6 +430,7 @@ const FormArray = ({
       <div>
         <Button
           size="xs"
+          data-testid="marimo-plugin-data-frames-add-array-item"
           variant="text"
           className="hover:text-accent-foreground"
           onClick={() => {
@@ -468,6 +474,7 @@ const ColumnFormField = ({
           <StyledFormMessage />
           <FormControl>
             <Select
+              data-testid="marimo-plugin-data-frames-column-select"
               value={field.value}
               onValueChange={(value) => {
                 onChange?.(value);
@@ -654,7 +661,11 @@ const FilterForm = ({
               <FormLabel className="whitespace-pre"> </FormLabel>
               <FormDescription>{description}</FormDescription>
               <FormControl>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  data-testid="marimo-plugin-data-frames-filter-operator-select"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
                   <SelectTrigger className="min-w-[210px]">
                     <SelectValue placeholder="--" />
                   </SelectTrigger>
@@ -855,7 +866,11 @@ const SelectFormField = ({
           <FormLabel className="whitespace-pre">{label}</FormLabel>
           <FormDescription>{description}</FormDescription>
           <FormControl>
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select
+              data-testid="marimo-plugin-data-frames-select"
+              value={field.value}
+              onValueChange={field.onChange}
+            >
               <SelectTrigger className="min-w-[210px]">
                 <SelectValue placeholder="--" />
               </SelectTrigger>

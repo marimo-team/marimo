@@ -61,6 +61,7 @@ export const FileExplorer: React.FC<{
         <div className="flex items-center pl-1 pr-3 flex-shrink-0 border-b justify-between">
           <Button
             onClick={() => setOpenFile(null)}
+            data-testid="file-explorer-back-button"
             variant="text"
             size="xs"
             className="mb-0"
@@ -139,6 +140,7 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
     <div className="flex items-center justify-end px-2 flex-shrink-0 border-b">
       <Tooltip content="Upload file">
         <button
+          data-testid="file-explorer-upload-button"
           {...getRootProps({})}
           className={buttonVariants({
             variant: "text",
@@ -151,7 +153,13 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
       </Tooltip>
       <input {...getInputProps({})} type="file" />
       <Tooltip content="Refresh">
-        <Button onClick={onRefresh} variant="text" size="xs" className="mb-0">
+        <Button
+          data-testid="file-explorer-refresh-button"
+          onClick={onRefresh}
+          variant="text"
+          size="xs"
+          className="mb-0"
+        >
           <RefreshCcwIcon size={16} />
         </Button>
       </Tooltip>
@@ -264,6 +272,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             onClick={(e) => e.stopPropagation()}
           >
             <Button
+              data-testid="file-explorer-more-button"
               variant="text"
               tabIndex={-1}
               size="xs"

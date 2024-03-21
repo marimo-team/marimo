@@ -82,6 +82,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           {selectedPanel}
         </div>
         <Button
+          data-testid="close-helper-pane"
           className="m-0"
           size="xs"
           variant="text"

@@ -100,6 +100,7 @@ export const ShareStaticNotebookModal: React.FC<{
         </DialogHeader>
         <div className="flex flex-col gap-6 py-4">
           <Input
+            data-testid="slug-input"
             id="slug"
             autoFocus={true}
             value={slug}
@@ -124,10 +125,15 @@ export const ShareStaticNotebookModal: React.FC<{
           </div>
         </div>
         <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            data-testid="cancel-share-static-notebook-button"
+            variant="secondary"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button
+            data-testid="share-static-notebook-button"
             aria-label="Save"
             variant="default"
             type="submit"
@@ -155,7 +161,12 @@ const CopyButton = (props: { text: string }) => {
 
   return (
     <Tooltip content="Copied!" open={copied}>
-      <Button onClick={copy} size="xs" variant="secondary">
+      <Button
+        data-testid="copy-static-notebook-url-button"
+        onClick={copy}
+        size="xs"
+        variant="secondary"
+      >
         <CopyIcon size={14} strokeWidth={1.5} />
       </Button>
     </Tooltip>

@@ -65,6 +65,7 @@ export const QueryForm: React.FC<Props> = ({ schema, mark }) => {
 
   const markSelect = (
     <Select
+      data-testid="marimo-plugin-data-explorer-mark-select"
       value={mark.toString()}
       onValueChange={(value) => actions.setMark(value as SpecMark)}
     >
@@ -252,6 +253,7 @@ const FieldOptions = ({
   if (options.length > 0) {
     return (
       <Select
+        data-testid="marimo-plugin-data-explorer-field-options"
         value={field.fn}
         onValueChange={(value) => {
           onChange({

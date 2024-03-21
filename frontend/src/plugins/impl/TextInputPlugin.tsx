@@ -74,6 +74,7 @@ const TextComponent = (props: TextComponentProps) => {
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
       <Input
+        data-testid="marimo-plugin-text-input"
         type={props.kind}
         icon={icon[props.kind]}
         placeholder={props.placeholder}

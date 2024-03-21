@@ -226,6 +226,7 @@ export const DirCompletionInput = ({
   return (
     <div className="DirCompletionInput">
       <Input
+        data-testid="dir-completion-input"
         type="text"
         spellCheck="false"
         value={displayValue}

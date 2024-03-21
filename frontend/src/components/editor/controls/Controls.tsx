@@ -71,6 +71,7 @@ export const Controls = ({
     undoControl = (
       <Tooltip content="Undo cell deletion">
         <Button
+          data-testid="undo-delete-cell"
           size="medium"
           color="hint-green"
           shape="circle"
@@ -118,6 +119,7 @@ export const Controls = ({
         ) : (
           <Tooltip content={renderShortcut("global.save")}>
             <Button
+              data-testid="save-button"
               id="save-button"
               shape="rectangle"
               color={needsSave ? "yellow" : "hint-green"}
@@ -130,6 +132,7 @@ export const Controls = ({
 
         <Tooltip content={renderShortcut("global.hideCode")}>
           <Button
+            data-testid="hide-code-button"
             id="preview-button"
             shape="rectangle"
             color="white"
@@ -180,6 +183,7 @@ const RunControlButton = ({
     return (
       <Tooltip content={renderShortcut("global.interrupt")}>
         <Button
+          data-testid="interrupt-button"
           size="medium"
           color="yellow"
           shape="circle"
@@ -192,7 +196,13 @@ const RunControlButton = ({
   } else if (needsRun) {
     return (
       <Tooltip content={renderShortcut("global.runStale")}>
-        <Button size="medium" color="yellow" shape="circle" onClick={onRun}>
+        <Button
+          data-testid="run-button"
+          size="medium"
+          color="yellow"
+          shape="circle"
+          onClick={onRun}
+        >
           <PlayIcon strokeWidth={1.5} size={16} />
         </Button>
       </Tooltip>
@@ -202,6 +212,7 @@ const RunControlButton = ({
   return (
     <Tooltip content="Nothing to run">
       <Button
+        data-testid="run-button"
         className={"inactive-button"}
         color="disabled"
         size="medium"

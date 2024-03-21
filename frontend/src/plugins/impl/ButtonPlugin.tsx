@@ -34,6 +34,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     // value counts number of times button was clicked
     const button = (
       <Button
+        data-testid="marimo-plugin-button"
         variant={kindToButtonVariant(kind)}
         disabled={disabled}
         size="xs"

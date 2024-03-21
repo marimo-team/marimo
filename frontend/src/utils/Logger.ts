@@ -1,4 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+declare global {
+  interface Window {
+    Logger?: ILogger;
+  }
+}
+
 interface ILogger {
   debug: (typeof console)["debug"];
   log: (typeof console)["log"];
@@ -9,7 +16,7 @@ interface ILogger {
 /**
  * Wrapper around console.log that can be used to disable logging in production or add additional logging.
  */
-export const Logger: ILogger = {
+const ConsoleLogger: ILogger = {
   debug: (...args) => {
     if (process.env.NODE_ENV !== "production") {
       console.debug(...args);
@@ -25,3 +32,12 @@ export const Logger: ILogger = {
     console.error(...args);
   },
 };
+
+function getLogger(): ILogger {
+  if (typeof window !== "undefined") {
+    return window.Logger || ConsoleLogger;
+  }
+  return ConsoleLogger;
+}
+
+export const Logger = getLogger();

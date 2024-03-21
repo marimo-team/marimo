@@ -97,6 +97,7 @@ export function generateColumns<T>(
       header: ({ table }) =>
         selection === "multi" ? (
           <Checkbox
+            data-testid="select-all-checkbox"
             checked={table.getIsAllPageRowsSelected()}
             onCheckedChange={(value) =>
               table.toggleAllPageRowsSelected(!!value)
@@ -107,6 +108,7 @@ export function generateColumns<T>(
         ) : null,
       cell: ({ row }) => (
         <Checkbox
+          data-testid="select-row-checkbox"
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
