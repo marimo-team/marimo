@@ -246,6 +246,15 @@ class App:
             )
 
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        # formatters aren't automatically registered when running as a script
+        from marimo._output.formatters.formatters import (
+            register_formatters,
+        )
+        from marimo._output.formatting import FORMATTERS
+
+        if not FORMATTERS:
+            register_formatters()
+
         return asyncio.run(self._run_async())
 
     async def _run_cell_async(

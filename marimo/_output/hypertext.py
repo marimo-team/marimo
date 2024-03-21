@@ -7,6 +7,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
+from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
@@ -91,6 +92,10 @@ class Html(MIME):
         Subclasses MUST implement a __del__ method that ends by calling
         this method.
         """
+        if python_exiting():
+            # imports can fail when python is exiting; clean-up
+            # is not important when exiting anyway
+            return
 
         from marimo._runtime.context import (
             ContextNotInitializedError,
@@ -102,8 +107,9 @@ class Html(MIME):
         except ContextNotInitializedError:
             return
 
-        for f in self._virtual_filenames:
-            ctx.virtual_file_registry.dereference(f)
+        if ctx is not None:
+            for f in self._virtual_filenames:
+                ctx.virtual_file_registry.dereference(f)
 
     @property
     def text(self) -> str:
