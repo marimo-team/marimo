@@ -55,6 +55,9 @@ export const UserConfigSchema = z
         cell_output: z.enum(["above", "below"]).default("above"),
       })
       .default({}),
+    package_management: z
+      .object({ manager: z.enum(["pip", "uv", "rye"]).default("pip") })
+      .default({ manager: "pip" }),
     experimental: z
       .object({
         ai: z.boolean().optional(),

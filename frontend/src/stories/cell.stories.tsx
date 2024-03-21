@@ -73,6 +73,9 @@ const props: CellProps = {
     formatting: {
       line_length: 79,
     },
+    package_management: {
+      manager: "pip",
+    },
     experimental: {},
   },
 };

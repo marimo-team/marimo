@@ -3,7 +3,7 @@ import { PropsWithChildren } from "react";
 
 export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (
-    <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide  mb-1">
+    <div className="text-md font-semibold text-muted-foreground uppercase tracking-wide  mb-1">
       {children}
     </div>
   );
@@ -11,7 +11,7 @@ export const SettingTitle: React.FC<PropsWithChildren> = ({ children }) => {
 
 export const SettingSubtitle: React.FC<PropsWithChildren> = ({ children }) => {
   return (
-    <div className="text-sm font-semibold underline decoration-solid decoration-gray-400 underline-offset-2 text-muted-foreground uppercase tracking-wide">
+    <div className="text-sm font-semibold underline-offset-2 text-accent-foreground uppercase tracking-wide">
       {children}
     </div>
   );

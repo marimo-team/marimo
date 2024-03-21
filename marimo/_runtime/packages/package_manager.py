@@ -7,6 +7,8 @@ import abc
 class PackageManager(abc.ABC):
     """Interface for a package manager that can install packages."""
 
+    name: str
+
     @abc.abstractmethod
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name."""

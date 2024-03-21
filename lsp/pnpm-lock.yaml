@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   copilot-node-server:
-    specifier: 1.19.2
-    version: 1.19.2
+    specifier: 1.20.1
+    version: 1.20.1
 
 devDependencies:
   '@sourcegraph/vscode-ws-jsonrpc':
@@ -400,8 +400,8 @@ packages:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
     dev: true
 
-  /copilot-node-server@1.19.2:
-    resolution: {integrity: sha512-mM+AuMY0UPXIWnlx9CFx0BUPGLHP4dVVz6d3Alio2ZdjGGpxUHRNTYP+tgndtM6FNXaFxQoUfhaCiG4XusSC7w==}
+  /copilot-node-server@1.20.1:
+    resolution: {integrity: sha512-jROFkpMGJtwGyRYHvGvirQWdSCxWtIzImP9/jq4WQeCuT/QbDBP3IPkJONaCjWFtZj+GIAN+X4wdg2W9xYolig==}
     hasBin: true
     dev: false
 
