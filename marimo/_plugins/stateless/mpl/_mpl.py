@@ -13,6 +13,7 @@ import io
 import mimetypes
 import signal
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
@@ -210,9 +211,9 @@ def get_or_create_application() -> Starlette:
 
         threading.Thread(target=start_server).start()
 
-        # arbitrary wait 100ms for the server to start
+        # arbitrary wait 200ms for the server to start
         # this only happens once per session
-        asyncio.run(asyncio.sleep(0.02))
+        time.sleep(0.02)
 
     return _app
 
