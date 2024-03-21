@@ -17,6 +17,7 @@ export const ShutdownButton: React.FC<Props> = ({ onShutdown }) => {
     <Tooltip content="Shutdown">
       <Button
         aria-label="Shutdown"
+        data-testid="shutdown-button"
         shape="circle"
         size="small"
         color="red"

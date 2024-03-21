@@ -71,6 +71,7 @@ export const Controls = ({
     undoControl = (
       <Tooltip content="Undo cell deletion">
         <Button
+          data-testid="undo-delete-cell"
           size="medium"
           color="hint-green"
           shape="circle"
@@ -118,6 +119,7 @@ export const Controls = ({
         ) : (
           <Tooltip content={renderShortcut("global.save")}>
             <Button
+              data-testid="save-button"
               id="save-button"
               shape="rectangle"
               color={needsSave ? "yellow" : "hint-green"}
@@ -130,6 +132,7 @@ export const Controls = ({
 
         <Tooltip content={renderShortcut("global.hideCode")}>
           <Button
+            data-testid="hide-code-button"
             id="preview-button"
             shape="rectangle"
             color="white"
@@ -159,57 +162,6 @@ export const Controls = ({
         )}
       </div>
     </>
-  );
-};
-
-const RunControlButton = ({
-  running,
-  needsRun,
-  onRun,
-  onInterrupt,
-}: {
-  running: boolean;
-  needsRun: boolean;
-  onRun: () => void;
-  onInterrupt: () => void;
-}) => {
-  // Show the interrupt button after 200ms to avoid flickering.
-  const showInterrupt = useShouldShowInterrupt(running);
-
-  if (showInterrupt) {
-    return (
-      <Tooltip content={renderShortcut("global.interrupt")}>
-        <Button
-          size="medium"
-          color="yellow"
-          shape="circle"
-          onClick={onInterrupt}
-        >
-          <SquareIcon strokeWidth={1.5} size={16} />
-        </Button>
-      </Tooltip>
-    );
-  } else if (needsRun) {
-    return (
-      <Tooltip content={renderShortcut("global.runStale")}>
-        <Button size="medium" color="yellow" shape="circle" onClick={onRun}>
-          <PlayIcon strokeWidth={1.5} size={16} />
-        </Button>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Tooltip content="Nothing to run">
-      <Button
-        className={"inactive-button"}
-        color="disabled"
-        size="medium"
-        shape="circle"
-      >
-        <PlayIcon strokeWidth={1.5} size={16} />
-      </Button>
-    </Tooltip>
   );
 };
 

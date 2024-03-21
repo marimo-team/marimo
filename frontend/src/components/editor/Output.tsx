@@ -172,6 +172,7 @@ const ExpandableOutput = React.memo(
           {(isOverflowing || isExpanded) && (
             <div className="relative">
               <Button
+                data-testid="expand-output-button"
                 className={cn(
                   "absolute top-6 -right-12 z-10",
                   // Force show button if expanded

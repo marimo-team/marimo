@@ -115,10 +115,19 @@ const FeedbackModal: React.FC<{
           />
         </div>
         <DialogFooter>
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            data-testid="feedback-cancel-button"
+            variant="secondary"
+            onClick={onClose}
+          >
             Cancel
           </Button>
-          <Button aria-label="Save" variant="default" type="submit">
+          <Button
+            data-testid="feedback-send-button"
+            aria-label="Save"
+            variant="default"
+            type="submit"
+          >
             Send
           </Button>
         </DialogFooter>

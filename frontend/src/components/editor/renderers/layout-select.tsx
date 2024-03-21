@@ -26,6 +26,7 @@ export const LayoutSelect: React.FC = () => {
 
   return (
     <Select
+      data-testid="layout-select"
       value={layoutType}
       onValueChange={(v) => setLayoutType(v as LayoutType)}
     >

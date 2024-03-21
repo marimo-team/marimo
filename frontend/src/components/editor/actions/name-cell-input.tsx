@@ -45,6 +45,7 @@ export const NameCellInput: React.FC<Props> = ({
 
   return (
     <Input
+      data-testid="cell-name-input"
       value={inputProps.value}
       onChange={inputProps.onChange}
       ref={ref}

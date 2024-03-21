@@ -84,6 +84,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
         })}
         {hasMore && (
           <Button
+            data-testid="marimo-plugin-data-explorer-show-more-columns"
             variant="link"
             size="sm"
             className="self-center col-span-3 -mt-1"
@@ -95,6 +96,7 @@ export const ColumnSummary: React.FC<Props> = ({ schema }) => {
       </div>
       <div className="lg:hidden">
         <Select
+          data-testid="marimo-plugin-data-explorer-column-select"
           value={selectedField || ""}
           disabled={fields.length === 0}
           onValueChange={(value) => {

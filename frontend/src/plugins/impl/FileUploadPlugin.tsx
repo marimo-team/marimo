@@ -182,6 +182,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     return (
       <>
         <button
+          data-testid="marimo-plugin-file-upload-button"
           {...getRootProps({})}
           className={buttonVariants({
             variant: "secondary",

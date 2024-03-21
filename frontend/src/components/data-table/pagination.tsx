@@ -28,6 +28,7 @@ export const DataTablePagination = <TData,>({
           {selected} selected
           <Button
             size="xs"
+            data-testid="select-all-button"
             variant="link"
             onClick={() => table.toggleAllRowsSelected(true)}
           >
@@ -43,6 +44,7 @@ export const DataTablePagination = <TData,>({
           {selected} selected
           <Button
             size="xs"
+            data-testid="clear-selection-button"
             variant="link"
             onClick={() => table.toggleAllRowsSelected(false)}
           >
@@ -55,10 +57,6 @@ export const DataTablePagination = <TData,>({
     return `${count} items`;
   };
 
-  const currentPage = Math.min(
-    table.getState().pagination.pageIndex + 1,
-    table.getPageCount(),
-  );
   const totalPages = table.getPageCount();
 
   return (
@@ -68,6 +66,7 @@ export const DataTablePagination = <TData,>({
         <Button
           size="xs"
           variant="outline"
+          data-testid="first-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
           onClick={() => table.setPageIndex(0)}
           disabled={!table.getCanPreviousPage()}
@@ -78,6 +77,7 @@ export const DataTablePagination = <TData,>({
         <Button
           size="xs"
           variant="outline"
+          data-testid="previous-page-button"
           className="h-6 w-6 p-0"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
@@ -90,6 +90,7 @@ export const DataTablePagination = <TData,>({
           <select
             className="cursor-pointer border rounded"
             value={currentPage}
+            data-testid="page-select"
             onChange={(e) => table.setPageIndex(Number(e.target.value) - 1)}
           >
             {Array.from({ length: totalPages }, (_, i) => (
@@ -103,6 +104,7 @@ export const DataTablePagination = <TData,>({
         <Button
           size="xs"
           variant="outline"
+          data-testid="next-page-button"
           className="h-6 w-6 p-0"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
@@ -113,6 +115,7 @@ export const DataTablePagination = <TData,>({
         <Button
           size="xs"
           variant="outline"
+          data-testid="last-page-button"
           className="hidden h-6 w-6 p-0 lg:flex"
           onClick={() => table.setPageIndex(table.getPageCount() - 1)}
           disabled={!table.getCanNextPage()}

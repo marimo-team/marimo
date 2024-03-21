@@ -34,7 +34,11 @@ const FallbackComponent: React.FC<FallbackProps> = (props) => {
         </a>
         .
       </div>
-      <Button onClick={props.resetErrorBoundary} variant="outline">
+      <Button
+        data-testid="reset-error-boundary-button"
+        onClick={props.resetErrorBoundary}
+        variant="outline"
+      >
         Try again
       </Button>
     </div>

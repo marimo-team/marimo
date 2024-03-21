@@ -170,6 +170,7 @@ export const FormWrapper = <T,>({
           {showClearButton &&
             withTooltip(
               <Button
+                data-testid="marimo-plugin-form-clear-button"
                 variant="text"
                 onClick={(e) => {
                   e.preventDefault();
@@ -182,6 +183,7 @@ export const FormWrapper = <T,>({
             )}
           {withTooltip(
             <Button
+              data-testid="marimo-plugin-form-submit-button"
               variant={variant}
               disabled={submitButtonDisabled || loading}
               type="submit"

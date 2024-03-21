@@ -29,6 +29,7 @@ export const NotebookBanner: React.FC = (props) => {
               {banner.title}
             </span>
             <Button
+              data-testid="remove-banner-button"
               variant="text"
               size="icon"
               onClick={() => removeBanner(banner.id)}
@@ -49,7 +50,12 @@ export const NotebookBanner: React.FC = (props) => {
 const RestartSessionButton = () => {
   const restartKernel = useRestartKernel();
   return (
-    <Button variant="link" size="sm" onClick={restartKernel}>
+    <Button
+      data-testid="restart-session-button"
+      variant="link"
+      size="sm"
+      onClick={restartKernel}
+    >
       <RotateCcwIcon className="w-4 h-4 mr-2" />
       Restart
     </Button>

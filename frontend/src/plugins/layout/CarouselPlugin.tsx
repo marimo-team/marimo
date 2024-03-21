@@ -126,6 +126,7 @@ const CarouselComponent = ({
       <Button
         variant="link"
         size="sm"
+        data-testid="marimo-plugin-carousel-fullscreen"
         onClick={async () => {
           if (!el.current) {
             return;

@@ -62,7 +62,12 @@ const StaticBannerDialog = () => {
   return (
     <Dialog>
       <DialogTrigger asChild={true}>
-        <Button variant="secondary">Run or edit this notebook</Button>
+        <Button
+          data-testid="static-notebook-dialog-trigger"
+          variant="secondary"
+        >
+          Run or edit this notebook
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -113,6 +118,7 @@ const StaticBannerDialog = () => {
         </DialogHeader>
         <div className="flex gap-4 flex-wrap">
           <Button
+            data-testid="copy-static-notebook-dialog-button"
             variant="secondary"
             onClick={() => {
               window.navigator.clipboard.writeText(code);
@@ -123,6 +129,7 @@ const StaticBannerDialog = () => {
             Copy code
           </Button>
           <Button
+            data-testid="download-static-notebook-dialog-button"
             variant="secondary"
             onClick={() => {
               downloadBlob(new Blob([code], { type: "text/plain" }), filename);

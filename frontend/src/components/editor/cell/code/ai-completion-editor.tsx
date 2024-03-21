@@ -112,13 +112,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
           }}
         />
         {isLoading && (
-          <Button variant="text" size="xs" className="mb-0" onClick={stop}>
+          <Button
+            data-testid="stop-completion-button"
+            variant="text"
+            size="xs"
+            className="mb-0"
+            onClick={stop}
+          >
             <Loader2Icon className="animate-spin mr-1" size={14} />
             Stop
           </Button>
         )}
         {!isLoading && completion && (
           <Button
+            data-testid="accept-completion-button"
             variant="text"
             size="xs"
             className="mb-0"
@@ -135,6 +142,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         <Tooltip content="Include code from other cells">
           <div className="flex flex-row items-start gap-1">
             <Checkbox
+              data-testid="include-other-cells-checkbox"
               id="include-other-cells"
               checked={includeOtherCells}
               onCheckedChange={(checked) =>
@@ -150,6 +158,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           </div>
         </Tooltip>
         <Button
+          data-testid="decline-completion-button"
           variant="text"
           size="icon"
           disabled={isLoading}

@@ -46,6 +46,7 @@ export const DataTableColumnHeader = <TData, TValue>({
         <DropdownMenuTrigger asChild={true}>
           <Button
             variant="ghost"
+            data-testid="data-table-sort-button"
             size="xs"
             className={cn(
               "ml-3 h-5 data-[state=open]:bg-accent m-0 p-1",

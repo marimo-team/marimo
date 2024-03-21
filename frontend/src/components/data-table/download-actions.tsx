@@ -22,7 +22,7 @@ const options = [
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   const button = (
-    <Button size="xs" variant="link">
+    <Button data-testid="download-as-button" size="xs" variant="link">
       Download <ChevronDownIcon className="w-3 h-3 ml-1" />
     </Button>
   );

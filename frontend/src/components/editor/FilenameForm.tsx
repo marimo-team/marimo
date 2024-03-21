@@ -120,6 +120,7 @@ export const FilenameForm = ({
           />
           <Button
             type="submit"
+            data-testid="filename-form-submit-button"
             color={validName ? "green" : "gray"}
             onMouseDown={handleMouseDown}
             style={{
@@ -137,6 +138,7 @@ export const FilenameForm = ({
           </Button>
           <Button
             color="gray"
+            data-testid="filename-form-cancel-button"
             style={{
               marginRight: "0px",
               padding: "0px",

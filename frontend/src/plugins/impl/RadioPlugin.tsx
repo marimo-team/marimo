@@ -52,6 +52,7 @@ export const Radio = (props: RadioProps): JSX.Element => {
   return (
     <Labeled label={props.label} id={id} align={props.inline ? "left" : "top"}>
       <RadioGroup
+        data-testid="marimo-plugin-radio"
         value={props.value ?? ""}
         onValueChange={props.setValue}
         className={cn(props.inline && "grid-flow-col gap-4")}

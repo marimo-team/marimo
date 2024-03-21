@@ -196,6 +196,7 @@ export const DataExplorerComponent = ({
               actions={
                 <Tooltip content="Make main plot">
                   <Button
+                    data-testid="marimo-plugin-data-explorer-make-main-plot"
                     variant="text"
                     size={"icon"}
                     onClick={() => {

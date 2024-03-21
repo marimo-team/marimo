@@ -28,6 +28,7 @@ export const LogsPanel: React.FC = () => {
     <>
       <div className="flex flex-row justify-end px-2 py-1">
         <button
+          data-testid="clear-logs-button"
           className="text-xs font-semibold text-accent-foreground"
           onClick={clearLogs}
         >

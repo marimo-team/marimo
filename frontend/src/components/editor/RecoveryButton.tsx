@@ -70,11 +70,17 @@ const RecoveryModal = (props: {
           <Button
             aria-label="Cancel"
             variant="secondary"
+            data-testid="cancel-recovery-button"
             onClick={props.closeModal}
           >
             Cancel
           </Button>
-          <Button aria-label="Download" variant="default" type="submit">
+          <Button
+            data-testid="download-recovery-button"
+            aria-label="Download"
+            variant="default"
+            type="submit"
+          >
             Download
           </Button>
         </DialogFooter>

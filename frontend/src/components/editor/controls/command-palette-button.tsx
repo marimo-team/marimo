@@ -13,7 +13,12 @@ export const CommandPaletteButton: React.FC = () => {
 
   return (
     <Tooltip content={renderShortcut("global.commandPalette")}>
-      <Button onClick={toggle} shape="rectangle" color="white">
+      <Button
+        data-testid="command-palette-button"
+        onClick={toggle}
+        shape="rectangle"
+        color="white"
+      >
         <CommandIcon strokeWidth={1.5} />
       </Button>
     </Tooltip>

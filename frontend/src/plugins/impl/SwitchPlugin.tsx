@@ -31,6 +31,7 @@ const SwitchComponent = ({
   return (
     <Labeled label={data.label} align="right" id={id} labelClassName="ml-1">
       <Switch
+        data-testid="marimo-plugin-switch"
         checked={value}
         onCheckedChange={setValue}
         id={id}

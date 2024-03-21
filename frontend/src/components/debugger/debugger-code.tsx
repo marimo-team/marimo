@@ -151,6 +151,7 @@ const DebuggerControls: React.FC<{
         <Button
           variant="text"
           size="icon"
+          data-testid="debugger-next-button"
           className={cn(buttonClasses, "rounded-bl-lg")}
           onClick={() => onSubmit("n")}
         >
@@ -161,6 +162,7 @@ const DebuggerControls: React.FC<{
         <Button
           variant="text"
           size="icon"
+          data-testid="debugger-continue-button"
           onClick={() => onSubmit("c")}
           className={cn(
             buttonClasses,
@@ -174,6 +176,7 @@ const DebuggerControls: React.FC<{
         <Button
           variant="text"
           size="icon"
+          data-testid="debugger-stack-button"
           className={buttonClasses}
           onClick={() => onSubmit("bt")}
         >
@@ -184,6 +187,7 @@ const DebuggerControls: React.FC<{
         <Button
           variant="text"
           size="icon"
+          data-testid="debugger-help-button"
           className={buttonClasses}
           onClick={() => onSubmit("help")}
         >
