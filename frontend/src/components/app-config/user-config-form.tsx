@@ -278,6 +278,35 @@ export const UserConfigForm: React.FC = () => {
             )}
           />
         </div>
+
+        <div className="flex flex-col gap-3">
+          <SettingSubtitle>Package Management</SettingSubtitle>
+          <FormField
+            control={form.control}
+            disabled={isWasm}
+            name="package_management.manager"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Manager</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="inline-flex mr-2"
+                  >
+                    {["pip", "uv", "rye"].map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <div className="flex flex-col gap-3">
           <SettingSubtitle>Runtime</SettingSubtitle>
           <FormField

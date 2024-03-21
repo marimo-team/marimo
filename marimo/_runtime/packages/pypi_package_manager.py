@@ -54,11 +54,15 @@ class PypiPackageManager(PackageManager):
 
 
 class PipPackageManager(PypiPackageManager):
+    name = "pip"
+
     async def install(self, package: str) -> bool:
         return subprocess.run(["pip", "install", package]).returncode == 0
 
 
 class MicropipPackageManager(PypiPackageManager):
+    name = "micropip"
+
     async def install(self, package: str) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
@@ -68,3 +72,19 @@ class MicropipPackageManager(PypiPackageManager):
             return True
         except ValueError:
             return False
+
+
+class UvPackageManager(PypiPackageManager):
+    name = "uv"
+
+    async def install(self, package: str) -> bool:
+        return (
+            subprocess.run(["uv", "pip", "install", package]).returncode == 0
+        )
+
+
+class RyePackageManager(PypiPackageManager):
+    name = "rye"
+
+    async def install(self, package: str) -> bool:
+        return subprocess.run(["rye", "add", package]).returncode == 0

@@ -54,7 +54,9 @@ def test_kernel_manager() -> None:
     mode = SessionMode.RUN
 
     # Instantiate a KernelManager
-    kernel_manager = KernelManager(queue_manager, mode, {}, app_metadata)
+    kernel_manager = KernelManager(
+        queue_manager, mode, {}, app_metadata, "pip"
+    )
 
     kernel_manager.start_kernel()
 
@@ -78,7 +80,7 @@ def test_session() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, app_metadata
+        queue_manager, SessionMode.RUN, {}, app_metadata, "pip"
     )
 
     # Instantiate a Session
@@ -117,7 +119,7 @@ def test_session_disconnect_reconnect() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, AppMetadata()
+        queue_manager, SessionMode.RUN, {}, AppMetadata(), "pip"
     )
 
     # Instantiate a Session

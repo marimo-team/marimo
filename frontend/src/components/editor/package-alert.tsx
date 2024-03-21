@@ -24,10 +24,12 @@ import React from "react";
 import { Button } from "../ui/button";
 import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
+import { useUserConfig } from "@/core/config/config";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
   const { addPackageAlert, clearPackageAlert } = useAlertActions();
+  const [userConfig] = useUserConfig();
 
   if (packageAlert === null) {
     return null;
@@ -72,6 +74,7 @@ export const PackageAlert: React.FC = (props) => {
               {packageAlert.isolated ? (
                 <InstallPackagesButton
                   packages={packageAlert.packages}
+                  manager={userConfig.package_management.manager}
                   addPackageAlert={addPackageAlert}
                 />
               ) : (
@@ -214,6 +217,7 @@ const ProgressIcon = ({
 
 async function installPackages(
   packages: string[],
+  manager: "pip" | "uv" | "rye",
   addPackageAlert: (
     alert: MissingPackageAlert | InstallingPackageAlert,
   ) => void,
@@ -226,14 +230,16 @@ async function installPackages(
     packages: packageStatus,
   });
   RuntimeState.INSTANCE.registerRunStart();
-  await sendInstallMissingPackages({ manager: "pip" });
+  await sendInstallMissingPackages({ manager: manager });
 }
 
 const InstallPackagesButton = ({
   packages,
+  manager,
   addPackageAlert,
 }: {
   packages: string[];
+  manager: "pip" | "uv" | "rye";
   addPackageAlert: (
     alert: MissingPackageAlert | InstallingPackageAlert,
   ) => void;
@@ -242,10 +248,10 @@ const InstallPackagesButton = ({
     <Button
       variant="outline"
       size="sm"
-      onClick={() => installPackages(packages, addPackageAlert)}
+      onClick={() => installPackages(packages, manager, addPackageAlert)}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
-      <span className="font-semibold">Install with pip</span>
+      <span className="font-semibold">Install with {manager}</span>
     </Button>
   );
 };

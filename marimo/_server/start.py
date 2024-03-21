@@ -37,6 +37,7 @@ def start(
     # Find a free port if none is specified
     # if the user specifies a port, we don't try to find a free one
     port = port or find_free_port(DEFAULT_PORT)
+    user_config_mgr = UserConfigManager()
 
     session_manager = initialize_manager(
         filename=filename,
@@ -45,6 +46,9 @@ def start(
         quiet=quiet,
         include_code=include_code,
         port=port,
+        package_manager=user_config_mgr.config["package_management"][
+            "manager"
+        ],
     )
 
     log_level = "info" if development_mode else "error"
@@ -57,7 +61,7 @@ def start(
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = user_config_mgr
 
     server = uvicorn.Server(
         uvicorn.Config(

@@ -109,6 +109,17 @@ class ServerConfig(TypedDict, total=False):
     browser: Union[Literal["default"], str]
 
 
+class PackageManagementConfig(TypedDict, total=False):
+    """Configuration options for package management.
+
+    **Keys.**
+
+    - `manager`: the package manager to use
+    """
+
+    manager: Literal["pip", "rye", "uv"]
+
+
 @mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
@@ -136,6 +147,7 @@ class MarimoConfig(TypedDict, total=False):
     runtime: RuntimeConfig
     save: SaveConfig
     server: ServerConfig
+    package_management: PackageManagementConfig
     experimental: Dict[str, Any]
 
 
@@ -154,6 +166,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "autosave_delay": 1000,
         "format_on_save": False,
     },
+    "package_management": {"manager": "pip"},
     "server": {"browser": "default"},
 }
 

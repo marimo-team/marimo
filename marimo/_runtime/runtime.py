@@ -79,8 +79,7 @@ from marimo._runtime.context import (
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
-from marimo._runtime.packages.package_manager import PackageManager
-from marimo._runtime.packages.pypi_package_manager import PipPackageManager
+from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
@@ -209,7 +208,7 @@ class Kernel:
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
-        package_manager: PackageManager | None = None,
+        package_manager: str | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.stream = stream
@@ -233,7 +232,11 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.package_manager = package_manager
+        self.package_manager = (
+            create_package_manager(package_manager)
+            if package_manager is not None
+            else None
+        )
 
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
@@ -1163,12 +1166,18 @@ class Kernel:
             await self.run(request.execution_requests)
             self.reset_ui_initializers()
 
-    async def install_missing_packages(self) -> None:
+    async def install_missing_packages(
+        self, request: InstallMissingPackagesRequest
+    ) -> None:
         """Attempts to install packages for modules that cannot be imported
 
         Runs cells affected by successful installation.
         """
         assert self.package_manager is not None
+        if request.manager != self.package_manager.name:
+            # Swap out the package manager
+            self.package_manager = create_package_manager(request.manager)
+
         # Package manager operates on module names
         missing_modules = list(sorted(self.module_registry.missing_modules()))
 
@@ -1233,7 +1242,7 @@ class Kernel:
         elif isinstance(request, DeleteRequest):
             await self.delete(request)
         elif isinstance(request, InstallMissingPackagesRequest):
-            await self.install_missing_packages()
+            await self.install_missing_packages(request)
             CompletedRun().broadcast()
         elif isinstance(request, StopRequest):
             return None
@@ -1249,6 +1258,7 @@ def launch_kernel(
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
+    package_manager: str,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1294,7 +1304,7 @@ def launch_kernel(
         stdin=stdin,
         input_override=input_override,
         debugger_override=debugger,
-        package_manager=PipPackageManager(),
+        package_manager=package_manager if is_edit_mode else None,
     )
     initialize_context(
         kernel=kernel,

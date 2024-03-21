@@ -96,7 +96,7 @@ export interface SendStdin {
 
 // In the future may include things like package manager, index URL, ...
 export interface SendInstallMissingPackages {
-  manager: "pip";
+  manager: "pip" | "uv" | "rye";
 }
 
 export interface ValueUpdate {

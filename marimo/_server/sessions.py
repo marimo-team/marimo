@@ -116,12 +116,14 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
+        package_manager: str,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
+        self.package_manager = package_manager
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
 
     def start_kernel(self) -> None:
@@ -143,6 +145,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
+                    self.package_manager,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -178,6 +181,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
+                    self.package_manager,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -235,12 +239,13 @@ class Session:
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
+        package_manager: str,
     ) -> Session:
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
         kernel_manager = KernelManager(
-            queue_manager, mode, configs, app_metadata
+            queue_manager, mode, configs, app_metadata, package_manager
         )
         return cls(
             session_consumer,
@@ -394,6 +399,7 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
+        package_manager: str,
     ) -> None:
         self.filename = filename
         self.mode = mode
@@ -403,6 +409,7 @@ class SessionManager:
         self.include_code = include_code
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
+        self.package_manager = package_manager
 
         app = self._load_app()
 
@@ -451,6 +458,7 @@ class SessionManager:
                 mode=self.mode,
                 app_metadata=self.app_metadata,
                 app_file_manager=AppFileManager(self.path),
+                package_manager=self.package_manager,
             )
         return self.sessions[session_id]
 
@@ -659,6 +667,7 @@ def initialize_manager(
     development_mode: bool,
     quiet: bool,
     include_code: bool,
+    package_manager: str,
 ) -> SessionManager:
     """Must be called on server start."""
     global SESSION_MANAGER
@@ -669,6 +678,7 @@ def initialize_manager(
         quiet=quiet,
         include_code=include_code,
         lsp_server=LspServer(port * 10),
+        package_manager=package_manager,
     )
     return SESSION_MANAGER
 

@@ -31,6 +31,9 @@ test("default UserConfig - empty", () => {
       "keymap": {
         "preset": "default",
       },
+      "package_management": {
+        "manager": "pip",
+      },
       "runtime": {
         "auto_instantiate": true,
       },
@@ -70,6 +73,9 @@ test("default UserConfig - one level", () => {
       },
       "keymap": {
         "preset": "default",
+      },
+      "package_management": {
+        "manager": "pip",
       },
       "runtime": {
         "auto_instantiate": true,
