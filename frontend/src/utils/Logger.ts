@@ -34,8 +34,8 @@ const ConsoleLogger: ILogger = {
 };
 
 function getLogger(): ILogger {
-  if (window?.Logger) {
-    return window.Logger;
+  if (typeof window !== "undefined") {
+    return window.Logger || ConsoleLogger;
   }
   return ConsoleLogger;
 }
