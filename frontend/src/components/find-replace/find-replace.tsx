@@ -32,7 +32,6 @@ import {
   clearGlobalSearchQuery,
   setGlobalSearchQuery,
 } from "@/core/codemirror/find-replace/search-highlight";
-import { undo } from "@codemirror/commands";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
