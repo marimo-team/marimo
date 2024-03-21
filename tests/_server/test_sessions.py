@@ -54,7 +54,9 @@ def test_kernel_manager() -> None:
     mode = SessionMode.RUN
 
     # Instantiate a KernelManager
-    kernel_manager = KernelManager(queue_manager, mode, {}, app_metadata, "pip")
+    kernel_manager = KernelManager(
+        queue_manager, mode, {}, app_metadata, "pip"
+    )
 
     kernel_manager.start_kernel()
 
