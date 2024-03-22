@@ -250,10 +250,6 @@ export const UserConfigForm: React.FC = () => {
                     />
                   </span>
                 </FormControl>
-                <FormDescription>
-                  When unchecked, code completion is still available through a
-                  hotkey.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
