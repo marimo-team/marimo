@@ -652,7 +652,8 @@ class multiselect(UIElement[List[str], List[object]]):
 
         self.options = options
         initial_value = list(value) if value is not None else []
-        if max_selections == 0: initial_value = []
+        if max_selections == 0:
+            initial_value = []
 
         if max_selections:
             if max_selections < 0:
