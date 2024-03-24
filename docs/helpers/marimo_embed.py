@@ -51,6 +51,7 @@ class MarimoEmbed(Directive):
         <iframe
             class="demo {size}"
             src="https://marimo.app/?code={encoded_code}&embed=true&mode={mode}"
+            allow="camera; geolocation; microphone; fullscreen; autoplay; encrypted-media; picture-in-picture; clipboard-read; clipboard-write"
             width="100%"
             frameBorder="0"
         ></iframe>
