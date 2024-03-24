@@ -24,7 +24,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     label: z.string().nullable(),
     options: z.array(z.string()),
     fullWidth: z.boolean().default(false),
-    maxSelections: z.number().optional()
+    maxSelections: z.number().optional(),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
