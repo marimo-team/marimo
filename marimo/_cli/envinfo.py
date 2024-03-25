@@ -4,12 +4,12 @@ from __future__ import annotations
 import platform
 from typing import Union
 
+from marimo import __version__
 from marimo._utils.health import (
-    get_node_version,
     get_chrome_version,
+    get_node_version,
     get_required_modules_list,
 )
-from marimo import __version__
 
 
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
