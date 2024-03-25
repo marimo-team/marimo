@@ -46,7 +46,9 @@ def get_required_modules_list() -> dict[str, str]:
     # Submodules and private modules are can be filtered with:
     #  if not ("." in m or m.startswith("_")):
     return {
-        module: sys.modules.get(module, _DefaultModule).__version__
+        module: getattr(
+            sys.modules.get(module, _DefaultModule), "__version__", "--"
+        )
         for module in allowlist
     }
 
