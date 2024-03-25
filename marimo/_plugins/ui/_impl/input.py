@@ -632,6 +632,7 @@ class multiselect(UIElement[List[str], List[object]]):
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
+    - `max_selections`: maximum number of items that can be selected
     """
 
     _name: Final[str] = "marimo-multiselect"
@@ -644,12 +645,21 @@ class multiselect(UIElement[List[str], List[object]]):
         label: str = "",
         on_change: Optional[Callable[[List[object]], None]] = None,
         full_width: bool = False,
+        max_selections: Optional[int] = None,
     ) -> None:
         if not isinstance(options, dict):
             options = {option: option for option in options}
 
         self.options = options
         initial_value = list(value) if value is not None else []
+
+        if max_selections is not None:
+            if max_selections < 0:
+                raise ValueError("max_selections cannot be less than 0.")
+            if max_selections < len(initial_value):
+                raise ValueError(
+                    "Initial value cannot be greater than max_selections."
+                )
 
         super().__init__(
             component_name=multiselect._name,
@@ -658,6 +668,7 @@ class multiselect(UIElement[List[str], List[object]]):
             args={
                 "options": list(self.options.keys()),
                 "full-width": full_width,
+                "max-selections": max_selections,
             },
             on_change=on_change,
         )

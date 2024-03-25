@@ -11,6 +11,7 @@ interface Data {
   label: string | null;
   options: string[];
   fullWidth: boolean;
+  maxSelections?: number | undefined;
 }
 
 type T = string[];
@@ -23,6 +24,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     label: z.string().nullable(),
     options: z.array(z.string()),
     fullWidth: z.boolean().default(false),
+    maxSelections: z.number().optional(),
   });
 
   render(props: IPluginProps<string[], Data>): JSX.Element {
@@ -52,6 +54,13 @@ interface MultiselectProps extends Data {
 const Multiselect = (props: MultiselectProps): JSX.Element => {
   const id = useId();
 
+  function setValue(newValues: T) {
+    if (props.maxSelections != null && newValues.length > props.maxSelections) {
+      return;
+    }
+    props.setValue(newValues);
+  }
+
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
       <Combobox<string>
@@ -63,7 +72,7 @@ const Multiselect = (props: MultiselectProps): JSX.Element => {
           "w-full": props.fullWidth,
         })}
         value={props.value}
-        onValueChange={(newValues) => props.setValue(newValues || [])}
+        onValueChange={(newValues) => setValue(newValues || [])}
       >
         {props.options.map((option) => (
           <ComboboxItem key={option} value={option}>

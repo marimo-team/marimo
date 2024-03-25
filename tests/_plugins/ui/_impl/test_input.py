@@ -126,6 +126,44 @@ def test_dropdown() -> None:
     assert dd.value == 2
 
 
+def test_multiselect() -> None:
+    options_list = ["Apples", "Oranges", "Bananas"]
+    ms = ui.multiselect(options=options_list)
+    assert ms.value == []
+
+    ms._update(["Apples"])
+    assert ms.value == ["Apples"]
+
+    ms._update(["Apples", "Oranges"])
+    assert ms.value == ["Apples", "Oranges"]
+
+    options_dict = {"Apples": 1, "Oranges": 2, "Bananas": 3}
+    ms = ui.multiselect(options=options_dict, value=["Apples"])
+    assert ms.value == [1]
+
+    ms._update(["Apples", "Oranges", "Bananas"])
+    assert ms.value == [1, 2, 3]
+
+    ms = ui.multiselect(options=options_list, max_selections=2)
+    assert ms.value == []
+
+    ms._update(["Apples"])
+    assert ms.value == ["Apples"]
+
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=0
+        )
+
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=2
+        )
+
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(options=options_list, max_selections=-10)
+
+
 def test_button() -> None:
     assert ui.button().value is None
     assert ui.button(value=1).value == 1
