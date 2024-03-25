@@ -29,7 +29,22 @@ describe("URLPyodideRouter", () => {
 
   test("getCode returns correct code from URL", () => {
     window.location.href = 'https://marimo.app?code=print("Hello, World!")';
-    expect(PyodideRouter.getCode()).toBe('print("Hello, World!")');
+    expect(PyodideRouter.getCodeFromSearchParam()).toBe(
+      'print("Hello, World!")',
+    );
+  });
+
+  test("getCode from hash returns correct code", () => {
+    window.location.href = "https://marimo.app";
+    window.location.hash = "#code/print('Hello, World!')";
+    expect(PyodideRouter.getCodeFromHash()).toBe("print('Hello, World!')");
+  });
+
+  test("getCode from hash with query params returns correct code", () => {
+    window.location.href = "https://marimo.app?filename=test.py";
+    window.location.hash = "#code/print('Hello, World!')";
+    expect(PyodideRouter.getCodeFromHash()).toBe("print('Hello, World!')");
+    expect(PyodideRouter.getFilename()).toBe("test.py");
   });
 
   test("setFilename correctly modifies URL", () => {

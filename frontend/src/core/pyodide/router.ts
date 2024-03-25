@@ -7,8 +7,17 @@ class URLPyodideRouter {
     this.setSearchParam("filename", filename);
   }
 
-  getCode(): string | null {
+  getCodeFromSearchParam(): string | null {
     return this.getSearchParam("code");
+  }
+
+  getCodeFromHash(): string | null {
+    const hash = window.location.hash;
+    const prefix = "#code/";
+    if (!hash.startsWith(prefix)) {
+      return null;
+    }
+    return hash.slice(prefix.length);
   }
 
   private setSearchParam(key: string, value: string) {
