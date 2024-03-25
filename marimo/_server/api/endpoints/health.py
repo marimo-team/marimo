@@ -8,6 +8,8 @@ from marimo import __version__, _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 
+from marimo._utils.health import get_node_version, get_required_modules_list
+
 LOGGER = _loggers.marimo_logger()
 
 # Router for health/status endpoints
@@ -34,6 +36,8 @@ async def status(request: Request) -> JSONResponse:
             "mode": app_state.mode,
             "sessions": len(app_state.session_manager.sessions),
             "version": __version__,
+            "requirements": get_required_modules_list(),
+            "node_version": get_node_version(),
             "lsp_running": app_state.session_manager.lsp_server.is_running(),
         }
     )
