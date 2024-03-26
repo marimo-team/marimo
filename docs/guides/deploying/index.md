@@ -5,6 +5,7 @@
   :maxdepth: 2
   :hidden:
 
+  programmatically
   deploying_docker
   deploying_public_gallery
 ```
@@ -13,6 +14,7 @@ These guides help you deploy marimo notebooks.
 
 |                                 |                                                           |
 | :------------------------------ | :-------------------------------------------------------- |
+| {doc}`programmatically`         | Programmatically run the marimo backend for customization |
 | {doc}`deploying_docker`         | Deploying marimo notebooks and apps with Docker           |
 | {doc}`deploying_public_gallery` | Deploying marimo notebooks and apps to our public gallery |
 
@@ -26,6 +28,12 @@ entirely in the browser -- no backend required.
 WASM notebooks support most but not all Python features and packages. See our
 [guide on WASM notebooks](../../guides/wasm.md) to learn more.
 ```
+
+## Programmatically running the marimo backend
+
+When deploying marimo notebooks, you can run the marimo backend programmatically. This allows you to customize the backend to your needs and deploy it in your own environment.
+
+See the [programmatically running the marimo backend guide](programmatically.md) for more information.
 
 ## Health and status endpoints
 

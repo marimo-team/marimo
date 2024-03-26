@@ -25,7 +25,6 @@ from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
 from marimo._server.model import SessionMode
 from marimo._server.print import print_shutdown, print_startup
-from marimo._server.sessions import get_manager
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
 
@@ -67,7 +66,7 @@ class Lifespans:
 @contextlib.asynccontextmanager
 async def lsp(app: Starlette) -> AsyncIterator[None]:
     user_config = app.state.config_manager.get_config()
-    session_mgr = get_manager()
+    session_mgr = app.state.session_manager
     run = session_mgr.mode == SessionMode.RUN
     if not run and user_config["completion"]["copilot"]:
         LOGGER.debug("GitHub Copilot is enabled")
@@ -79,20 +78,20 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
 async def watcher(app: Starlette) -> AsyncIterator[None]:
     watch: bool = app.state.watch
     if watch:
-        session_mgr = get_manager()
+        session_mgr = app.state.session_manager
         session_mgr.start_file_watcher()
     yield
 
 
 @contextlib.asynccontextmanager
 async def open_browser(app: Starlette) -> AsyncIterator[None]:
-    host = app.state.host
-    port = app.state.port
-    base_url = app.state.base_url
-    url = f"http://{host}:{port}{base_url}"
-    user_config = app.state.config_manager.get_config()
     headless = app.state.headless
     if not headless:
+        host = app.state.host
+        port = app.state.port
+        base_url = app.state.base_url
+        url = f"http://{host}:{port}{base_url}"
+        user_config = app.state.config_manager.get_config()
         browser = user_config["server"]["browser"]
         # Wait 20ms for the server to start and then open the browser, but this
         # function must complete
@@ -104,7 +103,7 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
-    manager = get_manager()
+    manager = app.state.session_manager
     host = app.state.host
     port = app.state.port
     base_url = app.state.base_url
@@ -140,12 +139,13 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def signal_handler(app: Starlette) -> AsyncIterator[None]:
-    manager = get_manager()
+    manager = app.state.session_manager
 
     # Interrupt handler
     def shutdown() -> None:
         manager.shutdown()
-        close_uvicorn(app.state.server)
+        if app.state.server:
+            close_uvicorn(app.state.server)
 
     InterruptHandler(
         quiet=manager.quiet,
@@ -160,15 +160,3 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
     # Mimetypes
     initialize_mimetypes()
     yield
-
-
-LIFESPANS = Lifespans(
-    [
-        lsp,
-        watcher,
-        etc,
-        signal_handler,
-        logging,
-        open_browser,
-    ]
-)

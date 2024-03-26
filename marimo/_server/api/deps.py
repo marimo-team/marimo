@@ -27,23 +27,18 @@ class AppState:
         assert (
             request.app.state.session_manager is not None
         ), "Session manager not initialized"
-        assert request.app.state.server is not None, "Server not initialized"
-        assert request.app.state.host is not None, "Host not initialized"
-        assert request.app.state.port is not None, "Port not initialized"
-        assert (
-            request.app.state.base_url is not None
-        ), "Base URL not initialized"
-        assert (
-            request.app.state.config_manager is not None
-        ), "Config manager not initialized"
-
         self.session_manager: SessionManager = (
             request.app.state.session_manager
         )
-        self._server: Server = request.app.state.server
-        self._host: str = request.app.state.host
-        self._port: int = request.app.state.port
+
+        assert (
+            request.app.state.base_url is not None
+        ), "Base URL not initialized"
         self._base_url: str = request.app.state.base_url
+
+        assert (
+            request.app.state.config_manager is not None
+        ), "Config manager not initialized"
         self._config_manager: UserConfigManager = (
             request.app.state.config_manager
         )
@@ -92,11 +87,13 @@ class AppState:
 
     @property
     def host(self) -> str:
-        return self._host
+        assert self.request.app.state.host is not None, "Host not initialized"
+        return self.request.app.state.host
 
     @property
     def port(self) -> int:
-        return self._port
+        assert self.request.app.state.port is not None, "Port not initialized"
+        return self.request.app.state.port
 
     @property
     def base_url(self) -> str:
@@ -108,7 +105,10 @@ class AppState:
 
     @property
     def server(self) -> Server:
-        return self._server
+        assert (
+            self.request.app.state.server is not None
+        ), "Server not initialized"
+        return self.request.app.state.server
 
     @property
     def config_manager(self) -> UserConfigManager:
