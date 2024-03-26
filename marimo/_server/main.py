@@ -42,7 +42,6 @@ def create_starlette_app(
     middleware: Optional[List[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
 ) -> Starlette:
-
     final_middlewares: List[Middleware] = [
         Middleware(
             CORSMiddleware,

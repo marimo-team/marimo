@@ -88,12 +88,14 @@ class AppState:
     @property
     def host(self) -> str:
         assert self.request.app.state.host is not None, "Host not initialized"
-        return self.request.app.state.host
+        host: str = self.request.app.state.host
+        return host
 
     @property
     def port(self) -> int:
         assert self.request.app.state.port is not None, "Port not initialized"
-        return self.request.app.state.port
+        post: int = self.request.app.state.port
+        return post
 
     @property
     def base_url(self) -> str:
@@ -108,7 +110,8 @@ class AppState:
         assert (
             self.request.app.state.server is not None
         ), "Server not initialized"
-        return self.request.app.state.server
+        server: Server = self.request.app.state.server
+        return server
 
     @property
     def config_manager(self) -> UserConfigManager:
