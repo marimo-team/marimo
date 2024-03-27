@@ -18,8 +18,6 @@ import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
   useAlertActions,
-  MissingPackageAlert,
-  InstallingPackageAlert,
   isMissingPackageAlert,
   isInstallingPackageAlert,
 } from "@/core/alerts/state";
@@ -41,7 +39,7 @@ import { isPyodide } from "@/core/pyodide/utils";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
-  const { addPackageAlert, clearPackageAlert } = useAlertActions();
+  const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useUserConfig();
 
   if (packageAlert === null) {
@@ -88,9 +86,8 @@ export const PackageAlert: React.FC = (props) => {
               {packageAlert.isolated ? (
                 <>
                   <InstallPackagesButton
-                    packages={packageAlert.packages}
                     manager={userConfig.package_management.manager}
-                    addPackageAlert={addPackageAlert}
+                    clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
 
                   {isPyodide() ? null : (
@@ -240,40 +237,27 @@ const ProgressIcon = ({
 };
 
 async function installPackages(
-  packages: string[],
   manager: "pip" | "uv" | "rye",
-  addPackageAlert: (
-    alert: MissingPackageAlert | InstallingPackageAlert,
-  ) => void,
+  clearPackageAlert: () => void,
 ) {
-  const packageStatus = Object.fromEntries(
-    packages.map((pkg) => [pkg, "queued"]),
-  ) as PackageInstallationStatus;
-  addPackageAlert({
-    kind: "installing",
-    packages: packageStatus,
-  });
+  clearPackageAlert();
   RuntimeState.INSTANCE.registerRunStart();
   await sendInstallMissingPackages({ manager: manager });
 }
 
 const InstallPackagesButton = ({
-  packages,
   manager,
-  addPackageAlert,
+  clearPackageAlert,
 }: {
-  packages: string[];
   manager: "pip" | "uv" | "rye";
-  addPackageAlert: (
-    alert: MissingPackageAlert | InstallingPackageAlert,
-  ) => void;
+  clearPackageAlert: () => void;
 }) => {
   return (
     <Button
       variant="outline"
       data-testid="install-packages-button"
       size="sm"
-      onClick={() => installPackages(packages, manager, addPackageAlert)}
+      onClick={() => installPackages(manager, clearPackageAlert)}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
       <span className="font-semibold">Install</span>

@@ -1183,7 +1183,7 @@ class Kernel:
             Alert(
                 title="Package manager not installed",
                 description=(
-                    f"{request.manager} is not available " "on your machine."
+                    f"{request.manager} is not available on your machine."
                 ),
                 variant="danger",
             ).broadcast()
