@@ -81,6 +81,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
+from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -163,6 +164,19 @@ def refs() -> tuple[str, ...]:
     return tuple()
 
 
+@mddoc
+def query_params() -> QueryParams:
+    """Get the query parameters.
+
+    **Returns**:
+
+    - QueryParams object containing the query parameters.
+    You can directly interact with this object like a dictionary,
+    and it will persist changes to the frontend query parameters.
+    """
+    return get_context().kernel.query_params
+
+
 @dataclasses.dataclass
 class ExecutionContext:
     cell_id: CellId_t
@@ -211,6 +225,7 @@ class Kernel:
         package_manager: str | None = None,
     ) -> None:
         self.app_metadata = app_metadata
+        self.query_params = QueryParams(app_metadata.query_params)
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -354,7 +369,7 @@ class Kernel:
           different code.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
-        previous_children = set()
+        previous_children = set[CellId_t]()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             if cell_id in self.graph.cells:
@@ -489,11 +504,11 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
 
         # The set of cells that were successfully registered
-        registered_cell_ids = set()
+        registered_cell_ids = set[CellId_t]()
 
         # The set of cells that need to be re-run due to cells being
         # deleted/re-registered.
-        cells_that_were_children_of_mutated_cells = set()
+        cells_that_were_children_of_mutated_cells = set[CellId_t]()
 
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
@@ -984,7 +999,7 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells = set()
+        referring_cells = set[CellId_t]()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)

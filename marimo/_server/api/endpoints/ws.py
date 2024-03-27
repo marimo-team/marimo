@@ -23,6 +23,8 @@ from marimo._messaging.types import KernelMessage
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig, read_layout_config
+from marimo._runtime.query_params import QueryParams
+from marimo._runtime.requests import SerializedQueryParams
 from marimo._server.api.deps import AppState
 from marimo._server.model import (
     ConnectionState,
@@ -36,6 +38,8 @@ LOGGER = _loggers.marimo_logger()
 
 router = APIRouter()
 
+SESSION_QUERY_PARAM_KEY = "session_id"
+
 
 class WebSocketCodes(IntEnum):
     ALREADY_CONNECTED = 1003
@@ -47,7 +51,7 @@ async def websocket_endpoint(
     websocket: WebSocket,
 ) -> None:
     app_state = AppState(websocket)
-    session_id = app_state.query_params("session_id")
+    session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
     if session_id is None:
         await websocket.close(
             WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION_ID"
@@ -265,7 +269,18 @@ class WebsocketHandler(SessionConsumer):
             if mgr.mode == SessionMode.EDIT:
                 mgr.close_all_sessions()
 
+            # Grab the query params from the websocket
+            # Note: if we resume a session, we don't pick up the new query
+            # params, and instead use the query params from when the
+            # session was created.
+            query_params = QueryParams.empty_stream()
+            for key, value in self.websocket.query_params.multi_items():
+                if SESSION_QUERY_PARAM_KEY == key:
+                    continue
+                query_params.append(key, value)
+
             new_session = mgr.create_session(
+                query_params=query_params.to_dict(),
                 session_id=session_id,
                 session_consumer=self,
             )
