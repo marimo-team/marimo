@@ -34,8 +34,8 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
         file_explorer, prefix="/api/files", name="file_explorer"
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
-    app_router.include_router(health_router)
-    app_router.include_router(ws_router)
-    app_router.include_router(assets_router)
+    app_router.include_router(health_router, name="health")
+    app_router.include_router(ws_router, name="ws")
+    app_router.include_router(assets_router, name="assets")
 
     return app_router.routes
