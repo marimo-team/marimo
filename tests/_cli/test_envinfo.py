@@ -13,14 +13,18 @@ def test_get_node_version() -> None:
     assert node_version is None or isinstance(node_version, str)
 
 
-def test_get_pip_list() -> None:
+def test_get_package_versions() -> None:
     system_info = get_system_info()
     assert "Requirements" in system_info
-    pip_list = system_info["Requirements"]
+    package_versions = system_info["Requirements"]
 
-    assert isinstance(pip_list, dict)
-    assert "click" in pip_list
-    assert "starlette" in pip_list
+    assert isinstance(package_versions, dict)
+    assert "click" in package_versions
+    assert "starlette" in package_versions
+    assert (
+        "pymdown-extensions" in package_versions
+        and package_versions["pymdown-extensions"] != "missing"
+    )
 
 
 def test_get_system_info() -> None:
