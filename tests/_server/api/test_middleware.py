@@ -24,21 +24,21 @@ def test_base_url() -> None:
 
     client = TestClient(app)
 
-    # Infra routes, allows fallback
+    # Infra routes
     response = client.get("/foo/health")
     assert response.status_code == 200, response.text
     response = client.get("/foo/healthz")
     assert response.status_code == 200, response.text
     response = client.get("/health")
-    assert response.status_code == 200, response.text
+    assert response.status_code == 404, response.text
     response = client.get("/healthz")
-    assert response.status_code == 200, response.text
+    assert response.status_code == 404, response.text
 
-    # Index, allows fallback
+    # Index
     response = client.get("/foo/")
     assert response.status_code == 200, response.text
     response = client.get("/")
-    assert response.status_code == 200, response.text
+    assert response.status_code == 404, response.text
 
     # Favicon, fails when missing base_url
     response = client.get("/foo/favicon.ico")

@@ -30,6 +30,7 @@ import { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
+import { createWsUrl } from "./createWsUrl";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -324,10 +325,4 @@ export function useMarimoWebSocket(opts: {
   });
 
   return { connStatus };
-}
-
-function createWsUrl(sessionId: string): string {
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-
-  return `${protocol}://${window.location.host}/ws?session_id=${sessionId}`;
 }

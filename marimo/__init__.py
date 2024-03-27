@@ -16,6 +16,7 @@ __all__ = [
     "App",
     "Cell",
     "MarimoStopError",
+    "create_asgi_app",
     "accordion",
     "carousel",
     "as_html",
@@ -90,3 +91,4 @@ from marimo._runtime.capture import (
 from marimo._runtime.control_flow import MarimoStopError, stop
 from marimo._runtime.runtime import defs, refs
 from marimo._runtime.state import state
+from marimo._server.asgi import create_asgi_app

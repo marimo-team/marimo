@@ -1,5 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
-from typing import Any
+from typing import Any, List, Optional
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -8,14 +8,13 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.types import Lifespan
 
-from marimo._server.api.lifespans import LIFESPANS
 from marimo._server.api.middleware import (
     AuthBackend,
-    StripBaseURLMiddleware,
     ValidateServerTokensMiddleware,
 )
-from marimo._server.api.router import ROUTES
+from marimo._server.api.router import build_routes
 from marimo._server.api.status import HTTPException as MarimoHTTPException
 
 
@@ -40,8 +39,10 @@ async def handle_error(request: Request, response: Any) -> Any:
 # Create app
 def create_starlette_app(
     base_url: str,
+    middleware: Optional[List[Middleware]] = None,
+    lifespan: Optional[Lifespan[Starlette]] = None,
 ) -> Starlette:
-    middleware = [
+    final_middlewares: List[Middleware] = [
         Middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -49,18 +50,17 @@ def create_starlette_app(
             allow_methods=["*"],
             allow_headers=["*"],
         ),
-        Middleware(
-            StripBaseURLMiddleware,
-            base_url=base_url,
-        ),
         Middleware(AuthenticationMiddleware, backend=AuthBackend()),
         Middleware(ValidateServerTokensMiddleware),
     ]
 
+    if middleware:
+        final_middlewares.extend(middleware)
+
     return Starlette(
-        routes=ROUTES,
-        middleware=middleware,
-        lifespan=LIFESPANS,
+        routes=build_routes(base_url=base_url),
+        middleware=final_middlewares,
+        lifespan=lifespan,
         exception_handlers={
             Exception: handle_error,
             HTTPException: handle_error,

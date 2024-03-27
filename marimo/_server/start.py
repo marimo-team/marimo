@@ -4,10 +4,14 @@ from typing import Optional
 
 import uvicorn
 
+import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import UserConfigManager
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
-from marimo._server.sessions import initialize_manager
+from marimo._server.sessions import (
+    LspServer,
+    SessionManager,
+)
 from marimo._server.utils import (
     find_free_port,
     import_files,
@@ -40,13 +44,13 @@ def start(
     port = port or find_free_port(DEFAULT_PORT)
     user_config_mgr = UserConfigManager()
 
-    session_manager = initialize_manager(
+    session_manager = SessionManager(
         filename=filename,
         mode=mode,
         development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
-        port=port,
+        lsp_server=LspServer(port * 10),
         package_manager=user_config_mgr.config["package_management"][
             "manager"
         ],
@@ -54,7 +58,19 @@ def start(
 
     log_level = "info" if development_mode else "error"
 
-    app = create_starlette_app(base_url=base_url)
+    app = create_starlette_app(
+        base_url=base_url,
+        lifespan=lifespans.Lifespans(
+            [
+                lifespans.lsp,
+                lifespans.watcher,
+                lifespans.etc,
+                lifespans.signal_handler,
+                lifespans.logging,
+                lifespans.open_browser,
+            ]
+        ),
+    )
 
     app.state.headless = headless
     app.state.port = port
