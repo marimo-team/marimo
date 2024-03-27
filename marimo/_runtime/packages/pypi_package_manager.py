@@ -56,6 +56,17 @@ class PypiPackageManager(PackageManager):
 class PipPackageManager(PypiPackageManager):
     name = "pip"
 
+    def is_manager_installed(self) -> bool:
+        try:
+            return (
+                subprocess.run(
+                    ["pip", "--help"], capture_output=True
+                ).returncode
+                == 0
+            )
+        except Exception:
+            return False
+
     async def install(self, package: str) -> bool:
         return subprocess.run(["pip", "install", package]).returncode == 0
 
@@ -80,6 +91,17 @@ class MicropipPackageManager(PypiPackageManager):
 class UvPackageManager(PypiPackageManager):
     name = "uv"
 
+    def is_manager_installed(self) -> bool:
+        try:
+            return (
+                subprocess.run(
+                    ["uv", "--help"], capture_output=True
+                ).returncode
+                == 0
+            )
+        except Exception:
+            return False
+
     async def install(self, package: str) -> bool:
         return (
             subprocess.run(["uv", "pip", "install", package]).returncode == 0
@@ -88,6 +110,17 @@ class UvPackageManager(PypiPackageManager):
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
+
+    def is_manager_installed(self) -> bool:
+        try:
+            return (
+                subprocess.run(
+                    ["rye", "--help"], capture_output=True
+                ).returncode
+                == 0
+            )
+        except Exception:
+            return False
 
     async def install(self, package: str) -> bool:
         return subprocess.run(["rye", "add", package]).returncode == 0
