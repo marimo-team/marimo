@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.2.7"
+__generated_with = "0.3.4"
 app = marimo.App()
 
 

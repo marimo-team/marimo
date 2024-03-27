@@ -20,6 +20,10 @@ class URLPyodideRouter {
     return hash.slice(prefix.length);
   }
 
+  setCodeForHash(code: string) {
+    window.location.hash = `#code/${code}`;
+  }
+
   private setSearchParam(key: string, value: string) {
     const url = new URL(window.location.href);
     url.searchParams.set(key, value);
