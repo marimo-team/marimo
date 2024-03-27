@@ -7,11 +7,6 @@ import sys
 from typing import Optional
 
 
-# Stub for missing modules
-class _DefaultModule:
-    __version__ = "missing"
-
-
 def get_node_version() -> Optional[str]:
     try:
         process = subprocess.Popen(
@@ -40,7 +35,7 @@ def get_required_modules_list() -> dict[str, str]:
         "uvicorn",
         "starlette",
         "websocket",
-        "typing_extensions",
+        "typing-extensions",
         "black",
     ]
 
