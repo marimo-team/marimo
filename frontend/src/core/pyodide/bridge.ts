@@ -31,7 +31,6 @@ import { isPyodide } from "./utils";
 import { Deferred } from "@/utils/Deferred";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
-import { Paths } from "@/utils/paths";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
@@ -237,12 +236,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   openFile = async (request: { path: string }): Promise<null> => {
-    // Open the file in a new tab by file path
-    const filename = Paths.basename(request.path);
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,
-      filename,
     });
     window.open(url, "_blank");
     return null;

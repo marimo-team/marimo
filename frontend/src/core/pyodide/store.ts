@@ -23,7 +23,8 @@ const urlFileStore: FileStore = {
     // Do nothing
   },
   readFile() {
-    const code = PyodideRouter.getCode();
+    const code =
+      PyodideRouter.getCodeFromHash() || PyodideRouter.getCodeFromSearchParam();
     if (!code) {
       return null;
     }
