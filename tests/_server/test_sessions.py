@@ -15,7 +15,10 @@ from marimo._server.utils import initialize_asyncio
 initialize_asyncio()
 
 
-app_metadata = AppMetadata(filename="test.py")
+app_metadata = AppMetadata(
+    query_params={"some_param": "some_value"},
+    filename="test.py",
+)
 
 
 # TODO(akshayka): automatically do this for every test in our test suite
@@ -119,7 +122,7 @@ def test_session_disconnect_reconnect() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, AppMetadata(), "pip"
+        queue_manager, SessionMode.RUN, {}, AppMetadata(query_params={}), "pip"
     )
 
     # Instantiate a Session

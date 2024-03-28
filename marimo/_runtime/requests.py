@@ -10,6 +10,8 @@ UIElementId = str
 CompletionRequestId = str
 FunctionCallId = str
 
+SerializedQueryParams = Dict[str, Union[str, List[str]]]
+
 
 @dataclass
 class ExecutionRequest:
@@ -39,6 +41,8 @@ class FunctionCallRequest:
 @dataclass
 class AppMetadata:
     """Hold metadata about the app, like its filename."""
+
+    query_params: SerializedQueryParams
 
     filename: Optional[str] = None
 

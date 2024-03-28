@@ -26,6 +26,7 @@ __all__ = [
     "capture_stderr",
     "center",
     "defs",
+    "query_params",
     "doc",
     "download",
     "hstack",
@@ -89,6 +90,6 @@ from marimo._runtime.capture import (
     redirect_stdout,
 )
 from marimo._runtime.control_flow import MarimoStopError, stop
-from marimo._runtime.runtime import defs, refs
+from marimo._runtime.runtime import defs, query_params, refs
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app

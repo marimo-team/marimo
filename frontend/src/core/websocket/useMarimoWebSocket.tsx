@@ -219,6 +219,41 @@ export function useMarimoWebSocket(opts: {
           kind: "installing",
         });
         return;
+      case "query-params-append": {
+        const url = new URL(window.location.href);
+        url.searchParams.append(msg.data.key, msg.data.value);
+        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+        return;
+      }
+      case "query-params-set": {
+        const url = new URL(window.location.href);
+        if (Array.isArray(msg.data.value)) {
+          url.searchParams.delete(msg.data.key);
+          msg.data.value.forEach((v) =>
+            url.searchParams.append(msg.data.key, v),
+          );
+        } else {
+          url.searchParams.set(msg.data.key, msg.data.value);
+        }
+        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+        return;
+      }
+      case "query-params-delete": {
+        const url = new URL(window.location.href);
+        if (msg.data.value == null) {
+          url.searchParams.delete(msg.data.key);
+        } else {
+          url.searchParams.delete(msg.data.key, msg.data.value);
+        }
+        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+        return;
+      }
+      case "query-params-clear": {
+        const url = new URL(window.location.href);
+        url.search = "";
+        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+        return;
+      }
       default:
         logNever(msg);
     }

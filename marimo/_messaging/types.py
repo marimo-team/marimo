@@ -24,6 +24,11 @@ class Stream(abc.ABC):
         pass
 
 
+class NoopStream(Stream):
+    def write(self, op: str, data: Dict[Any, Any]) -> None:
+        pass
+
+
 class Stdout(io.TextIOBase):
     name = "stdout"
 

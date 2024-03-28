@@ -10,6 +10,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._messaging.ops import KernelReady
 from marimo._server.model import SessionMode
+from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
 
@@ -124,7 +125,7 @@ def test_fails_on_multiple_connections_with_other_sessions(
 
 @pytest.mark.asyncio
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
-    session_manager = get_session_manager(client)
+    session_manager: SessionManager = get_session_manager(client)
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
@@ -140,4 +141,22 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         data = websocket.receive_json()
         assert data == {"op": "reload", "data": {}}
         session_manager.mode = SessionMode.EDIT
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+@pytest.mark.asyncio
+async def test_query_params(client: TestClient) -> None:
+    with client.websocket_connect(
+        "/ws?session_id=123&foo=1&bar=2&bar=3&baz=4"
+    ) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = get_session_manager(client).get_session("123")
+        assert session
+        assert session.kernel_manager.app_metadata.query_params == {
+            "foo": "1",
+            "bar": ["2", "3"],
+            "baz": "4",
+        }
     client.post("/api/kernel/shutdown", headers=HEADERS)

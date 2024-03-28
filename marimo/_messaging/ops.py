@@ -386,21 +386,61 @@ class VariableValues(Op):
     variables: List[VariableValue]
 
 
+@dataclass
+class QueryParamsSet(Op):
+    """Set query parameters."""
+
+    name: ClassVar[str] = "query-params-set"
+    key: str
+    value: Union[str, List[str]]
+
+
+@dataclass
+class QueryParamsAppend(Op):
+    name: ClassVar[str] = "query-params-append"
+    key: str
+    value: str
+
+
+@dataclass
+class QueryParamsDelete(Op):
+    name: ClassVar[str] = "query-params-delete"
+    key: str
+    # If value is None, delete all values for the key
+    # If a value is provided, only that value is deleted
+    value: Optional[str]
+
+
+@dataclass
+class QueryParamsClear(Op):
+    # Clear all query parameters
+    name: ClassVar[str] = "query-params-clear"
+
+
 MessageOperation = Union[
+    # Cell operations
     CellOp,
-    HumanReadableStatus,
-    Reload,
-    Reconnected,
     FunctionCallResult,
     RemoveUIElements,
+    # Notebook operations
+    Reload,
+    Reconnected,
     Interrupted,
     CompletedRun,
     KernelReady,
+    # Editor operations
     CompletionResult,
+    # Alerts
     Alert,
     Banner,
     MissingPackageAlert,
     InstallingPackageAlert,
+    # Variables
     Variables,
     VariableValues,
+    # Query params
+    QueryParamsSet,
+    QueryParamsAppend,
+    QueryParamsDelete,
+    QueryParamsClear,
 ]

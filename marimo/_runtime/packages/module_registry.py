@@ -14,7 +14,7 @@ class ModuleRegistry:
         self.graph = graph
         # modules that do not have corresponding packages on package index
         self.excluded_modules = (
-            excluded_modules if excluded_modules is not None else set()
+            excluded_modules if excluded_modules is not None else set[str]()
         )
 
     def defining_cell(self, module_name: str) -> CellId_t | None:

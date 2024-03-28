@@ -38,6 +38,7 @@ from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
     ExecutionRequest,
+    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import AppFileManager
@@ -413,7 +414,7 @@ class SessionManager:
 
         app = self._load_app()
 
-        self.app_metadata = AppMetadata(filename=self.path)
+        self.app_metadata = AppMetadata(query_params={}, filename=self.path)
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -447,7 +448,10 @@ class SessionManager:
         self.filename = filename
 
     def create_session(
-        self, session_id: SessionId, session_consumer: SessionConsumer
+        self,
+        session_id: SessionId,
+        session_consumer: SessionConsumer,
+        query_params: SerializedQueryParams,
     ) -> Session:
         """Create a new session"""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -455,7 +459,9 @@ class SessionManager:
             self.sessions[session_id] = Session.create(
                 session_consumer=session_consumer,
                 mode=self.mode,
-                app_metadata=AppMetadata(filename=self.path),
+                app_metadata=AppMetadata(
+                    query_params=query_params, filename=self.path
+                ),
                 app_file_manager=AppFileManager(self.path),
                 package_manager=self.package_manager,
             )

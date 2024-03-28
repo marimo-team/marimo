@@ -267,6 +267,30 @@ export type OperationMessage =
       };
     }
   | {
+      op: "query-params-set";
+      data: {
+        key: string;
+        value: string | string[];
+      };
+    }
+  | {
+      op: "query-params-append";
+      data: {
+        key: string;
+        value: string;
+      };
+    }
+  | {
+      op: "query-params-delete";
+      data: {
+        key: string;
+        value: string | null;
+      };
+    }
+  | {
+      op: "query-params-clear";
+    }
+  | {
       // transient toast / alert
       op: "alert";
       data: {

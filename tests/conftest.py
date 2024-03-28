@@ -90,6 +90,7 @@ class MockedKernel:
             stdin=self.stdin,
             cell_configs={},
             app_metadata=AppMetadata(
+                query_params={},
                 filename=None,
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
