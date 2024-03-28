@@ -55,6 +55,16 @@ class TestQueryParams(unittest.TestCase):
             "data": {"key": "key3", "value": "value4"},
         }
 
+    def test_set(self):
+        self.params.set("key1", "value5")
+        assert self.params.get("key1") == "value5"
+
+        assert self.mock_stream.write.call_count == 1
+        assert self.mock_stream.write.call_args[1] == {
+            "op": "query-params-set",
+            "data": {"key": "key1", "value": "value5"},
+        }
+
     def test_append(self):
         self.params.append("key1", "value5")
         assert self.params.get("key1") == ["value1", "value5"]
@@ -63,11 +73,11 @@ class TestQueryParams(unittest.TestCase):
 
         assert self.mock_stream.write.call_count == 2
         assert self.mock_stream.write.call_args_list[0][1] == {
-            "op": "query-params-set",
+            "op": "query-params-append",
             "data": {"key": "key1", "value": "value5"},
         }
         assert self.mock_stream.write.call_args_list[1][1] == {
-            "op": "query-params-set",
+            "op": "query-params-append",
             "data": {"key": "key4", "value": "value6"},
         }
 
@@ -93,7 +103,7 @@ class TestQueryParams(unittest.TestCase):
             "data": {"key": "key1", "value": None},
         }
         assert self.mock_stream.write.call_args_list[1][1] == {
-            "op": "query-params-set",
+            "op": "query-params-append",
             "data": {"key": "key2", "value": "value4"},
         }
         assert self.mock_stream.write.call_args_list[2][1] == {

@@ -168,9 +168,36 @@ def refs() -> tuple[str, ...]:
 def query_params() -> QueryParams:
     """Get the query parameters.
 
+    **Examples**:
+
+    Keep the text input in sync with the URL query parameters
+
+    ```python3
+
+    # In it's own cell
+    query_params = mo.query_params()
+
+    # In another cell
+    search = mo.ui.text(
+        value=query_params["search"] or "",
+        on_change=lambda value: query_params.set("search", value),
+    )
+    search
+    ```
+
+    You can also set the query parameters reactively:
+
+    ```python3
+    toggle = mo.ui.switch(label="Toggle me")
+    toggle
+
+    # In another cell
+    query_params["is_enabled"] = toggle.value
+    ```
+
     **Returns**:
 
-    - QueryParams object containing the query parameters.
+    - A `QueryParams` object containing the query parameters.
     You can directly interact with this object like a dictionary,
     and it will persist changes to the frontend query parameters.
     """

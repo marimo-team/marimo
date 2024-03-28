@@ -1,23 +1,19 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 from marimo._messaging.ops import (
+    QueryParamsAppend,
     QueryParamsClear,
     QueryParamsDelete,
     QueryParamsSet,
 )
 from marimo._messaging.types import NoopStream, Stream
 from marimo._output.rich_help import mddoc
+from marimo._runtime.requests import SerializedQueryParams
 from marimo._runtime.state import State
 
 
-@dataclass
-class SerializedQueryParams:
-    params: Dict[str, Union[str, List[str]]]
-
-
 @mddoc
-class QueryParams(State):
+class QueryParams(State[SerializedQueryParams]):
     def __init__(
         self,
         params: Dict[str, Union[str, List[str]]],
@@ -73,11 +69,14 @@ class QueryParams(State):
         QueryParamsDelete(key, None).broadcast(self._stream)
         self._set_value(self._params)
 
+    def set(self, key: str, value: Union[str, List[str]]):
+        self[key] = value
+
     def append(self, key: str, value: str):
         # Append a value to a list of values
         if key not in self._params:
             self._params[key] = value
-            QueryParamsSet(key, value).broadcast(self._stream)
+            QueryParamsAppend(key, value).broadcast(self._stream)
             self._set_value(self._params)
             return
 
@@ -87,7 +86,7 @@ class QueryParams(State):
         else:
             self._params[key] = [current_value, value]
 
-        QueryParamsSet(key, value).broadcast(self._stream)
+        QueryParamsAppend(key, value).broadcast(self._stream)
         self._set_value(self._params)
 
     def remove(self, key: str, value: Optional[str] = None):
