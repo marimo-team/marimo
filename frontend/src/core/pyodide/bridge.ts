@@ -133,6 +133,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     const code = await this.readCode();
     if (code.contents) {
+      notebookFileStore.saveFile(code.contents);
       fallbackFileStore.saveFile(code.contents);
     }
     return null;
