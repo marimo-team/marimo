@@ -128,7 +128,7 @@ export function useCellActionButtons({ cell }: Props) {
                   }
                 />
               </div>
-            </DialogContent>
+            </DialogContent>,
           );
         },
         rightElement: (
@@ -156,7 +156,7 @@ export function useCellActionButtons({ cell }: Props) {
         hidden: !getFeatureFlag("ai"),
         handle: () => {
           setAiCompletionCell((current) =>
-            current === cellId ? null : cellId
+            current === cellId ? null : cellId,
           );
         },
         hotkey: "cell.aiCompletion",
