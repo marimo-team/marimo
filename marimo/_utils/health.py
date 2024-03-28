@@ -1,14 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import importlib.metadata
 import subprocess
 import sys
 from typing import Optional
-
-
-# Stub for missing modules
-class _DefaultModule:
-    __version__ = "missing"
 
 
 def get_node_version() -> Optional[str]:
@@ -28,9 +24,9 @@ def get_node_version() -> Optional[str]:
 
 
 def get_required_modules_list() -> dict[str, str]:
-    allowlist = [
+    packages = [
         "click",
-        "importlib_resources",
+        "importlib-resources",
         "jedi",
         "markdown",
         "pymdown-extensions",
@@ -39,18 +35,21 @@ def get_required_modules_list() -> dict[str, str]:
         "uvicorn",
         "starlette",
         "websocket",
-        "typing_extensions",
+        "typing-extensions",
         "black",
     ]
+
+    package_versions: dict[str, str] = {}
     # Consider listing all installed modules and their versions
     # Submodules and private modules are can be filtered with:
     #  if not ("." in m or m.startswith("_")):
-    return {
-        module: getattr(
-            sys.modules.get(module, _DefaultModule), "__version__", "--"
-        )
-        for module in allowlist
-    }
+    for package in packages:
+        try:
+            package_versions[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            package_versions[package] = "missing"
+
+    return package_versions
 
 
 def get_chrome_version() -> Optional[str]:
