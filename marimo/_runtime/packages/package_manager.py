@@ -25,11 +25,6 @@ class PackageManager(abc.ABC):
         return shutil.which(self.name) is not None
 
     @abc.abstractmethod
-    def is_manager_installed(self) -> bool:
-        """Is the package manager is installed on the user machine?"""
-        ...
-
-    @abc.abstractmethod
     async def install(self, package: str) -> bool:
         """Attempt to install a package that makes this module available.
 
