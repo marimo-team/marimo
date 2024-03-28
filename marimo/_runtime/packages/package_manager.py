@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import abc
+import shutil
 
 
 class PackageManager(abc.ABC):
@@ -19,10 +20,9 @@ class PackageManager(abc.ABC):
         """Canonicalizes a package name to a module name."""
         ...
 
-    @abc.abstractmethod
     def is_manager_installed(self) -> bool:
         """Is the package manager is installed on the user machine?"""
-        ...
+        return shutil.which(self.name) is not None
 
     @abc.abstractmethod
     async def install(self, package: str) -> bool:
