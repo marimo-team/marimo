@@ -53,7 +53,9 @@ export const UserConfigSchema = z
       })
       .default({}),
     package_management: z
-      .object({ manager: z.enum(["pip", "uv", "rye"]).default("pip") })
+      .object({
+        manager: z.enum(["pip", "uv", "rye", "poetry"]).default("pip"),
+      })
       .default({ manager: "pip" }),
     experimental: z
       .object({

@@ -91,3 +91,10 @@ class RyePackageManager(PypiPackageManager):
 
     async def install(self, package: str) -> bool:
         return subprocess.run(["rye", "add", package]).returncode == 0
+
+
+class PoetryPackageManager(PypiPackageManager):
+    name = "poetry"
+
+    async def install(self, package: str) -> bool:
+        return subprocess.run(["poetry", "add", package]).returncode == 0

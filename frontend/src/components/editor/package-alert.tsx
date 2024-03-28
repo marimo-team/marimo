@@ -237,7 +237,7 @@ const ProgressIcon = ({
 };
 
 async function installPackages(
-  manager: "pip" | "uv" | "rye",
+  manager: "pip" | "uv" | "rye" | "poetry",
   clearPackageAlert: () => void,
 ) {
   clearPackageAlert();
@@ -249,7 +249,7 @@ const InstallPackagesButton = ({
   manager,
   clearPackageAlert,
 }: {
-  manager: "pip" | "uv" | "rye";
+  manager: "pip" | "uv" | "rye" | "poetry";
   clearPackageAlert: () => void;
 }) => {
   return (
@@ -300,7 +300,7 @@ export const PackageManagerForm: React.FC = () => {
                     disabled={field.disabled}
                     className="inline-flex mr-2"
                   >
-                    {["pip", "uv", "rye"].map((option) => (
+                    {["pip", "uv", "rye", "poetry"].map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>
