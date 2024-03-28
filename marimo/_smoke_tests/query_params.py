@@ -24,7 +24,20 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.query_params().to_dict()
+    query_params = mo.query_params()
+    return query_params,
+
+
+@app.cell
+def __(query_params):
+    # change the value of a query param, and watch the next cell run automatically
+    query_params["foo"] = 8
+    return
+
+
+@app.cell
+def __(query_params):
+    query_params
     return
 
 

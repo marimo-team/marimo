@@ -8,6 +8,7 @@ from marimo._messaging.ops import (
 )
 from marimo._messaging.types import NoopStream, Stream
 from marimo._output.rich_help import mddoc
+from marimo._runtime.state import State
 
 
 @dataclass
@@ -15,14 +16,14 @@ class SerializedQueryParams:
     params: Dict[str, Union[str, List[str]]]
 
 
-@dataclass
 @mddoc
-class QueryParams:
+class QueryParams(State):
     def __init__(
         self,
         params: Dict[str, Union[str, List[str]]],
         stream: Optional[Stream] = None,
     ):
+        super().__init__(params)
         self._params = params
         self._stream = stream
 
@@ -65,16 +66,19 @@ class QueryParams:
         # We always overwrite the value
         self._params[key] = value
         QueryParamsSet(key, value).broadcast(self._stream)
+        self._set_value(self._params)
 
     def __delitem__(self, key: str):
         del self._params[key]
         QueryParamsDelete(key, None).broadcast(self._stream)
+        self._set_value(self._params)
 
     def append(self, key: str, value: str):
         # Append a value to a list of values
         if key not in self._params:
             self._params[key] = value
             QueryParamsSet(key, value).broadcast(self._stream)
+            self._set_value(self._params)
             return
 
         current_value = self._params[key]
@@ -84,6 +88,7 @@ class QueryParams:
             self._params[key] = [current_value, value]
 
         QueryParamsSet(key, value).broadcast(self._stream)
+        self._set_value(self._params)
 
     def remove(self, key: str, value: Optional[str] = None):
         # Remove a value from a list of values
@@ -93,6 +98,7 @@ class QueryParams:
         if value is None:
             del self._params[key]
             QueryParamsDelete(key, value).broadcast(self._stream)
+            self._set_value(self._params)
             return
 
         current_value = self._params[key]
@@ -102,10 +108,12 @@ class QueryParams:
             del self._params[key]
 
         QueryParamsDelete(key, value).broadcast(self._stream)
+        self._set_value(self._params)
 
     def clear(self):
         self._params.clear()
         QueryParamsClear().broadcast(self._stream)
+        self._set_value(self._params)
 
     def to_dict(self) -> Dict[str, Union[str, List[str]]]:
         return self._params
