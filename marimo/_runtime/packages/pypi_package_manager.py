@@ -96,16 +96,5 @@ class RyePackageManager(PypiPackageManager):
 class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
 
-    def is_manager_installed(self) -> bool:
-        try:
-            return (
-                subprocess.run(
-                    ["poetry", "--help"], capture_output=True
-                ).returncode
-                == 0
-            )
-        except Exception:
-            return False
-
     async def install(self, package: str) -> bool:
         return subprocess.run(["poetry", "add", package]).returncode == 0
