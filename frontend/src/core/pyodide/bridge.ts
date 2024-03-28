@@ -224,6 +224,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRestart = async (): Promise<null> => {
+    // Save first
+    const code = await this.readCode();
+    if (code.contents) {
+      notebookFileStore.saveFile(code.contents);
+      fallbackFileStore.saveFile(code.contents);
+    }
     window.location.reload();
     return null;
   };

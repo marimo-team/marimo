@@ -218,6 +218,7 @@ rpc.addMessageListener("consumerReady", async () => {
 
 const namesThatRequireSync = new Set<keyof RawBridge>([
   "save",
+  "save_app_config",
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",
