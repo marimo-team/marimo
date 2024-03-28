@@ -28,6 +28,7 @@ export interface WasmController {
    * @param opts.filename - The filename to start with
    */
   startSession(opts: {
+    queryParameters: Record<string, string | string[]>;
     code: string | null;
     fallbackCode: string;
     filename: string | null;

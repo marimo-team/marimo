@@ -109,8 +109,8 @@ export class DefaultWasmController implements WasmController {
     // This adds a messenger object to the global scope (import js; js.messenger.callback)
     self.messenger = {
       callback: opts.onMessage,
-      query_params: opts.queryParameters,
     };
+    self.query_params = opts.queryParameters;
 
     // Load packages from the code
     await this.pyodide.loadPackagesFromImports(content, {
@@ -130,7 +130,7 @@ export class DefaultWasmController implements WasmController {
 
       session, bridge = create_session(
         filename="${filename}",
-        query_parameters=js.query_params,
+        query_params=js.query_params.to_py(),
         message_callback=js.messenger.callback,
       )
       instantiate(session)
