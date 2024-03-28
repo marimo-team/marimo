@@ -31,6 +31,7 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
+    Alert,
     CellOp,
     CompletedRun,
     FunctionCallResult,
@@ -1177,6 +1178,16 @@ class Kernel:
         if request.manager != self.package_manager.name:
             # Swap out the package manager
             self.package_manager = create_package_manager(request.manager)
+
+        if not self.package_manager.is_manager_installed():
+            Alert(
+                title="Package manager not installed",
+                description=(
+                    f"{request.manager} is not available on your machine."
+                ),
+                variant="danger",
+            ).broadcast()
+            return
 
         # Package manager operates on module names
         missing_modules = list(sorted(self.module_registry.missing_modules()))

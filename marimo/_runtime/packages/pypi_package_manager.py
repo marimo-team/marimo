@@ -63,6 +63,9 @@ class PipPackageManager(PypiPackageManager):
 class MicropipPackageManager(PypiPackageManager):
     name = "micropip"
 
+    def is_manager_installed(self) -> bool:
+        return is_pyodide()
+
     async def install(self, package: str) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
