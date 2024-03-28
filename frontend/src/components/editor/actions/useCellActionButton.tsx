@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { sendDeleteCell } from "@/core/network/requests";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
 import { formatEditorViews } from "@/core/codemirror/format";
@@ -262,7 +263,10 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Delete",
         variant: "danger",
         icon: <Trash2Icon size={13} strokeWidth={1.5} />,
-        handle: () => deleteCell({ cellId }),
+        handle: async () => {
+          await sendDeleteCell(cellId);
+          deleteCell({ cellId });
+        },
       },
     ],
   ];
