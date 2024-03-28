@@ -10,7 +10,7 @@ export function useRestartKernel() {
     openConfirm({
       title: "Restart Kernel",
       description:
-        "This will restart the Python kernel. You'll lose all data that's in memory.",
+        "This will restart the Python kernel. You'll lose all data that's in memory. You will also lose any unsaved changes, so make sure to save your work before restarting.",
       variant: "destructive",
       confirmAction: (
         <AlertDialogDestructiveAction
