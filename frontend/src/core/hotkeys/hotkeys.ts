@@ -173,6 +173,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-Shift-e",
   },
+  "cell.cellActions": {
+    name: "Open cell actions",
+    group: "Editing",
+    key: "Mod-p",
+  },
 
   // Global Actions
   "global.hideCode": {
