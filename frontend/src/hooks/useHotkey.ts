@@ -8,6 +8,7 @@ import { useSetRegisteredAction } from "../core/hotkeys/actions";
 import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
+import { Functions } from "@/utils/functions";
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
@@ -21,6 +22,7 @@ type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
 export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const { registerAction, unregisterAction } = useSetRegisteredAction();
 
+  const isNOOP = callback === Functions.NOOP;
   const memoizeCallback = useEvent(() => callback());
 
   const listener = useEvent((e: KeyboardEvent) => {
@@ -40,10 +42,12 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
 
   // Register with the shortcut registry
   useEffect(() => {
-    registerAction(shortcut, memoizeCallback);
-    return () => unregisterAction(shortcut);
+    if (!isNOOP) {
+      registerAction(shortcut, memoizeCallback);
+      return () => unregisterAction(shortcut);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memoizeCallback, shortcut]);
+  }, [memoizeCallback, shortcut, isNOOP]);
 }
 
 /**
