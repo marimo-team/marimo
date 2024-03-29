@@ -2,7 +2,12 @@
 import { sendDeleteCell } from "@/core/network/requests";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
-import { formatEditorViews } from "@/core/codemirror/format";
+import {
+  canToggleMarkdown,
+  formatEditorViews,
+  getEditorViewMode,
+  toggleMarkdown,
+} from "@/core/codemirror/format";
 import { useCellActions } from "@/core/cells/cells";
 import {
   ImageIcon,
@@ -39,6 +44,7 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -176,6 +182,28 @@ export function useCellActionButtons({ cell }: Props) {
             return;
           }
           formatEditorViews({ [cellId]: editorView }, updateCellCode);
+        },
+      },
+      {
+        icon:
+          getEditorViewMode(editorView) === "python" ? (
+            <MarkdownIcon />
+          ) : (
+            <PythonIcon />
+          ),
+        label:
+          getEditorViewMode(editorView) === "python"
+            ? "View as Markdown"
+            : "View as Python",
+        hotkey: "cell.viewAsMarkdown",
+        hidden:
+          !canToggleMarkdown(editorView) &&
+          getEditorViewMode(editorView) !== "markdown",
+        handle: () => {
+          if (!editorView) {
+            return;
+          }
+          toggleMarkdown(cellId, editorView, updateCellCode);
         },
       },
       {

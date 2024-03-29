@@ -104,6 +104,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-b",
   },
+  "cell.viewAsMarkdown": {
+    name: "View as Markdown",
+    group: "Editing",
+    key: "Mod-Shift-m",
+  },
   "cell.complete": {
     name: "Code completion",
     group: "Editing",

@@ -14,6 +14,12 @@ import {
 } from "./language/utils";
 import { StateEffect } from "@codemirror/state";
 import { getUserConfig } from "../config/config";
+import {
+  LanguageAdapters,
+  languageAdapterState,
+  switchLanguage,
+} from "./language/extension";
+import { LanguageAdapter } from "./language/types";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -57,4 +63,50 @@ export async function formatEditorViews(
 export function formatAll(updateCellCode: CellActions["updateCellCode"]) {
   const views = notebookCellEditorViews(getNotebook());
   return formatEditorViews(views, updateCellCode);
+}
+
+export function getEditorViewMode(
+  editorView: EditorView | null,
+): LanguageAdapter["type"] {
+  if (!editorView) {
+    return "python";
+  }
+  return editorView.state.field(languageAdapterState).type;
+}
+
+export function canToggleMarkdown(editorView: EditorView | null) {
+  if (!editorView || getEditorViewMode(editorView) === "markdown") {
+    return false;
+  }
+  return (
+    LanguageAdapters.markdown().isSupported(
+      getEditorCodeAsPython(editorView),
+    ) || getEditorCodeAsPython(editorView).trim() === ""
+  );
+}
+
+export function toggleMarkdown(
+  cellId: CellId,
+  editorView: EditorView,
+  updateCellCode: CellActions["updateCellCode"],
+) {
+  // If already in markdown mode, switch to python
+  if (getEditorViewMode(editorView) === "markdown") {
+    switchLanguage(editorView, "python");
+    return;
+  }
+
+  if (!canToggleMarkdown(editorView)) {
+    return;
+  }
+  if (getEditorCodeAsPython(editorView).trim() === "") {
+    const blankMd = 'mo.md(rf"")';
+    updateCellCode({
+      cellId,
+      code: blankMd,
+      formattingChange: true,
+    });
+    updateEditorCodeFromPython(editorView, blankMd);
+  }
+  switchLanguage(editorView, "markdown");
 }
