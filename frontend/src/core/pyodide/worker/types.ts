@@ -7,6 +7,7 @@ import type {
   FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileMoveRequest,
   FileOperationResponse,
   FileUpdateRequest,
   FormatRequest,
@@ -52,9 +53,10 @@ export interface RawBridge {
   delete_file_or_directory(
     request: FileDeleteRequest,
   ): Promise<FileOperationResponse>;
-  update_file_or_directory(
-    request: FileUpdateRequest,
+  move_file_or_directory(
+    request: FileMoveRequest,
   ): Promise<FileOperationResponse>;
+  update_file(request: FileUpdateRequest): Promise<FileOperationResponse>;
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
   set_interrupt_buffer(request: Uint8Array): Promise<string>;

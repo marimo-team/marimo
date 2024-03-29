@@ -18,6 +18,8 @@ from marimo._server.models.files import (
     FileDetailsResponse,
     FileListRequest,
     FileListResponse,
+    FileMoveRequest,
+    FileMoveResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -98,9 +100,26 @@ async def delete_file_or_directory(
         return FileDeleteResponse(success=False, message=str(e))
 
 
+@router.post("/move")
+@requires("edit")
+async def move_file_or_directory(
+    *,
+    request: Request,
+) -> FileMoveResponse:
+    """Rename or move a file or directory."""
+    body = await parse_request(request, cls=FileMoveRequest)
+    try:
+        file_system.get_details(body.path)
+        info = file_system.move_file_or_directory(body.path, body.new_path)
+        return FileMoveResponse(success=True, info=info)
+    except Exception as e:
+        LOGGER.error(f"Error updating file or directory: {e}")
+        return FileMoveResponse(success=False, message=str(e))
+
+
 @router.post("/update")
 @requires("edit")
-async def update_file_or_directory(
+async def update_file(
     *,
     request: Request,
 ) -> FileUpdateResponse:
@@ -108,7 +127,7 @@ async def update_file_or_directory(
     body = await parse_request(request, cls=FileUpdateRequest)
     try:
         file_system.get_details(body.path)
-        info = file_system.update_file_or_directory(body.path, body.new_path)
+        info = file_system.update_file(body.path, body.contents)
         return FileUpdateResponse(success=True, info=info)
     except Exception as e:
         LOGGER.error(f"Error updating file or directory: {e}")

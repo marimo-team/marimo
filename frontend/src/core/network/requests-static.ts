@@ -55,6 +55,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendCreateFileOrFolder: throwNotInEditMode,
     sendDeleteFileOrFolder: throwNotInEditMode,
     sendRenameFileOrFolder: throwNotInEditMode,
+    sendUpdateFile: throwNotInEditMode,
     sendFileDetails: throwNotInEditMode,
     sendInstallMissingPackages: throwNotInEditMode,
   };

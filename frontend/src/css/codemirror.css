@@ -5,6 +5,10 @@
   background-color: #d7d4f0 !important;
 }
 
+.cm-focused.cm-focused {
+  outline: none;
+}
+
 /* -- Gutters -- */
 
 .cm .cm-gutters {

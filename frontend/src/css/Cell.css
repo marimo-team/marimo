@@ -316,8 +316,6 @@
   padding-right: 24px;
 
   &.cm-focused {
-    outline: 0;
-
     .cm-activeLineGutter {
       background: #e2f2ff;
     }

@@ -222,7 +222,8 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",
-  "update_file_or_directory",
+  "move_file_or_directory",
+  "update_file",
 ]);
 
 function getMarimoVersion() {

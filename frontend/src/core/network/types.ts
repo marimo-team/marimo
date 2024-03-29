@@ -134,9 +134,14 @@ export interface FileDeleteRequest {
   path: FilePath;
 }
 
-export interface FileUpdateRequest {
+export interface FileMoveRequest {
   path: FilePath;
   newPath: FilePath;
+}
+
+export interface FileUpdateRequest {
+  path: FilePath;
+  contents: string;
 }
 
 export interface FileOperationResponse {
@@ -191,6 +196,9 @@ export interface EditRequests {
     request: FileDeleteRequest,
   ) => Promise<FileOperationResponse>;
   sendRenameFileOrFolder: (
+    request: FileMoveRequest,
+  ) => Promise<FileOperationResponse>;
+  sendUpdateFile: (
     request: FileUpdateRequest,
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;

@@ -43,6 +43,8 @@ from marimo._server.models.files import (
     FileDetailsRequest,
     FileListRequest,
     FileListResponse,
+    FileMoveRequest,
+    FileMoveResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -277,16 +279,29 @@ class PyodideBridge:
         response = FileDeleteResponse(success=success)
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
-    def update_file_or_directory(
+    def move_file_or_directory(
+        self,
+        request: str,
+    ) -> str:
+        body = parse_raw(json.loads(request), FileMoveRequest)
+        try:
+            info = self.file_system.move_file_or_directory(
+                body.path, body.new_path
+            )
+            response = FileMoveResponse(success=True, info=info)
+        except Exception as e:
+            response = FileMoveResponse(success=False, message=str(e))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+
+    def update_file(
         self,
         request: str,
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            info = self.file_system.update_file_or_directory(
-                body.path, body.new_path
-            )
-            response = FileUpdateResponse(success=True, info=info)
+            with open(body.path, "w") as file:
+                file.write(body.contents)
+            response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
