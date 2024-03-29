@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Union
+# Copyright 2024 Marimo. All rights reserved.
+from typing import Dict, Iterator, List, Optional, Union
 
 from marimo._messaging.ops import (
     QueryParamsAppend,
@@ -14,6 +15,8 @@ from marimo._runtime.state import State
 
 @mddoc
 class QueryParams(State[SerializedQueryParams]):
+    """Query parameters for a marimo app."""
+
     def __init__(
         self,
         params: Dict[str, Union[str, List[str]]],
@@ -28,11 +31,13 @@ class QueryParams(State[SerializedQueryParams]):
         return QueryParams({}, NoopStream())
 
     def get(self, key: str) -> Optional[Union[str, List[str]]]:
+        """Get the value of the query parameter associated with 'key'"""
         if key not in self._params:
             return None
         return self._params[key]
 
     def get_all(self, key: str) -> List[str]:
+        """Get the value of a query parameter as a list."""
         value = self._params.get(key)
         if value is None:
             return []
@@ -49,7 +54,7 @@ class QueryParams(State[SerializedQueryParams]):
     def __len__(self) -> int:
         return len(self._params)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._params)
 
     def __repr__(self) -> str:
@@ -58,22 +63,23 @@ class QueryParams(State[SerializedQueryParams]):
     def __str__(self) -> str:
         return str(self._params)
 
-    def __setitem__(self, key: str, value: Union[str, List[str]]):
+    def __setitem__(self, key: str, value: Union[str, List[str]]) -> None:
         # We always overwrite the value
         self._params[key] = value
         QueryParamsSet(key, value).broadcast(self._stream)
         self._set_value(self._params)
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> None:
         del self._params[key]
         QueryParamsDelete(key, None).broadcast(self._stream)
         self._set_value(self._params)
 
-    def set(self, key: str, value: Union[str, List[str]]):
+    def set(self, key: str, value: Union[str, List[str]]) -> None:
+        """Set the value of a query parameter."""
         self[key] = value
 
-    def append(self, key: str, value: str):
-        # Append a value to a list of values
+    def append(self, key: str, value: str) -> None:
+        """Append a value to a list of values"""
         if key not in self._params:
             self._params[key] = value
             QueryParamsAppend(key, value).broadcast(self._stream)
@@ -89,8 +95,8 @@ class QueryParams(State[SerializedQueryParams]):
         QueryParamsAppend(key, value).broadcast(self._stream)
         self._set_value(self._params)
 
-    def remove(self, key: str, value: Optional[str] = None):
-        # Remove a value from a list of values
+    def remove(self, key: str, value: Optional[str] = None) -> None:
+        """Remove a value from a list of values."""
         if key not in self._params:
             return
         # If value is None, remove the key
@@ -109,7 +115,8 @@ class QueryParams(State[SerializedQueryParams]):
         QueryParamsDelete(key, value).broadcast(self._stream)
         self._set_value(self._params)
 
-    def clear(self):
+    def clear(self) -> None:
+        """Clear all query params."""
         self._params.clear()
         QueryParamsClear().broadcast(self._stream)
         self._set_value(self._params)

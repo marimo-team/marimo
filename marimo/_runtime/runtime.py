@@ -166,14 +166,13 @@ def refs() -> tuple[str, ...]:
 
 @mddoc
 def query_params() -> QueryParams:
-    """Get the query parameters.
+    """Get the query parameters of a marimo app.
 
     **Examples**:
 
-    Keep the text input in sync with the URL query parameters
+    Keep the text input in sync with the URL query parameters.
 
     ```python3
-
     # In it's own cell
     query_params = mo.query_params()
 
@@ -198,8 +197,10 @@ def query_params() -> QueryParams:
     **Returns**:
 
     - A `QueryParams` object containing the query parameters.
-    You can directly interact with this object like a dictionary,
-    and it will persist changes to the frontend query parameters.
+      You can directly interact with this object like a dictionary.
+      If you mutate this object, changes will be persisted to the frontend
+      query parameters and any other cells referencing the query parameters
+      will automatically re-run.
     """
     return get_context().kernel.query_params
 
