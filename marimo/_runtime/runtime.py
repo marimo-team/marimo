@@ -397,7 +397,7 @@ class Kernel:
           different code.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
-        previous_children = set[CellId_t]()
+        previous_children: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             if cell_id in self.graph.cells:
@@ -532,11 +532,11 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
 
         # The set of cells that were successfully registered
-        registered_cell_ids = set[CellId_t]()
+        registered_cell_ids: set[CellId_t] = set()
 
         # The set of cells that need to be re-run due to cells being
         # deleted/re-registered.
-        cells_that_were_children_of_mutated_cells = set[CellId_t]()
+        cells_that_were_children_of_mutated_cells: set[CellId_t] = set()
 
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
