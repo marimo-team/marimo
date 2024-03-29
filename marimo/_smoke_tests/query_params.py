@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
 __generated_with = "0.3.4"
@@ -11,9 +12,8 @@ def __(mo):
 
 
 @app.cell
-def __(mo, query_params, random):
+def __(mo, query_params):
     # In another cell
-    print(random.randint(1, 50))
     search = mo.ui.text(
         value=query_params["search"] or "",
         on_change=lambda v: query_params.set("search", v),

@@ -1027,7 +1027,7 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells = set[CellId_t]()
+        referring_cells: set[CellId_t] = set()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)

@@ -19,7 +19,7 @@ from marimo._messaging.ops import (
     Reconnected,
     serialize,
 )
-from marimo._messaging.types import KernelMessage
+from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig, read_layout_config
@@ -272,7 +272,7 @@ class WebsocketHandler(SessionConsumer):
             # Note: if we resume a session, we don't pick up the new query
             # params, and instead use the query params from when the
             # session was created.
-            query_params = QueryParams.empty_stream()
+            query_params = QueryParams({}, NoopStream())
             for key, value in self.websocket.query_params.multi_items():
                 if SESSION_QUERY_PARAM_KEY == key:
                     continue

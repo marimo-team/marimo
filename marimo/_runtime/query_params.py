@@ -7,7 +7,7 @@ from marimo._messaging.ops import (
     QueryParamsDelete,
     QueryParamsSet,
 )
-from marimo._messaging.types import NoopStream, Stream
+from marimo._messaging.types import Stream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.requests import SerializedQueryParams
 from marimo._runtime.state import State
@@ -26,12 +26,11 @@ class QueryParams(State[SerializedQueryParams]):
         self._params = params
         self._stream = stream
 
-    @staticmethod
-    def empty_stream() -> "QueryParams":
-        return QueryParams({}, NoopStream())
-
     def get(self, key: str) -> Optional[Union[str, List[str]]]:
-        """Get the value of the query parameter associated with 'key'"""
+        """Get the value of the query parameter.
+
+        Returns a str if there is only one item, a list of str otherwise.
+        """
         if key not in self._params:
             return None
         return self._params[key]
