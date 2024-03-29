@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Fragment, useState } from "react";
+import { Fragment, useImperativeHandle, useState } from "react";
 
 import {
   Command,
@@ -25,14 +25,29 @@ import {
   CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
+import { useRestoreFocus } from "@/components/ui/use-restore-focus";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
 }
 
-export const CellActionsDropdown = ({ children, ...props }: Props) => {
+export interface CellActionsDropdownHandle {
+  toggle: () => void;
+}
+
+const CellActionsDropdownInternal = (
+  { children, ...props }: Props,
+  ref: React.Ref<CellActionsDropdownHandle>,
+) => {
   const [open, setOpen] = useState(false);
   const actions = useCellActionButtons({ cell: props });
+
+  // store the last focused element so we can restore it when the popover closes
+  const restoreFocus = useRestoreFocus();
+
+  useImperativeHandle(ref, () => ({
+    toggle: () => setOpen((prev) => !prev),
+  }));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,17 +73,9 @@ export const CellActionsDropdown = ({ children, ...props }: Props) => {
           <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>
-      <PopoverContent
-        className="w-[300px] p-0 pt-1"
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
-      >
+      <PopoverContent className="w-[300px] p-0 pt-1" {...restoreFocus}>
         <Command>
-          <CommandInput
-            placeholder="Search actions..."
-            className="h-6 m-1"
-            autoFocus={true}
-          />
+          <CommandInput placeholder="Search actions..." className="h-6 m-1" />
           <CommandEmpty>No results</CommandEmpty>
           {actions.map((group, i) => (
             <Fragment key={i}>
@@ -109,3 +116,7 @@ export const CellActionsDropdown = ({ children, ...props }: Props) => {
     </Popover>
   );
 };
+
+export const CellActionsDropdown = React.memo(
+  React.forwardRef(CellActionsDropdownInternal),
+);
