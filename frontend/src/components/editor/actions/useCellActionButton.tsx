@@ -5,7 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import {
   canToggleMarkdown,
   formatEditorViews,
-  toggleToMarkdown,
+  getEditorViewMode,
+  toggleMarkdown,
 } from "@/core/codemirror/format";
 import { useCellActions } from "@/core/cells/cells";
 import {
@@ -43,7 +44,7 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { MarkdownIcon } from "../cell/code/icons";
+import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -184,15 +185,25 @@ export function useCellActionButtons({ cell }: Props) {
         },
       },
       {
-        icon: <MarkdownIcon />,
-        label: "Markdown mode",
-        hotkey: "cell.markdownMode",
-        hidden: !canToggleMarkdown(editorView),
+        icon:
+          getEditorViewMode(editorView) === "python" ? (
+            <MarkdownIcon />
+          ) : (
+            <PythonIcon />
+          ),
+        label:
+          getEditorViewMode(editorView) === "python"
+            ? "View as Markdown"
+            : "View as Python",
+        hotkey: "cell.viewAsMarkdown",
+        hidden:
+          !canToggleMarkdown(editorView) &&
+          getEditorViewMode(editorView) !== "markdown",
         handle: () => {
           if (!editorView) {
             return;
           }
-          toggleToMarkdown(cellId, editorView, updateCellCode);
+          toggleMarkdown(cellId, editorView, updateCellCode);
         },
       },
       {
