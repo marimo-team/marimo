@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from marimo._server.models.models import BaseResponse
+
 
 @dataclass
 class FileInfo:
@@ -60,11 +62,19 @@ class FileDeleteRequest:
 
 
 @dataclass
-class FileUpdateRequest:
+class FileMoveRequest:
     # The current path of the file or directory
     path: str
     # The new path or name for the file or directory
     new_path: str
+
+
+@dataclass
+class FileUpdateRequest:
+    # The current path of the file or directory
+    path: str
+    # The new contents of the file
+    contents: str
 
 
 @dataclass
@@ -81,23 +91,27 @@ class FileDetailsResponse:
 
 
 @dataclass
-class FileCreateResponse:
-    success: bool
+class FileCreateResponse(BaseResponse):
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None
 
 
 @dataclass
-class FileDeleteResponse:
-    success: bool
+class FileDeleteResponse(BaseResponse):
     # Additional information, e.g., error message
     message: Optional[str] = None
 
 
 @dataclass
-class FileUpdateResponse:
-    success: bool
+class FileUpdateResponse(BaseResponse):
+    # Additional information, e.g., error message
+    message: Optional[str] = None
+    info: Optional[FileInfo] = None
+
+
+@dataclass
+class FileMoveResponse(BaseResponse):
     # Additional information, e.g., error message
     message: Optional[str] = None
     info: Optional[FileInfo] = None

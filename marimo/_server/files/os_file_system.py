@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import mimetypes
 import os
 import shutil
@@ -85,8 +86,13 @@ class OSFileSystem(FileSystem):
             return "app = marimo.App(" in file.read()
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
-        with open(path, mode="r", encoding=encoding) as file:
-            return file.read()
+        try:
+            with open(path, mode="r", encoding=encoding) as file:
+                return file.read()
+        except UnicodeDecodeError:
+            # If its a UnicodeDecodeError, try as bytes and convert to base64
+            with open(path, mode="rb") as file:
+                return base64.b64encode(file.read()).decode("utf-8")
 
     def create_file_or_directory(
         self,
@@ -125,6 +131,11 @@ class OSFileSystem(FileSystem):
             os.remove(path)
         return True
 
-    def update_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+    def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         shutil.move(path, new_path)
         return self.get_details(new_path).file
+
+    def update_file(self, path: str, contents: str) -> FileInfo:
+        with open(path, "w") as file:
+            file.write(contents)
+        return self.get_details(path).file

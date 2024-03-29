@@ -109,13 +109,23 @@ class TestOSFileSystem(unittest.TestCase):
         self.fs.delete_file_or_directory(file_path)
         assert not os.path.exists(file_path)
 
-    def test_update_file(self):
+    def test_move_file(self):
         original_file_name = "original.txt"
         new_file_name = "new.txt"
         original_path = os.path.join(self.test_dir, original_file_name)
         new_path = os.path.join(self.test_dir, new_file_name)
         with open(original_path, "w") as f:
             f.write("Test")
-        self.fs.update_file_or_directory(original_path, new_path)
+        self.fs.move_file_or_directory(original_path, new_path)
         assert os.path.exists(new_path)
         assert not os.path.exists(original_path)
+
+    def test_update_file(self):
+        test_file_name = "test_file.txt"
+        file_path = os.path.join(self.test_dir, test_file_name)
+        with open(file_path, "w") as f:
+            f.write("Initial content")
+        new_content = "Updated content"
+        self.fs.update_file(file_path, new_content)
+        with open(file_path, "r") as f:
+            assert f.read() == new_content

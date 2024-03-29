@@ -40,5 +40,6 @@ export const {
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,
   sendRenameFileOrFolder,
+  sendUpdateFile,
   sendFileDetails,
 } = getRequest();

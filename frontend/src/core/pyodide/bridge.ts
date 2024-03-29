@@ -10,6 +10,7 @@ import {
   FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileMoveRequest,
   FileOperationResponse,
   FileUpdateRequest,
   FormatRequest,
@@ -300,10 +301,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRenameFileOrFolder = async (
+    request: FileMoveRequest,
+  ): Promise<FileOperationResponse> => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "move_file_or_directory",
+      payload: request,
+    });
+    return response as FileOperationResponse;
+  };
+
+  sendUpdateFile = async (
     request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
-      functionName: "update_file_or_directory",
+      functionName: "update_file",
       payload: request,
     });
     return response as FileOperationResponse;

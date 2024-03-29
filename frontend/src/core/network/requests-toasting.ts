@@ -31,6 +31,7 @@ export function createErrorToastingRequests(
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendRenameFileOrFolder: "Failed to rename file or folder",
+    sendUpdateFile: "Failed to update file",
     sendFileDetails: "Failed to get file details",
     sendInstallMissingPackages: "Failed to install missing packages",
   };

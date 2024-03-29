@@ -14,3 +14,7 @@ export function deserializeBase64ToJson<T>(base64: Base64String): T {
   const decodedString = decodeURIComponent(atob(base64));
   return JSON.parse(decodedString) as T;
 }
+
+export function base64ToDataURL(base64: Base64String, mimeType: string) {
+  return `data:${mimeType};base64,${base64}`;
+}
