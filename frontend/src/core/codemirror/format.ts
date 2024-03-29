@@ -14,6 +14,11 @@ import {
 } from "./language/utils";
 import { StateEffect } from "@codemirror/state";
 import { getUserConfig } from "../config/config";
+import {
+  LanguageAdapters,
+  languageAdapterState,
+  switchLanguage,
+} from "./language/extension";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -57,4 +62,38 @@ export async function formatEditorViews(
 export function formatAll(updateCellCode: CellActions["updateCellCode"]) {
   const views = notebookCellEditorViews(getNotebook());
   return formatEditorViews(views, updateCellCode);
+}
+
+export function canToggleMarkdown(editorView: EditorView | null) {
+  if (
+    !editorView ||
+    editorView.state.field(languageAdapterState).type === "markdown"
+  ) {
+    return false;
+  }
+  return (
+    LanguageAdapters.markdown().isSupported(
+      getEditorCodeAsPython(editorView),
+    ) || getEditorCodeAsPython(editorView).trim() === ""
+  );
+}
+
+export function toggleToMarkdown(
+  cellId: CellId,
+  editorView: EditorView,
+  updateCellCode: CellActions["updateCellCode"],
+) {
+  if (!canToggleMarkdown(editorView)) {
+    return;
+  }
+  if (getEditorCodeAsPython(editorView).trim() === "") {
+    const blankMd = 'mo.md("")';
+    updateCellCode({
+      cellId,
+      code: blankMd,
+      formattingChange: true,
+    });
+    updateEditorCodeFromPython(editorView, blankMd);
+  }
+  switchLanguage(editorView, "markdown");
 }
