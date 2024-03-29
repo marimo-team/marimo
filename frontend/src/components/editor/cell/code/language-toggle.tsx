@@ -1,28 +1,24 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import {
-  languageAdapterState,
-  switchLanguage,
-} from "@/core/codemirror/language/extension";
+import { switchLanguage } from "@/core/codemirror/language/extension";
 import { EditorView } from "@codemirror/view";
-import React, { useState } from "react";
+import React from "react";
 import { MarkdownIcon, PythonIcon } from "./icons";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { startCase } from "lodash-es";
+import { LanguageAdapter } from "@/core/codemirror/language/types";
 
 interface Props {
   editorView: EditorView;
   canUseMarkdown: boolean;
+  languageAdapter: LanguageAdapter["type"] | undefined;
 }
 
 export const LanguageToggle: React.FC<Props> = ({
   editorView,
+  languageAdapter,
   canUseMarkdown,
 }) => {
-  const [languageAdapter, setLanguageAdapter] = useState(
-    editorView.state.field(languageAdapterState).type,
-  );
-
   if (!canUseMarkdown && languageAdapter !== "markdown") {
     return null;
   }
@@ -44,7 +40,6 @@ export const LanguageToggle: React.FC<Props> = ({
             fill={"var(--sky-11)"}
             fontSize={20}
             onClick={() => {
-              setLanguageAdapter(otherLanguage);
               switchLanguage(editorView, otherLanguage);
             }}
           />

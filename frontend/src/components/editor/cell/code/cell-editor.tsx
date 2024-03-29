@@ -32,6 +32,7 @@ import { useAtom, useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { LanguageAdapter } from "@/core/codemirror/language/types";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -83,6 +84,8 @@ const CellEditorInternal = ({
 }: CellEditorProps) => {
   const [canUseMarkdown, setCanUseMarkdown] = useState(false);
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
+  const [languageAdapter, setLanguageAdapter] =
+    useState<LanguageAdapter["type"]>();
   const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
@@ -169,18 +172,28 @@ const CellEditorInternal = ({
       theme,
     });
 
-    // listen to code changes if we can use markdown
     extensions.push(
-      ViewPlugin.define(() => ({
-        update(view) {
-          const code = view.state.doc.toString();
-          const languageAdapter = view.state.field(languageAdapterState);
-          // If its not markdown, set if we can use markdown
-          if (languageAdapter.type !== "markdown") {
-            setCanUseMarkdown(LanguageAdapters.markdown().isSupported(code));
-          }
-        },
-      })),
+      // Listen to code changes if we can use markdown
+      // Also update the language adapter
+      ViewPlugin.define((view) => {
+        // Init
+        const languageAdapter = view.state.field(languageAdapterState);
+        setLanguageAdapter(languageAdapter.type);
+
+        return {
+          update(view) {
+            const code = view.state.doc.toString();
+            const languageAdapter = view.state.field(languageAdapterState);
+            // If its not markdown, set if we can use markdown
+            if (languageAdapter.type !== "markdown") {
+              setCanUseMarkdown(LanguageAdapters.markdown().isSupported(code));
+            }
+
+            // Set the language adapter
+            setLanguageAdapter(languageAdapter.type);
+          },
+        };
+      }),
     );
 
     return extensions;
@@ -326,6 +339,7 @@ const CellEditorInternal = ({
           <div className="absolute top-1 right-1">
             <LanguageToggle
               editorView={derefNotNull(editorViewRef)}
+              languageAdapter={languageAdapter}
               canUseMarkdown={canUseMarkdown}
             />
           </div>
