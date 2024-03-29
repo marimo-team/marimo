@@ -48,7 +48,8 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
       label: "Paste",
       icon: <ClipboardPasteIcon size={13} strokeWidth={1.5} />,
       handle: async () => {
-        const { editorView } = props;
+        const { getEditorView } = props;
+        const editorView = getEditorView();
         if (!editorView) {
           return;
         }

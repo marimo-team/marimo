@@ -4,6 +4,7 @@ import { CellId } from "./ids";
 import { notebookAtom } from "./cells";
 import { EditorView } from "@codemirror/view";
 import { CellConfig, CellStatus } from "./types";
+import { useCallback } from "react";
 
 /**
  * Holds state for the last focused cell.
@@ -15,7 +16,7 @@ export const lastFocusedCellAtom = atom<{
   config: CellConfig;
   cellId: CellId;
   status: CellStatus;
-  editorView: EditorView | null;
+  getEditorView: () => EditorView | null;
   hasOutput: boolean;
 } | null>((get) => {
   const cellId = get(lastFocusedCellIdAtom);
@@ -29,13 +30,14 @@ export const lastFocusedCellAtom = atom<{
   if (!data || !runtime || !handle) {
     return null;
   }
+  const getEditorView = useCallback(() => handle.editorView, [handle]);
 
   return {
     cellId,
     name: data.name,
     config: data.config,
     status: runtime.status,
-    editorView: handle.editorView,
+    getEditorView: getEditorView,
     hasOutput: runtime.output !== null,
   };
 });
