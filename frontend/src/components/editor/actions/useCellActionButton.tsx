@@ -44,8 +44,8 @@ export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
   status: CellStatus;
-  editorView: EditorView | null;
   hasOutput: boolean;
+  getEditorView: () => EditorView | null;
 }
 
 interface Props {
@@ -66,11 +66,11 @@ export function useCellActionButtons({ cell }: Props) {
   const runCell = useRunCell(cell?.cellId);
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
-
   if (!cell) {
     return [];
   }
-  const { cellId, config, editorView, name, hasOutput, status } = cell;
+  const { cellId, config, getEditorView, name, hasOutput, status } = cell;
+  const editorView = getEditorView();
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };

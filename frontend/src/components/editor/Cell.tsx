@@ -190,6 +190,9 @@ const CellComponent = (
     [editorView, prepareToRunEffects],
   );
 
+  // Callback to get the editor view.
+  const getEditorView = useCallback(() => editorView.current, [editorView]);
+
   const handleRun = useEvent(async () => {
     if (loading) {
       return;
@@ -385,7 +388,7 @@ const CellComponent = (
       cellId={cellId}
       config={cellConfig}
       status={status}
-      editorView={editorView.current}
+      getEditorView={getEditorView}
       hasOutput={hasOutput}
       name={name}
     >
@@ -459,7 +462,7 @@ const CellComponent = (
                 ref={cellActionDropdownRef}
                 cellId={cellId}
                 status={status}
-                editorView={editorView.current}
+                getEditorView={getEditorView}
                 name={name}
                 config={cellConfig}
                 hasOutput={hasOutput}
