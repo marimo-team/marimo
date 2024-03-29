@@ -161,6 +161,8 @@
       0px 0px 4px 0px var(--stale-color);
     --heavy-shadow-error: 7px 8px 0px 0px var(--red-5),
       0px 0px 2px 0px var(--red-5);
+    --light-shadow-accent: 4px 4px 0px 0px hsl(var(--accent)),
+      0px 0px 2px 0px hsl(var(--accent));
   }
 }
 

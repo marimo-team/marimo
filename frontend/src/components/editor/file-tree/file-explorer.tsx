@@ -11,6 +11,7 @@ import {
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,
+  Trash2Icon,
   UploadIcon,
   ViewIcon,
 } from "lucide-react";
@@ -25,7 +26,10 @@ import {
 } from "./types";
 import { toast } from "@/components/ui/use-toast";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { AlertDialogAction } from "@/components/ui/alert-dialog";
+import {
+  AlertDialogAction,
+  AlertDialogDestructiveAction,
+} from "@/components/ui/alert-dialog";
 import { useAtom } from "jotai";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -93,6 +97,11 @@ export const FileExplorer: React.FC<{
         renderCursor={() => null}
         // Disable dropping files into files
         disableDrop={({ parentNode }) => !parentNode.data.isDirectory}
+        onDelete={async ({ ids }) => {
+          for (const id of ids) {
+            await tree.delete(id);
+          }
+        }}
         onRename={async ({ id, name }) => {
           await tree.rename(id, name);
         }}
@@ -239,6 +248,25 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     });
   };
 
+  const handleDeleteFile = async (evt: Event) => {
+    evt.stopPropagation();
+    evt.preventDefault();
+    openConfirm({
+      title: "Delete file",
+      description: `Are you sure you want to delete ${node.data.name}?`,
+      confirmAction: (
+        <AlertDialogDestructiveAction
+          onClick={async () => {
+            await node.tree.delete(node.id);
+          }}
+          aria-label="Confirm"
+        >
+          Delete
+        </AlertDialogDestructiveAction>
+      ),
+    });
+  };
+
   return (
     <div
       style={style}
@@ -330,6 +358,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
                 </DropdownMenuItem>
               </>
             )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={handleDeleteFile} variant="danger">
+              <Trash2Icon className="mr-2" size={14} strokeWidth={1.5} />
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </span>
