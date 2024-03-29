@@ -118,6 +118,19 @@ export class RequestingTree {
     await this.refreshAll([parentPath]);
   }
 
+  async delete(id: string): Promise<void> {
+    const node = this.delegate.find(id);
+    if (!node) {
+      return;
+    }
+
+    await this.callbacks
+      .deleteFileOrFolder({ path: node.data.path })
+      .then(this.handleResponse);
+    this.delegate.drop({ id });
+    this.onChange(this.delegate.data);
+  }
+
   refreshAll = async (ids: string[]): Promise<void> => {
     // For each open folder, refresh
     const openFolders = [
