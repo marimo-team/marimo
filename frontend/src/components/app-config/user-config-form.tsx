@@ -106,7 +106,6 @@ export const UserConfigForm: React.FC = () => {
           <div>
             <FormField
               control={form.control}
-              disabled={isWasm}
               name="save.format_on_save"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
