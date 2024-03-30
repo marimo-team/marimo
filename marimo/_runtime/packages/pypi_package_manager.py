@@ -11,7 +11,7 @@ from marimo._utils.platform import is_pyodide
 
 
 class PypiPackageManager(PackageManager):
-    """Implements installation for package.
+    """Base class for package managers that use PyPI.
 
     Has a heuristic for mapping from package names to module names and back,
     using a registry of well-known packages and basic rules for package
