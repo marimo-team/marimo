@@ -87,6 +87,7 @@ export class DefaultWasmController implements WasmController {
   }
 
   async startSession(opts: {
+    queryParameters: Record<string, string | string[]>;
     code: string | null;
     fallbackCode: string;
     filename: string | null;
@@ -106,7 +107,10 @@ export class DefaultWasmController implements WasmController {
     // during processing of a cell's code.
     //
     // This adds a messenger object to the global scope (import js; js.messenger.callback)
-    self.messenger = { callback: opts.onMessage };
+    self.messenger = {
+      callback: opts.onMessage,
+    };
+    self.query_params = opts.queryParameters;
 
     // Load packages from the code
     await this.pyodide.loadPackagesFromImports(content, {
@@ -122,8 +126,13 @@ export class DefaultWasmController implements WasmController {
       from marimo._pyodide.pyodide_session import create_session, instantiate
 
       assert js.messenger, "messenger is not defined"
+      assert js.query_params, "query_params is not defined"
 
-      session, bridge = create_session(filename="${filename}", message_callback=js.messenger.callback)
+      session, bridge = create_session(
+        filename="${filename}",
+        query_params=js.query_params.to_py(),
+        message_callback=js.messenger.callback,
+      )
       instantiate(session)
       asyncio.create_task(session.start())
 

@@ -7,7 +7,7 @@ export function createWsUrl(sessionId: string): string {
   url.protocol = protocol;
   url.pathname = `${withoutTrailingSlash(url.pathname)}/ws`;
 
-  const searchParams = new URLSearchParams(url.search);
+  const searchParams = new URLSearchParams(window.location.search);
   searchParams.set("session_id", sessionId);
   url.search = searchParams.toString();
 

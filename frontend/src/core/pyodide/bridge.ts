@@ -86,7 +86,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
+
+    const queryParameters: Record<string, string | string[]> = {};
+    const searchParams = new URLSearchParams(window.location.search);
+    for (const key of searchParams.keys()) {
+      const value = searchParams.getAll(key);
+      queryParameters[key] = value.length === 1 ? value[0] : value;
+    }
+
     await this.rpc.proxy.request.startSession({
+      queryParameters: queryParameters,
       code,
       fallbackCode: fallbackCode || "",
       filename,

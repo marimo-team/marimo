@@ -28,6 +28,7 @@ from marimo._runtime.requests import (
     ControlRequest,
     CreationRequest,
     ExecutionRequest,
+    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
@@ -78,6 +79,7 @@ def instantiate(session: PyodideSession) -> None:
 
 def create_session(
     filename: str,
+    query_params: SerializedQueryParams,
     message_callback: Callable[[str], None],
 ) -> tuple[PyodideSession, PyodideBridge]:
     def write_kernel_message(op: KernelMessage) -> None:
@@ -85,7 +87,7 @@ def create_session(
 
     app_file_manager = AppFileManager(filename=filename)
     app = app_file_manager.app
-    app_metadata = AppMetadata(filename=filename)
+    app_metadata = AppMetadata(query_params=query_params, filename=filename)
 
     session = PyodideSession(
         app_file_manager, SessionMode.EDIT, write_kernel_message, app_metadata

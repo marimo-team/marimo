@@ -43,7 +43,9 @@ def test_create_session(
     session_manager: SessionManager, mock_session_consumer: SessionConsumer
 ):
     session_id = "test_session_id"
-    session = session_manager.create_session(session_id, mock_session_consumer)
+    session = session_manager.create_session(
+        session_id, mock_session_consumer, query_params={}
+    )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
     # Close ourselves to finish the test
