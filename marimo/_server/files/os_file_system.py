@@ -35,7 +35,14 @@ class OSFileSystem(FileSystem):
                 ):
                     continue
 
-                is_directory = entry.is_dir()
+                try:
+                    is_directory = entry.is_dir()
+                    entry_stat = entry.stat()
+                except OSError:
+                    # do not include files that fail to read
+                    # (e.g. recursive/broken symlinks)
+                    continue
+
                 info = FileInfo(
                     id=entry.path,
                     path=entry.path,
@@ -43,7 +50,7 @@ class OSFileSystem(FileSystem):
                     is_directory=is_directory,
                     is_marimo_file=not is_directory
                     and self._is_marimo_file(entry.path),
-                    last_modified_date=entry.stat().st_mtime,
+                    last_modified_date=entry_stat.st_mtime,
                 )
                 files.append(info)
 
