@@ -117,7 +117,7 @@ class PackageManagementConfig(TypedDict, total=False):
     - `manager`: the package manager to use
     """
 
-    manager: Literal["pip", "rye", "uv"]
+    manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
 @mddoc

@@ -36,6 +36,10 @@ import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { useUserConfig } from "@/core/config/config";
 import { isPyodide } from "@/core/pyodide/utils";
+import {
+  PackageManagerName,
+  PackageManagerNames,
+} from "../../core/config/config-schema";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -237,7 +241,7 @@ const ProgressIcon = ({
 };
 
 async function installPackages(
-  manager: "pip" | "uv" | "rye" | "poetry",
+  manager: PackageManagerName,
   clearPackageAlert: () => void,
 ) {
   clearPackageAlert();
@@ -249,7 +253,7 @@ const InstallPackagesButton = ({
   manager,
   clearPackageAlert,
 }: {
-  manager: "pip" | "uv" | "rye" | "poetry";
+  manager: PackageManagerName;
   clearPackageAlert: () => void;
 }) => {
   return (
@@ -300,7 +304,7 @@ export const PackageManagerForm: React.FC = () => {
                     disabled={field.disabled}
                     className="inline-flex mr-2"
                   >
-                    {["pip", "uv", "rye", "poetry"].map((option) => (
+                    {PackageManagerNames.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>

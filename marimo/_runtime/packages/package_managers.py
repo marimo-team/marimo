@@ -3,6 +3,7 @@ from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
     PipPackageManager,
+    PixiPackageManager,
     PoetryPackageManager,
     RyePackageManager,
     UvPackageManager,
@@ -15,6 +16,7 @@ PACKAGE_MANAGERS = {
     RyePackageManager.name: RyePackageManager,
     UvPackageManager.name: UvPackageManager,
     PoetryPackageManager.name: PoetryPackageManager,
+    PixiPackageManager.name: PixiPackageManager,
 }
 
 

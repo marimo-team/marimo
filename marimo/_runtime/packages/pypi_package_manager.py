@@ -11,12 +11,15 @@ from marimo._utils.platform import is_pyodide
 
 
 class PypiPackageManager(PackageManager):
-    """Implements installation for both pip and micropip.
+    """Base class for package managers that use PyPI.
 
-    Can fork into two different classes if needed.
+    Has a heuristic for mapping from package names to module names and back,
+    using a registry of well-known packages and basic rules for package
+    names.
     """
 
     def __init__(self) -> None:
+        # Initialized lazily
         self._module_name_to_pypi_name: dict[str, str] | None = None
         self._pypi_name_to_module_name: dict[str, str] | None = None
 
@@ -98,3 +101,15 @@ class PoetryPackageManager(PypiPackageManager):
 
     async def install(self, package: str) -> bool:
         return subprocess.run(["poetry", "add", package]).returncode == 0
+
+
+# Pixi actually uses Conda by default ... but the package-to-module
+# resolution that we use for Pypi packages seems to work fine, so
+# we subclass PypiPackageManager.
+#
+# Can change the base class if/when needed.
+class PixiPackageManager(PypiPackageManager):
+    name = "pixi"
+
+    async def install(self, package: str) -> bool:
+        return subprocess.run(["pixi", "add", package]).returncode == 0
