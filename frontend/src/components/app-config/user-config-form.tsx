@@ -22,6 +22,7 @@ import { Switch } from "../ui/switch";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
 import { isPyodide } from "@/core/pyodide/utils";
+import { ManagerNames } from "../editor/package-alert";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -300,7 +301,7 @@ export const UserConfigForm: React.FC = () => {
                     disabled={field.disabled}
                     className="inline-flex mr-2"
                   >
-                    {["pip", "uv", "rye", "poetry"].map((option) => (
+                    {ManagerNames.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>

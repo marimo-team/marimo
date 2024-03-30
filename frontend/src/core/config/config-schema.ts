@@ -5,6 +5,7 @@ import {
   getRawMarimoAppConfig,
   getRawMarimoUserConfig,
 } from "../dom/marimo-tag";
+import { ManagerNames } from "@/components/editor/package-alert";
 
 export const UserConfigSchema = z
   .object({
@@ -54,7 +55,7 @@ export const UserConfigSchema = z
       .default({}),
     package_management: z
       .object({
-        manager: z.enum(["pip", "uv", "rye", "poetry"]).default("pip"),
+        manager: z.enum(ManagerNames).default("pip"),
       })
       .default({ manager: "pip" }),
     experimental: z
