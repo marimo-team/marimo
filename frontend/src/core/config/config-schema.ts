@@ -5,7 +5,16 @@ import {
   getRawMarimoAppConfig,
   getRawMarimoUserConfig,
 } from "../dom/marimo-tag";
-import { ManagerNames } from "@/components/editor/package-alert";
+
+// This has to be defined in the same file as the zod schema to satisfy zod
+export const PackageManagerNames = [
+  "pip",
+  "uv",
+  "rye",
+  "poetry",
+  "pixi",
+] as const;
+export type PackageManagerName = (typeof PackageManagerNames)[number];
 
 export const UserConfigSchema = z
   .object({
@@ -55,7 +64,7 @@ export const UserConfigSchema = z
       .default({}),
     package_management: z
       .object({
-        manager: z.enum(ManagerNames).default("pip"),
+        manager: z.enum(PackageManagerNames).default("pip"),
       })
       .default({ manager: "pip" }),
     experimental: z

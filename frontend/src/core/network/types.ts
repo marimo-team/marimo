@@ -5,7 +5,7 @@ import { CellId } from "../cells/ids";
 import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
 import { FilePath } from "@/utils/paths";
-import { ManagerName } from "@/components/editor/package-alert";
+import { PackageManagerName } from "../config/config-schema";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -97,7 +97,7 @@ export interface SendStdin {
 
 // In the future may include things like package manager, index URL, ...
 export interface SendInstallMissingPackages {
-  manager: ManagerName;
+  manager: PackageManagerName;
 }
 
 export interface ValueUpdate {
