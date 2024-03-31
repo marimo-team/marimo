@@ -7,8 +7,7 @@ By default, apps are laid out as a concetentation of their outputs, with
 code hidden. You can customize the layout using marimo's built-in drag-and-drop
 grid editor; you can also choose to include code in the app view.
 
-
-## CLI 
+## CLI
 
 ```
 Usage: marimo run [OPTIONS] NAME
@@ -35,7 +34,6 @@ Options:
 While editing a notebook with `marimo edit`, you can preview the notebook
 as an app by clicking the preview button in the bottom-left of the editor.
 (You can also use the command palette.)
-
 
 ### Vertical layout
 
@@ -64,5 +62,3 @@ Enable the grid editor in the app preview, via a dropdown:
 marimo saves metadata about your constructed layout in a `layouts` folder;
 make sure to include this folder when sharing your notebook so that others
 can reconstruct your layout.
-
-

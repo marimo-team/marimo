@@ -10,6 +10,7 @@ import {
   FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileMoveRequest,
   FileOperationResponse,
   FileUpdateRequest,
   FormatRequest,
@@ -31,7 +32,6 @@ import { isPyodide } from "./utils";
 import { Deferred } from "@/utils/Deferred";
 import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
-import { Paths } from "@/utils/paths";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
@@ -86,7 +86,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
+
+    const queryParameters: Record<string, string | string[]> = {};
+    const searchParams = new URLSearchParams(window.location.search);
+    for (const key of searchParams.keys()) {
+      const value = searchParams.getAll(key);
+      queryParameters[key] = value.length === 1 ? value[0] : value;
+    }
+
     await this.rpc.proxy.request.startSession({
+      queryParameters: queryParameters,
       code,
       fallbackCode: fallbackCode || "",
       filename,
@@ -134,6 +143,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     });
     const code = await this.readCode();
     if (code.contents) {
+      notebookFileStore.saveFile(code.contents);
       fallbackFileStore.saveFile(code.contents);
     }
     return null;
@@ -224,6 +234,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRestart = async (): Promise<null> => {
+    // Save first
+    const code = await this.readCode();
+    if (code.contents) {
+      notebookFileStore.saveFile(code.contents);
+      fallbackFileStore.saveFile(code.contents);
+    }
     window.location.reload();
     return null;
   };
@@ -237,12 +253,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   openFile = async (request: { path: string }): Promise<null> => {
-    // Open the file in a new tab by file path
-    const filename = Paths.basename(request.path);
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,
-      filename,
     });
     window.open(url, "_blank");
     return null;
@@ -297,10 +310,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRenameFileOrFolder = async (
+    request: FileMoveRequest,
+  ): Promise<FileOperationResponse> => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "move_file_or_directory",
+      payload: request,
+    });
+    return response as FileOperationResponse;
+  };
+
+  sendUpdateFile = async (
     request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
-      functionName: "update_file_or_directory",
+      functionName: "update_file",
       payload: request,
     });
     return response as FileOperationResponse;

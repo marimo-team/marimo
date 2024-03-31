@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { CellId } from "../cells/ids";
-import { formatEditorViews } from "./format";
+import { formatEditorViews, toggleMarkdown } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { CellActions } from "../cells/cells";
@@ -64,6 +64,14 @@ export function formatKeymapExtension(
       preventDefault: true,
       run: (ev) => {
         formatEditorViews({ [cellId]: ev }, updateCellCode);
+        return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.viewAsMarkdown").key,
+      preventDefault: true,
+      run: (ev) => {
+        toggleMarkdown(cellId, ev, updateCellCode);
         return true;
       },
     },

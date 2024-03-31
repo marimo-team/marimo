@@ -2,14 +2,8 @@
 
 import marimo
 
-__generated_with = "0.3.2"
+__generated_with = "0.3.6"
 app = marimo.App()
-
-
-@app.cell
-def __():
-    import foo
-    return foo,
 
 
 @app.cell

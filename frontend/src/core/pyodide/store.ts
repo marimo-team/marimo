@@ -1,6 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { TypedLocalStorage } from "@/utils/localStorage";
-import { decompressFromEncodedURIComponent } from "lz-string";
+import {
+  decompressFromEncodedURIComponent,
+  compressToEncodedURIComponent,
+} from "lz-string";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {
@@ -20,10 +23,12 @@ export const localStorageFileStore: FileStore = {
 
 const urlFileStore: FileStore = {
   saveFile(contents: string) {
-    // Do nothing
+    // Set the code in the URL
+    PyodideRouter.setCodeForHash(compressToEncodedURIComponent(contents));
   },
   readFile() {
-    const code = PyodideRouter.getCode();
+    const code =
+      PyodideRouter.getCodeFromHash() || PyodideRouter.getCodeFromSearchParam();
     if (!code) {
       return null;
     }

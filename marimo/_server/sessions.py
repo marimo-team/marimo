@@ -38,6 +38,7 @@ from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
     ExecutionRequest,
+    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import AppFileManager
@@ -413,7 +414,7 @@ class SessionManager:
 
         app = self._load_app()
 
-        self.app_metadata = AppMetadata(filename=self.path)
+        self.app_metadata = AppMetadata(query_params={}, filename=self.path)
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -445,10 +446,12 @@ class SessionManager:
         or opened another file.
         """
         self.filename = filename
-        self.app_metadata.filename = self.path
 
     def create_session(
-        self, session_id: SessionId, session_consumer: SessionConsumer
+        self,
+        session_id: SessionId,
+        session_consumer: SessionConsumer,
+        query_params: SerializedQueryParams,
     ) -> Session:
         """Create a new session"""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -456,7 +459,9 @@ class SessionManager:
             self.sessions[session_id] = Session.create(
                 session_consumer=session_consumer,
                 mode=self.mode,
-                app_metadata=self.app_metadata,
+                app_metadata=AppMetadata(
+                    query_params=query_params, filename=self.path
+                ),
                 app_file_manager=AppFileManager(self.path),
                 package_manager=self.package_manager,
             )
@@ -660,30 +665,12 @@ class LspServer:
             LOGGER.debug("LSP server not running")
 
 
-def initialize_manager(
-    filename: Optional[str],
-    mode: SessionMode,
-    port: int,
-    development_mode: bool,
-    quiet: bool,
-    include_code: bool,
-    package_manager: str,
-) -> SessionManager:
-    """Must be called on server start."""
-    global SESSION_MANAGER
-    SESSION_MANAGER = SessionManager(
-        filename=filename,
-        mode=mode,
-        development_mode=development_mode,
-        quiet=quiet,
-        include_code=include_code,
-        lsp_server=LspServer(port * 10),
-        package_manager=package_manager,
-    )
-    return SESSION_MANAGER
+class NoopLspServer(LspServer):
+    def __init__(self) -> None:
+        super().__init__(0)
 
+    def start(self) -> None:
+        pass
 
-def get_manager() -> SessionManager:
-    """Cannot be called until manager has been initialized."""
-    assert SESSION_MANAGER is not None
-    return SESSION_MANAGER
+    def stop(self) -> None:
+        pass

@@ -26,6 +26,7 @@ import {
   FileDeleteRequest,
   FileUpdateRequest,
   FileDetailsResponse,
+  FileMoveRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -168,6 +169,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       );
     },
     sendRenameFileOrFolder: (request) => {
+      return API.post<FileMoveRequest, FileOperationResponse>(
+        "/files/move",
+        request,
+      );
+    },
+    sendUpdateFile: (request) => {
       return API.post<FileUpdateRequest, FileOperationResponse>(
         "/files/update",
         request,

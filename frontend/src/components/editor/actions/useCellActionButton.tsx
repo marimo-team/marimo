@@ -1,7 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { sendDeleteCell } from "@/core/network/requests";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
-import { formatEditorViews } from "@/core/codemirror/format";
+import {
+  canToggleMarkdown,
+  formatEditorViews,
+  getEditorViewMode,
+  toggleMarkdown,
+} from "@/core/codemirror/format";
 import { useCellActions } from "@/core/cells/cells";
 import {
   ImageIcon,
@@ -38,13 +44,14 @@ import {
   DialogHeader,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
   cellId: CellId;
   status: CellStatus;
-  editorView: EditorView | null;
   hasOutput: boolean;
+  getEditorView: () => EditorView | null;
 }
 
 interface Props {
@@ -65,11 +72,11 @@ export function useCellActionButtons({ cell }: Props) {
   const runCell = useRunCell(cell?.cellId);
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
-
   if (!cell) {
     return [];
   }
-  const { cellId, config, editorView, name, hasOutput, status } = cell;
+  const { cellId, config, getEditorView, name, hasOutput, status } = cell;
+  const editorView = getEditorView();
 
   const toggleDisabled = async () => {
     const newConfig = { disabled: !config.disabled };
@@ -178,6 +185,28 @@ export function useCellActionButtons({ cell }: Props) {
         },
       },
       {
+        icon:
+          getEditorViewMode(editorView) === "python" ? (
+            <MarkdownIcon />
+          ) : (
+            <PythonIcon />
+          ),
+        label:
+          getEditorViewMode(editorView) === "python"
+            ? "View as Markdown"
+            : "View as Python",
+        hotkey: "cell.viewAsMarkdown",
+        hidden:
+          !canToggleMarkdown(editorView) &&
+          getEditorViewMode(editorView) !== "markdown",
+        handle: () => {
+          if (!editorView) {
+            return;
+          }
+          toggleMarkdown(cellId, editorView, updateCellCode);
+        },
+      },
+      {
         icon: config.hide_code ? (
           <EyeIcon size={13} strokeWidth={1.5} />
         ) : (
@@ -262,7 +291,10 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Delete",
         variant: "danger",
         icon: <Trash2Icon size={13} strokeWidth={1.5} />,
-        handle: () => deleteCell({ cellId }),
+        handle: async () => {
+          await sendDeleteCell(cellId);
+          deleteCell({ cellId });
+        },
       },
     ],
   ];

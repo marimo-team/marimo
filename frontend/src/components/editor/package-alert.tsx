@@ -18,8 +18,6 @@ import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
   useAlertActions,
-  MissingPackageAlert,
-  InstallingPackageAlert,
   isMissingPackageAlert,
   isInstallingPackageAlert,
 } from "@/core/alerts/state";
@@ -38,10 +36,14 @@ import { PackageInstallationStatus } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import { useUserConfig } from "@/core/config/config";
 import { isPyodide } from "@/core/pyodide/utils";
+import {
+  PackageManagerName,
+  PackageManagerNames,
+} from "../../core/config/config-schema";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
-  const { addPackageAlert, clearPackageAlert } = useAlertActions();
+  const { clearPackageAlert } = useAlertActions();
   const [userConfig] = useUserConfig();
 
   if (packageAlert === null) {
@@ -88,9 +90,8 @@ export const PackageAlert: React.FC = (props) => {
               {packageAlert.isolated ? (
                 <>
                   <InstallPackagesButton
-                    packages={packageAlert.packages}
                     manager={userConfig.package_management.manager}
-                    addPackageAlert={addPackageAlert}
+                    clearPackageAlert={() => clearPackageAlert(packageAlert.id)}
                   />
 
                   {isPyodide() ? null : (
@@ -240,40 +241,27 @@ const ProgressIcon = ({
 };
 
 async function installPackages(
-  packages: string[],
-  manager: "pip" | "uv" | "rye",
-  addPackageAlert: (
-    alert: MissingPackageAlert | InstallingPackageAlert,
-  ) => void,
+  manager: PackageManagerName,
+  clearPackageAlert: () => void,
 ) {
-  const packageStatus = Object.fromEntries(
-    packages.map((pkg) => [pkg, "queued"]),
-  ) as PackageInstallationStatus;
-  addPackageAlert({
-    kind: "installing",
-    packages: packageStatus,
-  });
+  clearPackageAlert();
   RuntimeState.INSTANCE.registerRunStart();
   await sendInstallMissingPackages({ manager: manager });
 }
 
 const InstallPackagesButton = ({
-  packages,
   manager,
-  addPackageAlert,
+  clearPackageAlert,
 }: {
-  packages: string[];
-  manager: "pip" | "uv" | "rye";
-  addPackageAlert: (
-    alert: MissingPackageAlert | InstallingPackageAlert,
-  ) => void;
+  manager: PackageManagerName;
+  clearPackageAlert: () => void;
 }) => {
   return (
     <Button
       variant="outline"
       data-testid="install-packages-button"
       size="sm"
-      onClick={() => installPackages(packages, manager, addPackageAlert)}
+      onClick={() => installPackages(manager, clearPackageAlert)}
     >
       <DownloadCloudIcon className="w-4 h-4 mr-2" />
       <span className="font-semibold">Install</span>
@@ -316,7 +304,7 @@ export const PackageManagerForm: React.FC = () => {
                     disabled={field.disabled}
                     className="inline-flex mr-2"
                   >
-                    {["pip", "uv", "rye"].map((option) => (
+                    {PackageManagerNames.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>

@@ -22,6 +22,7 @@ import { Switch } from "../ui/switch";
 import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
 import { isPyodide } from "@/core/pyodide/utils";
+import { PackageManagerNames } from "../../core/config/config-schema";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -106,7 +107,6 @@ export const UserConfigForm: React.FC = () => {
           <div>
             <FormField
               control={form.control}
-              disabled={isWasm}
               name="save.format_on_save"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
@@ -301,7 +301,7 @@ export const UserConfigForm: React.FC = () => {
                     disabled={field.disabled}
                     className="inline-flex mr-2"
                   >
-                    {["pip", "uv", "rye"].map((option) => (
+                    {PackageManagerNames.map((option) => (
                       <option value={option} key={option}>
                         {option}
                       </option>

@@ -16,6 +16,7 @@ __all__ = [
     "App",
     "Cell",
     "MarimoStopError",
+    "create_asgi_app",
     "accordion",
     "carousel",
     "as_html",
@@ -25,6 +26,7 @@ __all__ = [
     "capture_stderr",
     "center",
     "defs",
+    "query_params",
     "doc",
     "download",
     "hstack",
@@ -53,7 +55,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.3.4"
+__version__ = "0.3.8"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -88,5 +90,6 @@ from marimo._runtime.capture import (
     redirect_stdout,
 )
 from marimo._runtime.control_flow import MarimoStopError, stop
-from marimo._runtime.runtime import defs, refs
+from marimo._runtime.runtime import defs, query_params, refs
 from marimo._runtime.state import state
+from marimo._server.asgi import create_asgi_app

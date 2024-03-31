@@ -31,6 +31,7 @@ from marimo._messaging.errors import (
     UnknownError,
 )
 from marimo._messaging.ops import (
+    Alert,
     CellOp,
     CompletedRun,
     FunctionCallResult,
@@ -81,6 +82,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
+from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.requests import (
     AppMetadata,
@@ -163,6 +165,47 @@ def refs() -> tuple[str, ...]:
     return tuple()
 
 
+@mddoc
+def query_params() -> QueryParams:
+    """Get the query parameters of a marimo app.
+
+    **Examples**:
+
+    Keep the text input in sync with the URL query parameters.
+
+    ```python3
+    # In it's own cell
+    query_params = mo.query_params()
+
+    # In another cell
+    search = mo.ui.text(
+        value=query_params["search"] or "",
+        on_change=lambda value: query_params.set("search", value),
+    )
+    search
+    ```
+
+    You can also set the query parameters reactively:
+
+    ```python3
+    toggle = mo.ui.switch(label="Toggle me")
+    toggle
+
+    # In another cell
+    query_params["is_enabled"] = toggle.value
+    ```
+
+    **Returns**:
+
+    - A `QueryParams` object containing the query parameters.
+      You can directly interact with this object like a dictionary.
+      If you mutate this object, changes will be persisted to the frontend
+      query parameters and any other cells referencing the query parameters
+      will automatically re-run.
+    """
+    return get_context().kernel.query_params
+
+
 @dataclasses.dataclass
 class ExecutionContext:
     cell_id: CellId_t
@@ -211,6 +254,7 @@ class Kernel:
         package_manager: str | None = None,
     ) -> None:
         self.app_metadata = app_metadata
+        self.query_params = QueryParams(app_metadata.query_params)
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr
@@ -354,7 +398,7 @@ class Kernel:
           different code.
         - an `Error` if the cell couldn't be registered, `None` otherwise
         """
-        previous_children = set()
+        previous_children: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
             if cell_id in self.graph.cells:
@@ -489,11 +533,11 @@ class Kernel:
         cells_with_errors_before_mutation = set(self.errors.keys())
 
         # The set of cells that were successfully registered
-        registered_cell_ids = set()
+        registered_cell_ids: set[CellId_t] = set()
 
         # The set of cells that need to be re-run due to cells being
         # deleted/re-registered.
-        cells_that_were_children_of_mutated_cells = set()
+        cells_that_were_children_of_mutated_cells: set[CellId_t] = set()
 
         # Cells that were unable to be added to the graph due to syntax errors
         syntax_errors: dict[CellId_t, Error] = {}
@@ -984,7 +1028,7 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        referring_cells = set()
+        referring_cells: set[CellId_t] = set()
         for object_id, value in resolved_requests.items():
             try:
                 component = ui_element_registry.get_object(object_id)
@@ -1177,6 +1221,16 @@ class Kernel:
         if request.manager != self.package_manager.name:
             # Swap out the package manager
             self.package_manager = create_package_manager(request.manager)
+
+        if not self.package_manager.is_manager_installed():
+            Alert(
+                title="Package manager not installed",
+                description=(
+                    f"{request.manager} is not available on your machine."
+                ),
+                variant="danger",
+            ).broadcast()
+            return
 
         # Package manager operates on module names
         missing_modules = list(sorted(self.module_registry.missing_modules()))

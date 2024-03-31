@@ -49,6 +49,11 @@ class FileSystem(ABC):
         pass
 
     @abstractmethod
-    def update_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+    def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         """Rename or move a file or directory."""
+        pass
+
+    @abstractmethod
+    def update_file(self, path: str, contents: str) -> FileInfo:
+        """Update the contents of a file."""
         pass

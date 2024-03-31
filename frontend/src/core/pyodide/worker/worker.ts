@@ -69,6 +69,7 @@ const requestHandler = createRPCRequestHandler({
    * Start the session
    */
   startSession: async (opts: {
+    queryParameters: Record<string, string | string[]>;
     code: string | null;
     fallbackCode: string;
     filename: string | null;
@@ -218,10 +219,12 @@ rpc.addMessageListener("consumerReady", async () => {
 
 const namesThatRequireSync = new Set<keyof RawBridge>([
   "save",
+  "save_app_config",
   "rename_file",
   "create_file_or_directory",
   "delete_file_or_directory",
-  "update_file_or_directory",
+  "move_file_or_directory",
+  "update_file",
 ]);
 
 function getMarimoVersion() {

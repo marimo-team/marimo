@@ -31,7 +31,10 @@ import { Logger } from "../../utils/Logger";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { HTMLCellId } from "../../core/cells/ids";
 import { Theme } from "../../theme/useTheme";
-import { CellActionsDropdown } from "./cell/cell-actions";
+import {
+  CellActionsDropdown,
+  CellActionsDropdownHandle,
+} from "./cell/cell-actions";
 import { CellActionsContextMenu } from "./cell/cell-context-menu";
 import { AppMode } from "@/core/mode";
 import useEvent from "react-use-event-hook";
@@ -147,6 +150,7 @@ const CellComponent = (
 
   Logger.debug("Rendering Cell", cellId);
   const cellRef = useRef<HTMLDivElement>(null);
+  const cellActionDropdownRef = useRef<CellActionsDropdownHandle>(null);
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
@@ -185,6 +189,9 @@ const CellComponent = (
     }),
     [editorView, prepareToRunEffects],
   );
+
+  // Callback to get the editor view.
+  const getEditorView = useCallback(() => editorView.current, [editorView]);
 
   const handleRun = useEvent(async () => {
     if (loading) {
@@ -322,6 +329,9 @@ const CellComponent = (
         derefNotNull(editorView).focus();
       }
     },
+    "cell.cellActions": () => {
+      cellActionDropdownRef.current?.toggle();
+    },
   });
 
   useKeydownOnElement(editing ? cellRef.current : null, {
@@ -378,7 +388,7 @@ const CellComponent = (
       cellId={cellId}
       config={cellConfig}
       status={status}
-      editorView={editorView.current}
+      getEditorView={getEditorView}
       hasOutput={hasOutput}
       name={name}
     >
@@ -449,9 +459,10 @@ const CellComponent = (
                 needsRun={needsRun}
               />
               <CellActionsDropdown
+                ref={cellActionDropdownRef}
                 cellId={cellId}
                 status={status}
-                editorView={editorView.current}
+                getEditorView={getEditorView}
                 name={name}
                 config={cellConfig}
                 hasOutput={hasOutput}

@@ -39,10 +39,10 @@ def io_to_data_url(
     if src is None:
         return None
 
-    if isinstance(src, io.BytesIO):
-        # clone before reading, so we don't consume the stream
-        src = io.BytesIO(src.getvalue())
+    if isinstance(src, (io.BufferedIOBase, io.RawIOBase)):
+        pos = src.tell()
         base64_string = base64.b64encode(src.read()).decode("utf-8")
+        src.seek(pos)
         file_type = guess_mime_type(src) or fallback_mime_type
         return f"data:{file_type};base64,{base64_string}"
 

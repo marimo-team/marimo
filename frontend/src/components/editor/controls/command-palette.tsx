@@ -21,6 +21,7 @@ import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { isParentAction, flattenActions } from "../actions/types";
 import { useCellActionButtons } from "../actions/useCellActionButton";
 import { lastFocusedCellAtom } from "@/core/cells/focus";
+import { useConfigActions } from "../actions/useConfigActions";
 
 export const commandPaletteAtom = atom(false);
 
@@ -28,10 +29,16 @@ export const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
   const lastFocusedCell = useAtomValue(lastFocusedCellAtom);
+  // Cell actions
   let cellActions = useCellActionButtons({ cell: lastFocusedCell }).flat();
   cellActions = flattenActions(cellActions);
+  // Notebook actions
+  const configActions = useConfigActions();
   let notebookActions = useNotebookActions();
-  notebookActions = flattenActions(notebookActions);
+  notebookActions = [
+    ...flattenActions(notebookActions),
+    ...flattenActions(configActions),
+  ];
 
   const notebookActionsWithoutHotkeys = notebookActions.filter(
     (action) => !action.hotkey,

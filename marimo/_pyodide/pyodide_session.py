@@ -28,6 +28,7 @@ from marimo._runtime.requests import (
     ControlRequest,
     CreationRequest,
     ExecutionRequest,
+    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
@@ -43,6 +44,8 @@ from marimo._server.models.files import (
     FileDetailsRequest,
     FileListRequest,
     FileListResponse,
+    FileMoveRequest,
+    FileMoveResponse,
     FileUpdateRequest,
     FileUpdateResponse,
 )
@@ -76,6 +79,7 @@ def instantiate(session: PyodideSession) -> None:
 
 def create_session(
     filename: str,
+    query_params: SerializedQueryParams,
     message_callback: Callable[[str], None],
 ) -> tuple[PyodideSession, PyodideBridge]:
     def write_kernel_message(op: KernelMessage) -> None:
@@ -83,7 +87,7 @@ def create_session(
 
     app_file_manager = AppFileManager(filename=filename)
     app = app_file_manager.app
-    app_metadata = AppMetadata(filename=filename)
+    app_metadata = AppMetadata(query_params=query_params, filename=filename)
 
     session = PyodideSession(
         app_file_manager, SessionMode.EDIT, write_kernel_message, app_metadata
@@ -277,16 +281,29 @@ class PyodideBridge:
         response = FileDeleteResponse(success=success)
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
-    def update_file_or_directory(
+    def move_file_or_directory(
+        self,
+        request: str,
+    ) -> str:
+        body = parse_raw(json.loads(request), FileMoveRequest)
+        try:
+            info = self.file_system.move_file_or_directory(
+                body.path, body.new_path
+            )
+            response = FileMoveResponse(success=True, info=info)
+        except Exception as e:
+            response = FileMoveResponse(success=False, message=str(e))
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+
+    def update_file(
         self,
         request: str,
     ) -> str:
         body = parse_raw(json.loads(request), FileUpdateRequest)
         try:
-            info = self.file_system.update_file_or_directory(
-                body.path, body.new_path
-            )
-            response = FileUpdateResponse(success=True, info=info)
+            with open(body.path, "w") as file:
+                file.write(body.contents)
+            response = FileUpdateResponse(success=True)
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))

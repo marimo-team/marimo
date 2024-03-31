@@ -118,11 +118,12 @@ class APIRouter(Router):
     ) -> None:
         """Include another router in this one."""
         # Merge Mounts with the same path
+        resolved_prefix = self.prefix + prefix
         for route in self.routes:
-            if isinstance(route, Mount) and route.path == prefix:
+            if isinstance(route, Mount) and route.path == resolved_prefix:
                 # NOTE: We don't merge middleware here, because it's not
                 # clear what the correct behavior is.
                 route.routes.extend(router.routes)
                 return
 
-        self.mount(path=self.prefix + prefix, app=router, name=name)
+        self.mount(path=resolved_prefix, app=router, name=name)

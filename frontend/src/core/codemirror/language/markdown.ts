@@ -90,6 +90,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 
   isSupported(pythonCode: string): boolean {
     const markdownLines = pythonCode
+      .trim()
       .split("\n")
       .map((line) => line.startsWith("mo.md("))
       .filter(Boolean);
