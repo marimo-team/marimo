@@ -18,10 +18,12 @@ import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
   LastSavedNotebook,
+  NotebookState,
   notebookCells,
   notebookIsRunning,
   notebookNeedsRun,
   notebookNeedsSave,
+  notebookScrollToRunning,
   useCellActions,
   useNotebook,
 } from "./cells/cells";
@@ -313,7 +315,9 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const statusOverlay = (
     <>
-      {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
+      {connStatus.state === WebSocketState.OPEN && isRunning && (
+        <RunningIcon notebookstate={notebook} />
+      )}
       {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
       {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
     </>
@@ -392,11 +396,12 @@ const DisconnectedIcon = () => (
   </Tooltip>
 );
 
-const RunningIcon = () => (
+const RunningIcon = (props: { notebookstate: NotebookState }) => (
   <div
     className={topLeftStatus}
     data-testid="loading-indicator"
     title={"Marimo is busy computing. Hang tight!"}
+    onClick={() => notebookScrollToRunning(props.notebookstate)}
   >
     <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
   </div>

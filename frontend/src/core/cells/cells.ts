@@ -733,6 +733,20 @@ export function notebookIsRunning(state: NotebookState) {
   );
 }
 
+export function notebookScrollToRunning(state: NotebookState) {
+  // find cell that is currently in "running" state
+  const { cellIds } = store.get(notebookAtom);
+  const cellIdx = Object.values(state.cellRuntime).findIndex(
+    (cell) => cell.status === "running",
+  );
+  // scroll to editor view of this cell
+  const view = getCellEditorView(cellIds[cellIdx]);
+  view?.dispatch({
+    selection: { anchor: 0 },
+    effects: [EditorView.scrollIntoView(0, { y: "center" })],
+  });
+}
+
 export function notebookNeedsSave(
   state: NotebookState,
   layout: LayoutData,
