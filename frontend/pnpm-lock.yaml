@@ -209,9 +209,9 @@ dependencies:
   date-fns:
     specifier: ^3.3.1
     version: 3.3.1
-  dedent:
-    specifier: ^1.5.1
-    version: 1.5.1
+  dedent-js:
+    specifier: ^1.0.1
+    version: 1.0.1
   dequal:
     specifier: ^2.0.3
     version: 2.0.3
@@ -9338,13 +9338,8 @@ packages:
       character-entities: 2.0.2
     dev: false
 
-  /dedent@1.5.1:
-    resolution: {integrity: sha512-+LxW+KLWxu3HW3M2w2ympwtqPrqYRzU8fqi6Fhd18fBALe15blJPI/I4+UHveMVG6lJqB4JNd4UG0S5cnVHwIg==}
-    peerDependencies:
-      babel-plugin-macros: ^3.1.0
-    peerDependenciesMeta:
-      babel-plugin-macros:
-        optional: true
+  /dedent-js@1.0.1:
+    resolution: {integrity: sha512-OUepMozQULMLUmhxS95Vudo0jb0UchLimi3+pQ2plj61Fcy8axbP9hbiD4Sz6DPqn6XG3kfmziVfQ1rSys5AJQ==}
     dev: false
 
   /deep-eql@4.1.3:

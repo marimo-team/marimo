@@ -5,7 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
-import dedent from "dedent";
+import dedent from "dedent-js";
 import { logNever } from "@/utils/assertNever";
 import {
   Completion,
