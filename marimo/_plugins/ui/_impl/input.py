@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import dataclasses
 import datetime as dt
+import os
 import traceback
 from dataclasses import dataclass
 from typing import (
@@ -897,6 +898,140 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return None
         else:
             return self.value[index].contents
+
+
+@dataclass
+class FileSystemEntity:
+    """File or directory."""
+
+    name: str
+    path: str
+
+
+@mddoc
+class file_browser(UIElement[list[str], Sequence[FileSystemEntity]]):
+    """
+     File browser for browsing and selecting server-side files.
+
+     **Examples.**
+
+    Selecting a single file:
+
+     ```python
+     f = mo.ui.file_browser()
+
+     # access the selected filenames
+     f.value[0].name
+     # or
+     f.name()
+
+     # access the selected file paths
+     f.value[0].path
+     # or
+     f.contents()
+     ```
+
+     Selecting multiple files:
+
+     ```python
+     f = mo.ui.file_browser(path="path/to/dir", multiple=True)
+
+     # access the selected filenames
+     f.value[index].name
+     # or
+     f.name(index)
+
+     # access the selected file paths
+     f.value[index].path
+     # or
+     f.path(index)
+     ```
+
+     **Attributes.**
+
+     - `value`: a sequence of file paths representing selected files.
+
+     **Methods.**
+
+     - `name(self, index: int = 0) -> Optional[str]`: Get the name of the
+       selected file at `index`.
+     - `path(self, index: int = 0) -> Optional[bytes]`: Get the path of
+       the selected file at `index`.
+
+     **Initialization Args.**
+
+     - `path`: the directory to start from.
+     - `filetypes`: the file types to display in each directory; for example,
+        `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
+     - `multiple`: if True, allow the user to select multiple files.
+     - `restrict_navigation`: if True, prevent the user from navigating
+        any level above the given path.
+     - `label`: text label for the element
+     - `on_change`: optional callback to run when this element's value changes
+    """
+
+    _name: Final[str] = "marimo-file-browser"
+
+    def __init__(
+        self,
+        path: str = "",
+        filetypes: Optional[Sequence[str]] = None,
+        multiple: bool = False,
+        restrict_navigation: bool = False,
+        *,
+        label: str = "",
+        on_change: Optional[
+            Callable[[Sequence[FileSystemEntity]], None]
+        ] = None,
+    ) -> None:
+        if not path:
+            path = os.getcwd()
+
+        files = []
+        items_in_path = os.listdir(path)
+
+        for item in items_in_path:
+            full_path = os.path.join(path, item)
+            _, extension = os.path.splitext(full_path)
+
+            if filetypes and extension not in filetypes:
+                continue
+
+            files.append(item)
+
+        super().__init__(
+            component_name=file_browser._name,
+            initial_value=[],
+            label=label,
+            args={
+                "path": path,
+                "files": files,
+                "filetypes": filetypes if filetypes is not None else [],
+                "multiple": multiple,
+                "restrict-navigation": restrict_navigation,
+            },
+            on_change=on_change,
+        )
+
+    def _convert_value(self, value: list[str]) -> Sequence[FileSystemEntity]:
+        return tuple(
+            FileSystemEntity(name=os.path.basename(path), path=path)
+            for path in value
+        )
+
+    def name(self, index: int = 0) -> Optional[str]:
+        """Get file name at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].name
+
+    def path(self, index: int = 0) -> Optional[str]:
+        """Get file path at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].path
 
 
 @mddoc
