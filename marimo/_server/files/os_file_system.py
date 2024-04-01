@@ -18,6 +18,11 @@ IGNORE_LIST = [
     "node_modules",
 ]
 
+DISALLOWED_NAMES = [
+    ".",
+    "..",
+]
+
 
 class OSFileSystem(FileSystem):
     def get_root(self) -> str:
@@ -102,6 +107,13 @@ class OSFileSystem(FileSystem):
         name: str,
         contents: Optional[bytes],
     ) -> FileInfo:
+        if name in DISALLOWED_NAMES:
+            raise ValueError(
+                f"Cannot create file or directory with name {name}"
+            )
+        if name.strip() == "":
+            raise ValueError("Cannot create file or directory with empty name")
+
         full_path = os.path.join(path, name)
         # If the file already exists, generate a new name
         if os.path.exists(full_path):
@@ -135,7 +147,7 @@ class OSFileSystem(FileSystem):
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         file_name = os.path.basename(new_path)
         # Disallow renaming to . or ..
-        if file_name in [".", ".."]:
+        if file_name in DISALLOWED_NAMES:
             raise ValueError(f"Cannot rename to {new_path}")
 
         shutil.move(path, new_path)
