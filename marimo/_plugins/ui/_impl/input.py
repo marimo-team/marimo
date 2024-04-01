@@ -900,74 +900,36 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return self.value[index].contents
 
 
-@dataclass
-class FileSystemEntity:
-    """File or directory."""
-
-    name: str
-    path: str
-
-
 @mddoc
-class file_browser(UIElement[list[str], Sequence[FileSystemEntity]]):
+class file_browser(UIElement[list[str], Sequence[str]]):
     """
-     File browser for browsing and selecting server-side files.
+    File browser for browsing and selecting server-side files.
 
-     **Examples.**
+    **Examples.**
 
-    Selecting a single file:
+    Selecting multiple files:
 
-     ```python
-     f = mo.ui.file_browser()
+    ```python
+    file_browser = mo.ui.file_browser(path="path/to/dir", multiple=True)
 
-     # access the selected filenames
-     f.value[0].name
-     # or
-     f.name()
+    # Access the selected file paths
+    file_browser.value[index]
+    ```
 
-     # access the selected file paths
-     f.value[0].path
-     # or
-     f.contents()
-     ```
+    **Attributes.**
 
-     Selecting multiple files:
+    - `value`: a sequence of file paths representing selected files.
 
-     ```python
-     f = mo.ui.file_browser(path="path/to/dir", multiple=True)
+    **Initialization Args.**
 
-     # access the selected filenames
-     f.value[index].name
-     # or
-     f.name(index)
-
-     # access the selected file paths
-     f.value[index].path
-     # or
-     f.path(index)
-     ```
-
-     **Attributes.**
-
-     - `value`: a sequence of file paths representing selected files.
-
-     **Methods.**
-
-     - `name(self, index: int = 0) -> Optional[str]`: Get the name of the
-       selected file at `index`.
-     - `path(self, index: int = 0) -> Optional[bytes]`: Get the path of
-       the selected file at `index`.
-
-     **Initialization Args.**
-
-     - `path`: the directory to start from.
-     - `filetypes`: the file types to display in each directory; for example,
-        `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
-     - `multiple`: if True, allow the user to select multiple files.
-     - `restrict_navigation`: if True, prevent the user from navigating
-        any level above the given path.
-     - `label`: text label for the element
-     - `on_change`: optional callback to run when this element's value changes
+    - `path`: the directory to start from.
+    - `filetypes`: the file types to display in each directory; for example,
+       `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
+    - `multiple`: if True, allow the user to select multiple files.
+    - `restrict_navigation`: if True, prevent the user from navigating
+       any level above the given path.
+    - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
     """
 
     _name: Final[str] = "marimo-file-browser"
@@ -980,9 +942,7 @@ class file_browser(UIElement[list[str], Sequence[FileSystemEntity]]):
         restrict_navigation: bool = False,
         *,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileSystemEntity]], None]
-        ] = None,
+        on_change: Optional[Callable[[Sequence[str]], None]] = None,
     ) -> None:
         if not path:
             path = os.getcwd()
@@ -1013,25 +973,8 @@ class file_browser(UIElement[list[str], Sequence[FileSystemEntity]]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: list[str]) -> Sequence[FileSystemEntity]:
-        return tuple(
-            FileSystemEntity(name=os.path.basename(path), path=path)
-            for path in value
-        )
-
-    def name(self, index: int = 0) -> Optional[str]:
-        """Get file name at index."""
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].name
-
-    def path(self, index: int = 0) -> Optional[str]:
-        """Get file path at index."""
-        if not self.value or index >= len(self.value):
-            return None
-        else:
-            return self.value[index].path
+    def _convert_value(self, value: list[str]) -> Sequence[str]:
+        return [x for x in value]
 
 
 @mddoc

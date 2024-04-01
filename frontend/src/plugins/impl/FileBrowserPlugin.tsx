@@ -2,7 +2,9 @@
 import { z } from "zod";
 import { IPlugin, IPluginProps, Setter } from "../types";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
-// import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 /**
  * Arguments for a file browser component.
@@ -23,7 +25,7 @@ interface Data {
   restrictNavigation: boolean;
 }
 
-type T = Array<[string, string]>;
+type T = Array<[string]>;
 
 export class FileBrowserPlugin implements IPlugin<T, Data> {
   tagName = "marimo-file-browser";
@@ -71,12 +73,18 @@ export const FileBrowser = (props: FileBrowserProps): JSX.Element => {
 
   return (
     <>
-      <h2>{props.path}</h2>
+      <Label>{props.label ?? "Browse and select file(s)..."}</Label>
+      <Input type="text" value={props.path} className="mt-3" />
       <div
         className="mt-2 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
       >
         <Table>{fileRows}</Table>
+      </div>
+      <div className="mt-3 flex items-center space-x-3">
+        <Button>Select</Button>
+        <Button variant="secondary">Cancel</Button>
+        <Label className="mb-1">No file(s) selected</Label>
       </div>
     </>
   );
