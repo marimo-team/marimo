@@ -46,12 +46,27 @@ class TestOSFileSystem(unittest.TestCase):
         expected_path = os.path.join(self.test_dir, test_dir_name)
         assert os.path.isdir(expected_path)
 
+    def test_create_with_empty_name(self):
+        with self.assertRaises(ValueError):
+            self.fs.create_file_or_directory(self.test_dir, "file", "", None)
+
+    def test_create_with_disallowed_name(self):
+        with self.assertRaises(ValueError):
+            self.fs.create_file_or_directory(self.test_dir, "file", ".", None)
+
     def test_list_files(self):
         # Create a test file and directory
         self.test_create_file()
         self.test_create_directory()
         files = self.fs.list_files(self.test_dir)
         assert len(files) == 2  # Expecting 1 file and 1 directory
+
+    def test_list_files_with_broken_directory_symlink(self):
+        # Create a broken symlink
+        broken_symlink = os.path.join(self.test_dir, "broken_symlink")
+        os.symlink("non_existent_file", broken_symlink)
+        files = self.fs.list_files(self.test_dir)
+        assert len(files) == 0
 
     def test_get_details(self):
         test_file_name = "test_file.txt"
@@ -119,6 +134,16 @@ class TestOSFileSystem(unittest.TestCase):
         self.fs.move_file_or_directory(original_path, new_path)
         assert os.path.exists(new_path)
         assert not os.path.exists(original_path)
+
+    def test_move_with_disallowed_name(self):
+        original_file_name = "original.txt"
+        new_file_name = "."
+        original_path = os.path.join(self.test_dir, original_file_name)
+        new_path = os.path.join(self.test_dir, new_file_name)
+        with open(original_path, "w"):
+            pass
+        with self.assertRaises(ValueError):
+            self.fs.move_file_or_directory(original_path, new_path)
 
     def test_update_file(self):
         test_file_name = "test_file.txt"
