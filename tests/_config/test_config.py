@@ -99,7 +99,7 @@ def test_remove_secret_placeholders() -> None:
     assert config["ai"]["open_ai"]["api_key"] == "********"
 
     new_config = remove_secret_placeholders(config)
-    assert new_config["ai"]["open_ai"]["api_key"] is None
+    assert "api_key" not in new_config["ai"]["open_ai"]
 
     # Ensure the original config is not modified
     assert config["ai"]["open_ai"]["api_key"] == "********"
