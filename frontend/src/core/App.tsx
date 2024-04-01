@@ -48,8 +48,8 @@ import { CellId, HTMLCellId } from "./cells/ids";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
-import { getSerializedLayout, layoutDataAtom } from "./layout/layout";
-import { useAtom, useAtomValue } from "jotai";
+import { getSerializedLayout, useLayoutState } from "./layout/layout";
+import { useAtom } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
@@ -69,7 +69,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const [filename, setFilename] = useFilename();
   const [lastSavedNotebook, setLastSavedNotebook] =
     useState<LastSavedNotebook>();
-  const layoutData = useAtomValue(layoutDataAtom);
+  const layout = useLayoutState();
   const { openModal, closeModal, openAlert } = useImperativeModal();
 
   const isEditing = viewState.mode === "edit";
@@ -126,7 +126,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const codes = cells.map((cell) => cell.code);
   const cellNames = cells.map((cell) => cell.name);
   const configs = cells.map((cell) => cell.config);
-  const needsSave = notebookNeedsSave(notebook, layoutData, lastSavedNotebook);
+  const needsSave = notebookNeedsSave(notebook, layout, lastSavedNotebook);
 
   // Save the notebook with the given filename
   const saveNotebook = useEvent((filename: string, userInitiated: boolean) => {
@@ -165,7 +165,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         names: cellNames,
         codes,
         configs,
-        layout: layoutData,
+        layout,
       });
     });
   });
