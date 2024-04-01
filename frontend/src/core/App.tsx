@@ -22,6 +22,7 @@ import {
   notebookIsRunning,
   notebookNeedsRun,
   notebookNeedsSave,
+  notebookScrollToRunning,
   useCellActions,
   useNotebook,
 } from "./cells/cells";
@@ -397,6 +398,7 @@ const RunningIcon = () => (
     className={topLeftStatus}
     data-testid="loading-indicator"
     title={"Marimo is busy computing. Hang tight!"}
+    onClick={notebookScrollToRunning}
   >
     <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
   </div>
