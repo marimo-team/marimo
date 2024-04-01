@@ -76,6 +76,7 @@ const props: CellProps = {
     package_management: {
       manager: "pip",
     },
+    ai: {},
     experimental: {},
   },
 };

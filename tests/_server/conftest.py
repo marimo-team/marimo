@@ -47,3 +47,7 @@ def client() -> Iterator[TestClient]:
 
 def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
+
+
+def get_user_config_manager(client: TestClient) -> UserConfigManager:
+    return client.app.state.config_manager  # type: ignore

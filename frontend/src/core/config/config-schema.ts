@@ -67,10 +67,19 @@ export const UserConfigSchema = z
         manager: z.enum(PackageManagerNames).default("pip"),
       })
       .default({ manager: "pip" }),
-    experimental: z
+    ai: z
       .object({
-        ai: z.boolean().optional(),
+        open_ai: z
+          .object({
+            api_key: z.string().optional(),
+            base_url: z.string().optional(),
+            model: z.string().optional(),
+          })
+          .optional(),
       })
+      .default({}),
+    experimental: z
+      .object({})
       // Pass through so that we don't remove any extra keys that the user has added.
       .passthrough()
       .default({}),

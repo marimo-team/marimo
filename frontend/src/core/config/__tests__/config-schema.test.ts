@@ -15,6 +15,7 @@ test("default UserConfig - empty", () => {
   const defaultConfig = UserConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
+      "ai": {},
       "completion": {
         "activate_on_typing": true,
         "copilot": false,
@@ -58,6 +59,7 @@ test("default UserConfig - one level", () => {
   });
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
+      "ai": {},
       "completion": {
         "activate_on_typing": true,
         "copilot": false,

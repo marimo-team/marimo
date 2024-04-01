@@ -1,6 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
+
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
+
 from typing import Any, Dict, Literal, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
@@ -8,7 +15,7 @@ from marimo._utils.deep_merge import deep_merge
 
 
 @mddoc
-class CompletionConfig(TypedDict, total=False):
+class CompletionConfig(TypedDict):
     """Configuration for code completion.
 
     A dict with key/value pairs configuring code completion in the marimo
@@ -22,12 +29,11 @@ class CompletionConfig(TypedDict, total=False):
     """
 
     activate_on_typing: bool
-
     copilot: bool
 
 
 @mddoc
-class SaveConfig(TypedDict, total=False):
+class SaveConfig(TypedDict):
     """Configuration for saving.
 
     **Keys.**
@@ -55,7 +61,7 @@ class KeymapConfig(TypedDict, total=False):
 
 
 @mddoc
-class RuntimeConfig(TypedDict, total=False):
+class RuntimeConfig(TypedDict):
     """Configuration for runtime.
 
     **Keys.**
@@ -70,7 +76,7 @@ class RuntimeConfig(TypedDict, total=False):
 
 
 @mddoc
-class DisplayConfig(TypedDict, total=False):
+class DisplayConfig(TypedDict):
     """Configuration for display.
 
     **Keys.**
@@ -86,7 +92,7 @@ class DisplayConfig(TypedDict, total=False):
 
 
 @mddoc
-class FormattingConfig(TypedDict, total=False):
+class FormattingConfig(TypedDict):
     """Configuration for code formatting.
 
     **Keys.**
@@ -97,7 +103,7 @@ class FormattingConfig(TypedDict, total=False):
     line_length: int
 
 
-class ServerConfig(TypedDict, total=False):
+class ServerConfig(TypedDict):
     """Configuration for the server.
 
     **Keys.**
@@ -109,7 +115,7 @@ class ServerConfig(TypedDict, total=False):
     browser: Union[Literal["default"], str]
 
 
-class PackageManagementConfig(TypedDict, total=False):
+class PackageManagementConfig(TypedDict):
     """Configuration options for package management.
 
     **Keys.**
@@ -120,25 +126,35 @@ class PackageManagementConfig(TypedDict, total=False):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
-@mddoc
-class MarimoConfig(TypedDict, total=False):
-    """Configuration for the marimo editor.
+class AiConfig(TypedDict):
+    """Configuration options for AI.
 
-    A marimo configuration is a Python `dict`. Configurations
-    can be partially specified, with just a subset of possible keys.
-    Partial configs will be augmented with default options.
+    **Keys.**
 
-    Use with `configure` to configure the editor. See `configure`
-    documentation for details on how to register the configuration.
-
-    **Example.**
-
-    ```python3
-    config: mo.config.MarimoConfig = {
-        "completion": {"activate_on_typing": True},
-    }
-    ```
+    - `open_ai`: the OpenAI config
     """
+
+    open_ai: OpenAiConfig
+
+
+class OpenAiConfig(TypedDict):
+    """Configuration options for OpenAI or OpenAI-compatible services.
+
+    **Keys.**
+
+    - `api_key`: the OpenAI API key
+    - `model`: the model to use
+    - `base_url`: the base URL for the API
+    """
+
+    api_key: str
+    model: NotRequired[str]
+    base_url: NotRequired[str]
+
+
+@mddoc
+class MarimoConfig(TypedDict):
+    """Configuration for the marimo editor"""
 
     completion: CompletionConfig
     display: DisplayConfig
@@ -148,7 +164,8 @@ class MarimoConfig(TypedDict, total=False):
     save: SaveConfig
     server: ServerConfig
     package_management: PackageManagementConfig
-    experimental: Dict[str, Any]
+    ai: NotRequired[AiConfig]
+    experimental: NotRequired[Dict[str, Any]]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -171,11 +188,67 @@ DEFAULT_CONFIG: MarimoConfig = {
 }
 
 
-def merge_config(config: MarimoConfig) -> MarimoConfig:
+def merge_default_config(config: MarimoConfig) -> MarimoConfig:
     """Merge a user configuration with the default configuration."""
+    return merge_config(DEFAULT_CONFIG, config)
+
+
+def merge_config(
+    config: MarimoConfig, new_config: MarimoConfig
+) -> MarimoConfig:
+    """Merge a user configuration with a new configuration."""
     return cast(
         MarimoConfig,
         deep_merge(
-            cast(Dict[Any, Any], DEFAULT_CONFIG), cast(Dict[Any, Any], config)
+            cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
         ),
     )
+
+
+def _deep_copy(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _deep_copy(v) for k, v in obj.items()}  # type: ignore
+    if isinstance(obj, list):
+        return [_deep_copy(v) for v in obj]  # type: ignore
+    return obj
+
+
+SECRET_PLACEHOLDER = "********"
+
+
+def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+    def deep_remove_from_path(path: list[str], obj: Dict[str, Any]) -> None:
+        key = path[0]
+        if key not in obj:
+            return
+        if len(path) == 1:
+            if obj[key]:
+                obj[key] = SECRET_PLACEHOLDER
+        else:
+            deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
+
+    secrets = [["ai", "open_ai", "api_key"]]
+
+    new_config = _deep_copy(config)
+    for secret in secrets:
+        deep_remove_from_path(secret, cast(Dict[str, Any], new_config))
+
+    return new_config  # type: ignore
+
+
+def remove_secret_placeholders(config: MarimoConfig) -> MarimoConfig:
+    def deep_remove(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            # Filter all keys with value SECRET_PLACEHOLDER
+            return {
+                k: deep_remove(v)
+                for k, v in obj.items()
+                if v != SECRET_PLACEHOLDER
+            }  # type: ignore
+        if isinstance(obj, list):
+            return [deep_remove(v) for v in obj]  # type: ignore
+        if obj == SECRET_PLACEHOLDER:
+            return None
+        return obj
+
+    return deep_remove(_deep_copy(config))  # type: ignore
