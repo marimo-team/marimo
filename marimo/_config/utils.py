@@ -8,7 +8,7 @@ from marimo import _loggers
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
-    merge_config,
+    merge_default_config,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -103,7 +103,7 @@ def load_config() -> MarimoConfig:
             LOGGER.error("Failed to read user config at %s", path)
             LOGGER.error(str(e))
             return DEFAULT_CONFIG
-        return merge_config(cast(MarimoConfig, user_config))
+        return merge_default_config(cast(MarimoConfig, user_config))
     else:
         LOGGER.debug("No config found; loading default settings.")
     return DEFAULT_CONFIG

@@ -1,5 +1,4 @@
 # Copyright 2024 Marimo. All rights reserved.
-import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, List
@@ -8,8 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from starlette.testclient import TestClient
 
+from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
-from tests._server.conftest import get_session_manager
+from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import with_session
 
 SESSION_ID = "session-123"
@@ -47,20 +47,20 @@ class TestAiEndpoints:
         del openai_mock
         filename = get_session_manager(client).filename
         assert filename
+        user_config_manager = get_user_config_manager(client)
 
-        response = client.post(
-            "/api/ai/completion",
-            headers=HEADERS,
-            json={
-                "prompt": "Help me create a dataframe",
-                "include_other_code": "",
-                "code": "",
-            },
-        )
+        with no_openai_config(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "include_other_code": "",
+                    "code": "",
+                },
+            )
         assert response.status_code == 400, response.text
-        assert response.json() == {
-            "detail": "OpenAI API key not found in environment"
-        }
+        assert response.json() == {"detail": "OpenAI API key not configured"}
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -73,6 +73,7 @@ class TestAiEndpoints:
     ) -> None:
         filename = get_session_manager(client).filename
         assert filename
+        user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -83,7 +84,7 @@ class TestAiEndpoints:
             )
         ]
 
-        with fake_openai_env():
+        with openai_config(user_config_manager):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -111,6 +112,7 @@ class TestAiEndpoints:
     ) -> None:
         filename = get_session_manager(client).filename
         assert filename
+        user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()
         openai_mock.return_value = oaiclient
@@ -121,7 +123,7 @@ class TestAiEndpoints:
             )
         ]
 
-        with fake_openai_env():
+        with openai_config(user_config_manager):
             response = client.post(
                 "/api/ai/completion",
                 headers=HEADERS,
@@ -140,11 +142,134 @@ class TestAiEndpoints:
                 "Help me create a dataframe\n\nCurrent code:\nimport pandas as pd"  # noqa: E501
             )
 
+    @staticmethod
+    @with_session(SESSION_ID)
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @patch("openai.OpenAI")
+    def test_completion_with_custom_model(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        filename = get_session_manager(client).filename
+        assert filename
+        user_config_manager = get_user_config_manager(client)
+
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="import pandas as pd"))]
+            )
+        ]
+
+        with openai_config_custom_model(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "import pandas as pd",
+                    "include_other_code": "",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the model it was called with
+            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
+            assert model == "gpt-marimo"
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    @patch("openai.OpenAI")
+    def test_completion_with_custom_base_url(
+        client: TestClient, openai_mock: Any
+    ) -> None:
+        filename = get_session_manager(client).filename
+        assert filename
+        user_config_manager = get_user_config_manager(client)
+
+        oaiclient = MagicMock()
+        openai_mock.return_value = oaiclient
+
+        oaiclient.chat.completions.create.return_value = [
+            FakeChoices(
+                choices=[Choice(delta=Delta(content="import pandas as pd"))]
+            )
+        ]
+
+        with openai_config_custom_base_url(user_config_manager):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "Help me create a dataframe",
+                    "code": "import pandas as pd",
+                    "include_other_code": "",
+                },
+            )
+            assert response.status_code == 200, response.text
+            # Assert the base_url it was called with
+            base_url = openai_mock.call_args.kwargs["base_url"]
+            assert base_url == "https://my-openai-instance.com"
+
 
 @contextmanager
-def fake_openai_env():
+def openai_config(config: UserConfigManager):
+    prev_config = config.get_config()
     try:
-        os.environ["OPENAI_API_KEY"] = "fake-key"
+        config.save_config({"ai": {"open_ai": {"api_key": "fake-api"}}})
         yield
     finally:
-        del os.environ["OPENAI_API_KEY"]
+        config.save_config(prev_config)
+
+
+@contextmanager
+def openai_config_custom_model(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config(
+            {
+                "ai": {
+                    "open_ai": {
+                        "api_key": "fake-api",
+                        "model": "gpt-marimo",
+                    }
+                }
+            }
+        )
+        yield
+    finally:
+        config.save_config(prev_config)
+
+
+@contextmanager
+def openai_config_custom_base_url(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config(
+            {
+                "ai": {
+                    "open_ai": {
+                        "api_key": "fake-api",
+                        "base_url": "https://my-openai-instance.com",
+                    }
+                }
+            }
+        )
+        yield
+    finally:
+        config.save_config(prev_config)
+
+
+@contextmanager
+def no_openai_config(config: UserConfigManager):
+    prev_config = config.get_config()
+    try:
+        config.save_config({"ai": {"open_ai": {"api_key": ""}}})
+        yield
+    finally:
+        config.save_config(prev_config)

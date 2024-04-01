@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, TypedDict, Union, cast
+from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
@@ -120,6 +120,32 @@ class PackageManagementConfig(TypedDict, total=False):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
+class AiConfig(TypedDict, total=False):
+    """Configuration options for AI.
+
+    **Keys.**
+
+    - `open_ai`: the OpenAI config
+    """
+
+    open_ai: Optional[OpenAiConfig]
+
+
+class OpenAiConfig(TypedDict, total=False):
+    """Configuration options for OpenAI or OpenAI-compatible services.
+
+    **Keys.**
+
+    - `api_key`: the OpenAI API key
+    - `model`: the model to use
+    - `base_url`: the base URL for the API
+    """
+
+    api_key: Optional[str]
+    model: Optional[str]
+    base_url: Optional[str]
+
+
 @mddoc
 class MarimoConfig(TypedDict, total=False):
     """Configuration for the marimo editor.
@@ -127,17 +153,6 @@ class MarimoConfig(TypedDict, total=False):
     A marimo configuration is a Python `dict`. Configurations
     can be partially specified, with just a subset of possible keys.
     Partial configs will be augmented with default options.
-
-    Use with `configure` to configure the editor. See `configure`
-    documentation for details on how to register the configuration.
-
-    **Example.**
-
-    ```python3
-    config: mo.config.MarimoConfig = {
-        "completion": {"activate_on_typing": True},
-    }
-    ```
     """
 
     completion: CompletionConfig
@@ -148,6 +163,7 @@ class MarimoConfig(TypedDict, total=False):
     save: SaveConfig
     server: ServerConfig
     package_management: PackageManagementConfig
+    ai: AiConfig
     experimental: Dict[str, Any]
 
 
@@ -171,11 +187,67 @@ DEFAULT_CONFIG: MarimoConfig = {
 }
 
 
-def merge_config(config: MarimoConfig) -> MarimoConfig:
+def merge_default_config(config: MarimoConfig) -> MarimoConfig:
     """Merge a user configuration with the default configuration."""
+    return merge_config(DEFAULT_CONFIG, config)
+
+
+def merge_config(
+    config: MarimoConfig, new_config: MarimoConfig
+) -> MarimoConfig:
+    """Merge a user configuration with a new configuration."""
     return cast(
         MarimoConfig,
         deep_merge(
-            cast(Dict[Any, Any], DEFAULT_CONFIG), cast(Dict[Any, Any], config)
+            cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
         ),
     )
+
+
+def _deep_copy(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _deep_copy(v) for k, v in obj.items()}  # type: ignore
+    if isinstance(obj, list):
+        return [_deep_copy(v) for v in obj]  # type: ignore
+    return obj
+
+
+SECRET_PLACEHOLDER = "********"
+
+
+def mask_secrets(config: MarimoConfig) -> MarimoConfig:
+    def deep_remove_from_path(path: list[str], obj: Dict[str, Any]) -> None:
+        key = path[0]
+        if key not in obj:
+            return
+        if len(path) == 1:
+            if obj[key]:
+                obj[key] = SECRET_PLACEHOLDER
+        else:
+            deep_remove_from_path(path[1:], cast(Dict[str, Any], obj[key]))
+
+    secrets = [["ai", "open_ai", "api_key"]]
+
+    new_config = _deep_copy(config)
+    for secret in secrets:
+        deep_remove_from_path(secret, cast(Dict[str, Any], new_config))
+
+    return new_config  # type: ignore
+
+
+def remove_secret_placeholders(config: MarimoConfig) -> MarimoConfig:
+    def deep_remove(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            # Filter all keys with value SECRET_PLACEHOLDER
+            return {
+                k: deep_remove(v)
+                for k, v in obj.items()
+                if v != SECRET_PLACEHOLDER
+            }  # type: ignore
+        if isinstance(obj, list):
+            return [deep_remove(v) for v in obj]  # type: ignore
+        if obj == SECRET_PLACEHOLDER:
+            return None
+        return obj
+
+    return deep_remove(_deep_copy(config))  # type: ignore
