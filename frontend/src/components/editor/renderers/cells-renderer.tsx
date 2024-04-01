@@ -4,8 +4,7 @@ import React, { PropsWithChildren, memo } from "react";
 import { cellRendererPlugins } from "./plugins";
 import { AppConfig } from "@/core/config/config-schema";
 import { AppMode } from "@/core/mode";
-import { layoutDataAtom, layoutViewAtom } from "@/core/layout/layout";
-import { useAtom } from "jotai";
+import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 
 interface Props {
   appConfig: AppConfig;
@@ -15,15 +14,15 @@ interface Props {
 export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
     const notebook = useNotebook();
-    const [layoutData, setLayoutData] = useAtom(layoutDataAtom);
-    const [layoutType] = useAtom(layoutViewAtom);
+    const { selectedLayout, layoutData } = useLayoutState();
+    const { setCurrentLayoutData } = useLayoutActions();
 
     // Just render children if we are in edit mode
     if (mode === "edit") {
       return children;
     }
 
-    const plugin = cellRendererPlugins.find((p) => p.type === layoutType);
+    const plugin = cellRendererPlugins.find((p) => p.type === selectedLayout);
 
     // Just render children if there is no plugin
     if (!plugin) {
@@ -38,8 +37,8 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
         appConfig={appConfig}
         mode={mode}
         cells={cells}
-        layout={layoutData || plugin.getInitialLayout(cells)}
-        setLayout={setLayoutData}
+        layout={layoutData[selectedLayout] || plugin.getInitialLayout(cells)}
+        setLayout={setCurrentLayoutData}
       />
     );
 

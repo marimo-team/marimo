@@ -168,6 +168,11 @@ class AppFileManager:
                 app_dir, app_name, LayoutConfig(**layout)
             )
             self.app.update_config({"layout_file": layout_filename})
+        else:
+            # Remove the layout from the config
+            # We don't remove the layout file from the disk to avoid
+            # deleting state that the user might want to keep
+            self.app.update_config({"layout_file": None})
         # try to save the app under the name `filename`
         contents = codegen.generate_filecontents(
             codes,
