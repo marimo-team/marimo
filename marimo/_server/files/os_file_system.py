@@ -11,12 +11,11 @@ from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 
 IGNORE_LIST = [
+    ".",
+    "..",
+    ".DS_Store",
     "__pycache__",
     "node_modules",
-]
-
-IGNORE_PREFIXES = [
-    ".",
 ]
 
 
@@ -30,11 +29,6 @@ class OSFileSystem(FileSystem):
             for entry in it:
                 if entry.name in IGNORE_LIST:
                     continue
-                if any(
-                    entry.name.startswith(prefix) for prefix in IGNORE_PREFIXES
-                ):
-                    continue
-
                 try:
                     is_directory = entry.is_dir()
                     entry_stat = entry.stat()
@@ -139,6 +133,11 @@ class OSFileSystem(FileSystem):
         return True
 
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
+        file_name = os.path.basename(new_path)
+        # Disallow renaming to . or ..
+        if file_name in [".", ".."]:
+            raise ValueError(f"Cannot rename to {new_path}")
+
         shutil.move(path, new_path)
         return self.get_details(new_path).file
 
