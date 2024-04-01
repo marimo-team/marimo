@@ -733,14 +733,16 @@ export function notebookIsRunning(state: NotebookState) {
   );
 }
 
-export function notebookScrollToRunning(state: NotebookState) {
+export function notebookScrollToRunning() {
   // find cell that is currently in "running" state
-  const { cellIds } = store.get(notebookAtom);
-  const cellIdx = Object.values(state.cellRuntime).findIndex(
-    (cell) => cell.status === "running",
+  const { cellRuntime } = store.get(notebookAtom);
+  const cell = Objects.entries(cellRuntime).find(
+    ([cellid, runtimestate]) => runtimestate.status === "running",
   );
-  // scroll to editor view of this cell
-  const view = getCellEditorView(cellIds[cellIdx]);
+  if (!cell) {
+    return;
+  }
+  const view = getCellEditorView(cell[0]);
   view?.dispatch({
     selection: { anchor: 0 },
     effects: [EditorView.scrollIntoView(0, { y: "center" })],
