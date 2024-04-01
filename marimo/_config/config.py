@@ -1,14 +1,21 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union, cast
+import sys
+
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired
+else:
+    from typing import NotRequired
+
+from typing import Any, Dict, Literal, TypedDict, Union, cast
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
 
 
 @mddoc
-class CompletionConfig(TypedDict, total=False):
+class CompletionConfig(TypedDict):
     """Configuration for code completion.
 
     A dict with key/value pairs configuring code completion in the marimo
@@ -22,12 +29,11 @@ class CompletionConfig(TypedDict, total=False):
     """
 
     activate_on_typing: bool
-
     copilot: bool
 
 
 @mddoc
-class SaveConfig(TypedDict, total=False):
+class SaveConfig(TypedDict):
     """Configuration for saving.
 
     **Keys.**
@@ -55,7 +61,7 @@ class KeymapConfig(TypedDict, total=False):
 
 
 @mddoc
-class RuntimeConfig(TypedDict, total=False):
+class RuntimeConfig(TypedDict):
     """Configuration for runtime.
 
     **Keys.**
@@ -70,7 +76,7 @@ class RuntimeConfig(TypedDict, total=False):
 
 
 @mddoc
-class DisplayConfig(TypedDict, total=False):
+class DisplayConfig(TypedDict):
     """Configuration for display.
 
     **Keys.**
@@ -86,7 +92,7 @@ class DisplayConfig(TypedDict, total=False):
 
 
 @mddoc
-class FormattingConfig(TypedDict, total=False):
+class FormattingConfig(TypedDict):
     """Configuration for code formatting.
 
     **Keys.**
@@ -97,7 +103,7 @@ class FormattingConfig(TypedDict, total=False):
     line_length: int
 
 
-class ServerConfig(TypedDict, total=False):
+class ServerConfig(TypedDict):
     """Configuration for the server.
 
     **Keys.**
@@ -109,7 +115,7 @@ class ServerConfig(TypedDict, total=False):
     browser: Union[Literal["default"], str]
 
 
-class PackageManagementConfig(TypedDict, total=False):
+class PackageManagementConfig(TypedDict):
     """Configuration options for package management.
 
     **Keys.**
@@ -120,7 +126,7 @@ class PackageManagementConfig(TypedDict, total=False):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
-class AiConfig(TypedDict, total=False):
+class AiConfig(TypedDict):
     """Configuration options for AI.
 
     **Keys.**
@@ -128,10 +134,10 @@ class AiConfig(TypedDict, total=False):
     - `open_ai`: the OpenAI config
     """
 
-    open_ai: Optional[OpenAiConfig]
+    open_ai: OpenAiConfig
 
 
-class OpenAiConfig(TypedDict, total=False):
+class OpenAiConfig(TypedDict):
     """Configuration options for OpenAI or OpenAI-compatible services.
 
     **Keys.**
@@ -141,19 +147,14 @@ class OpenAiConfig(TypedDict, total=False):
     - `base_url`: the base URL for the API
     """
 
-    api_key: Optional[str]
-    model: Optional[str]
-    base_url: Optional[str]
+    api_key: str
+    model: NotRequired[str]
+    base_url: NotRequired[str]
 
 
 @mddoc
-class MarimoConfig(TypedDict, total=False):
-    """Configuration for the marimo editor.
-
-    A marimo configuration is a Python `dict`. Configurations
-    can be partially specified, with just a subset of possible keys.
-    Partial configs will be augmented with default options.
-    """
+class MarimoConfig(TypedDict):
+    """Configuration for the marimo editor"""
 
     completion: CompletionConfig
     display: DisplayConfig
@@ -163,8 +164,8 @@ class MarimoConfig(TypedDict, total=False):
     save: SaveConfig
     server: ServerConfig
     package_management: PackageManagementConfig
-    ai: AiConfig
-    experimental: Dict[str, Any]
+    ai: NotRequired[AiConfig]
+    experimental: NotRequired[Dict[str, Any]]
 
 
 DEFAULT_CONFIG: MarimoConfig = {

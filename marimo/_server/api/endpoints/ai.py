@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from ast import Dict
 from typing import Generator, Optional
 
 from starlette.authentication import requires
