@@ -1,0 +1,13 @@
+compatibility_date = "2023-12-18"
+compatibility_flags = ["python_workers"]
+exclude = ["frontend", "lsp"]
+file_extensions = ["py", "js", "css"]
+include = ["marimo/**"]
+main = "worker.py"
+name = "marimo-worker"
+rules = [
+  {type = "Text", globs = ["**/_static/**"], fallthrough = true},
+]
+
+[vars]
+MESSAGE = "Hello, world!"
