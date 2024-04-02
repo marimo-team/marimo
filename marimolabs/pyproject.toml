@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marimolabs"
+description = "Cutting-edge experimental features for marimo"
+dynamic = ["version"]
+# We try to keep dependencies to a minimum, to avoid conflicts with
+# user environments;we need a very compelling reason for each dependency added.
+# Dependencies should have lower bounds, which should be as loose as possible.
+dependencies = [
+    "marimo",
+    "huggingface_hub",
+    "httpx",
+    "pyyaml",
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+classifiers = [
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.urls]
+homepage = "https://github.com/marimo-team/marimo"
+
+[tool.setuptools.dynamic]
+version = { attr = "marimolabs.__version__" }
+
+[tool.setuptools.packages.find]
+# project source is entirely contained in the `marimo` package
+include = ["marimolabs*"]
+
+[tool.ruff]
+line-length=79
+exclude = [
+    "docs",
+    "build",
+]
+ignore = []
+select = [
+    # pyflakes
+    "F",
+    # pycodestyle
+    "E",
+    # warning
+    "W",
+    # flake8 builtin-variable-shadowing
+    "A001",
+    # flake8 builtin-argument-shadowing
+    "A002",
+    # flake8-unused-arguments
+    "ARG",
+    # flake8-bugbear
+    "B",
+    # future annotations
+    "FA102",
+    # isort
+    "I001",
+]
+
+# Never try to fix `F401` (unused imports).
+unfixable = ["F401"]
+
+[tool.ruff.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.black]
+line-length = 79
+
+[tool.mypy]
+strict = true
+exclude = []
+warn_unused_ignores=false
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
+
+[tool.typos.default.extend-words]
+wheres = "wheres"
