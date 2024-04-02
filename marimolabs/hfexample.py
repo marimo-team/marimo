@@ -60,11 +60,5 @@ def __(inputs, mo, model):
     return
 
 
-@app.cell
-def __(model):
-    model.inference_function(model.examples[0])
-    return
-
-
 if __name__ == "__main__":
     app.run()
