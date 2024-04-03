@@ -64,5 +64,6 @@ def initialize_mimetypes() -> None:
 
 
 def initialize_asyncio() -> None:
+    """Platform-specific initialization of asyncio."""
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
