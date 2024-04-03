@@ -47,7 +47,7 @@ class tabs(UIElement[str, str]):
     ```python
     tabs = mo.ui.tabs({
         "Heading 1": tab1,
-        "Heading 2": mo.lazy(expensive_component)
+        "Heading 2": expensive_component
     }, lazy=True)
     ```
 
