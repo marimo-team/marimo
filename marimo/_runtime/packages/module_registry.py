@@ -2,9 +2,26 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 
 from marimo._ast.cell import CellId_t
 from marimo._runtime.dataflow import DirectedGraph
+
+
+def _is_module_installed(module_name: str) -> bool:
+    # importlib.util.find_spec retrieves a module's ModuleSpec, which
+    # is typically available as a dunder attribute on the module, i.e.
+    # module.__spec__. However, some packages are non-compliant and don't
+    # include a __spec__ attr (e.g., manim-slides), which can cause find_spec
+    # to throw if the module has already been imported.
+    #
+    # We don't actually need the spec, we just need to see if a package is
+    # available, so we first check if the module is in sys.modules without
+    # checking for a __spec__ attr.
+    return (
+        module_name in sys.modules
+        or importlib.util.find_spec(module_name) is not None
+    )
 
 
 class ModuleRegistry:
@@ -35,10 +52,6 @@ class ModuleRegistry:
     def missing_modules(self) -> set[str]:
         """Modules that will fail to import."""
         return (
-            set(
-                mod
-                for mod in self.modules()
-                if importlib.util.find_spec(mod) is None
-            )
+            set(mod for mod in self.modules() if not _is_module_installed(mod))
             - self.excluded_modules
         )
