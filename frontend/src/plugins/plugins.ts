@@ -49,7 +49,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CodeEditorPlugin(),
   new DropdownPlugin(),
   new FileUploadPlugin(),
-  new FileBrowserPlugin(),
+  FileBrowserPlugin,
   FormPlugin,
   new MicrophonePlugin(),
   new MultiselectPlugin(),

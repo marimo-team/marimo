@@ -900,6 +900,17 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return self.value[index].contents
 
 
+@dataclass
+class ListDirectoryArgs:
+    path: str
+    filetypes: Optional[Sequence[str]]
+
+
+@dataclass
+class ListDirectoryResponse:
+    files: List[str]
+
+
 @mddoc
 class file_browser(UIElement[list[str], Sequence[str]]):
     """
@@ -922,7 +933,7 @@ class file_browser(UIElement[list[str], Sequence[str]]):
 
     **Initialization Args.**
 
-    - `path`: the directory to start from.
+    - `initial_path`: the directory to start from.
     - `filetypes`: the file types to display in each directory; for example,
        `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
     - `multiple`: if True, allow the user to select multiple files.
@@ -936,7 +947,7 @@ class file_browser(UIElement[list[str], Sequence[str]]):
 
     def __init__(
         self,
-        path: str = "",
+        initial_path: str = "",
         filetypes: Optional[Sequence[str]] = None,
         multiple: bool = False,
         restrict_navigation: bool = False,
@@ -944,27 +955,18 @@ class file_browser(UIElement[list[str], Sequence[str]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[str]], None]] = None,
     ) -> None:
-        if not path:
-            path = os.getcwd()
-
-        files = []
-        items_in_path = os.listdir(path)
-
-        for item in items_in_path:
-            full_path = os.path.join(path, item)
-            _, extension = os.path.splitext(full_path)
-
-            if filetypes and extension not in filetypes:
-                continue
-
-            files.append(item)
+        if not initial_path:
+            initial_path = os.getcwd()
+            
+        args = ListDirectoryArgs(path=initial_path, filetypes=filetypes)
+        files = self.list_directory(args).files
 
         super().__init__(
             component_name=file_browser._name,
             initial_value=[],
             label=label,
             args={
-                "path": path,
+                "initial-path": initial_path,
                 "files": files,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
@@ -972,6 +974,21 @@ class file_browser(UIElement[list[str], Sequence[str]]):
             },
             on_change=on_change,
         )
+
+    def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
+        files = []
+        items_in_path = os.listdir(args.path)
+
+        for item in items_in_path:
+            full_path = os.path.join(args.path, item)
+            _, extension = os.path.splitext(full_path)
+
+            if args.filetypes and extension not in args.filetypes:
+                continue
+
+            files.append(item)
+
+        return ListDirectoryResponse(files)
 
     def _convert_value(self, value: list[str]) -> Sequence[str]:
         return [x for x in value]
