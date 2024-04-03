@@ -452,7 +452,9 @@ class Kernel:
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
 
-        missing_modules_after_deletion = self.module_registry.missing_modules()
+        missing_modules_after_deletion = (
+            missing_modules_before_deletion & self.module_registry.modules()
+        )
         if (
             self.package_manager is not None
             and missing_modules_after_deletion
