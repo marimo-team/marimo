@@ -28,9 +28,12 @@ def accordion(
 
     ```python3
     mo.accordion({
-        "View total": mo.lazy(expensive_component)
+        "View total": expensive_item
     }, lazy=True)
     ```
+
+    where `expensive_item` is the item to render, or a callable that
+    returns the item to render.
 
     **Args.**
 

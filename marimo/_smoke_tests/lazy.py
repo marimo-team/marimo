@@ -40,6 +40,12 @@ def __(generate_number, mo):
 
 
 @app.cell
+def __(generate_number, mo):
+    mo.accordion({"Open me": generate_number}, lazy=True)
+    return
+
+
+@app.cell
 def __(random, time):
     def generate_number():
         print("Loading...")

@@ -19,14 +19,14 @@ class LoadResponse:
 class lazy(UIElement[None, None]):
     """Lazy load a component until it is visible.
 
-    This be a marimo element or any HTML content. This is useful for
-    loading expensive components only when they are needed.
+    Use `mo.lazy` to defer rendering of an item until it's visible. This is
+    useful for loading expensive components only when they are needed, e.g.,
+    only when an accordion or tab is opened.
 
-    This defers any frontend rendering until the content is visible.
-
-    If the content is a function, it will additionally be lazily evaluated
-    in Python as well. This is useful for database queries or other
-    expensive operations.
+    The argument to `mo.lazy` can be an object to render lazily, or a function
+    that returns the object to render (that is, functions are lazily
+    evaluated). Using a function is useful when the item to render is
+    the result of a database query or some other expensive operation.
 
     **Examples.**
 
@@ -49,7 +49,7 @@ class lazy(UIElement[None, None]):
 
     **Initialization Args.**
 
-    - `element`: content or callable that returns content to be lazily loaded
+    - `element`: object or callable that returns content to be lazily loaded
     - `show_spinner`: a boolean, whether to show a loading spinner while.
         Default is `False`.
     """
