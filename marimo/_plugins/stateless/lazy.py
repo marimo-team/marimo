@@ -50,7 +50,8 @@ class lazy(UIElement[None, None]):
     **Initialization Args.**
 
     - `element`: object or callable that returns content to be lazily loaded
-    - `show_loading_indicator`: a boolean, whether to show a loading spinner while.
+    - `show_loading_indicator`: a boolean, whether to show a loading
+        indicator while the content is being loaded.
         Default is `False`.
     """
 
