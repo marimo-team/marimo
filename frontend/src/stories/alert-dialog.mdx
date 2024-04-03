@@ -1,4 +1,4 @@
-import { Meta, Story } from "@storybook/addon-docs";
+import { Meta, Story } from "@storybook/blocks";
 
 import {
   AlertDialog,
@@ -22,17 +22,21 @@ import { Button } from "@/components/ui/button";
   <AlertDialogTrigger asChild>
     <Button variant="outline">Open</Button>
   </AlertDialogTrigger>
+
   <AlertDialogContent>
     <AlertDialogHeader>
       <AlertDialogTitle>Are you sure absolutely sure?</AlertDialogTitle>
+
       <AlertDialogDescription>
         This action cannot be undone. This will permanently delete your notebook
         and all of its contents.
       </AlertDialogDescription>
     </AlertDialogHeader>
+
     <AlertDialogFooter>
       <AlertDialogCancel>Cancel</AlertDialogCancel>
       <AlertDialogAction>Continue</AlertDialogAction>
     </AlertDialogFooter>
+
   </AlertDialogContent>
 </AlertDialog>
