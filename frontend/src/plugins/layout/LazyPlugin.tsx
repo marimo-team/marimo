@@ -11,7 +11,7 @@ import { useRef } from "react";
 import { Loader2Icon } from "lucide-react";
 
 interface Data {
-  showSpinner: boolean;
+  showLoadingIndicator: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -26,7 +26,7 @@ type S = undefined;
 export const LazyPlugin = createPlugin<S>("marimo-lazy")
   .withData(
     z.object({
-      showSpinner: z.boolean().default(false),
+      showLoadingIndicator: z.boolean().default(false),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -40,7 +40,7 @@ export const LazyPlugin = createPlugin<S>("marimo-lazy")
 
 type Props = PluginFunctions & Data;
 
-const LazyComponent = ({ load, showSpinner }: Props): JSX.Element => {
+const LazyComponent = ({ load, showLoadingIndicator }: Props): JSX.Element => {
   const [ref, entry] = useIntersectionObserver({
     threshold: 0,
     root: null,
@@ -65,7 +65,7 @@ const LazyComponent = ({ load, showSpinner }: Props): JSX.Element => {
 
   return (
     <div ref={ref} className="min-h-4">
-      {loading && showSpinner ? (
+      {loading && showLoadingIndicator ? (
         <Loader2Icon className="w-12 h-12 animate-spin text-primary my-4 mx-4" />
       ) : (
         data && renderHTML({ html: data.html })

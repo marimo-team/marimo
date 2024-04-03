@@ -12,7 +12,7 @@ def __(generate_number, mo, table):
         {
             "First": "",
             "Second": mo.lazy(table),
-            "Third": mo.lazy(generate_number, show_spinner=True),
+            "Third": mo.lazy(generate_number, show_loading_indicator=True),
         }
     )
     tabs
@@ -35,7 +35,7 @@ def __(generate_number, mo, table):
 
 @app.cell
 def __(generate_number, mo):
-    mo.accordion({"Open me": mo.lazy(generate_number, show_spinner=True)})
+    mo.accordion({"Open me": mo.lazy(generate_number, show_loading_indicator=True)})
     return
 
 

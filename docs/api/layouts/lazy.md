@@ -5,7 +5,7 @@
     @app.cell
     def __():
         mo.accordion({
-            "Open me": mo.lazy(expensive_number, show_spinner=True)
+            "Open me": mo.lazy(expensive_number, show_loading_indicator=True)
         })
         return
 

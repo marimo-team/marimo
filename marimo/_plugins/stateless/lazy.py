@@ -50,7 +50,7 @@ class lazy(UIElement[None, None]):
     **Initialization Args.**
 
     - `element`: object or callable that returns content to be lazily loaded
-    - `show_spinner`: a boolean, whether to show a loading spinner while.
+    - `show_loading_indicator`: a boolean, whether to show a loading spinner while.
         Default is `False`.
     """
 
@@ -59,7 +59,7 @@ class lazy(UIElement[None, None]):
     def __init__(
         self,
         element: Union[Callable[[], object], object],
-        show_spinner: bool = False,
+        show_loading_indicator: bool = False,
     ) -> None:
         self._element = element
 
@@ -68,7 +68,7 @@ class lazy(UIElement[None, None]):
             initial_value=None,
             label="",
             args={
-                "show-spinner": show_spinner,
+                "show-loading-indicator": show_loading_indicator,
             },
             on_change=lambda _: None,
             functions=(
