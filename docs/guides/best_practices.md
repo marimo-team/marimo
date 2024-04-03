@@ -60,3 +60,11 @@ extended_list = l + [new_item()]
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
+
+```{admonition} Performance
+:class: tip
+
+For tips on writing
+performant notebooks (e.g., how to cache intermediate outputs), see the
+[performance guide](/guides/performance.md).
+```

@@ -19,6 +19,13 @@ it has not seen, it will compute the predictions and store them in a cache. The
 next time it is called with the same parameters, instead of recomputing the
 predictions, it will return the previously computed value from the cache.
 
+## Disable expensive cells
+
+marimo lets you temporarily disable cells from automatically running. This is
+helpful when you want to edit one part of a notebook without triggering
+execution of other parts. See the
+[reactivity guide](/guides/reactivity.md#disabling-cells) for more info.
+
 ## Lazy-load expensive elements or computations
 
 You can lazily render UI elements that are expensive to compute using `marimo.lazy`.
