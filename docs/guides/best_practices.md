@@ -53,29 +53,18 @@ l = [1, 2, 3]
 ```python
 extended_list = l + [new_item()]
 ```
+
 :::
-
-
 
 **Write idempotent cells.**
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
 
-**Cache computations with `@functools.cache`.**
-Use Python's builtin `functools` library to cache expensive computations.
+```{admonition} Performance
+:class: tip
 
-For example,
-
-```python
-import functools
-
-@functools.cache
-def compute_predictions(problem_parameters):
-	...
+For tips on writing
+performant notebooks (e.g., how to cache intermediate outputs), see the
+[performance guide](/guides/performance.md).
 ```
-
-Whenever `compute_predictions` is called with a value of `problem_parameters`
-it has not seen, it will compute the predictions and store them in a cache. The
-next time it is called with the same parameters, instead of recomputing the
-predictions, it will return the previously computed value from the cache.

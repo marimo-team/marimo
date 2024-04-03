@@ -84,6 +84,7 @@ module.exports = {
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off",
     "jsx-a11y/click-events-have-key-events": "off",
+    "storybook/no-redundant-story-name": "off",
     // Turn of unicorn rules that don't have autofixes or that we don't want
     "unicorn/consistent-function-scoping": "off",
     "unicorn/expiring-todo-comments": "off",

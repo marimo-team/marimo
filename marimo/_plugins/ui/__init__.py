@@ -33,7 +33,6 @@ __all__ = [
     "text",
 ]
 
-
 from marimo._plugins.ui._impl.altair_chart import altair_chart
 from marimo._plugins.ui._impl.array import array
 from marimo._plugins.ui._impl.batch import batch

@@ -9,12 +9,16 @@ interface AsyncDataResponse<T> {
   setData: Dispatch<SetStateAction<T | undefined>>;
 }
 
+interface Context {
+  previous(): void;
+}
+
 /**
  * A hook that loads data asynchronously.
  * Handles loading and error states, and prevents race conditions.
  */
 export function useAsyncData<T>(
-  loader: () => Promise<T>,
+  loader: (context: Context) => Promise<T>,
   deps: DependencyList,
 ): AsyncDataResponse<T> {
   const [data, setData] = useState<T | undefined>(undefined);
@@ -23,10 +27,19 @@ export function useAsyncData<T>(
 
   useEffect(() => {
     let isCancelled = false;
+    let keepPrevious = false;
+    const context = {
+      previous: () => {
+        keepPrevious = true;
+      },
+    };
     setLoading(true);
-    loader()
+    loader(context)
       .then((data) => {
         if (isCancelled) {
+          return;
+        }
+        if (keepPrevious) {
           return;
         }
         setData(data);
