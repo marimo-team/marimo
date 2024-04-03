@@ -122,7 +122,7 @@ def from_model(
     )
 
     def custom_post_binary(data):
-        data = to_binary({"path": data})
+        # data = to_binary({"path": data})
         response = httpx.request(
             "POST", api_url, headers=headers, content=data
         )
@@ -141,7 +141,7 @@ def from_model(
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        fn = client.audio_classification
+        fn = _load_utils.file_contents_wrapper(client.audio_classification)
         output_function = fn
     # example model: facebook/xm_transformer_sm_all-en
     elif p == "audio-to-audio":
@@ -150,7 +150,8 @@ def from_model(
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        fn = custom_post_binary
+        # TODO broken
+        fn = lambda v: custom_post_binary(v.contents)
         output_function = fn
     # example model: facebook/wav2vec2-base-960h
     elif p == "automatic-speech-recognition":
@@ -159,7 +160,9 @@ def from_model(
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        fn = client.automatic_speech_recognition
+        fn = _load_utils.file_contents_wrapper(
+            client.automatic_speech_recognition
+        )
         output_function = fn
     # example model: microsoft/DialoGPT-medium
     elif p == "conversational":
@@ -201,7 +204,7 @@ def from_model(
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/cheetah-002.jpg"
         ]
-        fn = client.image_classification
+        fn = _load_utils.file_contents_wrapper(client.image_classification)
         output_function = fn
     # Example: deepset/xlm-roberta-base-squad2
     elif p == "question-answering":
@@ -334,7 +337,14 @@ def from_model(
         )
         postprocess = _load_utils.postprocess_label
         # outputs = components.Label(label="Label")
-        fn = client.document_question_answering
+        fn = lambda file_upload_results, text: client.document_question_answering(
+            (
+                file_upload_results[0].contents
+                if isinstance(file_upload_results, (list, tuple))
+                else file_upload_results
+            ),
+            text,
+        )
         output_function = fn
     # example model: dandelin/vilt-b32-finetuned-vqa
     elif p == "visual-question-answering":
@@ -352,7 +362,16 @@ def from_model(
                 "What animal is in the image?",
             ]
         ]
-        fn = client.visual_question_answering
+        fn = (
+            lambda file_upload_results, text: client.visual_question_answering(
+                (
+                    file_upload_results[0].contents
+                    if isinstance(file_upload_results, (list, tuple))
+                    else file_upload_results
+                ),
+                text,
+            )
+        )
         output_function = fn
     # example model: Salesforce/blip-image-captioning-base
     elif p == "image-to-text":
@@ -361,7 +380,7 @@ def from_model(
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/cheetah-002.jpg"
         ]
-        fn = client.image_to_text
+        fn = _load_utils.file_contents_wrapper(client.image_to_text)
         output_function = fn
     # example model: rajistics/autotrain-Adult-934630783
     elif p in ["tabular-classification", "tabular-regression"]:
@@ -385,12 +404,17 @@ def from_model(
     elif p == "object-detection":
         inputs = mo.ui.file(filetypes=["image/*"], label="Input Image")
         # outputs = components.AnnotatedImage(label="Annotations")
-        fn = _load_utils.object_detection_wrapper(client)
+        fn = _load_utils.file_contents_wrapper(
+            _load_utils.object_detection_wrapper(client)
+        )
         output_function = fn
     else:
         raise ValueError(f"Unsupported pipeline type: {p}")
 
     def query_huggingface_inference_endpoints(data):
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+
         if preprocess is not None:
             data = preprocess(*data)
         data = fn(*data)  # type: ignore

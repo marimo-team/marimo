@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import math
 import re
 import warnings
+from typing import Any, Callable
 
 import httpx
 import yaml
@@ -127,6 +129,17 @@ def format_ner_list(input_string: str, ner_groups: list[dict[str, str | int]]):
 
     output.append((input_string[end:], None))
     return output
+
+
+def file_contents_wrapper(fn: Callable[..., Any]):
+    def file_contents_inner(v: Any):
+        return (
+            fn(v)
+            if isinstance(v, (bytes, str, io.BytesIO))
+            else fn(v.contents)  # type: ignore
+        )
+
+    return file_contents_inner
 
 
 def token_classification_wrapper(client: InferenceClient):

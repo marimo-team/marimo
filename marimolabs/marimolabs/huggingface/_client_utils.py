@@ -6,6 +6,8 @@ import secrets
 import tempfile
 from pathlib import Path
 
+import httpx
+
 
 def get_extension(encoding: str) -> str | None:
     encoding = encoding.replace("audio/wav", "audio/x-wav")
@@ -76,3 +78,55 @@ def decode_base64_to_file(
     file_obj.write(data)
     file_obj.flush()
     return file_obj
+
+
+def get_mimetype(filename: str) -> str | None:
+    if filename.endswith(".vtt"):
+        return "text/vtt"
+    mimetype = mimetypes.guess_type(filename)[0]
+    if mimetype is not None:
+        mimetype = mimetype.replace("x-wav", "wav").replace("x-flac", "flac")
+    return mimetype
+
+
+def is_http_url_like(possible_url) -> bool:
+    """
+    Check if the given value is a string that looks like an HTTP(S) URL.
+    """
+    if not isinstance(possible_url, str):
+        return False
+    return possible_url.startswith(("http://", "https://"))
+
+
+def encode_file_to_base64(f: str | Path):
+    with open(f, "rb") as file:
+        encoded_string = base64.b64encode(file.read())
+        base64_str = str(encoded_string, "utf-8")
+        mimetype = get_mimetype(str(f))
+        return (
+            "data:"
+            + (mimetype if mimetype is not None else "")
+            + ";base64,"
+            + base64_str
+        )
+
+
+def encode_url_to_base64(url: str):
+    resp = httpx.get(url)
+    resp.raise_for_status()
+    encoded_string = base64.b64encode(resp.content)
+    base64_str = str(encoded_string, "utf-8")
+    mimetype = get_mimetype(url)
+    return (
+        "data:"
+        + (mimetype if mimetype is not None else "")
+        + ";base64,"
+        + base64_str
+    )
+
+
+def encode_url_or_file_to_base64(path: str | Path):
+    path = str(path)
+    if is_http_url_like(path):
+        return encode_url_to_base64(path)
+    return encode_file_to_base64(path)
