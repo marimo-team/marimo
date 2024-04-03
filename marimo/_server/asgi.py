@@ -92,6 +92,7 @@ def create_asgi_app(
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
     from marimo._server.sessions import NoopLspServer, SessionManager
+    from marimo._server.utils import initialize_asyncio
 
     user_config_mgr = UserConfigManager()
     base_app = Starlette()
@@ -144,4 +145,5 @@ def create_asgi_app(
         def build(self) -> "ASGIApp":
             return base_app
 
+    initialize_asyncio()
     return Builder()
