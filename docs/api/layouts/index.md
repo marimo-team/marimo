@@ -9,6 +9,7 @@
   carousel
   callout
   justify
+  lazy
   stacks
   tree
 ```
@@ -30,6 +31,7 @@ them but just render their children in a certain way.
   marimo.callout
   marimo.center
   marimo.hstack
+  marimo.lazy
   marimo.left
   marimo.right
   marimo.tree
