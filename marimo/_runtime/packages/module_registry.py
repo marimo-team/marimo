@@ -12,8 +12,8 @@ def _is_module_installed(module_name: str) -> bool:
     # importlib.util.find_spec retrieves a module's ModuleSpec, which
     # is typically available as a dunder attribute on the module, i.e.
     # module.__spec__. However, some packages are non-compliant and don't
-    # include a __spec__ attr (e.g., manim-slides), which can cause find_spec to
-    # throw if the module has already been imported.
+    # include a __spec__ attr (e.g., manim-slides), which can cause find_spec
+    # to throw if the module has already been imported.
     #
     # We don't actually need the spec, we just need to see if a package is
     # available, so we first check if the module is in sys.modules without
