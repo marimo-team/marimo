@@ -81,7 +81,7 @@ export function useMarimoWebSocket(opts: {
           // A cell is stale if we did not auto-instantiate (i.e. nothing has run yet)
           // or if the code has changed since the last time it was run.
           let edited = false;
-          if (autoInstantiate) {
+          if (autoInstantiate || resumed) {
             const lastCodeRun = last_executed_code[cellId];
             if (lastCodeRun) {
               edited = lastCodeRun !== code;
