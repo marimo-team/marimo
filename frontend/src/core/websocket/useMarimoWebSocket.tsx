@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { WebSocketClosedReason, WebSocketState } from "./types";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { connectionAtom } from "../network/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
@@ -14,7 +14,11 @@ import { CellData } from "../cells/types";
 import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
-import { LayoutData, layoutDataAtom, layoutViewAtom } from "../layout/layout";
+import {
+  LayoutState,
+  initialLayoutState,
+  useLayoutActions,
+} from "../layout/layout";
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
@@ -38,7 +42,7 @@ import { createWsUrl } from "./createWsUrl";
 export function useMarimoWebSocket(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
-  setCells: (cells: CellData[], layout: LayoutData) => void;
+  setCells: (cells: CellData[], layout: LayoutState) => void;
 }) {
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);
@@ -47,8 +51,7 @@ export function useMarimoWebSocket(opts: {
 
   const { handleCellMessage } = useCellActions();
   const { setVariables, setMetadata } = useVariablesActions();
-  const setLayoutView = useSetAtom(layoutViewAtom);
-  const setLayoutData = useSetAtom(layoutDataAtom);
+  const { setLayoutData } = useLayoutActions();
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
   const { addPackageAlert } = useAlertActions();
@@ -97,13 +100,14 @@ export function useMarimoWebSocket(opts: {
           });
         });
 
-        let layoutData: LayoutData = undefined;
+        const layoutState = initialLayoutState();
         if (layout) {
-          setLayoutView(layout.type);
-          layoutData = deserializeLayout(layout.type, layout.data, cells);
-          setLayoutData(layoutData);
+          const layoutData = deserializeLayout(layout.type, layout.data, cells);
+          layoutState.selectedLayout = layout.type;
+          layoutState.layoutData[layout.type] = layoutData;
+          setLayoutData({ layoutView: layout.type, data: layoutData });
         }
-        setCells(cells, layoutData);
+        setCells(cells, layoutState);
 
         // If resumed, we don't need to instantiate the UI elements,
         // and we should read in th existing values from the kernel.

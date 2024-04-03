@@ -1,8 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
-from typing import Generator
+from typing import Generator, Optional
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
@@ -37,16 +36,41 @@ async def ai_completion(
 
     app_state = AppState(request)
     app_state.require_current_session()
+    config = app_state.config_manager.get_config(hide_secrets=False)
     body = await parse_request(request, cls=AiCompletionRequest)
-    key = os.environ.get("OPENAI_API_KEY")
 
+    if "ai" not in config:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+        )
+    if "open_ai" not in config["ai"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="OpenAI not configured"
+        )
+    if "api_key" not in config["ai"]["open_ai"]:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="OpenAI API key not configured",
+        )
+
+    key: str = config["ai"]["open_ai"]["api_key"]
     if not key:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
-            detail="OpenAI API key not found in environment",
+            detail="OpenAI API key not configured",
         )
+    base_url: Optional[str] = (
+        config.get("ai", {}).get("open_ai", {}).get("base_url", None)
+    )
+    if not base_url:
+        base_url = None
+    model: str = (
+        config.get("ai", {}).get("open_ai", {}).get("model", "gpt-3.5-turbo")
+    )
+    if not model:
+        model = "gpt-3.5-turbo"
 
-    client = OpenAI(api_key=key)
+    client = OpenAI(api_key=key, base_url=base_url)
 
     system_prompt = (
         "You are a helpful assistant that can answer questions "
@@ -64,7 +88,7 @@ async def ai_completion(
         prompt = f"{prompt}\n\nCurrent code:\n{body.code}"
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model,
         messages=[
             {
                 "role": "system",

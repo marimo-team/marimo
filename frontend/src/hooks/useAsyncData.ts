@@ -18,7 +18,7 @@ export function useAsyncData<T>(
   deps: DependencyList,
 ): AsyncDataResponse<T> {
   const [data, setData] = useState<T | undefined>(undefined);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | undefined>(undefined);
 
   useEffect(() => {

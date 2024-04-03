@@ -32,7 +32,7 @@ import { CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64ToJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
-import { LayoutData } from "../layout/layout";
+import { LayoutState } from "../layout/layout";
 import { isEqual } from "lodash-es";
 
 /**
@@ -78,7 +78,7 @@ export interface LastSavedNotebook {
   codes: string[];
   configs: CellConfig[];
   names: string[];
-  layout: LayoutData;
+  layout: LayoutState;
 }
 
 /**
@@ -733,9 +733,25 @@ export function notebookIsRunning(state: NotebookState) {
   );
 }
 
+export function notebookScrollToRunning() {
+  // find cell that is currently in "running" state
+  const { cellRuntime } = store.get(notebookAtom);
+  const cell = Objects.entries(cellRuntime).find(
+    ([cellid, runtimestate]) => runtimestate.status === "running",
+  );
+  if (!cell) {
+    return;
+  }
+  const view = getCellEditorView(cell[0]);
+  view?.dispatch({
+    selection: { anchor: 0 },
+    effects: [EditorView.scrollIntoView(0, { y: "center" })],
+  });
+}
+
 export function notebookNeedsSave(
   state: NotebookState,
-  layout: LayoutData,
+  layout: LayoutState,
   lastSavedNotebook: LastSavedNotebook | undefined,
 ) {
   if (!lastSavedNotebook) {
@@ -750,7 +766,8 @@ export function notebookNeedsSave(
     !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
     !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
     !arrayShallowEquals(names, lastSavedNotebook.names) ||
-    !isEqual(layout, lastSavedNotebook.layout)
+    !isEqual(layout.selectedLayout, lastSavedNotebook.layout.selectedLayout) ||
+    !isEqual(layout.layoutData, lastSavedNotebook.layout.layoutData)
   );
 }
 

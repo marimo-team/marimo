@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import { layoutViewAtom } from "@/core/layout/layout";
-import { useAtom } from "jotai";
 import {
   Select,
   SelectContent,
@@ -14,9 +12,11 @@ import {
 import { LayoutType } from "./types";
 import { SquareIcon, Grid3x3Icon, ListIcon } from "lucide-react";
 import { isPyodide } from "@/core/pyodide/utils";
+import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 
 export const LayoutSelect: React.FC = () => {
-  const [layoutType, setLayoutType] = useAtom(layoutViewAtom);
+  const { selectedLayout } = useLayoutState();
+  const { setLayoutView } = useLayoutActions();
   const layouts: LayoutType[] = ["vertical", "grid"];
 
   // Layouts are not supported in Pyodide
@@ -27,8 +27,8 @@ export const LayoutSelect: React.FC = () => {
   return (
     <Select
       data-testid="layout-select"
-      value={layoutType}
-      onValueChange={(v) => setLayoutType(v as LayoutType)}
+      value={selectedLayout}
+      onValueChange={(v) => setLayoutView(v as LayoutType)}
     >
       <SelectTrigger
         className="min-w-[110px] border-border bg-background"

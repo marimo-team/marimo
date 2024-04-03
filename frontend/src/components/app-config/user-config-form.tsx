@@ -23,6 +23,7 @@ import { SettingTitle, SettingDescription, SettingSubtitle } from "./common";
 import { THEMES } from "@/theme/useTheme";
 import { isPyodide } from "@/core/pyodide/utils";
 import { PackageManagerNames } from "../../core/config/config-schema";
+import { Kbd } from "../ui/kbd";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
@@ -331,6 +332,64 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel className="font-normal">
                   Autorun on startup
                 </FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="flex flex-col gap-3">
+          <SettingSubtitle>AI Assist</SettingSubtitle>
+          <p className="text-sm text-muted-secondary">
+            You will need to store an API key in your{" "}
+            <Kbd className="inline">~/.marimo.toml</Kbd> file. See the{" "}
+            <a
+              className="text-link hover:underline"
+              href="https://docs.marimo.io/guides/ai_completion.html"
+              target="_blank"
+              rel="noreferrer"
+            >
+              documentation
+            </a>{" "}
+            for more information.
+          </p>
+          <FormField
+            control={form.control}
+            disabled={isWasm}
+            name="ai.open_ai.base_url"
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Base URL</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="code-editor-font-size-input"
+                    className="m-0 inline-flex"
+                    {...field}
+                    value={field.value}
+                    placeholder="https://api.openai.com"
+                    onChange={(e) => field.onChange(e.target.value)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            disabled={isWasm}
+            name="ai.open_ai.model"
+            render={({ field: { value, onChange, ...field } }) => (
+              <FormItem className="mb-2">
+                <FormLabel>Model</FormLabel>
+                <FormControl>
+                  <Input
+                    data-testid="code-editor-font-size-input"
+                    className="m-0 inline-flex"
+                    {...field}
+                    defaultValue={value}
+                    placeholder="gpt-3.5-turbo"
+                    onBlur={(e) => onChange(e.target.value)}
+                  />
+                </FormControl>
+                <FormMessage />
               </FormItem>
             )}
           />
