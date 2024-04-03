@@ -34,7 +34,7 @@ import { saveCellConfig } from "@/core/network/requests";
 import { EditorView } from "@codemirror/view";
 import { useRunCell } from "../cell/useRunCells";
 import { NameCellInput } from "./name-cell-input";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
-import { useUserConfig } from "@/core/config/config";
+import { aiEnabledAtom } from "@/core/config/config";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -72,7 +72,7 @@ export function useCellActionButtons({ cell }: Props) {
   const runCell = useRunCell(cell?.cellId);
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
-  const [userConfig] = useUserConfig();
+  const aiEnabled = useAtomValue(aiEnabledAtom);
   if (!cell) {
     return [];
   }
@@ -160,7 +160,7 @@ export function useCellActionButtons({ cell }: Props) {
       {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
         label: "AI completion",
-        hidden: !userConfig.ai.open_ai?.api_key,
+        hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
             current === cellId ? null : cellId,

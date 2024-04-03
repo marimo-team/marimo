@@ -48,18 +48,20 @@ import {
 } from "./cells/extensions";
 import { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
-import {
-  scrollActiveLineIntoView,
-  smartPlaceholderExtension,
-} from "./extensions";
+import { scrollActiveLineIntoView } from "./extensions";
 import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { historyCompartment } from "./editing/extensions";
+import {
+  clickablePlaceholderExtension,
+  smartPlaceholderExtension,
+} from "./placeholder/extensions";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
   showPlaceholder: boolean;
+  enableAI: boolean;
   cellMovementCallbacks: MovementCallbacks;
   cellCodeCallbacks: CodeCallbacks;
   completionConfig: CompletionConfig;
@@ -73,6 +75,7 @@ export interface CodeMirrorSetupOpts {
 export const setupCodeMirror = ({
   cellId,
   showPlaceholder,
+  enableAI,
   cellMovementCallbacks,
   cellCodeCallbacks,
   completionConfig,
@@ -89,7 +92,14 @@ export const setupCodeMirror = ({
     basicBundle(completionConfig, theme),
     showPlaceholder
       ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
-      : [],
+      : enableAI
+        ? clickablePlaceholderExtension({
+            beforeText: "Start coding or ",
+            linkText: "generate",
+            afterText: " with AI.",
+            onClick: cellMovementCallbacks.aiCellCompletion,
+          })
+        : [],
   ];
 };
 

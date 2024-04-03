@@ -139,6 +139,7 @@ const CellEditorInternal = ({
     const extensions = setupCodeMirror({
       cellId,
       showPlaceholder,
+      enableAI: Boolean(userConfig.ai.open_ai?.api_key),
       cellCodeCallbacks: {
         updateCellCode,
       },
@@ -201,6 +202,7 @@ const CellEditorInternal = ({
     cellId,
     userConfig.keymap,
     userConfig.completion,
+    userConfig.ai.open_ai?.api_key,
     theme,
     showPlaceholder,
     createAbove,

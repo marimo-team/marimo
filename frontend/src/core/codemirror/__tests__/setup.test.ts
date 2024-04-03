@@ -21,6 +21,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
   return setupCodeMirror({
     cellId: "0" as CellId,
     showPlaceholder: false,
+    enableAI: false,
     cellMovementCallbacks: {
       onRun: namedFunction("onRun"),
       aiCellCompletion: namedFunction("aiCellCompletion"),
@@ -112,4 +113,10 @@ test("placeholder adds another extension", () => {
   const withPlaceholder = setup({ showPlaceholder: true }).flat();
   const withoutPlaceholder = setup({ showPlaceholder: false }).flat();
   expect(withPlaceholder.length - 1).toBe(withoutPlaceholder.length);
+});
+
+test("ai adds more extensions", () => {
+  const withAI = setup({ enableAI: true }).flat();
+  const withoutAI = setup({ enableAI: false }).flat();
+  expect(withAI.length - 2).toBe(withoutAI.length);
 });
