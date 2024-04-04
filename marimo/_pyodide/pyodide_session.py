@@ -18,7 +18,7 @@ from marimo._pyodide.streams import (
     PyodideStdout,
     PyodideStream,
 )
-from marimo._runtime import handlers, requests
+from marimo._runtime import handlers, patches, requests
 from marimo._runtime.context import initialize_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -323,6 +323,13 @@ def launch_pyodide_kernel(
     register_formatters()
 
     LOGGER.debug("Launching kernel")
+
+    # Patches for pyodide compatibility
+    patches.patch_pyodide_networking()
+
+    # Some libraries mess with Python's default recursion limit, which becomes
+    # a problem when running with Pyodide.
+    patches.patch_recursion_limit(limit=1000)
 
     # Create communication channels
     stream = PyodideStream(on_message, input_queue)
