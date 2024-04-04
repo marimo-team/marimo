@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import { useDropzone } from "react-dropzone";
-import { Upload } from "lucide-react";
+import { Upload, MousePointerSquareDashedIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -212,24 +212,38 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
           "px-6 py-6 sm:px-8 sm:py-8 md:py-10 md:px-16",
           "border rounded-sm",
           "text-sm text-muted-foreground",
-          "shadow-smSolid",
-          "hover:bg-muted/60",
           "hover:cursor-pointer",
           "active:shadow-xsSolid",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
-          !isFocused && "bg-muted border-input/60",
-          isFocused && "bg-muted/60 border-accent/40",
-          isDragAccept && "bg-muted/60 border-accent/40 shadow-xsSolid",
-          isDragReject && "bg-muted/60 border-destructive/60 shadow-xsSolid",
+          !isFocused && "border-input/60 border-dashed",
+          isFocused && "border-solid",
         )}
         {...getRootProps()}
       >
         <input {...getInputProps()} />
-        {uploaded ? (
-          <span>To re-upload: {renderHTML({ html: label })}</span>
-        ) : (
-          <span className="mt-0">{renderHTML({ html: label })}</span>
-        )}
+        <div className="flex flex-col items-center justify-center flex-grow gap-3">
+          {uploaded ? (
+            <span>To re-upload: {renderHTML({ html: label })}</span>
+          ) : (
+            <span className="mt-0">{renderHTML({ html: label })}</span>
+          )}
+          <div className="flex flex-row items-center justify-center flex-grow gap-3 hover:text-primary">
+            <Upload
+              strokeWidth={1.4}
+              className={cn(
+                isDragAccept && "text-primary",
+                isDragReject && "text-destructive",
+              )}
+            />
+            <MousePointerSquareDashedIcon
+              strokeWidth={1.4}
+              className={cn(
+                isDragAccept && "text-primary",
+                isDragReject && "text-destructive",
+              )}
+            />
+          </div>
+        </div>
       </div>
 
       <aside>
