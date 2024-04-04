@@ -101,7 +101,7 @@ def create_asgi_app(
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
-        def __init__(self):
+        def __init__(self) -> None:
             self._mount_configs: List[Tuple[str, str]] = []
 
         def with_app(self, *, path: str, root: str) -> "ASGIAppBuilder":
