@@ -23,6 +23,21 @@ def patch_sys_module(module: types.ModuleType) -> None:
     sys.modules[module.__name__] = module
 
 
+def patch_pyodide_networking() -> None:
+    import pyodide_http  # type: ignore
+
+    pyodide_http.patch_urllib()
+
+
+def patch_recursion_limit(limit: int) -> None:
+    """Set the recursion limit."""
+
+    # jedi increases the recursion limit as a side effect, upon import ...
+    import jedi  # type: ignore # noqa: F401
+
+    sys.setrecursionlimit(limit)
+
+
 def patch_micropip(glbls: dict[Any, Any]) -> None:
     """Mock micropip with no-ops"""
 

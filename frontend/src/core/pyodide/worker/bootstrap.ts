@@ -24,7 +24,6 @@ export class DefaultWasmController implements WasmController {
     }
 
     await this.installMarimoAndDeps(pyodide, version);
-    this.installPatches(pyodide);
 
     return pyodide;
   }
@@ -77,13 +76,6 @@ export class DefaultWasmController implements WasmController {
         deps=False,
         );
       `);
-  }
-
-  private installPatches(pyodide: PyodideInterface) {
-    pyodide.runPython(`
-      import pyodide_http
-      pyodide_http.patch_urllib()
-    `);
   }
 
   async startSession(opts: {

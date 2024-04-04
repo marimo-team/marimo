@@ -253,9 +253,6 @@ class Kernel:
         debugger_override: marimo_pdb.MarimoPdb | None = None,
         package_manager: str | None = None,
     ) -> None:
-        import jedi
-        import sys
-        sys.setrecursionlimit(1000)
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
         self.stream = stream
