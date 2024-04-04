@@ -10,6 +10,7 @@ import httpx
 import huggingface_hub
 import marimo as mo
 from marimolabs.huggingface import _load_utils
+from marimolabs.huggingface import _outputs
 from marimolabs.huggingface._processing_utils import (
     encode_to_base64,
     save_base64_to_cache,
@@ -22,8 +23,7 @@ class HFModel:
     title: str
     inputs: mo.ui.form
     examples: list[Any] | None
-    inference_function: Callable[..., Any]
-    output_function: Callable[..., Any]
+    inference_function: Callable[..., _outputs.Output]
 
 
 def load(
@@ -122,7 +122,6 @@ def from_model(
     )
 
     def custom_post_binary(data):
-        # data = to_binary({"path": data})
         response = httpx.request(
             "POST", api_url, headers=headers, content=data
         )
@@ -133,37 +132,43 @@ def from_model(
     preprocess = None
     postprocess = None
     examples = None
+    fn: Callable[..., _outputs.Output]
 
     # example model: ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition
     if p == "audio-classification":
-        inputs = mo.ui.file(filetypes=["audio/*"], label="Input")
+        inputs = mo.ui.file(filetypes=["audio/*"], label="Input", kind="area")
         postprocess = _load_utils.postprocess_label
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        fn = _load_utils.file_contents_wrapper(client.audio_classification)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            inference_function=_load_utils.file_contents_wrapper(
+                client.audio_classification
+            )
+        )
     # example model: facebook/xm_transformer_sm_all-en
     elif p == "audio-to-audio":
-        inputs = mo.ui.file(filetypes=["audio/*"], label="Input")
+        inputs = mo.ui.file(filetypes=["audio/*"], label="Input", kind="area")
         # output_function = components.Audio(label="Output")
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        # TODO broken
-        fn = lambda v: custom_post_binary(v.contents)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            lambda v: custom_post_binary(v.contents),
+            _outputs.audio_output_from_path,
+        )
     # example model: facebook/wav2vec2-base-960h
     elif p == "automatic-speech-recognition":
-        inputs = mo.ui.file(filetypes=["audio/*"], label="Input")
+        inputs = mo.ui.file(filetypes=["audio/*"], label="Input", kind="area")
         # outputs = components.Textbox(label="Output")
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/audio_sample.wav"
         ]
-        fn = _load_utils.file_contents_wrapper(
-            client.automatic_speech_recognition
+        fn = _outputs.construct_output_function(
+            _load_utils.file_contents_wrapper(
+                client.automatic_speech_recognition
+            )
         )
-        output_function = fn
     # example model: microsoft/DialoGPT-medium
     elif p == "conversational":
         raise NotImplementedError
@@ -183,9 +188,8 @@ def from_model(
     elif p == "feature-extraction":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Dataframe(label="Output")
-        fn = client.feature_extraction
-        output_function = fn
         postprocess = lambda v: v[0] if len(v) == 1 else v
+        fn = _outputs.construct_output_function(client.feature_extraction)
     # example model: distilbert/distilbert-base-uncased
     elif p == "fill-mask":
         inputs = mo.ui.text_area(label="Input")
@@ -194,18 +198,20 @@ def from_model(
             "Hugging Face is the AI community, working together, to [MASK] the future."
         ]
         postprocess = _load_utils.postprocess_mask_tokens
-        fn = client.fill_mask
-        output_function = fn
+        fn = _outputs.construct_output_function(client.fill_mask)
     # Example: google/vit-base-patch16-224
     elif p == "image-classification":
-        inputs = mo.ui.file(filetypes="image/*", label="Input Image")
+        inputs = mo.ui.file(
+            filetypes="image/*", label="Input Image", kind="area"
+        )
         # outputs = components.Label(label="Classification")
         postprocess = _load_utils.postprocess_label
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/cheetah-002.jpg"
         ]
-        fn = _load_utils.file_contents_wrapper(client.image_classification)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.file_contents_wrapper(client.image_classification)
+        )
     # Example: deepset/xlm-roberta-base-squad2
     elif p == "question-answering":
         inputs = mo.ui.array(
@@ -227,8 +233,7 @@ def from_model(
             ]
         ]
         postprocess = _load_utils.postprocess_question_answering
-        fn = client.question_answering
-        output_function = fn
+        fn = _outputs.construct_output_function(client.question_answering)
     # Example: facebook/bart-large-cnn
     elif p == "summarization":
         inputs = mo.ui.text_area(label="Input")
@@ -238,37 +243,34 @@ def from_model(
                 "The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become the tallest man-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure to reach a height of 300 metres. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 5.2 metres (17 ft). Excluding transmitters, the Eiffel Tower is the second tallest free-standing structure in France after the Millau Viaduct."
             ]
         ]
-        fn = client.summarization
-        output_function = fn
+        fn = _outputs.construct_output_function(client.summarization)
     # Example: distilbert-base-uncased-finetuned-sst-2-english
     elif p == "text-classification":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Label(label="Classification")
         examples = ["I feel great"]
         postprocess = _load_utils.postprocess_label
-        fn = client.text_classification
-        output_function = fn
+        fn = _outputs.construct_output_function(client.text_classification)
     # Example: gpt2
     elif p == "text-generation":
         inputs = mo.ui.text_area(label="Text")
         # outputs = inputs
         examples = ["Once upon a time"]
-        fn = _load_utils.text_generation_wrapper(client)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.text_generation_wrapper(client)
+        )
     # Example: valhalla/t5-small-qa-qg-hl
     elif p == "text2text-generation":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Textbox(label="Generated Text")
         examples = ["Translate English to Arabic: How are you?"]
-        fn = client.text_generation
-        output_function = fn
+        fn = _outputs.construct_output_function(client.text_generation)
     # Example: Helsinki-NLP/opus-mt-en-ar
     elif p == "translation":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Textbox(label="Translation")
         examples = ["Hello, how are you?"]
-        fn = client.translation
-        output_function = fn
+        fn = _outputs.construct_output_function(client.translation)
     # Example: facebook/bart-large-mnli
     elif p == "zero-shot-classification":
         inputs = mo.ui.array(
@@ -283,8 +285,9 @@ def from_model(
         # outputs = components.Label(label="Classification")
         postprocess = _load_utils.postprocess_label
         examples = [["I feel great", "happy, sad", False]]
-        fn = _load_utils.zero_shot_classification_wrapper(client)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.zero_shot_classification_wrapper(client)
+        )
     # Example: sentence-transformers/distilbert-base-nli-stsb-mean-tokens
     elif p == "sentence-similarity":
         inputs = mo.ui.array(
@@ -302,22 +305,25 @@ def from_model(
         )
         # outputs = components.JSON(label="Similarity scores")
         examples = [["That is a happy person", "That person is very happy"]]
-        fn = _load_utils.sentence_similarity_wrapper(client)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.sentence_similarity_wrapper(client)
+        )
     # Example: julien-c/ljspeech_tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train
     elif p == "text-to-speech":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Audio(label="Audio")
         examples = ["Hello, how are you?"]
-        fn = client.text_to_speech
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            client.text_to_speech, _outputs.audio_output_from_bytes
+        )
     # example model: osanseviero/BigGAN-deep-128
     elif p == "text-to-image":
         inputs = mo.ui.text_area(label="Input")
         # outputs = components.Image(label="Output")
         examples = ["A beautiful sunset"]
-        fn = client.text_to_image
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            client.text_to_image, _outputs.image_output
+        )
     # example model: huggingface-course/bert-finetuned-ner
     elif p == "token-classification":
         inputs = mo.ui.text_area(label="Input")
@@ -325,32 +331,32 @@ def from_model(
         examples = [
             "Hugging Face is a company based in Paris and New York City that acquired Gradio in 2021."
         ]
-        fn = _load_utils.token_classification_wrapper(client)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.token_classification_wrapper(client)
+        )
     # example model: impira/layoutlm-document-qa
     elif p == "document-question-answering":
         inputs = mo.ui.array(
             [
-                mo.ui.file(label="Input Document"),
+                mo.ui.file(label="Input Document", kind="area"),
                 mo.ui.text_area(label="Question"),
             ]
         )
         postprocess = _load_utils.postprocess_label
         # outputs = components.Label(label="Label")
-        fn = lambda file_upload_results, text: client.document_question_answering(
-            (
-                file_upload_results[0].contents
-                if isinstance(file_upload_results, (list, tuple))
-                else file_upload_results
-            ),
-            text,
+        fn = _outputs.construct_output_function(
+            lambda file_upload_results, text: client.document_question_answering(
+                file_upload_results[0].contents,
+                text,
+            )
         )
-        output_function = fn
     # example model: dandelin/vilt-b32-finetuned-vqa
     elif p == "visual-question-answering":
         inputs = mo.ui.array(
             [
-                mo.ui.file(filetypes=["image/*"], label="Input Image"),
+                mo.ui.file(
+                    filetypes=["image/*"], label="Input Image", kind="area"
+                ),
                 mo.ui.text_area(label="Question"),
             ]
         )
@@ -362,26 +368,24 @@ def from_model(
                 "What animal is in the image?",
             ]
         ]
-        fn = (
+        fn = _outputs.construct_output_function(
             lambda file_upload_results, text: client.visual_question_answering(
-                (
-                    file_upload_results[0].contents
-                    if isinstance(file_upload_results, (list, tuple))
-                    else file_upload_results
-                ),
+                file_upload_results[0].contents,
                 text,
             )
         )
-        output_function = fn
     # example model: Salesforce/blip-image-captioning-base
     elif p == "image-to-text":
-        inputs = mo.ui.file(filetypes=["image/*"], label="Input Image")
+        inputs = mo.ui.file(
+            filetypes=["image/*"], label="Input Image", kind="area"
+        )
         # outputs = components.Textbox(label="Generated Text")
         examples = [
             "https://gradio-builds.s3.amazonaws.com/demo-files/cheetah-002.jpg"
         ]
-        fn = _load_utils.file_contents_wrapper(client.image_to_text)
-        output_function = fn
+        fn = _outputs.construct_output_function(
+            _load_utils.file_contents_wrapper(client.image_to_text)
+        )
     # example model: rajistics/autotrain-Adult-934630783
     elif p in ["tabular-classification", "tabular-regression"]:
         raise NotImplementedError
@@ -402,12 +406,16 @@ def from_model(
         # output_function = fn
     # example model: microsoft/table-transformer-detection
     elif p == "object-detection":
-        inputs = mo.ui.file(filetypes=["image/*"], label="Input Image")
-        # outputs = components.AnnotatedImage(label="Annotations")
-        fn = _load_utils.file_contents_wrapper(
-            _load_utils.object_detection_wrapper(client)
+        inputs = mo.ui.file(
+            filetypes=["image/*"], label="Input Image", kind="area"
         )
-        output_function = fn
+        # outputs = components.AnnotatedImage(label="Annotations")
+        # TODO(akshayka): output representation
+        fn = _outputs.construct_output_function(
+            _load_utils.file_contents_wrapper(
+                _load_utils.object_detection_wrapper(client)
+            )
+        )
     else:
         raise ValueError(f"Unsupported pipeline type: {p}")
 
@@ -417,12 +425,12 @@ def from_model(
 
         if preprocess is not None:
             data = preprocess(*data)
-        data = fn(*data)  # type: ignore
+        output = fn(*data)  # type: ignore
+        value = output.value
         if postprocess is not None:
-            data = postprocess(data)  # type: ignore
-        return data
-
-    # TODO output function ?
+            value = postprocess(value)  # type: ignore
+        output.value = value
+        return output
 
     query_huggingface_inference_endpoints.__name__ = alias or model_name
     return HFModel(
@@ -430,5 +438,4 @@ def from_model(
         inputs=inputs.form(bordered=False),
         examples=examples,
         inference_function=query_huggingface_inference_endpoints,
-        output_function=output_function,
     )

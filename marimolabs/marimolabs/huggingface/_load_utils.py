@@ -132,14 +132,7 @@ def format_ner_list(input_string: str, ner_groups: list[dict[str, str | int]]):
 
 
 def file_contents_wrapper(fn: Callable[..., Any]):
-    def file_contents_inner(v: Any):
-        return (
-            fn(v)
-            if isinstance(v, (bytes, str, io.BytesIO))
-            else fn(v.contents)  # type: ignore
-        )
-
-    return file_contents_inner
+    return lambda file_upload_results: fn(file_upload_results.contents)
 
 
 def token_classification_wrapper(client: InferenceClient):

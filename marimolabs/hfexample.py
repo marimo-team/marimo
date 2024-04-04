@@ -43,7 +43,7 @@ def __(mo):
             "translation": "models/Helsinki-NLP/opus-mt-en-ar",
             "text to speech": "models/julien-c/ljspeech_tts_train_tacotron2_raw_phn_tacotron_g2p_en_no_space_train",
             "text to image": "models/runwayml/stable-diffusion-v1-5",
-            "token classification": "huggingface-course/bert-finetuned-ner",
+            "token classification": "models/huggingface-course/bert-finetuned-ner",
             "document question answering": "models/impira/layoutlm-document-qa",
             "image to text": "models/Salesforce/blip-image-captioning-base",
             "object detection": "models/microsoft/table-transformer-detection",
@@ -80,16 +80,8 @@ def __(inputs, mo, model):
     mo.stop(inputs.value is None, mo.md("Output not available: submit the model inputs 👆"))
 
     output = model.inference_function(inputs.value)
+    output
     return output,
-
-
-@app.cell
-def __(mo, output):
-    import io
-    b = io.BytesIO()
-    output.save(b, format="PNG")
-    mo.image(b)
-    return b, io
 
 
 if __name__ == "__main__":
