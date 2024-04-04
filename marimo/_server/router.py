@@ -76,9 +76,25 @@ class APIRouter(Router):
         """Get method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            async def wrapper_func(request: Request) -> Response:
+                response = await func(request=request)
+                if isinstance(response, FileResponse):
+                    return response
+                if isinstance(response, StreamingResponse):
+                    return response
+
+                if dataclasses.is_dataclass(response):
+                    return JSONResponse(
+                        content=deep_to_camel_case(
+                            dataclasses.asdict(response)
+                        )
+                    )
+
+                return response
+
             self.add_route(
                 path=self.prefix + path,
-                endpoint=func,
+                endpoint=wrapper_func,
                 methods=["GET"],
                 include_in_schema=include_in_schema,
             )
