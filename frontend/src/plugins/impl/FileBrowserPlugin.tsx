@@ -9,11 +9,13 @@ import { useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /**
  * Arguments for a file browser component.
  *
- * @param path - the path to display on component render
+ * @param initialPath - the path to display on component render
+ * @param initialFiles - the initial files displayed on component render
  * @param filetypes - filter directory lists by file types
  * @param multiple - whether to allow the user to select multiple files
  * @param label - label for the file browser
@@ -22,7 +24,7 @@ import { rpc } from "../core/rpc";
  */
 interface Data {
   initialPath: string;
-  files: string[];
+  initialFiles: string[];
   filetypes: string[];
   multiple: boolean;
   label: string | null;
@@ -32,7 +34,7 @@ interface Data {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   list_directory: (req: { path: string; filetypes: string[] }) => Promise<{
-    files: string[];
+    files: Array<string>;
   }>;
 };
 
@@ -42,7 +44,7 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
   .withData(
     z.object({
       initialPath: z.string(),
-      files: z.array(z.string()),
+      initialFiles: z.array(z.string()),
       filetypes: z.array(z.string()),
       multiple: z.boolean(),
       label: z.string().nullable(),
@@ -82,8 +84,10 @@ interface FileBrowserProps extends Data, PluginFunctions {
 }
 
 export const FileBrowser = ({
+  value,
+  setValue,
   initialPath,
-  files,
+  initialFiles,
   filetypes,
   multiple,
   label,
@@ -102,12 +106,34 @@ export const FileBrowser = ({
     [debouncedPath],
   );
 
+  let { files } = data || {};
+
+  if (files === undefined) {
+    files = initialFiles;
+  }
+
   console.log(data);
   console.log(loading);
   console.log(error);
 
+  function selectFile(file: string) {
+    const filePath = `${initialPath}/${file}`;
+    const index = value.indexOf(filePath);
+
+    if (index == -1) {
+      value.push(filePath);
+    } else {
+      value.splice(index, 1);
+    }
+
+    setValue(value);
+  }
+
   const fileRows = files.map((file: string) => (
     <TableRow key={file}>
+      <TableCell>
+        <Checkbox onClick={() => selectFile(file)}></Checkbox>
+      </TableCell>
       <TableCell>{file}</TableCell>
     </TableRow>
   ));

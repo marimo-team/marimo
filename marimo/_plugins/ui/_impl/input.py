@@ -967,11 +967,18 @@ class file_browser(UIElement[list[str], Sequence[str]]):
             label=label,
             args={
                 "initial-path": initial_path,
-                "files": files,
+                "initial-files": files,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
             },
+            functions=(
+                Function(
+                    name=self.list_directory.__name__,
+                    arg_cls=ListDirectoryArgs,
+                    function=self.list_directory,
+                ),
+            ),
             on_change=on_change,
         )
 
