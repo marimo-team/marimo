@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { createPlugin } from "../core/builder";
 import { useState } from "react";
-import { useDebounce } from "@/hooks/useDebounce";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +14,6 @@ import { Checkbox } from "@/components/ui/checkbox";
  * Arguments for a file browser component.
  *
  * @param initialPath - the path to display on component render
- * @param initialFiles - the initial files displayed on component render
  * @param filetypes - filter directory lists by file types
  * @param multiple - whether to allow the user to select multiple files
  * @param label - label for the file browser
@@ -24,7 +22,6 @@ import { Checkbox } from "@/components/ui/checkbox";
  */
 interface Data {
   initialPath: string;
-  initialFiles: string[];
   filetypes: string[];
   multiple: boolean;
   label: string | null;
@@ -34,7 +31,7 @@ interface Data {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   list_directory: (req: { path: string; filetypes: string[] }) => Promise<{
-    files: Array<string>;
+    files: string[];
   }>;
 };
 
@@ -44,7 +41,6 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
   .withData(
     z.object({
       initialPath: z.string(),
-      initialFiles: z.array(z.string()),
       filetypes: z.array(z.string()),
       multiple: z.boolean(),
       label: z.string().nullable(),
@@ -87,7 +83,6 @@ export const FileBrowser = ({
   value,
   setValue,
   initialPath,
-  initialFiles,
   filetypes,
   multiple,
   label,
@@ -95,7 +90,6 @@ export const FileBrowser = ({
   list_directory,
 }: FileBrowserProps): JSX.Element => {
   const [path, setPath] = useState(initialPath);
-  const [debouncedPath] = useDebounce(path, 300);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -103,36 +97,56 @@ export const FileBrowser = ({
         path: path,
         filetypes: filetypes,
       }),
-    [debouncedPath],
+    [path],
   );
 
   let { files } = data || {};
-
   if (files === undefined) {
-    files = initialFiles;
+    files = [];
   }
 
   console.log(data);
   console.log(loading);
   console.log(error);
 
+  function setNewPath(path: string) {
+    const outsideInitialPath = path.length < initialPath.length;
+    if (restrictNavigation && outsideInitialPath) return;
+    setPath(path);
+  }
+
   function selectFile(file: string) {
-    const filePath = `${initialPath}/${file}`;
-    const index = value.indexOf(filePath);
+    let filePath = path;
+    if (path.slice(-1) !== "/") filePath += "/";
+    filePath += file;
 
-    if (index == -1) {
-      value.push(filePath);
+    // TODO: Figure out how to read checked state
+    // instead of inferring selection / de-selection
+    if (!multiple) {
+      const newValue = [filePath];
+
+      if (newValue === value) {
+        setValue([]);
+      } else {
+        setValue(newValue);
+      }
     } else {
-      value.splice(index, 1);
-    }
+      const index = value.indexOf(filePath);
 
-    setValue(value);
+      if (index == -1) {
+        value.push(filePath);
+      } else {
+        value.splice(index, 1);
+      }
+
+      setValue(value);
+    }
   }
 
   const fileRows = files.map((file: string) => (
     <TableRow key={file}>
       <TableCell>
-        <Checkbox onClick={() => selectFile(file)}></Checkbox>
+        <Checkbox onClick={() => selectFile(file)} />
       </TableCell>
       <TableCell>{file}</TableCell>
     </TableRow>
@@ -145,7 +159,7 @@ export const FileBrowser = ({
         type="text"
         value={path}
         className="mt-3"
-        onChange={(e) => setPath(e.target.value)}
+        onChange={(e) => setNewPath(e.target.value)}
       />
       <div
         className="mt-2 overflow-y-auto w-full border"

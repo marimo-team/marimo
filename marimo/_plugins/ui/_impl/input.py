@@ -949,7 +949,7 @@ class file_browser(UIElement[list[str], Sequence[str]]):
         self,
         initial_path: str = "",
         filetypes: Optional[Sequence[str]] = None,
-        multiple: bool = False,
+        multiple: bool = True,
         restrict_navigation: bool = False,
         *,
         label: str = "",
@@ -957,9 +957,6 @@ class file_browser(UIElement[list[str], Sequence[str]]):
     ) -> None:
         if not initial_path:
             initial_path = os.getcwd()
-            
-        args = ListDirectoryArgs(path=initial_path, filetypes=filetypes)
-        files = self.list_directory(args).files
 
         super().__init__(
             component_name=file_browser._name,
@@ -967,7 +964,6 @@ class file_browser(UIElement[list[str], Sequence[str]]):
             label=label,
             args={
                 "initial-path": initial_path,
-                "initial-files": files,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
