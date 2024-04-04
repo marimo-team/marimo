@@ -86,6 +86,32 @@ class TestASGIAppBuilder(unittest.TestCase):
         response = client.get("/app3")
         assert response.status_code == 404, response.text
 
+    def test_root_doesnt_conflict_when_root_is_last(self):
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder = builder.with_app(path="/", root=self.app2)
+        app = builder.build()
+        client = TestClient(app)
+        response = client.get("/app1")
+        assert response.status_code == 200, response.text
+        assert "app1.py" in response.text
+        response = client.get("/")
+        assert response.status_code == 200, response.text
+        assert "app2.py" in response.text
+
+    def test_root_doesnt_conflict_when_root_is_first(self):
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/", root=self.app2)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        app = builder.build()
+        client = TestClient(app)
+        response = client.get("/app1")
+        assert response.status_code == 200, response.text
+        assert "app1.py" in response.text
+        response = client.get("/")
+        assert response.status_code == 200, response.text
+        assert "app2.py" in response.text
+
     def test_can_include_code(self):
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/app1", root=self.app1)
