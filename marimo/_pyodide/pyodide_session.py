@@ -324,7 +324,7 @@ def launch_pyodide_kernel(
 
     LOGGER.debug("Launching kernel")
 
-    # Patches for pyodide compatability
+    # Patches for pyodide compatibility
     patches.patch_pyodide_networking()
 
     # Some libraries mess with Python's default recursion limit, which becomes
