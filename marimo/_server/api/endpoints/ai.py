@@ -76,7 +76,8 @@ async def ai_completion(
         "You are a helpful assistant that can answer questions "
         "about python code. You can only output python code. "
         "Do not describe the code, just write the code."
-        "Do not output markdown or backticks."
+        "Do not output markdown or backticks. When using matplotlib "
+        "to show plots, use plt.gca() instead of plt.show()."
     )
 
     prompt = body.prompt
