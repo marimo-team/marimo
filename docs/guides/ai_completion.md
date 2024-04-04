@@ -23,7 +23,9 @@ marimo using `pip` if you need Copilot.
 
 This feature is currently experimental and is not enabled by default. To enable it:
 
-1. You need add the following to your `~/.marimo.toml`:
+1. Install openai: `pip install openai`
+
+2. Add the following to your `~/.marimo.toml`:
 
 ```toml
 [ai.open_ai]
@@ -35,7 +37,8 @@ model = "gpt-3.5-turbo"
 base_url = "https://api.openai.com"
 ```
 
-Once enabled, you can use AI completion by pressing `Ctrl/Cmd-Shift-e` in a cell. This will open an input to modify the cell using AI.
+Once enabled, you can use AI completion by pressing `Ctrl/Cmd-Shift-e` in a
+cell. This will open an input to modify the cell using AI.
 
 <div align="center">
 <figure>
