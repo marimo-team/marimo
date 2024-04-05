@@ -3,7 +3,6 @@ import asyncio
 import os
 import pathlib
 import sys
-from typing import Any
 
 from marimo import _loggers
 
@@ -42,15 +41,6 @@ def find_free_port(port: int, attempts: int = 100) -> int:
             LOGGER.debug(f"Port {port} is already in use")
             pass
     return find_free_port(port + 1, attempts - 1)
-
-
-def import_files(filename: str) -> Any:
-    if sys.version_info < (3, 9):
-        from importlib_resources import files as importlib_files
-    else:
-        from importlib.resources import files as importlib_files
-
-    return importlib_files(filename)
 
 
 def initialize_mimetypes() -> None:

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Generator, List, Optional
 
 from marimo._ast.codegen import get_app
-from marimo._server.utils import import_files
+from marimo._utils.paths import import_files
 
 
 @dataclass
