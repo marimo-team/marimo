@@ -775,7 +775,7 @@ class FileUploadResults:
     name: str
     contents: bytes
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # Truncate contents because it can be very long
         return f"FileUploadResults(name='{self.name}', contents=...)"
 
