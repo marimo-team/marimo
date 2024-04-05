@@ -51,7 +51,7 @@ const ContributeSnippetModal: React.FC<{
           const code = formData.get("code");
 
           // Fire-and-forget we don't care about the response
-          void fetch("https://marimo.io/api/suggested-snippet", {
+          void fetch("https://marimo.io/api/suggest-snippet", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
