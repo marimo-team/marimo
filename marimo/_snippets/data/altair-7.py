@@ -20,25 +20,30 @@ def __(mo):
 def __():
     # load an example dataset
     from vega_datasets import data
+
     cars = data.cars()
 
     import altair as alt
 
     interval = alt.selection_interval()
 
-    points = alt.Chart(cars).mark_point().encode(
-      x='Horsepower',
-      y='Miles_per_Gallon',
-      color=alt.condition(interval, 'Origin', alt.value('lightgray'))
-    ).properties(
-      selection=interval
+    points = (
+        alt.Chart(cars)
+        .mark_point()
+        .encode(
+            x="Horsepower",
+            y="Miles_per_Gallon",
+            color=alt.condition(interval, "Origin", alt.value("lightgray")),
+        )
+        .add_params(interval)
     )
 
-    histogram = alt.Chart(cars).mark_bar().encode(
-      x='count()',
-      y='Origin',
-      color='Origin'
-    ).transform_filter(interval)
+    histogram = (
+        alt.Chart(cars)
+        .mark_bar()
+        .encode(x="count()", y="Origin", color="Origin")
+        .transform_filter(interval)
+    )
 
     points & histogram
     return alt, cars, data, histogram, interval, points
@@ -47,9 +52,9 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 if __name__ == "__main__":
     app.run()
-

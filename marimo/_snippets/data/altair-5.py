@@ -20,6 +20,7 @@ def __(mo):
 def __():
     # load an example dataset
     from vega_datasets import data
+
     cars = data.cars()
 
     import altair as alt
@@ -27,21 +28,19 @@ def __():
     interval = alt.selection_interval()
 
     alt.Chart(cars).mark_point().encode(
-      x='Horsepower',
-      y='Miles_per_Gallon',
-      color=alt.condition(interval, 'Origin', alt.value('lightgray'))
-    ).properties(
-      selection=interval
-    )
+        x="Horsepower",
+        y="Miles_per_Gallon",
+        color=alt.condition(interval, "Origin", alt.value("lightgray")),
+    ).add_params(interval)
     return alt, cars, data, interval
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 if __name__ == "__main__":
     app.run()
-

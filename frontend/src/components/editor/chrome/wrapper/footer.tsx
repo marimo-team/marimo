@@ -6,7 +6,7 @@ import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
-import { FeedbackButton } from "../footer/feedback-button";
+import { FeedbackButton } from "../components/feedback-button";
 import { PANEL_ICONS, PanelType } from "../types";
 
 export const Footer: React.FC = () => {

@@ -20,26 +20,26 @@ def __(mo):
 def __():
     # load an example dataset
     from vega_datasets import data
+
     cars = data.cars()
 
     import altair as alt
 
-    points = alt.Chart(cars).mark_point().encode(
-      x='Year:T',
-      y='Miles_per_Gallon',
-      color='Origin'
-    ).properties(
-      width=800
+    points = (
+        alt.Chart(cars)
+        .mark_point()
+        .encode(x="Year:T", y="Miles_per_Gallon", color="Origin")
+        .properties(width=800)
     )
 
-    lines = alt.Chart(cars).mark_line().encode(
-      x='Year:T',
-      y='mean(Miles_per_Gallon)',
-      color='Origin'
-    ).properties(
-      width=800
-    ).interactive(bind_y=False)
-                  
+    lines = (
+        alt.Chart(cars)
+        .mark_line()
+        .encode(x="Year:T", y="mean(Miles_per_Gallon)", color="Origin")
+        .properties(width=800)
+        .interactive(bind_y=False)
+    )
+
     points + lines
     return alt, cars, data, lines, points
 
@@ -47,9 +47,9 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 if __name__ == "__main__":
     app.run()
-

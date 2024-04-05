@@ -4,6 +4,7 @@ import {
   BetweenHorizonalStartIcon,
   Loader2Icon,
   PartyPopperIcon,
+  PlusIcon,
 } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -24,9 +25,13 @@ import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCo
 import { useTheme } from "@/theme/useTheme";
 import { EditorView } from "@codemirror/view";
 import { Suspense } from "react";
-import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useAtomValue } from "jotai";
+import { lastFocusedCellIdAtom } from "@/core/cells/focus";
+import { useCellActions } from "@/core/cells/cells";
+import { cn } from "@/utils/cn";
+import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 
 export const SnippetsPanel: React.FC = () => {
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
@@ -48,8 +53,25 @@ export const SnippetsPanel: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-hidden">
-      <Command className="h-1/3 border-b rounded-none">
-        <CommandInput placeholder="Search snippets..." className="h-6 m-1" />
+      <Command
+        className={cn(
+          "border-b rounded-none",
+          selectedSnippet ? "h-1/3" : "h-full",
+        )}
+      >
+        <div className="flex items-center w-full">
+          <CommandInput
+            placeholder="Search snippets..."
+            className="h-6 m-1"
+            rootClassName="flex-1 border-r"
+          />
+          <ContributeSnippetButton>
+            <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+              <PlusIcon className="h-4 w-4" />
+            </button>
+          </ContributeSnippetButton>
+        </div>
+
         <CommandEmpty>No results</CommandEmpty>
         <SnippetList
           onSelect={(snippet) => setSelectedSnippet(snippet)}
@@ -65,9 +87,8 @@ export const SnippetsPanel: React.FC = () => {
             />
           ) : (
             <PanelEmptyState
-              title="No snippet selected"
+              title=""
               description="Click on a snippet to view its content."
-              icon={<PartyPopperIcon />}
             />
           )}
         </div>
@@ -78,44 +99,89 @@ export const SnippetsPanel: React.FC = () => {
 
 const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
   const { theme } = useTheme();
+  const { createNewCell } = useCellActions();
+  const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
+
+  const handleInsertSnippet = () => {
+    if (!snippet) {
+      return;
+    }
+
+    // Add below last focused cell in reverse order
+    for (const section of [...snippet.sections].reverse()) {
+      if (section.code) {
+        createNewCell({
+          code: section.code,
+          before: false,
+          cellId: lastFocusedCellId ?? "__end__",
+        });
+      }
+    }
+  };
+
+  const handleInsertCode = (code: string) => {
+    createNewCell({
+      code,
+      before: false,
+      cellId: lastFocusedCellId ?? "__end__",
+    });
+  };
+
   return (
     <>
       <div className="text-sm font-semibold bg-muted border-y px-2 py-1">
         {snippet.title}
       </div>
-      <div className="px-2 py-1 space-y-4 overflow-auto flex-1">
+      <div className="px-2 py-2 space-y-4 overflow-auto flex-1">
+        <div className="flex justify-end">
+          <Button
+            className="float-right"
+            size="xs"
+            variant="outline"
+            onClick={handleInsertSnippet}
+          >
+            Insert snippet
+            <BetweenHorizonalStartIcon className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
         {snippet.sections.map((section) => {
-          if (section.html) {
+          const { code, html, id } = section;
+          if (html) {
             return (
-              <div key={`${snippet.title}-${section.id}`}>
-                {renderHTML({ html: section.html })}
+              <div key={`${snippet.title}-${id}`}>
+                {renderHTML({ html: html })}
               </div>
             );
           }
+
+          if (!code) {
+            return null;
+          }
+
           return (
             <div
-              className="relative hover-actions-parent px-2"
-              key={`${snippet.title}-${section.id}`}
+              className="relative hover-actions-parent pr-2"
+              key={`${snippet.title}-${id}`}
             >
               <Tooltip content="Insert snippet">
                 <Button
-                  className="absolute -top-2 -right-1 z-10 hover-action px-2"
+                  className="absolute -top-2 -right-1 z-10 hover-action px-2 bg-background"
                   size="sm"
-                  variant="secondary"
+                  variant="outline"
                   onClick={() => {
-                    // TODO: Insert code into editor
+                    handleInsertCode(code);
                   }}
                 >
                   <BetweenHorizonalStartIcon className="h-5 w-5" />
                 </Button>
               </Tooltip>
-              <AnyLanguageCodeMirror
-                key={`${snippet.title}-${section.id}`}
+              <LazyAnyLanguageCodeMirror
+                key={`${snippet.title}-${id}`}
                 theme={theme === "dark" ? "dark" : "light"}
                 language="python"
-                className="border rounded overflow-hidden"
+                className="cm border rounded overflow-hidden"
                 extensions={[EditorView.lineWrapping]}
-                value={section.code}
+                value={code}
                 readOnly={true}
               />
             </div>

@@ -66,7 +66,7 @@ def get_title_from_code(code: str) -> str:
         # title is the start of # and end of \n
         start = code.find("#")
         end = code[start:].find("\n")
-        return code[start:end].replace("#", "", 1).strip()
+        return code[start : end + start].replace("#", "", 1).strip()
     return ""
 
 

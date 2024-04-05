@@ -65,6 +65,27 @@ describe("cell reducer", () => {
     `);
   });
 
+  it("can add a cell to the end with code", () => {
+    actions.createNewCell({
+      cellId: "__end__",
+      code: "import numpy as np",
+      before: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      key: 0
+      code: ''
+
+      key: 1
+      code: 'import numpy as np'"
+    `);
+
+    // Cell should be added to the end and edited
+    expect(cells[1].code).toBe("import numpy as np");
+    expect(cells[1].edited).toBe(true);
+    expect(cells[1].lastCodeRun).toBe(null);
+  });
+
   it("can add a cell before another cell", () => {
     actions.createNewCell({
       cellId: firstCellId,

@@ -119,9 +119,15 @@ function initialNotebookState(): NotebookState {
  * Actions and reducer for the notebook state.
  */
 const { reducer, createActions } = createReducer(initialNotebookState, {
-  createNewCell: (state, action: { cellId: CellId; before: boolean }) => {
-    const { cellId, before } = action;
-    const index = state.cellIds.indexOf(cellId);
+  createNewCell: (
+    state,
+    action: { cellId: CellId | "__end__"; before: boolean; code?: string },
+  ) => {
+    const { cellId, before, code } = action;
+    const index =
+      cellId === "__end__"
+        ? state.cellIds.length - 1
+        : state.cellIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
     const newCellId = CellId.create();
 
@@ -130,7 +136,11 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       cellIds: arrayInsert(state.cellIds, insertionIndex, newCellId),
       cellData: {
         ...state.cellData,
-        [newCellId]: createCell({ id: newCellId }),
+        [newCellId]: createCell({
+          id: newCellId,
+          code,
+          edited: Boolean(code),
+        }),
       },
       cellRuntime: {
         ...state.cellRuntime,
