@@ -14,6 +14,7 @@ import type {
   FormatResponse,
   SaveAppConfigRequest,
   SaveKernelRequest,
+  SnippetsResponse,
 } from "../../network/types";
 
 export interface WasmController {
@@ -42,6 +43,7 @@ export interface RawBridge {
   put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
+  read_snippets(): Promise<SnippetsResponse>;
   format(request: FormatRequest): Promise<FormatResponse>;
   save(request: SaveKernelRequest): Promise<string>;
   save_app_config(request: SaveAppConfigRequest): Promise<string>;

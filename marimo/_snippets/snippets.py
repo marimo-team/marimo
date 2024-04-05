@@ -33,12 +33,14 @@ def read_snippets():
 
         for cell in app._cell_manager.cells():
             code = cell._cell.code
+            if should_ignore_code(code):
+                continue
 
             if is_markdown(code):
                 if not title and "# " in code:
                     title = get_title_from_code(code)
 
-                output, defs = cell.run()
+                output, _defs = cell.run()
                 sections.append(SnippetSection(html=output.text))
             else:
                 sections.append(SnippetSection(code=code))
@@ -46,6 +48,10 @@ def read_snippets():
         snippets.append(Snippet(title=title, sections=sections))
 
     return Snippets(snippets=snippets)
+
+
+def should_ignore_code(code: str) -> bool:
+    return code == "import marimo as mo"
 
 
 def get_title_from_code(code: str) -> str:

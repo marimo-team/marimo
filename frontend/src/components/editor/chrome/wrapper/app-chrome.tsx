@@ -20,6 +20,7 @@ import { VariablePanel } from "../panels/variable-panel";
 import { LogsPanel } from "../panels/logs-panel";
 import { DocumentationPanel } from "../panels/documentation-panel";
 import { FileExplorerPanel } from "../panels/file-explorer-panel";
+import { SnippetsPanel } from "../panels/snippets-panel";
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { isOpen, selectedPanel } = useChromeState();
@@ -97,6 +98,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       {selectedPanel === "dependencies" && <DependencyGraphPanel />}
       {selectedPanel === "outline" && <OutlinePanel />}
       {selectedPanel === "documentation" && <DocumentationPanel />}
+      {selectedPanel === "snippets" && <SnippetsPanel />}
       {selectedPanel === "logs" && <LogsPanel />}
     </div>
   );

@@ -23,6 +23,7 @@ def _read_snippets_once() -> Snippets:
 
 @router.get("/snippets")
 async def load_snippets(
-    _request: Request,
+    request: Request,
 ) -> Snippets:
+    del request
     return _read_snippets_once()

@@ -35,6 +35,7 @@ export const {
   sendFunctionRequest,
   sendInstallMissingPackages,
   readCode,
+  readSnippets,
   openFile,
   sendListFiles,
   sendCreateFileOrFolder,
