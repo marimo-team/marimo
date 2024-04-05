@@ -16,7 +16,11 @@ import io
 from typing import Optional
 
 import matplotlib.pyplot as plt  # type: ignore
-from matplotlib.backend_bases import FigureManagerBase, Gcf  # type: ignore
+from matplotlib.backend_bases import (  # type: ignore
+    FigureCanvasBase,
+    FigureManagerBase,
+    Gcf,
+)
 from matplotlib.backends.backend_agg import FigureCanvasAgg  # type: ignore
 
 from marimo._messaging.cell_output import CellChannel
@@ -32,7 +36,7 @@ def close_figures() -> None:
         plt.close("all")
 
 
-def _internal_show(canvas: FigureCanvasAgg) -> None:
+def _internal_show(canvas: FigureCanvasBase) -> None:
     buf = io.BytesIO()
     buf.seek(0)
     canvas.figure.savefig(buf, format="png")
