@@ -1,11 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-# Mapping from a module name to the corresponding package name # on PyPI
 
-
+# Mapping from a module name to the corresponding package name
+# on PyPI
 def module_name_to_pypi_name() -> dict[str, str]:
     return {
+        "cv2": "opencv-python",
         "shopify": "ShopifyAPI",
         "bigquery": "google-cloud-bigquery",
         "carbon3d": "carbon3d-client",
