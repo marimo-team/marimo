@@ -159,7 +159,11 @@ export interface FileDetailsResponse {
 
 export interface Snippet {
   title: string;
-  sections: Array<{ html?: string; code?: string }>;
+  sections: Array<{
+    id: string;
+    html?: string;
+    code?: string;
+  }>;
 }
 
 export interface SnippetsResponse {

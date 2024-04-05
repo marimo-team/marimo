@@ -8,6 +8,7 @@ from marimo._utils.paths import import_files
 
 @dataclass
 class SnippetSection:
+    id: str
     html: Optional[str] = None
     code: Optional[str] = None
 
@@ -41,9 +42,13 @@ def read_snippets():
                     title = get_title_from_code(code)
 
                 output, _defs = cell.run()
-                sections.append(SnippetSection(html=output.text))
+                sections.append(
+                    SnippetSection(html=output.text, id=cell._cell.cell_id)
+                )
             else:
-                sections.append(SnippetSection(code=code))
+                sections.append(
+                    SnippetSection(code=code, id=cell._cell.cell_id)
+                )
 
         snippets.append(Snippet(title=title, sections=sections))
 
@@ -61,7 +66,7 @@ def get_title_from_code(code: str) -> str:
         # title is the start of # and end of \n
         start = code.find("#")
         end = code[start:].find("\n")
-        return code[start:end].strip()
+        return code[start:end].replace("#", "", 1).strip()
     return ""
 
 
