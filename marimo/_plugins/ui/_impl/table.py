@@ -103,13 +103,16 @@ class table(
 
     **Initialization Args.**
 
-    - `data`: A pandas dataframe, a polars dataframe,
-        a list of values representing a column, or a list of dicts
-        where each dict represents a row in the table
-        (mapping column names to values). Values can be
-        primitives (`str`, `int`, `float`, `bool`, or `None`)
-        or marimo elements: e.g.
-        `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc.
+    - `data`: Values can be primitives (`str`,
+      `int`, `float`, `bool`, or `None`) or marimo elements: e.g.
+      `mo.ui.button(...)`, `mo.md(...)`, `mo.as_html(...)`, etc. Data can be
+      passed in many ways:
+        - as dataframes: a pandas dataframe, a polars dataframe
+        - as rows: a list of dicts, where each dict represents a row in the
+          table
+        - as columns: a dict keyed by column names, where the value of each
+          entry is a list representing a column
+        - as a single column: a list of values
     - `pagination`: whether to paginate; if `False`, all rows will be shown
       defaults to `True` when above 10 rows, `False` otherwise
     - `page_size`: the number of rows to show per page.
@@ -127,6 +130,7 @@ class table(
         data: Union[
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
             ListOrTuple[dict[str, JSONType]],
+            dict[str, list[JSONType]],
             "pd.DataFrame",
             "pl.DataFrame",
         ],
@@ -141,13 +145,19 @@ class table(
             ]
         ] = None,
     ) -> None:
-        self._data = data
+        # TODO: instead of converting to row major, we should just support
+        # column major tables -- in the frontend, users would select
+        # columns instead of rows ...
+        self._data = _as_row_major(data)
         normalized_data = _normalize_data(data)
         self._normalized_data = normalized_data
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
-            pagination = len(self._data) > 10
+            if isinstance(self._data, dict):
+                pagination = len(next(iter(self._data.values()))) > 10
+            else:
+                pagination = len(self._data) > 10
 
         can_download = (
             DependencyManager.has_pandas() or DependencyManager.has_polars()
@@ -255,6 +265,29 @@ class table(
             raise ValueError("format must be one of 'csv' or 'json'.")
 
 
+def _as_row_major(data: TableData | dict[str, list[JSONType]]) -> TableData:
+    if not isinstance(data, dict):
+        return data
+
+    if DependencyManager.has_pyarrow():
+        import pyarrow as pa  # type: ignore
+
+        columns = [pa.array(column) for column in data.values()]
+        names = list(data.keys())
+        return pa.Table.from_arrays(columns, names)
+
+    # reshape colunn major
+    #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
+    # into row major
+    #   [ {"col1": 1, "col2": 4}, {"col1": 2, "col2": 5 }, ...]
+    column_values = data.values()
+    column_names = list(data.keys())
+    return [
+        {key: value for key, value in zip(column_names, row_values)}
+        for row_values in zip(*column_values)
+    ]
+
+
 # TODO: more narrow return type
 def _normalize_data(data: TableData) -> JSONType:
     # Handle pandas
@@ -274,12 +307,19 @@ def _normalize_data(data: TableData) -> JSONType:
             return vf.url
 
     # Assert that data is a list
-    if not isinstance(data, (list, tuple)):
-        raise ValueError("data must be a list or tuple.")
+    if not isinstance(data, (list, tuple, dict)):
+        raise ValueError("data must be a list, tuple, or dict.")
 
     # Handle empty data
     if len(data) == 0:
         return []
+
+    if DependencyManager.has_pyarrow():
+        import pyarrow as pa
+
+        if isinstance(data, pa.Table):
+            vf = mo_data.csv(table)
+            return vf.url
 
     # Handle single-column data
     if not isinstance(data[0], dict) and isinstance(

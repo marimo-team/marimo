@@ -15,6 +15,7 @@ from marimo._runtime.virtual_file import (
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    import pyarrow as pa  # type: ignore
 
 
 def pdf(data: bytes) -> VirtualFile:
@@ -50,7 +51,9 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
 
 
 def csv(
-    data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
+    data: Union[
+        str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame", "pa.Table"
+    ]
 ) -> VirtualFile:
     """Create a virtual file for CSV data.
 
@@ -80,6 +83,15 @@ def csv(
         if isinstance(data, pl.DataFrame):
             buffer = data.write_csv().encode("utf-8")
             return any_data(buffer, ext="csv")
+
+    if DependencyManager.has_pyarrow():
+        import pyarrow as pa  # type: ignore
+        import pyarrow.csv as pacsv  # type: ignore
+
+        if isinstance(data, pa.Table):
+            bio = io.BytesIO()
+            pacsv.write_csv(data, bio)
+            return any_data(bio, ext="csv")
 
     return any_data(data, ext="csv")  # type: ignore
 

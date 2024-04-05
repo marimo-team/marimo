@@ -17,6 +17,7 @@ from marimo._plugins.core.web_component import JSONType
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    import pyarrow as pa  # type: ignore
 
 LOGGER = _loggers.marimo_logger()
 
@@ -28,6 +29,7 @@ TableData = Union[
     List[JSONType],
     "pd.DataFrame",
     "pl.DataFrame",
+    "pa.Table",
 ]
 
 

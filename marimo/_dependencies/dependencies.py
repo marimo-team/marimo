@@ -113,6 +113,11 @@ class DependencyManager:
         return importlib.util.find_spec("polars") is not None
 
     @staticmethod
+    def has_pyarrow() -> bool:
+        """Return True if pandas is installed."""
+        return importlib.util.find_spec("pyarrow") is not None
+
+    @staticmethod
     def has_numpy() -> bool:
         """Return True if numpy is installed."""
         return importlib.util.find_spec("numpy") is not None
