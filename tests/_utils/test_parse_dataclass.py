@@ -53,6 +53,11 @@ def serialize(obj: Any) -> bytes:
 
 
 class TestParseRaw:
+    def test_invalid_message(self) -> None:
+        with pytest.raises(ValueError) as e:
+            parse_raw(b'"string"', ConfigOne)
+        assert "needs to be a dictionary" in str(e.value)
+
     def test_flat(self) -> None:
         @dataclass
         class Flat:
@@ -168,10 +173,17 @@ class TestParseRaw:
         parsed = parse_raw(serialize(nested), Nested)
         assert parsed == nested
 
-        # handle error
+        # should raise ("invalid" is not a dict and thus cannot be converted
+        # to a dataclass)
         with pytest.raises(ValueError) as e:
             parsed = parse_raw(serialize({"config": "invalid"}), Nested)
         assert "invalid" in str(e.value)
+
+        # should raise (value of key "config" is dataclass not included in
+        # Union)
+        nested = Nested(config=Config(True, True))  # type: ignore
+        with pytest.raises(ValueError) as e:
+            parsed = parse_raw(serialize(nested), Nested)
 
     def test_enums(self) -> None:
         @dataclass
@@ -212,16 +224,17 @@ class TestParseRaw:
             )
         assert "invalid" in str(e.value)
 
-    def test_build_optional(self) -> None:
-        @dataclass
-        class TestOptional:
-            x: Optional[str] = None
 
-        parsed = build_dataclass({}, TestOptional)
-        assert parsed == TestOptional(x=None)
+def test_build_optional() -> None:
+    @dataclass
+    class TestOptional:
+        x: Optional[str] = None
 
-        parsed = build_dataclass({"x": "hello"}, TestOptional)
-        assert parsed == TestOptional(x="hello")
+    parsed = build_dataclass({}, TestOptional)
+    assert parsed == TestOptional(x=None)
+
+    parsed = build_dataclass({"x": "hello"}, TestOptional)
+    assert parsed == TestOptional(x="hello")
 
 
 def test_build_empty_dataclass() -> None:
