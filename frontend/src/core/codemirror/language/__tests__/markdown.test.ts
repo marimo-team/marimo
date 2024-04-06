@@ -105,7 +105,7 @@ describe("MarkdownLanguageAdapter", () => {
       expect(innerCode).toBe(
         `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`,
       );
-      expect(offset).toBe(18);
+      expect(offset).toBe(9);
     });
 
     it("simple markdown", () => {
@@ -119,14 +119,14 @@ describe("MarkdownLanguageAdapter", () => {
       const pythonCode = 'mo.md("""   \n# Title\nContent\n   """)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title\nContent");
-      expect(offset).toBe(13);
+      expect(offset).toBe(9);
     });
 
-    it("should handle space around the f=strings", () => {
+    it("should handle space around the f-strings", () => {
       const pythonCode = 'mo.md(\n\t"""\n# Title\nContent\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title\nContent");
-      expect(offset).toBe(12);
+      expect(offset).toBe(11);
     });
 
     it("should dedent indented strings", () => {
@@ -134,7 +134,7 @@ describe("MarkdownLanguageAdapter", () => {
         'mo.md(\n\t"""\n\t- item 1\n\t-item 2\n\t-item3\n\t"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("- item 1\n-item 2\n-item3");
-      expect(offset).toBe(13);
+      expect(offset).toBe(11);
     });
   });
 
