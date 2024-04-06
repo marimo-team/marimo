@@ -203,19 +203,21 @@ def _drain_queue(
 def completion_worker(
     completion_queue: QueueType[CompletionRequest],
     graph: dataflow.DirectedGraph,
+    glbls,
     stream: Stream,
 ) -> None:
     """Code completion worker"""
 
     while True:
         request = _drain_queue(completion_queue)
-        complete(request, graph, stream)
+        complete(request, graph, stream, glbls)
 
 
 def complete(
     request: CompletionRequest,
     graph: dataflow.DirectedGraph,
     stream: Stream,
+    glbls,
     docstrings_limit: int = 1000,
 ) -> None:
     if not request.document.strip():
@@ -232,11 +234,12 @@ def complete(
         ]
 
     try:
-        script = jedi.Script("\n".join(codes + [request.document]))
+        script = jedi.Interpreter("\n".join([request.document]), [glbls])
         completions = script.complete()
         prefix_length = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
+        print('got completions')
 
         # Only complete an empty symbol (prefix length == 0) when we're
         # using dot notation; this prevents autocomplete from kicking in at
@@ -279,11 +282,13 @@ def complete(
 
         prefix = request.document[-prefix_length:]
         if len(completions) < docstrings_limit:
+            print('gettign completion options')
             options = [
                 _get_completion_options(c, script)
                 for c in completions
                 if _should_include_name(c.name, prefix)
             ]
+            print('got options')
         else:
             options = [
                 CompletionOption(name=c.name, type=c.type, completion_info="")
@@ -299,4 +304,7 @@ def complete(
     except Exception as e:
         # jedi failed to provide completion
         LOGGER.debug("Completion with jedi failed: ", str(e))
+        import traceback
+        print(traceback.format_exc())
+        print("Completion failed with ", str(e))
         _write_no_completions(stream, request.id)
