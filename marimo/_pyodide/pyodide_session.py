@@ -369,6 +369,9 @@ def launch_pyodide_kernel(
     async def listen_completion() -> None:
         while True:
             request = await completion_queue.get()
+            while not completion_queue.empty():
+                # discard stale requests to avoid choking the runtime
+                request = await completion_queue.get()
             LOGGER.debug("received completion request %s", request)
             # 5 is arbitrary, but is a good limit:
             # too high will cause long load times
