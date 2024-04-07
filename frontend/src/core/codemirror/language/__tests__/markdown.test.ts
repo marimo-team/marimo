@@ -123,9 +123,9 @@ describe("MarkdownLanguageAdapter", () => {
     });
 
     it("should handle space around the f-strings", () => {
-      const pythonCode = 'mo.md(\n\t"""\n# Title\nContent\n"""\n)';
+      const pythonCode = 'mo.md(\n\t"""\n# Title\n{  Content  }\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("# Title\nContent");
+      expect(innerCode).toBe("# Title\n{  Content  }");
       expect(offset).toBe(11);
     });
 
