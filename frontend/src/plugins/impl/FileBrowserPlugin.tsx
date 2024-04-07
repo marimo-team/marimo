@@ -2,8 +2,6 @@
 import { z } from "zod";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { createPlugin } from "../core/builder";
 import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -111,50 +109,52 @@ export const FileBrowser = ({
 
   function setNewPath(path: string) {
     const outsideInitialPath = path.length < initialPath.length;
-    if (restrictNavigation && outsideInitialPath) return;
+    if (restrictNavigation && outsideInitialPath) {
+      return;
+    }
     setPath(path);
   }
 
-  function selectFile(file: string) {
-    let filePath = path;
-    if (path.slice(-1) !== "/") filePath += "/";
-    filePath += file;
-
-    // TODO: Figure out how to read checked state
-    // instead of inferring selection / de-selection
-    if (!multiple) {
-      const newValue = [filePath];
-
-      if (newValue === value) {
-        setValue([]);
+  const selectFile = (filePath: string) => {
+    if (multiple) {
+      if (value.includes(filePath)) {
+        setValue(value.filter((x) => x !== filePath));
       } else {
-        setValue(newValue);
+        setValue([...value, filePath]);
       }
     } else {
-      const index = value.indexOf(filePath);
-
-      if (index == -1) {
-        value.push(filePath);
-      } else {
-        value.splice(index, 1);
-      }
-
-      setValue(value);
+      setValue([filePath]);
     }
+  };
+
+  const fileRows = [];
+
+  for (const file of files) {
+    let filePath = path;
+    if (!path.endsWith("/")) {
+      filePath += "/";
+    }
+    filePath += file;
+
+    fileRows.push(
+      <TableRow key={filePath} onClick={() => selectFile(filePath)}>
+        <TableCell>
+          <Checkbox checked={value.includes(filePath)} />
+        </TableCell>
+        <TableCell>{file}</TableCell>
+      </TableRow>,
+    );
   }
 
-  const fileRows = files.map((file: string) => (
-    <TableRow key={file}>
-      <TableCell>
-        <Checkbox onClick={() => selectFile(file)} />
-      </TableCell>
-      <TableCell>{file}</TableCell>
-    </TableRow>
+  const selectedFiles = value.map((filePath) => (
+    <li key={filePath}>{filePath}</li>
   ));
 
   return (
-    <>
-      <Label>{label ?? "Browse and select file(s)..."}</Label>
+    <section>
+      <span className="markdown">
+        <strong>{label ?? "Browse and select file(s)..."}</strong>
+      </span>
       <Input
         type="text"
         value={path}
@@ -165,13 +165,16 @@ export const FileBrowser = ({
         className="mt-2 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
       >
-        <Table>{fileRows}</Table>
+        <Table className="cursor-pointer">{fileRows}</Table>
       </div>
-      <div className="mt-3 flex items-center space-x-3">
-        <Button>Select</Button>
-        <Button variant="secondary">Cancel</Button>
-        <Label className="mb-1">No file(s) selected</Label>
-      </div>
-    </>
+      <aside className="mt-4">
+        {value.length > 0 ? (
+          <span className="markdown">
+            <strong>{value.length} file(s) selected</strong>
+            <ul style={{ margin: 0 }}>{selectedFiles}</ul>
+          </span>
+        ) : null}
+      </aside>
+    </section>
   );
 };
