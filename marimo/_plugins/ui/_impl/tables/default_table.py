@@ -115,4 +115,4 @@ class DefaultTableManager(TableManager[JsonTableData]):
             )
 
         # Sequence of dicts
-        return cast(list[dict[str, Any]], data)
+        return cast(List[Dict[str, Any]], data)
