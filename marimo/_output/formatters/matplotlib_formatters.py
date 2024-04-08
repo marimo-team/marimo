@@ -13,12 +13,16 @@ class MatplotlibFormatter(FormatterFactory):
     def register(self) -> None:
         import matplotlib  # type: ignore
 
-        from marimo._runtime.context import get_global_context
+        from marimo._runtime.context import (
+            get_global_context,
+            runtime_context_installed,
+        )
 
         get_global_context().set_mpl_installed(True)
         from marimo._output import mpl  # noqa: F401
 
-        matplotlib.use("module://marimo._output.mpl")
+        if runtime_context_installed():
+            matplotlib.use("module://marimo._output.mpl")
 
         import base64
         import io
