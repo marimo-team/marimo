@@ -15,7 +15,6 @@ import {
   UploadIcon,
   ViewIcon,
 } from "lucide-react";
-import { useOnMount } from "@/hooks/useLifecycle";
 import { openFile } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
@@ -46,6 +45,9 @@ import { FileViewer } from "./file-viewer";
 import { treeAtom, openStateAtom } from "./state";
 import { useFileExplorerUpload } from "./upload";
 import { isPyodide } from "@/core/pyodide/utils";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { Spinner } from "@/components/icons/spinner";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -55,9 +57,15 @@ export const FileExplorer: React.FC<{
   const [openState, setOpenState] = useAtom(openStateAtom);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
 
-  useOnMount(() => {
-    void tree.initialize(setData);
-  });
+  const { loading, error } = useAsyncData(() => tree.initialize(setData), []);
+
+  if (loading) {
+    return <Spinner size="medium" centered={true} />;
+  }
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
 
   if (openFile) {
     return (

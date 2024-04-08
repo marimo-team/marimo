@@ -5,18 +5,18 @@ import { useAtomValue } from "jotai";
 import React from "react";
 import "../../documentation.css";
 import { BookMarkedIcon } from "lucide-react";
+import { PanelEmptyState } from "./empty-state";
 
 export const DocumentationPanel: React.FC = () => {
   const { documentation } = useAtomValue(documentationAtom);
 
   if (!documentation) {
     return (
-      <div className="mx-6 my-6 flex flex-row gap-2 items-center rounded-lg">
-        <BookMarkedIcon className="text-accent-foreground" />
-        <span className="mt-[0.25rem] text-accent-foreground">
-          No documentation
-        </span>
-      </div>
+      <PanelEmptyState
+        title="No documentation"
+        description="Move your cursor over a symbol to see its documentation."
+        icon={<BookMarkedIcon />}
+      />
     );
   }
 

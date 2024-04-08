@@ -136,6 +136,7 @@ include = ["marimo*"]
 line-length=79
 exclude = [
     "marimo/_tutorials",
+    "marimo/_snippets/data",
     "marimo/_smoke_tests",
     "marimo/_test_utils/codegen_data",
     "marimo/_test_utils/_tutorials",
@@ -185,6 +186,7 @@ extend-exclude = """
     | ^/tests/_cli/ipynb_data/*
     | ^/tests/_runtime/runtime_data/*
     | ^/marimo/_tutorials/*
+    | ^/marimo/_snippets/data/*
     | ^/marimo/_smoke_tests/*
 )
 """
@@ -198,6 +200,7 @@ exclude = [
     'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
     'marimo/_tutorials/',
+    'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
 ]
 warn_unused_ignores=false

@@ -50,10 +50,11 @@ from marimo._server.model import (
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
-from marimo._server.utils import import_files, print_tabbed
+from marimo._server.utils import print_tabbed
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 

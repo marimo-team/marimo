@@ -157,6 +157,19 @@ export interface FileDetailsResponse {
   contents: string | undefined;
 }
 
+export interface Snippet {
+  title: string;
+  sections: Array<{
+    id: string;
+    html?: string;
+    code?: string;
+  }>;
+}
+
+export interface SnippetsResponse {
+  snippets: Snippet[];
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -187,6 +200,7 @@ export interface EditRequests {
     request: SendInstallMissingPackages,
   ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
+  readSnippets: () => Promise<SnippetsResponse>;
   openFile: (request: { path: string }) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;

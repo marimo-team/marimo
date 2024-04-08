@@ -4,6 +4,7 @@ import { notebookOutline } from "../../../../core/cells/cells";
 import { useAtomValue } from "jotai";
 import { cn } from "@/utils/cn";
 import { ScrollTextIcon } from "lucide-react";
+import { PanelEmptyState } from "./empty-state";
 
 import "./outline-panel.css";
 
@@ -12,10 +13,11 @@ export const OutlinePanel: React.FC = () => {
 
   if (outline.items.length === 0) {
     return (
-      <div className="mx-6 my-6 flex flex-row gap-2 items-center rounded-lg">
-        <ScrollTextIcon className="text-muted-foreground" />
-        <span className="mt-[0.25rem] text-muted-foreground">No outline</span>
-      </div>
+      <PanelEmptyState
+        title="No outline"
+        description="Add markdown headings to your notebook to create an outline."
+        icon={<ScrollTextIcon />}
+      />
     );
   }
 

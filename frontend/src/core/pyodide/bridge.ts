@@ -24,6 +24,7 @@ import {
   SendFunctionRequest,
   SendInstallMissingPackages,
   SendStdin,
+  SnippetsResponse,
   ValueUpdate,
 } from "../network/types";
 import { IReconnectingWebSocket } from "../websocket/types";
@@ -256,6 +257,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: undefined,
     });
     return response as { contents: string };
+  };
+
+  readSnippets = async (): Promise<SnippetsResponse> => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "read_snippets",
+      payload: undefined,
+    });
+    return response as SnippetsResponse;
   };
 
   openFile = async (request: { path: string }): Promise<null> => {
