@@ -1,8 +1,8 @@
 from marimo._snippets.snippets import get_title_from_code, read_snippets
 
 
-def test_snippets():
-    snippets = read_snippets()
+async def test_snippets():
+    snippets = await read_snippets()
     assert len(snippets.snippets) > 0
     # All have titles
     assert all(s.title for s in snippets.snippets)
@@ -20,7 +20,7 @@ def test_get_title_from_code_empty():
 
 def test_get_title_from_code_with_title():
     code = "# This is a title\nprint('Hello, world!')"
-    assert get_title_from_code(code) == "# This is a title"
+    assert get_title_from_code(code) == "This is a title"
 
 
 def test_get_title_from_code_without_title():
@@ -30,7 +30,7 @@ def test_get_title_from_code_without_title():
 
 def test_get_title_from_code_with_multiple_titles():
     code = "# First title\nprint('Hello, world!')\n# Second title"
-    assert get_title_from_code(code) == "# First title"
+    assert get_title_from_code(code) == "First title"
 
 
 def test_get_title_from_code_with_non_title_hashes():
