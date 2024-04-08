@@ -8,7 +8,6 @@ import {
   ChevronRightIcon,
   CopyIcon,
   Edit3Icon,
-  Loader2Icon,
   MoreVerticalIcon,
   PlaySquareIcon,
   RefreshCcwIcon,

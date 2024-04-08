@@ -1,11 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React from "react";
-import {
-  BetweenHorizonalStartIcon,
-  Loader2Icon,
-  PartyPopperIcon,
-  PlusIcon,
-} from "lucide-react";
+import { BetweenHorizontalStartIcon, PlusIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -142,7 +137,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
             onClick={handleInsertSnippet}
           >
             Insert snippet
-            <BetweenHorizonalStartIcon className="ml-2 h-4 w-4" />
+            <BetweenHorizontalStartIcon className="ml-2 h-4 w-4" />
           </Button>
         </div>
         {snippet.sections.map((section) => {
@@ -173,7 +168,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
                     handleInsertCode(code);
                   }}
                 >
-                  <BetweenHorizonalStartIcon className="h-5 w-5" />
+                  <BetweenHorizontalStartIcon className="h-5 w-5" />
                 </Button>
               </Tooltip>
               <LazyAnyLanguageCodeMirror
