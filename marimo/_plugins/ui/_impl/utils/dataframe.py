@@ -5,13 +5,13 @@ from typing import (
     TYPE_CHECKING,
     Dict,
     List,
-    Sequence,
     Union,
 )
 
 from marimo import _loggers
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.table import ListOrTuple
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -23,10 +23,10 @@ LOGGER = _loggers.marimo_logger()
 Numeric = Union[int, float]
 
 TableData = Union[
-    Sequence[Union[str, int, float, bool, MIME, None]],
-    Sequence[JSONType],
     List[JSONType],
-    Dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
+    ListOrTuple[Union[str, int, float, bool, MIME, None]],
+    ListOrTuple[dict[str, JSONType]],
+    Dict[str, ListOrTuple[JSONType]],
     "pd.DataFrame",
     "pl.DataFrame",
     "pa.Table",
