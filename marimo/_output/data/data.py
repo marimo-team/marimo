@@ -1,9 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 import base64
 import io
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.media import is_data_empty
 from marimo._runtime.context import get_context
 from marimo._runtime.virtual_file import (
@@ -11,10 +10,6 @@ from marimo._runtime.virtual_file import (
     VirtualFile,
     VirtualFileLifecycleItem,
 )
-
-if TYPE_CHECKING:
-    import pandas as pd
-    import polars as pl
 
 
 def pdf(data: bytes) -> VirtualFile:
@@ -49,9 +44,7 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     return item.virtual_file
 
 
-def csv(
-    data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
-) -> VirtualFile:
+def csv(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for CSV data.
 
     **Args.**
@@ -63,30 +56,10 @@ def csv(
 
     A `VirtualFile` object.
     """
-    # Pandas DataFrame
-    if DependencyManager.has_pandas():
-        import pandas as pd
-
-        if isinstance(data, pd.DataFrame):
-            buffer = data.to_csv(
-                index=False,
-            ).encode("utf-8")
-            return any_data(buffer, ext="csv")
-
-    # Polars DataFrame
-    if DependencyManager.has_polars():
-        import polars as pl
-
-        if isinstance(data, pl.DataFrame):
-            buffer = data.write_csv().encode("utf-8")
-            return any_data(buffer, ext="csv")
-
     return any_data(data, ext="csv")  # type: ignore
 
 
-def json(
-    data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
-) -> VirtualFile:
+def json(data: Union[str, bytes, io.BytesIO]) -> VirtualFile:
     """Create a virtual file for JSON data.
 
     **Args.**
@@ -98,22 +71,6 @@ def json(
 
     A `VirtualFile` object.
     """
-    # Pandas DataFrame
-    if DependencyManager.has_pandas():
-        import pandas as pd
-
-        if isinstance(data, pd.DataFrame):
-            buffer = data.to_json(orient="records").encode("utf-8")
-            return any_data(buffer, ext="json")
-
-    # Polars DataFrame
-    if DependencyManager.has_polars():
-        import polars as pl
-
-        if isinstance(data, pl.DataFrame):
-            buffer = data.write_json(row_oriented=True).encode("utf-8")
-            return any_data(buffer, ext="json")
-
     return any_data(data, ext="json")  # type: ignore
 
 
