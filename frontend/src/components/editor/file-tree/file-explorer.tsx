@@ -48,6 +48,7 @@ import { useFileExplorerUpload } from "./upload";
 import { isPyodide } from "@/core/pyodide/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
+import { Spinner } from "@/components/icons/spinner";
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -60,7 +61,7 @@ export const FileExplorer: React.FC<{
   const { loading, error } = useAsyncData(() => tree.initialize(setData), []);
 
   if (loading) {
-    return <Loader2Icon className="animate-spin w-6 h-6 m-auto" />;
+    return <Spinner size="medium" centered={true} />;
   }
 
   if (error) {

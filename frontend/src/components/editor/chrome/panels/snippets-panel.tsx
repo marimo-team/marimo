@@ -32,6 +32,7 @@ import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { useCellActions } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
+import { Spinner } from "@/components/icons/spinner";
 
 export const SnippetsPanel: React.FC = () => {
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
@@ -48,7 +49,7 @@ export const SnippetsPanel: React.FC = () => {
   }
 
   if (loading || !snippets) {
-    return <Loader2Icon className="animate-spin h-6 w-6" />;
+    return <Spinner size="medium" centered={true} />;
   }
 
   return (
