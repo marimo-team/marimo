@@ -1,6 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.3.8"
+__generated_with = "0.3.9"
 app = marimo.App()
 
 
@@ -44,8 +45,7 @@ def __():
 @app.cell
 def __():
     import marimo as mo
-
-    return (mo,)
+    return mo,
 
 
 if __name__ == "__main__":

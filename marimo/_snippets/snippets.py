@@ -1,6 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 import os
 from dataclasses import dataclass
-from typing import Any, Generator, List, Optional
+from typing import Any, Awaitable, Generator, List, Optional
 
 from marimo._ast.codegen import get_app
 from marimo._utils.paths import import_files
@@ -24,15 +25,19 @@ class Snippets:
     snippets: List[Snippet]
 
 
-def read_snippets():
+async def read_snippets() -> Snippets:
     snippets: List[Snippet] = []
 
     for file in snippet_files():
         app = get_app(file)
+        assert app is not None
         sections: List[SnippetSection] = []
         title = ""
 
         for cell in app._cell_manager.cells():
+            if not cell:
+                continue
+
             code = cell._cell.code
             if should_ignore_code(code):
                 continue
@@ -41,7 +46,11 @@ def read_snippets():
                 if not title and "# " in code:
                     title = get_title_from_code(code)
 
-                output, _defs = cell.run()
+                ret = cell.run()
+                if isinstance(ret, Awaitable):
+                    output, _defs = await ret
+                else:
+                    output, _defs = ret
                 sections.append(
                     SnippetSection(html=output.text, id=cell._cell.cell_id)
                 )

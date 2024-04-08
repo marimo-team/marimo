@@ -17,8 +17,8 @@ router = APIRouter()
 
 # Cache the snippets
 @lru_cache(1)
-def _read_snippets_once() -> Snippets:
-    return read_snippets()
+async def _read_snippets_once() -> Snippets:
+    return await read_snippets()
 
 
 @router.get("/snippets")
@@ -26,4 +26,4 @@ async def load_snippets(
     request: Request,
 ) -> Snippets:
     del request
-    return _read_snippets_once()
+    return await _read_snippets_once()

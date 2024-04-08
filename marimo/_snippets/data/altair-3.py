@@ -1,6 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 import marimo
 
-__generated_with = "0.3.8"
+__generated_with = "0.3.9"
 app = marimo.App()
 
 
@@ -21,14 +22,14 @@ def __(mo):
 def __():
     # load an example dataset
     from vega_datasets import data
+
     cars = data.cars()
 
     # plot the dataset, referencing dataframe column names
     import altair as alt
+
     alt.Chart(cars).mark_bar().encode(
-      x=alt.X('Miles_per_Gallon', bin=True),
-      y='count()',
-      color='Origin'
+        x=alt.X("Miles_per_Gallon", bin=True), y="count()", color="Origin"
     )
     return alt, cars, data
 
@@ -41,4 +42,3 @@ def __():
 
 if __name__ == "__main__":
     app.run()
-

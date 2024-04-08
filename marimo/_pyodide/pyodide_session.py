@@ -215,8 +215,8 @@ class PyodideBridge:
         response = ReadCodeResponse(contents=contents)
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
-    def read_snippets(self) -> str:
-        snippets = read_snippets()
+    async def read_snippets(self) -> str:
+        snippets = await read_snippets()
         return json.dumps(deep_to_camel_case(dataclasses.asdict(snippets)))
 
     def format(self, request: str) -> str:
