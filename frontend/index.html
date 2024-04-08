@@ -28,9 +28,19 @@
         
         function setHeight() {
           var element = obj.contentWindow.document.documentElement;
+          // If there is no vertical scrollbar, we don't need to resize the iframe
+          if (element.scrollHeight === element.clientHeight) {
+            return;
+          }
+
+          // Create a new height that includes the scrollbar height if it's visible
           var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
-          var height = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
-          obj.style.height = `${height}px`;
+          var newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+
+          // Only update the height if it's different from the current height
+          if (obj.style.height !== `${newHeight}px`) {
+            obj.style.height = `${newHeight}px`;
+          }
         }
 
         // Resize the iframe to the height of the content and bottom scrollbar height
