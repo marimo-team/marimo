@@ -11,7 +11,7 @@ def __(mo):
         r"""
         # Visualization: Scatter Plot with Rolling Mean in Altair
 
-        This shows a scatter chart of miles per gallon as a function of year, with lines inidicating the mean values for each country within the given year.
+        This shows a scatter chart of miles per gallon as a function of year, with lines indicating the mean values for each country within the given year.
         """
     )
     return
