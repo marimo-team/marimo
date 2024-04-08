@@ -40,7 +40,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def select_rows(self, indices: list[int]) -> PyArrowTableManager:
                 if not indices:
                     return PyArrowTableManager(
-                        pa.table([], schema=self.data.schema)
+                        pa.Table.from_pylist([], schema=self.data.schema)
                     )
                 return PyArrowTableManager(self.data.take(indices))
 
