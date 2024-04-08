@@ -29,7 +29,7 @@ ListOrTuple = Union[List[T], Tuple[T, ...]]
 TableData = Union[
     List[JSONType],
     ListOrTuple[Union[str, int, float, bool, MIME, None]],
-    ListOrTuple[dict[str, JSONType]],
+    ListOrTuple[Dict[str, JSONType]],
     Dict[str, ListOrTuple[JSONType]],
     "pd.DataFrame",
     "pl.DataFrame",

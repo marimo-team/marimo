@@ -127,7 +127,7 @@ class table(
         self,
         data: Union[
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
-            ListOrTuple[dict[str, JSONType]],
+            ListOrTuple[Dict[str, JSONType]],
             Dict[str, ListOrTuple[JSONType]],
             "pd.DataFrame",
             "pl.DataFrame",
