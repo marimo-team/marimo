@@ -11,8 +11,6 @@ from typing import (
     List,
     Literal,
     Optional,
-    Tuple,
-    TypeVar,
     Union,
 )
 
@@ -25,15 +23,11 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
-from marimo._plugins.ui._impl.utils.dataframe import TableData
+from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
 from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()
 
-T = TypeVar("T")
-
-Numeric = Union[int, float]
-ListOrTuple = Union[List[T], Tuple[T, ...]]
 
 if TYPE_CHECKING:
     import pandas as pd

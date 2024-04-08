@@ -5,13 +5,14 @@ from typing import (
     TYPE_CHECKING,
     Dict,
     List,
+    Tuple,
+    TypeVar,
     Union,
 )
 
 from marimo import _loggers
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
-from marimo._plugins.ui._impl.table import ListOrTuple
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -20,7 +21,10 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+T = TypeVar("T")
 Numeric = Union[int, float]
+ListOrTuple = Union[List[T], Tuple[T, ...]]
+
 
 TableData = Union[
     List[JSONType],
