@@ -77,7 +77,7 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # If it is a dict of lists (column major),
         # convert to list of dicts (row major)
         if isinstance(data, dict) and all(
-            isinstance(value, list) for value in data.values()
+            isinstance(value, (list, tuple)) for value in data.values()
         ):
             # reshape column major
             #   { "col1": [1, 2, 3], "col2": [4, 5, 6], ... }
@@ -115,4 +115,4 @@ class DefaultTableManager(TableManager[JsonTableData]):
             )
 
         # Sequence of dicts
-        return cast(List[dict[str, Any]], data)
+        return cast(list[dict[str, Any]], data)

@@ -51,6 +51,24 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
         {"key3": "value3"},
     ]
 
+    # Dictionary with list of integers
+    data = {"key": [1, 2, 3]}
+    result = _normalize_data(data)
+    assert result == [
+        {"key": 1},
+        {"key": 2},
+        {"key": 3},
+    ]
+
+    # Dictionary with tuple of integers
+    data = {"key": (1, 2, 3)}
+    result = _normalize_data(data)
+    assert result == [
+        {"key": 1},
+        {"key": 2},
+        {"key": 3},
+    ]
+
     # Test with empty list
     data = []
     result = _normalize_data(data)

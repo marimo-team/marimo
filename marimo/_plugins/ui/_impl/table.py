@@ -133,6 +133,7 @@ class table(
         data: Union[
             ListOrTuple[Union[str, int, float, bool, MIME, None]],
             ListOrTuple[dict[str, JSONType]],
+            dict[str, ListOrTuple[JSONType]],
             "pd.DataFrame",
             "pl.DataFrame",
             "pa.Table",
@@ -147,6 +148,7 @@ class table(
                 [
                     Union[
                         List[JSONType],
+                        dict[str, ListOrTuple[JSONType]],
                         "pd.DataFrame",
                         "pl.DataFrame",
                         "pa.Table",
