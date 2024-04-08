@@ -141,3 +141,12 @@ def get_context() -> RuntimeContext:
     if _THREAD_LOCAL_CONTEXT.runtime_context is None:
         raise ContextNotInitializedError
     return _THREAD_LOCAL_CONTEXT.runtime_context
+
+
+def runtime_context_installed() -> bool:
+    try:
+        get_context()
+    except ContextNotInitializedError:
+        return False
+    else:
+        return True
