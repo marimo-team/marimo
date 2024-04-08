@@ -49,6 +49,22 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     return item.virtual_file
 
 
+def audio(data: bytes, ext: str = "wav") -> VirtualFile:
+    """Create a virtual file from audio.
+
+    **Args.**
+
+    - data: Audio data in bytes
+
+    **Returns.**
+
+    A `VirtualFile` object.
+    """
+    item = VirtualFileLifecycleItem(ext=ext, buffer=data)
+    get_context().cell_lifecycle_registry.add(item)
+    return item.virtual_file
+
+
 def csv(
     data: Union[str, bytes, io.BytesIO, "pd.DataFrame", "pl.DataFrame"]
 ) -> VirtualFile:
