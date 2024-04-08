@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
+    Dict,
     List,
     Sequence,
     Union,
@@ -25,7 +26,7 @@ TableData = Union[
     Sequence[Union[str, int, float, bool, MIME, None]],
     Sequence[JSONType],
     List[JSONType],
-    dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
+    Dict[str, Sequence[Union[str, int, float, bool, MIME, None]]],
     "pd.DataFrame",
     "pl.DataFrame",
     "pa.Table",
