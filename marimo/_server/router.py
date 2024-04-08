@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from asyncio import iscoroutine
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, TypeVar
 
@@ -76,9 +77,27 @@ class APIRouter(Router):
         """Get method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            async def wrapper_func(request: Request) -> Response:
+                response = func(request=request)
+                if iscoroutine(response):
+                    response = await response
+                if isinstance(response, FileResponse):
+                    return response
+                if isinstance(response, StreamingResponse):
+                    return response
+
+                if dataclasses.is_dataclass(response):
+                    return JSONResponse(
+                        content=deep_to_camel_case(
+                            dataclasses.asdict(response)
+                        )
+                    )
+
+                return response  # type: ignore[no-any-return]
+
             self.add_route(
                 path=self.prefix + path,
-                endpoint=func,
+                endpoint=wrapper_func,
                 methods=["GET"],
                 include_in_schema=include_in_schema,
             )

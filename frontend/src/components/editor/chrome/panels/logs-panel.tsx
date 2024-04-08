@@ -5,6 +5,7 @@ import { cn } from "@/utils/cn";
 import React from "react";
 import { FileTextIcon } from "lucide-react";
 import { CellLink } from "../../links/cell-link";
+import { PanelEmptyState } from "./empty-state";
 
 interface Props {
   className?: string;
@@ -17,10 +18,17 @@ export const LogsPanel: React.FC = () => {
 
   if (logs.length === 0) {
     return (
-      <div className="mx-6 my-6 flex flex-row gap-2 items-center rounded-lg">
-        <FileTextIcon className="text-muted-foreground" />
-        <span className="mt-[0.25rem] text-muted-foreground">No logs</span>
-      </div>
+      <PanelEmptyState
+        title="No logs"
+        description={
+          <span>
+            <code className="border rounded px-1">stdout</code> and{" "}
+            <code className="border rounded px-1">stderr</code> logs will appear
+            here.
+          </span>
+        }
+        icon={<FileTextIcon />}
+      />
     );
   }
 

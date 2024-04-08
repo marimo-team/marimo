@@ -1,0 +1,9 @@
+.snippet-viewer {
+  h1 {
+    text-align: left;
+    @apply text-base font-bold;
+  }
+  h2 {
+    @apply text-sm font-bold;
+  }
+}

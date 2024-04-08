@@ -27,6 +27,7 @@ import {
   FileUpdateRequest,
   FileDetailsResponse,
   FileMoveRequest,
+  SnippetsResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -143,6 +144,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     readCode: () => {
       return API.post<{}, { contents: string }>("/kernel/read_code", {});
+    },
+    readSnippets: () => {
+      return API.get<SnippetsResponse>("/documentation/snippets", {});
     },
     openFile: async (request) => {
       await API.post<{ path: string }>("/kernel/open", request);

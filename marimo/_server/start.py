@@ -14,10 +14,10 @@ from marimo._server.sessions import (
 )
 from marimo._server.utils import (
     find_free_port,
-    import_files,
     initialize_asyncio,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._utils.paths import import_files
 
 DEFAULT_PORT = 2718
 

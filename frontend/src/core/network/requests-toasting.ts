@@ -26,6 +26,7 @@ export function createErrorToastingRequests(
     saveCellConfig: "Failed to save cell config",
     sendStdin: "Failed to send stdin",
     readCode: "Failed to read code",
+    readSnippets: "Failed to fetch snippets",
     openFile: "Failed to open file",
     sendListFiles: "Failed to list files",
     sendCreateFileOrFolder: "Failed to create file or folder",

@@ -131,7 +131,7 @@ const CommandItem = React.forwardRef<
 >(({ className, variant, inset, ...props }, ref) => (
   <CommandPrimitive.Item
     ref={ref}
-    className={menuItemVariants({ className, variant, inset })}
+    className={cn(menuItemVariants({ variant, inset }), className)}
     {...props}
   />
 ));

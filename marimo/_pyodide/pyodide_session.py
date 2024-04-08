@@ -56,6 +56,7 @@ from marimo._server.models.models import (
     SaveAppConfigurationRequest,
     SaveRequest,
 )
+from marimo._snippets.snippets import read_snippets
 from marimo._utils.formatter import BlackFormatter
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -213,6 +214,10 @@ class PyodideBridge:
         contents: str = self.session.app_manager.read_file()
         response = ReadCodeResponse(contents=contents)
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+
+    async def read_snippets(self) -> str:
+        snippets = await read_snippets()
+        return json.dumps(deep_to_camel_case(dataclasses.asdict(snippets)))
 
     def format(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), FormatRequest)
