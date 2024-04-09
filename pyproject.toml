@@ -70,9 +70,11 @@ dev = [
     "build~=0.10.0",
     # for server testing
     "httpx~=0.26.0",
-    # For testing mo.ui.chart
+    # For testing mo.ui.chart, dataframes, tables
     "pandas>=1.3.0",
     "pandas-stubs>=1.3.0",
+    "pyarrow>=15.0.2,<16",
+    "pyarrow-stubs>=10",
     # For testing mo.image
     "pillow~=10.2.0",
     "types-Pillow~=10.2.0.20240311",
@@ -108,10 +110,12 @@ testcore = [
 ]
 
 testoptional = [
-    # For testing mo.ui.chart
+    # For testing mo.ui.chart, table, ...
     "altair>=5.0.0",
     "pandas>=1.3.0",
     "pandas-stubs>=1.3.0",
+    "pyarrow>=15.0.2,<16",
+    "pyarrow-stubs>=10",
     "pillow~=10.2.0",
     "types-Pillow~=10.2.0.20240311",
     # polars 0.19.13 requires building maturn from source, but we don't

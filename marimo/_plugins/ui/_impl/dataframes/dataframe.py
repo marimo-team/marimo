@@ -5,6 +5,10 @@ import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
+from marimo._plugins.ui._impl.tables.pandas_table import (
+    PandasTableManagerFactory,
+)
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -13,7 +17,6 @@ from dataclasses import dataclass
 import marimo._output.data.data as mo_data
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.utils.dataframe import get_row_headers
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -92,6 +95,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             pass
 
         self._data = df
+        self._manager = PandasTableManagerFactory.create()(df)
         self._transform_container = TransformsContainer(df)
         self._error: Optional[str] = None
 
@@ -129,13 +133,14 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         if self._error is not None:
             raise Exception(self._error)
 
-        url = mo_data.csv(self._value.head(LIMIT)).url
+        manager = PandasTableManagerFactory.create()(self._value.head(LIMIT))
+        url = mo_data.csv(manager.to_csv()).url
         total_rows = len(self._value)
         return GetDataFrameResponse(
             url=url,
             total_rows=total_rows,
             has_more=total_rows > LIMIT,
-            row_headers=get_row_headers(self._value),
+            row_headers=manager.get_row_headers(),
         )
 
     def get_column_values(

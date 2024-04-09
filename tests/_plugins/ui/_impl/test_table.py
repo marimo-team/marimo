@@ -3,14 +3,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.table import (
-    _normalize_data,
-)
+from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.runtime import Kernel
+
+
+def _normalize_data(data: Any) -> list[dict[str, Any]]:
+    return DefaultTableManager._normalize_data(data)
 
 
 def test_normalize_data(executing_kernel: Kernel) -> None:
@@ -52,6 +51,24 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
         {"key3": "value3"},
     ]
 
+    # Dictionary with list of integers
+    data = {"key": [1, 2, 3]}
+    result = _normalize_data(data)
+    assert result == [
+        {"key": 1},
+        {"key": 2},
+        {"key": 3},
+    ]
+
+    # Dictionary with tuple of integers
+    data = {"key": (1, 2, 3)}
+    result = _normalize_data(data)
+    assert result == [
+        {"key": 1},
+        {"key": 2},
+        {"key": 3},
+    ]
+
     # Test with empty list
     data = []
     result = _normalize_data(data)
@@ -62,7 +79,7 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
     try:
         _normalize_data(data2)
     except ValueError as e:
-        assert str(e) == "data must be a list or tuple."
+        assert str(e) == "data must be a list or tuple or a dict of lists."
 
     # Test with invalid data structure
     data3: Any = [set([1, 2, 3])]
@@ -74,21 +91,3 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
             == "data must be a sequence of JSON-serializable types, or a "
             + "sequence of dicts."
         )
-
-
-HAS_DEPS = DependencyManager.has_pandas()
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_normalize_data_pandas(executing_kernel: Kernel) -> None:
-    # unused, except for the side effect of giving the kernel an execution
-    # context
-    del executing_kernel
-
-    # Test with pandas DataFrame
-    import pandas as pd
-
-    data = pd.DataFrame({"column1": [1, 2, 3], "column2": ["a", "b", "c"]})
-    result = _normalize_data(data)
-    assert isinstance(result, str)
-    assert result.endswith(".csv")
