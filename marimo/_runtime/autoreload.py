@@ -54,6 +54,9 @@ class ModuleReloader:
         # module-name -> mtime (module modification timestamps)
         self.modules_mtimes: dict[str, float] = {}
 
+        # Timestamp existing modules
+        self.check(modules=sys.modules, reload=False)
+
     def filename_and_mtime(
         self, module: types.ModuleType
     ) -> ModuleMTime | None:
@@ -64,8 +67,11 @@ class ModuleReloader:
             None,
             "__mp_main__",
             "__main__",
+            "sys",
+            "builtins",
         ]:
-            # we cannot reload(__main__) or reload(__mp_main__)
+            # we cannot reload(__main__) or reload(__mp_main__);
+            # Python advises against reloading sys and builtins
             return None
 
         filename = module.__file__
@@ -85,15 +91,17 @@ class ModuleReloader:
             return None
         return ModuleMTime(py_filename, pymtime)
 
-    def reload(self) -> None:
-        """Reload modules that need to be reloaded.
+    def check(
+        self, modules: dict[str, types.ModuleType], reload: bool
+    ) -> None:
+        """Check timestamps of modules, optionally reload them.
 
         Also patches existing objects with hot-reloaded ones.
         """
 
         # materialize the module keys, since we'll be reloading while iterating
-        for modname in list(sys.modules.keys()):
-            m = sys.modules.get(modname, None)
+        for modname in list(modules.keys()):
+            m = modules.get(modname, None)
             if m is None:
                 continue
 
@@ -115,18 +123,19 @@ class ModuleReloader:
             self.modules_mtimes[modname] = pymtime
 
             # If we've reached this point, we should try to reload the module
-            LOGGER.debug(f"Reloading '{modname}'.")
-            try:
-                superreload(m, self.old_objects)
-                if py_filename in self.failed:
-                    del self.failed[py_filename]
-            except Exception:
-                LOGGER.debug(
-                    "[autoreload of {} failed: {}]".format(
-                        modname, traceback.format_exc(10)
-                    ),
-                )
-                self.failed[py_filename] = pymtime
+            if reload:
+                LOGGER.debug(f"Reloading '{modname}'.")
+                try:
+                    superreload(m, self.old_objects)
+                    if py_filename in self.failed:
+                        del self.failed[py_filename]
+                except Exception:
+                    LOGGER.debug(
+                        "[autoreload of {} failed: {}]".format(
+                            modname, traceback.format_exc(10)
+                        ),
+                    )
+                    self.failed[py_filename] = pymtime
 
 
 def update_function(old: object, new: object) -> None:
@@ -238,18 +247,6 @@ class StrongRef(Generic[T]):
 
     def __call__(self) -> T:
         return self.obj
-
-
-mod_attrs = [
-    "__name__",
-    "__doc__",
-    "__package__",
-    "__loader__",
-    "__spec__",
-    "__file__",
-    "__cached__",
-    "__builtins__",
-]
 
 
 def append_obj(

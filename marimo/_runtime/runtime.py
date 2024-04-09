@@ -315,8 +315,6 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
         if autoreload and self.module_reloader is None:
             self.module_reloader = ModuleReloader()
-            # initialize package modification times
-            self.module_reloader.reload()
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -352,9 +350,19 @@ class Kernel:
             stdin=self.stdin,
         ):
             try:
+                if self.module_reloader is not None:
+                    # Reload modules if they have changed
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=True
+                    )
                 yield self.execution_context
             finally:
                 self.execution_context = None
+                if self.module_reloader is not None:
+                    # Note timestamps for when we last saw these modules
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=False
+                    )
 
     def _try_registering_cell(
         self, cell_id: CellId_t, code: str
@@ -792,9 +800,6 @@ class Kernel:
             cell = self.graph.cells[cell_id]
             if cell.stale:
                 continue
-
-            if self.module_reloader is not None:
-                self.module_reloader.reload()
 
             LOGGER.debug("running cell %s", cell_id)
             cell.set_status(status="running")
