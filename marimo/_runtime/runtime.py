@@ -316,6 +316,8 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
         if autoreload and self.module_reloader is None:
             self.module_reloader = ModuleReloader()
+            # initialize package modification times
+            self.module_reloader.reload()
 
     @property
     def globals(self) -> dict[Any, Any]:
