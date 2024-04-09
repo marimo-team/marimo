@@ -1317,7 +1317,6 @@ class Kernel:
         elif isinstance(request, SetCellConfigRequest):
             await self.set_cell_config(request)
         elif isinstance(request, SetUserConfigRequest):
-            # TODO user config pyodide pkg mangagemetn ...
             self.set_user_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             await self.set_ui_element_value(request)

@@ -8,9 +8,11 @@ import textwrap
 import time
 import types
 
-from tests.conftest import ExecReqProvider
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.autoreload import ModuleReloader
+from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
+from tests.conftest import ExecReqProvider
 
 
 def random_py_modname() -> str:
@@ -77,6 +79,10 @@ async def test_reload_function_kernel(
             """
         )
     )
+
+    config = DEFAULT_CONFIG.copy()
+    config["runtime"]["auto_reload"] = True
+    k.set_user_config(SetUserConfigRequest(config=config))
     await k.run([exec_req.get(f"import {py_modname}; x={py_modname}.foo()")])
     assert k.globals["x"] == 1
     update_file(
@@ -87,5 +93,5 @@ async def test_reload_function_kernel(
         """,
     )
 
-    await k.run([exec_req.get(f"import {py_modname}; x={py_modname}.foo()")])
-    assert k.globals["x"] == 1
+    await k.run([exec_req.get(f"y={py_modname}.foo()")])
+    assert k.globals["y"] == 2
