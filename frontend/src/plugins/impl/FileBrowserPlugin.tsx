@@ -26,14 +26,25 @@ interface Data {
   restrictNavigation: boolean;
 }
 
+/**
+ * @param path - File path
+ * @param name - File name
+ * @param isDirectory - Whether file is a directory or not
+ */
+interface FileInfo {
+  path: string;
+  name: string;
+  isDirectory?: boolean | undefined;
+}
+
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   list_directory: (req: { path: string; filetypes: string[] }) => Promise<{
-    files: string[];
+    files: Array<FileInfo>;
   }>;
 };
 
-type S = string[];
+type S = Array<FileInfo>;
 
 export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
   .withData(
@@ -55,7 +66,13 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
       )
       .output(
         z.object({
-          files: z.array(z.string()),
+          files: z.array(
+            z.object({
+              path: z.string(),
+              name: z.string(),
+              isDirectory: z.boolean().optional(),
+            }),
+          ),
         }),
       ),
   })
@@ -103,6 +120,8 @@ export const FileBrowser = ({
     files = [];
   }
 
+  const selectedPaths = value.map((x) => x.path);
+
   console.log(data);
   console.log(loading);
   console.log(error);
@@ -115,15 +134,17 @@ export const FileBrowser = ({
     setPath(path);
   }
 
-  const selectFile = (filePath: string) => {
+  const selectFile = (name: string, path: string) => {
+    const fileInfo = { name: name, path: path, isDirectory: false };
+
     if (multiple) {
-      if (value.includes(filePath)) {
-        setValue(value.filter((x) => x !== filePath));
+      if (selectedPaths.includes(path)) {
+        setValue(value.filter((x) => x.path !== path));
       } else {
-        setValue([...value, filePath]);
+        setValue([...value, fileInfo]);
       }
     } else {
-      setValue([filePath]);
+      setValue([fileInfo]);
     }
   };
 
@@ -134,21 +155,19 @@ export const FileBrowser = ({
     if (!path.endsWith("/")) {
       filePath += "/";
     }
-    filePath += file;
+    filePath += file.name;
 
     fileRows.push(
-      <TableRow key={filePath} onClick={() => selectFile(filePath)}>
+      <TableRow key={filePath} onClick={() => selectFile(file.name, filePath)}>
         <TableCell>
-          <Checkbox checked={value.includes(filePath)} />
+          <Checkbox checked={selectedPaths.includes(filePath)} />
         </TableCell>
-        <TableCell>{file}</TableCell>
+        <TableCell>{file.name}</TableCell>
       </TableRow>,
     );
   }
 
-  const selectedFiles = value.map((filePath) => (
-    <li key={filePath}>{filePath}</li>
-  ));
+  const selectedFiles = value.map((x) => <li key={x.path}>{x.path}</li>);
 
   return (
     <section>

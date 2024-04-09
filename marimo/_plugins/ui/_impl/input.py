@@ -27,6 +27,8 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import Function
+from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.models.files import FileInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -908,11 +910,11 @@ class ListDirectoryArgs:
 
 @dataclass
 class ListDirectoryResponse:
-    files: List[str]
+    files: List[FileInfo]
 
 
 @mddoc
-class file_browser(UIElement[list[str], Sequence[str]]):
+class file_browser(UIElement[list[FileInfo], Sequence[FileInfo]]):
     """
     File browser for browsing and selecting server-side files.
 
@@ -953,7 +955,7 @@ class file_browser(UIElement[list[str], Sequence[str]]):
         restrict_navigation: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[Sequence[str]], None]] = None,
+        on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
     ) -> None:
         if not initial_path:
             initial_path = os.getcwd()
@@ -980,21 +982,34 @@ class file_browser(UIElement[list[str], Sequence[str]]):
 
     def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
         files = []
-        items_in_path = os.listdir(args.path)
+        files_in_path = OSFileSystem().list_files(args.path)
 
-        for item in items_in_path:
-            full_path = os.path.join(args.path, item)
-            _, extension = os.path.splitext(full_path)
+        for file in files_in_path:
+            _, extension = os.path.splitext(file.name)
 
             if args.filetypes and extension not in args.filetypes:
                 continue
 
-            files.append(item)
+            files.append(file)
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(self, value: list[str]) -> Sequence[str]:
+    def _convert_value(self, value: list[FileInfo]) -> Sequence[FileInfo]:
         return [x for x in value]
+
+    def name(self, index: int = 0) -> Optional[str]:
+        """Get file name at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].name
+
+    def path(self, index: int = 0) -> Optional[str]:
+        """Get file path at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].path
 
 
 @mddoc
