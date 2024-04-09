@@ -21,6 +21,7 @@ import { isPyodide } from "./pyodide/utils";
 import { PyodideBridge } from "./pyodide/bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
 import { TailwindIndicator } from "@/components/indicator";
+import { HomePage } from "@/components/home/home-page";
 
 /**
  * The root component of the Marimo app.
@@ -34,16 +35,16 @@ export const MarimoApp: React.FC = memo(() => {
   }, []);
 
   const body =
-    initialMode === "read" ? (
+    initialMode === "home" ? (
+      <HomePage />
+    ) : initialMode === "read" ? (
       <>
         <StaticBanner />
         <App userConfig={userConfig} appConfig={appConfig} />
-        <Toaster />
       </>
     ) : (
       <AppChrome>
         <App userConfig={userConfig} appConfig={appConfig} />
-        <Toaster />
         <CommandPalette />
       </AppChrome>
     );
@@ -62,6 +63,7 @@ export const MarimoApp: React.FC = memo(() => {
                 }}
               >
                 {body}
+                <Toaster />
               </CssVariables>
               <TailwindIndicator />
             </ModalProvider>

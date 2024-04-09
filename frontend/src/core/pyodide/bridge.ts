@@ -16,6 +16,7 @@ import {
   FormatRequest,
   FormatResponse,
   InstantiateRequest,
+  RecentFilesResponse,
   RunRequests,
   SaveAppConfigRequest,
   SaveCellConfigRequest,
@@ -26,6 +27,7 @@ import {
   SendStdin,
   SnippetsResponse,
   ValueUpdate,
+  WorkspaceFilesResponse,
 } from "../network/types";
 import { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
@@ -352,6 +354,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FileDetailsResponse;
+  };
+
+  getRecentFiles: () => Promise<RecentFilesResponse> = async () => {
+    throw new Error("Not implemented");
+  };
+  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse> = async () => {
+    throw new Error("Not implemented");
   };
 
   private async putControlRequest(operation: object) {

@@ -125,7 +125,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     # Startup message
     if not manager.quiet:
         print_startup(
-            manager.filename,
+            manager.file_router,
             f"http://{host}:{port}{base_url}",
             manager.mode == SessionMode.RUN,
         )

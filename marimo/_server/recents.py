@@ -1,0 +1,55 @@
+import os
+from dataclasses import dataclass
+from typing import List
+
+from marimo._server.models.home import MarimoFile
+from marimo._utils.config.config import ConfigReader
+
+
+@dataclass
+class RecentFilesState:
+    files: List[str]
+
+
+class RecentFilesManager:
+    MAX_FILES = 10
+    LOCATION = "recent_files.toml"
+
+    def __init__(self):
+        self.config = ConfigReader.for_filename(self.LOCATION)
+
+    def touch(self, filename: str) -> None:
+        if not self.config:
+            return
+
+        state = self.config.read_toml(
+            RecentFilesState, fallback=RecentFilesState(files=[])
+        )
+        if filename in state.files:
+            state.files.remove(filename)
+        state.files.insert(0, filename)
+        state.files = state.files[: self.MAX_FILES]
+        self.config.write_toml(state)
+
+    def get_recents(self) -> List[MarimoFile]:
+        if not self.config:
+            return []
+
+        state = self.config.read_toml(
+            RecentFilesState, fallback=RecentFilesState(files=[])
+        )
+        files: List[MarimoFile] = []
+
+        for file in state.files:
+            # Check for existence of file
+            if not os.path.exists(file):
+                continue
+            files.append(
+                MarimoFile(
+                    name=os.path.basename(file),
+                    path=file,
+                    last_modified=os.path.getmtime(file),
+                )
+            )
+
+        return files

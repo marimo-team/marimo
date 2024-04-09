@@ -70,10 +70,6 @@ class AppState:
         return session
 
     @property
-    def filename(self) -> Optional[str]:
-        return self.session_manager.filename
-
-    @property
     def mode(self) -> SessionMode:
         return self.session_manager.mode
 

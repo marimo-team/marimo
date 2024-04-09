@@ -201,7 +201,9 @@ def edit(
         # The second return value is an optional temporary directory. It is
         # unused, but must be kept around because its lifetime on disk is bound
         # to the life of the Python object
-        name, _ = validate_name(name, allow_new_file=True)
+        name, _ = validate_name(
+            name, allow_new_file=True, allow_directory=True
+        )
         if os.path.exists(name):
             # module correctness check - don't start the server
             # if we can't import the module
@@ -215,12 +217,12 @@ def edit(
                 raise
 
     start(
+        filename_or_directory=name,
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         headless=headless,
-        filename=name,
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
@@ -303,18 +305,18 @@ def run(
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
     # of the Python object
-    name, _ = validate_name(name, allow_new_file=False)
+    name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
 
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
 
     start(
+        filename_or_directory=name,
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         headless=headless,
-        filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
         watch=watch,
@@ -429,12 +431,12 @@ def tutorial(
         f.write(source)
 
     start(
+        filename_or_directory=fname,
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         mode=SessionMode.EDIT,
-        filename=fname,
         include_code=True,
         headless=headless,
         watch=False,

@@ -43,4 +43,6 @@ export const {
   sendRenameFileOrFolder,
   sendUpdateFile,
   sendFileDetails,
+  getRecentFiles,
+  getWorkspaceFiles,
 } = getRequest();

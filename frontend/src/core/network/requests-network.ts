@@ -28,6 +28,8 @@ import {
   FileDetailsResponse,
   FileMoveRequest,
   SnippetsResponse,
+  RecentFilesResponse,
+  WorkspaceFilesResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -189,6 +191,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         "/files/file_details",
         request,
       );
+    },
+    getRecentFiles: () => {
+      return API.post<{}, RecentFilesResponse>("/home/recent_files", {});
+    },
+    getWorkspaceFiles: () => {
+      return API.post<{}, WorkspaceFilesResponse>("/home/workspace_files", {});
     },
   };
 }

@@ -42,7 +42,7 @@ def get_github_src_url(url: str) -> str:
 
 
 def validate_name(
-    name: str, allow_new_file: bool
+    name: str, allow_new_file: bool, allow_directory: bool
 ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
     """
     Validate the name of the file to be edited/run.
@@ -95,6 +95,10 @@ def validate_name(
     if is_url(name):
         temp_dir = TemporaryDirectory()
         return _create_tmp_file_from_url(name, temp_dir), temp_dir
+
+    if allow_directory:
+        if os.path.isdir(name):
+            return name, None
 
     if not allow_new_file:
         if not os.path.exists(name):

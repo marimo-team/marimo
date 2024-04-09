@@ -109,6 +109,7 @@ export interface FileInfo {
   id: string;
   path: FilePath;
   name: string;
+  lastModified?: number;
   isDirectory: boolean;
   isMarimoFile: boolean;
   children: FileInfo[];
@@ -170,6 +171,14 @@ export interface SnippetsResponse {
   snippets: Snippet[];
 }
 
+export interface RecentFilesResponse {
+  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+}
+
+export interface WorkspaceFilesResponse {
+  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -217,6 +226,9 @@ export interface EditRequests {
     request: FileUpdateRequest,
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
+  // Homepage requests
+  getRecentFiles: () => Promise<RecentFilesResponse>;
+  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

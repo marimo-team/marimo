@@ -28,7 +28,6 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.app import InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._messaging.ops import Alert, MessageOperation, Reload
 from marimo._messaging.types import KernelMessage
@@ -41,13 +40,18 @@ from marimo._runtime.requests import (
     SerializedQueryParams,
     SetUIElementValueRequest,
 )
-from marimo._server.file_manager import AppFileManager
+from marimo._server.file_manager import (
+    AppFileManager,
+    AppFileRouter,
+    MarimoFileKey,
+)
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
     SessionMode,
 )
 from marimo._server.models.models import InstantiateRequest
+from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
@@ -395,7 +399,7 @@ class SessionManager:
 
     def __init__(
         self,
-        filename: Optional[str],
+        file_router: AppFileRouter,
         mode: SessionMode,
         development_mode: bool,
         quiet: bool,
@@ -403,7 +407,7 @@ class SessionManager:
         lsp_server: LspServer,
         package_manager: str,
     ) -> None:
-        self.filename = filename
+        self.file_router = file_router
         self.mode = mode
         self.development_mode = development_mode
         self.quiet = quiet
@@ -412,10 +416,7 @@ class SessionManager:
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
         self.package_manager = package_manager
-
-        app = self._load_app()
-
-        self.app_metadata = AppMetadata(query_params={}, filename=self.path)
+        self.recents = RecentFilesManager()
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -425,45 +426,39 @@ class SessionManager:
         else:
             # Because run-mode is read-only, all that matters is that
             # the frontend's app matches the server's app.
+            app = file_router.get_single_app_file_manager().app
             self.server_token = str(
                 hash("".join(code for code in app.cell_manager.codes()))
             )
 
-    def _load_app(self) -> InternalApp:
+    def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """
-        Load the app from the current file.
-        Otherwise, return an empty app.
+        Get the app manager for the given key.
         """
-        return AppFileManager(self.path).app
-
-    def app_config(self) -> _AppConfig:
-        """Read the app's configuration from the file."""
-        return self._load_app().config
-
-    def rename(self, filename: Optional[str]) -> None:
-        """Register a change in filename.
-
-        Should be called if an api call renamed the current file on disk,
-        or opened another file.
-        """
-        self.filename = filename
+        return self.file_router.get_file_manager(key)
 
     def create_session(
         self,
         session_id: SessionId,
         session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
+        file_key: MarimoFileKey,
     ) -> Session:
         """Create a new session"""
         LOGGER.debug("Creating new session for id %s", session_id)
         if session_id not in self.sessions:
+            app_file_manager = self.file_router.get_file_manager(file_key)
+
+            if app_file_manager.path:
+                self.recents.touch(app_file_manager.path)
+
             self.sessions[session_id] = Session.create(
                 session_consumer=session_consumer,
                 mode=self.mode,
                 app_metadata=AppMetadata(
-                    query_params=query_params, filename=self.path
+                    query_params=query_params, filename=app_file_manager.path
                 ),
-                app_file_manager=AppFileManager(self.path),
+                app_file_manager=app_file_manager,
                 package_manager=self.package_manager,
             )
         return self.sessions[session_id]
@@ -519,15 +514,6 @@ class SessionManager:
             connection_state,
         )
         return None
-
-    @property
-    def path(self) -> Optional[str]:
-        if self.filename is None:
-            return None
-        try:
-            return os.path.abspath(self.filename)
-        except AttributeError:
-            return None
 
     def any_clients_connected(self) -> bool:
         """Returns True if at least one client has an open socket."""
@@ -587,11 +573,11 @@ class SessionManager:
             # - we don't properly handle saving from the frontend
             LOGGER.warn("Cannot start file watcher in edit mode")
             return Disposable.empty()
-
-        file_path = self.path
-        if file_path is None:
-            LOGGER.warn("Cannot start file watcher without a filename")
+        file = self.file_router.maybe_get_single_file()
+        if not file:
             return Disposable.empty()
+
+        file_path = file.path
 
         async def on_file_changed(path: Path) -> None:
             LOGGER.debug(f"{path} was modified")
