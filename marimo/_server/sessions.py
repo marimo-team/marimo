@@ -402,7 +402,7 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        user_config_manager: UserConfigManager
+        user_config_manager: UserConfigManager,
     ) -> None:
         self.filename = filename
         self.mode = mode

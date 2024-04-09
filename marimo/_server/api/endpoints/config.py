@@ -5,6 +5,7 @@ from starlette.authentication import requires
 from starlette.requests import Request
 
 from marimo import _loggers
+from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
@@ -13,7 +14,6 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
-from marimo._runtime.requests import SetUserConfigRequest
 
 LOGGER = _loggers.marimo_logger()
 

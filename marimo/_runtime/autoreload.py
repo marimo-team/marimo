@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 """Module reloader
 
 In addition to reloading modules, the reloader also patches instances
@@ -16,7 +17,7 @@ import weakref
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
-from typing import Any, cast
+from typing import Any, Callable, Generic, Type, TypeVar
 
 from marimo import _loggers
 
@@ -38,21 +39,22 @@ class ModuleMTime:
     mtime: float
 
 
+# (module-name, name) -> weakref, for replacing old code objects
+OldObjectsMapping = dict[tuple[str, str], list[weakref.ref[Any]]]
+
+
 class ModuleReloader:
     def __init__(self) -> None:
         # Modules that failed to reload: {module: mtime-on-failed-reload, ...}
         self.failed: dict[str, float] = {}
-        # (module-name, name) -> weakref, for replacing old code objects
-        self.old_objects: dict[tuple[str, str], weakref.ref[Any]] = {}
+        # For replacing old code objects
+        self.old_objects: OldObjectsMapping = {}
         # module-name -> mtime (module modification timestamps)
         self.modules_mtimes: dict[str, float] = {}
 
     def filename_and_mtime(
-        self, module: types.ModuleType | None
+        self, module: types.ModuleType
     ) -> ModuleMTime | None:
-        if module is None:
-            return None
-
         if not hasattr(module, "__file__") or module.__file__ is None:
             return None
 
@@ -90,6 +92,8 @@ class ModuleReloader:
         # materialize the module keys, since we'll be reloading while iterating
         for modname in list(sys.modules.keys()):
             m = sys.modules.get(modname, None)
+            if m is None:
+                continue
 
             module_mtime = self.filename_and_mtime(m)
             if module_mtime is None:
@@ -114,7 +118,7 @@ class ModuleReloader:
                 superreload(m, self.old_objects)
                 if py_filename in self.failed:
                     del self.failed[py_filename]
-            except:
+            except Exception:
                 LOGGER.debug(
                     "[autoreload of {} failed: {}]".format(
                         modname, traceback.format_exc(10)
@@ -123,7 +127,7 @@ class ModuleReloader:
                 self.failed[py_filename] = pymtime
 
 
-def update_function(old, new):
+def update_function(old: object, new: object) -> None:
     """Upgrade the code object of a function"""
     for name in func_attrs:
         try:
@@ -132,7 +136,7 @@ def update_function(old, new):
             pass
 
 
-def update_instances(old, new):
+def update_instances(old: object, new: object) -> None:
     """Use garbage collector to find all instances that refer to the old
     class definition and update their __class__ to point to the new class
     definition"""
@@ -144,7 +148,7 @@ def update_instances(old, new):
             object.__setattr__(ref, "__class__", new)
 
 
-def update_class(old, new):
+def update_class(old: object, new: object) -> None:
     """Replace stuff in the __dict__ of a class, and upgrade
     method code objects, and add new methods, if any"""
     for key in list(old.__dict__.keys()):
@@ -187,18 +191,20 @@ def update_class(old, new):
     update_instances(old, new)
 
 
-def update_property(old, new):
+def update_property(old: object, new: object) -> None:
     """Replace get/set/del functions of a property"""
-    update_generic(old.fdel, new.fdel)
-    update_generic(old.fget, new.fget)
-    update_generic(old.fset, new.fset)
+    update_generic(old.fdel, new.fdel)  # type:ignore[attr-defined]
+    update_generic(old.fget, new.fget)  # type:ignore[attr-defined]
+    update_generic(old.fset, new.fset)  # type:ignore[attr-defined]
 
 
-def isinstance2(a, b, typ):
+def isinstance2(a: object, b: object, typ: Type[Any]) -> bool:
     return isinstance(a, typ) and isinstance(b, typ)
 
 
-UPDATE_RULES = [
+UPDATE_RULES: list[
+    tuple[Callable[[object, object], bool], Callable[[object, object], None]]
+] = [
     (lambda a, b: isinstance2(a, b, type), update_class),
     (lambda a, b: isinstance2(a, b, types.FunctionType), update_function),
     (lambda a, b: isinstance2(a, b, property), update_property),
@@ -207,13 +213,13 @@ UPDATE_RULES.extend(
     [
         (
             lambda a, b: isinstance2(a, b, types.MethodType),
-            lambda a, b: update_function(a.__func__, b.__func__),
+            lambda a, b: update_function(a.__func__, b.__func__),  # type: ignore[attr-defined]  # noqa: E501
         ),
     ]
 )
 
 
-def update_generic(a, b):
+def update_generic(a: object, b: object) -> bool:
     for type_check, update in UPDATE_RULES:
         if type_check(a, b):
             update(a, b)
@@ -221,11 +227,14 @@ def update_generic(a, b):
     return False
 
 
-class StrongRef:
-    def __init__(self, obj):
+T = TypeVar("T")
+
+
+class StrongRef(Generic[T]):
+    def __init__(self, obj: T) -> None:
         self.obj = obj
 
-    def __call__(self):
+    def __call__(self) -> T:
         return self.obj
 
 
@@ -241,17 +250,18 @@ mod_attrs = [
 ]
 
 
-def append_obj(module, d, name, obj, autoload=False):
+def append_obj(
+    module: types.ModuleType,
+    d: OldObjectsMapping,
+    # object name
+    name: str,
+    obj: object,
+) -> bool:
     in_module = (
         hasattr(obj, "__module__") and obj.__module__ == module.__name__
     )
-    if autoload:
-        # check needed for module global built-ins
-        if not in_module and name in mod_attrs:
-            return False
-    else:
-        if not in_module:
-            return False
+    if not in_module:
+        return False
 
     key = (module.__name__, name)
     try:
@@ -261,7 +271,9 @@ def append_obj(module, d, name, obj, autoload=False):
     return True
 
 
-def superreload(module, old_objects):
+def superreload(
+    module: types.ModuleType, old_objects: OldObjectsMapping | None
+) -> types.ModuleType:
     """Enhanced version of the builtin reload function.
 
     superreload remembers objects previously in the module, and
@@ -288,7 +300,7 @@ def superreload(module, old_objects):
     old_dict: dict[str, Any] | None = None
     try:
         # clear namespace first from old cruft
-        old_dict = cast(dict[str, Any], module.__dict__.copy())
+        old_dict = module.__dict__.copy()
         old_name = module.__name__
         module.__dict__.clear()
         module.__dict__["__name__"] = old_name

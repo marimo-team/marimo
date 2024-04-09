@@ -4,6 +4,7 @@ import { mountFilesystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
+import { UserConfig } from "@/core/config/config-schema";
 
 declare let loadPyodide: (opts: {
   packages: string[];
@@ -84,6 +85,7 @@ export class DefaultWasmController implements WasmController {
     fallbackCode: string;
     filename: string | null;
     onMessage: (message: string) => void;
+    userConfig: UserConfig;
   }): Promise<SerializedBridge> {
     invariant(this.pyodide, "Pyodide not loaded");
 
@@ -103,6 +105,7 @@ export class DefaultWasmController implements WasmController {
       callback: opts.onMessage,
     };
     self.query_params = opts.queryParameters;
+    self.user_config = opts.userConfig;
 
     // Load packages from the code
     await this.pyodide.loadPackagesFromImports(content, {
@@ -124,6 +127,7 @@ export class DefaultWasmController implements WasmController {
         filename="${filename}",
         query_params=js.query_params.to_py(),
         message_callback=js.messenger.callback,
+        user_config=js.user_config.to_py(),
       )
       instantiate(session)
       asyncio.create_task(session.start())
