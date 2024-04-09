@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from marimo._ast.app import App, InternalApp
+from marimo._config.manager import UserConfigManager
 from marimo._runtime.requests import AppMetadata
 from marimo._server.file_manager import AppFileManager
 from marimo._server.model import ConnectionState, SessionMode
@@ -58,7 +59,7 @@ def test_kernel_manager() -> None:
 
     # Instantiate a KernelManager
     kernel_manager = KernelManager(
-        queue_manager, mode, {}, app_metadata, "pip"
+        queue_manager, mode, {}, app_metadata, UserConfigManager()
     )
 
     kernel_manager.start_kernel()
@@ -83,7 +84,7 @@ def test_session() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, app_metadata, "pip"
+        queue_manager, SessionMode.RUN, {}, app_metadata, UserConfigManager()
     )
 
     # Instantiate a Session
@@ -122,7 +123,11 @@ def test_session_disconnect_reconnect() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, AppMetadata(query_params={}), "pip"
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        AppMetadata(query_params={}),
+        UserConfigManager(),
     )
 
     # Instantiate a Session
