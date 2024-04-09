@@ -51,9 +51,7 @@ def start(
         quiet=quiet,
         include_code=include_code,
         lsp_server=LspServer(port * 10),
-        package_manager=user_config_mgr.config["package_management"][
-            "manager"
-        ],
+        user_config_manager=user_config_mgr,
     )
 
     log_level = "info" if development_mode else "error"

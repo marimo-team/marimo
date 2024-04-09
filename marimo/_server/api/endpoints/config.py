@@ -13,6 +13,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._runtime.requests import SetUserConfigRequest
 
 LOGGER = _loggers.marimo_logger()
 
@@ -26,10 +27,7 @@ async def save_user_config(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Run multiple cells (and their descendants).
-
-    Updates cell code in the kernel if needed; registers new cells
-    for unseen cell IDs.
+    """Update the user config on disk and in the kernel.
 
     Only allowed in edit mode.
     """
@@ -42,4 +40,8 @@ async def save_user_config(
         LOGGER.debug("Starting copilot server")
         await app_state.session_manager.start_lsp_server()
 
+    # Update the kernel's view of the config
+    app_state.require_current_session().put_control_request(
+        SetUserConfigRequest(body.config)
+    )
     return SuccessResponse()
