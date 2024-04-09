@@ -81,7 +81,7 @@
     "compassql": "^0.21.2",
     "cssnano": "^6.0.4",
     "date-fns": "^3.3.1",
-    "dedent": "^1.5.1",
+    "string-dedent": "^3.0.1",
     "dequal": "^2.0.3",
     "eslint-plugin-header": "^3.1.1",
     "htm": "^3.1.1",
