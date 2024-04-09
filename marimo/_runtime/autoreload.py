@@ -17,7 +17,7 @@ import weakref
 from dataclasses import dataclass
 from importlib import reload
 from importlib.util import source_from_cache
-from typing import Any, Callable, Generic, Type, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Tuple, Type, TypeVar
 
 from marimo import _loggers
 
@@ -40,7 +40,7 @@ class ModuleMTime:
 
 
 # (module-name, name) -> weakref, for replacing old code objects
-OldObjectsMapping = dict[tuple[str, str], list[weakref.ref[Any]]]
+OldObjectsMapping = Dict[Tuple[str, str], List[weakref.ref[Any]]]
 
 
 class ModuleReloader:
