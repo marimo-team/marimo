@@ -23,8 +23,8 @@ test("disabled cells", async ({ page }) => {
 
   // No add buttons are visible
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count(),
-  ).resolves.toBe(0);
+    page.getByTestId("create-cell-button").locator(":visible"),
+  ).toHaveCount(0);
 
   // Hover over a cell the drag button button appears
   // Click the drag button and then disable the cell
