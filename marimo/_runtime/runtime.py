@@ -237,14 +237,13 @@ class Kernel:
 
     - cell_configs: initial configuration for each cell
     - app_metadata: metadata about the notebook
+    - user_config: the initial user configuration
     - stream: object used to communicate with the server/outside world
     - stdout: replacement for sys.stdout
     - stderr: replacement for sys.stderr
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
-    - package_manager: default package manager to use
-    - autoreload: whether to autoreload modules before cell execution
     """
 
     def __init__(
