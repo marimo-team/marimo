@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from marimo._ast.cell import CellId_t
+from marimo._config.config import MarimoConfig
 
 UIElementId = str
 CompletionRequestId = str
@@ -54,6 +55,12 @@ class SetCellConfigRequest:
 
 
 @dataclass
+class SetUserConfigRequest:
+    # MarimoConfig TypedDict
+    config: MarimoConfig
+
+
+@dataclass
 class CreationRequest:
     execution_requests: Tuple[ExecutionRequest, ...]
     set_ui_element_value_request: SetUIElementValueRequest
@@ -88,6 +95,7 @@ ControlRequest = Union[
     DeleteRequest,
     FunctionCallRequest,
     SetCellConfigRequest,
+    SetUserConfigRequest,
     SetUIElementValueRequest,
     StopRequest,
     InstallMissingPackagesRequest,

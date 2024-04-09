@@ -335,6 +335,31 @@ export const UserConfigForm: React.FC = () => {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="runtime.auto_reload"
+            render={({ field }) => (
+              <div className="flex flex-col gap-y-1">
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      data-testid="auto-reload-checkbox"
+                      disabled={field.disabled}
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormLabel className="font-normal">
+                    Autoreload modules
+                  </FormLabel>
+                </FormItem>
+                <FormDescription>
+                  When checked, marimo will automatically reload modules before
+                  executing cells.
+                </FormDescription>
+              </div>
+            )}
+          />
         </div>
         <div className="flex flex-col gap-3">
           <SettingSubtitle>AI Assist</SettingSubtitle>

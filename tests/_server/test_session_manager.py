@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from marimo._config.manager import UserConfigManager
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.sessions import LspServer, Session, SessionManager
 
@@ -28,7 +29,7 @@ def session_manager():
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
-        package_manager="pip",
+        user_config_manager=UserConfigManager(),
     )
 
 

@@ -20,7 +20,7 @@ cache: Dict[Any, UIElement[Any, Any]] = weakref.WeakKeyDictionary()  # type: ign
 def from_anywidget(widget: "AnyWidget") -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
     if widget not in cache:
-        cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]
+        cache[widget] = anywidget(widget)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return cache[widget]
 
 
@@ -77,15 +77,15 @@ class anywidget(UIElement[T, T]):
             for key, value in change.items():
                 widget.set_trait(key, value)
 
-        js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]
-        css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]
+        js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
+        css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=args,
             label="",
             args={
-                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]
+                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "css": css,
             },
             on_change=on_change,

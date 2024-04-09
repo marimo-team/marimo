@@ -10,6 +10,7 @@ from typing import Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
+from marimo._config.config import MarimoConfig, merge_default_config
 from marimo._messaging.ops import KernelReady, serialize
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
@@ -82,6 +83,7 @@ def create_session(
     filename: str,
     query_params: SerializedQueryParams,
     message_callback: Callable[[str], None],
+    user_config: MarimoConfig,
 ) -> tuple[PyodideSession, PyodideBridge]:
     def write_kernel_message(op: KernelMessage) -> None:
         message_callback(json.dumps({"op": op[0], "data": op[1]}))
@@ -91,7 +93,11 @@ def create_session(
     app_metadata = AppMetadata(query_params=query_params, filename=filename)
 
     session = PyodideSession(
-        app_file_manager, SessionMode.EDIT, write_kernel_message, app_metadata
+        app_file_manager,
+        SessionMode.EDIT,
+        write_kernel_message,
+        app_metadata,
+        merge_default_config(user_config),
     )
 
     write_kernel_message(
@@ -147,6 +153,7 @@ class PyodideSession:
         mode: SessionMode,
         on_write: Callable[[KernelMessage], None],
         app_metadata: AppMetadata,
+        user_config: MarimoConfig,
     ) -> None:
         """Initialize kernel and client connection to it."""
         self.app_manager = app
@@ -154,6 +161,7 @@ class PyodideSession:
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
         self.session_consumer = on_write
+        self._initial_user_config = user_config
 
         self.consumers: list[Callable[[KernelMessage], None]] = [
             lambda msg: self.session_consumer(msg),
@@ -172,6 +180,7 @@ class PyodideSession:
             is_edit_mode=self.mode == SessionMode.EDIT,
             configs=self.app_manager.app.cell_manager.config_map(),
             app_metadata=self.app_metadata,
+            user_config=self._initial_user_config,
         )
         await self.kernel_task.start()
 
@@ -233,6 +242,10 @@ class PyodideBridge:
     def save_app_config(self, request: str) -> None:
         parsed = parse_raw(json.loads(request), SaveAppConfigurationRequest)
         self.session.app_manager.save_app_config(parsed.config)
+
+    def save_user_config(self, request: str) -> None:
+        parsed = parse_raw(json.loads(request), requests.SetUserConfigRequest)
+        self.session.put_control_request(parsed)
 
     def rename_file(self, filename: str) -> None:
         self.session.app_manager.rename(filename)
@@ -322,6 +335,7 @@ def launch_pyodide_kernel(
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
+    user_config: MarimoConfig,
 ) -> RestartableTask:
     from marimo._output.formatters.formatters import register_formatters
 
@@ -352,7 +366,7 @@ def launch_pyodide_kernel(
         stdin=stdin,
         input_override=input_override,
         debugger_override=debugger,
-        package_manager="micropip" if is_edit_mode else None,
+        user_config=user_config,
     )
     initialize_context(
         kernel=kernel,

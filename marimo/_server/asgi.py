@@ -96,7 +96,6 @@ def create_asgi_app(
 
     user_config_mgr = UserConfigManager()
     base_app = Starlette()
-    package_manager = user_config_mgr.config["package_management"]["manager"]
 
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
@@ -118,7 +117,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                package_manager=package_manager,
+                user_config_manager=user_config_mgr,
             )
             app = create_starlette_app(
                 base_url="",
