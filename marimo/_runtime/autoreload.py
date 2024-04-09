@@ -40,7 +40,9 @@ class ModuleMTime:
 
 
 # (module-name, name) -> weakref, for replacing old code objects
-OldObjectsMapping = Dict[Tuple[str, str], List[weakref.ref[Any]]]
+OldObjectsMapping = Dict[
+    Tuple[str, str], List[weakref.ref]  # type:ignore[type-arg]
+]
 
 
 class ModuleReloader:
