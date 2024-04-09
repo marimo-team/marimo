@@ -78,9 +78,7 @@ test("disabled cells", async ({ page }) => {
   await page.getByText("Disable").click();
 
   // Check they are still stale
-  await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    2,
-  );
+  await expect(page.getByTitle("This cell is disabled")).toHaveCount(2);
   await expect(
     page
       .getByTestId("cell-status")
@@ -100,9 +98,7 @@ test("disabled cells", async ({ page }) => {
   await page.getByText("Enable").click();
 
   // Check the status
-  await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    1,
-  );
+  await expect(page.getByTitle("This cell is disabled")).toHaveCount(1);
 
   // Enable the second
   await page.hover("text=Cell 2");
@@ -110,9 +106,7 @@ test("disabled cells", async ({ page }) => {
   await page.getByText("Enable").click();
 
   // Check the status
-  await expect(page.getByTitle("This cell is disabled").count()).resolves.toBe(
-    0,
-  );
+  await expect(page.getByTitle("This cell is disabled")).toHaveCount(0);
 
   await takeScreenshot(page, __filename);
 });
