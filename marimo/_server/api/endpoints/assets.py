@@ -33,6 +33,8 @@ router.mount(
     name="assets",
 )
 
+FILE_QUERY_PARAM_KEY = "file"
+
 
 @router.get("/")
 async def index(request: Request) -> HTMLResponse:
@@ -40,7 +42,10 @@ async def index(request: Request) -> HTMLResponse:
     user_config = app_state.config_manager.get_config()
     index_html = os.path.join(root, "index.html")
 
-    file_key = app_state.session_manager.file_router.get_unique_file_key()
+    file_key = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
 
     with open(index_html, "r") as f:
         html = f.read()
@@ -52,12 +57,14 @@ async def index(request: Request) -> HTMLResponse:
     html = html.replace("{{ version }}", __version__)
 
     if not file_key:
+        LOGGER.debug("No file key provided, serving homepage")
         # We don't know which file to use, so we need to render a homepage
         html = html.replace("{{ title }}", "marimo")
         html = html.replace("{{ app_config }}", json.dumps({}))
         html = html.replace("{{ filename }}", "")
         html = html.replace("{{ mode }}", "home")
     else:
+        LOGGER.debug(f"File key provided: {file_key}")
         # We have a file key, so we can render the app with the file
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config.asdict()

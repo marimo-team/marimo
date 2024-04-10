@@ -228,10 +228,13 @@ class AppFileRouter:
     @staticmethod
     def infer(path: Optional[str]) -> AppFileRouter:
         if path is None:
+            LOGGER.debug("Routing to empty file")
             return AppFileRouter.from_empty()
         if os.path.isfile(path):
+            LOGGER.debug("Routing to file %s", path)
             return AppFileRouter.from_filename(path)
         if os.path.isdir(path):
+            LOGGER.debug("Routing to directory %s", path)
             return AppFileRouter.from_directory(path)
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -256,11 +259,12 @@ class AppFileRouter:
         MAX_DEPTH = 5
         files: List[MarimoFile] = []
         skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
+        LOGGER.debug("Searching directory %s", directory)
         for root, _, filenames in os.walk(directory, topdown=True):
             # Skip directories that are too deep
             depth = root[len(directory) :].count(os.sep)
             if depth > MAX_DEPTH:
-                break
+                continue
             # Skip the root directory
             if root == directory:
                 continue
@@ -273,15 +277,16 @@ class AppFileRouter:
                 if not filename.endswith(".py"):
                     continue
                 full_path = os.path.join(root, filename)
+                relative_path = os.path.relpath(full_path, directory)
                 if "marimo.App" in open(full_path).read():
                     files.append(
                         MarimoFile(
                             name=filename,
-                            path=os.path.abspath(full_path),
+                            path=relative_path,
                             last_modified=os.path.getmtime(full_path),
                         )
                     )
-
+        LOGGER.debug("Found %d files in directory %s", len(files), directory)
         return AppFileRouter(files)
 
     @staticmethod
@@ -292,12 +297,16 @@ class AppFileRouter:
         self.files = files
 
     def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
-        if key is NEW:
+        if key == NEW:
             return AppFileManager(None)
 
         for file in self.files:
             if file.path == key:
                 return AppFileManager(file.path)
+
+        # Absolute path
+        if os.path.isabs(key):
+            return AppFileManager(key)
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,

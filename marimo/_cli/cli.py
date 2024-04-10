@@ -215,6 +215,8 @@ def edit(
                     pass
             except OSError:
                 raise
+    else:
+        name = os.getcwd()
 
     start(
         filename_or_directory=name,

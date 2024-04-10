@@ -15,7 +15,7 @@ const htmlDevPlugin = (): Plugin => {
   return {
     apply: "serve",
     name: "html-transform",
-    transformIndexHtml: async (html) => {
+    transformIndexHtml: async (html, ctx) => {
       if (isStorybook) {
         return html;
       }
@@ -34,7 +34,7 @@ const htmlDevPlugin = (): Plugin => {
       }
 
       // fetch html from server
-      const serverHtmlResponse = await fetch(TARGET);
+      const serverHtmlResponse = await fetch(TARGET + ctx.originalUrl);
       const serverHtml = await serverHtmlResponse.text();
 
       const serverDoc = new JSDOM(serverHtml).window.document;
