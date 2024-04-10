@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Folder } from "lucide-react";
 
 /**
  * Arguments for a file browser component.
@@ -132,15 +133,23 @@ export const FileBrowser = ({
   console.log(loading);
   console.log(error);
 
-  function setNewPath(name: string, path: string) {
-    const outsideInitialPath = path.length < initialPath.length;
+  function setNewPath(newPath: string) {
+    // Navigate to parent directory
+    if (newPath === "..") {
+      newPath = path.endsWith("/") ? path.slice(0, -1) : path;
+      newPath = newPath.substring(0, newPath.lastIndexOf("/"));
+    }
+
+    // If restricting navigation, check if path is outside bounds
+    const outsideInitialPath = newPath.length < initialPath.length;
     if (restrictNavigation && outsideInitialPath) {
       return;
     }
-    setPath(path);
+
+    setPath(newPath);
   }
 
-  const selectFile = (name: string, path: string) => {
+  const selectFile = (path: string, name: string) => {
     const fileInfo: FileInfo = {
       id: path,
       name: name,
@@ -162,6 +171,13 @@ export const FileBrowser = ({
 
   const fileRows = [];
 
+  fileRows.push(
+    <TableRow key={"Parent directory"} onClick={() => setNewPath("..")}>
+      <TableCell className="w-1/12"></TableCell>
+      <TableCell className="w-11/12">..</TableCell>
+    </TableRow>,
+  );
+
   for (const file of files) {
     let filePath = path;
     if (!path.endsWith("/")) {
@@ -172,11 +188,15 @@ export const FileBrowser = ({
     const handleClick = file.is_directory ? setNewPath : selectFile;
 
     fileRows.push(
-      <TableRow key={filePath} onClick={() => handleClick(file.name, filePath)}>
-        <TableCell>
-          <Checkbox checked={selectedPaths.has(filePath)} />
+      <TableRow key={filePath} onClick={() => handleClick(filePath, file.name)}>
+        <TableCell className="w-1/12">
+          {file.is_directory ? (
+            <Folder size={16} className="ml-2" />
+          ) : (
+            <Checkbox className="ml-2" checked={selectedPaths.has(filePath)} />
+          )}
         </TableCell>
-        <TableCell>{file.name}</TableCell>
+        <TableCell className="w-11/12">{file.name}</TableCell>
       </TableRow>,
     );
   }
@@ -192,13 +212,13 @@ export const FileBrowser = ({
         type="text"
         value={path}
         className="mt-3"
-        onChange={(e) => setNewPath("", e.target.value)}
+        onChange={(e) => setNewPath(e.target.value)}
       />
       <div
         className="mt-2 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
       >
-        <Table className="cursor-pointer">{fileRows}</Table>
+        <Table className="cursor-pointer table-fixed">{fileRows}</Table>
       </div>
       <aside className="mt-4">
         {value.length > 0 ? (
