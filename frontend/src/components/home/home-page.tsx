@@ -5,7 +5,6 @@ import React, { Suspense } from "react";
 import { cn } from "@/utils/cn";
 import { Spinner } from "../icons/spinner";
 import { ArrowRightIcon } from "lucide-react";
-import { Input } from "../ui/input";
 
 import "./grid-background.css";
 
@@ -91,15 +90,11 @@ const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const CreateNewNotebook: React.FC = () => {
   return (
     <a
-      className="
-      relative
-      rounded-lg p-6 border
-      shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer
-      text-[var(--grass-9)]
+      className="relative rounded-lg p-6 group
+      shadow-sm hover:shadow-md
+      text-[var(--grass-9)] transition-all duration-300 cursor-pointer
       bg-[var(--grass-1)] hover:bg-[var(--grass-2)]
-      border-[var(--grass-7)] hover:border-[var(--grass-8)]
-      group
-    "
+      border border-[var(--grass-7)] hover:border-[var(--grass-8)]"
       href={`/?file=__new__`}
       target="_blank"
       rel="noreferrer"
@@ -112,20 +107,20 @@ const CreateNewNotebook: React.FC = () => {
   );
 };
 
-const NotebookFromOrCodeUrl: React.FC = () => {
-  return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-lg font-semibold">
-        Open a notebook from URL or paste code
-      </h3>
-      <Input
-        className="h-12 px-4 border-border"
-        type="text"
-        placeholder="Enter URL"
-      />
-    </div>
-  );
-};
+// const NotebookFromOrCodeUrl: React.FC = () => {
+//   return (
+//     <div className="flex flex-col gap-2">
+//       <h3 className="text-lg font-semibold">
+//         Open a notebook from URL or paste code
+//       </h3>
+//       <Input
+//         className="h-12 px-4 border-border"
+//         type="text"
+//         placeholder="Enter URL"
+//       />
+//     </div>
+//   );
+// };
 
 const GridBackground = (props: { className?: string }) => {
   return (
