@@ -27,24 +27,28 @@ interface Data {
 }
 
 /**
+ * @param id - File id
  * @param path - File path
  * @param name - File name
- * @param isDirectory - Whether file is a directory or not
+ * @param is_directory - Whether file is a directory or not
+ * @param is_marimo_file - Whether file is a marimo file or not
  */
 interface FileInfo {
+  id: string;
   path: string;
   name: string;
-  isDirectory?: boolean | undefined;
+  is_directory: boolean;
+  is_marimo_file: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   list_directory: (req: { path: string; filetypes: string[] }) => Promise<{
-    files: Array<FileInfo>;
+    files: FileInfo[];
   }>;
 };
 
-type S = Array<FileInfo>;
+type S = FileInfo[];
 
 export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
   .withData(
@@ -68,9 +72,11 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
         z.object({
           files: z.array(
             z.object({
+              id: z.string(),
               path: z.string(),
               name: z.string(),
-              isDirectory: z.boolean().optional(),
+              is_directory: z.boolean(),
+              is_marimo_file: z.boolean(),
             }),
           ),
         }),
@@ -120,13 +126,13 @@ export const FileBrowser = ({
     files = [];
   }
 
-  const selectedPaths = value.map((x) => x.path);
+  const selectedPaths = new Set(value.map((x) => x.path));
 
   console.log(data);
   console.log(loading);
   console.log(error);
 
-  function setNewPath(path: string) {
+  function setNewPath(name: string, path: string) {
     const outsideInitialPath = path.length < initialPath.length;
     if (restrictNavigation && outsideInitialPath) {
       return;
@@ -135,10 +141,16 @@ export const FileBrowser = ({
   }
 
   const selectFile = (name: string, path: string) => {
-    const fileInfo = { name: name, path: path, isDirectory: false };
+    const fileInfo: FileInfo = {
+      id: path,
+      name: name,
+      path: path,
+      is_directory: false,
+      is_marimo_file: false,
+    };
 
     if (multiple) {
-      if (selectedPaths.includes(path)) {
+      if (selectedPaths.has(path)) {
         setValue(value.filter((x) => x.path !== path));
       } else {
         setValue([...value, fileInfo]);
@@ -157,10 +169,12 @@ export const FileBrowser = ({
     }
     filePath += file.name;
 
+    const handleClick = file.is_directory ? setNewPath : selectFile;
+
     fileRows.push(
-      <TableRow key={filePath} onClick={() => selectFile(file.name, filePath)}>
+      <TableRow key={filePath} onClick={() => handleClick(file.name, filePath)}>
         <TableCell>
-          <Checkbox checked={selectedPaths.includes(filePath)} />
+          <Checkbox checked={selectedPaths.has(filePath)} />
         </TableCell>
         <TableCell>{file.name}</TableCell>
       </TableRow>,
@@ -178,7 +192,7 @@ export const FileBrowser = ({
         type="text"
         value={path}
         className="mt-3"
-        onChange={(e) => setNewPath(e.target.value)}
+        onChange={(e) => setNewPath("", e.target.value)}
       />
       <div
         className="mt-2 overflow-y-auto w-full border"
