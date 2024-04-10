@@ -53,7 +53,16 @@ async def rename_file(
     body = await parse_request(request, cls=RenameFileRequest)
     app_state = AppState(request)
     session = app_state.require_current_session()
+    prev_path = session.app_file_manager.path
+
     session.app_file_manager.rename(body.filename)
+    new_path = session.app_file_manager.path
+
+    # TODO: test
+    if prev_path and new_path:
+        app_state.session_manager.recents.rename(prev_path, new_path)
+    elif new_path:
+        app_state.session_manager.recents.touch(new_path)
 
     return SuccessResponse()
 

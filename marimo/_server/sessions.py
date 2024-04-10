@@ -41,6 +41,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import (
+    NEW,
     AppFileManager,
     AppFileRouter,
     MarimoFileKey,
@@ -411,7 +412,7 @@ class SessionManager:
         self.mode = mode
         self.development_mode = development_mode
         self.quiet = quiet
-        self.sessions: dict[str, Session] = {}
+        self.sessions: dict[SessionId, Session] = {}
         self.include_code = include_code
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
@@ -467,7 +468,7 @@ class SessionManager:
         return self.sessions.get(session_id)
 
     def maybe_resume_session(
-        self, new_session_id: SessionId
+        self, new_session_id: SessionId, file_key: MarimoFileKey
     ) -> Optional[Session]:
         """
         Try to resume a session if one is resumable.
@@ -490,13 +491,19 @@ class SessionManager:
                 return maybe_session
             return None
 
-        if len(self.sessions) == 0:
+        # Should only return an orphaned session
+        sessions_with_the_same_file: dict[SessionId, Session] = {
+            session_id: session
+            for session_id, session in self.sessions.items()
+            if session.app_file_manager.path == os.path.abspath(file_key)
+        }
+
+        if len(sessions_with_the_same_file) == 0:
             return None
-        if len(self.sessions) > 1:
+        if len(sessions_with_the_same_file) > 1:
             raise Exception("Only one session should exist while editing")
 
-        # Should only return an orphaned session
-        (session_id, session) = list(self.sessions.items())[0]
+        (session_id, session) = next(iter(sessions_with_the_same_file.items()))
         connection_state = session.connection_state()
         if connection_state == ConnectionState.ORPHANED:
             LOGGER.debug(
@@ -515,10 +522,15 @@ class SessionManager:
         )
         return None
 
-    def any_clients_connected(self) -> bool:
+    def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""
+        if key == NEW:
+            return False
+
         for session in self.sessions.values():
-            if session.connection_state() == ConnectionState.OPEN:
+            if session.connection_state() == ConnectionState.OPEN and (
+                session.app_file_manager.path == os.path.abspath(key)
+            ):
                 return True
         return False
 

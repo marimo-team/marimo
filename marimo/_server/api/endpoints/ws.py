@@ -233,7 +233,10 @@ class WebsocketHandler(SessionConsumer):
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
         # Only one frontend can be connected at a time in edit mode.
-        if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected():
+        # TODO: test one frontend connected at a time for the same file
+        if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected(
+            self.file_key
+        ):
             LOGGER.debug(
                 "Refusing connection; a frontend is already connected."
             )
@@ -260,7 +263,9 @@ class WebsocketHandler(SessionConsumer):
             # 2. Handle resume
 
             # Get resumable possible resumable session
-            resumable_session = mgr.maybe_resume_session(session_id)
+            resumable_session = mgr.maybe_resume_session(
+                session_id, self.file_key
+            )
             if resumable_session is not None:
                 LOGGER.debug("Resuming session %s", session_id)
                 await self._reconnect_session(resumable_session, replay=True)
@@ -271,8 +276,8 @@ class WebsocketHandler(SessionConsumer):
             # If the client refreshed their page, there will be one
             # existing session with a closed socket for a different session
             # id; that's why we call `close_all_sessions`.
-            if mgr.mode == SessionMode.EDIT:
-                mgr.close_all_sessions()
+            # if mgr.mode == SessionMode.EDIT:
+            #     mgr.close_all_sessions()
 
             # Grab the query params from the websocket
             # Note: if we resume a session, we don't pick up the new query
