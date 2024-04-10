@@ -4,9 +4,9 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import React, { Suspense } from "react";
 import { cn } from "@/utils/cn";
 import { Spinner } from "../icons/spinner";
-import { ArrowRightIcon } from "lucide-react";
+import { FilePlus2Icon, ExternalLinkIcon } from "lucide-react";
 
-import "./grid-background.css";
+// import "./grid-background.css";
 
 export const HomePage: React.FC = () => {
   const { data, loading, error } = useAsyncData(async () => {
@@ -27,12 +27,14 @@ export const HomePage: React.FC = () => {
 
   return (
     <Suspense>
-      <GridBackground />
+      {/*<GridBackground />*/}
       <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
-        <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-10" />
+          {/* TODO: Power off server button in top right */ }
+          <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-10" />
         <CreateNewNotebook />
-        <NotebookList header="Recent Notebooks" files={data.recents.files} />
-        <NotebookList header="Workspace" files={data.workspace.files} />
+        {/* TODO: section for running notebooks, option to turn them off */}
+        <NotebookList header="Recent notebooks" files={data.recents.files} />
+        <NotebookList header="All notebooks" files={data.workspace.files} />
         {/* <NotebookFromOrCodeUrl /> */}
       </div>
     </Suspense>
@@ -51,19 +53,19 @@ const NotebookList: React.FC<{
       <Header>{header}</Header>
       <div
         className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden
-        max-h-96 overflow-y-auto shadow-sm bg-background
+        max-h-[48rem] overflow-y-auto shadow-sm bg-background
       "
       >
         {files.map((file) => (
           <a
-            className="py-2 px-4 hover:bg-[var(--slate-3)] cursor-pointer transition-all duration-300 cursor-pointer group relative"
+            className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
             key={file.path}
             href={`/?file=${file.path}`}
             target="_blank"
             rel="noreferrer"
           >
             <div className="flex flex-col justify-between">
-              <h3 className="text-lg font-semibold">{file.name}</h3>
+              <span>{file.name}</span>
               <p
                 title={file.path}
                 className="text-sm text-muted-foreground
@@ -74,7 +76,8 @@ const NotebookList: React.FC<{
               </p>
             </div>
             <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300 text-muted-foreground">
-              <ArrowRightIcon size={24} />
+              {/* TODO: different icon/action depending on whether notebook is running */}
+              <ExternalLinkIcon className="text-primary" size={24} />
             </div>
           </a>
         ))}
@@ -84,24 +87,23 @@ const NotebookList: React.FC<{
 };
 
 const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <h2 className="text-2xl font-semibold">{children}</h2>;
+  return <h2 className="text-xl font-semibold text-muted-foreground">{children}</h2>;
 };
 
 const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      shadow-sm hover:shadow-md
-      text-[var(--grass-9)] transition-all duration-300 cursor-pointer
-      bg-[var(--grass-1)] hover:bg-[var(--grass-2)]
-      border border-[var(--grass-7)] hover:border-[var(--grass-8)]"
+      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
+      transition-all duration-300 cursor-pointer
+      "
       href={`/?file=__new__`}
       target="_blank"
       rel="noreferrer"
     >
       <h2 className="text-lg font-semibold">Create new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
-        <ArrowRightIcon size={24} />
+        <FilePlus2Icon size={24} />
       </div>
     </a>
   );
@@ -127,7 +129,7 @@ const GridBackground = (props: { className?: string }) => {
     <div
       className={cn(
         "bg-grid absolute inset-0 -z-10 [mask-image:linear-gradient(180deg,black,transparent)]",
-        props.className,
+        props.className
       )}
     />
   );

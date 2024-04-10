@@ -85,6 +85,7 @@ STATIC_FILES = [
     r"(manifest\.json)",
     r"(android-chrome-(192x192|512x512)\.png)",
     r"(apple-touch-icon\.png)",
+    r"(logo\.png)",
 ]
 
 
