@@ -101,7 +101,7 @@ const CreateNewNotebook: React.FC = () => {
       target="_blank"
       rel="noreferrer"
     >
-      <h2 className="text-lg font-semibold">Create new notebook</h2>
+      <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
         <FilePlus2Icon size={24} />
       </div>

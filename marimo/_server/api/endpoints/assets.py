@@ -81,6 +81,7 @@ async def index(request: Request) -> HTMLResponse:
 
 
 STATIC_FILES = [
+    r"(logo\.png)",
     r"(favicon\.ico)",
     r"(manifest\.json)",
     r"(android-chrome-(192x192|512x512)\.png)",

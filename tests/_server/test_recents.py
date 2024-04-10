@@ -22,31 +22,33 @@ class TestRecentFilesManager(unittest.TestCase):
     def test_touch_with_config(self) -> None:
         self.rfm.touch("test_file")
         self.config_reader.read_toml.assert_called_once_with(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
 
     def test_touch_with_config_existing_file(self) -> None:
         self.config_reader.read_toml.return_value = RecentFilesState(
-            files=["test_file", "old_file"]
+            files=["old_file", "test_file"]
         )
         self.rfm.touch("test_file")
         self.config_reader.read_toml.assert_called_once_with(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
         self.config_reader.write_toml.assert_called_once_with(
-            RecentFilesState(files=["old_file", "test_file"])
+            RecentFilesState(files=["test_file", "old_file"])
         )
 
     def test_touch_with_config_max_files(self) -> None:
+        original_files = [
+            f"test_file_{i}" for i in range(RecentFilesManager.MAX_FILES)
+        ]
         self.config_reader.read_toml.return_value = RecentFilesState(
-            files=["test_file"] * (RecentFilesManager.MAX_FILES - 1)
+            files=original_files[:]
         )
-        self.rfm.touch("test_file")
+        self.rfm.touch("new_file")
         self.config_reader.read_toml.assert_called_once_with(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
+        expected_files = ["new_file"] + original_files[:-1]
         self.config_reader.write_toml.assert_called_once_with(
-            RecentFilesState(
-                files=["test_file"] * RecentFilesManager.MAX_FILES
-            )
+            RecentFilesState(files=expected_files)
         )

@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 from marimo._server.models.home import MarimoFile
@@ -8,7 +8,7 @@ from marimo._utils.config.config import ConfigReader
 
 @dataclass
 class RecentFilesState:
-    files: List[str]
+    files: List[str] = field(default_factory=list)
 
 
 class RecentFilesManager:
@@ -23,7 +23,7 @@ class RecentFilesManager:
             return
 
         state = self.config.read_toml(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
         if filename in state.files:
             state.files.remove(filename)
@@ -37,7 +37,7 @@ class RecentFilesManager:
             return
 
         state = self.config.read_toml(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
         if old_filename in state.files:
             state.files.remove(old_filename)
@@ -50,7 +50,7 @@ class RecentFilesManager:
             return []
 
         state = self.config.read_toml(
-            RecentFilesState, fallback=RecentFilesState(files=[])
+            RecentFilesState, fallback=RecentFilesState()
         )
         files: List[MarimoFile] = []
 

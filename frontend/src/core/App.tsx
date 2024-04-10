@@ -57,6 +57,7 @@ import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
+import { updateQueryParams } from "@/utils/urls";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -109,6 +110,14 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         alertSaveFailed();
         return Promise.resolve(null);
       }
+
+      updateQueryParams((params) => {
+        if (name === null) {
+          params.delete("file");
+        } else {
+          params.set("file", name);
+        }
+      });
 
       return sendRename(name)
         .then(() => {

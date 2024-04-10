@@ -18,7 +18,9 @@ HEADERS = {
 
 @with_session(SESSION_ID)
 def test_rename(client: TestClient) -> None:
-    current_filename = get_session_manager(client).filename
+    current_filename = get_session_manager(
+        client
+    ).file_router.get_unique_file_key()
 
     assert current_filename
     assert os.path.exists(current_filename)
@@ -53,7 +55,7 @@ def test_read_code(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_file(client: TestClient) -> None:
-    filename = get_session_manager(client).filename
+    filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
 
     response = client.post(
@@ -99,7 +101,7 @@ def test_save_file(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_with_header(client: TestClient) -> None:
-    filename = get_session_manager(client).filename
+    filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
     assert os.path.exists(filename)
 
@@ -139,7 +141,7 @@ def test_save_with_header(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_with_invalid_file(client: TestClient) -> None:
-    filename = get_session_manager(client).filename
+    filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
     assert os.path.exists(filename)
 
@@ -206,7 +208,7 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_app_config(client: TestClient) -> None:
-    filename = get_session_manager(client).filename
+    filename = get_session_manager(client).file_router.get_unique_file_key()
     assert filename
 
     file_contents = open(filename).read()

@@ -2,7 +2,7 @@
 import os
 import sys
 
-from marimo._server.file_manager import AppFileRouter
+from marimo._server.file_router import AppFileRouter
 from marimo._server.utils import print_tabbed
 
 UTF8_SUPPORTED = False

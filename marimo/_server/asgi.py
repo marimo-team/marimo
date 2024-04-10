@@ -2,7 +2,7 @@
 import abc
 from typing import TYPE_CHECKING, List, Tuple
 
-from marimo._server.file_manager import AppFileRouter
+from marimo._server.file_router import AppFileRouter
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp

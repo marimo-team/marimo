@@ -41,11 +41,9 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.file_manager import (
-    NEW,
     AppFileManager,
-    AppFileRouter,
-    MarimoFileKey,
 )
+from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -524,7 +522,7 @@ class SessionManager:
 
     def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""
-        if key == NEW:
+        if key == AppFileRouter.NEW_FILE:
             return False
 
         for session in self.sessions.values():

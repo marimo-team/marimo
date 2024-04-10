@@ -76,6 +76,10 @@ def validate_name(
             temp_dir,
         )
 
+    if allow_directory:
+        if os.path.isdir(name):
+            return name, None
+
     path = pathlib.Path(name)
     if path.suffix == ".ipynb":
         prefix = str(path)[: -len(".ipynb")]
@@ -95,10 +99,6 @@ def validate_name(
     if is_url(name):
         temp_dir = TemporaryDirectory()
         return _create_tmp_file_from_url(name, temp_dir), temp_dir
-
-    if allow_directory:
-        if os.path.isdir(name):
-            return name, None
 
     if not allow_new_file:
         if not os.path.exists(name):

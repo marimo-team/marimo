@@ -9,7 +9,7 @@ from starlette.testclient import TestClient
 
 from marimo._config.manager import UserConfigManager
 from marimo._dependencies.dependencies import DependencyManager
-from tests._server.conftest import get_session_manager, get_user_config_manager
+from tests._server.conftest import get_user_config_manager
 from tests._server.mocks import with_session
 
 SESSION_ID = "session-123"
@@ -45,8 +45,6 @@ class TestAiEndpoints:
         client: TestClient, openai_mock: Any
     ) -> None:
         del openai_mock
-        filename = get_session_manager(client).filename
-        assert filename
         user_config_manager = get_user_config_manager(client)
 
         with no_openai_config(user_config_manager):
@@ -71,8 +69,6 @@ class TestAiEndpoints:
     def test_completion_without_code(
         client: TestClient, openai_mock: Any
     ) -> None:
-        filename = get_session_manager(client).filename
-        assert filename
         user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()
@@ -110,8 +106,6 @@ class TestAiEndpoints:
     def test_completion_with_code(
         client: TestClient, openai_mock: Any
     ) -> None:
-        filename = get_session_manager(client).filename
-        assert filename
         user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()
@@ -151,8 +145,6 @@ class TestAiEndpoints:
     def test_completion_with_custom_model(
         client: TestClient, openai_mock: Any
     ) -> None:
-        filename = get_session_manager(client).filename
-        assert filename
         user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()
@@ -188,8 +180,6 @@ class TestAiEndpoints:
     def test_completion_with_custom_base_url(
         client: TestClient, openai_mock: Any
     ) -> None:
-        filename = get_session_manager(client).filename
-        assert filename
         user_config_manager = get_user_config_manager(client)
 
         oaiclient = MagicMock()

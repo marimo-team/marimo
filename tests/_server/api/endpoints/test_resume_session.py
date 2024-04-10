@@ -6,8 +6,9 @@ from typing import Any, Optional
 from starlette.testclient import TestClient
 
 from marimo._messaging.ops import KernelReady
-from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
+from tests._server.conftest import get_session_manager
 
 
 def create_response(
@@ -55,10 +56,6 @@ def assert_kernel_ready_response(
 
 def get_session(client: TestClient, session_id: str) -> Optional[Session]:
     return get_session_manager(client).get_session(session_id)
-
-
-def get_session_manager(client: TestClient) -> SessionManager:
-    return client.app.state.session_manager  # type: ignore
 
 
 def test_refresh_session(client: TestClient) -> None:

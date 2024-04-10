@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -14,7 +14,6 @@ from marimo._runtime.layout.layout import (
     save_layout_config,
 )
 from marimo._server.api.status import HTTPException, HTTPStatus
-from marimo._server.models.home import MarimoFile
 from marimo._server.models.models import (
     SaveRequest,
 )
@@ -212,126 +211,3 @@ class AppFileManager:
         with open(self.filename, "r", encoding="utf-8") as f:
             contents = f.read().strip()
         return contents
-
-
-# Some unique identifier for a file
-MarimoFileKey = str
-
-NEW: MarimoFileKey = "__new__"
-
-
-class AppFileRouter:
-    """
-    Class to create an AppFileManager given a filename, directory, or empty.
-    """
-
-    @staticmethod
-    def infer(path: Optional[str]) -> AppFileRouter:
-        if path is None:
-            LOGGER.debug("Routing to empty file")
-            return AppFileRouter.from_empty()
-        if os.path.isfile(path):
-            LOGGER.debug("Routing to file %s", path)
-            return AppFileRouter.from_filename(path)
-        if os.path.isdir(path):
-            LOGGER.debug("Routing to directory %s", path)
-            return AppFileRouter.from_directory(path)
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail="Path {0} is not a valid file or directory".format(path),
-        )
-
-    @staticmethod
-    def from_filename(filename: str) -> AppFileRouter:
-        files = [
-            MarimoFile(
-                name=filename,
-                path=os.path.abspath(filename),
-                last_modified=os.path.getmtime(filename),
-            )
-        ]
-        return AppFileRouter(files)
-
-    @staticmethod
-    def from_directory(directory: str) -> AppFileRouter:
-        # Recursively find all .py files that contain the string "marimo.App"
-        # Max depth of 5 to avoid searching the entire filesystem
-        MAX_DEPTH = 5
-        files: List[MarimoFile] = []
-        skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
-        LOGGER.debug("Searching directory %s", directory)
-        for root, _, filenames in os.walk(directory, topdown=True):
-            # Skip directories that are too deep
-            depth = root[len(directory) :].count(os.sep)
-            if depth > MAX_DEPTH:
-                continue
-            # Skip the root directory
-            if root == directory:
-                continue
-            # Skip directories that we don't want to search
-            root_name = os.path.basename(root)
-            if root_name in skip_dirs:
-                continue
-            # Iterate over all files in the directory
-            for filename in filenames:
-                if not filename.endswith(".py"):
-                    continue
-                full_path = os.path.join(root, filename)
-                relative_path = os.path.relpath(full_path, directory)
-                if "marimo.App" in open(full_path).read():
-                    files.append(
-                        MarimoFile(
-                            name=filename,
-                            path=relative_path,
-                            last_modified=os.path.getmtime(full_path),
-                        )
-                    )
-        LOGGER.debug("Found %d files in directory %s", len(files), directory)
-        return AppFileRouter(files)
-
-    @staticmethod
-    def from_empty() -> AppFileRouter:
-        return AppFileRouter([])
-
-    def __init__(self, files: List[MarimoFile]) -> None:
-        self.files = files
-
-    def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
-        if key == NEW:
-            return AppFileManager(None)
-
-        for file in self.files:
-            if file.path == key:
-                return AppFileManager(file.path)
-
-        # Absolute path
-        if os.path.isabs(key):
-            return AppFileManager(key)
-
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="File {0} not found".format(key),
-        )
-
-    def get_unique_file_key(self) -> Optional[MarimoFileKey]:
-        """
-        If there is a unique file key, return it. Otherwise, return None.
-        If there are no files, we return NEW.
-        """
-        if len(self.files) == 1:
-            return self.files[0].path
-        if len(self.files) == 0:
-            return None
-        return None
-
-    def get_single_app_file_manager(self) -> AppFileManager:
-        assert self.has_single_file()
-        return AppFileManager(self.files[0].path)
-
-    def has_single_file(self) -> bool:
-        return len(self.files) == 1
-
-    def maybe_get_single_file(self) -> Optional[MarimoFile]:
-        if self.has_single_file():
-            return self.files[0]
-        return None

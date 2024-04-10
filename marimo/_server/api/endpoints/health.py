@@ -28,10 +28,14 @@ router.add_route("/healthz", health_check, methods=["GET"])
 @router.get("/api/status")
 async def status(request: Request) -> JSONResponse:
     app_state = AppState(request)
+    files = [
+        session.app_file_manager.filename or "__new__"
+        for session in app_state.session_manager.sessions.values()
+    ]
     return JSONResponse(
         {
             "status": "healthy",
-            "filename": app_state.filename,
+            "filenames": files,
             "mode": app_state.mode,
             "sessions": len(app_state.session_manager.sessions),
             "version": __version__,

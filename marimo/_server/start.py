@@ -6,7 +6,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import UserConfigManager
-from marimo._server.file_manager import AppFileRouter
+from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import (
@@ -25,7 +25,7 @@ DEFAULT_PORT = 2718
 
 def start(
     *,
-    filename_or_directory: Optional[str],
+    file_router: AppFileRouter,
     mode: SessionMode,
     development_mode: bool,
     quiet: bool,
@@ -46,7 +46,7 @@ def start(
     user_config_mgr = UserConfigManager()
 
     session_manager = SessionManager(
-        file_router=AppFileRouter.infer(filename_or_directory),
+        file_router=file_router,
         mode=mode,
         development_mode=development_mode,
         quiet=quiet,

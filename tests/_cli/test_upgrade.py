@@ -11,8 +11,8 @@ from marimo._cli.upgrade import (
 
 
 @patch("marimo._cli.upgrade.current_version", "0.1.0")
-@patch("marimo._cli.upgrade.os.path.exists")
-@patch("marimo._cli.upgrade.os.makedirs")
+@patch("marimo._utils.config.config.os.path.exists")
+@patch("marimo._utils.config.config.os.makedirs")
 @patch(
     "__main__.open",
     new_callable=mock_open,
