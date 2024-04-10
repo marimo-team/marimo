@@ -914,7 +914,7 @@ class ListDirectoryResponse:
 
 
 @mddoc
-class file_browser(UIElement[list[FileInfo], Sequence[FileInfo]]):
+class file_browser(UIElement[List[dict[str, Any]], Sequence[FileInfo]]):
     """
     File browser for browsing and selecting server-side files.
 
@@ -994,8 +994,19 @@ class file_browser(UIElement[list[FileInfo], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(self, value: list[FileInfo]) -> Sequence[FileInfo]:
-        return [x for x in value]
+    def _convert_value(
+        self, value: list[dict[str, Any]]
+    ) -> Sequence[FileInfo]:
+        return tuple(
+            FileInfo(
+                id=file["id"],
+                name=file["name"],
+                path=file["path"],
+                is_directory=file["is_directory"],
+                is_marimo_file=file["is_marimo_file"],
+            )
+            for file in value
+        )
 
     def name(self, index: int = 0) -> Optional[str]:
         """Get file name at index."""
