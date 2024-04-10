@@ -95,6 +95,10 @@ class NewFileAppFileRouter(AppFileRouter):
         if os.path.isabs(key):
             return AppFileManager(key)
 
+        # Relative path
+        if os.path.exists(key):
+            return AppFileManager(key)
+
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="File {0} not found".format(key),
@@ -121,6 +125,10 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
         # Absolute path
         if os.path.isabs(key):
+            return AppFileManager(key)
+
+        # Relative path
+        if os.path.exists(key):
             return AppFileManager(key)
 
         raise HTTPException(
