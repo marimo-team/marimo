@@ -30,6 +30,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.app import InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
+from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import Alert, MessageOperation, Reload
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
@@ -50,10 +51,11 @@ from marimo._server.model import (
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
-from marimo._server.utils import import_files, print_tabbed
+from marimo._server.utils import print_tabbed
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.paths import import_files
 from marimo._utils.repr import format_repr
 from marimo._utils.typed_connection import TypedConnection
 
@@ -117,14 +119,14 @@ class KernelManager:
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
-        package_manager: str,
+        user_config_manager: UserConfigManager,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
-        self.package_manager = package_manager
+        self.user_config_manager = user_config_manager
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
 
     def start_kernel(self) -> None:
@@ -146,7 +148,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.package_manager,
+                    self.user_config_manager.config,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -182,7 +184,7 @@ class KernelManager:
                     is_edit_mode,
                     self.configs,
                     self.app_metadata,
-                    self.package_manager,
+                    self.user_config_manager.config,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -240,13 +242,13 @@ class Session:
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
-        package_manager: str,
+        user_config_manager: UserConfigManager,
     ) -> Session:
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
         kernel_manager = KernelManager(
-            queue_manager, mode, configs, app_metadata, package_manager
+            queue_manager, mode, configs, app_metadata, user_config_manager
         )
         return cls(
             session_consumer,
@@ -400,7 +402,7 @@ class SessionManager:
         quiet: bool,
         include_code: bool,
         lsp_server: LspServer,
-        package_manager: str,
+        user_config_manager: UserConfigManager,
     ) -> None:
         self.filename = filename
         self.mode = mode
@@ -410,7 +412,7 @@ class SessionManager:
         self.include_code = include_code
         self.lsp_server = lsp_server
         self.watcher: Optional[FileWatcher] = None
-        self.package_manager = package_manager
+        self.user_config_manager = user_config_manager
 
         app = self._load_app()
 
@@ -463,7 +465,7 @@ class SessionManager:
                     query_params=query_params, filename=self.path
                 ),
                 app_file_manager=AppFileManager(self.path),
-                package_manager=self.package_manager,
+                user_config_manager=self.user_config_manager,
             )
         return self.sessions[session_id]
 

@@ -33,6 +33,7 @@ __all__ = [
     "Html",
     "icon",
     "image",
+    "lazy",
     "left",
     "md",
     "mermaid",
@@ -55,7 +56,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.3.8"
+__version__ = "0.3.12"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -74,6 +75,7 @@ from marimo._plugins.stateless.download import download
 from marimo._plugins.stateless.flex import hstack, vstack
 from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
+from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text

@@ -30,6 +30,7 @@ export const ErrorBanner = ({
   return (
     <>
       <Banner
+        kind="danger"
         className={className}
         clickable={true}
         onClick={() => setOpen(true)}

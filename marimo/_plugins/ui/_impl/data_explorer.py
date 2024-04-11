@@ -1,10 +1,13 @@
 # Copyright 2023 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, Final, Optional, Union
+
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 
 import marimo._output.data.data as mo_data
@@ -36,10 +39,12 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
 
     def __init__(
         self,
-        df: pd.DataFrame,
+        df: Union[pd.DataFrame, pl.DataFrame],
         on_change: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self._data = df
+
+        manager = get_table_manager(df)
 
         super().__init__(
             component_name=data_explorer._name,
@@ -47,7 +52,7 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
             on_change=on_change,
             label="",
             args={
-                "data": mo_data.csv(df).url,
+                "data": mo_data.csv(manager.to_csv()).url,
             },
         )
 

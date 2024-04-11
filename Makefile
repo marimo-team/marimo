@@ -29,11 +29,11 @@ check: fe-check py-check
 
 .PHONY: check-test
 # run all checks and tests
-check-test: check fe-test e2e py-test
+check-test: check fe-test py-test e2e
 
 .PHONY: test
 # run all checks and tests
-test: fe-test e2e py-test
+test: fe-test py-test e2e
 
 .PHONY: fe-check
 # check frontend

@@ -48,14 +48,14 @@ test("page renders 2 cells", async ({ page }) => {
 
   // No add buttons are visible
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count(),
-  ).resolves.toBe(0);
+    page.getByTestId("create-cell-button").locator(":visible"),
+  ).toHaveCount(0);
 
   // Hover over a cell the 'add cell' button appears
   await page.hover("text=Cell 1");
   await expect(
-    page.getByTestId("create-cell-button").locator(":visible").count(),
-  ).resolves.toBe(2);
+    page.getByTestId("create-cell-button").locator(":visible"),
+  ).toHaveCount(2);
 
   // Clicking the first button creates a new cell at the top
   await page

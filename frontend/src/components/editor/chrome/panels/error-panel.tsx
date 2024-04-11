@@ -4,20 +4,13 @@ import { useCellErrors } from "../../../../core/cells/cells";
 import { MarimoErrorOutput } from "../../output/MarimoErrorOutput";
 import { CellLinkError } from "@/components/editor/links/cell-link";
 import { PartyPopperIcon } from "lucide-react";
+import { PanelEmptyState } from "./empty-state";
 
 export const ErrorsPanel: React.FC = () => {
   const errors = useCellErrors();
 
   if (errors.length === 0) {
-    return (
-      <div className="mx-6 my-6 flex flex-row gap-2 items-center rounded-lg">
-        <PartyPopperIcon className="text-accent-foreground" />
-        <span className="mt-[0.25rem] text-accent-foreground">
-          {" "}
-          No errors!{" "}
-        </span>
-      </div>
-    );
+    return <PanelEmptyState title="No errors!" icon={<PartyPopperIcon />} />;
   }
 
   return (

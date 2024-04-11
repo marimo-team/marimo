@@ -14,10 +14,10 @@ from marimo._server.sessions import (
 )
 from marimo._server.utils import (
     find_free_port,
-    import_files,
     initialize_asyncio,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._utils.paths import import_files
 
 DEFAULT_PORT = 2718
 
@@ -51,9 +51,7 @@ def start(
         quiet=quiet,
         include_code=include_code,
         lsp_server=LspServer(port * 10),
-        package_manager=user_config_mgr.config["package_management"][
-            "manager"
-        ],
+        user_config_manager=user_config_mgr,
     )
 
     log_level = "info" if development_mode else "error"

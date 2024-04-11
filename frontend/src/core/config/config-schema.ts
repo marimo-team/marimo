@@ -53,6 +53,7 @@ export const UserConfigSchema = z
     runtime: z
       .object({
         auto_instantiate: z.boolean().default(true),
+        auto_reload: z.boolean().default(false),
       })
       .default({}),
     display: z

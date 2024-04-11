@@ -3,7 +3,6 @@ import asyncio
 import os
 import pathlib
 import sys
-from typing import Any
 
 from marimo import _loggers
 
@@ -44,15 +43,6 @@ def find_free_port(port: int, attempts: int = 100) -> int:
     return find_free_port(port + 1, attempts - 1)
 
 
-def import_files(filename: str) -> Any:
-    if sys.version_info < (3, 9):
-        from importlib_resources import files as importlib_files
-    else:
-        from importlib.resources import files as importlib_files
-
-    return importlib_files(filename)
-
-
 def initialize_mimetypes() -> None:
     import mimetypes
 
@@ -64,5 +54,6 @@ def initialize_mimetypes() -> None:
 
 
 def initialize_asyncio() -> None:
+    """Platform-specific initialization of asyncio."""
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

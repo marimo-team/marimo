@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import { useDropzone } from "react-dropzone";
-import { Upload } from "lucide-react";
+import { Upload, MousePointerSquareDashedIcon } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 import { IPlugin, IPluginProps, Setter } from "../types";
@@ -9,6 +9,7 @@ import { filesToBase64 } from "../../utils/fileToBase64";
 import { buttonVariants } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
 import { toast } from "@/components/ui/use-toast";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 
 type FileUploadType = "button" | "area";
 
@@ -170,6 +171,15 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
       },
     });
 
+  const uploadedFiles = (
+    <ul>
+      {value.map(([fileName, _]) => (
+        <li key={fileName}>{fileName}</li>
+      ))}
+    </ul>
+  );
+  const uploaded = value.length > 0;
+
   if (kind === "button") {
     // TODO(akshayka): React to a change in `value` due to an update from another
     // instance of this element. Browsers do not allow scripts to set the `value`
@@ -180,66 +190,115 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
     //   link button to the hidden input element
     const label = props.label ?? "Upload";
     return (
-      <>
-        <button
-          data-testid="marimo-plugin-file-upload-button"
-          {...getRootProps({})}
-          className={buttonVariants({
-            variant: "secondary",
-            size: "xs",
-          })}
-        >
-          {renderHTML({ html: label })}
-          <Upload size={14} className="ml-2" />
-        </button>
-        <input {...getInputProps({})} type="file" />
-      </>
+      <TooltipProvider>
+        <div className="flex flex-row items-center justify-start flex-grow gap-2">
+          <button
+            data-testid="marimo-plugin-file-upload-button"
+            {...getRootProps({})}
+            className={buttonVariants({
+              variant: "secondary",
+              size: "xs",
+            })}
+          >
+            {renderHTML({ html: label })}
+            <Upload size={14} className="ml-2" />
+          </button>
+          <input {...getInputProps({})} type="file" />
+          {uploaded ? (
+            <>
+              <Tooltip content={uploadedFiles}>
+                <span className="text-xs text-muted-foreground">
+                  Uploaded{" "}
+                  <span className="underline cursor-pointer">
+                    {value.length} {value.length > 1 ? "files" : "file"}.
+                  </span>
+                </span>
+              </Tooltip>
+
+              <span className="text-xs text-destructive hover:underline hover:cursor-pointer">
+                <button
+                  className={cn("text-destructive", "hover:underline")}
+                  onClick={() => setValue([])}
+                >
+                  Click to clear files.
+                </button>
+              </span>
+            </>
+          ) : null}
+        </div>
+      </TooltipProvider>
     );
   }
 
-  const uploadedFiles = value.map(([fileName, _]) => (
-    <li key={fileName}>{fileName}</li>
-  ));
-
-  const uploaded = uploadedFiles.length > 0;
   const label =
     props.label ?? "Drag and drop files here, or click to open file browser";
   return (
     <section>
-      <div
-        className={cn(
-          "mt-3 mb-2 w-full flex flex-col items-center justify-center ",
-          "px-6 py-6 sm:px-8 sm:py-8 md:py-10 md:px-16",
-          "border rounded-sm",
-          "text-sm text-muted-foreground",
-          "shadow-smSolid",
-          "hover:bg-muted/60",
-          "hover:cursor-pointer",
-          "active:shadow-xsSolid",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
-          !isFocused && "bg-muted border-input/60",
-          isFocused && "bg-muted/60 border-accent/40",
-          isDragAccept && "bg-muted/60 border-accent/40 shadow-xsSolid",
-          isDragReject && "bg-muted/60 border-destructive/60 shadow-xsSolid",
-        )}
-        {...getRootProps()}
-      >
-        <input {...getInputProps()} />
-        {uploaded ? (
-          <span>To re-upload: {renderHTML({ html: label })}</span>
-        ) : (
-          <span className="mt-0">{renderHTML({ html: label })}</span>
-        )}
-      </div>
+      <div className="flex flex-col items-start justify-start flex-grow gap-3">
+        <div
+          className={cn(
+            "hover:text-primary",
+            "mt-3 mb-2 w-full flex flex-col items-center justify-center ",
+            "px-6 py-6 sm:px-8 sm:py-8 md:py-10 md:px-16",
+            "border rounded-sm",
+            "text-sm text-muted-foreground",
+            "hover:cursor-pointer",
+            "active:shadow-xsSolid",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-accent",
+            !isFocused && "border-input/60 border-dashed",
+            isFocused && "border-solid",
+          )}
+          {...getRootProps()}
+        >
+          <input {...getInputProps()} />
+          <div className="flex flex-col items-center justify-center flex-grow gap-3">
+            {uploaded ? (
+              <span>To re-upload: {renderHTML({ html: label })}</span>
+            ) : (
+              <span className="mt-0">{renderHTML({ html: label })}</span>
+            )}
+            <div className="flex flex-row items-center justify-center flex-grow gap-3">
+              <Upload
+                strokeWidth={1.4}
+                className={cn(
+                  isDragAccept && "text-primary",
+                  isDragReject && "text-destructive",
+                )}
+              />
+              <MousePointerSquareDashedIcon
+                strokeWidth={1.4}
+                className={cn(
+                  isDragAccept && "text-primary",
+                  isDragReject && "text-destructive",
+                )}
+              />
+            </div>
+          </div>
+        </div>
 
-      <aside>
         {uploaded ? (
-          <span className="markdown">
-            <strong>Uploaded files</strong>
-            <ul style={{ margin: 0 }}>{uploadedFiles}</ul>
-          </span>
+          <div className="flex flex-row gap-1">
+            <div className="text-xs text-muted-foreground">
+              <TooltipProvider>
+                Uploaded{" "}
+                <Tooltip content={uploadedFiles}>
+                  <span className="underline cursor-pointer">
+                    {value.length} {value.length > 1 ? "files" : "file"}.
+                  </span>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <span className="text-xs text-destructive hover:underline hover:cursor-pointer">
+              <button
+                className={cn("text-destructive", "hover:underline")}
+                onClick={() => setValue([])}
+              >
+                Click to clear files.
+              </button>
+            </span>
+          </div>
         ) : null}
-      </aside>
+      </div>
     </section>
   );
 };

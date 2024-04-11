@@ -103,19 +103,19 @@ def _create_watchdog(
             self.loop.create_task(self.on_file_changed())
 
         def start(self) -> None:
-            event_handler = watchdog.events.PatternMatchingEventHandler(
+            event_handler = watchdog.events.PatternMatchingEventHandler(  # type: ignore # noqa: E501
                 patterns=[str(self.path)]
             )
-            event_handler.on_modified = self.on_modified
-            self.observer.schedule(
+            event_handler.on_modified = self.on_modified  # type: ignore
+            self.observer.schedule(  # type: ignore
                 event_handler,
                 str(self.path.parent),
                 recursive=False,
             )
-            self.observer.start()
+            self.observer.start()  # type: ignore
 
         def stop(self) -> None:
-            self.observer.stop()
+            self.observer.stop()  # type: ignore
             self.observer.join()
 
     return WatchdogFileWatcher(path, callback, loop)

@@ -4,6 +4,7 @@ import { mountFilesystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
+import { UserConfig } from "@/core/config/config-schema";
 
 declare let loadPyodide: (opts: {
   packages: string[];
@@ -24,7 +25,6 @@ export class DefaultWasmController implements WasmController {
     }
 
     await this.installMarimoAndDeps(pyodide, version);
-    this.installPatches(pyodide);
 
     return pyodide;
   }
@@ -79,19 +79,13 @@ export class DefaultWasmController implements WasmController {
       `);
   }
 
-  private installPatches(pyodide: PyodideInterface) {
-    pyodide.runPython(`
-      import pyodide_http
-      pyodide_http.patch_urllib()
-    `);
-  }
-
   async startSession(opts: {
     queryParameters: Record<string, string | string[]>;
     code: string | null;
     fallbackCode: string;
     filename: string | null;
     onMessage: (message: string) => void;
+    userConfig: UserConfig;
   }): Promise<SerializedBridge> {
     invariant(this.pyodide, "Pyodide not loaded");
 
@@ -111,6 +105,7 @@ export class DefaultWasmController implements WasmController {
       callback: opts.onMessage,
     };
     self.query_params = opts.queryParameters;
+    self.user_config = opts.userConfig;
 
     // Load packages from the code
     await this.pyodide.loadPackagesFromImports(content, {
@@ -132,6 +127,7 @@ export class DefaultWasmController implements WasmController {
         filename="${filename}",
         query_params=js.query_params.to_py(),
         message_callback=js.messenger.callback,
+        user_config=js.user_config.to_py(),
       )
       instantiate(session)
       asyncio.create_task(session.start())
@@ -148,7 +144,7 @@ function getMarimoWheel(version: string) {
     return "marimo >= 0.3.0";
   }
   if (version === "local") {
-    return "http://localhost:8000/dist/marimo-0.3.8-py3-none-any.whl";
+    return "http://localhost:8000/dist/marimo-0.3.12-py3-none-any.whl";
   }
   return `marimo==${version}`;
 }

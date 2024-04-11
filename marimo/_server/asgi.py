@@ -1,6 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
@@ -34,9 +34,9 @@ def create_asgi_app(
     import uvicorn
     builder = (
         create_asgi_app()
-        .with_app(path="/", root="home.py")
         .with_app(path="/app", root="app.py")
         .with_app(path="/app2", root="app2.py")
+        .with_app(path="/", root="home.py")
     )
     app = builder.build()
 
@@ -92,15 +92,22 @@ def create_asgi_app(
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
     from marimo._server.sessions import NoopLspServer, SessionManager
+    from marimo._server.utils import initialize_asyncio
 
     user_config_mgr = UserConfigManager()
     base_app = Starlette()
-    package_manager = user_config_mgr.config["package_management"]["manager"]
 
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
+        def __init__(self) -> None:
+            self._mount_configs: List[Tuple[str, str]] = []
+
         def with_app(self, *, path: str, root: str) -> "ASGIAppBuilder":
+            self._mount_configs.append((path, root))
+            return self
+
+        def _build_app(self, path: str, root: str) -> "ASGIAppBuilder":
             session_manager = SessionManager(
                 filename=root,
                 mode=SessionMode.RUN,
@@ -110,7 +117,7 @@ def create_asgi_app(
                 # Currently we only support run mode,
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
-                package_manager=package_manager,
+                user_config_manager=user_config_mgr,
             )
             app = create_starlette_app(
                 base_url="",
@@ -142,6 +149,16 @@ def create_asgi_app(
             return self
 
         def build(self) -> "ASGIApp":
+            # First sort the mount configs by path length
+            # This is to ensure that the root app is mounted last
+            self._mount_configs = sorted(
+                self._mount_configs, key=lambda x: -len(x[0])
+            )
+
+            for path, root in self._mount_configs:
+                self._build_app(path, root)
+
             return base_app
 
+    initialize_asyncio()
     return Builder()

@@ -17,7 +17,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_title
 from marimo._server.model import SessionMode
 from marimo._server.router import APIRouter
-from marimo._server.utils import import_files
+from marimo._utils.paths import import_files
 
 LOGGER = _loggers.marimo_logger()
 

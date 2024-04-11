@@ -98,6 +98,11 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def has(pkg: str) -> bool:
+        """Return True if any lib is installed."""
+        return importlib.util.find_spec(pkg) is not None
+
+    @staticmethod
     def has_openai() -> bool:
         """Return True if openai is installed."""
         return importlib.util.find_spec("openai") is not None
@@ -106,6 +111,11 @@ class DependencyManager:
     def has_pandas() -> bool:
         """Return True if pandas is installed."""
         return importlib.util.find_spec("pandas") is not None
+
+    @staticmethod
+    def has_pyarrow() -> bool:
+        """Return True if pyarrow is installed."""
+        return importlib.util.find_spec("pyarrow") is not None
 
     @staticmethod
     def has_polars() -> bool:

@@ -9,6 +9,7 @@ import {
   BookMarkedIcon,
   FileTextIcon,
   LucideIcon,
+  SquareDashedBottomCodeIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -18,6 +19,7 @@ export type PanelType =
   | "outline"
   | "dependencies"
   | "documentation"
+  | "snippets"
   | "logs";
 
 export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
@@ -28,6 +30,7 @@ export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
   outline: ScrollTextIcon,
   documentation: BookMarkedIcon,
   logs: FileTextIcon,
+  snippets: SquareDashedBottomCodeIcon,
 };
 
 export const PANEL_TYPES: PanelType[] = Objects.keys(PANEL_ICONS);

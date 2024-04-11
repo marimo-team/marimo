@@ -50,6 +50,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     saveCellConfig: throwNotInEditMode,
     sendStdin: throwNotInEditMode,
     readCode: throwNotInEditMode,
+    readSnippets: throwNotInEditMode,
     openFile: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
     sendCreateFileOrFolder: throwNotInEditMode,

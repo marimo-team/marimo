@@ -18,6 +18,7 @@
   wasm
   ai_completion
   best_practices
+  performance
   deploying/index
 ```
 
@@ -36,6 +37,7 @@ These guides cover marimo's core concepts.
 | {doc}`apps`            | Running notebooks as apps                               |
 | {doc}`scripts`         | Running notebooks as scripts                            |
 | {doc}`best_practices`  | Best practices when working with marimo                 |
+| {doc}`performance`     | Writing performant notebooks                            |
 | {doc}`wasm`            | Running notebooks in the browser (no backend required!) |
 | {doc}`ai_completion`   | Using AI to speed up your coding                        |
 | {doc}`deploying/index` | Deploying marimo notebooks and apps                     |

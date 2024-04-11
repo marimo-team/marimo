@@ -68,8 +68,8 @@ def create_application(
     host: str,
     port: int,
 ) -> Starlette:
-    import matplotlib as mpl  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-    from matplotlib.backends.backend_webagg import (  # type: ignore[import-not-found]  # noqa: E501
+    import matplotlib as mpl  # type: ignore
+    from matplotlib.backends.backend_webagg import (  # type: ignore
         FigureManagerWebAgg,
     )
     from starlette.applications import Starlette
@@ -88,7 +88,7 @@ def create_application(
     async def mpl_js(request: Request) -> Response:
         del request
         return Response(
-            content=FigureManagerWebAgg.get_javascript(),
+            content=FigureManagerWebAgg.get_javascript(),  # type: ignore
             media_type="application/javascript",
         )
 
@@ -167,7 +167,7 @@ def create_application(
             Mount(
                 "/mpl/_static",
                 StaticFiles(
-                    directory=FigureManagerWebAgg.get_static_file_path()
+                    directory=FigureManagerWebAgg.get_static_file_path()  # type: ignore # noqa: E501
                 ),
                 name="mpl_static",
             ),
@@ -246,7 +246,7 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
     from matplotlib.axes import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         Axes,
     )
-    from matplotlib.backends.backend_webagg import (
+    from matplotlib.backends.backend_webagg import (  # type: ignore
         new_figure_manager_given_figure,
     )
 

@@ -36,7 +36,7 @@ test("page renders read only view in read mode", async ({ page }) => {
   // Filename is not visible
   await expect(page.getByText("components.py").last()).not.toBeVisible();
   // Has elements with class name 'controls'
-  expect(await page.locator("#save-button").count()).toBe(0);
+  await expect(page.locator("#save-button")).toHaveCount(0);
 
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();

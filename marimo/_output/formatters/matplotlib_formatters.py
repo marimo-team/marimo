@@ -13,12 +13,16 @@ class MatplotlibFormatter(FormatterFactory):
     def register(self) -> None:
         import matplotlib  # type: ignore
 
-        from marimo._runtime.context import get_global_context
+        from marimo._runtime.context import (
+            get_global_context,
+            runtime_context_installed,
+        )
 
         get_global_context().set_mpl_installed(True)
         from marimo._output import mpl  # noqa: F401
 
-        matplotlib.use("module://marimo._output.mpl")
+        if runtime_context_installed():
+            matplotlib.use("module://marimo._output.mpl")
 
         import base64
         import io
@@ -31,7 +35,7 @@ class MatplotlibFormatter(FormatterFactory):
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
             buf = io.BytesIO()
-            artist.figure.savefig(buf, format="png")
+            artist.figure.savefig(buf, format="png")  # type: ignore
             mimetype: KnownMimeType = "image/png"
             plot_bytes = base64.b64encode(buf.getvalue())
             return (
@@ -41,13 +45,13 @@ class MatplotlibFormatter(FormatterFactory):
 
         # monkey-patch a _mime_ method, instead of using a formatter, because
         # we want all subclasses of Artist to inherit this renderer.
-        Artist._mime_ = mime_data_artist
+        Artist._mime_ = mime_data_artist  # type: ignore[attr-defined]
 
         # use an explicit formatter, no need to try to format subclasses of
         # BarContainer
         @formatting.formatter(BarContainer)
         def _show_bar_container(bc: BarContainer) -> tuple[KnownMimeType, str]:
             if len(bc.patches) > 0:
-                return mime_data_artist(bc.patches[0].figure)
+                return mime_data_artist(bc.patches[0].figure)  # type: ignore
             else:
                 return ("text/plain", str(bc))

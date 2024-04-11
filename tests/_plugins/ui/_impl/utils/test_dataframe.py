@@ -1,18 +1,27 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.utils.dataframe import get_row_headers
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
 
-HAS_DEPS = DependencyManager.has_pandas()
+HAS_PANDAS = DependencyManager.has_pandas()
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_get_row_headers() -> None:
+def _get_row_headers(
+    data: Any,
+) -> list[tuple[str, list[str | int | float]]]:
+    manager = get_table_manager(data)
+    return manager.get_row_headers()
+
+
+@pytest.mark.skipif(
+    not HAS_PANDAS, reason="optional dependencies not installed"
+)
+def test_get_row_headers_pandas() -> None:
     import pandas as pd
 
     expected: List[tuple[str, List[str]]]
@@ -20,10 +29,7 @@ def test_get_row_headers() -> None:
     # Test with pandas DataFrame
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
     df.index.name = "Index"
-    assert get_row_headers(df) == []
-
-    # Test with non-DataFrame input
-    assert get_row_headers([1, 2, 3]) == []
+    assert _get_row_headers(df) == []
 
     # Test with MultiIndex
     arrays = [
@@ -35,20 +41,25 @@ def test_get_row_headers() -> None:
         ("", ["foo", "bar", "baz"]),
         ("", ["one", "two", "three"]),
     ]
-    assert get_row_headers(df_multi) == expected
+    assert _get_row_headers(df_multi) == expected
 
     # Test with RangeIndex
     df_range = pd.DataFrame({"A": range(3)})
-    assert get_row_headers(df_range) == []
+    assert _get_row_headers(df_range) == []
 
     # Test with categorical Index
     df_cat = pd.DataFrame({"A": range(3)})
     df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
     expected = [("", ["a", "b", "c"])]
-    assert get_row_headers(df_cat) == expected
+    assert _get_row_headers(df_cat) == expected
 
     # Test with named categorical Index
     df_cat = pd.DataFrame({"A": range(3)})
     df_cat.index = pd.CategoricalIndex(["a", "b", "c"], name="Colors")
     expected = [("Colors", ["a", "b", "c"])]
-    assert get_row_headers(df_cat) == expected
+    assert _get_row_headers(df_cat) == expected
+
+
+def test_get_row_headers_list() -> None:
+    # Test with non-DataFrame input
+    assert _get_row_headers([1, 2, 3]) == []
