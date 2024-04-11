@@ -60,7 +60,7 @@ jobs:
       - name: 🐍 Setup uv
         uses: yezz123/setup-uv@v4
         with:
-          uv-venv: marimo
+          uv-venv: marimo-venv
 
       - name: 🐍 Install marimo
         run: |
