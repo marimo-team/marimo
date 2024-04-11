@@ -16,7 +16,7 @@ def style(item: object, styles: dict[str, Any]) -> Html:
     **Example.**
 
     ```python
-    mo.style(item, styles={'max-height': '300px', 'overflow': 'auto'})
+    mo.style(item, styles={"max-height": "300px", "overflow": "auto"})
     ```
 
     **Args.**

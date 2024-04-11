@@ -6,6 +6,7 @@ of reloaded objects with their code.
 
 Based on the autoreload extension from the IPython project (BSD-3 Clause).
 """
+
 from __future__ import annotations
 
 import gc

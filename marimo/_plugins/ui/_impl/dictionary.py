@@ -39,11 +39,13 @@ class dictionary(_batch_base):
     A heterogeneous collection of UI elements:
 
     ```python
-    d = mo.ui.dictionary({
+    d = mo.ui.dictionary(
+        {
             "slider": mo.ui.slider(1, 10),
             "text": mo.ui.text(),
-            "date": mo.ui.date()
-        })
+            "date": mo.ui.date(),
+        }
+    )
     ```
 
     Get the values of the `slider`, `text`, and `date` elements via

@@ -53,7 +53,7 @@ def formatter(t: Type[Any]) -> Callable[[Formatter[T]], Formatter[T]]:
     ```
     @formatter(Foo)
     def show_foo(foo: Foo) -> tuple[str, str]:
-      return ("text/html", f"<p>{foo.data}</p>")
+        return ("text/html", f"<p>{foo.data}</p>")
     ```
     """
 

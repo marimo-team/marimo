@@ -1,7 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
-"""Specification of a cell's visual output
-"""
-
+"""Specification of a cell's visual output"""
 
 from __future__ import annotations
 

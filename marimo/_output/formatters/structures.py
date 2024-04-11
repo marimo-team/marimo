@@ -21,7 +21,7 @@ def _leaf_formatter(value: object) -> str:
 
 
 def format_structure(
-    t: Union[tuple[Any, ...], list[Any], dict[str, Any]]
+    t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
 ) -> Union[tuple[Any, ...], list[Any], dict[str, Any]]:
     """Format the leaves of a structure.
 
@@ -42,7 +42,7 @@ class StructuresFormatter(FormatterFactory):
         @formatting.formatter(tuple)
         @formatting.formatter(dict)
         def _format_structure(
-            t: Union[tuple[Any, ...], list[Any], dict[str, Any]]
+            t: Union[tuple[Any, ...], list[Any], dict[str, Any]],
         ) -> tuple[KnownMimeType, str]:
             try:
                 formatted_structure = format_structure(t)

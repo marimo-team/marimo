@@ -315,8 +315,9 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         `UIElements`:
 
         ```python
-        form = mo.ui.md(
-            '''
+        form = (
+            mo.ui.md(
+                '''
             **Enter your prompt.**
 
             {prompt}
@@ -325,10 +326,13 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
 
             {seed}
             '''
-        ).batch(
-            prompt=mo.ui.text_area(),
-            seed=mo.ui.number(),
-        ).form()
+            )
+            .batch(
+                prompt=mo.ui.text_area(),
+                seed=mo.ui.number(),
+            )
+            .form()
+        )
         ```
 
         **Args.**

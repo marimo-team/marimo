@@ -48,8 +48,7 @@ class TestCellRun:
 
     @staticmethod
     def test_unknown_ref_raises() -> None:
-        def f() -> None:
-            ...
+        def f() -> None: ...
 
         app = App()
         cell = app.cell(f)

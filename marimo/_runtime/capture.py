@@ -19,7 +19,7 @@ def capture_stdout() -> Iterator[io.StringIO]:
 
     ```python
     with mo.capture_stdout() as buffer:
-       print("Hello!")
+        print("Hello!")
     output = buffer.getvalue()
     ```
     """
@@ -37,7 +37,7 @@ def capture_stderr() -> Iterator[io.StringIO]:
 
     ```python
     with mo.capture_stderr() as buffer:
-       sys.stderr.write("Hello!")
+        sys.stderr.write("Hello!")
     output = buffer.getvalue()
     ```
     """

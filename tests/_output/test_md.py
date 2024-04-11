@@ -25,7 +25,9 @@ def test_md_code_blocks() -> None:
 def test_md_latex() -> None:
     # Test LaTeX conversion
     latex_input = "Here is an equation: ||(E=mc^2||)"
-    expected_output = '<span class="paragraph">Here is an equation: ||(E=mc^2||)</span>'  # noqa: E501
+    expected_output = (
+        '<span class="paragraph">Here is an equation: ||(E=mc^2||)</span>'  # noqa: E501
+    )
     assert _md(latex_input, apply_markdown_class=False).text == expected_output
 
 

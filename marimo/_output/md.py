@@ -95,6 +95,7 @@ def md(text: str) -> Html:
 
     ```python3
     import matplotlib.pyplot as plt
+
     plt.plot([1, 2])
     axis = plt.gca()
     md(f"Here's a plot: {mo.as_html(axis)}")

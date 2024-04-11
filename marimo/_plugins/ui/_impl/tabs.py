@@ -36,19 +36,17 @@ class tabs(UIElement[str, str]):
     Control which tab is selected:
 
     ```python
-    tabs = mo.ui.tabs({
-        "Heading 1": tab1,
-        "Heading 2": tab2
-    }, value="Heading 2")
+    tabs = mo.ui.tabs(
+        {"Heading 1": tab1, "Heading 2": tab2}, value="Heading 2"
+    )
     ```
 
     Tab content can be lazily loaded:
 
     ```python
-    tabs = mo.ui.tabs({
-        "Heading 1": tab1,
-        "Heading 2": expensive_component
-    }, lazy=True)
+    tabs = mo.ui.tabs(
+        {"Heading 1": tab1, "Heading 2": expensive_component}, lazy=True
+    )
     ```
 
     **Attributes.**

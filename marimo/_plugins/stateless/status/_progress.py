@@ -64,7 +64,6 @@ class _Progress(Html):
 
         # Increment by 10 and update title and subtitle
         progress.update(10, title="Loading", subtitle="Still going...")
-
         ```
 
         **Args.**
