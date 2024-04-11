@@ -21,7 +21,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
-from marimo._utils.formatter import BlackFormatter
+from marimo._utils.formatter import DefaultFormatter
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -57,7 +57,7 @@ async def delete_cell(request: Request) -> BaseResponse:
 async def format_cell(request: Request) -> FormatResponse:
     """Complete a code fragment."""
     body = await parse_request(request, cls=FormatRequest)
-    formatter = BlackFormatter(line_length=body.line_length)
+    formatter = DefaultFormatter(line_length=body.line_length)
 
     return FormatResponse(codes=formatter.format(body.codes))
 
