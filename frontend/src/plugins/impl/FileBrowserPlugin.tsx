@@ -1,15 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import { Table, TableCell, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { createPlugin } from "../core/builder";
 import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Folder } from "lucide-react";
-import { useDebounce } from "@/hooks/useDebounce";
 import { toast } from "@/components/ui/use-toast";
+import { NativeSelect } from "@/components/ui/native-select";
 
 /**
  * Arguments for a file browser component.
@@ -114,7 +113,6 @@ export const FileBrowser = ({
   list_directory,
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useState(initialPath);
-  const debouncedPath = useDebounce(path, 300);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -122,7 +120,7 @@ export const FileBrowser = ({
         path: path,
         filetypes: filetypes,
       }),
-    [debouncedPath],
+    [path],
   );
 
   if (loading && !data) {
@@ -143,7 +141,11 @@ export const FileBrowser = ({
     files = [];
   }
 
+  // For checkbox logic
   const selectedPaths = new Set(value.map((x) => x.path));
+
+  // For displaying selected files
+  const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   /**
    * Set new path from user input or selection.
@@ -159,6 +161,12 @@ export const FileBrowser = ({
     // If restricting navigation, check if path is outside bounds
     const outsideInitialPath = newPath.length < initialPath.length;
     if (restrictNavigation && outsideInitialPath) {
+      toast({
+        title: "Access denied",
+        description:
+          "Access to directories outside initial path is restricted.",
+        variant: "danger",
+      });
       return;
     }
 
@@ -224,20 +232,34 @@ export const FileBrowser = ({
     );
   }
 
-  // List selected files
-  const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
+  // Get list of parent directories
+  const directories = path.split("/").filter((x) => x !== "");
+  directories.push(path);
+
+  const parentDirectories = directories.map((dir, index) => {
+    const dirList = directories.slice(0, index);
+    return `/${dirList.join("/")}`;
+  });
+
+  parentDirectories.reverse();
 
   return (
     <section>
       <span className="markdown">
         <strong>{label ?? "Browse and select file(s)..."}</strong>
       </span>
-      <Input
-        type="text"
+      <NativeSelect
+        className="mt-3 w-full"
+        placeholder={path}
         value={path}
-        className="mt-3"
         onChange={(e) => setNewPath(e.target.value)}
-      />
+      >
+        {parentDirectories.map((dir) => (
+          <option value={dir} key={dir} selected={dir === path}>
+            {dir}
+          </option>
+        ))}
+      </NativeSelect>
       <div
         className="mt-2 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
