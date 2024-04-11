@@ -24,6 +24,9 @@ class RecentFilesManager:
         if not self.config:
             return
 
+        if filename.startswith("/tmp"):
+            return
+
         state = self.config.read_toml(
             RecentFilesState, fallback=RecentFilesState()
         )
