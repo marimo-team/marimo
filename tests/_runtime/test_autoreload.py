@@ -6,7 +6,6 @@ import random
 import sys
 import textwrap
 import time
-import types
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.autoreload import ModuleReloader
