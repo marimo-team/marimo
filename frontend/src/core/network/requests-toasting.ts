@@ -38,6 +38,7 @@ export function createErrorToastingRequests(
     getRecentFiles: "Failed to get recent files",
     getWorkspaceFiles: "Failed to get workspace files",
     getRunningNotebooks: "Failed to get running notebooks",
+    shutdownSession: "Failed to shutdown session",
   };
 
   const handlers = {} as EditRequests & RunRequests;

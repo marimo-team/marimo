@@ -16,9 +16,7 @@ import {
   FormatRequest,
   FormatResponse,
   InstantiateRequest,
-  RecentFilesResponse,
   RunRequests,
-  RunningNotebooksResponse,
   SaveAppConfigRequest,
   SaveCellConfigRequest,
   SaveKernelRequest,
@@ -28,7 +26,6 @@ import {
   SendStdin,
   SnippetsResponse,
   ValueUpdate,
-  WorkspaceFilesResponse,
 } from "../network/types";
 import { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
@@ -365,15 +362,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileDetailsResponse;
   };
 
-  getRecentFiles: () => Promise<RecentFilesResponse> = async () => {
-    throw new Error("Not implemented");
-  };
-  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse> = async () => {
-    throw new Error("Not implemented");
-  };
-  getRunningNotebooks: () => Promise<RunningNotebooksResponse> = async () => {
-    throw new Error("Not implemented");
-  };
+  getRecentFiles = throwNotImplemented;
+  getWorkspaceFiles = throwNotImplemented;
+  getRunningNotebooks = throwNotImplemented;
+  shutdownSession = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
@@ -381,6 +373,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: operation,
     });
   }
+}
+
+function throwNotImplemented(): never {
+  throw new Error("Not implemented");
 }
 
 export class PyodideWebsocket implements IReconnectingWebSocket {
@@ -452,21 +448,13 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
     }
   }
 
-  dispatchEvent(event: Event): boolean {
-    throw new Error("Method not implemented.");
-  }
+  dispatchEvent = throwNotImplemented;
+  reconnect = throwNotImplemented;
+  send = throwNotImplemented;
 
   readyState = WebSocket.OPEN;
   retryCount = 0;
   shouldReconnect = false;
-
-  reconnect(code?: number | undefined, reason?: string | undefined): void {
-    throw new Error("Method not implemented.");
-  }
-
-  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
-    throw new Error("Method not implemented.");
-  }
 
   close() {
     return;

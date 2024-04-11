@@ -31,6 +31,7 @@ import {
   RecentFilesResponse,
   WorkspaceFilesResponse,
   RunningNotebooksResponse,
+  ShutdownSessionRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -204,6 +205,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         "/home/running_notebooks",
         {},
       );
+    },
+    shutdownSession: (request: ShutdownSessionRequest) => {
+      return API.post("/home/shutdown_session", request);
     },
   };
 }

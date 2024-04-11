@@ -90,7 +90,7 @@ export const Controls = ({
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown />
           <AppConfigButton />
-          <ShutdownButton />
+          <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
         </div>
       )}
 

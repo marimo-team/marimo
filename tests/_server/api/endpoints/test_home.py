@@ -54,3 +54,15 @@ def test_running_notebooks(client: TestClient) -> None:
     files = body["files"]
     assert len(files) == 1
     assert files[0]["path"] == current_filename
+
+
+@with_session(SESSION_ID)
+def test_shutdown_session(client: TestClient) -> None:
+    response = client.post(
+        "/api/home/shutdown_session",
+        headers=HEADERS,
+        json={"session_id": SESSION_ID},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"files": []}
+    assert get_session_manager(client).get_session(SESSION_ID) is None

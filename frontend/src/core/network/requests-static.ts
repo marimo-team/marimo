@@ -62,5 +62,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getRecentFiles: throwNotInEditMode,
     getWorkspaceFiles: throwNotInEditMode,
     getRunningNotebooks: throwNotInEditMode,
+    shutdownSession: throwNotInEditMode,
   };
 }

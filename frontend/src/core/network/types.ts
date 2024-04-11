@@ -6,6 +6,7 @@ import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
 import { FilePath } from "@/utils/paths";
 import { PackageManagerName } from "../config/config-schema";
+import { SessionId } from "@/core/kernel/session";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -171,16 +172,27 @@ export interface SnippetsResponse {
   snippets: Snippet[];
 }
 
+interface MarimoNotebook {
+  name: string;
+  path: string;
+  lastModified?: number;
+  sessionId?: SessionId;
+}
+
 export interface RecentFilesResponse {
-  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+  files: MarimoNotebook[];
 }
 
 export interface WorkspaceFilesResponse {
-  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+  files: MarimoNotebook[];
 }
 
 export interface RunningNotebooksResponse {
-  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+  files: MarimoNotebook[];
+}
+
+export interface ShutdownSessionRequest {
+  sessionId: SessionId;
 }
 
 /**
@@ -234,6 +246,9 @@ export interface EditRequests {
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
   getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
+  shutdownSession: (
+    request: ShutdownSessionRequest,
+  ) => Promise<RunningNotebooksResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

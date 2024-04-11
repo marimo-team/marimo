@@ -9,10 +9,12 @@ from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
+from marimo._server.api.utils import parse_request
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
     RecentFilesResponse,
+    ShutdownSessionRequest,
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
@@ -48,6 +50,24 @@ async def rename_file(
     return WorkspaceFilesResponse(files=files)
 
 
+def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
+    files: List[MarimoFile] = []
+    for session_id, session in app_state.session_manager.sessions.items():
+        state = session.connection_state()
+        if state == ConnectionState.OPEN or state == ConnectionState.ORPHANED:
+            filename = session.app_file_manager.filename
+            basename = os.path.basename(filename) if filename else None
+            files.append(
+                MarimoFile(
+                    name=(basename or "new notebook"),
+                    path=(pretty_path(filename) if filename else session_id),
+                    last_modified=0,
+                    session_id=session_id,
+                )
+            )
+    return files
+
+
 @router.post("/running_notebooks")
 @requires("edit")
 async def running_notebooks(
@@ -56,16 +76,17 @@ async def running_notebooks(
 ) -> WorkspaceFilesResponse:
     """Get the running files."""
     app_state = AppState(request)
-    files: List[MarimoFile] = []
-    for session_id, session in app_state.session_manager.sessions.items():
-        if session.connection_state() == ConnectionState.OPEN:
-            filename = session.app_file_manager.filename
-            basename = os.path.basename(filename) if filename else None
-            files.append(
-                MarimoFile(
-                    name=(basename or "new notebook"),
-                    path=(pretty_path(filename) if filename else session_id),
-                    last_modified=0,
-                )
-            )
-    return WorkspaceFilesResponse(files=files)
+    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
+
+
+@router.post("/shutdown_session")
+@requires("edit")
+async def shutdown_session(
+    *,
+    request: Request,
+) -> WorkspaceFilesResponse:
+    """Shutdown the current session."""
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ShutdownSessionRequest)
+    app_state.session_manager.close_session(body.session_id)
+    return WorkspaceFilesResponse(files=_get_active_sessions(app_state))

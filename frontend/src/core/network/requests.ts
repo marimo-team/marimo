@@ -46,4 +46,5 @@ export const {
   getRecentFiles,
   getWorkspaceFiles,
   getRunningNotebooks,
+  shutdownSession,
 } = getRequest();

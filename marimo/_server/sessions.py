@@ -45,6 +45,7 @@ from marimo._server.file_manager import (
     AppFileManager,
 )
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
+from marimo._server.ids import SessionId
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -64,8 +65,6 @@ from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 SESSION_MANAGER: Optional["SessionManager"] = None
-
-SessionId = str
 
 
 class QueueManager:

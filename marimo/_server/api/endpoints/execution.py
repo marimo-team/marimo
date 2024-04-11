@@ -134,6 +134,15 @@ async def shutdown(
     """Shutdown the kernel."""
     LOGGER.debug("Received shutdown request")
     app_state = AppState(request)
-    app_state.session_manager.shutdown()
-    close_uvicorn(app_state.server)
+    session_manager = app_state.session_manager
+    file_router = session_manager.file_router
+    # If we are only operating on a single file (new or explicit file),
+    # then we should shutdown the whole server
+    key = file_router.get_unique_file_key()
+    if key:
+        app_state.session_manager.shutdown()
+        close_uvicorn(app_state.server)
+        return SuccessResponse()
+    # Otherwise, we should just shutdown the current session
+    session_manager.close_session(app_state.require_current_session_id())
     return SuccessResponse()

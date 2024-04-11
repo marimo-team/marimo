@@ -3,15 +3,23 @@ import {
   getWorkspaceFiles,
   getRecentFiles,
   getRunningNotebooks,
+  shutdownSession,
 } from "@/core/network/requests";
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import React, { Suspense, useState } from "react";
 import { Spinner } from "../icons/spinner";
-import { FilePlus2Icon, ExternalLinkIcon, Loader2Icon } from "lucide-react";
+import { FilePlus2Icon, ExternalLinkIcon, SquareIcon } from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
-import { getSessionId } from "@/core/kernel/session";
+import { SessionId, getSessionId } from "@/core/kernel/session";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
+import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
+import { assertExists } from "@/utils/assertExists";
+import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { RunningNotebooksResponse } from "@/core/network/types";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -52,13 +60,19 @@ export const HomePage: React.FC = () => {
 
   const [{ workspace, recents }, running] = data;
 
-  const runningNotebooks = new Set(running.files.map((file) => file.path));
+  const runningNotebooks = new Map(
+    running.files.flatMap((file) =>
+      file.sessionId ? [[file.path, file.sessionId]] : [],
+    ),
+  );
 
   return (
     <Suspense>
       {/*<GridBackground />*/}
       <div className="absolute top-3 right-5">
-        <ShutdownButton />
+        <ShutdownButton
+          description={`This will terminate all running notebooks (${running.files.length}). You'll lose all data that's in memory.`}
+        />
       </div>
       <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
         <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-4" />
@@ -67,16 +81,19 @@ export const HomePage: React.FC = () => {
           header="Running notebooks"
           files={running.files}
           runningNotebooks={runningNotebooks}
+          setRunningNotebooks={runningResponse.setData}
         />
         <NotebookList
           header="Recent notebooks"
           files={recents.files}
           runningNotebooks={runningNotebooks}
+          setRunningNotebooks={runningResponse.setData}
         />
         <NotebookList
           header="All notebooks"
           files={workspace.files}
           runningNotebooks={runningNotebooks}
+          setRunningNotebooks={runningResponse.setData}
         />
         {/* <NotebookFromOrCodeUrl /> */}
       </div>
@@ -86,12 +103,16 @@ export const HomePage: React.FC = () => {
 
 const NotebookList: React.FC<{
   header: string;
-  files: Array<{ name: string; path: string }>;
-  runningNotebooks: Set<string>;
-}> = ({ header, files, runningNotebooks }) => {
+  files: Array<{ name: string; path: string; sessionId?: string }>;
+  runningNotebooks: Map<string, SessionId>;
+  setRunningNotebooks: (data: RunningNotebooksResponse) => void;
+}> = ({ header, files, runningNotebooks, setRunningNotebooks }) => {
+  const { openConfirm, closeModal } = useImperativeModal();
+
   if (files.length === 0) {
     return null;
   }
+
   return (
     <div className="flex flex-col gap-4">
       <Header>{header}</Header>
@@ -118,16 +139,54 @@ const NotebookList: React.FC<{
                 {file.path}
               </p>
             </div>
+            <div className="absolute right-16 top-0 bottom-0 flex items-center">
+              {runningNotebooks.has(file.path) && (
+                <Tooltip content="Shutdown">
+                  <Button
+                    size={"xs"}
+                    variant="outline"
+                    className="m-0 opacity-80 hover:opacity-100 text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      openConfirm({
+                        title: "Shutdown",
+                        description:
+                          "This will terminate the Python kernel. You'll lose all data that's in memory.",
+                        variant: "destructive",
+                        confirmAction: (
+                          <AlertDialogDestructiveAction
+                            onClick={(e) => {
+                              const sessionId = runningNotebooks.get(file.path);
+                              assertExists(sessionId);
+                              shutdownSession({ sessionId }).then(
+                                (response) => {
+                                  setRunningNotebooks(response);
+                                },
+                              );
+                              closeModal();
+                              toast({
+                                description: "Notebook has been shutdown.",
+                              });
+                            }}
+                            aria-label="Confirm Shutdown"
+                          >
+                            Shutdown
+                          </AlertDialogDestructiveAction>
+                        ),
+                      });
+                    }}
+                  >
+                    <SquareIcon size={16} />
+                  </Button>
+                </Tooltip>
+              )}
+            </div>
             <div
               className={cn(
                 "absolute right-8 top-0 bottom-0 rounded-lg flex items-center justify-center text-muted-foreground text-primary",
               )}
             >
-              {runningNotebooks.has(file.path) && (
-                <div className="absolute transition-all duration-300 opacity-100 group-hover:opacity-0">
-                  <Loader2Icon size={24} className="animate-spin" />
-                </div>
-              )}
               <ExternalLinkIcon
                 size={24}
                 className="absolute group-hover:opacity-100 opacity-0 transition-all duration-300"

@@ -8,8 +8,9 @@ from starlette.websockets import WebSocket
 from uvicorn import Server
 
 from marimo._config.manager import UserConfigManager
+from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
-from marimo._server.sessions import Session, SessionId, SessionManager
+from marimo._server.sessions import Session, SessionManager
 
 
 def app_state(request: Request) -> AppState:
