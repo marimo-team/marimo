@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
+    Dict,
     Final,
     List,
     Literal,
@@ -914,7 +915,7 @@ class ListDirectoryResponse:
 
 
 @mddoc
-class file_browser(UIElement[List[dict[str, Any]], Sequence[FileInfo]]):
+class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
     """
     File browser for browsing and selecting server-side files.
 
@@ -995,7 +996,7 @@ class file_browser(UIElement[List[dict[str, Any]], Sequence[FileInfo]]):
         return ListDirectoryResponse(files)
 
     def _convert_value(
-        self, value: list[dict[str, Any]]
+        self, value: list[Dict[str, Any]]
     ) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
