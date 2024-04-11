@@ -7,7 +7,7 @@ from typing import Optional
 from marimo._utils.log_formatter import LogFormatter
 
 # Global log level for loggers
-_LOG_LEVEL = logging.WARN
+_LOG_LEVEL = logging.WARNING
 
 # Custom log formatter
 _LOG_FORMATTER = LogFormatter()
@@ -16,7 +16,7 @@ _LOG_FORMATTER = LogFormatter()
 _LOGGERS: dict[str, logging.Logger] = {}
 
 
-def set_level(level: str | int = logging.WARN) -> None:
+def set_level(level: str | int = logging.WARNING) -> None:
     global _LOG_LEVEL
     if isinstance(level, str):
         level = level.upper()
@@ -25,7 +25,7 @@ def set_level(level: str | int = logging.WARN) -> None:
         elif level == "INFO":
             _LOG_LEVEL = logging.INFO
         elif level == "WARN":
-            _LOG_LEVEL = logging.WARN
+            _LOG_LEVEL = logging.WARNING
         elif level == "ERROR":
             _LOG_LEVEL = logging.ERROR
         elif level == "CRITICAL":
@@ -35,7 +35,7 @@ def set_level(level: str | int = logging.WARN) -> None:
     elif level not in [
         logging.DEBUG,
         logging.INFO,
-        logging.WARN,
+        logging.WARNING,
         logging.ERROR,
         logging.CRITICAL,
     ]:

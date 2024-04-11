@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._ast import codegen
@@ -22,6 +22,9 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

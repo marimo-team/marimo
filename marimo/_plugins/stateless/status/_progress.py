@@ -3,14 +3,16 @@ from __future__ import annotations
 
 import contextlib
 import time
-from collections.abc import Collection
-from typing import Iterable, Iterator, Optional, TypeVar
+from typing import TYPE_CHECKING, Iterable, Iterator, Optional, TypeVar
 
 import marimo._runtime.output._output as output
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 S = TypeVar("S")
 T = TypeVar("T")

@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from starlette.authentication import requires
-from starlette.requests import Request
 
 from marimo._runtime.requests import (
     CompletionRequest,
@@ -21,6 +22,9 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._utils.formatter import BlackFormatter
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 # Router for editing endpoints
 router = APIRouter()

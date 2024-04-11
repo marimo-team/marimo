@@ -6,14 +6,16 @@ import builtins
 import importlib.util
 import json
 import os
-from collections.abc import Sequence
-from typing import Any, List, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, List, Optional, Union, cast
 
 from marimo import __version__
 from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 INDENT = "    "
 MAX_LINE_LENGTH = 80

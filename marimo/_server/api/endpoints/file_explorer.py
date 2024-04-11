@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import base64
+from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
-from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._server.api.utils import parse_request
@@ -24,6 +24,9 @@ from marimo._server.models.files import (
     FileUpdateResponse,
 )
 from marimo._server.router import APIRouter
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

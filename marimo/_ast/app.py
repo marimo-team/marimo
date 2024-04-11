@@ -4,9 +4,9 @@ from __future__ import annotations
 import asyncio
 import random
 import string
-from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Iterable,
@@ -29,6 +29,9 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
 from marimo._runtime.patches import patch_main_module_context
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 LOGGER = _loggers.marimo_logger()
 

@@ -4,10 +4,13 @@ from __future__ import annotations
 import os
 import tempfile
 import textwrap
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from marimo._ast import codegen
 from marimo._cli.ipynb_to_marimo import convert_from_path
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 

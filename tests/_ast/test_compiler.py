@@ -78,7 +78,7 @@ class TestParseCell:
 class TestCellFactory:
     @staticmethod
     def test_defs() -> None:
-        """defs inferred from function code, not returns"""
+        """Defs inferred from function code, not returns"""
 
         def f() -> None:
             x = 10  # noqa: F841
@@ -90,7 +90,7 @@ class TestCellFactory:
 
     @staticmethod
     def test_refs() -> None:
-        """refs inferred from function code, not args"""
+        """Refs inferred from function code, not args"""
 
         def f() -> None:
             x = y  # noqa: F841 F821

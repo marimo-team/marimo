@@ -1,14 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Optional
-
-from starlette.testclient import TestClient
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._messaging.ops import KernelReady
 from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 
 def create_response(

@@ -31,6 +31,8 @@ from marimo._utils.signals import get_signals
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
+    from starlette.requests import Request
+    from starlette.websockets import WebSocket
 
 
 class FigureManagers:
@@ -73,11 +75,9 @@ def create_application(
         FigureManagerWebAgg,
     )
     from starlette.applications import Starlette
-    from starlette.requests import Request
     from starlette.responses import HTMLResponse, Response
     from starlette.routing import Mount, Route, WebSocketRoute
     from starlette.staticfiles import StaticFiles
-    from starlette.websockets import WebSocket
 
     async def main_page(request: Request) -> HTMLResponse:
         figure_id = request.query_params.get("figure")

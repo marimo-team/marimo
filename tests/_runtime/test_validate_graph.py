@@ -121,13 +121,12 @@ def test_cycle_and_multiple_def() -> None:
         )
         edges = cycle_error.edges
         assert len(edges) == 2
-        assert ("0", "1") in edges and ("1", "0") in edges
+        assert ("0", "1") in edges
+        assert ("1", "0") in edges
 
         multiple_definition_error = cast(
             MultipleDefinitionError,
             t[0] if isinstance(t[0], MultipleDefinitionError) else t[1],
         )
-        assert (
-            multiple_definition_error.name == "z"
-            and multiple_definition_error.cells == (str((int(cell) + 1) % 2),)
-        )
+        assert multiple_definition_error.name == "z"
+        assert multiple_definition_error.cells == (str((int(cell) + 1) % 2),)

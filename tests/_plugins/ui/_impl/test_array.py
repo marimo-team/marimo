@@ -73,7 +73,8 @@ def test_update_checks_against_frontend_value() -> None:
     array = ui.array([ui.dropdown({"option": v})])
     # smoke test: don't check against backend value, which will raise
     array._update({"0": ["option"]})
-    assert len(array.value) == 1 and isinstance(array.value[0], NoEquality)
+    assert len(array.value) == 1
+    assert isinstance(array.value[0], NoEquality)
 
 
 def test_container_emulation() -> None:

@@ -56,13 +56,16 @@ def test_slider_init() -> None:
     assert slider.start == 1
     assert slider.stop == 10
     assert slider.step is None
-    assert slider.value == 5 and isinstance(slider.value, int)
+    assert slider.value == 5
+    assert isinstance(slider.value, int)
 
     slider = ui.slider(1, 10, value=5.0)
-    assert slider.value == 5.0 and isinstance(slider.value, float)
+    assert slider.value == 5.0
+    assert isinstance(slider.value, float)
 
     slider._update(6)
-    assert slider.value == 6.0 and isinstance(slider.value, float)
+    assert slider.value == 6.0
+    assert isinstance(slider.value, float)
 
 
 def test_slider_invalid_bounds() -> None:

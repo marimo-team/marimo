@@ -92,7 +92,8 @@ def load_config() -> MarimoConfig:
         path = get_config_path()
     except OSError as e:
         path = None
-        LOGGER.warn("Encountered error when searching for config: %s", str(e))
+        msg = "Encountered error when searching for config: %s"
+        LOGGER.warning(msg, str(e))
 
     if path is not None:
         LOGGER.debug("Using config at %s", path)

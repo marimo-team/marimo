@@ -1,14 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import io
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import marimo._output.data.data as mo_data
 from marimo._output.builder import h
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import create_style
+
+if TYPE_CHECKING:
+    import io
 
 
 @mddoc

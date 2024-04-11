@@ -8,7 +8,6 @@ import random
 import string
 import sys
 import threading
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
@@ -18,6 +17,8 @@ from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from marimo._runtime.context import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()

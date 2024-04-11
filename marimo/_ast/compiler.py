@@ -8,9 +8,8 @@ import re
 import sys
 import textwrap
 import token as token_types
-from collections.abc import Iterator
 from tokenize import TokenInfo, tokenize
-from typing import Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from marimo._ast.cell import (
     Cell,
@@ -19,6 +18,9 @@ from marimo._ast.cell import (
 )
 from marimo._ast.visitor import ScopedVisitor, is_local
 from marimo._utils.tmpdir import get_tmpdir
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def code_key(code: str) -> int:

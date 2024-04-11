@@ -1,16 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, Union
-
-from starlette.requests import Request
-from starlette.websockets import WebSocket
-from uvicorn import Server
+from typing import TYPE_CHECKING, Optional, Union
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
 from marimo._server.sessions import Session, SessionManager
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
+    from starlette.websockets import WebSocket
+    from uvicorn import Server
 
 
 def app_state(request: Request) -> AppState:

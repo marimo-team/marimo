@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import os
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from starlette.authentication import requires
-from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -19,6 +18,9 @@ from marimo._server.models.home import (
 )
 from marimo._server.router import APIRouter
 from marimo._utils.paths import pretty_path
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

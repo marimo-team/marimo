@@ -134,7 +134,7 @@ jobs:
           else
             source marimo-dev-env/bin/activate
           fi
-          ruff marimo/
+          ruff check marimo/
       - name: Typecheck
         if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
         run: |

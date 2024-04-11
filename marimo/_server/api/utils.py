@@ -6,11 +6,12 @@ import subprocess
 import sys
 import webbrowser
 from shutil import which
-from typing import Optional, Type, TypeVar
-
-from starlette.requests import Request
+from typing import TYPE_CHECKING, Optional, Type, TypeVar
 
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 
 # TODO still needed?

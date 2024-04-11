@@ -179,5 +179,5 @@ class ExecReqProvider:
 
 # fixture that provides an ExecReqProvider
 @pytest.fixture
-def exec_req() -> Generator[ExecReqProvider, None, None]:
-    yield ExecReqProvider()
+def exec_req() -> ExecReqProvider:
+    return ExecReqProvider()

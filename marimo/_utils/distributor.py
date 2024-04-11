@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import asyncio
-from threading import Thread
-from typing import Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 from marimo import _loggers
 from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
+
+if TYPE_CHECKING:
+    from threading import Thread
 
 LOGGER = _loggers.marimo_logger()
 

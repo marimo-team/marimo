@@ -6,14 +6,25 @@ import sys
 if sys.version_info < (3, 9):
     from typing import ItemsView, ValuesView
 else:
-    from collections.abc import ItemsView, ValuesView
+    pass
 
-from typing import Any, Callable, Dict, Final, Iterator, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Final,
+    Iterator,
+    Optional,
+)
 
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
+
+if TYPE_CHECKING:
+    from collections.abc import ItemsView, ValuesView
 
 
 # - Frontend type is a dict {label => value update}
