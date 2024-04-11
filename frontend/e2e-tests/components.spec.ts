@@ -166,7 +166,9 @@ test("multiselect", async ({ page }) => {
 test("number", async ({ page }) => {
   const helper = pageHelper(page);
   await helper.selectBasicComponent("number");
-  const element = page.getByRole("spinbutton");
+  const element = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
 
   // Verify is visible
   await expect(element).toBeVisible();
@@ -174,6 +176,7 @@ test("number", async ({ page }) => {
   await helper.verifyOutput("1");
   // Select option
   await element.fill("5");
+  await element.first().blur();
   // Verify output
   await helper.verifyOutput("5");
 
@@ -440,8 +443,10 @@ test("complex - reused in json", async ({ page }) => {
   await helper.selectComplexComponent("reused-in-json");
 
   // Check the elements
-  const textbox = page.getByRole("textbox");
-  const number = page.getByRole("spinbutton");
+  const textbox = page.getByTestId("marimo-plugin-text-input");
+  const number = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
   // Verify they are visible
   await expect(textbox).toHaveCount(2);
   await expect(number).toHaveCount(2);
@@ -449,6 +454,7 @@ test("complex - reused in json", async ({ page }) => {
   // Fill the first one
   await textbox.first().fill("hello");
   await number.first().fill("5");
+  await number.first().blur();
   // Verify all have the same value
   await expect(textbox.last()).toHaveValue("hello");
   await expect(number.last()).toHaveValue("5");
@@ -456,6 +462,7 @@ test("complex - reused in json", async ({ page }) => {
   // Fill the last one
   await textbox.last().fill("world");
   await number.last().fill("10");
+  await number.last().blur();
   // Verify all have the same value
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");
@@ -468,8 +475,10 @@ test("complex - reused in markdown", async ({ page }) => {
   await helper.selectComplexComponent("reused-in-markdown");
 
   // Check the elements
-  const textbox = page.getByRole("textbox");
-  const number = page.getByRole("spinbutton");
+  const textbox = page.getByTestId("marimo-plugin-text-input");
+  const number = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
   // Verify they are visible
   await expect(textbox).toHaveCount(2);
   await expect(number).toHaveCount(2);
@@ -477,6 +486,7 @@ test("complex - reused in markdown", async ({ page }) => {
   // Fill the first one
   await textbox.first().fill("hello");
   await number.first().fill("5");
+  await number.first().blur();
   // Verify all have the same value
   await expect(textbox.last()).toHaveValue("hello");
   await expect(number.last()).toHaveValue("5");
@@ -484,6 +494,7 @@ test("complex - reused in markdown", async ({ page }) => {
   // Fill the last one
   await textbox.last().fill("world");
   await number.last().fill("10");
+  await number.last().blur();
   // Verify all have the same value
   await expect(textbox.first()).toHaveValue("world");
   await expect(number.first()).toHaveValue("10");

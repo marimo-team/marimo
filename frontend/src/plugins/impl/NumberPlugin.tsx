@@ -66,8 +66,8 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         minValue={props.start}
         maxValue={props.stop}
+        value={value}
         step={props.step}
-        defaultValue={value}
         onChange={onChange}
         id={id}
       />
