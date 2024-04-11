@@ -294,7 +294,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         >
           {grid}
         </div>
-        <div className="flex-none flex flex-col w-[300px] p-2 gap-2 overflow-auto h-full bg-[var(--slate-2)] border-t border-x rounded-t shadow-sm transparent-when-disconnected mx-2 mt-4">
+        <div className="flex-none flex flex-col w-[300px] p-2 pb-20 gap-2 overflow-auto bg-[var(--slate-2)] border-t border-x rounded-t shadow-sm transparent-when-disconnected mx-2 mt-4">
           <div className="text font-bold text-[var(--slate-20)] flex-shrink-0">
             Outputs
           </div>
