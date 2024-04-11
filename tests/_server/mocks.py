@@ -79,6 +79,7 @@ def with_file_router(
 
 def with_session(
     session_id: str,
+    auto_shutdown: bool = True,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
     """Decorator to create a session and close it after the test"""
 
@@ -93,10 +94,11 @@ def with_session(
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
             server_token: str = get_session_manager(client).server_token
-            client.post(
-                "/api/kernel/shutdown",
-                headers={"Marimo-Server-Token": server_token},
-            )
+            if auto_shutdown:
+                client.post(
+                    "/api/kernel/shutdown",
+                    headers={"Marimo-Server-Token": server_token},
+                )
 
         return wrapper
 

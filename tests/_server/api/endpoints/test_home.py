@@ -56,7 +56,7 @@ def test_running_notebooks(client: TestClient) -> None:
     assert files[0]["path"] == current_filename
 
 
-@with_session(SESSION_ID)
+@with_session(SESSION_ID, auto_shutdown=False)
 def test_shutdown_session(client: TestClient) -> None:
     response = client.post(
         "/api/home/shutdown_session",
