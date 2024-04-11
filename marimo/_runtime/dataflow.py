@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -15,6 +14,9 @@ from marimo._ast.cell import (
 )
 from marimo._ast.compiler import code_key
 from marimo._ast.visitor import Name
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 Edge = Tuple[CellId_t, CellId_t]
 

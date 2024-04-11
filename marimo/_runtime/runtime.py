@@ -13,9 +13,8 @@ import sys
 import threading
 import time
 import traceback
-from collections.abc import Iterable, Sequence
 from multiprocessing import connection
-from typing import Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
@@ -108,6 +107,9 @@ from marimo._server.types import QueueType
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -234,7 +236,6 @@ class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
     Args:
-
     - cell_configs: initial configuration for each cell
     - app_metadata: metadata about the notebook
     - user_config: the initial user configuration

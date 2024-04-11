@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from starlette.authentication import requires
-from starlette.requests import Request
 
 from marimo import _loggers
 from marimo._runtime.requests import SetUserConfigRequest
@@ -14,6 +15,9 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

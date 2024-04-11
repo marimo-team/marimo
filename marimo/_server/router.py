@@ -5,9 +5,8 @@ import dataclasses
 import json
 from asyncio import iscoroutine
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
-from starlette.requests import Request
 from starlette.responses import (
     FileResponse,
     JSONResponse,
@@ -18,6 +17,9 @@ from starlette.routing import Mount, Router
 
 from marimo import _loggers
 from marimo._server.models.base import deep_to_camel_case
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

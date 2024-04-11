@@ -52,9 +52,11 @@ def test_update_progress(_mock_flush: Any) -> None:
     assert progress.title == "Updated"
     assert progress.subtitle == "Still Running"
     rate = progress._get_rate()
-    assert rate is not None and rate > 0.0
+    assert rate is not None
+    assert rate > 0.0
     eta = progress._get_eta()
-    assert eta is not None and eta > 0.0
+    assert eta is not None
+    assert eta > 0.0
 
 
 # Test update_progress without arguments

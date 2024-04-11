@@ -23,8 +23,7 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
-from marimo._plugins.ui._core.ui_element import S as JSONTypeBound
-from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
 from marimo._runtime.functions import Function
 
 LOGGER = _loggers.marimo_logger()

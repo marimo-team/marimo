@@ -1,11 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import dataclasses
 import inspect
-from collections.abc import Awaitable
-from types import CodeType
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
 from marimo._ast.visitor import Name, VariableData
@@ -14,6 +11,10 @@ from marimo._utils.deep_merge import deep_merge
 CellId_t = str
 
 if TYPE_CHECKING:
+    import ast
+    from collections.abc import Awaitable
+    from types import CodeType
+
     from marimo._ast.app import InternalApp
     from marimo._output.hypertext import Html
 

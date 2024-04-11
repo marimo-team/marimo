@@ -21,10 +21,8 @@ def test_get_package_versions() -> None:
     assert isinstance(package_versions, dict)
     assert "click" in package_versions
     assert "starlette" in package_versions
-    assert (
-        "pymdown-extensions" in package_versions
-        and package_versions["pymdown-extensions"] != "missing"
-    )
+    assert "pymdown-extensions" in package_versions
+    assert package_versions["pymdown-extensions"] != "missing"
 
 
 def test_get_system_info() -> None:

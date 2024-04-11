@@ -20,13 +20,13 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         self.manager = self.factory.create()(self.data)
 
     def test_package_name(self) -> None:
-        self.assertEqual(self.factory.package_name(), "polars")
+        assert self.factory.package_name() == "polars"
 
     def test_to_csv(self) -> None:
-        self.assertIsInstance(self.manager.to_csv(), bytes)
+        assert isinstance(self.manager.to_csv(), bytes)
 
     def test_to_json(self) -> None:
-        self.assertIsInstance(self.manager.to_json(), bytes)
+        assert isinstance(self.manager.to_json(), bytes)
 
     def test_select_rows(self) -> None:
         indices = [0, 2]
@@ -41,8 +41,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
-        self.assertEqual(self.manager.get_row_headers(), expected_headers)
+        assert self.manager.get_row_headers() == expected_headers
 
     def test_is_type(self) -> None:
-        self.assertTrue(self.manager.is_type(self.data))
-        self.assertFalse(self.manager.is_type("not a dataframe"))
+        assert self.manager.is_type(self.data)
+        assert not self.manager.is_type("not a dataframe")

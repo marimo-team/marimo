@@ -538,7 +538,7 @@ class SessionManager:
         Doesn't start in run mode.
         """
         if self.mode == SessionMode.RUN:
-            LOGGER.warn("Cannot start LSP server in run mode")
+            LOGGER.warning("Cannot start LSP server in run mode")
             return
 
         alert = self.lsp_server.start()
@@ -583,7 +583,7 @@ class SessionManager:
             # - what to do if the file is deleted, or is renamed
             # - do we re-run the app or just show the changed code
             # - we don't properly handle saving from the frontend
-            LOGGER.warn("Cannot start file watcher in edit mode")
+            LOGGER.warning("Cannot start file watcher in edit mode")
             return Disposable.empty()
         file = self.file_router.maybe_get_single_file()
         if not file:

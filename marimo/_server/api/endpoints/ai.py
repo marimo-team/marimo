@@ -1,11 +1,10 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Generator, Optional
+from typing import TYPE_CHECKING, Generator, Optional
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from marimo import _loggers
@@ -14,6 +13,9 @@ from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import AiCompletionRequest
 from marimo._server.router import APIRouter
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

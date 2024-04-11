@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
-from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._messaging.ops import KernelReady
@@ -13,6 +12,9 @@ from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 
 def create_response(

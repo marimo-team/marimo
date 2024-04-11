@@ -1,13 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from starlette.requests import Request
+from typing import TYPE_CHECKING
+
 from starlette.responses import JSONResponse
 
 from marimo import __version__, _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.health import get_node_version, get_required_modules_list
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 

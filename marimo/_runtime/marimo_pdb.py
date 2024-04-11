@@ -4,10 +4,13 @@ from __future__ import annotations
 import inspect
 import sys
 from pdb import Pdb
-from types import FrameType
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._messaging.types import Stdin, Stdout
+
+if TYPE_CHECKING:
+    from types import FrameType
 
 LOGGER = _loggers.marimo_logger()
 

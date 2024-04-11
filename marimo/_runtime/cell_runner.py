@@ -7,7 +7,6 @@ import functools
 import signal
 import sys
 import traceback
-from collections.abc import Container
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
@@ -20,6 +19,8 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Container
+
     from marimo._runtime.state import State
 
 

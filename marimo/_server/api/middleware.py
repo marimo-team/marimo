@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import (
     AuthCredentials,
@@ -11,9 +11,11 @@ from starlette.authentication import (
 )
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.model import SessionMode
+
+if TYPE_CHECKING:
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class AuthBackend(AuthenticationBackend):

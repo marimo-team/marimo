@@ -130,10 +130,9 @@ class ModuleReloader:
                     if py_filename in self.failed:
                         del self.failed[py_filename]
                 except Exception:
+                    msg = "[autoreload of {} failed: {}]"
                     LOGGER.debug(
-                        "[autoreload of {} failed: {}]".format(
-                            modname, traceback.format_exc(10)
-                        ),
+                        msg.format(modname, traceback.format_exc(10)),
                     )
                     self.failed[py_filename] = pymtime
 

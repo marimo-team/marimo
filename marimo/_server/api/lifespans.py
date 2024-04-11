@@ -9,8 +9,12 @@ import sys
 from marimo._server.sessions import SessionManager
 
 if sys.version_info < (3, 9):
-    from typing import AsyncContextManager as AbstractAsyncContextManager
-    from typing import AsyncIterator, Callable, Sequence
+    from typing import (
+        AsyncContextManager as AbstractAsyncContextManager,
+        AsyncIterator,
+        Callable,
+        Sequence,
+    )
 else:
     from collections.abc import AsyncIterator, Callable, Sequence
     from contextlib import AbstractAsyncContextManager

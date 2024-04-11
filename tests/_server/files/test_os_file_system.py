@@ -2,6 +2,8 @@ import os
 import unittest
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import FileDetailsResponse
 
@@ -47,11 +49,11 @@ class TestOSFileSystem(unittest.TestCase):
         assert os.path.isdir(expected_path)
 
     def test_create_with_empty_name(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.fs.create_file_or_directory(self.test_dir, "file", "", None)
 
     def test_create_with_disallowed_name(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.fs.create_file_or_directory(self.test_dir, "file", ".", None)
 
     def test_list_files(self):
@@ -142,7 +144,7 @@ class TestOSFileSystem(unittest.TestCase):
         new_path = os.path.join(self.test_dir, new_file_name)
         with open(original_path, "w"):
             pass
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.fs.move_file_or_directory(original_path, new_path)
 
     def test_update_file(self):

@@ -34,7 +34,7 @@ def test_multiple_assign() -> None:
 
 
 def test_assign_multiple_statements() -> None:
-    code = "x = 0\n" "y = 0"
+    code = "x = 0\ny = 0"
     v = visitor.ScopedVisitor()
     mod = ast.parse(code)
     v.visit(mod)

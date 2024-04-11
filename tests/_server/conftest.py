@@ -16,8 +16,9 @@ app = create_starlette_app(base_url="")
 
 
 @pytest.fixture(scope="session", autouse=True)
-def init() -> None:
+def init() -> bool:
     initialize_asyncio()
+    return True
 
 
 @pytest.fixture(scope="module")
@@ -26,7 +27,7 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
         yield c
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client() -> Iterator[TestClient]:
     main = sys.modules["__main__"]
     app.state.session_manager = get_mock_session_manager()

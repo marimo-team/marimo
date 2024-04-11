@@ -23,7 +23,7 @@ class BlackFormatter(Formatter):
         try:
             import black
         except ModuleNotFoundError:
-            LOGGER.warn(
+            LOGGER.warning(
                 "To enable code formatting, install black (pip install black)"
             )
             return {}
