@@ -51,11 +51,13 @@ jobs:
           python-version: "3.10"
           cache: "pip"
 
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+
       - name: 📦 Build marimo wheel
         run: |
-          python -m pip install --upgrade pip
-          pip install build
-          pip install .
+          uv pip install build
+          uv pip install .
           python -m build
 
       - name: Upload wheel
@@ -83,10 +85,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+
       - name: Install Python deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest
+        run: uv pip install pytest
 
       - name: Download wheel
         uses: actions/download-artifact@v3
@@ -95,7 +98,7 @@ jobs:
 
       - name: Install marimo
         shell: bash
-        run: pip install marimo*whl
+        run: uv pip install marimo*whl
 
       - name: Test CLI
         shell: bash
