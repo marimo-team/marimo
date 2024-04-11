@@ -123,7 +123,7 @@ jobs:
         run: |
           uv venv marimo-dev-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
@@ -132,7 +132,7 @@ jobs:
       - name: Lint
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
@@ -141,7 +141,7 @@ jobs:
         if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
