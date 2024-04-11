@@ -63,6 +63,9 @@ class QueryParams(State[SerializedQueryParams]):
         return str(self._params)
 
     def __setitem__(self, key: str, value: Union[str, List[str]]) -> None:
+        if value is None or value == []:  # type: ignore
+            self.remove(key)
+            return
         # We always overwrite the value
         self._params[key] = value
         QueryParamsSet(key, value).broadcast(self._stream)
