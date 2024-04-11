@@ -8,6 +8,8 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Folder } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
+import { toast } from "@/components/ui/use-toast";
 
 /**
  * Arguments for a file browser component.
@@ -110,8 +112,9 @@ export const FileBrowser = ({
   label,
   restrictNavigation,
   list_directory,
-}: FileBrowserProps): JSX.Element => {
+}: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useState(initialPath);
+  const debouncedPath = useDebounce(path, 300);
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -119,8 +122,21 @@ export const FileBrowser = ({
         path: path,
         filetypes: filetypes,
       }),
-    [path],
+    [debouncedPath],
   );
+
+  if (loading && !data) {
+    return null;
+  }
+
+  if (error) {
+    console.error(error);
+    toast({
+      title: `Could not load files in directory ${path}`,
+      description: error.message,
+      variant: "danger",
+    });
+  }
 
   let { files } = data || {};
   if (files === undefined) {
@@ -129,15 +145,15 @@ export const FileBrowser = ({
 
   const selectedPaths = new Set(value.map((x) => x.path));
 
-  console.log(data);
-  console.log(loading);
-  console.log(error);
-
+  /**
+   * Set new path from user input or selection.
+   * @param {string} newPath - New path
+   */
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
       newPath = path.endsWith("/") ? path.slice(0, -1) : path;
-      newPath = newPath.substring(0, newPath.lastIndexOf("/"));
+      newPath = newPath.slice(0, Math.max(0, newPath.lastIndexOf("/")));
     }
 
     // If restricting navigation, check if path is outside bounds
@@ -149,6 +165,11 @@ export const FileBrowser = ({
     setPath(newPath);
   }
 
+  /**
+   * Handles file selection.
+   * @param {string} path - Path of selected file
+   * @param {string} name - Name of selected file
+   */
   const selectFile = (path: string, name: string) => {
     const fileInfo: FileInfo = {
       id: path,
@@ -171,13 +192,15 @@ export const FileBrowser = ({
 
   const fileRows = [];
 
+  // Parent directory ".." row button
   fileRows.push(
     <TableRow key={"Parent directory"} onClick={() => setNewPath("..")}>
-      <TableCell className="w-1/12"></TableCell>
+      <TableCell className="w-1/12" />
       <TableCell className="w-11/12">..</TableCell>
     </TableRow>,
   );
 
+  // Create rows for directories and files
   for (const file of files) {
     let filePath = path;
     if (!path.endsWith("/")) {
@@ -188,7 +211,7 @@ export const FileBrowser = ({
     const handleClick = file.is_directory ? setNewPath : selectFile;
 
     fileRows.push(
-      <TableRow key={filePath} onClick={() => handleClick(filePath, file.name)}>
+      <TableRow key={file.id} onClick={() => handleClick(filePath, file.name)}>
         <TableCell className="w-1/12">
           {file.is_directory ? (
             <Folder size={16} className="ml-2" />
@@ -201,7 +224,8 @@ export const FileBrowser = ({
     );
   }
 
-  const selectedFiles = value.map((x) => <li key={x.path}>{x.path}</li>);
+  // List selected files
+  const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   return (
     <section>
