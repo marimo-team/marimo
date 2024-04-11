@@ -4,7 +4,7 @@ import { renderHTML } from "@/plugins/core/RenderHTML";
 import { useAtomValue } from "jotai";
 import React from "react";
 import "../../documentation.css";
-import { BookMarkedIcon } from "lucide-react";
+import { TextSearchIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 
 export const DocumentationPanel: React.FC = () => {
@@ -13,9 +13,9 @@ export const DocumentationPanel: React.FC = () => {
   if (!documentation) {
     return (
       <PanelEmptyState
-        title="No documentation"
-        description="Move your cursor over a symbol to see its documentation."
-        icon={<BookMarkedIcon />}
+        title="View docs as you type"
+        description="Move your text cursor over a symbol to see its documentation."
+        icon={<TextSearchIcon />}
       />
     );
   }

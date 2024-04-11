@@ -58,7 +58,7 @@ export const Footer: React.FC = () => {
         {renderIcon("outline")}
       </FooterItem>
       <FooterItem
-        tooltip="View documentation"
+        tooltip="View live docs"
         selected={selectedPanel === "documentation"}
         onClick={() => openApplication("documentation")}
       >
