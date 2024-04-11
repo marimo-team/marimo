@@ -926,8 +926,11 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
     ```python
     file_browser = mo.ui.file_browser(path="path/to/dir", multiple=True)
 
-    # Access the selected file paths
+    # Access the selected file path(s):
     file_browser.value[index]
+
+    # Or:
+    file_browser.path(index)
     ```
 
     **Attributes.**
@@ -988,8 +991,9 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         for file in files_in_path:
             _, extension = os.path.splitext(file.name)
 
-            if args.filetypes and extension not in args.filetypes:
-                continue
+            if args.filetypes and not file.is_directory:
+                if extension not in args.filetypes:
+                    continue
 
             files.append(file)
 
