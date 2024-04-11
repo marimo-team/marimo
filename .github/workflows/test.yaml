@@ -152,7 +152,7 @@ jobs:
         run: |
           uv venv marimo-test-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-env\\Scripts\\activate
+            source marimo-test-env\\Scripts\\activate
           else
             source marimo-test-env/bin/activate
           fi
@@ -165,7 +165,7 @@ jobs:
         run: |
           uv venv marimo-test-optional-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-optional-env\\Scripts\\activate
+            source marimo-test-optional-env\\Scripts\\activate
           else
             source marimo-test-optional-env/bin/activate
           fi
