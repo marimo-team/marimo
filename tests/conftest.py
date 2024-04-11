@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import sys
 import textwrap
+from tempfile import TemporaryDirectory
 from typing import Any, Generator
 
 import pytest
@@ -137,6 +138,30 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     with mocked.k._install_execution_context(cell_id="0"):
         yield mocked.k
     mocked.teardown()
+
+
+@pytest.fixture
+def temp_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = """
+    import marimo
+    app = marimo.App()
+
+    @app.cell
+    def __():
+        import marimo as mo
+        return mo,
+
+    if __name__ == "__main__":
+        app.run()
+    """
+
+    with open(tmp_file, "w") as f:
+        f.write(content)
+        yield tmp_file
+
+    tmp_dir.cleanup()
 
 
 # Factory to create ExecutionRequests and abstract away cell ID

@@ -362,12 +362,21 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileDetailsResponse;
   };
 
+  getRecentFiles = throwNotImplemented;
+  getWorkspaceFiles = throwNotImplemented;
+  getRunningNotebooks = throwNotImplemented;
+  shutdownSession = throwNotImplemented;
+
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
     });
   }
+}
+
+function throwNotImplemented(): never {
+  throw new Error("Not implemented");
 }
 
 export class PyodideWebsocket implements IReconnectingWebSocket {
@@ -439,21 +448,13 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
     }
   }
 
-  dispatchEvent(event: Event): boolean {
-    throw new Error("Method not implemented.");
-  }
+  dispatchEvent = throwNotImplemented;
+  reconnect = throwNotImplemented;
+  send = throwNotImplemented;
 
   readyState = WebSocket.OPEN;
   retryCount = 0;
   shouldReconnect = false;
-
-  reconnect(code?: number | undefined, reason?: string | undefined): void {
-    throw new Error("Method not implemented.");
-  }
-
-  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
-    throw new Error("Method not implemented.");
-  }
 
   close() {
     return;

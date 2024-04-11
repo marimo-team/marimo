@@ -1,13 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 import tempfile
-from typing import Callable
+from typing import Any, Callable, cast
 from unittest.mock import MagicMock
 
 from starlette.testclient import TestClient
 
 from marimo._config.manager import UserConfigManager
+from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import LspServer, SessionManager
+
+
+def get_session_manager(client: TestClient) -> SessionManager:
+    return client.app.state.session_manager  # type: ignore
 
 
 def get_mock_session_manager() -> SessionManager:
@@ -38,7 +43,7 @@ if __name__ == "__main__":
     lsp_server.is_running.return_value = False
 
     sm = SessionManager(
-        filename=temp_file.name,
+        file_router=AppFileRouter.from_filename(temp_file.name),
         mode=SessionMode.EDIT,
         development_mode=False,
         quiet=False,
@@ -50,8 +55,31 @@ if __name__ == "__main__":
     return sm
 
 
+def with_file_router(
+    file_router: AppFileRouter,
+) -> Callable[[Callable[..., None]], Callable[..., None]]:
+    """Decorator to create a session and close it after the test"""
+
+    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+        def wrapper(client: TestClient, *args: Any, **kwargs: Any) -> None:
+            session_manager: SessionManager = cast(
+                Any, client.app
+            ).state.session_manager
+            original_file_router = session_manager.file_router
+            session_manager.file_router = file_router
+
+            func(client, *args, **kwargs)
+
+            session_manager.file_router = original_file_router
+
+        return wrapper
+
+    return decorator
+
+
 def with_session(
     session_id: str,
+    auto_shutdown: bool = True,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
     """Decorator to create a session and close it after the test"""
 
@@ -65,11 +93,12 @@ def with_session(
                 func(client)
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
-            client.post(
-                "/api/kernel/shutdown",
-                headers={"Marimo-Server-Token": server_token},
-            )
+            server_token: str = get_session_manager(client).server_token
+            if auto_shutdown:
+                client.post(
+                    "/api/kernel/shutdown",
+                    headers={"Marimo-Server-Token": server_token},
+                )
 
         return wrapper
 
@@ -83,6 +112,8 @@ def with_read_session(
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient) -> None:
+            session_manager = get_session_manager(client)
+
             with client.websocket_connect(
                 f"/ws?session_id={session_id}"
             ) as websocket:
@@ -90,12 +121,12 @@ def with_read_session(
                 assert data
                 # Just change the mode here, otherwise our tests will run,
                 # in threads
-                client.app.state.session_manager.mode = SessionMode.RUN  # type: ignore  # noqa: E501
+                session_manager.mode = SessionMode.RUN
                 func(client)
-                client.app.state.session_manager.mode = SessionMode.EDIT  # type: ignore  # noqa: E501
+                session_manager.mode = SessionMode.EDIT
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
+            server_token: str = session_manager.server_token
             client.post(
                 "/api/kernel/shutdown",
                 headers={"Marimo-Server-Token": server_token},

@@ -178,3 +178,8 @@ def test_read_unnamed_notebook(app_file_manager: AppFileManager) -> None:
     with pytest.raises(HTTPException) as e:
         app_file_manager.read_file()
         assert e.value.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_read_layout(app_file_manager: AppFileManager) -> None:
+    layout = app_file_manager.read_layout_config()
+    assert layout is None

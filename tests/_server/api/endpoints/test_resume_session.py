@@ -6,8 +6,9 @@ from typing import Any, Optional
 from starlette.testclient import TestClient
 
 from marimo._messaging.ops import KernelReady
-from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
+from tests._server.conftest import get_session_manager
 
 
 def create_response(
@@ -55,10 +56,6 @@ def assert_kernel_ready_response(
 
 def get_session(client: TestClient, session_id: str) -> Optional[Session]:
     return get_session_manager(client).get_session(session_id)
-
-
-def get_session_manager(client: TestClient) -> SessionManager:
-    return client.app.state.session_manager  # type: ignore
 
 
 def test_refresh_session(client: TestClient) -> None:
@@ -124,7 +121,11 @@ def test_refresh_session(client: TestClient) -> None:
 
 
 def test_save_session(client: TestClient) -> None:
-    filename = get_session_manager(client).filename
+    filename = (
+        get_session_manager(client)
+        .file_router.get_single_app_file_manager()
+        .filename
+    )
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
@@ -213,10 +214,9 @@ def test_save_config(client: TestClient) -> None:
         )
 
     # Check the session still exists after closing the websocket
-    assert (
-        get_session(client, "123").app_file_manager.app.config.width == "full"
-    )
-    assert get_session_manager(client).app_config().width == "full"
+    session = get_session(client, "123")
+    assert session
+    assert session.app_file_manager.app.config.width == "full"
 
     # Loading index page should have the new config
     response = client.get("/")

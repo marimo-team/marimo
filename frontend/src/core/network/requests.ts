@@ -43,4 +43,8 @@ export const {
   sendRenameFileOrFolder,
   sendUpdateFile,
   sendFileDetails,
+  getRecentFiles,
+  getWorkspaceFiles,
+  getRunningNotebooks,
+  shutdownSession,
 } = getRequest();

@@ -18,6 +18,7 @@ from marimo._server.api.endpoints.file_explorer import (
 )
 from marimo._server.api.endpoints.files import router as files_router
 from marimo._server.api.endpoints.health import router as health_router
+from marimo._server.api.endpoints.home import router as home_router
 from marimo._server.api.endpoints.ws import router as ws_router
 from marimo._server.router import APIRouter
 
@@ -42,6 +43,7 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
         documentation_router, prefix="/api/documentation", name="documentation"
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
+    app_router.include_router(home_router, prefix="/api/home", name="home")
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

@@ -2,6 +2,8 @@
 import abc
 from typing import TYPE_CHECKING, List, Tuple
 
+from marimo._server.file_router import AppFileRouter
+
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
 
@@ -109,7 +111,7 @@ def create_asgi_app(
 
         def _build_app(self, path: str, root: str) -> "ASGIAppBuilder":
             session_manager = SessionManager(
-                filename=root,
+                file_router=AppFileRouter.from_filename(root),
                 mode=SessionMode.RUN,
                 development_mode=False,
                 quiet=quiet,

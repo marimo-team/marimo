@@ -3,14 +3,16 @@
 import { atom } from "jotai";
 import { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
+import { assertNever } from "@/utils/assertNever";
 
 /**
  * This is the internal mode.
  * - `read`: A user is reading the notebook. Cannot switch to edit/present mode.
  * - `edit`: A user is editing the notebook. Can switch to present mode.
  * - `present`: A user is presenting the notebook, it looks like read mode but with some editing features. Cannot switch to present mode.
+ * - `home`: A user is in the home page.
  */
-export type AppMode = "read" | "edit" | "present";
+export type AppMode = "read" | "edit" | "present" | "home";
 
 export function getInitialAppMode(): AppMode {
   const tag = document.querySelector("marimo-mode");
@@ -18,15 +20,20 @@ export function getInitialAppMode(): AppMode {
     throw new Error("internal-error: marimo-mode tag not found");
   }
 
-  const mode = tag.dataset.mode;
+  const mode = tag.dataset.mode as AppMode | undefined;
   switch (mode) {
     case "read":
       return "read";
     case "edit":
       return "edit";
+    case "home":
+      return "home";
+    case "present":
+      throw new Error("internal-error: present mode is not supported");
+    case undefined:
+      throw new Error("internal-error: mode attribute not found");
     default:
-      // We can only start in 'read' or 'edit' mode.
-      throw new Error(`internal-error: unknown mode ${mode}`);
+      assertNever(mode);
   }
 }
 

@@ -1,17 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 import json
-import os
 import urllib.request
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-import tomlkit
 from packaging import version
 
 from marimo import __version__ as current_version
 from marimo._cli.print import green, orange
-from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.config.config import ConfigReader
 
 
 @dataclass
@@ -30,23 +28,15 @@ def check_for_updates() -> None:
 
 
 def _check_for_updates_internal() -> None:
-    # Find the state file
-    state_file = ".marimo/state.toml"
-    home_expansion = os.path.expanduser("~")
-    if home_expansion == "~":
-        # path expansion failed
-        return None
-    home_directory = os.path.realpath(home_expansion)
-    file_path = os.path.join(home_directory, state_file)
+    config_reader = ConfigReader.for_filename("state.toml")
+    if not config_reader:
+        # Couldn't find home directory, so do nothing
+        return
 
     # Load the state file or create a default state if it doesn't exist
-    state: MarimoCLIState
-    try:
-        with open(file_path, "r") as file:
-            data = tomlkit.parse(file.read())
-            state = parse_raw(data, MarimoCLIState)
-    except FileNotFoundError:
-        state = MarimoCLIState()
+    state: MarimoCLIState = config_reader.read_toml(
+        MarimoCLIState, fallback=MarimoCLIState()
+    )
 
     # Maybe update the state with the latest version
     state = _update_with_latest_version(state)
@@ -67,15 +57,7 @@ def _check_for_updates_internal() -> None:
         print()
 
     # Save the state, create directories if necessary
-    _maybe_create_directory(file_path)
-    with open(file_path, "w") as file:
-        tomlkit.dump(asdict(state), file)
-
-
-def _maybe_create_directory(file_path: str) -> None:
-    marimo_directory = os.path.dirname(file_path)
-    if not os.path.exists(marimo_directory):
-        os.makedirs(marimo_directory)
+    config_reader.write_toml(state)
 
 
 def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:

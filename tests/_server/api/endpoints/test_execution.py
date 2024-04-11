@@ -3,6 +3,7 @@
 
 from starlette.testclient import TestClient
 
+from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_read_session, with_session
 
 SESSION_ID = "session-123"
@@ -79,7 +80,7 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
-        server_token: str = client.app.state.session_manager.server_token  # type: ignore  # noqa: E501
+        server_token: str = get_session_manager(client).server_token
         client.post(
             "/api/kernel/shutdown",
             headers={"Marimo-Server-Token": server_token},

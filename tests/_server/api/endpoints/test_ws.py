@@ -39,7 +39,7 @@ HEADERS = {
 
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: Optional[dict[str, Any]] = None
-):
+) -> None:
     if response is None:
         response = create_response({})
     data = parse_raw(raw_data["data"], KernelReady)
@@ -51,6 +51,11 @@ def assert_kernel_ready_response(
     assert data.resumed == expected.resumed
     assert data.ui_values == expected.ui_values
     assert data.configs == expected.configs
+
+
+def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
+    data = parse_raw(raw_data["data"], KernelReady)
+    assert data is not None
 
 
 def test_ws(client: TestClient) -> None:
@@ -123,6 +128,24 @@ def test_fails_on_multiple_connections_with_other_sessions(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
+def test_fails_on_multiple_connections_with_same_file(
+    client: TestClient,
+    temp_marimo_file: str,
+) -> None:
+    ws_1 = f"/ws?session_id=123&file={temp_marimo_file}"
+    ws_2 = f"/ws?session_id=456&file={temp_marimo_file}"
+    with client.websocket_connect(ws_1) as websocket:
+        data = websocket.receive_json()
+        assert_parse_ready_response(data)
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(ws_2) as other_websocket:
+                other_websocket.receive_json()
+                raise AssertionError()
+        assert exc_info.value.code == 1003
+        assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
 @pytest.mark.asyncio
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
@@ -131,12 +154,13 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         assert_kernel_ready_response(data)
         session_manager.mode = SessionMode.RUN
         unsubscribe = session_manager.start_file_watcher()
-        assert session_manager.filename
-        with open(session_manager.filename, "a") as f:
+        filename = session_manager.file_router.get_unique_file_key()
+        assert filename
+        with open(filename, "a") as f:
             f.write("\n# test")
             f.close()
         assert session_manager.watcher
-        await session_manager.watcher.callback(Path(session_manager.filename))
+        await session_manager.watcher.callback(Path(filename))
         unsubscribe()
         data = websocket.receive_json()
         assert data == {"op": "reload", "data": {}}

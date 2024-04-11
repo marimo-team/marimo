@@ -6,6 +6,8 @@ import contextlib
 import socket
 import sys
 
+from marimo._server.sessions import SessionManager
+
 if sys.version_info < (3, 9):
     from typing import AsyncContextManager as AbstractAsyncContextManager
     from typing import AsyncIterator, Callable, Sequence
@@ -103,10 +105,11 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 
 @contextlib.asynccontextmanager
 async def logging(app: Starlette) -> AsyncIterator[None]:
-    manager = app.state.session_manager
+    manager: SessionManager = app.state.session_manager
     host = app.state.host
     port = app.state.port
     base_url = app.state.base_url
+    file_router = manager.file_router
 
     try:
         # pretty printing:
@@ -124,8 +127,9 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
 
     # Startup message
     if not manager.quiet:
+        file = file_router.maybe_get_single_file()
         print_startup(
-            manager.filename,
+            file.name if file else None,
             f"http://{host}:{port}{base_url}",
             manager.mode == SessionMode.RUN,
         )

@@ -12,7 +12,6 @@ from marimo._ast import codegen
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
-from marimo._server.model import SessionMode
 from marimo._server.models.models import (
     BaseResponse,
     OpenFileRequest,
@@ -22,7 +21,6 @@ from marimo._server.models.models import (
     SaveRequest,
     SuccessResponse,
 )
-from marimo._server.print import print_startup
 from marimo._server.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
@@ -54,11 +52,16 @@ async def rename_file(
     """Rename the current app."""
     body = await parse_request(request, cls=RenameFileRequest)
     app_state = AppState(request)
-    mgr = app_state.session_manager
     session = app_state.require_current_session()
+    prev_path = session.app_file_manager.path
 
     session.app_file_manager.rename(body.filename)
-    mgr.rename(body.filename)
+    new_path = session.app_file_manager.path
+
+    if prev_path and new_path:
+        app_state.session_manager.recents.rename(prev_path, new_path)
+    elif new_path:
+        app_state.session_manager.recents.touch(new_path)
 
     return SuccessResponse()
 
@@ -70,7 +73,6 @@ async def open_file(
     request: Request,
 ) -> BaseResponse:
     """Open a file."""
-    app_state = AppState(request)
     body = await parse_request(request, cls=OpenFileRequest)
 
     # Validate file exists
@@ -96,16 +98,6 @@ async def open_file(
             detail=f"Failed to read file: {str(e)}",
         ) from e
 
-    mgr = app_state.session_manager
-    mgr.rename(filename)
-    host = app_state.host
-    port = app_state.port
-    base_url = app_state.base_url
-    run = app_state.mode == SessionMode.RUN
-    print_startup(
-        filename=filename, url=f"http://{host}:{port}{base_url}", run=run
-    )
-
     return SuccessResponse()
 
 
@@ -117,13 +109,9 @@ async def save(
 ) -> BaseResponse:
     """Save the current app."""
     app_state = AppState(request)
-    mgr = app_state.session_manager
     body = await parse_request(request, cls=SaveRequest)
     session = app_state.require_current_session()
     session.app_file_manager.save(body)
-
-    if mgr.filename is None:
-        mgr.rename(body.filename)
 
     return SuccessResponse()
 

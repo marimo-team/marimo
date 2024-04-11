@@ -28,6 +28,10 @@ import {
   FileDetailsResponse,
   FileMoveRequest,
   SnippetsResponse,
+  RecentFilesResponse,
+  WorkspaceFilesResponse,
+  RunningNotebooksResponse,
+  ShutdownSessionRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -189,6 +193,21 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         "/files/file_details",
         request,
       );
+    },
+    getRecentFiles: () => {
+      return API.post<{}, RecentFilesResponse>("/home/recent_files", {});
+    },
+    getWorkspaceFiles: () => {
+      return API.post<{}, WorkspaceFilesResponse>("/home/workspace_files", {});
+    },
+    getRunningNotebooks: () => {
+      return API.post<{}, RunningNotebooksResponse>(
+        "/home/running_notebooks",
+        {},
+      );
+    },
+    shutdownSession: (request: ShutdownSessionRequest) => {
+      return API.post("/home/shutdown_session", request);
     },
   };
 }

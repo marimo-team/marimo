@@ -34,7 +34,6 @@ interface ControlsProps {
   onTogglePresenting: () => void;
   onInterrupt: () => void;
   onRun: () => void;
-  onShutdown: () => void;
   closed: boolean;
   running: boolean;
   needsRun: boolean;
@@ -51,7 +50,6 @@ export const Controls = ({
   onTogglePresenting,
   onInterrupt,
   onRun,
-  onShutdown,
   closed,
   running,
   needsRun,
@@ -92,15 +90,7 @@ export const Controls = ({
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown />
           <AppConfigButton />
-          <ShutdownButton
-            onShutdown={() => {
-              onShutdown();
-              // Let the shutdown process start before closing the window.
-              setTimeout(() => {
-                window.close();
-              }, 200);
-            }}
-          />
+          <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
         </div>
       )}
 

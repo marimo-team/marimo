@@ -18,7 +18,7 @@ def test_status(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     content = response.json()
     assert content["status"] == "healthy"
-    assert content["filename"] is not None
+    assert len(content["filenames"]) == 0
     assert content["mode"] == "edit"
     assert content["sessions"] == 0
     assert content["version"] == __version__

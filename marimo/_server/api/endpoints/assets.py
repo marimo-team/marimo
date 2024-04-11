@@ -33,24 +33,45 @@ router.mount(
     name="assets",
 )
 
+FILE_QUERY_PARAM_KEY = "file"
+
 
 @router.get("/")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
-    title = parse_title(app_state.filename)
     user_config = app_state.config_manager.get_config()
-    app_config = app_state.session_manager.app_config().asdict()
-
     index_html = os.path.join(root, "index.html")
+
+    file_key = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+
     with open(index_html, "r") as f:
         html = f.read()
-        html = html.replace("{{ base_url }}", app_state.base_url)
-        html = html.replace("{{ title }}", title)
-        html = html.replace("{{ user_config }}", json.dumps(user_config))
+
+    # Shared configuration
+    html = html.replace("{{ base_url }}", app_state.base_url)
+    html = html.replace("{{ user_config }}", json.dumps(user_config))
+    html = html.replace("{{ server_token }}", app_state.server_token)
+    html = html.replace("{{ version }}", __version__)
+
+    if not file_key:
+        LOGGER.debug("No file key provided, serving homepage")
+        # We don't know which file to use, so we need to render a homepage
+        html = html.replace("{{ title }}", "marimo")
+        html = html.replace("{{ app_config }}", json.dumps({}))
+        html = html.replace("{{ filename }}", "")
+        html = html.replace("{{ mode }}", "home")
+    else:
+        LOGGER.debug(f"File key provided: {file_key}")
+        # We have a file key, so we can render the app with the file
+        app_manager = app_state.session_manager.app_manager(file_key)
+        app_config = app_manager.app.config.asdict()
+
+        html = html.replace("{{ title }}", parse_title(app_manager.filename))
         html = html.replace("{{ app_config }}", json.dumps(app_config))
-        html = html.replace("{{ server_token }}", app_state.server_token)
-        html = html.replace("{{ version }}", __version__)
-        html = html.replace("{{ filename }}", app_state.filename or "")
+        html = html.replace("{{ filename }}", app_manager.filename or "")
         html = html.replace(
             "{{ mode }}",
             "read" if app_state.mode == SessionMode.RUN else "edit",
@@ -64,6 +85,7 @@ STATIC_FILES = [
     r"(manifest\.json)",
     r"(android-chrome-(192x192|512x512)\.png)",
     r"(apple-touch-icon\.png)",
+    r"(logo\.png)",
 ]
 
 

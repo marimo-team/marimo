@@ -4,12 +4,7 @@ import "../css/App.css";
 import { HourglassIcon, UnlinkIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import {
-  sendInterrupt,
-  sendRename,
-  sendSave,
-  sendShutdown,
-} from "@/core/network/requests";
+import { sendInterrupt, sendRename, sendSave } from "@/core/network/requests";
 
 import { Controls } from "@/components/editor/controls/Controls";
 import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
@@ -57,6 +52,7 @@ import { cn } from "@/utils/cn";
 import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
+import { updateQueryParams } from "@/utils/urls";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -109,6 +105,14 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         alertSaveFailed();
         return Promise.resolve(null);
       }
+
+      updateQueryParams((params) => {
+        if (name === null) {
+          params.delete("file");
+        } else {
+          params.set("file", name);
+        }
+      });
 
       return sendRename(name)
         .then(() => {
@@ -370,7 +374,6 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           presenting={isPresenting}
           onTogglePresenting={togglePresenting}
           onInterrupt={sendInterrupt}
-          onShutdown={sendShutdown}
           onRun={runStaleCells}
           closed={connStatus.state === WebSocketState.CLOSED}
           running={isRunning}

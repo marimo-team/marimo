@@ -6,6 +6,7 @@ import { CellConfig } from "../cells/types";
 import { RequestId } from "./DeferredRequestRegistry";
 import { FilePath } from "@/utils/paths";
 import { PackageManagerName } from "../config/config-schema";
+import { SessionId } from "@/core/kernel/session";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -109,6 +110,7 @@ export interface FileInfo {
   id: string;
   path: FilePath;
   name: string;
+  lastModified?: number;
   isDirectory: boolean;
   isMarimoFile: boolean;
   children: FileInfo[];
@@ -170,6 +172,29 @@ export interface SnippetsResponse {
   snippets: Snippet[];
 }
 
+interface MarimoNotebook {
+  name: string;
+  path: string;
+  lastModified?: number;
+  sessionId?: SessionId;
+}
+
+export interface RecentFilesResponse {
+  files: MarimoNotebook[];
+}
+
+export interface WorkspaceFilesResponse {
+  files: MarimoNotebook[];
+}
+
+export interface RunningNotebooksResponse {
+  files: MarimoNotebook[];
+}
+
+export interface ShutdownSessionRequest {
+  sessionId: SessionId;
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -217,6 +242,13 @@ export interface EditRequests {
     request: FileUpdateRequest,
   ) => Promise<FileOperationResponse>;
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
+  // Homepage requests
+  getRecentFiles: () => Promise<RecentFilesResponse>;
+  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
+  getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
+  shutdownSession: (
+    request: ShutdownSessionRequest,
+  ) => Promise<RunningNotebooksResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

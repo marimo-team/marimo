@@ -42,7 +42,7 @@ def get_github_src_url(url: str) -> str:
 
 
 def validate_name(
-    name: str, allow_new_file: bool
+    name: str, allow_new_file: bool, allow_directory: bool
 ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
     """
     Validate the name of the file to be edited/run.
@@ -75,6 +75,10 @@ def validate_name(
             ),
             temp_dir,
         )
+
+    if allow_directory:
+        if os.path.isdir(name):
+            return name, None
 
     path = pathlib.Path(name)
     if path.suffix == ".ipynb":

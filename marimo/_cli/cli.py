@@ -17,6 +17,7 @@ from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
 from marimo._cli.upgrade import check_for_updates
+from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
 
@@ -87,7 +88,7 @@ main_help_msg = "\n".join(
             [
                 (
                     "marimo edit",
-                    "create a notebook",
+                    "create or edit notebooks",
                 ),
                 (
                     "marimo edit notebook.py",
@@ -148,12 +149,12 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
 edit_help_msg = "\n".join(
     [
         "\b",
-        "Edit a new or existing notebook.",
+        "Create or edit notebooks.",
         _key_value_bullets(
             [
                 (
                     "marimo edit",
-                    "Create a new notebook",
+                    "Start the marimo notebook server",
                 ),
                 ("marimo edit notebook.py", "Create or edit notebook.py"),
             ]
@@ -201,26 +202,73 @@ def edit(
         # The second return value is an optional temporary directory. It is
         # unused, but must be kept around because its lifetime on disk is bound
         # to the life of the Python object
-        name, _ = validate_name(name, allow_new_file=True)
-        if os.path.exists(name):
+        name, _ = validate_name(
+            name, allow_new_file=True, allow_directory=True
+        )
+        is_dir = os.path.isdir(name)
+        if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
             codegen.get_app(name)
-        else:
+        elif not is_dir:
             # write empty file
             try:
                 with open(name, "w"):
                     pass
             except OSError:
                 raise
+    else:
+        name = os.getcwd()
 
     start(
+        file_router=AppFileRouter.infer(name),
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         headless=headless,
-        filename=name,
+        mode=SessionMode.EDIT,
+        include_code=True,
+        watch=False,
+    )
+
+
+@main.command(help="Create a new notebook.")
+@click.option(
+    "-p",
+    "--port",
+    default=None,
+    show_default=True,
+    type=int,
+    help="Port to attach to.",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    type=str,
+    help="Host to attach to.",
+)
+@click.option(
+    "--headless",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Don't launch a browser.",
+)
+def new(
+    port: Optional[int],
+    host: str,
+    headless: bool,
+) -> None:
+    start(
+        file_router=AppFileRouter.new_file(),
+        development_mode=DEVELOPMENT_MODE,
+        quiet=QUIET,
+        host=host,
+        port=port,
+        headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
@@ -303,18 +351,18 @@ def run(
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
     # of the Python object
-    name, _ = validate_name(name, allow_new_file=False)
+    name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
 
     # correctness check - don't start the server if we can't import the module
     codegen.get_app(name)
 
     start(
+        file_router=AppFileRouter.from_filename(name),
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         headless=headless,
-        filename=name,
         mode=SessionMode.RUN,
         include_code=include_code,
         watch=watch,
@@ -440,12 +488,12 @@ def tutorial(
         f.write(source)
 
     start(
+        file_router=AppFileRouter.from_filename(fname),
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
         port=port,
         mode=SessionMode.EDIT,
-        filename=fname,
         include_code=True,
         headless=headless,
         watch=False,

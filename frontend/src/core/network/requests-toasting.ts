@@ -35,6 +35,10 @@ export function createErrorToastingRequests(
     sendUpdateFile: "Failed to update file",
     sendFileDetails: "Failed to get file details",
     sendInstallMissingPackages: "Failed to install missing packages",
+    getRecentFiles: "Failed to get recent files",
+    getWorkspaceFiles: "Failed to get workspace files",
+    getRunningNotebooks: "Failed to get running notebooks",
+    shutdownSession: "Failed to shutdown session",
   };
 
   const handlers = {} as EditRequests & RunRequests;

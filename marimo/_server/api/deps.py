@@ -8,8 +8,9 @@ from starlette.websockets import WebSocket
 from uvicorn import Server
 
 from marimo._config.manager import UserConfigManager
+from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
-from marimo._server.sessions import Session, SessionId, SessionManager
+from marimo._server.sessions import Session, SessionManager
 
 
 def app_state(request: Request) -> AppState:
@@ -68,10 +69,6 @@ class AppState:
         if session is None:
             raise ValueError(f"Invalid session id: {session_id}")
         return session
-
-    @property
-    def filename(self) -> Optional[str]:
-        return self.session_manager.filename
 
     @property
     def mode(self) -> SessionMode:

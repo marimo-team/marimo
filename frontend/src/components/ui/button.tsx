@@ -100,6 +100,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             className,
             disabled: props.disabled,
           }),
+          className,
         )}
         ref={ref}
         {...props}

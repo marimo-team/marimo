@@ -21,32 +21,50 @@ temp_dir = tempfile.TemporaryDirectory()
 
 def test_validate_name_with_python_file() -> None:
     full_path = __file__
-    assert validate_name(full_path, allow_new_file=False)[0].endswith(
-        "test_file_path.py"
-    )
+    assert validate_name(
+        full_path, allow_new_file=False, allow_directory=False
+    )[0].endswith("test_file_path.py")
 
 
 def test_validate_name_with_non_python_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=False)
+        validate_name(
+            "example.txt", allow_new_file=False, allow_directory=False
+        )
     with pytest.raises(click.UsageError):
-        validate_name("example.txt", allow_new_file=True)
+        validate_name(
+            "example.txt", allow_new_file=True, allow_directory=False
+        )
 
 
 def test_validate_name_with_nonexistent_file() -> None:
     with pytest.raises(click.UsageError):
-        validate_name("nonexistent.py", allow_new_file=False)
+        validate_name(
+            "nonexistent.py", allow_new_file=False, allow_directory=False
+        )
     assert (
         "nonexistent.py"
-        == validate_name("nonexistent.py", allow_new_file=True)[0]
+        == validate_name(
+            "nonexistent.py", allow_new_file=True, allow_directory=False
+        )[0]
     )
 
 
-def test_validate_name_with_directory() -> None:
+def test_validate_name_with_directory_false() -> None:
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=False)
+        validate_name(".", allow_new_file=False, allow_directory=False)
     with pytest.raises(click.UsageError):
-        validate_name(".", allow_new_file=True)
+        validate_name(".", allow_new_file=True, allow_directory=False)
+
+
+def test_validate_name_with_directory_true() -> None:
+    assert (
+        "."
+        == validate_name(".", allow_new_file=False, allow_directory=True)[0]
+    )
+    assert (
+        "." == validate_name(".", allow_new_file=True, allow_directory=True)[0]
+    )
 
 
 def test_is_github_issue_url_with_valid_url() -> None:

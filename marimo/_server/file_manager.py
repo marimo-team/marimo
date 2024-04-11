@@ -8,7 +8,11 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
-from marimo._runtime.layout.layout import LayoutConfig, save_layout_config
+from marimo._runtime.layout.layout import (
+    LayoutConfig,
+    read_layout_config,
+    save_layout_config,
+)
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     SaveRequest,
@@ -110,6 +114,16 @@ class AppFileManager:
             self._create_file(new_filename)
 
         self.filename = new_filename
+
+    def read_layout_config(self) -> Optional[LayoutConfig]:
+        if self.app.config.layout_file is not None and isinstance(
+            self.filename, str
+        ):
+            app_dir = os.path.dirname(self.filename)
+            layout = read_layout_config(app_dir, self.app.config.layout_file)
+            return layout
+
+        return None
 
     @property
     def path(self) -> Optional[str]:

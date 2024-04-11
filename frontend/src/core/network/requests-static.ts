@@ -59,5 +59,9 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendUpdateFile: throwNotInEditMode,
     sendFileDetails: throwNotInEditMode,
     sendInstallMissingPackages: throwNotInEditMode,
+    getRecentFiles: throwNotInEditMode,
+    getWorkspaceFiles: throwNotInEditMode,
+    getRunningNotebooks: throwNotInEditMode,
+    shutdownSession: throwNotInEditMode,
   };
 }

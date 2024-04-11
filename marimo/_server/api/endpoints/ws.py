@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from enum import IntEnum
 from typing import Callable, Optional
 
@@ -22,9 +21,9 @@ from marimo._messaging.ops import (
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
-from marimo._runtime.layout.layout import LayoutConfig, read_layout_config
 from marimo._runtime.query_params import QueryParams
 from marimo._server.api.deps import AppState
+from marimo._server.file_router import MarimoFileKey
 from marimo._server.model import (
     ConnectionState,
     SessionConsumer,
@@ -38,6 +37,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 SESSION_QUERY_PARAM_KEY = "session_id"
+FILE_QUERY_PARAM_KEY = "file"
 
 
 class WebSocketCodes(IntEnum):
@@ -57,11 +57,23 @@ async def websocket_endpoint(
         )
         return
 
+    file_key: Optional[MarimoFileKey] = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+
+    if file_key is None:
+        await websocket.close(
+            WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_FILE_KEY"
+        )
+        return
+
     await WebsocketHandler(
         websocket=websocket,
         manager=app_state.session_manager,
         session_id=session_id,
         mode=app_state.mode,
+        file_key=file_key,
     ).start()
 
 
@@ -78,10 +90,12 @@ class WebsocketHandler(SessionConsumer):
         manager: SessionManager,
         session_id: str,
         mode: SessionMode,
+        file_key: MarimoFileKey,
     ):
         self.websocket = websocket
         self.manager = manager
         self.session_id = session_id
+        self.file_key = file_key
         self.mode = mode
         self.status: ConnectionState
         self.cancel_close_handle: Optional[asyncio.TimerHandle] = None
@@ -102,12 +116,12 @@ class WebsocketHandler(SessionConsumer):
         Sends cell code and other metadata to client.
         """
         mgr = self.manager
-        app = session.app_file_manager.app
+        file_manager = session.app_file_manager
+        app = file_manager.app
 
         codes: tuple[str, ...]
         names: tuple[str, ...]
         configs: tuple[CellConfig, ...]
-        layout: Optional[LayoutConfig] = None
 
         if mgr.should_send_code_to_frontend():
             codes, names, configs, cell_ids = tuple(
@@ -136,14 +150,6 @@ class WebsocketHandler(SessionConsumer):
 
             last_executed_code = {}
 
-        if (
-            app
-            and app.config.layout_file is not None
-            and isinstance(mgr.filename, str)
-        ):
-            app_dir = os.path.dirname(mgr.filename)
-            layout = read_layout_config(app_dir, app.config.layout_file)
-
         await self.message_queue.put(
             (
                 KernelReady.name,
@@ -152,7 +158,7 @@ class WebsocketHandler(SessionConsumer):
                         codes=codes,
                         names=names,
                         configs=configs,
-                        layout=layout,
+                        layout=file_manager.read_layout_config(),
                         cell_ids=cell_ids,
                         resumed=resumed,
                         ui_values=ui_values,
@@ -227,7 +233,9 @@ class WebsocketHandler(SessionConsumer):
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
         # Only one frontend can be connected at a time in edit mode.
-        if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected():
+        if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected(
+            self.file_key
+        ):
             LOGGER.debug(
                 "Refusing connection; a frontend is already connected."
             )
@@ -254,7 +262,9 @@ class WebsocketHandler(SessionConsumer):
             # 2. Handle resume
 
             # Get resumable possible resumable session
-            resumable_session = mgr.maybe_resume_session(session_id)
+            resumable_session = mgr.maybe_resume_session(
+                session_id, self.file_key
+            )
             if resumable_session is not None:
                 LOGGER.debug("Resuming session %s", session_id)
                 await self._reconnect_session(resumable_session, replay=True)
@@ -265,8 +275,8 @@ class WebsocketHandler(SessionConsumer):
             # If the client refreshed their page, there will be one
             # existing session with a closed socket for a different session
             # id; that's why we call `close_all_sessions`.
-            if mgr.mode == SessionMode.EDIT:
-                mgr.close_all_sessions()
+            # if mgr.mode == SessionMode.EDIT:
+            #     mgr.close_all_sessions()
 
             # Grab the query params from the websocket
             # Note: if we resume a session, we don't pick up the new query
@@ -282,6 +292,7 @@ class WebsocketHandler(SessionConsumer):
                 query_params=query_params.to_dict(),
                 session_id=session_id,
                 session_consumer=self,
+                file_key=self.file_key,
             )
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
