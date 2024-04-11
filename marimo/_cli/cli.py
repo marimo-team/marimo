@@ -88,7 +88,7 @@ main_help_msg = "\n".join(
             [
                 (
                     "marimo edit",
-                    "create a notebook",
+                    "create or edit notebooks",
                 ),
                 (
                     "marimo edit notebook.py",
@@ -149,12 +149,12 @@ def main(log_level: str, quiet: bool, development_mode: bool) -> None:
 edit_help_msg = "\n".join(
     [
         "\b",
-        "Edit a new or existing notebook.",
+        "Create or edit notebooks.",
         _key_value_bullets(
             [
                 (
                     "marimo edit",
-                    "Create a new notebook",
+                    "Start the marimo notebook server",
                 ),
                 ("marimo edit notebook.py", "Create or edit notebook.py"),
             ]
