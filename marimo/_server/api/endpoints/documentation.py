@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from functools import lru_cache
-
 from starlette.requests import Request
 
 from marimo import _loggers
@@ -15,10 +13,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 
-# Cache the snippets
-@lru_cache(1)
-async def _read_snippets_once() -> Snippets:
-    return await read_snippets()
+_SNIPPETS: list[Snippets] = []
 
 
 @router.get("/snippets")
@@ -26,4 +21,6 @@ async def load_snippets(
     request: Request,
 ) -> Snippets:
     del request
-    return await _read_snippets_once()
+    if not _SNIPPETS:
+        _SNIPPETS.append(await read_snippets())
+    return _SNIPPETS[0]

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from starlette.testclient import TestClient
 
+from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import LspServer, SessionManager
@@ -48,7 +49,7 @@ if __name__ == "__main__":
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
-        package_manager="pip",
+        user_config_manager=UserConfigManager(),
     )
     sm.server_token = "fake-token"
     return sm

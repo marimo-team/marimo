@@ -14,6 +14,7 @@ import type {
   FormatResponse,
   SaveAppConfigRequest,
   SaveKernelRequest,
+  SaveUserConfigRequest,
   SnippetsResponse,
 } from "../../network/types";
 
@@ -47,6 +48,7 @@ export interface RawBridge {
   format(request: FormatRequest): Promise<FormatResponse>;
   save(request: SaveKernelRequest): Promise<string>;
   save_app_config(request: SaveAppConfigRequest): Promise<string>;
+  save_user_config(request: SaveUserConfigRequest): Promise<null>;
   rename_file(request: string): Promise<string>;
   list_files(request: FileListRequest): Promise<FileListResponse>;
   file_details(request: { path: string }): Promise<FileDetailsResponse>;

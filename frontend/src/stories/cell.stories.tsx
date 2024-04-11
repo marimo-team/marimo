@@ -66,6 +66,7 @@ const props: CellProps = {
     },
     runtime: {
       auto_instantiate: true,
+      auto_reload: false,
     },
     keymap: {
       preset: "default",

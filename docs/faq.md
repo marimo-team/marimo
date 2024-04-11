@@ -318,17 +318,12 @@ notebook menu in the top right and click "Restart kernel".
 
 ### How do I reload modules?
 
-To reload modules, use
-[`importlib.reload()`](https://docs.python.org/3/library/importlib.html#importlib.reload):
+Enable automatic reloading of modules via the runtime settings in your
+marimo installation's user configuration. (Click the "gear" icon in the
+top right of a marimo notebook).
 
-```
-import mymodule
-import importlib
-importlib.reload(mymodule)
-```
-
-Running this cell will reload `mymodule` with your new edits and automatically
-re-run any cells using `mymodule`.
+When enabled, marimo will automatically hot-reload modified modules
+before executing a cell.
 
 <a name="faq-on-change-called"></a>
 

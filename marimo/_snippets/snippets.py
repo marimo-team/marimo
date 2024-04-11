@@ -61,7 +61,9 @@ async def read_snippets() -> Snippets:
 
         snippets.append(Snippet(title=title, sections=sections))
 
-    return Snippets(snippets=snippets)
+    return Snippets(
+        snippets=sorted(snippets, key=lambda snippet: snippet.title)
+    )
 
 
 def should_ignore_code(code: str) -> bool:

@@ -5,7 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { parseMixed } from "@lezer/common";
 import { python, pythonLanguage } from "@codemirror/lang-python";
-import dedent from "dedent";
+import dedent from "string-dedent";
 import { logNever } from "@/utils/assertNever";
 import {
   Completion,
@@ -53,7 +53,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     for (const [start, regex] of regexes) {
       const match = pythonCode.match(regex);
       if (match) {
-        const innerCode = match[1].trim();
+        const innerCode = match[1];
 
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
         // store the quote prefix for later when we transform out
@@ -61,7 +61,8 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
-        return [dedent(unescapedCode), offset];
+        // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
+        return [dedent(`\n${unescapedCode}\n`).trim(), offset];
       }
     }
 

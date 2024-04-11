@@ -11,6 +11,7 @@ import pytest
 
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
+from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -90,6 +91,7 @@ class MockedKernel:
             stderr=self.stderr,
             stdin=self.stdin,
             cell_configs={},
+            user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
                 query_params={},
                 filename=None,

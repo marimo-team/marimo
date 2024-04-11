@@ -21,6 +21,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
+from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     Error,
@@ -70,6 +71,7 @@ from marimo._runtime import (
     marimo_pdb,
     patches,
 )
+from marimo._runtime.autoreload import ModuleReloader
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -80,6 +82,7 @@ from marimo._runtime.context import (
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
+from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.query_params import QueryParams
@@ -96,6 +99,7 @@ from marimo._runtime.requests import (
     InstallMissingPackagesRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
+    SetUserConfigRequest,
     StopRequest,
 )
 from marimo._runtime.state import State
@@ -233,6 +237,7 @@ class Kernel:
 
     - cell_configs: initial configuration for each cell
     - app_metadata: metadata about the notebook
+    - user_config: the initial user configuration
     - stream: object used to communicate with the server/outside world
     - stdout: replacement for sys.stdout
     - stderr: replacement for sys.stderr
@@ -245,13 +250,13 @@ class Kernel:
         self,
         cell_configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
+        user_config: MarimoConfig,
         stream: Stream,
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
-        package_manager: str | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
@@ -276,12 +281,14 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.package_manager = (
-            create_package_manager(package_manager)
-            if package_manager is not None
-            else None
-        )
 
+        # Load runtime settings from user config
+        self.package_manager: PackageManager | None = None
+        self.module_reloader: ModuleReloader | None = None
+        self.user_config = user_config
+        self._update_runtime_from_user_config(user_config)
+
+        # Set up the execution context
         self.execution_context: Optional[ExecutionContext] = None
         # initializers to override construction of ui elements
         self.ui_initializers: dict[str, Any] = {}
@@ -296,6 +303,18 @@ class Kernel:
         # an empty string represents the current directory
         exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
+
+    def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
+        self.user_config = config
+        package_manager = self.user_config["package_management"]["manager"]
+        autoreload = self.user_config["runtime"]["auto_reload"]
+        if (
+            self.package_manager is None
+            or package_manager != self.package_manager.name
+        ):
+            self.package_manager = create_package_manager(package_manager)
+        if autoreload and self.module_reloader is None:
+            self.module_reloader = ModuleReloader()
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -331,9 +350,19 @@ class Kernel:
             stdin=self.stdin,
         ):
             try:
+                if self.module_reloader is not None:
+                    # Reload modules if they have changed
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=True
+                    )
                 yield self.execution_context
             finally:
                 self.execution_context = None
+                if self.module_reloader is not None:
+                    # Note timestamps for when we last saw these modules
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=False
+                    )
 
     def _try_registering_cell(
         self, cell_id: CellId_t, code: str
@@ -1002,6 +1031,9 @@ class Kernel:
                 dataflow.transitive_closure(self.graph, cells_to_run)
             )
 
+    def set_user_config(self, request: SetUserConfigRequest) -> None:
+        self._update_runtime_from_user_config(request.config)
+
     async def set_ui_element_value(
         self, request: SetUIElementValueRequest
     ) -> None:
@@ -1284,6 +1316,8 @@ class Kernel:
             CompletedRun().broadcast()
         elif isinstance(request, SetCellConfigRequest):
             await self.set_cell_config(request)
+        elif isinstance(request, SetUserConfigRequest):
+            self.set_user_config(request)
         elif isinstance(request, SetUIElementValueRequest):
             await self.set_ui_element_value(request)
             CompletedRun().broadcast()
@@ -1314,7 +1348,7 @@ def launch_kernel(
     is_edit_mode: bool,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
-    package_manager: str,
+    user_config: MarimoConfig,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1360,7 +1394,7 @@ def launch_kernel(
         stdin=stdin,
         input_override=input_override,
         debugger_override=debugger,
-        package_manager=package_manager if is_edit_mode else None,
+        user_config=user_config,
     )
     initialize_context(
         kernel=kernel,

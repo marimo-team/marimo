@@ -70,9 +70,12 @@ class RuntimeConfig(TypedDict):
         run on startup. This only applies when editing a notebook,
         and not when running as an application.
         The default is `True`.
+    - `auto_reload`: if `True`, modified modules will be automatically reloaded
+       before cell execution; similar to IPython's %autoreload 2.
     """
 
     auto_instantiate: bool
+    auto_reload: bool
 
 
 @mddoc
@@ -177,7 +180,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},
-    "runtime": {"auto_instantiate": True},
+    "runtime": {"auto_instantiate": True, "auto_reload": False},
     "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,

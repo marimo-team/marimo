@@ -40,6 +40,7 @@ import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
+import { parseUserConfig } from "../config/config-schema";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -91,6 +92,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const code = await notebookFileStore.readFile();
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = PyodideRouter.getFilename();
+    const userConfig = parseUserConfig();
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);
@@ -104,6 +106,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       code,
       fallbackCode: fallbackCode || "",
       filename,
+      userConfig,
     });
   }
 
@@ -221,6 +224,11 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   saveUserConfig = async (request: SaveUserConfigRequest): Promise<null> => {
+    await this.rpc.proxy.request.bridge({
+      functionName: "save_user_config",
+      payload: request,
+    });
+
     return API.post<SaveUserConfigRequest>(
       "/kernel/save_user_config",
       request,

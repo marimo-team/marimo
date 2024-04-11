@@ -105,7 +105,7 @@ describe("MarkdownLanguageAdapter", () => {
       expect(innerCode).toBe(
         `# Hello, Markdown!\nmo.md(\n    '''\n    # Hello, Markdown!\n    Use marimo's "md" function to embed rich text into your marimo\n    '''\n)`,
       );
-      expect(offset).toBe(18);
+      expect(offset).toBe(9);
     });
 
     it("simple markdown", () => {
@@ -119,14 +119,14 @@ describe("MarkdownLanguageAdapter", () => {
       const pythonCode = 'mo.md("""   \n# Title\nContent\n   """)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("# Title\nContent");
-      expect(offset).toBe(13);
+      expect(offset).toBe(9);
     });
 
-    it("should handle space around the f=strings", () => {
-      const pythonCode = 'mo.md(\n\t"""\n# Title\nContent\n"""\n)';
+    it("should handle space around the f-strings", () => {
+      const pythonCode = 'mo.md(\n\t"""\n# Title\n{  Content  }\n"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
-      expect(innerCode).toBe("# Title\nContent");
-      expect(offset).toBe(12);
+      expect(innerCode).toBe("# Title\n{  Content  }");
+      expect(offset).toBe(11);
     });
 
     it("should dedent indented strings", () => {
@@ -134,13 +134,21 @@ describe("MarkdownLanguageAdapter", () => {
         'mo.md(\n\t"""\n\t- item 1\n\t-item 2\n\t-item3\n\t"""\n)';
       const [innerCode, offset] = adapter.transformIn(pythonCode);
       expect(innerCode).toBe("- item 1\n-item 2\n-item3");
-      expect(offset).toBe(13);
+      expect(offset).toBe(11);
+    });
+
+    it("should preserve escaped characters", () => {
+      const pythonCode = `mo.md(r"$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$")`;
+      const [innerCode, offset] = adapter.transformIn(pythonCode);
+      expect(innerCode).toBe("$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$");
+      expect(offset).toBe(8);
     });
   });
 
   describe("transformOut", () => {
     it("should wrap Markdown code with triple double-quoted string format", () => {
       const code = "# Markdown Title\n\nSome content here.";
+      adapter.lastQuotePrefix = "";
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toMatchInlineSnapshot(`
         "mo.md(
@@ -156,6 +164,7 @@ describe("MarkdownLanguageAdapter", () => {
 
     it("should escape triple quotes in the Markdown code", () => {
       const code = 'Markdown with an escaped """quote"""!!';
+      adapter.lastQuotePrefix = "";
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe(
         `mo.md("Markdown with an escaped \\"\\"\\"quote\\"\\"\\"!!")`,
@@ -192,6 +201,15 @@ describe("MarkdownLanguageAdapter", () => {
       const [wrappedCode, offset] = adapter.transformOut(code);
       expect(wrappedCode).toBe('mo.md(rf"Normal markdown")');
       expect(offset).toBe(9);
+    });
+
+    it("should preserve r strings", () => {
+      const code = "$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$";
+      adapter.lastQuotePrefix = "r";
+      const [wrappedCode, offset] = adapter.transformOut(code);
+      const pythonCode = `mo.md(r"$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$")`;
+      expect(wrappedCode).toBe(pythonCode);
+      expect(offset).toBe(8);
     });
   });
 
