@@ -40,7 +40,7 @@ async def read_code(
 
 @router.post("/workspace_files")
 @requires("edit")
-async def rename_file(
+async def workspace_files(
     *,
     request: Request,
 ) -> WorkspaceFilesResponse:
