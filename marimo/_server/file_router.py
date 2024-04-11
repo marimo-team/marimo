@@ -64,12 +64,29 @@ class AppFileRouter(abc.ABC):
         assert key is not None, "Expected a single file"
         return self.get_file_manager(key)
 
-    @abc.abstractmethod
     def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
         """
         Given a key, return an AppFileManager.
         """
-        pass
+        if key == AppFileRouter.NEW_FILE:
+            return AppFileManager(None)
+
+        for file in self.files:
+            if file.path == key:
+                return AppFileManager(file.path)
+
+        # Absolute path
+        if os.path.isabs(key):
+            return AppFileManager(key)
+
+        # Relative path
+        if os.path.exists(key):
+            return AppFileManager(key)
+
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="File {0} not found".format(key),
+        )
 
     @abc.abstractmethod
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
@@ -95,23 +112,6 @@ class AppFileRouter(abc.ABC):
 
 
 class NewFileAppFileRouter(AppFileRouter):
-    def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
-        if key == AppFileRouter.NEW_FILE:
-            return AppFileManager(None)
-
-        # Absolute path
-        if os.path.isabs(key):
-            return AppFileManager(key)
-
-        # Relative path
-        if os.path.exists(key):
-            return AppFileManager(key)
-
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="File {0} not found".format(key),
-        )
-
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
         return AppFileRouter.NEW_FILE
 
@@ -131,27 +131,6 @@ class ListOfFilesAppFileRouter(AppFileRouter):
     def files(self) -> List[MarimoFile]:
         return self._files
 
-    def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
-        if key == AppFileRouter.NEW_FILE:
-            return AppFileManager(None)
-
-        for file in self.files:
-            if file.path == key:
-                return AppFileManager(file.path)
-
-        # Absolute path
-        if os.path.isabs(key):
-            return AppFileManager(key)
-
-        # Relative path
-        if os.path.exists(key):
-            return AppFileManager(key)
-
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="File {0} not found".format(key),
-        )
-
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
         if len(self.files) == 1:
             return self.files[0].path
@@ -163,7 +142,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         return None
 
 
-class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
+class LazyListOfFilesAppFileRouter(AppFileRouter):
     def __init__(self, directory: str) -> None:
         self.directory = directory
         self._lazy_files: Optional[List[MarimoFile]] = None
@@ -208,3 +187,9 @@ class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
                         )
         LOGGER.debug("Found %d files in directory %s", len(files), directory)
         return files
+
+    def get_unique_file_key(self) -> str | None:
+        return None
+
+    def maybe_get_single_file(self) -> MarimoFile | None:
+        return None
