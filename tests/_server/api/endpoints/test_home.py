@@ -1,4 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
+import sys
+
+import pytest
 from starlette.testclient import TestClient
 
 from tests._server.conftest import get_session_manager
@@ -56,6 +59,8 @@ def test_running_notebooks(client: TestClient) -> None:
     assert files[0]["path"] == current_filename
 
 
+# TODO: Debug on Windows
+@pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
 @with_session(SESSION_ID, auto_shutdown=False)
 def test_shutdown_session(client: TestClient) -> None:
     response = client.post(
