@@ -200,13 +200,14 @@ class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
                     continue
                 full_path = os.path.join(root, filename)
                 relative_path = os.path.relpath(full_path, directory)
-                if "marimo.App" in open(full_path).read():
-                    files.append(
-                        MarimoFile(
-                            name=filename,
-                            path=relative_path,
-                            last_modified=os.path.getmtime(full_path),
+                with open(full_path, "r", encoding="utf-8") as f:
+                    if "marimo.App" in f.read():
+                        files.append(
+                            MarimoFile(
+                                name=filename,
+                                path=relative_path,
+                                last_modified=os.path.getmtime(full_path),
+                            )
                         )
-                    )
         LOGGER.debug("Found %d files in directory %s", len(files), directory)
         return files
