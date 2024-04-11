@@ -17,12 +17,15 @@ test.beforeEach(async ({ page }, info) => {
  */
 test("correctly initializes cells", async ({ page }, info) => {
   // Is initialized to 1
-  const number = page.getByRole("spinbutton");
+  const number = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
   await expect(number).toBeVisible();
   await expect(number.inputValue()).resolves.toBe("1");
 
   // Change the value to 5
   await number.fill("5");
+  await number.blur();
 
   // Create a new cell, add `bug_1` to it, and run it
   await createCellBelow({
@@ -33,7 +36,9 @@ test("correctly initializes cells", async ({ page }, info) => {
   });
 
   // Check they are both 5
-  let numberInputs = page.getByRole("spinbutton");
+  let numberInputs = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
   await expect(numberInputs).toHaveCount(2);
   await expect(numberInputs.first()).toHaveValue("5");
   await expect(numberInputs.last()).toHaveValue("5");
@@ -42,7 +47,9 @@ test("correctly initializes cells", async ({ page }, info) => {
   await runCell({ page, cellSelector: "text=bug 1" });
 
   // Check each number input is 1
-  numberInputs = page.getByRole("spinbutton");
+  numberInputs = page
+    .getByTestId("marimo-plugin-number-input")
+    .locator("input");
   await expect(numberInputs).toHaveCount(2);
   await expect(numberInputs.first()).toHaveValue("1");
   await expect(numberInputs.last()).toHaveValue("1");
