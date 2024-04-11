@@ -45,4 +45,5 @@ export const {
   sendFileDetails,
   getRecentFiles,
   getWorkspaceFiles,
+  getRunningNotebooks,
 } = getRequest();

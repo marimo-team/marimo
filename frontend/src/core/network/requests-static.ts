@@ -61,5 +61,6 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendInstallMissingPackages: throwNotInEditMode,
     getRecentFiles: throwNotInEditMode,
     getWorkspaceFiles: throwNotInEditMode,
+    getRunningNotebooks: throwNotInEditMode,
   };
 }

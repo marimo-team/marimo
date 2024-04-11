@@ -5,13 +5,17 @@ import { Button } from "../inputs/Inputs";
 import { Tooltip } from "../../ui/tooltip";
 import { useImperativeModal } from "../../modal/ImperativeModal";
 import { XIcon } from "lucide-react";
+import { sendShutdown } from "@/core/network/requests";
 
-interface Props {
-  onShutdown: (e: React.MouseEvent<HTMLButtonElement>) => void;
-}
-
-export const ShutdownButton: React.FC<Props> = ({ onShutdown }) => {
+export const ShutdownButton: React.FC = () => {
   const { openConfirm, closeModal } = useImperativeModal();
+  const handleShutdown = () => {
+    sendShutdown();
+    // Let the shutdown process start before closing the window.
+    setTimeout(() => {
+      window.close();
+    }, 200);
+  };
 
   return (
     <Tooltip content="Shutdown">
@@ -32,7 +36,7 @@ export const ShutdownButton: React.FC<Props> = ({ onShutdown }) => {
             confirmAction: (
               <AlertDialogDestructiveAction
                 onClick={(e) => {
-                  onShutdown(e);
+                  handleShutdown();
                   closeModal();
                 }}
                 aria-label="Confirm Shutdown"

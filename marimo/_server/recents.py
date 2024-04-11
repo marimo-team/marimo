@@ -1,9 +1,11 @@
+# Copyright 2024 Marimo. All rights reserved.
 import os
 from dataclasses import dataclass, field
 from typing import List
 
 from marimo._server.models.home import MarimoFile
 from marimo._utils.config.config import ConfigReader
+from marimo._utils.paths import pretty_path
 
 
 @dataclass
@@ -15,7 +17,7 @@ class RecentFilesManager:
     MAX_FILES = 10
     LOCATION = "recent_files.toml"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = ConfigReader.for_filename(self.LOCATION)
 
     def touch(self, filename: str) -> None:
@@ -31,7 +33,6 @@ class RecentFilesManager:
         state.files = state.files[: self.MAX_FILES]
         self.config.write_toml(state)
 
-    # TODO: test rename
     def rename(self, old_filename: str, new_filename: str) -> None:
         if not self.config:
             return
@@ -61,7 +62,7 @@ class RecentFilesManager:
             files.append(
                 MarimoFile(
                     name=os.path.basename(file),
-                    path=file,
+                    path=pretty_path(file),
                     last_modified=os.path.getmtime(file),
                 )
             )

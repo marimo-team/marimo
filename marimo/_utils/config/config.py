@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 import os
 from dataclasses import asdict
 from typing import Any, Optional, Type, TypeVar

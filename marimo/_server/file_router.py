@@ -85,6 +85,14 @@ class AppFileRouter(abc.ABC):
         """
         pass
 
+    @property
+    @abc.abstractmethod
+    def files(self) -> List[MarimoFile]:
+        """
+        Get all files.
+        """
+        pass
+
 
 class NewFileAppFileRouter(AppFileRouter):
     def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
@@ -110,10 +118,18 @@ class NewFileAppFileRouter(AppFileRouter):
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
         return None
 
+    @property
+    def files(self) -> List[MarimoFile]:
+        return []
+
 
 class ListOfFilesAppFileRouter(AppFileRouter):
     def __init__(self, files: List[MarimoFile]) -> None:
-        self.files = files
+        self._files = files
+
+    @property
+    def files(self) -> List[MarimoFile]:
+        return self._files
 
     def get_file_manager(self, key: MarimoFileKey) -> AppFileManager:
         if key == AppFileRouter.NEW_FILE:
@@ -150,13 +166,13 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
     def __init__(self, directory: str) -> None:
         self.directory = directory
-        self._files: Optional[List[MarimoFile]] = None
+        self._lazy_files: Optional[List[MarimoFile]]
 
     @property
     def files(self) -> List[MarimoFile]:
-        if self._files is None:
-            self._files = self._load_files()
-        return self._files
+        if self._lazy_files is None:
+            self._lazy_files = self._load_files()
+        return self._lazy_files
 
     def _load_files(self) -> List[MarimoFile]:
         directory = self.directory

@@ -58,7 +58,6 @@ async def rename_file(
     session.app_file_manager.rename(body.filename)
     new_path = session.app_file_manager.path
 
-    # TODO: test
     if prev_path and new_path:
         app_state.session_manager.recents.rename(prev_path, new_path)
     elif new_path:
@@ -98,15 +97,6 @@ async def open_file(
             status_code=HTTPStatus.SERVER_ERROR,
             detail=f"Failed to read file: {str(e)}",
         ) from e
-
-    # file_router = app_state.session_manager.file_router
-    # host = app_state.host
-    # port = app_state.port
-    # base_url = app_state.base_url
-    # run = app_state.mode == SessionMode.RUN
-    # print_startup(
-    #     file_router=file_router, url=f"http://{host}:{port}{base_url}", run=run
-    # )
 
     return SuccessResponse()
 

@@ -60,14 +60,14 @@ def with_file_router(
     """Decorator to create a session and close it after the test"""
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
-        def wrapper(client: TestClient) -> None:
+        def wrapper(client: TestClient, *args: Any, **kwargs: Any) -> None:
             session_manager: SessionManager = cast(
                 Any, client.app
             ).state.session_manager
             original_file_router = session_manager.file_router
             session_manager.file_router = file_router
 
-            func(client)
+            func(client, *args, **kwargs)
 
             session_manager.file_router = original_file_router
 

@@ -179,6 +179,10 @@ export interface WorkspaceFilesResponse {
   files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
 }
 
+export interface RunningNotebooksResponse {
+  files: Array<Pick<FileInfo, "path" | "name" | "lastModified">>;
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -229,6 +233,7 @@ export interface EditRequests {
   // Homepage requests
   getRecentFiles: () => Promise<RecentFilesResponse>;
   getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
+  getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

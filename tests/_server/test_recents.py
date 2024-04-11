@@ -37,6 +37,18 @@ class TestRecentFilesManager(unittest.TestCase):
             RecentFilesState(files=["test_file", "old_file"])
         )
 
+    def test_rename_no_config(self) -> None:
+        self.config_reader.read_toml.return_value = RecentFilesState(
+            files=["file_1", "file_2"]
+        )
+        self.rfm.rename("file_2", "new_file")
+        self.config_reader.read_toml.assert_called_once_with(
+            RecentFilesState, fallback=RecentFilesState()
+        )
+        self.config_reader.write_toml.assert_called_once_with(
+            RecentFilesState(files=["new_file", "file_1"])
+        )
+
     def test_touch_with_config_max_files(self) -> None:
         original_files = [
             f"test_file_{i}" for i in range(RecentFilesManager.MAX_FILES)

@@ -18,6 +18,7 @@ import {
   InstantiateRequest,
   RecentFilesResponse,
   RunRequests,
+  RunningNotebooksResponse,
   SaveAppConfigRequest,
   SaveCellConfigRequest,
   SaveKernelRequest,
@@ -360,6 +361,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throw new Error("Not implemented");
   };
   getWorkspaceFiles: () => Promise<WorkspaceFilesResponse> = async () => {
+    throw new Error("Not implemented");
+  };
+  getRunningNotebooks: () => Promise<RunningNotebooksResponse> = async () => {
     throw new Error("Not implemented");
   };
 

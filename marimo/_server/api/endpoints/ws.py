@@ -233,7 +233,6 @@ class WebsocketHandler(SessionConsumer):
         LOGGER.debug("Existing sessions: %s", mgr.sessions)
 
         # Only one frontend can be connected at a time in edit mode.
-        # TODO: test one frontend connected at a time for the same file
         if mgr.mode == SessionMode.EDIT and mgr.any_clients_connected(
             self.file_key
         ):

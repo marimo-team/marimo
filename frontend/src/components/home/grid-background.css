@@ -1,9 +1,0 @@
-.bg-grid {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' stroke='%2352525b' fill='none'%3e%3cpath d='M64 0H0V64'/%3e%3c/svg%3e");
-  background-size: calc(4rem + 1px);
-  opacity: 10%;
-}
-
-.dark .bg-grid {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' stroke='%23fff' fill='none'%3e%3cpath d='M64 0H0V64'/%3e%3c/svg%3e");
-}

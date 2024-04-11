@@ -30,6 +30,7 @@ import {
   SnippetsResponse,
   RecentFilesResponse,
   WorkspaceFilesResponse,
+  RunningNotebooksResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -197,6 +198,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     getWorkspaceFiles: () => {
       return API.post<{}, WorkspaceFilesResponse>("/home/workspace_files", {});
+    },
+    getRunningNotebooks: () => {
+      return API.post<{}, RunningNotebooksResponse>(
+        "/home/running_notebooks",
+        {},
+      );
     },
   };
 }

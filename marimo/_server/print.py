@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 import os
 import sys
+from typing import Optional
 
-from marimo._server.file_router import AppFileRouter
 from marimo._server.utils import print_tabbed
 
 UTF8_SUPPORTED = False
@@ -14,17 +14,16 @@ except Exception:
     pass
 
 
-def print_startup(file_router: AppFileRouter, url: str, run: bool) -> None:
+def print_startup(file_name: Optional[str], url: str, run: bool) -> None:
     print()
-    file = file_router.maybe_get_single_file()
-    if file is not None and not run:
+    if file_name is not None and not run:
         print_tabbed(
-            f"\033[1;32mEdit {os.path.basename(file.name)} "
+            f"\033[1;32mEdit {os.path.basename(file_name)} "
             "in your browser\033[0m " + _utf8("📝")
         )
-    elif file is not None and run:
+    elif file_name is not None and run:
         print_tabbed(
-            f"\033[1;32mRunning {os.path.basename(file.name)}"
+            f"\033[1;32mRunning {os.path.basename(file_name)}"
             "\033[0m " + _utf8("⚡")
         )
     else:

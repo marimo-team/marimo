@@ -1,15 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { getWorkspaceFiles, getRecentFiles } from "@/core/network/requests";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import React, { Suspense } from "react";
-import { cn } from "@/utils/cn";
+import {
+  getWorkspaceFiles,
+  getRecentFiles,
+  getRunningNotebooks,
+} from "@/core/network/requests";
+import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
+import React, { Suspense, useState } from "react";
 import { Spinner } from "../icons/spinner";
-import { FilePlus2Icon, ExternalLinkIcon } from "lucide-react";
+import { FilePlus2Icon, ExternalLinkIcon, Loader2Icon } from "lucide-react";
+import { ShutdownButton } from "../editor/controls/shutdown-button";
+import { getSessionId } from "@/core/kernel/session";
+import { useInterval } from "@/hooks/useInterval";
+import { cn } from "@/utils/cn";
 
-// import "./grid-background.css";
+function tabTarget(path: string) {
+  // Consistent tab target so we open in the same tab when clicking on the same notebook
+  return `${getSessionId()}-${encodeURIComponent(path)}`;
+}
 
 export const HomePage: React.FC = () => {
-  const { data, loading, error } = useAsyncData(async () => {
+  const fileResponse = useAsyncData(async () => {
     const [workspace, recents] = await Promise.all([
       getWorkspaceFiles(),
       getRecentFiles(),
@@ -17,24 +27,57 @@ export const HomePage: React.FC = () => {
     return { workspace, recents };
   }, []);
 
+  const [nonce, setNonce] = useState(0);
+  useInterval(
+    () => {
+      setNonce((nonce) => nonce + 1);
+    },
+    // Refresh every 10 seconds, or when the document becomes visible
+    { delayMs: 10_000, whenVisible: true },
+  );
+
+  const runningResponse = useAsyncData(async () => {
+    return getRunningNotebooks();
+  }, [nonce]);
+
+  const error = fileResponse.error || runningResponse.error;
   if (error) {
     throw error;
   }
 
-  if (loading || !data) {
+  const data = combineAsyncData(fileResponse, runningResponse).data;
+  if (fileResponse.loading || !data) {
     return <Spinner centered={true} size="xlarge" />;
   }
+
+  const [{ workspace, recents }, running] = data;
+
+  const runningNotebooks = new Set(running.files.map((file) => file.path));
 
   return (
     <Suspense>
       {/*<GridBackground />*/}
+      <div className="absolute top-3 right-5">
+        <ShutdownButton />
+      </div>
       <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
-          {/* TODO: Power off server button in top right */ }
-          <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-10" />
+        <img src="/logo.png" alt="Marimo Logo" className="w-64 mb-4" />
         <CreateNewNotebook />
-        {/* TODO: section for running notebooks, option to turn them off */}
-        <NotebookList header="Recent notebooks" files={data.recents.files} />
-        <NotebookList header="All notebooks" files={data.workspace.files} />
+        <NotebookList
+          header="Running notebooks"
+          files={running.files}
+          runningNotebooks={runningNotebooks}
+        />
+        <NotebookList
+          header="Recent notebooks"
+          files={recents.files}
+          runningNotebooks={runningNotebooks}
+        />
+        <NotebookList
+          header="All notebooks"
+          files={workspace.files}
+          runningNotebooks={runningNotebooks}
+        />
         {/* <NotebookFromOrCodeUrl /> */}
       </div>
     </Suspense>
@@ -44,7 +87,8 @@ export const HomePage: React.FC = () => {
 const NotebookList: React.FC<{
   header: string;
   files: Array<{ name: string; path: string }>;
-}> = ({ header, files }) => {
+  runningNotebooks: Set<string>;
+}> = ({ header, files, runningNotebooks }) => {
   if (files.length === 0) {
     return null;
   }
@@ -61,8 +105,7 @@ const NotebookList: React.FC<{
             className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
             key={file.path}
             href={`/?file=${file.path}`}
-            target="_blank"
-            rel="noreferrer"
+            target={tabTarget(file.path)}
           >
             <div className="flex flex-col justify-between">
               <span>{file.name}</span>
@@ -75,9 +118,20 @@ const NotebookList: React.FC<{
                 {file.path}
               </p>
             </div>
-            <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300 text-muted-foreground">
-              {/* TODO: different icon/action depending on whether notebook is running */}
-              <ExternalLinkIcon className="text-primary" size={24} />
+            <div
+              className={cn(
+                "absolute right-8 top-0 bottom-0 rounded-lg flex items-center justify-center text-muted-foreground text-primary",
+              )}
+            >
+              {runningNotebooks.has(file.path) && (
+                <div className="absolute transition-all duration-300 opacity-100 group-hover:opacity-0">
+                  <Loader2Icon size={24} className="animate-spin" />
+                </div>
+              )}
+              <ExternalLinkIcon
+                size={24}
+                className="absolute group-hover:opacity-100 opacity-0 transition-all duration-300"
+              />
             </div>
           </a>
         ))}
@@ -87,14 +141,16 @@ const NotebookList: React.FC<{
 };
 
 const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return <h2 className="text-xl font-semibold text-muted-foreground">{children}</h2>;
+  return (
+    <h2 className="text-xl font-semibold text-muted-foreground">{children}</h2>
+  );
 };
 
 const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
+      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border bg-[var(--blue-1)]
       transition-all duration-300 cursor-pointer
       "
       href={`/?file=__new__`}
@@ -123,14 +179,3 @@ const CreateNewNotebook: React.FC = () => {
 //     </div>
 //   );
 // };
-
-const GridBackground = (props: { className?: string }) => {
-  return (
-    <div
-      className={cn(
-        "bg-grid absolute inset-0 -z-10 [mask-image:linear-gradient(180deg,black,transparent)]",
-        props.className
-      )}
-    />
-  );
-};
