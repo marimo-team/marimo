@@ -139,10 +139,13 @@ async def shutdown(
     # If we are only operating on a single file (new or explicit file),
     # then we should shutdown the whole server
     key = file_router.get_unique_file_key()
-    if not key:
+    if key:
         app_state.session_manager.shutdown()
         close_uvicorn(app_state.server)
         return SuccessResponse()
     # Otherwise, we should just shutdown the current session
-    session_manager.close_session(app_state.require_current_session_id())
+    session_id = app_state.get_current_session_id()
+    if not session_id:
+        return SuccessResponse()
+    session_manager.close_session(session_id)
     return SuccessResponse()
