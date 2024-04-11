@@ -6,7 +6,7 @@ import {
   FunctionSquareIcon,
   NetworkIcon,
   ScrollTextIcon,
-  BookMarkedIcon,
+  TextSearchIcon,
   FileTextIcon,
   LucideIcon,
   SquareDashedBottomCodeIcon,
@@ -28,7 +28,7 @@ export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
   variables: FunctionSquareIcon,
   dependencies: NetworkIcon,
   outline: ScrollTextIcon,
-  documentation: BookMarkedIcon,
+  documentation: TextSearchIcon,
   logs: FileTextIcon,
   snippets: SquareDashedBottomCodeIcon,
 };
