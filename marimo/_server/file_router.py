@@ -187,9 +187,6 @@ class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
             depth = root[len(directory) :].count(os.sep)
             if depth > MAX_DEPTH:
                 continue
-            # Skip the root directory
-            if root == directory:
-                continue
             # Skip directories that we don't want to search
             root_name = os.path.basename(root)
             if root_name in skip_dirs:
