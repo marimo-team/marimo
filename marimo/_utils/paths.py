@@ -20,7 +20,12 @@ def pretty_path(filename: str) -> str:
     Otherwise, return the filename as is.
     """
     if os.path.isabs(filename):
-        relpath = os.path.relpath(filename)
+        try:
+            relpath = os.path.relpath(filename)
+        except ValueError:
+            # Windows: relpath doesn't work if filename is on a different drive
+            # than current drive
+            return filename
         if not relpath.startswith(".."):
             return relpath
     return filename
