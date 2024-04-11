@@ -355,6 +355,7 @@ Recommended sequence:
     - plots
     - layout
     - fileformat
+    - for-jupyter-users
 """
 )
 @click.option(
@@ -392,6 +393,7 @@ Recommended sequence:
             "plots",
             "layout",
             "fileformat",
+            "for-jupyter-users",
         ]
     ),
 )
@@ -400,7 +402,7 @@ def tutorial(
     host: str,
     headless: bool,
     name: Literal[
-        "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat"
+        "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat", "for-jupyter-users"
     ],
 ) -> None:
     from marimo._tutorials import (
@@ -411,6 +413,7 @@ def tutorial(
         markdown,
         plots,
         ui,
+        marimo_for_jupyter_users
     )
 
     tutorials = {
@@ -421,6 +424,7 @@ def tutorial(
         "plots": plots,
         "layout": layout,
         "fileformat": fileformat,
+        "for-jupyter-users": marimo_for_jupyter_users,
     }
     source = inspect.getsource(tutorials[name])
     d = tempfile.TemporaryDirectory()
