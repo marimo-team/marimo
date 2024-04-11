@@ -7,8 +7,9 @@
   width: 100%;
 }
 
-/* Just applied to vertical layout */
-.output-area .output {
+/* No margin in edit mode, where we already have separation
+ * between cells. */
+.Cell.published .output-area .output {
   margin-top: 1rem;
   margin-bottom: 1rem;
 }
