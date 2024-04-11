@@ -155,6 +155,21 @@ def test_cli_edit_directory() -> None:
     _check_contents(p, b"marimo-server-token", contents)
 
 
+def test_cli_edit_new_file() -> None:
+    d = tempfile.TemporaryDirectory()
+    path = os.path.join(d.name, "new.py")
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "edit", path, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+    _check_contents(p, b"marimo-server-token", contents)
+
+
 def test_cli_new() -> None:
     port = _get_port()
     p = subprocess.Popen(["marimo", "new", "-p", str(port), "--headless"])

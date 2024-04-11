@@ -205,10 +205,18 @@ def edit(
         name, _ = validate_name(
             name, allow_new_file=True, allow_directory=True
         )
-        if os.path.exists(name) and not os.path.isdir(name):
+        is_dir = os.path.isdir(name)
+        if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
             # if we can't import the module
             codegen.get_app(name)
+        elif not is_dir:
+            # write empty file
+            try:
+                with open(name, "w"):
+                    pass
+            except OSError:
+                raise
     else:
         name = os.getcwd()
 
