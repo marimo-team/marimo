@@ -9,6 +9,7 @@ and
 
 https://stackoverflow.com/questions/58153024/matplotlib-how-to-create-original-backend
 """
+
 from __future__ import annotations
 
 import base64

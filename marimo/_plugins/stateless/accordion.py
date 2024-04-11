@@ -19,17 +19,15 @@ def accordion(
     **Example.**
 
     ```python3
-    mo.accordion({
-        "Tip": "Use accordions to let users reveal and hide content."
-    })
+    mo.accordion(
+        {"Tip": "Use accordions to let users reveal and hide content."}
+    )
     ```
 
     Accordion content can be lazily loaded:
 
     ```python3
-    mo.accordion({
-        "View total": expensive_item
-    }, lazy=True)
+    mo.accordion({"View total": expensive_item}, lazy=True)
     ```
 
     where `expensive_item` is the item to render, or a callable that

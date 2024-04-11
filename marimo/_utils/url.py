@@ -3,6 +3,7 @@
 
 Don't want to include the entire package as a dependency.
 """
+
 from __future__ import annotations
 
 import re

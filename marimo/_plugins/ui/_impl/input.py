@@ -260,17 +260,15 @@ class radio(UIElement[Optional[str], Any]):
 
     ```python
     radiogroup = mo.ui.radio(
-      options=['a', 'b', 'c'],
-      value='a',
-      label='choose one'
+        options=["a", "b", "c"], value="a", label="choose one"
     )
     ```
 
     ```python
     radiogroup = mo.ui.radio(
-      options={'one': 1, 'two': 2, 'three': 3},
-      value='one',
-      label='pick a number'
+        options={"one": 1, "two": 2, "three": 3},
+        value="one",
+        label="pick a number",
     )
     ```
 
@@ -510,17 +508,15 @@ class dropdown(UIElement[List[str], Any]):
 
     ```python
     dropdown = mo.ui.dropdown(
-      options=['a', 'b', 'c'],
-      value='a',
-      label='choose one'
+        options=["a", "b", "c"], value="a", label="choose one"
     )
     ```
 
     ```python
     dropdown = mo.ui.dropdown(
-      options={'one': 1, 'two': 2, 'three': 3},
-      value='one',
-      label='pick a number'
+        options={"one": 1, "two": 2, "three": 3},
+        value="one",
+        label="pick a number",
     )
     ```
 
@@ -612,8 +608,7 @@ class multiselect(UIElement[List[str], List[object]]):
 
     ```python
     multiselect = mo.ui.multiselect(
-      options=['a', 'b', 'c'],
-      label='choose some options'
+        options=["a", "b", "c"], label="choose some options"
     )
     ```
 
@@ -692,15 +687,13 @@ class button(UIElement[Any, Any]):
     ```python
     # a counter implementation
     counter_button = mo.ui.button(
-      value=0,
-      on_click=lambda value: value + 1,
-      label='increment'
+        value=0, on_click=lambda value: value + 1, label="increment"
     )
 
     # adding intent
     delete_button = mo.ui.button(
-        label='Do not click',
-        kind='danger',
+        label="Do not click",
+        kind="danger",
     )
     ```
 
@@ -816,8 +809,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
     Uploading multiple files, accepting only .png and .jpg extensions:
 
     ```python
-    f = mo.ui.file(
-      filetypes=[".png", ".jpg"], multiple=True)
+    f = mo.ui.file(filetypes=[".png", ".jpg"], multiple=True)
 
     # access an uploaded file's name
     f.value[index].name
@@ -1046,16 +1038,20 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
 
     ```python
     # Create a form with multiple elements
-    form = mo.md('''
+    form = (
+        mo.md('''
         **Your form.**
 
         {name}
 
         {date}
-    ''').batch(
-        name=mo.ui.text(label='name'),
-        date=mo.ui.date(label='date'),
-    ).form(show_clear_button=True, bordered=False)
+    ''')
+        .batch(
+            name=mo.ui.text(label="name"),
+            date=mo.ui.date(label="date"),
+        )
+        .form(show_clear_button=True, bordered=False)
+    )
     ```
 
     ```python

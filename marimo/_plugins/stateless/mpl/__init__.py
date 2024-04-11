@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 """Utilities for working with matplotlib."""
 
-
 __all__ = [
     "interactive",
 ]

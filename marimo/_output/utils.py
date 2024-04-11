@@ -16,7 +16,7 @@ def flatten_string(text: str) -> str:
 
 
 def create_style(
-    pairs: dict[str, Union[str, int, float, None]]
+    pairs: dict[str, Union[str, int, float, None]],
 ) -> Optional[str]:
     if not pairs:
         return None

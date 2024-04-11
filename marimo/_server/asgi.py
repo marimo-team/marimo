@@ -34,6 +34,7 @@ def create_asgi_app(
 
     ```python
     import uvicorn
+
     builder = (
         create_asgi_app()
         .with_app(path="/app", root="app.py")
@@ -65,10 +66,12 @@ def create_asgi_app(
     # Add middlewares
     app.add_middleware(my_middlewares.auth_middleware)
 
+
     # Add routes
     @app.get("/login")
     async def root():
         pass
+
 
     # Add the marimo app
     app.mount("/", builder.build())

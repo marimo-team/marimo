@@ -6,7 +6,7 @@ from typing import Optional, Union
 
 
 def guess_mime_type(
-    src: Union[str, bytes, io.BytesIO, io.BufferedReader, None]
+    src: Union[str, bytes, io.BytesIO, io.BufferedReader, None],
 ) -> Optional[str]:
     """Guess the MIME type of a file."""
     if src is None:

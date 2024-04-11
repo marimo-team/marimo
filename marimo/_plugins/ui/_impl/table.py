@@ -61,11 +61,11 @@ class table(
 
     ```python
     table = mo.ui.table(
-      data=[
-        {'first_name': 'Michael', 'last_name': 'Scott'},
-        {'first_name': 'Dwight', 'last_name': 'Schrute'}
-      ],
-      label='Users'
+        data=[
+            {"first_name": "Michael", "last_name": "Scott"},
+            {"first_name": "Dwight", "last_name": "Schrute"},
+        ],
+        label="Users",
     )
     ```
 
@@ -87,7 +87,7 @@ class table(
         data=df,
         # use pagination when your table has many rows
         pagination=True,
-        label='Dataframe'
+        label="Dataframe",
     )
     ```
 

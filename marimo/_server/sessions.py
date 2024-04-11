@@ -11,6 +11,7 @@ session is closed as soon as its websocket connection is severed. In edit mode,
 in which we have at most one connected client, a session may be kept around
 even if its socket is closed.
 """
+
 from __future__ import annotations
 
 import multiprocessing as mp

@@ -97,7 +97,8 @@ class LogFormatter(logging.Formatter):
                     # bytes to unicode strings for easier use with the
                     # logging module.
                     self._colors[levelno] = str(
-                        curses.tparm(fg_color, code), "ascii"  # type: ignore[attr-defined,unused-ignore] # noqa: E501
+                        curses.tparm(fg_color, code),
+                        "ascii",  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                     )
                 normal = curses.tigetstr("sgr0")  # type: ignore[attr-defined,unused-ignore] # noqa: E501
                 if normal is not None:

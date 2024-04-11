@@ -226,8 +226,7 @@ class TestParseRaw:
 
 def test_build_empty_dataclass() -> None:
     @dataclass
-    class Empty:
-        ...
+    class Empty: ...
 
     parsed = build_dataclass({}, Empty)
     assert parsed == Empty()

@@ -198,7 +198,6 @@ extend-select = [
     "I001",
     # Enable entire ruff rule section
     "ASYNC", # subset of flake8-async rules
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
@@ -250,21 +249,6 @@ banned-module-level-imports = ["numpy", "pandas"]
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
 fixture-parentheses = false
-
-[tool.black]
-line-length = 79
-extend-exclude = """
-(
-    ^/examples/*
-    | ^/tests/_ast/codegen_data/*
-    | ^/tests/_ast/cell_data/*
-    | ^/tests/_cli/ipynb_data/*
-    | ^/tests/_runtime/runtime_data/*
-    | ^/marimo/_tutorials/*
-    | ^/marimo/_snippets/data/*
-    | ^/marimo/_smoke_tests/*
-)
-"""
 
 [tool.mypy]
 strict = true

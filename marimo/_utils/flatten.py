@@ -8,6 +8,7 @@ TODO(akshayka): if this becomes a bottleneck, use a library like dm-tree
 (this implementation will be slow large structures); as of writing,
 installation of dm-tree on macOS is buggy
 """
+
 from __future__ import annotations
 
 import itertools

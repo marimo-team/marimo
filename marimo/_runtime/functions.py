@@ -1,6 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
-"""Functions associated with a graph.
-"""
+"""Functions associated with a graph."""
+
 from __future__ import annotations
 
 import dataclasses

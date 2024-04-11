@@ -26,7 +26,7 @@ class Html(MIME):
     strings. For example:
 
     ```python3
-    hello_world = Html('<h2>Hello, World</h2>')
+    hello_world = Html("<h2>Hello, World</h2>")
     Html(
         f'''
         <h1>Hello, Universe!</h1>
@@ -244,7 +244,7 @@ class Html(MIME):
         **Example.**
 
         ```python
-        mo.md("...").style({'max-height': '300px', 'overflow': 'auto'})
+        mo.md("...").style({"max-height": "300px", "overflow": "auto"})
         ```
 
         **Args.**

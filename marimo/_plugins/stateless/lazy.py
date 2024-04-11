@@ -33,18 +33,15 @@ class lazy(UIElement[None, None]):
     Create a lazy-loaded tab:
 
     ```python
-    tabs = mo.ui.tabs({
-        "Overview": tab1,
-        "Charts": mo.lazy(expensive_component)
-    })
+    tabs = mo.ui.tabs(
+        {"Overview": tab1, "Charts": mo.lazy(expensive_component)}
+    )
     ```
 
     Create a lazy-loaded accordion:
 
     ```python
-    accordion = mo.ui.accordion({
-        "Charts": mo.lazy(expensive_component)
-    })
+    accordion = mo.ui.accordion({"Charts": mo.lazy(expensive_component)})
     ```
 
     **Initialization Args.**

@@ -342,8 +342,7 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo():
-                ...
+            def foo(): ...
 
             return (foo,)
 

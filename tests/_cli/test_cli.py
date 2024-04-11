@@ -4,6 +4,7 @@ Crude CLI tests
 
 Requires frontend to be built
 """
+
 import contextlib
 import os
 import signal

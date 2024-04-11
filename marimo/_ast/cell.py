@@ -286,10 +286,13 @@ class Cell:
 
         app = marimo.App()
 
+
         @app.cell
         def __():
             import marimo as mo
+
             return (mo,)
+
 
         @app.cell
         def __():
@@ -297,11 +300,13 @@ class Cell:
             y = 1
             return (x, y)
 
+
         @app.cell
         def add(mo, x, y):
             z = x + y
             mo.md(f"The value of z is {z}")
             return (z,)
+
 
         if __name__ == "__main__":
             app.run()

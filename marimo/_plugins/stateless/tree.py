@@ -20,13 +20,7 @@ def tree(
 
     **Example.**
     ```python3
-    mo.tree([
-        "entry",
-        "another entry",
-        {
-            "key": [0, 1, 2]
-        }
-    ], label="A tree.")
+    mo.tree(["entry", "another entry", {"key": [0, 1, 2]}], label="A tree.")
     ```
     **Args.**
 

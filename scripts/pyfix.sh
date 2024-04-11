@@ -5,7 +5,6 @@ echo "[fix: copyright]"
 echo "[fix: ruff]"
 ruff check marimo/ --fix
 ruff check tests/ --fix
-echo "[fix: black]"
-black marimo/
-black tests/
+ruff format marimo/
+ruff format tests/
 ./scripts/pycheck.sh

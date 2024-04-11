@@ -49,8 +49,7 @@ class CanonicalizingPackageManager(PackageManager):
         self._repo_name_to_module_name: dict[str, str] | None = None
 
     @abc.abstractmethod
-    def _construct_module_name_mapping(self) -> dict[str, str]:
-        ...
+    def _construct_module_name_mapping(self) -> dict[str, str]: ...
 
     def _initialize_mappings(self) -> None:
         if self._module_name_to_repo_name is None:

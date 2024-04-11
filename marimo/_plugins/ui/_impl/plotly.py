@@ -53,10 +53,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
     from vega_datasets import data
 
     _plot = px.scatter(
-        data.cars(),
-        x="Horsepower",
-        y="Miles_per_Gallon",
-        color="Origin"
+        data.cars(), x="Horsepower", y="Miles_per_Gallon", color="Origin"
     )
 
     plot = mo.ui.plotly(_plot)

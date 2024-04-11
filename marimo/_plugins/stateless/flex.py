@@ -84,10 +84,12 @@ def vstack(
 
     ```python3
     # Build a grid.
-    mo.vstack([
-        mo.hstack([mo.md("..."), mo.ui.text_area()]),
-        mo.hstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()])
-    ])
+    mo.vstack(
+        [
+            mo.hstack([mo.md("..."), mo.ui.text_area()]),
+            mo.hstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
+        ]
+    )
     ```
 
     **Args.**
@@ -135,10 +137,12 @@ def hstack(
 
     ```python3
     # Build a grid.
-    mo.hstack([
-        mo.vstack([mo.md("..."), mo.ui.text_area()]),
-        mo.vstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()])
-    ])
+    mo.hstack(
+        [
+            mo.vstack([mo.md("..."), mo.ui.text_area()]),
+            mo.vstack([mo.ui.checkbox(), mo.ui.text(), mo.ui.date()]),
+        ]
+    )
     ```
 
     **Args.**

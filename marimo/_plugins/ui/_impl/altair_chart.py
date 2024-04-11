@@ -145,10 +145,14 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
     import marimo as mo
     from vega_datasets import data
 
-    chart = alt.Chart(data.cars()).mark_point().encode(
-        x='Horsepower',
-        y='Miles_per_Gallon',
-        color='Origin',
+    chart = (
+        alt.Chart(data.cars())
+        .mark_point()
+        .encode(
+            x="Horsepower",
+            y="Miles_per_Gallon",
+            color="Origin",
+        )
     )
 
     chart = mo.ui.altair_chart(chart)

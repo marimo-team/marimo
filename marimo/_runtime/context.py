@@ -4,7 +4,6 @@
 Each client gets its own context.
 """
 
-
 from __future__ import annotations
 
 import threading

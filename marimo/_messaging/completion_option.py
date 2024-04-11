@@ -1,7 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
-"""Specification of a code completion result
-"""
-
+"""Specification of a code completion result"""
 
 from __future__ import annotations
 

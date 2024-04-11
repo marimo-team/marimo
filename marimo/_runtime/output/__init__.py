@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 """Write to a cell's output area."""
 
-
 __all__ = [
     "append",
     "clear",
