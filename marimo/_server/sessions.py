@@ -548,12 +548,14 @@ class SessionManager:
                 await session.write_operation(alert)
             return
 
-    def close_session(self, session_id: SessionId) -> None:
+    def close_session(self, session_id: SessionId) -> bool:
         LOGGER.debug("Closing session %s", session_id)
         session = self.get_session(session_id)
         if session is not None:
             session.close()
             del self.sessions[session_id]
+            return True
+        return False
 
     def close_all_sessions(self) -> None:
         LOGGER.debug("Closing all sessions (sessions: %s)", self.sessions)
