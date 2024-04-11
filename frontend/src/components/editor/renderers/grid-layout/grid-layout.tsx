@@ -28,7 +28,6 @@ import {
   ScrollIcon,
   XIcon,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useIsDragging } from "@/hooks/useIsDragging";
 import { Switch } from "@/components/ui/switch";
@@ -42,6 +41,7 @@ import { Objects } from "@/utils/objects";
 import { Maps } from "@/utils/maps";
 import { startCase } from "lodash-es";
 import { BorderAllIcon } from "@radix-ui/react-icons";
+import { NumberField } from "@/components/ui/number-field";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -385,54 +385,51 @@ const GridControls: React.FC<{
     <div className="flex flex-row absolute left-5 top-4 gap-4 w-full justify-end pr-[350px]">
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="columns">Columns</Label>
-        <Input
+        <NumberField
           data-testid="grid-columns-input"
           id="columns"
-          type="number"
           value={layout.columns}
           className="w-[60px]"
           placeholder="# of Columns"
-          min={1}
-          onChange={(e) => {
+          minValue={1}
+          onChange={(valueAsNumber) => {
             setLayout({
               ...layout,
-              columns: e.target.valueAsNumber,
+              columns: valueAsNumber,
             });
           }}
         />
       </div>
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="rowHeight">Row Height (px)</Label>
-        <Input
+        <NumberField
           data-testid="grid-row-height-input"
           id="rowHeight"
-          type="number"
           value={layout.rowHeight}
           className="w-[60px]"
           placeholder="Row Height (px)"
-          min={1}
-          onChange={(e) => {
+          minValue={1}
+          onChange={(valueAsNumber) => {
             setLayout({
               ...layout,
-              rowHeight: e.target.valueAsNumber,
+              rowHeight: valueAsNumber,
             });
           }}
         />
       </div>
       <div className="flex flex-row items-center gap-2">
         <Label htmlFor="maxWidth">Max Width (px)</Label>
-        <Input
+        <NumberField
           data-testid="grid-max-width-input"
           id="maxWidth"
-          type="number"
           value={layout.maxWidth}
-          className="w-[70px]"
+          className="w-[90px]"
           step={100}
           placeholder="Full"
-          onChange={(e) => {
+          onChange={(valueAsNumber) => {
             setLayout({
               ...layout,
-              maxWidth: e.target.value ? e.target.valueAsNumber : undefined,
+              maxWidth: Number.isNaN(valueAsNumber) ? undefined : valueAsNumber,
             });
           }}
         />

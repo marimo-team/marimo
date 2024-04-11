@@ -24,9 +24,12 @@ import { THEMES } from "@/theme/useTheme";
 import { isPyodide } from "@/core/pyodide/utils";
 import { PackageManagerNames } from "../../core/config/config-schema";
 import { Kbd } from "../ui/kbd";
+import { NumberField } from "@/components/ui/number-field";
+import { useRef } from "react";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
+  const formElement = useRef<HTMLFormElement>(null);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -45,6 +48,7 @@ export const UserConfigForm: React.FC = () => {
   return (
     <Form {...form}>
       <form
+        ref={formElement}
         onChange={form.handleSubmit(onSubmit)}
         className="flex flex-col gap-5"
       >
@@ -85,19 +89,19 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Autosave delay (seconds)</FormLabel>
                 <FormControl>
                   <span className="inline-flex mr-2">
-                    <Input
+                    <NumberField
                       data-testid="autosave-delay-input"
-                      type="number"
-                      className="m-0 w-20 inline-flex"
-                      disabled={
+                      className="m-0 w-24"
+                      isDisabled={
                         form.getValues("save.autosave") !== "after_delay"
                       }
                       {...field}
                       value={field.value / 1000}
-                      min={1}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value) * 1000)
-                      }
+                      minValue={1}
+                      onChange={(value) => {
+                        field.onChange(value * 1000);
+                        onSubmit(form.getValues());
+                      }}
                     />
                   </span>
                 </FormControl>
@@ -137,15 +141,17 @@ export const UserConfigForm: React.FC = () => {
                 </FormDescription>
                 <FormControl>
                   <span className="inline-flex mr-2">
-                    <Input
+                    <NumberField
                       data-testid="line-length-input"
-                      type="number"
-                      className="m-0 w-20 inline-flex"
+                      className="m-0 w-24"
                       {...field}
                       value={field.value}
-                      min={1}
-                      max={1000}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      minValue={1}
+                      maxValue={1000}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        onSubmit(form.getValues());
+                      }}
                     />
                   </span>
                 </FormControl>
@@ -239,15 +245,17 @@ export const UserConfigForm: React.FC = () => {
                 <FormLabel>Code editor font size</FormLabel>
                 <FormControl>
                   <span className="inline-flex mr-2">
-                    <Input
+                    <NumberField
                       data-testid="code-editor-font-size-input"
-                      type="number"
-                      className="m-0 w-20 inline-flex"
+                      className="m-0 w-24"
                       {...field}
                       value={field.value}
-                      min={8}
-                      max={20}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      minValue={8}
+                      maxValue={20}
+                      onChange={(value) => {
+                        field.onChange(value);
+                        onSubmit(form.getValues());
+                      }}
                     />
                   </span>
                 </FormControl>
