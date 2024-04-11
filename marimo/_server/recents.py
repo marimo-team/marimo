@@ -31,10 +31,6 @@ class RecentFilesManager:
             state.files.remove(filename)
         state.files.insert(0, filename)
         state.files = state.files[: self.MAX_FILES]
-        # If in pytest, we don't want to write to the file
-        if os.environ.get("PYTEST_CURRENT_TEST"):
-            return
-
         self.config.write_toml(state)
 
     def rename(self, old_filename: str, new_filename: str) -> None:
@@ -48,10 +44,6 @@ class RecentFilesManager:
             state.files.remove(old_filename)
             state.files.insert(0, new_filename)
             state.files = state.files[: self.MAX_FILES]
-
-            # If in pytest, we don't want to write to the file
-            if os.environ.get("PYTEST_CURRENT_TEST"):
-                return
 
             self.config.write_toml(state)
 
