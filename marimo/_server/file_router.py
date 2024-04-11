@@ -166,7 +166,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 class LazyListOfFilesAppFileRouter(ListOfFilesAppFileRouter):
     def __init__(self, directory: str) -> None:
         self.directory = directory
-        self._lazy_files: Optional[List[MarimoFile]]
+        self._lazy_files: Optional[List[MarimoFile]] = None
 
     @property
     def files(self) -> List[MarimoFile]:
