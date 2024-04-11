@@ -28,8 +28,8 @@ def print_startup(file_name: Optional[str], url: str, run: bool) -> None:
         )
     else:
         print_tabbed(
-            "\033[1;32mCreate or open a marimo notebook in your browser\033[0m "
-            + _utf8("🛠")
+            "\033[1;32mCreate or open a marimo notebook in your "
+            "browser\033[0m " + _utf8("🛠")
         )
     print()
     print_tabbed(f"\033[32mURL\033[0m: \033[1m{url}\033[0m")

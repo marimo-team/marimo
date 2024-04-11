@@ -8,7 +8,7 @@ import {
 import { combineAsyncData, useAsyncData } from "@/hooks/useAsyncData";
 import React, { Suspense, useState } from "react";
 import { Spinner } from "../icons/spinner";
-import { FilePlus2Icon, ExternalLinkIcon, SquareIcon } from "lucide-react";
+import { ExternalLinkIcon, PowerOffIcon } from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
 import { SessionId, getSessionId } from "@/core/kernel/session";
 import { useInterval } from "@/hooks/useInterval";
@@ -71,7 +71,7 @@ export const HomePage: React.FC = () => {
       {/*<GridBackground />*/}
       <div className="absolute top-3 right-5">
         <ShutdownButton
-          description={`This will terminate all running notebooks (${running.files.length}). You'll lose all data that's in memory.`}
+          description={`This will shutdown the notebook server and terminate all running notebooks (${running.files.length}). You'll lose all data that's in memory.`}
         />
       </div>
       <div className="flex flex-col gap-8 max-w-5xl container pt-10 pb-20 z-10">
@@ -145,7 +145,7 @@ const NotebookList: React.FC<{
                   <Button
                     size={"xs"}
                     variant="outline"
-                    className="m-0 opacity-80 hover:opacity-100 text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
+                    className="m-0 opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -177,7 +177,7 @@ const NotebookList: React.FC<{
                       });
                     }}
                   >
-                    <SquareIcon size={16} />
+                    <PowerOffIcon size={16} />
                   </Button>
                 </Tooltip>
               )}
@@ -209,7 +209,7 @@ const CreateNewNotebook: React.FC = () => {
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border bg-[var(--blue-1)]
+      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border 
       transition-all duration-300 cursor-pointer
       "
       href={`/?file=__new__`}
@@ -218,7 +218,7 @@ const CreateNewNotebook: React.FC = () => {
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
-        <FilePlus2Icon size={24} />
+        <ExternalLinkIcon size={24} />
       </div>
     </a>
   );
