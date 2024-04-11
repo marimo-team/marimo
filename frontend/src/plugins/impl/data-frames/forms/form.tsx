@@ -199,7 +199,6 @@ function renderZodSchema<T extends FieldValues, S>(
             <FormControl>
               <DebouncedNumberInput
                 {...field}
-                type="number"
                 className="my-0"
                 onValueChange={field.onChange}
               />

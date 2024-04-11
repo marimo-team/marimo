@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { Events } from "@/utils/events";
+import { NumberField, NumberFieldProps } from "@/components/ui/number-field";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon?: React.ReactNode;
@@ -77,7 +78,7 @@ DebouncedInput.displayName = "DebouncedInput";
 
 export const DebouncedNumberInput = React.forwardRef<
   HTMLInputElement,
-  InputProps & {
+  NumberFieldProps & {
     value: number;
     onValueChange: (valueAsNumber: number) => void;
   }
@@ -90,12 +91,11 @@ export const DebouncedNumberInput = React.forwardRef<
   });
 
   return (
-    <Input
+    <NumberField
       ref={ref}
-      type="number"
       className={className}
       {...props}
-      onChange={(evt) => onChange(evt.target.valueAsNumber)}
+      onChange={onChange}
       value={value}
     />
   );
