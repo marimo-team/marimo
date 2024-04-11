@@ -402,7 +402,14 @@ def tutorial(
     host: str,
     headless: bool,
     name: Literal[
-        "intro", "dataflow", "ui", "markdown", "plots", "layout", "fileformat", "for-jupyter-users"
+        "intro",
+        "dataflow",
+        "ui",
+        "markdown",
+        "plots",
+        "layout",
+        "fileformat",
+        "for-jupyter-users",
     ],
 ) -> None:
     from marimo._tutorials import (
@@ -410,10 +417,10 @@ def tutorial(
         fileformat,
         intro,
         layout,
+        marimo_for_jupyter_users,
         markdown,
         plots,
         ui,
-        marimo_for_jupyter_users
     )
 
     tutorials = {
