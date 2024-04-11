@@ -137,7 +137,7 @@ async def shutdown(
     session_manager = app_state.session_manager
     file_router = session_manager.file_router
 
-    def shutdown_server():
+    def shutdown_server() -> None:
         app_state.session_manager.shutdown()
         close_uvicorn(app_state.server)
 
