@@ -18,6 +18,7 @@ interface Data {
   debounce: boolean;
   orientation: "horizontal" | "vertical";
   showValue: boolean;
+  fullWidth: boolean;
 }
 
 export class SliderPlugin implements IPlugin<T, Data> {
@@ -32,6 +33,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     debounce: z.boolean().default(false),
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
+    fullWidth: z.boolean().default(false),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -60,6 +62,7 @@ const SliderComponent = ({
   debounce,
   orientation,
   showValue,
+  fullWidth,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -71,49 +74,53 @@ const SliderComponent = ({
   }, [value]);
 
   return (
-    <Labeled
-      label={label}
-      id={id}
-      align={orientation === "horizontal" ? "left" : "top"}
-    >
-      <div
-        className={cn(
-          "flex items-center gap-2",
-          orientation === "vertical" &&
-            "items-end inline-flex justify-center self-center mx-2",
-        )}
+    <div className={fullWidth ? "my-3" : ""}>
+      <Labeled
+        label={label}
+        id={id}
+        align={orientation === "horizontal" ? "left" : "top"}
+        fullWidth={fullWidth}
       >
-        <Slider
-          id={id}
+        <div
           className={cn(
-            "relative flex items-center select-none",
-            "data-[orientation=horizontal]:w-36 data-[orientation=vertical]:h-36",
+            "flex items-center gap-2",
+            orientation === "vertical" &&
+              "items-end inline-flex justify-center self-center mx-2",
           )}
-          value={[internalValue]}
-          min={start}
-          max={stop}
-          step={step}
-          orientation={orientation}
-          // Triggered on all value changes
-          onValueChange={([nextValue]) => {
-            setInternalValue(nextValue);
-            if (!debounce) {
-              setValue(nextValue);
-            }
-          }}
-          // Triggered on mouse up
-          onValueCommit={([nextValue]) => {
-            if (debounce) {
-              setValue(nextValue);
-            }
-          }}
-        />
-        {showValue && (
-          <div className="text-xs text-muted-foreground min-w-[16px]">
-            {prettyNumber(internalValue)}
-          </div>
-        )}
-      </div>
-    </Labeled>
+        >
+          <Slider
+            id={id}
+            className={cn(
+              "relative flex items-center select-none",
+              !fullWidth && "data-[orientation=horizontal]:w-36 ",
+              "data-[orientation=vertical]:h-36",
+            )}
+            value={[internalValue]}
+            min={start}
+            max={stop}
+            step={step}
+            orientation={orientation}
+            // Triggered on all value changes
+            onValueChange={([nextValue]) => {
+              setInternalValue(nextValue);
+              if (!debounce) {
+                setValue(nextValue);
+              }
+            }}
+            // Triggered on mouse up
+            onValueCommit={([nextValue]) => {
+              if (debounce) {
+                setValue(nextValue);
+              }
+            }}
+          />
+          {showValue && (
+            <div className="text-xs text-muted-foreground min-w-[16px]">
+              {prettyNumber(internalValue)}
+            </div>
+          )}
+        </div>
+      </Labeled>
+    </div>
   );
 };
