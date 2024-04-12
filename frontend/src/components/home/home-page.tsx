@@ -67,7 +67,17 @@ export const HomePage: React.FC = () => {
 
   const runningNotebooks = new Map(
     running.files.flatMap((file) =>
-      file.initializationId ? [[file.path, file.initializationId]] : [],
+      file.initializationId && file.sessionId
+        ? [
+            [
+              file.path,
+              {
+                sessionId: file.sessionId,
+                initializationId: file.initializationId,
+              },
+            ],
+          ]
+        : [],
     ),
   );
 
@@ -114,7 +124,13 @@ const NotebookList: React.FC<{
     sessionId?: string;
     initializationId?: string;
   }>;
-  runningNotebooks: Map<string, string>;
+  runningNotebooks: Map<
+    string,
+    {
+      sessionId: SessionId;
+      initializationId: string;
+    }
+  >;
   setRunningNotebooks: (data: RunningNotebooksResponse) => void;
 }> = ({ header, files, runningNotebooks, setRunningNotebooks }) => {
   const { openConfirm, closeModal } = useImperativeModal();
@@ -175,15 +191,13 @@ const NotebookList: React.FC<{
                           confirmAction: (
                             <AlertDialogDestructiveAction
                               onClick={(e) => {
-                                const sessionId = runningNotebooks.get(
-                                  file.path,
-                                );
-                                assertExists(sessionId);
-                                shutdownSession({ sessionId }).then(
-                                  (response) => {
-                                    setRunningNotebooks(response);
-                                  },
-                                );
+                                const ids = runningNotebooks.get(file.path);
+                                assertExists(ids);
+                                shutdownSession({
+                                  sessionId: ids.sessionId,
+                                }).then((response) => {
+                                  setRunningNotebooks(response);
+                                });
                                 closeModal();
                                 toast({
                                   description: "Notebook has been shutdown.",
