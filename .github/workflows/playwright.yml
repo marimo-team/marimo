@@ -57,14 +57,17 @@ jobs:
           python-version: "3.10"
           cache: "pip"
 
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
-        with:
-          uv-venv: marimo-venv
+      # We tried to add uv, but marimo is unable to
+      # start when installed.
+      # - name: 🐍 Setup uv
+      #   uses: yezz123/setup-uv@v4
+      #   with:
+      #     uv-venv: marimo-venv
 
       - name: 🐍 Install marimo
         run: |
-          uv pip install .
+          python -m pip install --upgrade pip
+          pip install .
 
       - name: 🎭 Get installed Playwright version
         id: playwright-version
