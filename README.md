@@ -97,7 +97,7 @@ marimo run your_notebook.py
 
 <img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-**Execute as scripts.** Executed a notebook as a script at the
+**Execute as scripts.** Execute a notebook as a script at the
 command line:
 
 ```bash
