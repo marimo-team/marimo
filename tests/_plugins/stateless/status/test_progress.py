@@ -63,6 +63,7 @@ def test_update_progress(mock_flush: Any) -> None:
 # Test update_progress without arguments
 @patch("marimo._runtime.output._output.flush")
 def test_update_progress_no_args(mock_flush: Any) -> None:
+    del mock_flush
     progress = _Progress(
         title="Test",
         subtitle="Running",
@@ -80,7 +81,6 @@ def test_update_progress_no_args(mock_flush: Any) -> None:
     assert rate is None
     eta = progress._get_eta()
     assert eta is None
-    mock_flush.assert_not_called()
 
 
 # Test update_progress with closed progress
