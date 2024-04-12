@@ -46,6 +46,11 @@ jobs:
           python-version: "3.10"
           cache: "pip"
 
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+        with:
+          uv-venv: marimo-venv
+
       # patch __init__.py version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
       - name: 🔨 Patch version number
@@ -64,9 +69,8 @@ jobs:
 
       - name: 📦 Build marimo
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine
-          pip install .
+          uv pip install build twine
+          uv pip install .
           python -m build
 
       - name: 📤 Upload to TestPyPI

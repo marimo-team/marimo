@@ -108,6 +108,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
       # This step is needed since some of our tests rely on the index.html file
       - name: Create assets directory, copy over index.html
         run: |
@@ -119,18 +121,18 @@ jobs:
       # reactivate the virtual environment every time
       - name: Install marimo with dev dependencies
         run: |
-          python -m venv marimo-dev-env
+          uv venv marimo-dev-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
-          python -m pip install --upgrade pip
-          pip install .[dev]
+          uv pip install --upgrade pip
+          uv pip install .[dev]
       - name: Lint
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
@@ -139,7 +141,7 @@ jobs:
         if: ${{ matrix.python-version == '3.9' || matrix.python-version == '3.10' }}
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-dev-env\\Scripts\\activate
+            source marimo-dev-env\\Scripts\\activate
           else
             source marimo-dev-env/bin/activate
           fi
@@ -148,27 +150,27 @@ jobs:
       - name: Test with minimal dependencies
         if: ${{ matrix.dependencies == 'core' }}
         run: |
-          python -m venv marimo-test-env
+          uv venv marimo-test-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-env\\Scripts\\activate
+            source marimo-test-env\\Scripts\\activate
           else
             source marimo-test-env/bin/activate
           fi
-          python -m pip install --upgrade pip
-          pip install .[testcore]
+          uv pip install --upgrade pip
+          uv pip install .[testcore]
           pytest -v tests/ -k "not test_cli"
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
         run: |
-          python -m venv marimo-test-optional-env
+          uv venv marimo-test-optional-env
           if [ "$RUNNER_OS" == "Windows" ]; then
-            marimo-test-optional-env\\Scripts\\activate
+            source marimo-test-optional-env\\Scripts\\activate
           else
             source marimo-test-optional-env/bin/activate
           fi
-          python -m pip install --upgrade pip
-          pip install .[testcore,testoptional]
+          uv pip install --upgrade pip
+          uv pip install .[testcore,testoptional]
           # Only collect coverage on the 3.11
           if [ "${{ matrix.python-version }}" == "3.11" ]; then
             pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
