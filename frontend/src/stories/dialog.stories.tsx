@@ -19,7 +19,7 @@ export default {
 
 export const Closed = {
   render: () => (
-    <Dialog className="w-[620px]">
+    <Dialog>
       <DialogTrigger asChild={true}>
         <Button variant="outline">Rename</Button>
       </DialogTrigger>
@@ -50,7 +50,7 @@ export const Closed = {
 
 export const Open = {
   render: () => (
-    <Dialog className="w-[620px]" open={true}>
+    <Dialog open={true}>
       <DialogTrigger asChild={true}>
         <Button variant="outline">Rename</Button>
       </DialogTrigger>

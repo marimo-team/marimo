@@ -5,8 +5,6 @@ import {
   H3,
   H4,
   P,
-  Blockquote,
-  InlineCode,
   Lead,
   LargeText,
   SmallText,

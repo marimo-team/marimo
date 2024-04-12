@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CalloutOutput } from "@/components/editor/output/CalloutOutput";
-import { Mail, Loader2 } from "lucide-react";
 
 export default {
   title: "CalloutOutput",

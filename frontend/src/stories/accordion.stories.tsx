@@ -73,7 +73,7 @@ export const MultipleItemsSingle = {
 
 export const MultipleItemsMultiple = {
   render: () => (
-    <Accordion type="multiple" collapsible={true} className="w-full">
+    <Accordion type="multiple" className="w-full">
       <AccordionItem value="item-1">
         <AccordionTrigger>Is it accessible?</AccordionTrigger>
         <AccordionContent>
