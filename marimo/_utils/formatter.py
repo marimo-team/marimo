@@ -55,6 +55,9 @@ class RuffFormatter(Formatter):
                     capture_output=True,
                     check=True,
                 )
+                if process.returncode != 0:
+                    raise FormatError("Failed to format code with ruff")
+
                 formatted = process.stdout.decode()
                 formatted_codes[key] = formatted.strip()
             except Exception as e:
@@ -85,3 +88,7 @@ class BlackFormatter(Formatter):
                 formatted_codes[key] = code
 
         return formatted_codes
+
+
+class FormatError(Exception):
+    pass
