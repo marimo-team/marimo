@@ -34,6 +34,7 @@
     "@lezer/highlight": "^1.2.0",
     "@lezer/lr": "^1.4.0",
     "@open-rpc/client-js": "^1.8.1",
+    "@paralleldrive/cuid2": "^2.2.2",
     "@radix-ui/colors": "^3.0.0",
     "@radix-ui/primitive": "^1.0.1",
     "@radix-ui/react-accordion": "^1.1.2",
