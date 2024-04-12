@@ -1,4 +1,4 @@
-import { Meta, Story } from "@storybook/addon-docs";
+import { Meta, Story } from "@storybook/blocks";
 
 import { Plus } from "lucide-react";
 
@@ -19,11 +19,14 @@ import {
     <TooltipTrigger asChild>
       <Button variant="outline" className="rounded-full">
         <Plus className="h-4 w-4" />
+
         <span className="sr-only">Add</span>
       </Button>
     </TooltipTrigger>
+
     <TooltipContent>
       <p>Add to library</p>
     </TooltipContent>
+
   </TooltipRoot>
 </TooltipProvider>

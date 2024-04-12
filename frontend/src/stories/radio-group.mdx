@@ -1,4 +1,4 @@
-import { Meta, Story } from "@storybook/addon-docs";
+import { Meta, Story } from "@storybook/blocks";
 
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -10,29 +10,45 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 <RadioGroup defaultValue="comfortable">
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="default" id="r1" />
+
     <Label htmlFor="r1">Default</Label>
+
   </div>
+
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="comfortable" id="r2" />
+
     <Label htmlFor="r2">Comfortable</Label>
+
   </div>
+
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="compact" id="r3" />
+
     <Label htmlFor="r3">Compact</Label>
+
   </div>
 </RadioGroup>
 
 <RadioGroup defaultValue="comfortable">
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="default" id="r1" />
+
     <Label htmlFor="r1">a</Label>
+
   </div>
+
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="comfortable" id="r2" />
+
     <Label htmlFor="r2">b</Label>
+
   </div>
+
   <div className="flex items-center space-x-3">
     <RadioGroupItem value="compact" id="r3" />
+
     <Label htmlFor="r3">c</Label>
+
   </div>
 </RadioGroup>
