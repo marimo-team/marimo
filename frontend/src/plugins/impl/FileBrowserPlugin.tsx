@@ -13,6 +13,8 @@ import {
   guessFileType,
 } from "@/components/editor/file-tree/types";
 import { renderHTML } from "../core/RenderHTML";
+import { PathBuilder, Paths } from "@/utils/paths";
+import { CornerLeftUp } from "lucide-react";
 
 /**
  * Arguments for a file browser component.
@@ -156,8 +158,7 @@ export const FileBrowser = ({
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
-      newPath = path.endsWith("/") ? path.slice(0, -1) : path;
-      newPath = newPath.slice(0, Math.max(0, newPath.lastIndexOf("/")));
+      newPath = Paths.dirname(path);
     }
 
     // If restricting navigation, check if path is outside bounds
@@ -210,17 +211,18 @@ export const FileBrowser = ({
       key={"Parent directory"}
       onClick={() => setNewPath("..")}
     >
-      <TableCell className="w-1/12" />
+      <TableCell className="w-1/12">
+        <CornerLeftUp className="ml-2" size={16} />
+      </TableCell>
       <TableCell className="w-11/12">..</TableCell>
     </TableRow>,
   );
 
+  const delimiter = path.includes("/") ? "/" : "\\";
+  const pathBuilder = new PathBuilder(delimiter);
+
   for (const file of files) {
-    let filePath = path;
-    if (!path.endsWith("/")) {
-      filePath += "/";
-    }
-    filePath += file.name;
+    const filePath = pathBuilder.join(path, file.name);
 
     // Click handler
     const handleClick = file.is_directory ? setNewPath : selectFile;
@@ -254,12 +256,12 @@ export const FileBrowser = ({
   }
 
   // Get list of parent directories
-  const directories = path.split("/").filter((x) => x !== "");
+  const directories = path.split(delimiter).filter((x) => x !== "");
   directories.push(path);
 
   const parentDirectories = directories.map((dir, index) => {
     const dirList = directories.slice(0, index);
-    return `/${dirList.join("/")}`;
+    return `/${dirList.join(delimiter)}`;
   });
 
   parentDirectories.reverse();
