@@ -85,7 +85,7 @@ const SliderComponent = ({
           className={cn(
             "flex items-center gap-2",
             orientation === "vertical" &&
-              "items-end inline-flex justify-center self-center mx-2"
+              "items-end inline-flex justify-center self-center mx-2",
           )}
         >
           <Slider
@@ -93,7 +93,7 @@ const SliderComponent = ({
             className={cn(
               "relative flex items-center select-none",
               !fullWidth && "data-[orientation=horizontal]:w-36 ",
-              "data-[orientation=vertical]:h-36"
+              "data-[orientation=vertical]:h-36",
             )}
             value={[internalValue]}
             min={start}
