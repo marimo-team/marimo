@@ -18,6 +18,9 @@ class PypiPackageManager(CanonicalizingPackageManager):
 class PipPackageManager(PypiPackageManager):
     name = "pip"
 
+    async def install(self, package: str) -> bool:
+        return self.run(["pip", "install", package])
+
 
 class MicropipPackageManager(PypiPackageManager):
     name = "micropip"
