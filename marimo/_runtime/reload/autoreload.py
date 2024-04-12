@@ -94,13 +94,14 @@ class ModuleReloader:
 
     def check(
         self, modules: dict[str, types.ModuleType], reload: bool
-    ) -> None:
+    ) -> set[types.ModuleType]:
         """Check timestamps of modules, optionally reload them.
 
         Also patches existing objects with hot-reloaded ones.
         """
 
         # materialize the module keys, since we'll be reloading while iterating
+        modified_modules: set[types.ModuleType] = set()
         for modname in list(modules.keys()):
             m = modules.get(modname, None)
             if m is None:
@@ -122,6 +123,7 @@ class ModuleReloader:
                     continue
 
             self.modules_mtimes[modname] = pymtime
+            modified_modules.add(m)
 
             # If we've reached this point, we should try to reload the module
             if reload:
@@ -136,6 +138,7 @@ class ModuleReloader:
                         msg.format(modname, traceback.format_exc(10)),
                     )
                     self.failed[py_filename] = pymtime
+        return modified_modules
 
 
 def update_function(old: object, new: object) -> None:
@@ -256,9 +259,7 @@ def append_obj(
     name: str,
     obj: object,
 ) -> bool:
-    in_module = (
-        hasattr(obj, "__module__") and obj.__module__ == module.__name__
-    )
+    in_module = hasattr(obj, "__module__") and obj.__module__ == module.__name__
     if not in_module:
         return False
 
