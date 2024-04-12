@@ -156,7 +156,7 @@
     "@storybook/addon-essentials": "^8.0.5",
     "@storybook/addon-interactions": "^8.0.5",
     "@storybook/addon-links": "^8.0.5",
-    "@storybook/blocks": "^8.0.5",
+    "@storybook/blocks": "^8.0.8",
     "@storybook/react": "^8.0.5",
     "@storybook/react-vite": "^8.0.5",
     "@storybook/testing-library": "^0.2.2",

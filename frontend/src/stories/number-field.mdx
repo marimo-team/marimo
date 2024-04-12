@@ -1,0 +1,17 @@
+import { Meta, Story } from "@storybook/blocks";
+import * as NumberFieldStories from './number-field.stories';
+
+import { NumberField } from "@/components/ui/number-field";
+import { Label } from "@/components/ui/label";
+
+<Meta of={NumberFieldStories} />
+
+# NumberField
+
+<Story of={NumberFieldStories.Default} />
+
+<Story of={NumberFieldStories.Disabled} />
+
+<Story of={NumberFieldStories.WithLabel} />
+
+<Story of={NumberFieldStories.MinAndMax} />
