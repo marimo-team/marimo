@@ -171,7 +171,7 @@ class TestParseRaw:
         # handle error
         with pytest.raises(ValueError) as e:
             parsed = parse_raw(serialize({"config": "invalid"}), Nested)
-            assert "invalid" in str(e.value)
+        assert "invalid" in str(e.value)
 
     def test_enums(self) -> None:
         @dataclass
@@ -187,7 +187,7 @@ class TestParseRaw:
         # handle error
         with pytest.raises(ValueError) as e:
             parsed = parse_raw(serialize({"config": "invalid"}), Nested)
-            assert "invalid" in str(e.value)
+        assert "invalid" in str(e.value)
 
     def test_discriminated_union(self) -> None:
         @dataclass
@@ -210,7 +210,7 @@ class TestParseRaw:
             parsed = parse_raw(
                 serialize({"config": {"invalid": True}}), Nested
             )
-            assert "invalid" in str(e.value)
+        assert "invalid" in str(e.value)
 
     def test_build_optional(self) -> None:
         @dataclass
