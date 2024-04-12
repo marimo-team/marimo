@@ -47,7 +47,7 @@ async def index(request: Request) -> HTMLResponse:
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
-    with open(index_html, "r") as f:
+    with open(index_html, "r") as f:  # noqa: ASYNC101
         html = f.read()
 
     # Shared configuration

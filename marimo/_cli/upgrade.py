@@ -9,6 +9,7 @@ from packaging import version
 
 from marimo import __version__ as current_version
 from marimo._cli.print import green, orange
+from marimo._server.api.status import HTTPException
 from marimo._utils.config.config import ConfigReader
 
 
@@ -90,11 +91,13 @@ def _update_with_latest_version(state: MarimoCLIState) -> MarimoCLIState:
 
 def _fetch_data_from_url(url: str) -> Dict[str, Any]:
     with urllib.request.urlopen(url) as response:
-        if response.status == 200:
+        status = response.status
+        if status == 200:
             data = response.read()
             encoding = response.info().get_content_charset("utf-8")
             return json.loads(data.decode(encoding))  # type: ignore
         else:
-            raise Exception(
-                f"HTTP request failed with status code {response.status}"
+            raise HTTPException(
+                status_code=status,
+                detail=f"HTTP request failed with status code {status}",
             )

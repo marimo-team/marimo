@@ -119,7 +119,7 @@ def test_fails_on_multiple_connections_with_other_sessions(
     with client.websocket_connect("/ws?session_id=123") as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:
+        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
             with client.websocket_connect(
                 "/ws?session_id=456"
             ) as other_websocket:
@@ -139,7 +139,7 @@ def test_fails_on_multiple_connections_with_same_file(
     with client.websocket_connect(ws_1) as websocket:
         data = websocket.receive_json()
         assert_parse_ready_response(data)
-        with pytest.raises(WebSocketDisconnect) as exc_info:
+        with pytest.raises(WebSocketDisconnect) as exc_info:  # noqa: PT012
             with client.websocket_connect(ws_2) as other_websocket:
                 other_websocket.receive_json()
                 raise AssertionError()
@@ -158,7 +158,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         unsubscribe = session_manager.start_file_watcher()
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
-        with open(filename, "a") as f:
+        with open(filename, "a") as f:  # noqa: ASYNC101
             f.write("\n# test")
             f.close()
         assert session_manager.watcher

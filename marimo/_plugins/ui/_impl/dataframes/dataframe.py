@@ -5,6 +5,8 @@ import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
+from marimo._plugins.ui._impl.dataframes.handlers import TransformsContainer
+from marimo._plugins.ui._impl.dataframes.transforms import Transformations
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -19,9 +21,6 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.parse_dataclass import parse_raw
-
-from .handlers import TransformsContainer
-from .transforms import Transformations
 
 
 @dataclass
@@ -41,6 +40,18 @@ class GetColumnValuesArgs:
 class GetColumnValuesResponse:
     values: List[str | int | float]
     too_many_values: bool
+
+
+class ColumnNotFound(Exception):
+    def __init__(self, column: str):
+        self.column = column
+        super().__init__(f"Column {column} does not exist")
+
+
+class GetDataFrameError(Exception):
+    def __init__(self, error: str):
+        self.error = error
+        super().__init__(error)
 
 
 @mddoc
@@ -131,7 +142,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         LIMIT = 100
 
         if self._error is not None:
-            raise Exception(self._error)
+            raise GetDataFrameError(self._error)
 
         manager = PandasTableManagerFactory.create()(self._value.head(LIMIT))
         url = mo_data.csv(manager.to_csv()).url
@@ -150,7 +161,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         LIMIT = 500
 
         if args.column not in self._data.columns:
-            raise Exception("Column %s does not exist" % args.column)
+            ColumnNotFound(args.column)
 
         # We get the unique values from the original dataframe, not the
         # transformed one

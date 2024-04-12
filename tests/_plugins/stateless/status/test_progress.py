@@ -35,7 +35,7 @@ def test_progress_init() -> None:
 
 # Test update_progress method
 @patch("marimo._runtime.output._output.flush")
-def test_update_progress(_mock_flush: Any) -> None:
+def test_update_progress(mock_flush: Any) -> None:
     progress = _Progress(
         title="Test",
         subtitle="Running",
@@ -57,11 +57,12 @@ def test_update_progress(_mock_flush: Any) -> None:
     eta = progress._get_eta()
     assert eta is not None
     assert eta > 0.0
+    mock_flush.assert_called_once()
 
 
 # Test update_progress without arguments
 @patch("marimo._runtime.output._output.flush")
-def test_update_progress_no_args(_mock_flush: Any) -> None:
+def test_update_progress_no_args(mock_flush: Any) -> None:
     progress = _Progress(
         title="Test",
         subtitle="Running",
@@ -79,11 +80,12 @@ def test_update_progress_no_args(_mock_flush: Any) -> None:
     assert rate is None
     eta = progress._get_eta()
     assert eta is None
+    mock_flush.assert_called_once()
 
 
 # Test update_progress with closed progress
 @patch("marimo._runtime.output._output.flush")
-def test_update_progress_closed(_mock_flush: Any) -> None:
+def test_update_progress_closed(mock_flush: Any) -> None:
     progress = _Progress(
         title="Test",
         subtitle="Running",
@@ -95,3 +97,4 @@ def test_update_progress_closed(_mock_flush: Any) -> None:
     assert progress.closed is True
     with pytest.raises(RuntimeError):
         progress.update_progress()
+    mock_flush.assert_called_once()

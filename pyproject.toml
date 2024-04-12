@@ -159,23 +159,7 @@ ignore = [
     "TCH001", # Move application import into a type-checking block
     "D301", # Use r""" if any backslashes in a docstring
     # TODO: we should fix these, and enable this rule
-    "TRY002", # Create your own exception
-    # TODO: we should fix these, and enable this rule
-    "TID252", # Prefer absolute imports over relative imports
-    # TODO: we should fix these, and enable this rule
-    "ISC003", # Explicitly concatenated string should be implicitly concatenated
-    # TODO: we should fix these, and enable this rule
-    "ASYNC101", # Async functions should not call `open`, `time.sleep`, or `subprocess` methods
-    # TODO: we should fix these, and enable this rule
-    "PGH004", # Use specific rule codes when using `noqa`
-    # TODO: we should fix these, and enable this rule
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
-    # TODO: we should fix these, and enable this rule
-    "PT019", # Fixture without value is injected as parameter, use `@pytest.mark.usefixtures` instead
-    # TODO: we should fix these, and enable this rule
-    "PT017", # Found assertion on exception `e` in `except` block, use `pytest.raises()` instead
-    # TODO: we should fix these, and enable this rule
-    "PT012", # `pytest.raises()` block should contain a single simple statement
 ]
 extend-select = [
     # pyflakes
