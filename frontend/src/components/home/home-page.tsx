@@ -67,7 +67,7 @@ export const HomePage: React.FC = () => {
 
   const runningNotebooks = new Map(
     running.files.flatMap((file) =>
-      file.sessionId ? [[file.path, file.sessionId]] : [],
+      file.initializationId ? [[file.path, file.initializationId]] : [],
     ),
   );
 
@@ -108,8 +108,13 @@ export const HomePage: React.FC = () => {
 
 const NotebookList: React.FC<{
   header: string;
-  files: Array<{ name: string; path: string; sessionId?: string }>;
-  runningNotebooks: Map<string, SessionId>;
+  files: Array<{
+    name: string;
+    path: string;
+    sessionId?: string;
+    initializationId?: string;
+  }>;
+  runningNotebooks: Map<string, string>;
   setRunningNotebooks: (data: RunningNotebooksResponse) => void;
 }> = ({ header, files, runningNotebooks, setRunningNotebooks }) => {
   const { openConfirm, closeModal } = useImperativeModal();
@@ -127,9 +132,11 @@ const NotebookList: React.FC<{
         "
       >
         {files.map((file) => {
+          // If path is a sessionId, then it has not been saved yet
+          // We want to keep the sessionId in this case
           const isNewNotebook = isSessionId(file.path);
           const href = isNewNotebook
-            ? `/?file=__new__&session_id=${file.path}`
+            ? `/?file=${file.initializationId}&session_id=${file.path}`
             : `/?file=${file.path}`;
 
           return (
@@ -137,7 +144,7 @@ const NotebookList: React.FC<{
               className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
               key={file.path}
               href={href}
-              target={tabTarget(file.path)}
+              target={tabTarget(file.initializationId || file.path)}
             >
               <div className="flex flex-col justify-between">
                 <span>{file.name}</span>
@@ -221,14 +228,15 @@ const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const CreateNewNotebook: React.FC = () => {
   const sessionId = generateSessionId();
+  const initializationId = `__new__${sessionId}`;
   return (
     <a
       className="relative rounded-lg p-6 group
       text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
       transition-all duration-300 cursor-pointer
       "
-      href={`/?file=__new__&session_id=${sessionId}`}
-      target={tabTarget(sessionId)}
+      href={`/?file=${initializationId}`}
+      target={tabTarget(initializationId)}
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">

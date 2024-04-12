@@ -15,6 +15,9 @@ class MarimoFile:
     last_modified: float
     # Session id
     session_id: Optional[SessionId] = None
+    # Session initialization id
+    # This is the ID for when the session was initialized
+    initialization_id: Optional[str] = None
 
 
 @dataclass

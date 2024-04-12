@@ -256,7 +256,7 @@ class WebsocketHandler(SessionConsumer):
             existing_session = mgr.get_session(session_id)
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
-                await self._reconnect_session(existing_session, replay=False)
+                await self._reconnect_session(existing_session, replay=True)
                 return existing_session
 
             # 2. Handle resume

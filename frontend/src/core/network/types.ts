@@ -177,6 +177,7 @@ interface MarimoNotebook {
   path: string;
   lastModified?: number;
   sessionId?: SessionId;
+  initializationId?: string;
 }
 
 export interface RecentFilesResponse {

@@ -65,9 +65,11 @@ def _get_active_sessions(app_state: AppState) -> List[MarimoFile]:
                     path=(pretty_path(filename) if filename else session_id),
                     last_modified=0,
                     session_id=session_id,
+                    initialization_id=session.initialization_id,
                 )
             )
-    return files
+    # These are better in reverse
+    return files[::-1]
 
 
 @router.post("/running_notebooks")
