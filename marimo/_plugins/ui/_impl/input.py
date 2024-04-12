@@ -910,7 +910,6 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
 @dataclass
 class ListDirectoryArgs:
     path: str
-    filetypes: Optional[Sequence[str]]
 
 
 @dataclass
@@ -965,6 +964,8 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         label: str = "",
         on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
     ) -> None:
+        self.filetypes = filetypes
+
         if not initial_path:
             initial_path = os.getcwd()
 
@@ -995,8 +996,8 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         for file in files_in_path:
             _, extension = os.path.splitext(file.name)
 
-            if args.filetypes and not file.is_directory:
-                if extension not in args.filetypes:
+            if self.filetypes and not file.is_directory:
+                if extension not in self.filetypes:
                     continue
 
             files.append(file)

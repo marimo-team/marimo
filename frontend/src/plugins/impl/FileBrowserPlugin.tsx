@@ -5,26 +5,31 @@ import { createPlugin } from "../core/builder";
 import { useState } from "react";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { rpc } from "../core/rpc";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { NativeSelect } from "@/components/ui/native-select";
+import {
+  FILE_TYPE_ICONS,
+  FileType,
+  guessFileType,
+} from "@/components/editor/file-tree/types";
+import { renderHTML } from "../core/RenderHTML";
 
 /**
  * Arguments for a file browser component.
- *
- * @param initialPath - the path to display on component render
- * @param filetypes - filter directory lists by file types
- * @param multiple - whether to allow the user to select multiple files
- * @param label - label for the file browser
- * @param restrictNavigation - whether to prevent the user from accessing
- * directories outside the set path
  */
 interface Data {
+  /** @param initialPath - the path to display on component render */
   initialPath: string;
+  /** @param filetypes - filter directory lists by file types */
   filetypes: string[];
+  /** @param multiple - whether to allow the user to select multiple files */
   multiple: boolean;
+  /** @param label - label for the file browser */
   label: string | null;
+  /**
+   * @param restrictNavigation - whether to prevent the user from accessing
+   * directories outside the initial path
+   */
   restrictNavigation: boolean;
 }
 
@@ -45,7 +50,7 @@ interface FileInfo {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  list_directory: (req: { path: string; filetypes: string[] }) => Promise<{
+  list_directory: (req: { path: string }) => Promise<{
     files: FileInfo[];
   }>;
 };
@@ -67,7 +72,6 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
       .input(
         z.object({
           path: z.string(),
-          filetypes: z.array(z.string()),
         }),
       )
       .output(
@@ -106,7 +110,6 @@ export const FileBrowser = ({
   value,
   setValue,
   initialPath,
-  filetypes,
   multiple,
   label,
   restrictNavigation,
@@ -118,14 +121,9 @@ export const FileBrowser = ({
     () =>
       list_directory({
         path: path,
-        filetypes: filetypes,
       }),
     [path],
   );
-
-  if (loading && !data) {
-    return null;
-  }
 
   if (error) {
     console.error(error);
@@ -134,6 +132,10 @@ export const FileBrowser = ({
       description: error.message,
       variant: "danger",
     });
+  }
+
+  if (loading && !data) {
+    return null;
   }
 
   let { files } = data || {};
@@ -198,17 +200,21 @@ export const FileBrowser = ({
     }
   };
 
+  // Create rows for directories and files
   const fileRows = [];
 
   // Parent directory ".." row button
   fileRows.push(
-    <TableRow key={"Parent directory"} onClick={() => setNewPath("..")}>
+    <TableRow
+      className="hover:bg-primary hover:bg-opacity-25"
+      key={"Parent directory"}
+      onClick={() => setNewPath("..")}
+    >
       <TableCell className="w-1/12" />
       <TableCell className="w-11/12">..</TableCell>
     </TableRow>,
   );
 
-  // Create rows for directories and files
   for (const file of files) {
     let filePath = path;
     if (!path.endsWith("/")) {
@@ -216,16 +222,31 @@ export const FileBrowser = ({
     }
     filePath += file.name;
 
+    // Click handler
     const handleClick = file.is_directory ? setNewPath : selectFile;
 
+    // Table row styles
+    const isSelected = selectedPaths.has(filePath);
+
+    const tableRowStyles = isSelected
+      ? "bg-primary bg-opacity-25 hover:bg-primary hover:bg-opacity-50"
+      : "hover:bg-primary hover:bg-opacity-25";
+
+    // Icon
+    const fileType: FileType = file.is_directory
+      ? "directory"
+      : guessFileType(file.name);
+
+    const Icon = FILE_TYPE_ICONS[fileType];
+
     fileRows.push(
-      <TableRow key={file.id} onClick={() => handleClick(filePath, file.name)}>
+      <TableRow
+        key={file.id}
+        className={tableRowStyles}
+        onClick={() => handleClick(filePath, file.name)}
+      >
         <TableCell className="w-1/12">
-          {file.is_directory ? (
-            <Folder size={16} className="ml-2" />
-          ) : (
-            <Checkbox className="ml-2" checked={selectedPaths.has(filePath)} />
-          )}
+          <Icon size={16} className="ml-2" />
         </TableCell>
         <TableCell className="w-11/12">{file.name}</TableCell>
       </TableRow>,
@@ -243,10 +264,12 @@ export const FileBrowser = ({
 
   parentDirectories.reverse();
 
+  label = label ?? "Browse and select file(s)...";
+
   return (
     <section>
       <span className="markdown">
-        <strong>{label ?? "Browse and select file(s)..."}</strong>
+        <strong>{renderHTML({ html: label })}</strong>
       </span>
       <NativeSelect
         className="mt-3 w-full"
@@ -261,7 +284,7 @@ export const FileBrowser = ({
         ))}
       </NativeSelect>
       <div
-        className="mt-2 overflow-y-auto w-full border"
+        className="mt-3 overflow-y-auto w-full border"
         style={{ height: "14rem" }}
       >
         <Table className="cursor-pointer table-fixed">{fileRows}</Table>
