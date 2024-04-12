@@ -58,7 +58,7 @@ from marimo._server.models.models import (
     SaveRequest,
 )
 from marimo._snippets.snippets import read_snippets
-from marimo._utils.formatter import BlackFormatter
+from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -230,7 +230,7 @@ class PyodideBridge:
 
     def format(self, request: str) -> str:
         parsed = parse_raw(json.loads(request), FormatRequest)
-        formatter = BlackFormatter(line_length=parsed.line_length)
+        formatter = DefaultFormatter(line_length=parsed.line_length)
 
         response = FormatResponse(codes=formatter.format(parsed.codes))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
