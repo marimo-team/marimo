@@ -73,54 +73,58 @@ const SliderComponent = ({
     setInternalValue(value);
   }, [value]);
 
-  return (
-    <div className={fullWidth ? "my-3" : ""}>
-      <Labeled
-        label={label}
-        id={id}
-        align={orientation === "horizontal" ? "left" : "top"}
-        fullWidth={fullWidth}
+  const sliderElement = (
+    <Labeled
+      label={label}
+      id={id}
+      align={orientation === "horizontal" ? "left" : "top"}
+      fullWidth={fullWidth}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-2",
+          orientation === "vertical" &&
+            "items-end inline-flex justify-center self-center mx-2",
+        )}
       >
-        <div
+        <Slider
+          id={id}
           className={cn(
-            "flex items-center gap-2",
-            orientation === "vertical" &&
-              "items-end inline-flex justify-center self-center mx-2",
+            "relative flex items-center select-none",
+            !fullWidth && "data-[orientation=horizontal]:w-36 ",
+            "data-[orientation=vertical]:h-36",
           )}
-        >
-          <Slider
-            id={id}
-            className={cn(
-              "relative flex items-center select-none",
-              !fullWidth && "data-[orientation=horizontal]:w-36 ",
-              "data-[orientation=vertical]:h-36",
-            )}
-            value={[internalValue]}
-            min={start}
-            max={stop}
-            step={step}
-            orientation={orientation}
-            // Triggered on all value changes
-            onValueChange={([nextValue]) => {
-              setInternalValue(nextValue);
-              if (!debounce) {
-                setValue(nextValue);
-              }
-            }}
-            // Triggered on mouse up
-            onValueCommit={([nextValue]) => {
-              if (debounce) {
-                setValue(nextValue);
-              }
-            }}
-          />
-          {showValue && (
-            <div className="text-xs text-muted-foreground min-w-[16px]">
-              {prettyNumber(internalValue)}
-            </div>
-          )}
-        </div>
-      </Labeled>
-    </div>
+          value={[internalValue]}
+          min={start}
+          max={stop}
+          step={step}
+          orientation={orientation}
+          // Triggered on all value changes
+          onValueChange={([nextValue]) => {
+            setInternalValue(nextValue);
+            if (!debounce) {
+              setValue(nextValue);
+            }
+          }}
+          // Triggered on mouse up
+          onValueCommit={([nextValue]) => {
+            if (debounce) {
+              setValue(nextValue);
+            }
+          }}
+        />
+        {showValue && (
+          <div className="text-xs text-muted-foreground min-w-[16px]">
+            {prettyNumber(internalValue)}
+          </div>
+        )}
+      </div>
+    </Labeled>
+  );
+
+  return fullWidth ? (
+    <div className="my-3">{sliderElement}</div>
+  ) : (
+    sliderElement
   );
 };
