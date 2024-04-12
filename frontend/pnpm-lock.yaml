@@ -356,7 +356,7 @@ devDependencies:
     specifier: ^8.0.5
     version: 8.0.8(react@18.2.0)
   '@storybook/blocks':
-    specifier: ^8.0.5
+    specifier: ^8.0.8
     version: 8.0.8(@types/react@18.2.74)(react-dom@18.2.0)(react@18.2.0)
   '@storybook/react':
     specifier: ^8.0.5
