@@ -8,6 +8,7 @@ import { DatePickerPlugin } from "./impl/DatePickerPlugin";
 import { DictPlugin } from "./impl/DictPlugin";
 import { DropdownPlugin } from "./impl/DropdownPlugin";
 import { FileUploadPlugin } from "./impl/FileUploadPlugin";
+import { FileBrowserPlugin } from "./impl/FileBrowserPlugin";
 import { FormPlugin } from "./impl/FormPlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
 import { NumberPlugin } from "./impl/NumberPlugin";
@@ -49,6 +50,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new CodeEditorPlugin(),
   new DropdownPlugin(),
   new FileUploadPlugin(),
+  FileBrowserPlugin,
   FormPlugin,
   new MicrophonePlugin(),
   new MultiselectPlugin(),

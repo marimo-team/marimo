@@ -4,11 +4,13 @@ from __future__ import annotations
 import base64
 import dataclasses
 import datetime as dt
+import os
 import traceback
 from dataclasses import dataclass
 from typing import (
     Any,
     Callable,
+    Dict,
     Final,
     List,
     Literal,
@@ -25,6 +27,8 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import S as JSONTypeBound, UIElement
 from marimo._runtime.functions import Function
+from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.models.files import FileInfo
 
 LOGGER = _loggers.marimo_logger()
 
@@ -896,6 +900,132 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
             return None
         else:
             return self.value[index].contents
+
+
+@dataclass
+class ListDirectoryArgs:
+    path: str
+
+
+@dataclass
+class ListDirectoryResponse:
+    files: List[FileInfo]
+
+
+@mddoc
+class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
+    """
+    File browser for browsing and selecting server-side files.
+
+    **Examples.**
+
+    Selecting multiple files:
+
+    ```python
+    file_browser = mo.ui.file_browser(path="path/to/dir", multiple=True)
+
+    # Access the selected file path(s):
+    file_browser.value[index]
+
+    # Or:
+    file_browser.path(index)
+    ```
+
+    **Attributes.**
+
+    - `value`: a sequence of file paths representing selected files.
+
+    **Initialization Args.**
+
+    - `initial_path`: the directory to start from.
+    - `filetypes`: the file types to display in each directory; for example,
+       `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
+    - `multiple`: if True, allow the user to select multiple files.
+    - `restrict_navigation`: if True, prevent the user from navigating
+       any level above the given path.
+    - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
+    """
+
+    _name: Final[str] = "marimo-file-browser"
+
+    def __init__(
+        self,
+        initial_path: str = "",
+        filetypes: Optional[Sequence[str]] = None,
+        multiple: bool = True,
+        restrict_navigation: bool = False,
+        *,
+        label: str = "",
+        on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
+    ) -> None:
+        self.filetypes = filetypes
+
+        if not initial_path:
+            initial_path = os.getcwd()
+
+        super().__init__(
+            component_name=file_browser._name,
+            initial_value=[],
+            label=label,
+            args={
+                "initial-path": initial_path,
+                "filetypes": filetypes if filetypes is not None else [],
+                "multiple": multiple,
+                "restrict-navigation": restrict_navigation,
+            },
+            functions=(
+                Function(
+                    name=self.list_directory.__name__,
+                    arg_cls=ListDirectoryArgs,
+                    function=self.list_directory,
+                ),
+            ),
+            on_change=on_change,
+        )
+
+    def list_directory(self, args: ListDirectoryArgs) -> ListDirectoryResponse:
+        files = []
+        files_in_path = OSFileSystem().list_files(args.path)
+
+        for file in files_in_path:
+            _, extension = os.path.splitext(file.name)
+
+            if self.filetypes and not file.is_directory:
+                if extension not in self.filetypes:
+                    continue
+
+            files.append(file)
+
+        return ListDirectoryResponse(files)
+
+    def _convert_value(
+        self, value: list[Dict[str, Any]]
+    ) -> Sequence[FileInfo]:
+        return tuple(
+            FileInfo(
+                id=file["id"],
+                name=file["name"],
+                path=file["path"],
+                is_directory=file["is_directory"],
+                is_marimo_file=file["is_marimo_file"],
+            )
+            for file in value
+        )
+
+    def name(self, index: int = 0) -> Optional[str]:
+        """Get file name at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].name
+
+    def path(self, index: int = 0) -> Optional[str]:
+        """Get file path at index."""
+        if not self.value or index >= len(self.value):
+            return None
+        else:
+            return self.value[index].path
 
 
 @mddoc

@@ -16,6 +16,7 @@
   dictionary
   dropdown
   file
+  file_browser
   form
   microphone
   multiselect
@@ -49,6 +50,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.dictionary
   marimo.ui.dropdown
   marimo.ui.file
+  marimo.ui.file_browser
   marimo.ui.form
   marimo.ui.microphone
   marimo.ui.multiselect
