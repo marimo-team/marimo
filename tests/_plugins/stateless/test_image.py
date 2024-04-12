@@ -111,7 +111,7 @@ async def test_image_numpy(k: Kernel, exec_req: ExecReqProvider) -> None:
 async def test_image_local_file(k: Kernel, exec_req: ExecReqProvider) -> None:
     # Just opens a file that exists, and make sure it gets registered
     # in the virtual path registry
-    with open(__file__, encoding="utf-8") as f:
+    with open(__file__, encoding="utf-8") as f:  # noqa: ASYNC101
         await k.run(
             [
                 exec_req.get(

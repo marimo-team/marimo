@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import abc
 import shutil
+import subprocess
 
 
 class PackageManager(abc.ABC):
@@ -31,6 +32,10 @@ class PackageManager(abc.ABC):
         Returns True if installation succeeded, else False.
         """
         ...
+
+    def run(self, command: list[str]) -> bool:
+        proc = subprocess.run(command)  # noqa: ASYNC101
+        return proc.returncode == 0
 
 
 class CanonicalizingPackageManager(PackageManager):

@@ -42,6 +42,7 @@ from marimo._runtime.requests import (
     SerializedQueryParams,
     SetUIElementValueRequest,
 )
+from marimo._server.exceptions import InvalidSessionException
 from marimo._server.file_manager import (
     AppFileManager,
 )
@@ -500,7 +501,9 @@ class SessionManager:
         if len(sessions_with_the_same_file) == 0:
             return None
         if len(sessions_with_the_same_file) > 1:
-            raise Exception("Only one session should exist while editing")
+            raise InvalidSessionException(
+                "Only one session should exist while editing"
+            )
 
         (session_id, session) = next(iter(sessions_with_the_same_file.items()))
         connection_state = session.connection_state()

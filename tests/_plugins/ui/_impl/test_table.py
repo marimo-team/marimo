@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.runtime import Kernel
@@ -76,18 +78,15 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
 
     # Test with invalid data type
     data2: Any = "invalid data type"
-    try:
+    with pytest.raises(ValueError) as e:
         _normalize_data(data2)
-    except ValueError as e:
-        assert str(e) == "data must be a list or tuple or a dict of lists."
+    assert str(e.value) == "data must be a list or tuple or a dict of lists."
 
     # Test with invalid data structure
     data3: Any = [set([1, 2, 3])]
-    try:
+    with pytest.raises(ValueError) as e:
         _normalize_data(data3)
-    except ValueError as e:
-        assert (
-            str(e)
-            == "data must be a sequence of JSON-serializable types, or a "
-            + "sequence of dicts."
-        )
+    assert (
+        str(e.value) == "data must be a sequence of JSON-serializable types, "
+        "or a sequence of dicts."
+    )

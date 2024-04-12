@@ -200,9 +200,9 @@ def test_save_file_cannot_rename(client: TestClient) -> None:
                 ],
             },
         )
-        assert response.value.status_code == 400
-        assert response.value.detail
-        assert "cannot rename" in response.value.detail
+    assert response.value.status_code == 400
+    assert response.value.detail
+    assert "cannot rename" in response.value.detail
 
 
 @with_session(SESSION_ID)

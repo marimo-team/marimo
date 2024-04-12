@@ -83,11 +83,11 @@ class TestApp:
 
         @app.cell
         def one():
-            x = y  # noqa
+            x = y  # noqa: F841, F821
 
         @app.cell
         def two():
-            y = x  # noqa
+            y = x  # noqa: F841, F821
 
         with pytest.raises(CycleError):
             app.run()
@@ -115,11 +115,11 @@ class TestApp:
 
         @app.cell
         def one():
-            x = 0  # noqa
+            x = 0  # noqa: F841
 
         @app.cell
         def two():
-            x = 0  # noqa
+            x = 0  # noqa: F841
 
         with pytest.raises(MultipleDefinitionError):
             app.run()
@@ -130,11 +130,11 @@ class TestApp:
 
         @app.cell
         def one():
-            x = 0  # noqa
+            x = 0  # noqa: F841
 
         @app.cell
         def two():
-            del x  # noqa
+            del x  # noqa: F841, F821
 
         with pytest.raises(DeleteNonlocalError):
             app.run()

@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+import pytest
+
 from marimo._server.api.utils import parse_title, require_header
 
 
@@ -9,21 +11,18 @@ def test_require_header() -> None:
         require_header(header) == "Content-Type"
     ), "The function should return the single header value"
 
-    try:
+    with pytest.raises(ValueError) as e:
         require_header(None)
-        raise AssertionError()
-    except ValueError as e:
-        assert str(e) == "Expected exactly one value in header, got None"
+    assert str(e.value) == "Expected exactly one value in header, got None"
 
     # Test case 3: ValueError is raised when an empty list is passed as the
     # header
-    try:
+    with pytest.raises(ValueError) as e:
         require_header([])
-        raise AssertionError()
-    except ValueError as e:
-        assert (
-            str(e) == "Expected exactly one value in header, got 0 values: []"
-        )
+    assert (
+        str(e.value)
+        == "Expected exactly one value in header, got 0 values: []"
+    )
 
 
 # The function to be tested

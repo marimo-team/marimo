@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from typing import TYPE_CHECKING, Any, List, NoReturn, cast
 
-from .transforms import (
+from marimo._plugins.ui._impl.dataframes.transforms import (
     AggregateTransform,
     ColumnConversionTransform,
     FilterRowsTransform,

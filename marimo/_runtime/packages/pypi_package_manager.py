@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import subprocess
-
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
@@ -21,7 +19,7 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
 
     async def install(self, package: str) -> bool:
-        return subprocess.run(["pip", "install", package]).returncode == 0
+        return self.run(["pip", "install", package])
 
 
 class MicropipPackageManager(PypiPackageManager):
@@ -45,20 +43,18 @@ class UvPackageManager(PypiPackageManager):
     name = "uv"
 
     async def install(self, package: str) -> bool:
-        return (
-            subprocess.run(["uv", "pip", "install", package]).returncode == 0
-        )
+        return self.run(["uv", "pip", "install", package])
 
 
 class RyePackageManager(PypiPackageManager):
     name = "rye"
 
     async def install(self, package: str) -> bool:
-        return subprocess.run(["rye", "add", package]).returncode == 0
+        return self.run(["rye", "add", package])
 
 
 class PoetryPackageManager(PypiPackageManager):
     name = "poetry"
 
     async def install(self, package: str) -> bool:
-        return subprocess.run(["poetry", "add", package]).returncode == 0
+        return self.run(["poetry", "add", package])
