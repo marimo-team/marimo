@@ -146,6 +146,8 @@ class slider(UIElement[Numeric, Numeric]):
     - `show_value`: whether to display the current value of the slider
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
+    - `full_width`: whether the input should take up the full width of its
+        container
     """
 
     _name: Final[str] = "marimo-slider"
@@ -162,6 +164,7 @@ class slider(UIElement[Numeric, Numeric]):
         *,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
+        full_width: bool = False,
     ) -> None:
         self._dtype = (
             float
@@ -201,6 +204,7 @@ class slider(UIElement[Numeric, Numeric]):
                 "debounce": debounce,
                 "orientation": orientation,
                 "show-value": show_value,
+                "full-width": full_width,
             },
             on_change=on_change,
         )
