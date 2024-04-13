@@ -259,7 +259,9 @@ def append_obj(
     name: str,
     obj: object,
 ) -> bool:
-    in_module = hasattr(obj, "__module__") and obj.__module__ == module.__name__
+    in_module = (
+        hasattr(obj, "__module__") and obj.__module__ == module.__name__
+    )
     if not in_module:
         return False
 

@@ -71,14 +71,13 @@ from marimo._runtime import (
     marimo_pdb,
     patches,
 )
-from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.watch_modules import watch_modules
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
     get_context,
     get_global_context,
     initialize_context,
+    runtime_context_installed,
 )
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
@@ -88,6 +87,8 @@ from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
+from marimo._runtime.reload.autoreload import ModuleReloader
+from marimo._runtime.reload.watch_modules import watch_modules
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -321,7 +322,6 @@ class Kernel:
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
         autoreload = config["runtime"]["auto_reload"]
-        current_autoreload_policy = self.user_config["runtime"]["auto_reload"]
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
@@ -329,16 +329,16 @@ class Kernel:
             self.package_manager = create_package_manager(package_manager)
 
         if autoreload == "imperative":
-            if current_autoreload_policy == "off":
+            if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
-            elif current_autoreload_policy == "reactive":
-                # TODO: disable module watcher
-                ...
+            # TODO: disable module watcher
         elif autoreload == "reactive":
-            if current_autoreload_policy == "off":
+            if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
-                self.start_module_watcher()
-            elif current_autoreload_policy == "imperative":
+            # TODO check module watcher is not started
+            if runtime_context_installed():
+                # requires that the context has been initialized, which
+                # isn't true at Kernel construction
                 self.start_module_watcher()
         else:
             self.module_reloader = None
@@ -390,7 +390,9 @@ class Kernel:
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
-                    self.module_reloader.check(modules=sys.modules, reload=True)
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=True
+                    )
                     CellOp(cell_id, stale_modules=False).broadcast()
                 yield self.execution_context
             finally:
@@ -510,7 +512,9 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = self.module_registry.missing_modules()
+        missing_modules_before_deletion = (
+            self.module_registry.missing_modules()
+        )
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -610,7 +614,9 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
+            old_children, error = self._maybe_register_cell(
+                er.cell_id, er.code
+            )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -681,7 +687,8 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation
+            - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -704,7 +711,8 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation
+            - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -1017,7 +1025,9 @@ class Kernel:
                 )
             )
 
-    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
+    async def run(
+        self, execution_requests: Sequence[ExecutionRequest]
+    ) -> None:
         """Run cells and their descendants.
 
 
@@ -1084,7 +1094,9 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
+                LOGGER.debug(
+                    "Could not resolve UIElement with id%s", object_id
+                )
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1433,8 +1445,8 @@ def launch_kernel(
         kernel.start_completion_worker(completion_queue)
 
         # TODO check config first
-        if user_config["runtime"]["auto_reload"]:
-            kernel.start_module_watcher()
+        # if user_config["runtime"]["auto_reload"]:
+        kernel.start_module_watcher()
 
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters

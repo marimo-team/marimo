@@ -1,10 +1,11 @@
+# Copyright 2024 Marimo. All rights reserved.
 import sys
 import time
 import types
 from modulefinder import ModuleFinder
+
 from marimo._ast.cell import CellId_t
 from marimo._messaging.ops import CellOp
-
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -56,12 +57,13 @@ def check_modules(
     return stale_modules
 
 
-def watch_modules(graph: dataflow.DirectedGraph) -> None:
+def watch_modules(graph: dataflow.DirectedGraph, stream: Stream) -> None:
+    # TODO: make cancellable
     reloader = ModuleReloader()
     failed_filenames: set[str] = set()
     while True:
         # Collect the modules used by the graph
-        time.sleep(5)
+        time.sleep(1)
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
@@ -80,4 +82,6 @@ def watch_modules(graph: dataflow.DirectedGraph) -> None:
                 modname_to_cell_id[modname] for modname in stale_modules
             ]
             for cid in stale_cell_ids:
-                CellOp.broadcast_stale_modules(cell_id=cid, stale=True)
+                CellOp(cell_id=cid, stale_modules=True).broadcast(
+                    stream=stream
+                )

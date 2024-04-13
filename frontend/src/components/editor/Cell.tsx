@@ -146,7 +146,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>
+  ref: React.ForwardedRef<CellHandle>,
 ) => {
   useCellRenderCount().countRender();
 
@@ -160,7 +160,7 @@ const CellComponent = (
   const loading = status === "running" || status === "queued";
   const outputStale = outputIsStale(
     { status, output, runStartTimestamp, interrupted },
-    edited
+    edited,
   );
 
   // console output is cleared immediately on run, so check for queued instead
@@ -189,7 +189,7 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects]
+    [editorView, prepareToRunEffects],
   );
 
   // Callback to get the editor view.
@@ -211,11 +211,11 @@ const CellComponent = (
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -259,7 +259,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView]
+    [cellRef, editorView],
   );
 
   const outputArea = (

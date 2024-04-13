@@ -62,6 +62,7 @@ CellStatusType = Literal[
     "idle", "queued", "running", "stale", "disabled-transitively"
 ]
 
+
 @dataclasses.dataclass
 class CellStatus:
     state: Optional[CellStatusType] = None
@@ -264,7 +265,8 @@ class Cell:
     def run(
         self, **refs: Any
     ) -> (
-        tuple[Any, Mapping[str, Any]] | Awaitable[tuple[Any, Mapping[str, Any]]]
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
         """Run this cell and return its visual output and definitions
 
