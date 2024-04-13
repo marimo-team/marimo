@@ -3,6 +3,7 @@ import time
 import types
 from modulefinder import ModuleFinder
 from marimo._ast.cell import CellId_t
+from marimo._messaging.ops import CellOp
 
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
@@ -55,10 +56,7 @@ def check_modules(
     return stale_modules
 
 
-def watch_modules(
-    graph: dataflow.DirectedGraph,
-    stream: Stream,
-) -> None:
+def watch_modules(graph: dataflow.DirectedGraph) -> None:
     reloader = ModuleReloader()
     failed_filenames: set[str] = set()
     while True:
@@ -78,7 +76,8 @@ def watch_modules(
             failed_filenames=failed_filenames,
         )
         if stale_modules:
-            stale_cells = [
+            stale_cell_ids = [
                 modname_to_cell_id[modname] for modname in stale_modules
             ]
-            # TODO: tell FE that these cells are stale
+            for cid in stale_cell_ids:
+                CellOp.broadcast_stale_modules(cell_id=cid, stale=True)

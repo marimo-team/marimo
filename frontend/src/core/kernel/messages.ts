@@ -101,6 +101,10 @@ export interface CellMessage {
    */
   status: CellStatus | null;
   /**
+   * Transition in module state.
+   */
+  stale_modules: boolean | null;
+  /**
    * Timestamp in seconds since epoch, when the message was sent
    */
   timestamp: Seconds;

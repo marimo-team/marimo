@@ -391,6 +391,7 @@ class Kernel:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
                     self.module_reloader.check(modules=sys.modules, reload=True)
+                    CellOp(cell_id, stale_modules=False).broadcast()
                 yield self.execution_context
             finally:
                 self.execution_context = None

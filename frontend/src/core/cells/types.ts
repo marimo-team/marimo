@@ -51,6 +51,7 @@ export function createCellRuntimeState(): CellRuntimeState {
     output: null,
     consoleOutputs: [],
     status: "idle",
+    staleModules: false,
     interrupted: false,
     errored: false,
     stopped: false,
@@ -88,6 +89,8 @@ export interface CellRuntimeState {
   consoleOutputs: OutputMessage[];
   /** current status of the cell */
   status: CellStatus;
+  /** whether the cell has any stale modules */
+  staleModules: boolean;
   /** whether this cell has been interrupted since its last run */
   interrupted: boolean;
   /** whether this cell was stopped with mo.stop */

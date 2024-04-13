@@ -24,7 +24,11 @@ from typing import (
 )
 
 from marimo import _loggers as loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
+from marimo._ast.cell import (
+    CellConfig,
+    CellId_t,
+    CellStatusType,
+)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.errors import Error
@@ -64,6 +68,7 @@ class CellOp(Op):
     output  - a CellOutput
     console - a CellOutput (console msg to append), or a list of CellOutputs
     status  - execution status
+    stale_modules - whether the cell has stale modules
 
     Omitting a field means that its value should be unchanged!
 
@@ -77,6 +82,7 @@ class CellOp(Op):
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[CellStatusType] = None
+    stale_modules: Optional[bool] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     @staticmethod
@@ -206,6 +212,10 @@ class CellOp(Op):
             console=console,
             status=status,
         ).broadcast()
+
+    @staticmethod
+    def broadcast_stale_modules(cell_id: CellId_t, stale: bool) -> None:
+        CellOp(cell_id=cell_id, stale_modules=stale).broadcast()
 
 
 @dataclass
