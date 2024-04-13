@@ -319,16 +319,32 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
-        self.user_config = config
-        package_manager = self.user_config["package_management"]["manager"]
-        autoreload = self.user_config["runtime"]["auto_reload"]
+        package_manager = config["package_management"]["manager"]
+        autoreload = config["runtime"]["auto_reload"]
+        current_autoreload_policy = self.user_config["runtime"]["auto_reload"]
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
-        if autoreload and self.module_reloader is None:
-            self.module_reloader = ModuleReloader()
+
+        if autoreload == "imperative":
+            if current_autoreload_policy == "off":
+                self.module_reloader = ModuleReloader()
+            elif current_autoreload_policy == "reactive":
+                # TODO: disable module watcher
+                ...
+        elif autoreload == "reactive":
+            if current_autoreload_policy == "off":
+                self.module_reloader = ModuleReloader()
+                self.start_module_watcher()
+            elif current_autoreload_policy == "imperative":
+                self.start_module_watcher()
+        else:
+            self.module_reloader = None
+            # TODO disable module watcher
+
+        self.user_config = config
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -1411,13 +1427,13 @@ def launch_kernel(
         stream=stream,
     )
 
-
     if is_edit_mode:
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
         # TODO check config first
-        kernel.start_module_watcher()
+        if user_config["runtime"]["auto_reload"]:
+            kernel.start_module_watcher()
 
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters

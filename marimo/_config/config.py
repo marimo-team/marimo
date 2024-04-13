@@ -75,7 +75,7 @@ class RuntimeConfig(TypedDict):
     """
 
     auto_instantiate: bool
-    auto_reload: bool
+    auto_reload: Literal["off", "imperative", "reactive"]
 
 
 @mddoc
@@ -180,7 +180,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},
-    "runtime": {"auto_instantiate": True, "auto_reload": False},
+    "runtime": {"auto_instantiate": True, "auto_reload": "off"},
     "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
