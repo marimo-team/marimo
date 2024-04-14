@@ -89,6 +89,7 @@ def test_session() -> None:
 
     # Instantiate a Session
     session = Session(
+        "test",
         session_consumer,
         queue_manager,
         kernel_manager,
@@ -132,6 +133,7 @@ def test_session_disconnect_reconnect() -> None:
 
     # Instantiate a Session
     session = Session(
+        "test",
         session_consumer,
         queue_manager,
         kernel_manager,

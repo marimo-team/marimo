@@ -68,7 +68,7 @@ class AppFileRouter(abc.ABC):
         """
         Given a key, return an AppFileManager.
         """
-        if key == AppFileRouter.NEW_FILE:
+        if key.startswith(AppFileRouter.NEW_FILE):
             return AppFileManager(None)
 
         for file in self.files:

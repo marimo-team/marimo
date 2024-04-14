@@ -242,6 +242,7 @@ class Session:
     @classmethod
     def create(
         cls,
+        initialization_id: str,
         session_consumer: SessionConsumer,
         mode: SessionMode,
         app_metadata: AppMetadata,
@@ -255,6 +256,7 @@ class Session:
             queue_manager, mode, configs, app_metadata, user_config_manager
         )
         return cls(
+            initialization_id,
             session_consumer,
             queue_manager,
             kernel_manager,
@@ -263,12 +265,17 @@ class Session:
 
     def __init__(
         self,
+        initialization_id: str,
         session_consumer: SessionConsumer,
         queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
     ) -> None:
         """Initialize kernel and client connection to it."""
+        # This is some unique ID that we can use to identify the session
+        # We don't use the session_id because this can change if the
+        # session is resumed
+        self.initialization_id = initialization_id
         self._queue_manager: QueueManager
         self.app_file_manager = app_file_manager
         # This can be optional in case a consumer gets disconnected,
@@ -454,6 +461,7 @@ class SessionManager:
                 self.recents.touch(app_file_manager.path)
 
             self.sessions[session_id] = Session.create(
+                initialization_id=file_key,
                 session_consumer=session_consumer,
                 mode=self.mode,
                 app_metadata=AppMetadata(
@@ -526,7 +534,7 @@ class SessionManager:
 
     def any_clients_connected(self, key: MarimoFileKey) -> bool:
         """Returns True if at least one client has an open socket."""
-        if key == AppFileRouter.NEW_FILE:
+        if key.startswith(AppFileRouter.NEW_FILE):
             return False
 
         for session in self.sessions.values():

@@ -10,7 +10,12 @@ import React, { Suspense, useState } from "react";
 import { Spinner } from "../icons/spinner";
 import { ExternalLinkIcon, PowerOffIcon } from "lucide-react";
 import { ShutdownButton } from "../editor/controls/shutdown-button";
-import { SessionId, getSessionId } from "@/core/kernel/session";
+import {
+  SessionId,
+  generateSessionId,
+  getSessionId,
+  isSessionId,
+} from "@/core/kernel/session";
 import { useInterval } from "@/hooks/useInterval";
 import { cn } from "@/utils/cn";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -62,7 +67,17 @@ export const HomePage: React.FC = () => {
 
   const runningNotebooks = new Map(
     running.files.flatMap((file) =>
-      file.sessionId ? [[file.path, file.sessionId]] : [],
+      file.initializationId && file.sessionId
+        ? [
+            [
+              file.path,
+              {
+                sessionId: file.sessionId,
+                initializationId: file.initializationId,
+              },
+            ],
+          ]
+        : [],
     ),
   );
 
@@ -103,8 +118,19 @@ export const HomePage: React.FC = () => {
 
 const NotebookList: React.FC<{
   header: string;
-  files: Array<{ name: string; path: string; sessionId?: string }>;
-  runningNotebooks: Map<string, SessionId>;
+  files: Array<{
+    name: string;
+    path: string;
+    sessionId?: string;
+    initializationId?: string;
+  }>;
+  runningNotebooks: Map<
+    string,
+    {
+      sessionId: SessionId;
+      initializationId: string;
+    }
+  >;
   setRunningNotebooks: (data: RunningNotebooksResponse) => void;
 }> = ({ header, files, runningNotebooks, setRunningNotebooks }) => {
   const { openConfirm, closeModal } = useImperativeModal();
@@ -119,81 +145,90 @@ const NotebookList: React.FC<{
       <div
         className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden
         max-h-[48rem] overflow-y-auto shadow-sm bg-background
-      "
+        "
       >
-        {files.map((file) => (
-          <a
-            className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
-            key={file.path}
-            href={`/?file=${file.path}`}
-            target={tabTarget(file.path)}
-          >
-            <div className="flex flex-col justify-between">
-              <span>{file.name}</span>
-              <p
-                title={file.path}
-                className="text-sm text-muted-foreground
+        {files.map((file) => {
+          // If path is a sessionId, then it has not been saved yet
+          // We want to keep the sessionId in this case
+          const isNewNotebook = isSessionId(file.path);
+          const href = isNewNotebook
+            ? `/?file=${file.initializationId}&session_id=${file.path}`
+            : `/?file=${file.path}`;
+
+          return (
+            <a
+              className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
+              key={file.path}
+              href={href}
+              target={tabTarget(file.initializationId || file.path)}
+            >
+              <div className="flex flex-col justify-between">
+                <span>{file.name}</span>
+                <p
+                  title={file.path}
+                  className="text-sm text-muted-foreground
                 overflow-hidden whitespace-nowrap overflow-ellipsis
               "
-              >
-                {file.path}
-              </p>
-            </div>
-            <div className="absolute right-16 top-0 bottom-0 flex items-center">
-              {runningNotebooks.has(file.path) && (
-                <Tooltip content="Shutdown">
-                  <Button
-                    size={"xs"}
-                    variant="outline"
-                    className="m-0 opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      openConfirm({
-                        title: "Shutdown",
-                        description:
-                          "This will terminate the Python kernel. You'll lose all data that's in memory.",
-                        variant: "destructive",
-                        confirmAction: (
-                          <AlertDialogDestructiveAction
-                            onClick={(e) => {
-                              const sessionId = runningNotebooks.get(file.path);
-                              assertExists(sessionId);
-                              shutdownSession({ sessionId }).then(
-                                (response) => {
+                >
+                  {file.path}
+                </p>
+              </div>
+              <div className="absolute right-16 top-0 bottom-0 flex items-center">
+                {runningNotebooks.has(file.path) && (
+                  <Tooltip content="Shutdown">
+                    <Button
+                      size={"xs"}
+                      variant="outline"
+                      className="m-0 opacity-80 hover:opacity-100 hover:bg-accent text-destructive border-destructive hover:border-destructive hover:text-destructive bg-background hover:bg-[var(--red-1)]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        openConfirm({
+                          title: "Shutdown",
+                          description:
+                            "This will terminate the Python kernel. You'll lose all data that's in memory.",
+                          variant: "destructive",
+                          confirmAction: (
+                            <AlertDialogDestructiveAction
+                              onClick={(e) => {
+                                const ids = runningNotebooks.get(file.path);
+                                assertExists(ids);
+                                shutdownSession({
+                                  sessionId: ids.sessionId,
+                                }).then((response) => {
                                   setRunningNotebooks(response);
-                                },
-                              );
-                              closeModal();
-                              toast({
-                                description: "Notebook has been shutdown.",
-                              });
-                            }}
-                            aria-label="Confirm Shutdown"
-                          >
-                            Shutdown
-                          </AlertDialogDestructiveAction>
-                        ),
-                      });
-                    }}
-                  >
-                    <PowerOffIcon size={16} />
-                  </Button>
-                </Tooltip>
-              )}
-            </div>
-            <div
-              className={cn(
-                "absolute right-8 top-0 bottom-0 rounded-lg flex items-center justify-center text-muted-foreground text-primary",
-              )}
-            >
-              <ExternalLinkIcon
-                size={24}
-                className="absolute group-hover:opacity-100 opacity-0 transition-all duration-300"
-              />
-            </div>
-          </a>
-        ))}
+                                });
+                                closeModal();
+                                toast({
+                                  description: "Notebook has been shutdown.",
+                                });
+                              }}
+                              aria-label="Confirm Shutdown"
+                            >
+                              Shutdown
+                            </AlertDialogDestructiveAction>
+                          ),
+                        });
+                      }}
+                    >
+                      <PowerOffIcon size={16} />
+                    </Button>
+                  </Tooltip>
+                )}
+              </div>
+              <div
+                className={cn(
+                  "absolute right-8 top-0 bottom-0 rounded-lg flex items-center justify-center text-muted-foreground text-primary",
+                )}
+              >
+                <ExternalLinkIcon
+                  size={24}
+                  className="absolute group-hover:opacity-100 opacity-0 transition-all duration-300"
+                />
+              </div>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -206,15 +241,16 @@ const Header: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const CreateNewNotebook: React.FC = () => {
+  const sessionId = generateSessionId();
+  const initializationId = `__new__${sessionId}`;
   return (
     <a
       className="relative rounded-lg p-6 group
-      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border 
+      text-primary hover:bg-[var(--blue-2)] shadow-smAccent border
       transition-all duration-300 cursor-pointer
       "
-      href={`/?file=__new__`}
-      target="_blank"
-      rel="noreferrer"
+      href={`/?file=${initializationId}`}
+      target={tabTarget(initializationId)}
     >
       <h2 className="text-lg font-semibold">Create a new notebook</h2>
       <div className="group-hover:opacity-100 opacity-0 absolute right-5 top-0 bottom-0 rounded-lg flex items-center justify-center transition-all duration-300">
