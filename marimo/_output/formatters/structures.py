@@ -57,7 +57,9 @@ class StructuresFormatter(FormatterFactory):
                 if all(isinstance(i, matplotlib.artist.Artist) for i in t):
                     figs = [getattr(i, "figure", None) for i in t]
                     if all(f is not None and f == figs[0] for f in figs):
-                        matplotlib_formatter = formatting.get_formatter(figs[0])
+                        matplotlib_formatter = formatting.get_formatter(
+                            figs[0]
+                        )
                         if matplotlib_formatter is not None:
                             return matplotlib_formatter(figs[0])
             try:
