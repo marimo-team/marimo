@@ -88,7 +88,7 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.watch_modules import watch_modules
+from marimo._runtime.reload.watch_modules import ModuleWatcher, watch_modules
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -300,6 +300,7 @@ class Kernel:
         # Load runtime settings from user config
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
+        self.module_watcher = ModuleWatcher(self.graph, self.stream)
         self.user_config = user_config
         self._update_runtime_from_user_config(user_config)
 
@@ -331,18 +332,15 @@ class Kernel:
         if autoreload == "imperative":
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
-            # TODO: disable module watcher
+            self.module_watcher.stop()
         elif autoreload == "reactive":
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
-            # TODO check module watcher is not started
-            if runtime_context_installed():
-                # requires that the context has been initialized, which
-                # isn't true at Kernel construction
-                self.start_module_watcher()
+            if not self.module_watcher.is_running():
+                self.module_watcher.start()
         else:
             self.module_reloader = None
-            # TODO disable module watcher
+            self.module_watcher.stop()
 
         self.user_config = config
 
@@ -357,14 +355,6 @@ class Kernel:
         threading.Thread(
             target=completion_worker,
             args=(completion_queue, self.graph, get_context().stream),
-            daemon=True,
-        ).start()
-
-    def start_module_watcher(self) -> None:
-        """Must be called after context is initialized"""
-        threading.Thread(
-            target=watch_modules,
-            args=(self.graph, get_context().stream),
             daemon=True,
         ).start()
 
@@ -390,9 +380,7 @@ class Kernel:
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                     CellOp(cell_id, stale_modules=False).broadcast()
                 yield self.execution_context
             finally:
@@ -512,9 +500,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -614,9 +600,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -687,8 +671,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -711,8 +694,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -1025,9 +1007,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -1094,9 +1074,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1443,10 +1421,6 @@ def launch_kernel(
     if is_edit_mode:
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
-
-        # TODO check config first
-        # if user_config["runtime"]["auto_reload"]:
-        kernel.start_module_watcher()
 
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters

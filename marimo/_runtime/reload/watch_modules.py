@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+import itertools
 import sys
 import time
+import threading
 import types
 from modulefinder import ModuleFinder
 
@@ -25,11 +27,11 @@ def depends_on(
     finder = ModuleFinder()
     try:
         finder.run_script(src_module.__file__)
-    except Exception:
+    except Exception as e:
         failed_filenames.add(src_module.__file__)
         return False
 
-    for found_module in finder.modules.values():
+    for found_module in itertools.chain([src_module], finder.modules.values()):
         if (
             hasattr(found_module, "__file__")
             and found_module.__file__ in target_filenames
@@ -57,13 +59,14 @@ def check_modules(
     return stale_modules
 
 
-def watch_modules(graph: dataflow.DirectedGraph, stream: Stream) -> None:
-    # TODO: make cancellable
+def watch_modules(
+    graph: dataflow.DirectedGraph, should_exit: threading.Event, stream: Stream
+) -> None:
     reloader = ModuleReloader()
     failed_filenames: set[str] = set()
-    while True:
-        # Collect the modules used by the graph
+    while not should_exit.is_set():
         time.sleep(1)
+        # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
@@ -72,6 +75,7 @@ def watch_modules(graph: dataflow.DirectedGraph, stream: Stream) -> None:
                     if modname in sys.modules:
                         modules[modname] = sys.modules[modname]
                         modname_to_cell_id[modname] = cell_id
+        # If any modules are stale, communicate that to the FE
         stale_modules = check_modules(
             modules=modules,
             reloader=reloader,
@@ -82,6 +86,28 @@ def watch_modules(graph: dataflow.DirectedGraph, stream: Stream) -> None:
                 modname_to_cell_id[modname] for modname in stale_modules
             ]
             for cid in stale_cell_ids:
-                CellOp(cell_id=cid, stale_modules=True).broadcast(
-                    stream=stream
-                )
+                CellOp(cell_id=cid, stale_modules=True).broadcast(stream=stream)
+
+
+class ModuleWatcher:
+    def __init__(self, graph: dataflow.DirectedGraph, stream: Stream) -> None:
+        self.graph = graph
+        self.should_exit = threading.Event()
+        self.stream = stream
+        self.watcher_thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self.should_exit.clear()
+        self.watcher_thread = threading.Thread(
+            target=watch_modules,
+            args=(self.graph, self.should_exit, self.stream),
+            daemon=True,
+        )
+        self.watcher_thread.start()
+
+    def stop(self) -> None:
+        self.should_exit.set()
+        self.watcher_thread = None
+
+    def is_running(self) -> bool:
+        return self.watcher_thread is not None
