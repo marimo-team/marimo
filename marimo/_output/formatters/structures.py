@@ -52,7 +52,7 @@ class StructuresFormatter(FormatterFactory):
                 # line, which typically have identitical figures. Without this
                 # special case, if a plot had (say) 5 lines, it would be shown
                 # 5 times.
-                import matplotlib.artist
+                import matplotlib.artist  # type: ignore
 
                 if all(isinstance(i, matplotlib.artist.Artist) for i in t):
                     figs = [getattr(i, "figure", None) for i in t]
