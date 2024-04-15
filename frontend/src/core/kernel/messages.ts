@@ -6,6 +6,7 @@ import { CellId, UIElementId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";
 import { Seconds } from "@/utils/time";
+import { AppConfig } from "../config/config-schema";
 
 export type OutputChannel =
   | "output"
@@ -214,6 +215,10 @@ export type OperationMessage =
          * The last executed code
          */
         last_executed_code: Record<CellId, string | undefined> | undefined;
+        /**
+         * App config
+         */
+        app_config: AppConfig;
       };
     }
   | {

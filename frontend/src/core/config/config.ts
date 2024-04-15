@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
 import {
   AppConfig,
   UserConfig,
@@ -38,6 +38,10 @@ const appConfigAtom = atom<AppConfig>(parseAppConfig());
  */
 export function useAppConfig() {
   return useAtom(appConfigAtom);
+}
+
+export function useSetAppConfig() {
+  return useSetAtom(appConfigAtom);
 }
 
 export function getAppConfig() {

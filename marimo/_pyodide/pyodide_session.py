@@ -113,6 +113,7 @@ def create_session(
                     resumed=False,
                     ui_values={},
                     last_executed_code={},
+                    app_config=app.config,
                 )
             ),
         )

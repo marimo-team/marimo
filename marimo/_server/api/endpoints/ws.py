@@ -163,6 +163,7 @@ class WebsocketHandler(SessionConsumer):
                         resumed=resumed,
                         ui_values=ui_values,
                         last_executed_code=last_executed_code,
+                        app_config=app.config,
                     )
                 ),
             )

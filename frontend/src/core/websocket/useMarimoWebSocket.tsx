@@ -35,6 +35,7 @@ import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
 import { createWsUrl } from "./createWsUrl";
+import { useSetAppConfig } from "../config/config";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -50,6 +51,7 @@ export function useMarimoWebSocket(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage } = useCellActions();
+  const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { setLayoutData } = useLayoutActions();
   const [connStatus, setConnStatus] = useAtom(connectionAtom);
@@ -72,6 +74,7 @@ export function useMarimoWebSocket(opts: {
           ui_values,
           cell_ids,
           last_executed_code = {},
+          app_config,
         } = msg.data;
 
         // Set the layout, initial codes, cells
@@ -108,6 +111,7 @@ export function useMarimoWebSocket(opts: {
           setLayoutData({ layoutView: layout.type, data: layoutData });
         }
         setCells(cells, layoutState);
+        setAppConfig(app_config);
 
         // If resumed, we don't need to instantiate the UI elements,
         // and we should read in th existing values from the kernel.
