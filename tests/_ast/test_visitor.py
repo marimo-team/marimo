@@ -7,7 +7,7 @@ from inspect import cleandoc
 import pytest
 
 from marimo._ast import visitor
-from marimo._ast.visitor import VariableData
+from marimo._ast.visitor import ImportData, VariableData
 
 
 def test_assign_simple() -> None:
@@ -629,7 +629,10 @@ def test_import_nested() -> None:
     v.visit(mod)
     assert v.defs == set(["a"])
     assert v.refs == set()
-    assert v.variable_data["a"] == VariableData(kind="import", module="a")
+    assert v.variable_data["a"] == VariableData(
+        kind="import",
+        import_data=ImportData(module="a.b.c", imported_symbol=None),
+    )
 
 
 def test_import_as() -> None:
@@ -639,7 +642,10 @@ def test_import_as() -> None:
     v.visit(mod)
     assert v.defs == set(["d"])
     assert v.refs == set()
-    assert v.variable_data["d"] == VariableData(kind="import", module="a")
+    assert v.variable_data["d"] == VariableData(
+        kind="import",
+        import_data=ImportData(module="a.b.c", imported_symbol=None),
+    )
 
 
 def test_import_multiple() -> None:
@@ -649,8 +655,13 @@ def test_import_multiple() -> None:
     v.visit(mod)
     assert v.defs == set(["a", "d"])
     assert v.refs == set()
-    assert v.variable_data["a"] == VariableData(kind="import", module="a")
-    assert v.variable_data["d"] == VariableData(kind="import", module="d")
+    assert v.variable_data["a"] == VariableData(
+        kind="import",
+        import_data=ImportData(module="a.b.c", imported_symbol=None),
+    )
+    assert v.variable_data["d"] == VariableData(
+        kind="import", import_data=ImportData(module="d", imported_symbol=None)
+    )
 
 
 def test_from_import() -> None:
@@ -661,7 +672,10 @@ def test_from_import() -> None:
     assert v.defs == set(["d"])
     assert v.refs == set()
     assert v.variable_data["d"] == VariableData(
-        kind="import", module="a", import_level=0
+        kind="import",
+        import_data=ImportData(
+            module="a.b.c", imported_symbol="a.b.c.d", import_level=0
+        ),
     )
 
 
@@ -673,7 +687,10 @@ def test_relative_from_import() -> None:
     assert v.defs == set(["d"])
     assert v.refs == set()
     assert v.variable_data["d"] == VariableData(
-        kind="import", module="a", import_level=2
+        kind="import",
+        import_data=ImportData(
+            module="a.b.c", imported_symbol="a.b.c.d", import_level=2
+        ),
     )
 
 

@@ -8,7 +8,7 @@ import textwrap
 import time
 
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._runtime.autoreload import ModuleReloader
+from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider

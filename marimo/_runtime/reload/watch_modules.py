@@ -1,16 +1,31 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import itertools
 import sys
-import time
 import threading
-import types
+import time
 from modulefinder import ModuleFinder
+from typing import TYPE_CHECKING
 
-from marimo._ast.cell import CellId_t
+from marimo._ast.cell import CellId_t, CellImpl
 from marimo._messaging.ops import CellOp
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import ModuleReloader
+
+if TYPE_CHECKING:
+    import types
+
+
+def modules_imported_by_cell(cell: CellImpl) -> set[str]:
+    modules = set()
+    for import_data in cell.imports:
+        if import_data.module in sys.modules:
+            modules.add(import_data.module)
+        if import_data.imported_symbol in sys.modules:
+            modules.add(import_data.imported_symbol)
+    return modules
 
 
 def depends_on(
@@ -27,7 +42,7 @@ def depends_on(
     finder = ModuleFinder()
     try:
         finder.run_script(src_module.__file__)
-    except Exception as e:
+    except Exception:
         failed_filenames.add(src_module.__file__)
         return False
 
@@ -56,6 +71,7 @@ def check_modules(
             failed_filenames=failed_filenames,
         ):
             stale_modules[modname] = module
+
     return stale_modules
 
 
@@ -71,7 +87,7 @@ def watch_modules(
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
             for cell_id, cell in graph.cells.items():
-                for modname in cell.imported_modules:
+                for modname in modules_imported_by_cell(cell):
                     if modname in sys.modules:
                         modules[modname] = sys.modules[modname]
                         modname_to_cell_id[modname] = cell_id
@@ -86,7 +102,9 @@ def watch_modules(
                 modname_to_cell_id[modname] for modname in stale_modules
             ]
             for cid in stale_cell_ids:
-                CellOp(cell_id=cid, stale_modules=True).broadcast(stream=stream)
+                CellOp(cell_id=cid, stale_modules=True).broadcast(
+                    stream=stream
+                )
 
 
 class ModuleWatcher:

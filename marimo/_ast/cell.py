@@ -5,14 +5,14 @@ import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
-from marimo._ast.visitor import Name, VariableData
+from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
     import ast
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Iterable
     from types import CodeType
 
     from marimo._ast.app import InternalApp
@@ -117,25 +117,37 @@ class CellImpl:
         return self.status == "disabled-transitively"
 
     @property
-    def imported_modules(self) -> set[Name]:
-        """Return a set of the modules imported by this cell."""
-        return set(
-            data.module
+    def imports(self) -> Iterable[ImportData]:
+        """Return a set of the namespaces imported by this cell."""
+        return [
+            data.import_data
             for _, data in self.variable_data.items()
-            if data.module is not None
+            if data.import_data is not None
+        ]
+
+    @property
+    def imported_namespaces(self) -> set[Name]:
+        """Return a set of the namespaces imported by this cell."""
+        return set(
+            data.import_data.module.split(".")[0]
+            for _, data in self.variable_data.items()
+            if data.import_data is not None
         )
 
-    def module_to_variable(self, module: str) -> Name | None:
-        """Returns the variable name corresponding to an imported module
+    def namespace_to_variable(self, namespace: str) -> Name | None:
+        """Returns the variable name corresponding to an imported namespace
 
         Relevant for imports "as" imports, eg
 
         import matplotlib.pyplot as plt
 
-        In this case the module is "matplotlib" but the name is "plt".
+        In this case the namespace is "matplotlib" but the name is "plt".
         """
         for name, data in self.variable_data.items():
-            if data.module == module:
+            if (
+                data.import_data is not None
+                and data.import_data.namespace == namespace
+            ):
                 return name
         return None
 
