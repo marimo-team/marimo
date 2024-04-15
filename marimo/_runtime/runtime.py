@@ -8,6 +8,7 @@ import dataclasses
 import io
 import itertools
 import os
+import pathlib
 import signal
 import sys
 import threading
@@ -273,6 +274,17 @@ class Kernel:
         self._module = patches.patch_main_module(
             file=self.app_metadata.filename, input_override=input_override
         )
+        if self.app_metadata.filename is not None:
+            try:
+                notebook_directory = str(
+                    pathlib.Path(self.app_metadata.filename).parent.absolute()
+                )
+                if notebook_directory not in sys.path:
+                    sys.path.insert(0, notebook_directory)
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to add directory to path (error %e)", str(e)
+                )
 
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
