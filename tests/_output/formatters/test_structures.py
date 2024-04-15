@@ -29,6 +29,5 @@ async def test_matplotlib_special_case(
 
         formatter = executing_kernel.globals["formatter"]
         lines = executing_kernel.globals["lines"]
-        # TODO: debug
         assert formatter is not None
         assert formatter(lines)[0].startswith("image")
