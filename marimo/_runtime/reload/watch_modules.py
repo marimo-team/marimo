@@ -102,9 +102,11 @@ def watch_modules(
                 modname_to_cell_id[modname] for modname in stale_modules
             ]
             for cid in stale_cell_ids:
-                CellOp(cell_id=cid, stale_modules=True).broadcast(
-                    stream=stream
-                )
+                with graph.lock:
+                    # leaky -- not calling cell.set_stale because that uses
+                    # the thread-local context to get a stream ...
+                    graph.cells[cid]._stale.state = True
+                CellOp(cell_id=cid, stale=True).broadcast(stream=stream)
 
 
 class ModuleWatcher:

@@ -56,11 +56,8 @@ CellConfigKeys = frozenset(
 # idle: cell has run with latest inputs
 # queued: cell is queued to run
 # running: cell is running
-# stale: cell hasn't run with latest inputs, and can't run (disabled)
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType = Literal[
-    "idle", "queued", "running", "stale", "disabled-transitively"
-]
+CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
 
 
 @dataclasses.dataclass
@@ -72,6 +69,11 @@ def _is_coroutine(code: Optional[CodeType]) -> bool:
     if code is None:
         return False
     return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+
+@dataclasses.dataclass
+class CellStaleState:
+    state: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -95,6 +97,7 @@ class CellImpl:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # status: status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cel config.
@@ -169,6 +172,16 @@ class CellImpl:
 
         assert self.cell_id is not None
         CellOp.broadcast_status(cell_id=self.cell_id, status=status)
+
+    def set_stale(self, stale: bool) -> None:
+        from marimo._messaging.ops import CellOp
+
+        self._stale.state = stale
+        CellOp.broadcast_stale(cell_id=self.cell_id, stale=stale)
+
+    @property
+    def stale(self) -> bool:
+        return self._stale.state
 
 
 @dataclasses.dataclass
@@ -277,8 +290,7 @@ class Cell:
     def run(
         self, **refs: Any
     ) -> (
-        tuple[Any, Mapping[str, Any]]
-        | Awaitable[tuple[Any, Mapping[str, Any]]]
+        tuple[Any, Mapping[str, Any]] | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
         """Run this cell and return its visual output and definitions
 

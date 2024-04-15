@@ -70,7 +70,7 @@ export interface CellProps
       | "errored"
       | "interrupted"
       | "stopped"
-      | "staleModules"
+      | "stale"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
       | "debuggerActive"
@@ -124,7 +124,7 @@ const CellComponent = (
     interrupted,
     errored,
     stopped,
-    staleModules,
+    stale,
     serializedEditorState,
     mode,
     debuggerActive,
@@ -146,7 +146,7 @@ const CellComponent = (
     config: cellConfig,
     name,
   }: CellProps,
-  ref: React.ForwardedRef<CellHandle>
+  ref: React.ForwardedRef<CellHandle>,
 ) => {
   useCellRenderCount().countRender();
 
@@ -157,23 +157,19 @@ const CellComponent = (
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
   const disabledOrAncestorDisabled =
-    cellConfig.disabled ||
-    status === "stale" ||
-    status === "disabled-transitively";
+    cellConfig.disabled || status === "disabled-transitively";
   const needsRun =
-    edited || interrupted || (staleModules && !disabledOrAncestorDisabled);
-  // for disabled cells
-  const needsCodeSubmitted = edited || interrupted;
+    edited || interrupted || (stale && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
   const outputStale = outputIsStale(
-    { status, output, runStartTimestamp, interrupted },
-    edited
+    { status, output, runStartTimestamp, interrupted, stale },
+    edited,
   );
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || status === "stale") && !interrupted;
+    (status === "queued" || edited || stale) && !interrupted;
   const editing = mode === "edit";
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -196,7 +192,7 @@ const CellComponent = (
       },
       registerRun: prepareToRunEffects,
     }),
-    [editorView, prepareToRunEffects]
+    [editorView, prepareToRunEffects],
   );
 
   // Callback to get the editor view.
@@ -218,11 +214,11 @@ const CellComponent = (
 
   const createBelow = useCallback(
     () => createNewCell({ cellId, before: false }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
   const createAbove = useCallback(
     () => createNewCell({ cellId, before: true }),
-    [cellId, createNewCell]
+    [cellId, createNewCell],
   );
 
   // Close completion when focus leaves the cell's subtree.
@@ -266,7 +262,7 @@ const CellComponent = (
       editorView.current.focus();
       return;
     },
-    [cellRef, editorView]
+    [cellRef, editorView],
   );
 
   const outputArea = (
@@ -286,7 +282,7 @@ const CellComponent = (
     "has-error": errored,
     stopped: stopped,
     disabled: cellConfig.disabled,
-    stale: status === "stale" || status === "disabled-transitively",
+    stale: status === "disabled-transitively",
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -383,7 +379,7 @@ const CellComponent = (
   const cellTitle = () => {
     if (cellConfig.disabled) {
       return "This cell is disabled";
-    } else if (status === "stale" || status === "disabled-transitively") {
+    } else if (status === "disabled-transitively") {
       return "This cell has a disabled ancestor";
     } else {
       return undefined;
@@ -451,6 +447,7 @@ const CellComponent = (
           <div className="shoulder-right">
             <CellStatusComponent
               status={status}
+              stale={stale}
               interrupted={interrupted}
               editing={editing}
               edited={edited}

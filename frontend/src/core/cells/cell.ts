@@ -50,9 +50,6 @@ export function transitionCell(
       break;
     case null:
       break;
-    case "stale":
-      // Everything should already be up to date from prepareCellForExecution
-      break;
     case "disabled-transitively":
       // Everything should already be up to date from prepareCellForExecution
       break;
@@ -61,7 +58,7 @@ export function transitionCell(
   }
 
   nextCell.output = message.output ?? nextCell.output;
-  nextCell.staleModules = message.stale_modules ?? nextCell.staleModules;
+  nextCell.stale = message.stale ?? nextCell.stale;
   nextCell.status = message.status ?? nextCell.status;
 
   let didInterruptFromThisMessage = false;
@@ -150,11 +147,11 @@ export function prepareCellForExecution(
 export function outputIsStale(
   cell: Pick<
     CellRuntimeState,
-    "status" | "output" | "runStartTimestamp" | "interrupted"
+    "status" | "output" | "runStartTimestamp" | "interrupted" | "stale"
   >,
   edited: boolean,
 ): boolean {
-  const { status, output, runStartTimestamp, interrupted } = cell;
+  const { status, output, runStartTimestamp, interrupted, stale } = cell;
 
   // If interrupted, the cell is not stale
   if (interrupted) {
@@ -181,5 +178,5 @@ export function outputIsStale(
     return true;
   }
 
-  return status === "stale";
+  return stale;
 }

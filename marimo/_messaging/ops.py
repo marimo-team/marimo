@@ -68,7 +68,7 @@ class CellOp(Op):
     output  - a CellOutput
     console - a CellOutput (console msg to append), or a list of CellOutputs
     status  - execution status
-    stale_modules - whether the cell has stale modules
+    stale   - whether the cell has stale inputs (variables, modules, ...)
 
     Omitting a field means that its value should be unchanged!
 
@@ -82,7 +82,7 @@ class CellOp(Op):
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[CellStatusType] = None
-    stale_modules: Optional[bool] = None
+    stale: Optional[bool] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     @staticmethod
@@ -214,8 +214,8 @@ class CellOp(Op):
         ).broadcast()
 
     @staticmethod
-    def broadcast_stale_modules(cell_id: CellId_t, stale: bool) -> None:
-        CellOp(cell_id=cell_id, stale_modules=stale).broadcast()
+    def broadcast_stale(cell_id: CellId_t, stale: bool) -> None:
+        CellOp(cell_id=cell_id, stale=stale).broadcast()
 
 
 @dataclass

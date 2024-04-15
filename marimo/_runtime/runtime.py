@@ -379,10 +379,7 @@ class Kernel:
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
-                    CellOp(cell_id, stale_modules=False).broadcast()
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -501,9 +498,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -603,9 +598,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -676,8 +669,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -700,8 +692,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -793,9 +784,11 @@ class Kernel:
         # cells that are disabled (explicitly or implicitly).
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
-                self.graph.cells[cid].set_status(status="stale")
+                self.graph.cells[cid].set_stale(stale=True)
             else:
                 self.graph.cells[cid].set_status(status="queued")
+                if self.graph.cells[cid].stale:
+                    self.graph.cells[cid].set_stale(stale=False)
             # State clean-up: don't leak names, UI elements, ...
             #
             # Clean-up state for all cells upfront, before running
@@ -1014,9 +1007,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -1083,9 +1074,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request

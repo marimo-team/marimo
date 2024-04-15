@@ -241,7 +241,8 @@ export const StaleStatus: Story = {
         <Cell
           {...props}
           runElapsedTimeMs={20 as Milliseconds}
-          status="stale"
+          status="disabled-transitively"
+          stale={true}
           output={{
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -261,7 +262,8 @@ export const StaleAndEditedStatus: Story = {
         <Cell
           {...props}
           runElapsedTimeMs={20 as Milliseconds}
-          status="stale"
+          status="disabled-transitively"
+          stale={true}
           output={{
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
@@ -284,7 +286,8 @@ export const DisabledAndStaleStatus: Story = {
           config={{
             disabled: true,
           }}
-          status="stale"
+          status="disabled-transitively"
+          stale={true}
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",
