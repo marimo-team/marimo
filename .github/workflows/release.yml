@@ -45,15 +45,16 @@ jobs:
           python-version: "3.10"
           cache: "pip"
 
-      - name: 🐍 Setup uv
-        uses: yezz123/setup-uv@v4
-        with:
-          uv-venv: marimo-venv
+      # This does not work when running `marimo --version`
+      # - name: 🐍 Setup uv
+      #   uses: yezz123/setup-uv@v4
+      #   with:
+      #     uv-venv: marimo-venv
 
       - name: 📦 Build marimo
         run: |
-          uv pip install build twine
-          uv pip install .
+          pip install build twine
+          pip install .
           python -m build
 
       - name: 📤 Upload to PyPI
