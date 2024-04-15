@@ -276,14 +276,11 @@ class Kernel:
         )
         if self.app_metadata.filename is not None:
             try:
-                sys.path.insert(
-                    0,
-                    str(
-                        pathlib.Path(
-                            self.app_metadata.filename
-                        ).parent.absolute()
-                    ),
+                notebook_directory = str(
+                    pathlib.Path(self.app_metadata.filename).parent.absolute()
                 )
+                if notebook_directory not in sys.path:
+                    sys.path.insert(0, notebook_directory)
             except Exception as e:
                 LOGGER.warning(
                     "Failed to add directory to path (error %e)", str(e)
