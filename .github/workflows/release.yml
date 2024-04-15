@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch: {}
 
 jobs:
   publish_release:
@@ -64,8 +65,8 @@ jobs:
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
         run: |
-          echo "Updating package.json version to $(marimo --version)"
-          npm version $(marimo --version) --no-git-tag-version
+          echo "Updating package.json version to $(python -m marimo --version)"
+          npm version $(python -m marimo --version) --no-git-tag-version
 
       - name: 📤 Upload to npm
         working-directory: frontend
