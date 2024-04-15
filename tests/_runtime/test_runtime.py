@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from types import ModuleType
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -865,6 +866,31 @@ async def test_set_ui_element_value_with_cell_run(
     assert k.globals["counter"][0] == 1
 
 
+def test_sys_path_updated(tmp_path: pathlib.Path):
+    main: ModuleType | None = None
+    try:
+        filename = str(tmp_path / "notebook.py")
+        if "__main__" in sys.modules:
+            # kernel patches __main__; need to reset it after test
+            main = sys.modules["__main__"]
+        Kernel(
+            stream=NoopStream(),
+            stdout=None,
+            stderr=None,
+            stdin=None,
+            cell_configs={},
+            user_config=DEFAULT_CONFIG,
+            app_metadata=AppMetadata(query_params={}, filename=filename),
+        )
+        assert str(tmp_path) in sys.path
+        assert str(tmp_path) == sys.path[0]
+    finally:
+        if str(tmp_path) in sys.path:
+            sys.path.remove(str(tmp_path))
+        if main is not None:
+            sys.modules["__main__"] = main
+
+
 class TestAsyncIO:
     @staticmethod
     async def test_toplevel_await_allowed(
@@ -1071,22 +1097,3 @@ class TestAsyncIO:
         )
         assert not k.errors
         assert k.globals["res"] == "done"
-
-    def test_sys_path_updated(self, tmp_path: pathlib.Path):
-        try:
-            filename = str(tmp_path / "notebook.py")
-            Kernel(
-                stream=NoopStream(),
-                stdout=None,
-                stderr=None,
-                stdin=None,
-                cell_configs={},
-                user_config=DEFAULT_CONFIG,
-                app_metadata=AppMetadata(query_params={}, filename=filename),
-            )
-            assert str(tmp_path) in sys.path
-            assert str(tmp_path) == sys.path[0]
-        finally:
-            idx = sys.path.index(str(tmp_path))
-            if idx > 0:
-                sys.path.pop(idx)
