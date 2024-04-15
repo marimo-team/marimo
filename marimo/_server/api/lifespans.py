@@ -6,6 +6,7 @@ import contextlib
 import socket
 import sys
 
+from marimo._server.file_router import AppFileRouter
 from marimo._server.sessions import SessionManager
 
 if sys.version_info < (3, 9):
@@ -136,6 +137,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
             file.name if file else None,
             f"http://{host}:{port}{base_url}",
             manager.mode == SessionMode.RUN,
+            new=file_router.get_unique_file_key() == AppFileRouter.NEW_FILE,
         )
 
     yield

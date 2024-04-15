@@ -390,18 +390,18 @@ You can use any Python package. marimo cells run arbitrary Python code.
 
 ### How do I use marimo on a remote server?
 
-Use SSH port-forwarding to run the marimo kernel on a remote server
+Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure
 to pass the `--headless` flag when starting marimo on remote:
 
 ```bash
-marimo edit notebook.py --headless
+marimo edit --headless
 ```
 
 You may also want to set a custom host and port:
 
 ```bash
-marimo edit notebook.py --headless --host 0.0.0.0 --port 8080
+marimo edit --headless --host 0.0.0.0 --port 8080
 ```
 
 <a name="faq-interfaces"></a>
@@ -411,7 +411,7 @@ marimo edit notebook.py --headless --host 0.0.0.0 --port 8080
 Use `--host 0.0.0.0` with `marimo edit`, `marimo run`, or `marimo tutorial`:
 
 ```bash
-marimo edit notebook.py --host 0.0.0.0
+marimo edit --host 0.0.0.0
 ```
 
 <a name="faq-app-deploy"></a>

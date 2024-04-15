@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.3.6"
+__generated_with = "0.3.12"
 app = marimo.App()
 
 
@@ -259,13 +259,9 @@ def __(mo):
         marimo edit
         ```
 
-        in a terminal to create a new marimo notebook, or
+        in a terminal to start the marimo notebook server. From here
+        you can create a new notebook or edit existing ones.
 
-        ```
-        marimo edit notebook.py
-        ```
-
-        to create/edit a notebook called `notebook.py`.
 
         **Running as apps.** Use
 

@@ -81,22 +81,15 @@ marimo tutorial intro
 ```
 
 **Create notebooks.**
-Create an empty notebook with
+
+Create or edit notebooks with
 
 ```bash
 marimo edit
 ```
 
-or create/edit a notebook with a given name with
-
-```bash
-marimo edit your_notebook.py
-```
-
-
 **Run apps.** Run your notebook as a web app, with Python
-code hidden and
-uneditable:
+code hidden and uneditable:
 
 ```bash
 marimo run your_notebook.py
@@ -104,14 +97,15 @@ marimo run your_notebook.py
 
 <img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-**Execute as scripts.** marimo notebooks can be executed as scripts at the
+**Execute as scripts.** Execute a notebook as a script at the
 command line:
 
 ```bash
 python your_notebook.py
 ```
 
-**Automatically convert Jupyter notebooks.** Automatically convert Jupyter notebooks to marimo notebooks with the CLI
+**Automatically convert Jupyter notebooks.** Automatically convert Jupyter
+notebooks to marimo notebooks with the CLI
 
 ```bash
 marimo convert your_notebook.ipynb > your_notebook.py

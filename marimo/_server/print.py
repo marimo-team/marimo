@@ -14,7 +14,9 @@ except Exception:
     pass
 
 
-def print_startup(file_name: Optional[str], url: str, run: bool) -> None:
+def print_startup(
+    file_name: Optional[str], url: str, run: bool, new: bool
+) -> None:
     print()
     if file_name is not None and not run:
         print_tabbed(
@@ -26,10 +28,15 @@ def print_startup(file_name: Optional[str], url: str, run: bool) -> None:
             f"\033[1;32mRunning {os.path.basename(file_name)}"
             "\033[0m " + _utf8("⚡")
         )
+    elif new:
+        print_tabbed(
+            "\033[1;32mCreate a new notebook in your browser\033[0m "
+            + _utf8("📝")
+        )
     else:
         print_tabbed(
-            "\033[1;32mCreate or open a marimo notebook in your "
-            "browser\033[0m " + _utf8("🛠")
+            "\033[1;32mCreate or edit notebooks in your "
+            "browser\033[0m " + _utf8("📝")
         )
     print()
     print_tabbed(f"\033[32mURL\033[0m: \033[1m{url}\033[0m")

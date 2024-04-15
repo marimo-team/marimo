@@ -73,13 +73,14 @@ marimo tutorial --help
 
 Create and edit notebooks with `marimo edit`.
 
-- create a new notebook:
+- launch the notebook server to create new notebooks,
+  and start or stop existing ones:
 
 ```bash
 marimo edit
 ```
 
-- marimo saves notebooks as Python files, which you can edit using:
+- create or edit a single notebook with
 
 ```bash
 marimo edit your_notebook.py
