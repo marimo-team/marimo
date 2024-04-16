@@ -1,3 +1,4 @@
+import copy
 import pathlib
 import sys
 import textwrap
@@ -31,7 +32,7 @@ async def test_reload_function(
         )
     )
 
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "detect"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
@@ -91,7 +92,7 @@ async def test_reload_nested_module_function(
         )
     )
 
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "detect"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
@@ -145,7 +146,7 @@ async def test_reload_nested_module_import_module(
         )
     )
 
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "detect"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
@@ -201,7 +202,7 @@ async def test_reload_nested_module_import_module_autorun(
 
     queue = Queue()
     k.execute_stale_cells_callback = lambda: queue.put(ExecuteStaleRequest())
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "autorun"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
