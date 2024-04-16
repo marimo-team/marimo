@@ -2,7 +2,7 @@
 .markdown .paragraph,
 .markdown ol,
 .markdown ul,
-.markdown span:not(.arithmatex *, code *, .MuiBox-root) {
+.markdown span:not(code *, .MuiBox-root) {
   /* the not selector makes sure we don't change katex/LaTeX styles */
   line-height: 1.5rem;
   font-family: var(--text-font);
@@ -16,10 +16,6 @@
 .markdown p:last-child,
 .markdown .paragraph:last-child {
   margin-block-end: 0;
-}
-
-.katex {
-  font-size: 1.1rem;
 }
 
 .markdown h1,
