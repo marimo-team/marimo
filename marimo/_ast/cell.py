@@ -5,17 +5,18 @@ import dataclasses
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
-from marimo._ast.visitor import Name, VariableData
+from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
 
 if TYPE_CHECKING:
     import ast
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Iterable
     from types import CodeType
 
     from marimo._ast.app import InternalApp
+    from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
 
 
@@ -59,11 +60,8 @@ CellConfigKeys = frozenset(
 # idle: cell has run with latest inputs
 # queued: cell is queued to run
 # running: cell is running
-# stale: cell hasn't run with latest inputs, and can't run (disabled)
 # disabled-transitively: cell is disabled because a parent is disabled
-CellStatusType = Literal[
-    "idle", "queued", "running", "stale", "disabled-transitively"
-]
+CellStatusType = Literal["idle", "queued", "running", "disabled-transitively"]
 
 
 @dataclasses.dataclass
@@ -75,6 +73,11 @@ def _is_coroutine(code: Optional[CodeType]) -> bool:
     if code is None:
         return False
     return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+
+
+@dataclasses.dataclass
+class CellStaleState:
+    state: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,6 +101,7 @@ class CellImpl:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # status: status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cel config.
@@ -113,39 +117,53 @@ class CellImpl:
 
     @property
     def stale(self) -> bool:
-        return self.status == "stale"
+        return self._stale.state
 
     @property
     def disabled_transitively(self) -> bool:
         return self.status == "disabled-transitively"
 
     @property
-    def imported_modules(self) -> set[Name]:
-        """Return a set of the modules imported by this cell."""
-        return set(
-            data.module
+    def imports(self) -> Iterable[ImportData]:
+        """Return a set of the namespaces imported by this cell."""
+        return [
+            data.import_data
             for _, data in self.variable_data.items()
-            if data.module is not None
+            if data.import_data is not None
+        ]
+
+    @property
+    def imported_namespaces(self) -> set[Name]:
+        """Return a set of the namespaces imported by this cell."""
+        return set(
+            data.import_data.module.split(".")[0]
+            for _, data in self.variable_data.items()
+            if data.import_data is not None
         )
 
-    def module_to_variable(self, module: str) -> Name | None:
-        """Returns the variable name corresponding to an imported module
+    def namespace_to_variable(self, namespace: str) -> Name | None:
+        """Returns the variable name corresponding to an imported namespace
 
         Relevant for imports "as" imports, eg
 
         import matplotlib.pyplot as plt
 
-        In this case the module is "matplotlib" but the name is "plt".
+        In this case the namespace is "matplotlib" but the name is "plt".
         """
         for name, data in self.variable_data.items():
-            if data.module == module:
+            if (
+                data.import_data is not None
+                and data.import_data.namespace == namespace
+            ):
                 return name
         return None
 
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    def set_status(self, status: CellStatusType) -> None:
+    def set_status(
+        self, status: CellStatusType, stream: Stream | None = None
+    ) -> None:
         from marimo._messaging.ops import CellOp
         from marimo._runtime.context import (
             ContextNotInitializedError,
@@ -159,7 +177,17 @@ class CellImpl:
             return
 
         assert self.cell_id is not None
-        CellOp.broadcast_status(cell_id=self.cell_id, status=status)
+        CellOp.broadcast_status(
+            cell_id=self.cell_id, status=status, stream=stream
+        )
+
+    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
+        from marimo._messaging.ops import CellOp
+
+        self._stale.state = stale
+        CellOp.broadcast_stale(
+            cell_id=self.cell_id, stale=stale, stream=stream
+        )
 
 
 @dataclasses.dataclass

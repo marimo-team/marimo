@@ -105,7 +105,8 @@ DisabledTransitivelyAndEdited.args = {
 export const Stale = Template.bind({});
 Stale.args = {
   editing: true,
-  status: "stale",
+  status: "disabled-transitively",
+  staleInputs: true,
   edited: false,
   interrupted: false,
   disabled: false,
@@ -115,7 +116,8 @@ Stale.args = {
 export const StaleAndDisabled = Template.bind({});
 StaleAndDisabled.args = {
   editing: true,
-  status: "stale",
+  status: "disabled-transitively",
+  staleInputs: true,
   edited: false,
   interrupted: false,
   disabled: true,
@@ -125,8 +127,8 @@ StaleAndDisabled.args = {
 export const EditedStaleAndDisabled = Template.bind({});
 EditedStaleAndDisabled.args = {
   editing: true,
-  status: "stale",
-  edited: true,
+  status: "disabled-transitively",
+  staleInputs: true,
   interrupted: false,
   disabled: true,
   elapsedTime: null,
@@ -135,7 +137,7 @@ EditedStaleAndDisabled.args = {
 export const EditedAndStale = Template.bind({});
 EditedAndStale.args = {
   editing: true,
-  status: "stale",
+  status: "disabled-transitively",
   edited: true,
   interrupted: false,
   disabled: false,

@@ -71,7 +71,6 @@ from marimo._runtime import (
     marimo_pdb,
     patches,
 )
-from marimo._runtime.autoreload import ModuleReloader
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
@@ -87,6 +86,8 @@ from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
+from marimo._runtime.reload.autoreload import ModuleReloader
+from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -94,6 +95,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     DeleteRequest,
     ExecuteMultipleRequest,
+    ExecuteStaleRequest,
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
@@ -246,6 +248,7 @@ class Kernel:
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
+    - execute_stale_cells_callback: callback to enqueue a stale cells request
     """
 
     def __init__(
@@ -257,6 +260,7 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
+        execute_stale_cells_callback: Callable[[], None],
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
@@ -266,6 +270,7 @@ class Kernel:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
+        self.execute_stale_cells_callback = execute_stale_cells_callback
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -294,11 +299,10 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-
-        # Load runtime settings from user config
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
-        self.user_config = user_config
+        self.module_watcher: ModuleWatcher | None = None
+        # Load runtime settings from user config
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -318,16 +322,38 @@ class Kernel:
         exec("import marimo as __marimo__", self.globals)
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
-        self.user_config = config
-        package_manager = self.user_config["package_management"]["manager"]
-        autoreload = self.user_config["runtime"]["auto_reload"]
+        package_manager = config["package_management"]["manager"]
+        autoreload_mode = config["runtime"]["auto_reload"]
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
-        if autoreload and self.module_reloader is None:
-            self.module_reloader = ModuleReloader()
+
+        if autoreload_mode == "detect" or autoreload_mode == "autorun":
+            if self.module_reloader is None:
+                self.module_reloader = ModuleReloader()
+
+            if (
+                self.module_watcher is not None
+                and self.module_watcher.mode != autoreload_mode
+            ):
+                self.module_watcher.stop()
+                self.module_watcher = None
+
+            if self.module_watcher is None:
+                self.module_watcher = ModuleWatcher(
+                    self.graph,
+                    enqueue_run_stale_cells=self.execute_stale_cells_callback,
+                    mode=autoreload_mode,
+                    stream=self.stream,
+                )
+        else:
+            self.module_reloader = None
+            if self.module_watcher is not None:
+                self.module_watcher.stop()
+
+        self.user_config = config
 
     @property
     def globals(self) -> dict[Any, Any]:
@@ -778,9 +804,11 @@ class Kernel:
         # cells that are disabled (explicitly or implicitly).
         for cid in cell_ids:
             if self.graph.is_disabled(cid):
-                self.graph.cells[cid].set_status(status="stale")
+                self.graph.cells[cid].set_stale(stale=True)
             else:
                 self.graph.cells[cid].set_status(status="queued")
+                if self.graph.cells[cid].stale:
+                    self.graph.cells[cid].set_stale(stale=False)
             # State clean-up: don't leak names, UI elements, ...
             #
             # Clean-up state for all cells upfront, before running
@@ -1015,6 +1043,17 @@ class Kernel:
         await self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
         )
+
+    async def run_stale_cells(self) -> None:
+        cells_to_run: set[CellId_t] = set()
+        for cid, cell_impl in self.graph.cells.items():
+            if cell_impl.stale and not self.graph.is_disabled(cid):
+                cells_to_run.add(cid)
+        await self._run_cells(
+            dataflow.transitive_closure(self.graph, cells_to_run)
+        )
+        if self.module_watcher is not None:
+            self.module_watcher.run_is_processed.set()
 
     async def set_cell_config(self, request: SetCellConfigRequest) -> None:
         """Update cell configs.
@@ -1327,6 +1366,8 @@ class Kernel:
         elif isinstance(request, ExecuteMultipleRequest):
             await self.run(request.execution_requests)
             CompletedRun().broadcast()
+        elif isinstance(request, ExecuteStaleRequest):
+            await self.run_stale_cells()
         elif isinstance(request, SetCellConfigRequest):
             await self.set_cell_config(request)
         elif isinstance(request, SetUserConfigRequest):
@@ -1408,6 +1449,9 @@ def launch_kernel(
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,
+        execute_stale_cells_callback=lambda: control_queue.put_nowait(
+            ExecuteStaleRequest()
+        ),
     )
     initialize_context(
         kernel=kernel,

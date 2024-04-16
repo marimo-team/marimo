@@ -97,6 +97,7 @@ class MockedKernel:
                 filename=None,
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
+            execute_stale_cells_callback=lambda: None,
         )
 
         initialize_context(

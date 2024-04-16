@@ -881,6 +881,7 @@ def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
             cell_configs={},
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(query_params={}, filename=filename),
+            execute_stale_cells_callback=lambda: None,
         )
         assert str(tmp_path) in sys.path
         assert str(tmp_path) == sys.path[0]

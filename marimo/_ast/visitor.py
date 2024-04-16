@@ -11,12 +11,26 @@ Name = str
 
 
 @dataclass
+class ImportData:
+    # full module name
+    # e.g., a.b.c.
+    module: str
+    # fully qualified import symbol:
+    # import a.b => symbol == None
+    # from a.b import c => symbol == a.b.c
+    imported_symbol: Optional[str] = None
+    import_level: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        self.namespace = self.module.split(".")[0]
+
+
+@dataclass
 class VariableData:
     kind: Literal["function", "class", "import", "variable"] = "variable"
 
     # For kind == import
-    module: Optional[str] = None
-    import_level: Optional[int] = None
+    import_data: Optional[ImportData] = None
 
 
 def is_local(name: str) -> bool:
@@ -373,30 +387,35 @@ class ScopedVisitor(ast.NodeVisitor):
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
 
-    # TODO(akshayka): can we find a way around tracking imports as state
-    # that needs to be tracked?
-    # Import and ImportFrom statements have symbol names in alias nodes
-    def visit_alias(self, node: ast.alias) -> None:
-        """Visiting names in import statements"""
-        name = self._get_alias_name(node)
-        # Extract module name
-        # - import a.b.c as d: module name a is different from the alias name d
-        # - import a.b.c: module name a is equal to the alias name a
-        module = node.name.split(".")[0] if node.asname is not None else name
-        self._define(name, VariableData(kind="import", module=module))
-        self.generic_visit(node)
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias_node in node.names:
+            variable_name = self._get_alias_name(alias_node)
+            self._define(
+                variable_name,
+                VariableData(
+                    kind="import",
+                    import_data=ImportData(
+                        module=alias_node.name, imported_symbol=None
+                    ),
+                ),
+            )
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        # module should not be None here, but appease the type checker
-        module = node.module.split(".")[0] if node.module is not None else None
-        imported_names = [self._get_alias_name(alias) for alias in node.names]
+        module = node.module if node.module is not None else ""
         # we don't recurse into the alias nodes, since we define the
         # aliases here
-        for name in imported_names:
+        for alias_node in node.names:
+            variable_name = self._get_alias_name(alias_node)
+            original_name = alias_node.name
             self._define(
-                name,
+                variable_name,
                 VariableData(
-                    kind="import", module=module, import_level=node.level
+                    kind="import",
+                    import_data=ImportData(
+                        module=module,
+                        imported_symbol=module + "." + original_name,
+                        import_level=node.level,
+                    ),
                 ),
             )
 

@@ -22,6 +22,7 @@ export interface CellStatusComponentProps
   editing: boolean;
   edited: boolean;
   disabled: boolean;
+  staleInputs: boolean;
   elapsedTime: number | null;
 }
 
@@ -29,6 +30,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   editing,
   status,
   disabled,
+  staleInputs,
   edited,
   interrupted,
   elapsedTime,
@@ -44,7 +46,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     return null;
   }
   // stale and disabled by self
-  if (disabled && status === "stale") {
+  if (disabled && staleInputs) {
     return (
       <Tooltip
         content={"This cell is stale, but it's disabled and can't be run"}
@@ -80,7 +82,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // disabled from parent
-  if (status === "disabled-transitively") {
+  if (!staleInputs && status === "disabled-transitively") {
     return (
       <Tooltip
         content={"An ancestor of this cell is disabled, so it can't be run"}
@@ -101,7 +103,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // stale from parent being disabled
-  if (status === "stale") {
+  if (staleInputs && status === "disabled-transitively") {
     return (
       <Tooltip
         content={
@@ -156,7 +158,7 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   }
 
   // outdated
-  if (edited || interrupted) {
+  if (edited || interrupted || staleInputs) {
     const elapsedTimeStr = formatElapsedTime(elapsedTime);
     const title = interrupted
       ? "This cell was interrupted when it was last run"

@@ -70,6 +70,7 @@ export interface CellProps
       | "errored"
       | "interrupted"
       | "stopped"
+      | "staleInputs"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
       | "debuggerActive"
@@ -123,6 +124,7 @@ const CellComponent = (
     interrupted,
     errored,
     stopped,
+    staleInputs,
     serializedEditorState,
     mode,
     debuggerActive,
@@ -154,17 +156,20 @@ const CellComponent = (
   const editorView = useRef<EditorView | null>(null);
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
 
-  const needsRun = edited || interrupted;
+  const disabledOrAncestorDisabled =
+    cellConfig.disabled || status === "disabled-transitively";
+  const needsRun =
+    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
   const outputStale = outputIsStale(
-    { status, output, runStartTimestamp, interrupted },
+    { status, output, runStartTimestamp, interrupted, staleInputs },
     edited,
   );
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || status === "stale") && !interrupted;
+    (status === "queued" || edited || staleInputs) && !interrupted;
   const editing = mode === "edit";
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -277,7 +282,7 @@ const CellComponent = (
     "has-error": errored,
     stopped: stopped,
     disabled: cellConfig.disabled,
-    stale: status === "stale" || status === "disabled-transitively",
+    stale: status === "disabled-transitively",
   });
 
   const HTMLId = HTMLCellId.create(cellId);
@@ -374,7 +379,7 @@ const CellComponent = (
   const cellTitle = () => {
     if (cellConfig.disabled) {
       return "This cell is disabled";
-    } else if (status === "stale" || status === "disabled-transitively") {
+    } else if (status === "disabled-transitively") {
       return "This cell has a disabled ancestor";
     } else {
       return undefined;
@@ -442,6 +447,7 @@ const CellComponent = (
           <div className="shoulder-right">
             <CellStatusComponent
               status={status}
+              staleInputs={staleInputs}
               interrupted={interrupted}
               editing={editing}
               edited={edited}

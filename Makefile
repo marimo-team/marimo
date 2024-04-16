@@ -67,6 +67,12 @@ py-check:
 py-test:
 	pytest
 
+.PHONY: py-snapshots
+# update html snapshots
+py-snapshots:
+	pytest tests/_server/templates/test_templates.py
+	pytest tests/_server/api/endpoints/test_export.py
+
 .PHONY: install-all
 # install everything; takes a long time due to editable install
 install-all: fe py

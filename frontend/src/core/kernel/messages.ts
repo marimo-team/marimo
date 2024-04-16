@@ -102,6 +102,10 @@ export interface CellMessage {
    */
   status: CellStatus | null;
   /**
+   * Transition in staleness.
+   */
+  stale_inputs: boolean | null;
+  /**
    * Timestamp in seconds since epoch, when the message was sent
    */
   timestamp: Seconds;
