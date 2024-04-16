@@ -32,6 +32,7 @@ import {
   WorkspaceFilesResponse,
   RunningNotebooksResponse,
   ShutdownSessionRequest,
+  ExportHTMLRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -208,6 +209,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     shutdownSession: (request: ShutdownSessionRequest) => {
       return API.post("/home/shutdown_session", request);
+    },
+    exportHTML: async (request: ExportHTMLRequest) => {
+      if (
+        process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "test"
+      ) {
+        request.assetUrl = window.location.origin;
+      }
+      return API.post("/export/html", request);
     },
   };
 }

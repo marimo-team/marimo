@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-from types import ModuleType
 from typing import TYPE_CHECKING, Sequence
 
 import pytest
@@ -30,6 +29,7 @@ from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
     import pathlib
+    from types import ModuleType
 
 
 def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:

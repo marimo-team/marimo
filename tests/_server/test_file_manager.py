@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from typing import Generator
 
 import pytest
 
+from marimo import __version__
 from marimo._ast.cell import CellConfig
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
@@ -182,3 +185,26 @@ def test_read_unnamed_notebook(app_file_manager: AppFileManager) -> None:
 def test_read_layout(app_file_manager: AppFileManager) -> None:
     layout = app_file_manager.read_layout_config()
     assert layout is None
+
+
+def test_to_code(app_file_manager: AppFileManager) -> None:
+    code = app_file_manager.to_code()
+    assert code == "\n".join(
+        [
+            "import marimo",
+            "",
+            f'__generated_with = "{__version__}"',
+            "app = marimo.App()",
+            "",
+            "",
+            "@app.cell",
+            "def __():",
+            "    import marimo as mo",
+            "    return mo,",
+            "",
+            "",
+            'if __name__ == "__main__":',
+            "    app.run()",
+            "",
+        ]
+    )

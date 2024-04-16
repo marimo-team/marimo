@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, afterEach, expect, it, vi } from "vitest";
 import { patchFetch, patchVegaLoader } from "../files";
-import { Base64String } from "@/utils/json/base64";
+import { DataURLString } from "@/utils/json/base64";
 
 describe("patchFetch", () => {
   const originalFetch = window.fetch;
@@ -12,9 +12,8 @@ describe("patchFetch", () => {
 
   it("should return a blob response when a virtual file is fetched", async () => {
     const virtualFiles = {
-      "/@file/virtual-file.txt": {
-        base64: "data:text/plain;base64,VGVzdCBjb250ZW50" as Base64String,
-      },
+      "/@file/virtual-file.txt":
+        "data:text/plain;base64,VGVzdCBjb250ZW50" as DataURLString,
     };
 
     patchFetch(virtualFiles);
@@ -48,10 +47,8 @@ describe("patchFetch", () => {
 describe("patchVegaLoader", () => {
   it("should return file content for virtual files", async () => {
     const virtualFiles = {
-      "virtual-file.json": {
-        base64:
-          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as Base64String,
-      },
+      "virtual-file.json":
+        "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
     };
 
     const loader = {

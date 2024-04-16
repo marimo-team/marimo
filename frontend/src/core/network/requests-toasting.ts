@@ -39,6 +39,7 @@ export function createErrorToastingRequests(
     getWorkspaceFiles: "Failed to get workspace files",
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
+    exportHTML: "Failed to export HTML",
   };
 
   const handlers = {} as EditRequests & RunRequests;

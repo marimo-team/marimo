@@ -34,10 +34,12 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.model import SessionMode
 from marimo._server.models.base import deep_to_camel_case
+from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCreateRequest,
     FileCreateResponse,
@@ -58,6 +60,7 @@ from marimo._server.models.models import (
     SaveAppConfigurationRequest,
     SaveRequest,
 )
+from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw
@@ -163,10 +166,12 @@ class PyodideSession:
         self.app_metadata = app_metadata
         self._queue_manager = AsyncQueueManager()
         self.session_consumer = on_write
+        self.session_view = SessionView()
         self._initial_user_config = user_config
 
         self.consumers: list[Callable[[KernelMessage], None]] = [
             lambda msg: self.session_consumer(msg),
+            lambda msg: self.session_view.add_raw_operation(msg[1]),
         ]
 
     def _on_message(self, msg: KernelMessage) -> None:
@@ -327,6 +332,16 @@ class PyodideBridge:
         except Exception as e:
             response = FileUpdateResponse(success=False, message=str(e))
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
+
+    def export_html(self, request: str) -> str:
+        parsed = parse_raw(json.loads(request), ExportAsHTMLRequest)
+        html, _filename = Exporter().export_as_html(
+            file_manager=self.session.app_manager,
+            session_view=self.session.session_view,
+            display_config=self.session._initial_user_config["display"],
+            request=parsed,
+        )
+        return json.dumps(html)
 
 
 def launch_pyodide_kernel(

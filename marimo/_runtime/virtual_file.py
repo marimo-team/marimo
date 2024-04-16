@@ -14,6 +14,7 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
+from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
@@ -267,3 +268,30 @@ class VirtualFileRegistry:
 
 def _without_leading_dot(ext: str) -> str:
     return ext[1:] if ext.startswith(".") else ext
+
+
+def read_virtual_file(filename: str, byte_length: int) -> bytes:
+    if not shared_memory:
+        raise RuntimeError("Shared memory is not supported on this platform")
+
+    key = filename
+    shm = None
+    try:
+        # NB: this can't be collapsed into a one-liner!
+        # doing it in one line yields a 'released memoryview ...'
+        # because shared_memory has built in ref-tracking + GC
+        shm = shared_memory.SharedMemory(name=key)
+        buffer_contents = bytes(shm.buf)[: int(byte_length)]
+    except FileNotFoundError as err:
+        LOGGER.debug(
+            "Error retrieving shared memory for virtual file: %s", err
+        )
+        raise HTTPException(
+            HTTPStatus.NOT_FOUND,
+            detail="File not found",
+        ) from err
+    finally:
+        if shm is not None:
+            shm.close()
+
+    return buffer_contents
