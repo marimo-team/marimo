@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import difflib
 import os
 from typing import Callable
 
@@ -36,6 +37,20 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
 
         with open(filepath, "w") as f:
             f.write(result)
+
+        assert result, "Result is empty"
+        assert expected, "Expected is empty"
+        text_diff = "\n".join(
+            list(
+                difflib.unified_diff(
+                    expected.splitlines(),
+                    result.splitlines(),
+                    lineterm="",
+                )
+            )
+        )
+        if expected != result:
+            print(f"Snapshot differs:\n{text_diff}")
         assert result == expected
 
     return snapshot
