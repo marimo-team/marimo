@@ -24,6 +24,7 @@ from typing import (
 )
 
 from marimo import _loggers as loggers
+from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t, CellStatusType
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.completion_option import CompletionOption
@@ -266,6 +267,8 @@ class KernelReady(Op):
     ui_values: Optional[Dict[str, JSONType]]
     # If the kernel was resumed, the last executed code for each cell
     last_executed_code: Optional[Dict[CellId_t, str]]
+    # App config
+    app_config: _AppConfig
 
 
 @dataclass

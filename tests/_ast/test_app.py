@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from marimo._ast.app import App
+from marimo._ast.app import App, _AppConfig
 from marimo._ast.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -379,3 +379,19 @@ class TestApp:
 
         assert defs["x"] == 0
         assert defs["y"] == 1
+
+
+def test_app_config() -> None:
+    config = _AppConfig.from_untrusted_dict({"width": "full"})
+    assert config.width == "full"
+    assert config.layout_file is None
+    assert config.asdict() == {"width": "full", "layout_file": None}
+
+
+def test_app_config_extra_args_ignored() -> None:
+    config = _AppConfig.from_untrusted_dict(
+        {"width": "full", "fake_config": "foo"}
+    )
+    assert config.width == "full"
+    assert config.layout_file is None
+    assert config.asdict() == {"width": "full", "layout_file": None}

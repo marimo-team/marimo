@@ -49,6 +49,18 @@ class _AppConfig:
     # The file path of the layout file, relative to the app file.
     layout_file: Optional[str] = None
 
+    @staticmethod
+    def from_untrusted_dict(updates: dict[str, Any]) -> _AppConfig:
+        config = _AppConfig()
+        for key in updates:
+            if hasattr(config, key):
+                config.__setattr__(key, updates[key])
+            else:
+                LOGGER.warning(
+                    f"Unrecognized key '{key}' in app config. Ignoring."
+                )
+        return config
+
     def asdict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -110,10 +122,7 @@ class App:
         # Take `AppConfig` as kwargs for forward/backward compatibility;
         # unrecognized settings will just be dropped, instead of raising
         # a TypeError.
-        self._config = _AppConfig()
-        for key in asdict(self._config):
-            if key in kwargs:
-                self._config.__setattr__(key, kwargs.pop(key))
+        self._config = _AppConfig.from_untrusted_dict(kwargs)
 
         self._cell_manager = CellManager()
         self._graph = dataflow.DirectedGraph()

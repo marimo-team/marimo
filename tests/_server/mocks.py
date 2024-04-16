@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import tempfile
 from typing import Any, Callable, cast
 from unittest.mock import MagicMock
@@ -23,7 +25,7 @@ def get_mock_session_manager() -> SessionManager:
 import marimo
 
 __generated_with = "0.0.1"
-app = marimo.App()
+app = marimo.App(width="full")
 
 
 @app.cell
