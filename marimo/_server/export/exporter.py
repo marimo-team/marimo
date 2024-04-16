@@ -7,6 +7,7 @@ from typing import cast
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
+    _deep_copy,
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
@@ -53,7 +54,7 @@ class Exporter:
                 cast(KnownMimeType, mime_type), buffer_contents
             )
 
-        config = DEFAULT_CONFIG.copy()
+        config = _deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
         code = file_manager.to_code() if request.include_code else ""

@@ -7,7 +7,7 @@ import sys
 import textwrap
 import time
 
-from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config import DEFAULT_CONFIG, _deep_copy
 from marimo._runtime.autoreload import ModuleReloader
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
@@ -79,7 +79,7 @@ async def test_reload_function_kernel(
         )
     )
 
-    config = DEFAULT_CONFIG.copy()
+    config = _deep_copy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = True
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run([exec_req.get(f"import {py_modname}; x={py_modname}.foo()")])
