@@ -350,20 +350,29 @@ export const UserConfigForm: React.FC = () => {
               <div className="flex flex-col gap-y-1">
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
-                    <Checkbox
-                      data-testid="auto-reload-checkbox"
-                      disabled={field.disabled}
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <NativeSelect
+                      data-testid="auto-reload-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={isWasm}
+                      className="inline-flex mr-2"
+                    >
+                      {["off", "detect", "autorun"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
                   </FormControl>
                   <FormLabel className="font-normal">
                     Autoreload modules
                   </FormLabel>
                 </FormItem>
                 <FormDescription>
-                  When checked, marimo will automatically reload modules before
-                  executing cells.
+                  Whether marimo should automatically reload modules before
+                  executing cells. If "detect", marimo will mark cells affected
+                  by module modifications as stale; if "automatic", affected
+                  cells will be automatically re-run.
                 </FormDescription>
               </div>
             )}

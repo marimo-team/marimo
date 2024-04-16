@@ -37,7 +37,7 @@ class ModuleRegistry:
     def defining_cell(self, module_name: str) -> CellId_t | None:
         """Get the cell id of the cell importing module_name"""
         for cell_id, cell in self.graph.cells.items():
-            if cell.module_to_variable(module_name) is not None:
+            if cell.namespace_to_variable(module_name) is not None:
                 return cell_id
         return None
 
@@ -46,7 +46,7 @@ class ModuleRegistry:
         return set(
             mod
             for cell in self.graph.cells.values()
-            for mod in cell.imported_modules
+            for mod in cell.imported_namespaces
         )
 
     def missing_modules(self) -> set[str]:

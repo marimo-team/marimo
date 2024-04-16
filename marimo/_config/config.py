@@ -70,12 +70,13 @@ class RuntimeConfig(TypedDict):
         run on startup. This only applies when editing a notebook,
         and not when running as an application.
         The default is `True`.
-    - `auto_reload`: if `True`, modified modules will be automatically reloaded
-       before cell execution; similar to IPython's %autoreload 2.
+    - `auto_reload`: if `detect`, cells importing modified modules will marked
+      as stale; if `autorun`, affected cells will be automatically run. similar
+      to IPython's %autoreload extension but with more code intelligence.
     """
 
     auto_instantiate: bool
-    auto_reload: bool
+    auto_reload: Literal["off", "detect", "autorun"]
 
 
 @mddoc
@@ -180,7 +181,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default"},
-    "runtime": {"auto_instantiate": True, "auto_reload": False},
+    "runtime": {"auto_instantiate": True, "auto_reload": "off"},
     "save": {
         "autosave": "after_delay",
         "autosave_delay": 1000,
@@ -200,12 +201,23 @@ def merge_config(
     config: MarimoConfig, new_config: MarimoConfig
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration."""
-    return cast(
+    merged = cast(
         MarimoConfig,
         deep_merge(
             cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
         ),
     )
+
+    # Patches for backward compatibility
+    if (
+        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
+    ):
+        merged["runtime"]["auto_reload"] = "off"
+    if (
+        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
+    ):
+        merged["runtime"]["auto_reload"] = "detect"
+    return merged
 
 
 def _deep_copy(obj: Any) -> Any:

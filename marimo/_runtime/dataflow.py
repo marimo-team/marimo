@@ -171,8 +171,7 @@ class DirectedGraph:
 
         for cid in transitive_closure(self, set([cell_id])) - set([cell_id]):
             cell = self.cells[cid]
-            if not cell.stale:
-                cell.set_status(status="disabled-transitively")
+            cell.set_status(status="disabled-transitively")
 
     def enable_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """

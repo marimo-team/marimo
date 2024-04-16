@@ -841,10 +841,21 @@ export function enabledCellIds(state: NotebookState) {
     .filter((cell) => !cell.config.disabled);
 }
 
+/**
+ * Cells that are stale and can be run.
+ */
 export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.filter(
-    (cellId) => cellData[cellId].edited || cellRuntime[cellId].interrupted,
+    (cellId) =>
+      cellData[cellId].edited ||
+      cellRuntime[cellId].interrupted ||
+      (cellRuntime[cellId].staleInputs &&
+        // if a cell is disabled, it can't be run ...
+        !(
+          cellRuntime[cellId].status === "disabled-transitively" ||
+          cellData[cellId].config.disabled
+        )),
   );
 }
 

@@ -17,6 +17,7 @@ exports[`cell reducer > can initialize stdin 1`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -39,6 +40,7 @@ exports[`cell reducer > can initialize stdin 2`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -61,6 +63,7 @@ exports[`cell reducer > can initialize stdin 3`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": false,
 }
@@ -83,6 +86,7 @@ exports[`cell reducer > can initialize stdin 4`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -112,6 +116,7 @@ exports[`cell reducer > can initialize stdin 5`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -141,6 +146,7 @@ exports[`cell reducer > can initialize stdin 6`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -176,6 +182,7 @@ exports[`cell reducer > can initialize stdin 7`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -212,6 +219,7 @@ exports[`cell reducer > can initialize stdin 8`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -254,6 +262,7 @@ exports[`cell reducer > can initialize stdin 9`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -276,6 +285,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -305,6 +315,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -334,6 +345,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": false,
 }
@@ -356,6 +368,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -385,6 +398,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "runElapsedTimeMs": 2000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -407,6 +421,7 @@ exports[`cell reducer > can run a stale cell 1`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": false,
 }
@@ -429,7 +444,8 @@ exports[`cell reducer > can run a stale cell 2`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
-  "status": "stale",
+  "staleInputs": true,
+  "status": "queued",
   "stopped": false,
 }
 `;
@@ -451,6 +467,7 @@ exports[`cell reducer > can run a stopped cell 1`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": false,
 }
@@ -473,6 +490,7 @@ exports[`cell reducer > can run a stopped cell 2`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -506,6 +524,7 @@ exports[`cell reducer > can run a stopped cell 3`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": true,
 }
@@ -539,6 +558,7 @@ exports[`cell reducer > can run a stopped cell 4`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": true,
 }
@@ -561,6 +581,7 @@ exports[`cell reducer > can run a stopped cell 5`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 40,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -583,6 +604,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -605,6 +627,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -627,6 +650,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -649,6 +673,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "queued",
   "stopped": false,
 }
@@ -671,6 +696,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -700,6 +726,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
   "runElapsedTimeMs": null,
   "runStartTimestamp": 20,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "running",
   "stopped": false,
 }
@@ -734,6 +761,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
   "runElapsedTimeMs": 13000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -769,6 +797,7 @@ import numpy",
   "runElapsedTimeMs": 13000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -803,6 +832,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
   "runElapsedTimeMs": 13000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -838,6 +868,7 @@ import numpy",
   "runElapsedTimeMs": 13000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -880,6 +911,7 @@ import numpy",
   "runElapsedTimeMs": 11000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }
@@ -920,6 +952,7 @@ import numpy",
   "runElapsedTimeMs": 11000,
   "runStartTimestamp": null,
   "serializedEditorState": null,
+  "staleInputs": false,
   "status": "idle",
   "stopped": false,
 }

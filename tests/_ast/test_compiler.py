@@ -25,7 +25,7 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.defs == {"module", "y"}
         assert cell.refs == {"f", "x"}
-        assert cell.imported_modules == {"_secret_module"}
+        assert cell.imported_namespaces == {"_secret_module"}
 
     @staticmethod
     def test_dunder_dunder_excluded() -> None:
@@ -49,7 +49,7 @@ class TestParseCell:
         assert cell.defs == {"m"}
         assert cell.refs == set()
         # but _m is the module from which it was imported
-        assert cell.imported_modules == {"_m"}
+        assert cell.imported_namespaces == {"_m"}
 
     @staticmethod
     def test_ref_local_var() -> None:
@@ -62,7 +62,7 @@ class TestParseCell:
         cell = compile_cell(code)
         assert cell.defs == {"f"}
         assert cell.refs == set()
-        assert not cell.imported_modules
+        assert not cell.imported_namespaces
 
     @staticmethod
     def test_import() -> None:
@@ -72,7 +72,7 @@ class TestParseCell:
         assert cell.defs == {"d", "x"}
         assert cell.refs == set()
         # but "a" is the module from which it was imported
-        assert cell.imported_modules == {"a"}
+        assert cell.imported_namespaces == {"a"}
 
 
 class TestCellFactory:

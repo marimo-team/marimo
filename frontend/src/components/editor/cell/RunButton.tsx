@@ -35,8 +35,7 @@ export const RunButton = (props: {
 }): JSX.Element => {
   const { onClick, appClosed, needsRun, status, config, edited } = props;
 
-  const blockedStatus =
-    status === "stale" || status === "disabled-transitively";
+  const blockedStatus = status === "disabled-transitively";
   const loading = status === "running" || status === "queued";
   const inactive =
     appClosed || loading || (!config.disabled && blockedStatus && !edited);
