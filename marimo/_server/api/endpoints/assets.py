@@ -1,23 +1,27 @@
 # Copyright 2024 Marimo. All rights reserved.
-import json
+from __future__ import annotations
+
 import mimetypes
 import os
 import re
-from http import HTTPStatus
-from multiprocessing import shared_memory
+from typing import TYPE_CHECKING
 
 from starlette.exceptions import HTTPException
-from starlette.requests import Request
 from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
-from marimo import __version__, _loggers
-from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE
+from marimo import _loggers
+from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_title
-from marimo._server.model import SessionMode
 from marimo._server.router import APIRouter
+from marimo._server.templates.templates import (
+    home_page_template,
+    notebook_page_template,
+)
 from marimo._utils.paths import import_files
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
 
@@ -50,31 +54,29 @@ async def index(request: Request) -> HTMLResponse:
     with open(index_html, "r") as f:  # noqa: ASYNC101
         html = f.read()
 
-    # Shared configuration
-    html = html.replace("{{ base_url }}", app_state.base_url)
-    html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ server_token }}", app_state.server_token)
-    html = html.replace("{{ version }}", __version__)
-
     if not file_key:
-        LOGGER.debug("No file key provided, serving homepage")
         # We don't know which file to use, so we need to render a homepage
-        html = html.replace("{{ title }}", "marimo")
-        html = html.replace("{{ app_config }}", json.dumps({}))
-        html = html.replace("{{ filename }}", "")
-        html = html.replace("{{ mode }}", "home")
+        LOGGER.debug("No file key provided, serving homepage")
+        html = home_page_template(
+            html=html,
+            base_url=app_state.base_url,
+            user_config=user_config,
+            server_token=app_state.server_token,
+        )
     else:
-        LOGGER.debug(f"File key provided: {file_key}")
         # We have a file key, so we can render the app with the file
+        LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
-        app_config = app_manager.app.config.asdict()
+        app_config = app_manager.app.config
 
-        html = html.replace("{{ title }}", parse_title(app_manager.filename))
-        html = html.replace("{{ app_config }}", json.dumps(app_config))
-        html = html.replace("{{ filename }}", app_manager.filename or "")
-        html = html.replace(
-            "{{ mode }}",
-            "read" if app_state.mode == SessionMode.RUN else "edit",
+        html = notebook_page_template(
+            html=html,
+            base_url=app_state.base_url,
+            user_config=user_config,
+            server_token=app_state.server_token,
+            app_config=app_config,
+            filename=app_manager.filename,
+            mode=app_state.mode,
         )
 
     return HTMLResponse(html)
@@ -101,25 +103,7 @@ def virtual_file(
         return Response(content=b"", media_type="application/octet-stream")
 
     byte_length, filename = filename_and_length.split("-", 1)
-    key = filename
-    shm = None
-    try:
-        # NB: this can't be collapsed into a one-liner!
-        # doing it in one line yields a 'released memoryview ...'
-        # because shared_memory has built in ref-tracking + GC
-        shm = shared_memory.SharedMemory(name=key)
-        buffer_contents = bytes(shm.buf)[: int(byte_length)]
-    except FileNotFoundError as err:
-        LOGGER.debug(
-            "Error retrieving shared memory for virtual file: %s", err
-        )
-        raise HTTPException(
-            HTTPStatus.NOT_FOUND,
-            detail="File not found",
-        ) from err
-    finally:
-        if shm is not None:
-            shm.close()
+    buffer_contents = read_virtual_file(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
     return Response(
         content=buffer_contents,

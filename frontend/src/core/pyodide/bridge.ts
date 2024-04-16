@@ -5,6 +5,7 @@ import { CellId } from "../cells/ids";
 import {
   CodeCompletionRequest,
   EditRequests,
+  ExportHTMLRequest,
   FileCreateRequest,
   FileDeleteRequest,
   FileDetailsResponse,
@@ -360,6 +361,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FileDetailsResponse;
+  };
+
+  exportHTML = async (request: ExportHTMLRequest): Promise<string> => {
+    if (
+      process.env.NODE_ENV === "development" ||
+      process.env.NODE_ENV === "test"
+    ) {
+      request.assetUrl = window.location.origin;
+    }
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "export_html",
+      payload: request,
+    });
+    return response as string;
   };
 
   getRecentFiles = throwNotImplemented;

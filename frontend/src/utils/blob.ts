@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Base64String } from "./json/base64";
+import { DataURLString } from "./json/base64";
 
-export function serializeBlob(blob: Blob): Promise<Base64String> {
-  return new Promise<Base64String>((resolve, reject) => {
+export function serializeBlob<T>(blob: Blob): Promise<DataURLString> {
+  return new Promise<DataURLString>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      resolve(event.target?.result as Base64String);
+      resolve(event.target?.result as DataURLString);
     };
     reader.onerror = (evt) => {
       reject(new Error(`Failed to read blob: ${evt.type}`));
@@ -14,7 +14,7 @@ export function serializeBlob(blob: Blob): Promise<Base64String> {
   });
 }
 
-export function deserializeBlob(serializedBlob: Base64String): Promise<Blob> {
+export function deserializeBlob(serializedBlob: DataURLString): Promise<Blob> {
   return new Promise((resolve, reject) => {
     try {
       // Extract the base64 data from the data URL

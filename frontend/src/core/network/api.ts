@@ -40,7 +40,7 @@ export const API = {
         ) {
           return response.json() as RESP;
         } else {
-          return null as RESP;
+          return response.text() as unknown as RESP;
         }
       })
       .catch((error) => {

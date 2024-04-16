@@ -242,3 +242,26 @@ async def test_cached_vfile_disposal(
     await k.run([append_vfile])
     assert len(ctx.virtual_file_registry.registry) == 1
     assert vfile not in ctx.virtual_file_registry.filenames()
+
+
+async def test_virtual_files_not_supported(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    get_context().virtual_files_supported = False
+
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import io
+                import marimo as mo
+                bytestream = io.BytesIO(b"hello world")
+                pdf_plugin = mo.pdf(bytestream)
+                """
+            ),
+        ],
+    )
+
+    ctx = get_context()
+    assert len(ctx.virtual_file_registry.registry) == 0
+    ctx.virtual_files_supported = True

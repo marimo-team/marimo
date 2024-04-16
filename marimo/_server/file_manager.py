@@ -148,7 +148,8 @@ class AppFileManager:
                 cell_configs=list(self.app.cell_manager.configs()),
                 config=new_config,
             )
-            self._create_file(self.filename, contents)
+            header_comments = codegen.get_header_comments(self.filename)
+            self._create_file(self.filename, contents, header_comments)
 
     def save(self, request: SaveRequest) -> None:
         """Save the current app."""
@@ -200,6 +201,16 @@ class AppFileManager:
 
         if self.filename is None:
             self.rename(filename)
+
+    def to_code(self) -> str:
+        """Read the contents of the unsaved file."""
+        contents = codegen.generate_filecontents(
+            codes=list(self.app.cell_manager.codes()),
+            names=list(self.app.cell_manager.names()),
+            cell_configs=list(self.app.cell_manager.configs()),
+            config=self.app.config,
+        )
+        return contents
 
     def read_file(self) -> str:
         """Read the contents of the file."""

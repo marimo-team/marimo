@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
 from starlette.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     Response,
     StreamingResponse,
@@ -52,6 +53,8 @@ class APIRouter(Router):
                 if isinstance(response, FileResponse):
                     return response
                 if isinstance(response, StreamingResponse):
+                    return response
+                if isinstance(response, HTMLResponse):
                     return response
 
                 if dataclasses.is_dataclass(response):

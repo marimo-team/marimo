@@ -43,10 +43,6 @@ import { PluginFunctions } from "./rpc";
 import { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
-import {
-  getStaticNotebookAssetUrl,
-  isStaticNotebook,
-} from "@/core/static/static-state";
 
 export interface PluginSlotHandle {
   /**
@@ -441,8 +437,11 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
     return false;
   }
 
-  if (isStaticNotebook()) {
-    return sheet.href.startsWith(getStaticNotebookAssetUrl());
+  if (
+    sheet.href.includes("127.0.0.1") &&
+    (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development")
+  ) {
+    return true;
   }
 
   if (sheet.href.includes("@marimo-team/frontend")) {

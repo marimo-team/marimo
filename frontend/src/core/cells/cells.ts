@@ -29,7 +29,7 @@ import { EditorView } from "@codemirror/view";
 import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { CellLog, getCellLogsForMessage } from "./logs";
-import { deserializeBase64ToJson } from "@/utils/json/base64";
+import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import { LayoutState } from "../layout/layout";
@@ -86,17 +86,44 @@ export interface LastSavedNotebook {
  */
 function initialNotebookState(): NotebookState {
   if (isStaticNotebook()) {
-    const notebookState = parseStaticState();
+    const {
+      cellCodes,
+      cellConfigs,
+      cellConsoleOutputs,
+      cellIds,
+      cellNames,
+      cellOutputs,
+    } = parseStaticState();
+    const cellData: Record<CellId, CellData> = {};
+    const cellRuntime: Record<CellId, CellRuntimeState> = {};
+    for (const [i, cellId] of cellIds.entries()) {
+      const name = cellNames[i];
+      const code = cellCodes[i];
+      const config = cellConfigs[i];
+      const outputs = cellConsoleOutputs[cellId] || [];
+      const output = cellOutputs[cellId];
+      cellData[cellId] = {
+        id: cellId,
+        name: deserializeBase64(name),
+        code: deserializeBase64(code),
+        edited: false,
+        lastCodeRun: null,
+        config: deserializeJson(deserializeBase64(config)),
+        serializedEditorState: null,
+      };
+      cellRuntime[cellId] = {
+        ...createCellRuntimeState(),
+        output: output ? deserializeJson(deserializeBase64(output)) : null,
+        consoleOutputs: outputs.map((output) =>
+          deserializeJson(deserializeBase64(output)),
+        ),
+      };
+    }
+
     return {
-      cellIds: notebookState.cellIds,
-      cellData: Objects.mapValues(
-        notebookState.cellData,
-        deserializeBase64ToJson<CellData>,
-      ),
-      cellRuntime: Objects.mapValues(
-        notebookState.cellRuntime,
-        deserializeBase64ToJson<CellRuntimeState>,
-      ),
+      cellIds: cellIds,
+      cellData: cellData,
+      cellRuntime: cellRuntime,
       cellHandles: {},
       history: [],
       scrollKey: null,
