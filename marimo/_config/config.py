@@ -201,12 +201,23 @@ def merge_config(
     config: MarimoConfig, new_config: MarimoConfig
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration."""
-    return cast(
+    merged = cast(
         MarimoConfig,
         deep_merge(
             cast(Dict[Any, Any], config), cast(Dict[Any, Any], new_config)
         ),
     )
+
+    # Patches for backward compatibility
+    if (
+        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
+    ):
+        merged["runtime"]["auto_reload"] = "off"
+    if (
+        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
+    ):
+        merged["runtime"]["auto_reload"] = "detect"
+    return merged
 
 
 def _deep_copy(obj: Any) -> Any:

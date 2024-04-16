@@ -1,11 +1,7 @@
-import random
-
 import pytest
+import reload_test_utils
 
 
 @pytest.fixture
 def py_modname() -> str:
-    filename_chars = "abcdefghijklmopqrstuvwxyz"
-    return "".join(random.sample(filename_chars, 20))
-
-
+    return reload_test_utils.random_modname()

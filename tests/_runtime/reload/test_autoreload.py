@@ -5,8 +5,9 @@ import pathlib
 import sys
 import textwrap
 
-from marimo._runtime.reload.autoreload import ModuleReloader
 from reload_test_utils import update_file
+
+from marimo._runtime.reload.autoreload import ModuleReloader
 
 
 def test_reload_function(tmp_path: pathlib.Path, py_modname: str):

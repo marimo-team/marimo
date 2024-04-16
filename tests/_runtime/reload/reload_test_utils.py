@@ -1,6 +1,12 @@
 import pathlib
+import random
 import textwrap
 import time
+
+
+def random_modname():
+    filename_chars = "abcdefghijklmopqrstuvwxyz"
+    return "".join(random.sample(filename_chars, 20))
 
 
 def update_file(path: pathlib.Path, code: str) -> None:
