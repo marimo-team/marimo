@@ -86,11 +86,13 @@ def watch_modules(
     mode: Literal["detect", "autorun"],
     enqueue_run_stale_cells: Callable[[], None],
     should_exit: threading.Event,
+    run_is_processed: threading.Event,
     stream: Stream,
 ) -> None:
     reloader = ModuleReloader()
     failed_filenames: set[str] = set()
     while not should_exit.is_set():
+        run_is_processed.wait()
         time.sleep(1)
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
@@ -112,12 +114,14 @@ def watch_modules(
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
                     set(
-                        modname_to_cell_id[modname] for modname in stale_modules
+                        modname_to_cell_id[modname]
+                        for modname in stale_modules
                     ),
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             if mode == "autorun":
+                run_is_processed.clear()
                 enqueue_run_stale_cells()
 
 
@@ -131,6 +135,8 @@ class ModuleWatcher:
     ) -> None:
         self.graph = graph
         self.should_exit = threading.Event()
+        self.run_is_processed = threading.Event()
+        self.run_is_processed.set()
         self.stream = stream
         self.mode = mode
         self.enqueue_run_stale_cells = enqueue_run_stale_cells
@@ -141,6 +147,7 @@ class ModuleWatcher:
                 self.mode,
                 self.enqueue_run_stale_cells,
                 self.should_exit,
+                self.run_is_processed,
                 self.stream,
             ),
             daemon=True,

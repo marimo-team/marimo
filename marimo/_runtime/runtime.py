@@ -87,7 +87,7 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.query_params import QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.watch_modules import ModuleWatcher
+from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -1047,6 +1047,8 @@ class Kernel:
         await self._run_cells(
             dataflow.transitive_closure(self.graph, cells_to_run)
         )
+        if self.module_watcher is not None:
+            self.module_watcher.run_is_processed.set()
 
     async def set_cell_config(self, request: SetCellConfigRequest) -> None:
         """Update cell configs.

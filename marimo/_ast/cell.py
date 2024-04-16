@@ -182,7 +182,9 @@ class CellImpl:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(cell_id=self.cell_id, stale=stale, stream=stream)
+        CellOp.broadcast_stale(
+            cell_id=self.cell_id, stale=stale, stream=stream
+        )
 
 
 @dataclasses.dataclass
@@ -291,7 +293,8 @@ class Cell:
     def run(
         self, **refs: Any
     ) -> (
-        tuple[Any, Mapping[str, Any]] | Awaitable[tuple[Any, Mapping[str, Any]]]
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
         """Run this cell and return its visual output and definitions
 
