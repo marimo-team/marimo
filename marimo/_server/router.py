@@ -7,9 +7,9 @@ from asyncio import iscoroutine
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
-from fastapi.responses import HTMLResponse
 from starlette.responses import (
     FileResponse,
+    HTMLResponse,
     JSONResponse,
     Response,
     StreamingResponse,
