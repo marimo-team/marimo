@@ -65,10 +65,11 @@ class CellOp(Op):
 
     A CellOp's data has three optional fields:
 
-    output  - a CellOutput
-    console - a CellOutput (console msg to append), or a list of CellOutputs
-    status  - execution status
-    stale   - whether the cell has stale inputs (variables, modules, ...)
+    output       - a CellOutput
+    console      - a CellOutput (console msg to append), or a list of
+                   CellOutputs
+    status       - execution status
+    stale_inputs - whether the cell has stale inputs (variables, modules, ...)
 
     Omitting a field means that its value should be unchanged!
 
@@ -82,7 +83,7 @@ class CellOp(Op):
     output: Optional[CellOutput] = None
     console: Optional[Union[CellOutput, List[CellOutput]]] = None
     status: Optional[CellStatusType] = None
-    stale: Optional[bool] = None
+    stale_inputs: Optional[bool] = None
     timestamp: float = field(default_factory=lambda: time.time())
 
     @staticmethod
@@ -128,6 +129,7 @@ class CellOp(Op):
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
+        stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
         cell_id = (
@@ -142,12 +144,13 @@ class CellOp(Op):
                 data=data,
             ),
             status=status,
-        ).broadcast()
+        ).broadcast(stream=stream)
 
     @staticmethod
     def broadcast_empty_output(
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
+        stream: Stream | None = None,
     ) -> None:
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
@@ -161,7 +164,7 @@ class CellOp(Op):
                 data="",
             ),
             status=status,
-        ).broadcast()
+        ).broadcast(stream=stream)
 
     @staticmethod
     def broadcast_console_output(
@@ -170,6 +173,7 @@ class CellOp(Op):
         data: str,
         cell_id: Optional[CellId_t],
         status: Optional[CellStatusType],
+        stream: Stream | None = None,
     ) -> None:
         mimetype, data = CellOp.maybe_truncate_output(mimetype, data)
         cell_id = (
@@ -184,15 +188,19 @@ class CellOp(Op):
                 data=data,
             ),
             status=status,
-        ).broadcast()
+        ).broadcast(stream=stream)
 
     @staticmethod
-    def broadcast_status(cell_id: CellId_t, status: CellStatusType) -> None:
+    def broadcast_status(
+        cell_id: CellId_t, status: CellStatusType, stream: Stream | None = None
+    ) -> None:
         if status != "running":
             CellOp(cell_id=cell_id, status=status).broadcast()
         else:
             # Console gets cleared on "running"
-            CellOp(cell_id=cell_id, console=[], status=status).broadcast()
+            CellOp(cell_id=cell_id, console=[], status=status).broadcast(
+                stream=stream
+            )
 
     @staticmethod
     def broadcast_error(
@@ -214,8 +222,10 @@ class CellOp(Op):
         ).broadcast()
 
     @staticmethod
-    def broadcast_stale(cell_id: CellId_t, stale: bool) -> None:
-        CellOp(cell_id=cell_id, stale=stale).broadcast()
+    def broadcast_stale(
+        cell_id: CellId_t, stale: bool, stream: Stream | None = None
+    ) -> None:
+        CellOp(cell_id=cell_id, stale_inputs=stale).broadcast(stream)
 
 
 @dataclass

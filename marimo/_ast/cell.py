@@ -6,6 +6,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
+from marimo._messaging.types import Stream
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
@@ -113,7 +114,7 @@ class CellImpl:
 
     @property
     def stale(self) -> bool:
-        return self.status == "stale"
+        return self._stale.state
 
     @property
     def disabled_transitively(self) -> bool:
@@ -157,7 +158,9 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
-    def set_status(self, status: CellStatusType) -> None:
+    def set_status(
+        self, status: CellStatusType, stream: Stream | None = None
+    ) -> None:
         from marimo._messaging.ops import CellOp
         from marimo._runtime.context import (
             ContextNotInitializedError,
@@ -171,17 +174,17 @@ class CellImpl:
             return
 
         assert self.cell_id is not None
-        CellOp.broadcast_status(cell_id=self.cell_id, status=status)
+        CellOp.broadcast_status(
+            cell_id=self.cell_id, status=status, stream=stream
+        )
 
-    def set_stale(self, stale: bool) -> None:
+    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(cell_id=self.cell_id, stale=stale)
-
-    @property
-    def stale(self) -> bool:
-        return self._stale.state
+        CellOp.broadcast_stale(
+            cell_id=self.cell_id, stale=stale, stream=stream
+        )
 
 
 @dataclasses.dataclass
@@ -290,7 +293,8 @@ class Cell:
     def run(
         self, **refs: Any
     ) -> (
-        tuple[Any, Mapping[str, Any]] | Awaitable[tuple[Any, Mapping[str, Any]]]
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
         """Run this cell and return its visual output and definitions
 

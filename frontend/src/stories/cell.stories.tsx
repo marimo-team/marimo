@@ -66,7 +66,7 @@ const props: CellProps = {
     },
     runtime: {
       auto_instantiate: true,
-      auto_reload: false,
+      auto_reload: "off",
     },
     keymap: {
       preset: "default",
@@ -242,7 +242,7 @@ export const StaleStatus: Story = {
           {...props}
           runElapsedTimeMs={20 as Milliseconds}
           status="disabled-transitively"
-          stale={true}
+          staleInputs={true}
           output={{
             channel: "output",
             data: "This data is stale because a parent is disabled",
@@ -263,7 +263,7 @@ export const StaleAndEditedStatus: Story = {
           {...props}
           runElapsedTimeMs={20 as Milliseconds}
           status="disabled-transitively"
-          stale={true}
+          staleInputs={true}
           output={{
             channel: "output",
             data: "This data is stale because a parent is disabled, but this cell has been edited since.",
@@ -287,7 +287,7 @@ export const DisabledAndStaleStatus: Story = {
             disabled: true,
           }}
           status="disabled-transitively"
-          stale={true}
+          staleInputs={true}
           output={{
             channel: "output",
             data: "<span class='markdown'><h1>Layout</h1>\n<p><code>marimo</code> provides functions to help you lay out your output, such as\nin rows and columns, accordions, tabs, and callouts. This tutorial\nshows some examples.</p></span>",

@@ -9,7 +9,6 @@ from modulefinder import ModuleFinder
 from typing import TYPE_CHECKING
 
 from marimo._ast.cell import CellId_t, CellImpl
-from marimo._messaging.ops import CellOp
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
 from marimo._runtime.reload.autoreload import ModuleReloader
@@ -103,10 +102,7 @@ def watch_modules(
             ]
             for cid in stale_cell_ids:
                 with graph.lock:
-                    # leaky -- not calling cell.set_stale because that uses
-                    # the thread-local context to get a stream ...
-                    graph.cells[cid]._stale.state = True
-                CellOp(cell_id=cid, stale=True).broadcast(stream=stream)
+                    graph.cells[cid].set_stale(stale=True, stream=stream)
 
 
 class ModuleWatcher:

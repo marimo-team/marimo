@@ -70,7 +70,7 @@ export interface CellProps
       | "errored"
       | "interrupted"
       | "stopped"
-      | "stale"
+      | "staleInputs"
       | "runStartTimestamp"
       | "runElapsedTimeMs"
       | "debuggerActive"
@@ -124,7 +124,7 @@ const CellComponent = (
     interrupted,
     errored,
     stopped,
-    stale,
+    staleInputs,
     serializedEditorState,
     mode,
     debuggerActive,
@@ -159,17 +159,17 @@ const CellComponent = (
   const disabledOrAncestorDisabled =
     cellConfig.disabled || status === "disabled-transitively";
   const needsRun =
-    edited || interrupted || (stale && !disabledOrAncestorDisabled);
+    edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
   const loading = status === "running" || status === "queued";
   const outputStale = outputIsStale(
-    { status, output, runStartTimestamp, interrupted, stale },
+    { status, output, runStartTimestamp, interrupted, staleInputs },
     edited,
   );
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
   const consoleOutputStale =
-    (status === "queued" || edited || stale) && !interrupted;
+    (status === "queued" || edited || staleInputs) && !interrupted;
   const editing = mode === "edit";
 
   // Performs side-effects that must run whenever the cell is run, but doesn't
@@ -447,7 +447,7 @@ const CellComponent = (
           <div className="shoulder-right">
             <CellStatusComponent
               status={status}
-              stale={stale}
+              staleInputs={staleInputs}
               interrupted={interrupted}
               editing={editing}
               edited={edited}

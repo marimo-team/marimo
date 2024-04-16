@@ -12,7 +12,6 @@ import { Milliseconds, Seconds } from "@/utils/time";
  * queued: queued by the kernel.
  * running: currently executing.
  * idle: not running.
- * stale: stale, likely because the cell was disabled or an ancestor was disabled.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
 export type CellStatus =
@@ -50,7 +49,7 @@ export function createCellRuntimeState(): CellRuntimeState {
     output: null,
     consoleOutputs: [],
     status: "idle",
-    stale: false,
+    staleInputs: false,
     interrupted: false,
     errored: false,
     stopped: false,
@@ -88,8 +87,8 @@ export interface CellRuntimeState {
   consoleOutputs: OutputMessage[];
   /** current status of the cell */
   status: CellStatus;
-  /** whether the cell is stale */
-  stale: boolean;
+  /** whether the cell has stale inputs*/
+  staleInputs: boolean;
   /** whether this cell has been interrupted since its last run */
   interrupted: boolean;
   /** whether this cell was stopped with mo.stop */

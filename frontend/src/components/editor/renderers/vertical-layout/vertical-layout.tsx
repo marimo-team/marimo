@@ -59,7 +59,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           mode={mode}
           runStartTimestamp={cell.runStartTimestamp}
           interrupted={cell.interrupted}
-          stale={cell.stale}
+          staleInputs={cell.staleInputs}
         />
       ))}
       {canShowCode && (
@@ -95,7 +95,7 @@ interface VerticalCellProps
     | "stopped"
     | "errored"
     | "interrupted"
-    | "stale"
+    | "staleInputs"
     | "runStartTimestamp"
   > {
   cellId: CellId;
@@ -114,7 +114,7 @@ const VerticalCell = memo(
     errored,
     config,
     interrupted,
-    stale,
+    staleInputs,
     runStartTimestamp,
     code,
     showCode,
@@ -128,7 +128,7 @@ const VerticalCell = memo(
         output,
         interrupted,
         runStartTimestamp,
-        stale,
+        staleInputs,
       },
       false,
     );

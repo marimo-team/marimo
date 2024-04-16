@@ -29,7 +29,7 @@ describe("outputIsStale", () => {
     (status) => {
       const cell = {
         status: status,
-        stale: true,
+        staleInputs: true,
         output: null,
         runStartTimestamp: null,
         interrupted: false,
@@ -42,7 +42,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell is loading", () => {
     const cell = {
       status: "running" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: null,
       interrupted: false,
@@ -54,7 +54,7 @@ describe("outputIsStale", () => {
   it("should return false if the cell is running and output is received after run started", () => {
     const cell = {
       status: "running" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: createOutput(),
       runStartTimestamp: (Date.now() - 1000) as Seconds, // Output received after run started
       interrupted: false,
@@ -66,7 +66,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell status is stale", () => {
     const cell = {
       status: "disabled-transitively" as CellStatus,
-      stale: true,
+      staleInputs: true,
       output: null,
       runStartTimestamp: null,
       interrupted: false,
@@ -78,7 +78,7 @@ describe("outputIsStale", () => {
   it("should return false if the cell is interrupted", () => {
     const cell = {
       status: "running" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: null,
       interrupted: true,
@@ -90,7 +90,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell is running and output is received before run started", () => {
     const cell = {
       status: "running" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: createOutput(),
       runStartTimestamp: (Date.now() + 1000) as Seconds, // Output received before run started
       interrupted: false,
@@ -102,7 +102,7 @@ describe("outputIsStale", () => {
   it("should return false if the cell is idle and output is received", () => {
     const cell = {
       status: "idle" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: createOutput(),
       runStartTimestamp: null,
       interrupted: false,
@@ -114,7 +114,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell is queued", () => {
     const cell = {
       status: "queued" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: null,
       interrupted: false,
@@ -126,7 +126,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell is running but no output is received", () => {
     const cell = {
       status: "running" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: Date.now() as Seconds,
       interrupted: false,
@@ -138,7 +138,7 @@ describe("outputIsStale", () => {
   it("should return false if the cell is idle and not edited", () => {
     const cell = {
       status: "idle" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: null,
       interrupted: false,
@@ -151,7 +151,7 @@ describe("outputIsStale", () => {
     // We likely don't get in this state since before a cell is interrupted, it is run and we remove the edited state
     const cell = {
       status: "idle" as CellStatus,
-      stale: false,
+      staleInputs: false,
       output: null,
       runStartTimestamp: null,
       interrupted: true,
@@ -163,7 +163,7 @@ describe("outputIsStale", () => {
   it("should return true if the cell is interrupted but has a stale status", () => {
     const cell = {
       status: "disabled-transitively" as CellStatus,
-      stale: true,
+      staleInputs: true,
       output: null,
       runStartTimestamp: null,
       interrupted: true,
