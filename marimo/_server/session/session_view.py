@@ -115,6 +115,28 @@ class SessionView:
             # Resolve stdin
             self.add_stdin("")
 
+    def get_cell_outputs(
+        self, ids: list[CellId_t]
+    ) -> dict[CellId_t, CellOutput]:
+        """Get the outputs for the given cell ids."""
+        outputs: dict[CellId_t, CellOutput] = {}
+        for cell_id in ids:
+            cell_op = self.cell_operations.get(cell_id)
+            if cell_op is not None and cell_op.output is not None:
+                outputs[cell_id] = cell_op.output
+        return outputs
+
+    def get_cell_console_outputs(
+        self, ids: list[CellId_t]
+    ) -> dict[CellId_t, list[CellOutput]]:
+        """Get the console outputs for the given cell ids."""
+        outputs: dict[CellId_t, list[CellOutput]] = {}
+        for cell_id in ids:
+            cell_op = self.cell_operations.get(cell_id)
+            if cell_op is not None and cell_op.console:
+                outputs[cell_id] = as_list(cell_op.console)
+        return outputs
+
     @property
     def operations(self) -> list[MessageOperation]:
         all_ops: list[MessageOperation] = [

@@ -13,8 +13,9 @@ import { Input } from "../ui/input";
 import { CopyIcon } from "lucide-react";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../ui/tooltip";
-import { createStaticHTMLNotebook } from "@/core/static/download-html";
 import { Constants } from "@/core/constants";
+import { exportHTML } from "@/core/network/requests";
+import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 
 const BASE_URL = "https://static.marimo.app";
 
@@ -36,7 +37,10 @@ export const ShareStaticNotebookModal: React.FC<{
           e.preventDefault();
 
           onClose();
-          const html = await createStaticHTMLNotebook();
+          const html = await exportHTML({
+            download: false,
+            files: VirtualFileTracker.INSTANCE.filenames(),
+          });
 
           const prevToast = toast({
             title: "Uploading static notebook...",

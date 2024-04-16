@@ -41,6 +41,15 @@ export class VirtualFileTracker {
     }
   }
 
+  filenames(): string[] {
+    const set = new Set<string>();
+    for (const files of this.virtualFiles.values()) {
+      files.forEach((file) => set.add(file));
+    }
+
+    return [...set];
+  }
+
   removeForCellId(cellId: CellId): void {
     this.virtualFiles.delete(cellId);
   }

@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
@@ -33,6 +33,9 @@ class CellOutput:
     mimetype: KnownMimeType
     data: Union[str, Sequence[Error]]
     timestamp: float = field(default_factory=lambda: time.time())
+
+    def asdict(self) -> dict[str, Any]:
+        return asdict(self)
 
     @staticmethod
     def stdout(data: str) -> CellOutput:

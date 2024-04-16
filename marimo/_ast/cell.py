@@ -32,6 +32,9 @@ class CellConfig:
     def from_dict(cls, kwargs: dict[str, Any]) -> CellConfig:
         return cls(**{k: v for k, v in kwargs.items() if k in CellConfigKeys})
 
+    def asdict(self) -> dict[str, Any]:
+        return dataclasses.asdict(self)
+
     def configure(self, update: dict[str, Any] | CellConfig) -> None:
         """Update the config in-place.
 

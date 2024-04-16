@@ -196,6 +196,12 @@ export interface ShutdownSessionRequest {
   sessionId: SessionId;
 }
 
+export interface ExportHTMLRequest {
+  assetUrl?: string;
+  files: string[];
+  download: boolean;
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -250,6 +256,7 @@ export interface EditRequests {
   shutdownSession: (
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
+  exportHTML: (request: ExportHTMLRequest) => Promise<string>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

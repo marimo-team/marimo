@@ -7,6 +7,7 @@ from asyncio import iscoroutine
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
 
+from fastapi.responses import HTMLResponse
 from starlette.responses import (
     FileResponse,
     JSONResponse,
@@ -34,16 +35,10 @@ class APIRouter(Router):
 
     def __post_init__(self) -> None:
         if self.prefix:
-            assert self.prefix.startswith(
-                "/"
-            ), "Path prefix must start with '/'"
-            assert not self.prefix.endswith(
-                "/"
-            ), "Path prefix must not end with '/'"
+            assert self.prefix.startswith("/"), "Path prefix must start with '/'"
+            assert not self.prefix.endswith("/"), "Path prefix must not end with '/'"
 
-    def post(
-        self, path: str
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def post(self, path: str) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Post method that returns a JSON response"""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
@@ -53,12 +48,12 @@ class APIRouter(Router):
                     return response
                 if isinstance(response, StreamingResponse):
                     return response
+                if isinstance(response, HTMLResponse):
+                    return response
 
                 if dataclasses.is_dataclass(response):
                     return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
-                        )
+                        content=deep_to_camel_case(dataclasses.asdict(response))
                     )
 
                 return JSONResponse(content=json.dumps(response))
@@ -90,9 +85,7 @@ class APIRouter(Router):
 
                 if dataclasses.is_dataclass(response):
                     return JSONResponse(
-                        content=deep_to_camel_case(
-                            dataclasses.asdict(response)
-                        )
+                        content=deep_to_camel_case(dataclasses.asdict(response))
                     )
 
                 return response  # type: ignore[no-any-return]
@@ -123,9 +116,7 @@ class APIRouter(Router):
 
         return decorator
 
-    def websocket(
-        self, path: str
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def websocket(self, path: str) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Websocket method."""
 
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
