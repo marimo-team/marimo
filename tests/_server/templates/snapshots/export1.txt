@@ -56,7 +56,7 @@
     <marimo-filename hidden>notebook.py</marimo-filename>
     <marimo-mode data-mode='read' hidden></marimo-mode>
     <marimo-version data-version='0.0.0' hidden></marimo-version>
-    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": true}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default"}}' hidden></marimo-user-config>
+    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": false}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default"}}' hidden></marimo-user-config>
     <marimo-app-config data-config='{"layout_file": null, "width": "normal"}' hidden></marimo-app-config>
     <marimo-server-token data-token='token' hidden></marimo-server-token>
     <title>notebook</title>

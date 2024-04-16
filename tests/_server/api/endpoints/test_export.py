@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
-from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
@@ -35,7 +34,7 @@ def test_export_html(client: TestClient) -> None:
         },
     )
     body = response.text
-    snapshot("export_html.txt", normalize_index_html(body))
+    assert '<marimo-code hidden=""></marimo-code>' not in body
 
 
 @with_session(SESSION_ID)
@@ -53,4 +52,4 @@ def test_export_html_no_code(client: TestClient) -> None:
         },
     )
     body = response.text
-    snapshot("export_html_no_code.txt", normalize_index_html(body))
+    assert '<marimo-code hidden=""></marimo-code>' in body

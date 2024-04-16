@@ -10,7 +10,6 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
-from marimo._utils.paths import import_files
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -20,7 +19,7 @@ snapshot = snapshotter(__file__)
 class TestNotebookPageTemplate(unittest.TestCase):
     def setUp(self):
         root = os.path.realpath(
-            str(import_files("marimo").joinpath("_static"))
+            os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
@@ -85,7 +84,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self):
         root = os.path.realpath(
-            str(import_files("marimo").joinpath("_static"))
+            os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
@@ -115,7 +114,7 @@ class TestHomePageTemplate(unittest.TestCase):
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self):
         root = os.path.realpath(
-            str(import_files("marimo").joinpath("_static"))
+            os.path.join(os.path.dirname(__file__), "data")
         )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
