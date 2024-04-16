@@ -158,7 +158,7 @@ jobs:
           fi
           uv pip install --upgrade pip
           uv pip install .[testcore]
-          pytest -v tests/ -k "not test_cli"
+          pytest -vv tests/ -k "not test_cli"
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
