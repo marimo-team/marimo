@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import random
 
@@ -211,16 +213,16 @@ def test_save_app_config(client: TestClient) -> None:
     assert filename
 
     file_contents = open(filename).read()
-    assert 'marimo.App(width="full"' not in file_contents
+    assert 'marimo.App(width="medium"' not in file_contents
 
     response = client.post(
         "/api/kernel/save_app_config",
         headers=HEADERS,
         json={
-            "config": {"width": "full"},
+            "config": {"width": "medium"},
         },
     )
     assert response.status_code == 200, response.text
     assert response.json()["success"] is True
     file_contents = open(filename).read()
-    assert 'marimo.App(width="full"' in file_contents
+    assert 'marimo.App(width="medium"' in file_contents

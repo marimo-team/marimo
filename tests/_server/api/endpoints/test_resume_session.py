@@ -24,6 +24,7 @@ def create_response(
         "ui_values": {},
         "last_executed_code": {},
         "configs": [{"disabled": False, "hide_code": False}],
+        "app_config": {"width": "full"},
     }
     response.update(partial_response)
     return response
@@ -53,6 +54,7 @@ def assert_kernel_ready_response(
     assert data.resumed == expected.resumed
     assert data.ui_values == expected.ui_values
     assert data.configs == expected.configs
+    assert data.app_config == expected.app_config
 
 
 def get_session(client: TestClient, session_id: str) -> Optional[Session]:
