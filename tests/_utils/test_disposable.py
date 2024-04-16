@@ -1,10 +1,10 @@
 from marimo._utils.disposable import Disposable
 
 
-def test_disposable():
+def test_disposable() -> None:
     was_action_called = False
 
-    def action():
+    def action() -> None:
         nonlocal was_action_called
         was_action_called = True
 
@@ -15,7 +15,7 @@ def test_disposable():
     assert disposable.is_disposed()
 
 
-def test_disposable_empty():
+def test_disposable_empty() -> None:
     empty_disposable = Disposable.empty()
     assert not empty_disposable.is_disposed()
     empty_disposable.dispose()

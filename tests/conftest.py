@@ -104,7 +104,7 @@ class MockedKernel:
             stream=self.stream,  # type: ignore
         )
 
-    def teardown(self):
+    def teardown(self) -> None:
         # must be called by fixtures that instantiate this
         teardown_context()
         self.stdout._watcher.stop()

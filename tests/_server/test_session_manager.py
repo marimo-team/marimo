@@ -35,7 +35,7 @@ def session_manager():
     )
 
 
-def test_start_lsp_server(session_manager: SessionManager):
+def test_start_lsp_server(session_manager: SessionManager) -> None:
     asyncio.get_event_loop().run_until_complete(
         session_manager.start_lsp_server()
     )
@@ -44,7 +44,7 @@ def test_start_lsp_server(session_manager: SessionManager):
 
 def test_create_session_new(
     session_manager: SessionManager, mock_session_consumer: SessionConsumer
-):
+) -> None:
     session_id = "test_session_id"
     session = session_manager.create_session(
         session_id,
@@ -62,7 +62,7 @@ def test_create_session_absolute_url(
     session_manager: SessionManager,
     mock_session_consumer: SessionConsumer,
     temp_marimo_file: str,
-):
+) -> None:
     session_id = "test_session_id"
     session = session_manager.create_session(
         session_id,
@@ -78,7 +78,7 @@ def test_create_session_absolute_url(
 
 def test_maybe_resume_session_for_new_file(
     session_manager: SessionManager, mock_session: Session
-):
+) -> None:
     session_id = "test_session_id"
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
     mock_session.app_file_manager = AppFileManager(filename=None)
@@ -108,7 +108,7 @@ def test_maybe_resume_session_for_existing_file(
     session_manager: SessionManager,
     mock_session: Session,
     temp_marimo_file: str,
-):
+) -> None:
     session_id = "test_session_id"
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
@@ -134,7 +134,9 @@ def test_maybe_resume_session_for_existing_file(
     assert resumed_session is mock_session
 
 
-def test_close_session(session_manager: SessionManager, mock_session: Session):
+def test_close_session(
+    session_manager: SessionManager, mock_session: Session
+) -> None:
     session_id = "test_session_id"
     session_manager.sessions[session_id] = mock_session
     session_manager.close_session(session_id)
@@ -144,7 +146,7 @@ def test_close_session(session_manager: SessionManager, mock_session: Session):
 
 def test_any_clients_connected_new_file(
     session_manager: SessionManager, mock_session: Session
-):
+) -> None:
     session_id = "test_session_id"
     session_manager.sessions[session_id] = mock_session
     mock_session.app_file_manager = AppFileManager(filename=None)
@@ -158,7 +160,7 @@ def test_any_clients_connected_existing_file(
     session_manager: SessionManager,
     mock_session: Session,
     temp_marimo_file: str,
-):
+) -> None:
     session_id = "test_session_id"
     session_manager.sessions[session_id] = mock_session
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
@@ -171,7 +173,7 @@ def test_any_clients_connected_existing_file(
 
 def test_close_all_sessions(
     session_manager: SessionManager, mock_session: Session
-):
+) -> None:
     session_manager.sessions = {
         "session1": mock_session,
         "session2": mock_session,
@@ -181,7 +183,9 @@ def test_close_all_sessions(
     assert mock_session.close.call_count == 2
 
 
-def test_shutdown(session_manager: SessionManager, mock_session: Session):
+def test_shutdown(
+    session_manager: SessionManager, mock_session: Session
+) -> None:
     session_manager.sessions = {
         "session1": mock_session,
         "session2": mock_session,

@@ -82,11 +82,11 @@ class TestApp:
         app = App()
 
         @app.cell
-        def one():
+        def one() -> None:
             x = y  # noqa: F841, F821
 
         @app.cell
-        def two():
+        def two() -> None:
             y = x  # noqa: F841, F821
 
         with pytest.raises(CycleError):
@@ -114,11 +114,11 @@ class TestApp:
         app = App()
 
         @app.cell
-        def one():
+        def one() -> None:
             x = 0  # noqa: F841
 
         @app.cell
-        def two():
+        def two() -> None:
             x = 0  # noqa: F841
 
         with pytest.raises(MultipleDefinitionError):
@@ -129,11 +129,11 @@ class TestApp:
         app = App()
 
         @app.cell
-        def one():
+        def one() -> None:
             x = 0  # noqa: F841
 
         @app.cell
-        def two():
+        def two() -> None:
             del x  # noqa: F841, F821
 
         with pytest.raises(DeleteNonlocalError):
@@ -342,7 +342,7 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo(): ...
+            def foo() -> None: ...
 
             return (foo,)
 

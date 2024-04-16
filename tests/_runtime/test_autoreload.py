@@ -37,7 +37,7 @@ def update_file(path: pathlib.Path, code: str) -> None:
     path.write_text(textwrap.dedent(code))
 
 
-def test_reload_function(tmp_path: pathlib.Path):
+def test_reload_function(tmp_path: pathlib.Path) -> None:
     sys.path.append(str(tmp_path))
     reloader = ModuleReloader()
     py_modname = random_py_modname()
@@ -66,7 +66,7 @@ def test_reload_function(tmp_path: pathlib.Path):
 
 async def test_reload_function_kernel(
     tmp_path: pathlib.Path, k: Kernel, exec_req: ExecReqProvider
-):
+) -> None:
     sys.path.append(str(tmp_path))
     py_modname = random_py_modname()
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
