@@ -19,7 +19,9 @@ snapshot = snapshotter(__file__)
 
 class TestNotebookPageTemplate(unittest.TestCase):
     def setUp(self):
-        root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+        root = os.path.realpath(
+            str(import_files("marimo").joinpath("_static"))
+        )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
             self.html = f.read()
@@ -82,7 +84,9 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
 class TestHomePageTemplate(unittest.TestCase):
     def setUp(self):
-        root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+        root = os.path.realpath(
+            str(import_files("marimo").joinpath("_static"))
+        )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
             self.html = f.read()
@@ -110,7 +114,9 @@ class TestHomePageTemplate(unittest.TestCase):
 
 class TestStaticNotebookTemplate(unittest.TestCase):
     def setUp(self):
-        root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
+        root = os.path.realpath(
+            str(import_files("marimo").joinpath("_static"))
+        )
         index_html = os.path.join(root, "index.html")
         with open(index_html, "r") as f:
             self.html = f.read()

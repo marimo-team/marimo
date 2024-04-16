@@ -76,12 +76,12 @@ def static_notebook_template(
     asset_url: Optional[str] = None,
 ) -> str:
     if asset_url is None:
-        asset_url = (
-            f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
-        )
+        asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
 
     html = html.replace("{{ base_url }}", "")
-    html = html.replace("{{ user_config }}", json.dumps(user_config, sort_keys=True))
+    html = html.replace(
+        "{{ user_config }}", json.dumps(user_config, sort_keys=True)
+    )
     html = html.replace("{{ server_token }}", server_token)
     html = html.replace("{{ version }}", __version__)
 

@@ -28,9 +28,15 @@ if TYPE_CHECKING:
 # Define the app routes
 def build_routes(base_url: str = "") -> List[BaseRoute]:
     app_router = APIRouter(prefix=base_url)
-    app_router.include_router(execution_router, prefix="/api/kernel", name="execution")
-    app_router.include_router(config_router, prefix="/api/kernel", name="config")
-    app_router.include_router(editing_router, prefix="/api/kernel", name="editing")
+    app_router.include_router(
+        execution_router, prefix="/api/kernel", name="execution"
+    )
+    app_router.include_router(
+        config_router, prefix="/api/kernel", name="config"
+    )
+    app_router.include_router(
+        editing_router, prefix="/api/kernel", name="editing"
+    )
     app_router.include_router(files_router, prefix="/api/kernel", name="files")
     app_router.include_router(
         file_explorer_router, prefix="/api/files", name="file_explorer"
@@ -40,7 +46,9 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
     app_router.include_router(home_router, prefix="/api/home", name="home")
-    app_router.include_router(export_router, prefix="/api/export", name="export")
+    app_router.include_router(
+        export_router, prefix="/api/export", name="export"
+    )
     app_router.include_router(health_router, name="health")
     app_router.include_router(ws_router, name="ws")
     app_router.include_router(assets_router, name="assets")

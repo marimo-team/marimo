@@ -6,7 +6,9 @@ from typing import Callable
 
 def snapshotter(current_file: str) -> Callable[[str, str], None]:
     def snapshot(filename: str, result: str) -> None:
-        filepath = os.path.join(os.path.dirname(current_file), "snapshots", filename)
+        filepath = os.path.join(
+            os.path.dirname(current_file), "snapshots", filename
+        )
 
         # If snapshot directory doesn't exist, create it
         if not os.path.exists(os.path.dirname(filepath)):

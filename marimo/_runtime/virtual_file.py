@@ -137,7 +137,8 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         # deleted. (We can't rely on when the refcount will be decremented, so
         # we need to check for deletion explicitly to prevent leaks.)
         if deletion or (
-            context.virtual_file_registry.refcount(self.virtual_file.filename) <= 0
+            context.virtual_file_registry.refcount(self.virtual_file.filename)
+            <= 0
         ):
             context.virtual_file_registry.remove(self.virtual_file)
             return True
@@ -195,13 +196,17 @@ class VirtualFileRegistry:
             return self.registry[filename].refcount
         return 0
 
-    def add(self, virtual_file: VirtualFile, context: "RuntimeContext") -> None:
+    def add(
+        self, virtual_file: VirtualFile, context: "RuntimeContext"
+    ) -> None:
         if not context.virtual_files_supported:
             return
 
         key = virtual_file.filename
         if key in self.registry:
-            LOGGER.debug("Virtual file (key=%s) already registered", virtual_file)
+            LOGGER.debug(
+                "Virtual file (key=%s) already registered", virtual_file
+            )
             return
 
         buffer = virtual_file.buffer
@@ -276,7 +281,9 @@ def read_virtual_file(filename: str, byte_length: int) -> bytes:
         shm = shared_memory.SharedMemory(name=key)
         buffer_contents = bytes(shm.buf)[: int(byte_length)]
     except FileNotFoundError as err:
-        LOGGER.debug("Error retrieving shared memory for virtual file: %s", err)
+        LOGGER.debug(
+            "Error retrieving shared memory for virtual file: %s", err
+        )
         raise HTTPException(
             HTTPStatus.NOT_FOUND,
             detail="File not found",

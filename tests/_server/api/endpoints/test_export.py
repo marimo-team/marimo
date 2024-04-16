@@ -1,12 +1,15 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from starlette.testclient import TestClient
+from typing import TYPE_CHECKING
 
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 snapshot = snapshotter(__file__)
 

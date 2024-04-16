@@ -77,7 +77,9 @@ async def export_as_html(
         cell_codes=list(session.app_file_manager.app.cell_manager.codes()),
         cell_configs=list(session.app_file_manager.app.cell_manager.configs()),
         cell_outputs=session.session_view.get_cell_outputs(cell_ids),
-        cell_console_outputs=session.session_view.get_cell_console_outputs(cell_ids),
+        cell_console_outputs=session.session_view.get_cell_console_outputs(
+            cell_ids
+        ),
         files=files,
         asset_url=body.asset_url,
     )
@@ -86,7 +88,9 @@ async def export_as_html(
     download_filename = f"{os.path.splitext(basename)[0]}.html"
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={download_filename}"}
+        headers = {
+            "Content-Disposition": f"attachment; filename={download_filename}"
+        }
     else:
         headers = {}
 
