@@ -30,6 +30,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
+from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import Alert, MessageOperation, Reload
 from marimo._messaging.types import KernelMessage
@@ -302,7 +303,7 @@ class Session:
             LOGGER.debug("Closing session because kernel died")
             self.close()
             print()
-            print_tabbed("\033[31mThe Python kernel died unexpectedly.\033[0m")
+            print_tabbed(red("The Python kernel died unexpectedly."))
             print()
             sys.exit()
 

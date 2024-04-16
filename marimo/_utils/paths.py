@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 import sys
 from typing import Any
@@ -29,3 +31,12 @@ def pretty_path(filename: str) -> str:
         if not relpath.startswith(".."):
             return relpath
     return filename
+
+
+def maybe_make_dirs(filepath: str) -> None:
+    """
+    Create directories if they don't exist.
+    """
+    dirname = os.path.dirname(filepath)
+    if dirname:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)

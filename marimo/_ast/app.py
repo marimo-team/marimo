@@ -269,6 +269,18 @@ class App:
 
         return asyncio.run(self._run_async())
 
+    async def run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        # formatters aren't automatically registered when running as a script
+        from marimo._output.formatters.formatters import (
+            register_formatters,
+        )
+        from marimo._output.formatting import FORMATTERS
+
+        if not FORMATTERS:
+            register_formatters()
+
+        return await self._run_async()
+
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
     ) -> tuple[Any, _Namespace]:
@@ -453,6 +465,12 @@ class InternalApp:
     def runner(self) -> dataflow.Runner:
         self._app._maybe_initialize()
         return self._app._runner
+
+    def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        return self._app.run()
+
+    async def run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        return await self._app.run_async()
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)

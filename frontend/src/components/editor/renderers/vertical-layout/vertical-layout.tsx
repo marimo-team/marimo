@@ -29,7 +29,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     return isStaticNotebook();
   });
   const evaluateCanShowCode = () => {
-    const cellsHaveCode = cells.some((cell) => cell.code);
+    const cellsHaveCode = cells.some((cell) => Boolean(cell.code));
 
     // Only show code if in read mode and there is at least one cell with code
 
