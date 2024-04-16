@@ -17,21 +17,29 @@ if TYPE_CHECKING:
     import types
 
 
-def modules_imported_by_cell(cell: CellImpl) -> set[str]:
+def _modules_imported_by_cell(cell: CellImpl) -> set[str]:
+    """Get the modules imported by a cell"""
     modules = set()
     for import_data in cell.imports:
         if import_data.module in sys.modules:
             modules.add(import_data.module)
         if import_data.imported_symbol in sys.modules:
+            # The imported symbol may or may not be a module, which
+            # is why we check if it's in sys.modules
+            #
+            # e.g., from a import b
+            #
+            # a.b could be a module, but it could also be a function, ...
             modules.add(import_data.imported_symbol)
     return modules
 
 
-def depends_on(
+def _depends_on(
     src_module: types.ModuleType,
     target_filenames: set[str],
     failed_filenames: set[str],
 ) -> bool:
+    """Returns whether src_module depends on any of target_filenames"""
     if not hasattr(src_module, "__file__") or src_module.__file__ is None:
         return False
 
@@ -61,15 +69,16 @@ def depends_on(
     return False
 
 
-def check_modules(
+def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
     failed_filenames: set[str],
 ) -> dict[str, types.ModuleType]:
+    """Returns the set of modules used by the graph that have been modified"""
     stale_modules: dict[str, types.ModuleType] = {}
     modified_modules = reloader.check(modules=sys.modules, reload=False)
     for modname, module in modules.items():
-        if depends_on(
+        if _depends_on(
             src_module=module,
             target_filenames=set(
                 m.__file__ for m in modified_modules if m.__file__ is not None
@@ -89,7 +98,14 @@ def watch_modules(
     run_is_processed: threading.Event,
     stream: Stream,
 ) -> None:
+    """Watches for changes to modules used by graph
+
+    The modules used by the graph are determined statically, by analyzing the
+    modules imported by the notebook as well as the modules imported by those
+    modules, recursively.
+    """
     reloader = ModuleReloader()
+    # modules that failed to be analyzed
     failed_filenames: set[str] = set()
     while not should_exit.is_set():
         run_is_processed.wait()
@@ -99,18 +115,18 @@ def watch_modules(
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
             for cell_id, cell in graph.cells.items():
-                for modname in modules_imported_by_cell(cell):
+                for modname in _modules_imported_by_cell(cell):
                     if modname in sys.modules:
                         modules[modname] = sys.modules[modname]
                         modname_to_cell_id[modname] = cell_id
-        # If any modules are stale, communicate that to the FE
-        stale_modules = check_modules(
+        stale_modules = _check_modules(
             modules=modules,
             reloader=reloader,
             failed_filenames=failed_filenames,
         )
         if stale_modules:
             with graph.lock:
+                # If any modules are stale, communicate that to the FE
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
                     set(
@@ -130,15 +146,22 @@ class ModuleWatcher:
         self,
         graph: dataflow.DirectedGraph,
         mode: Literal["detect", "autorun"],
-        enqueue_run_stale_cells: Callable[[], None] | None,
+        enqueue_run_stale_cells: Callable[[], None],
         stream: Stream,
     ) -> None:
+        # ModuleWatcher uses the graph to determine the modules used by the
+        # notebook
         self.graph = graph
+        # When set, signals the watcher thread to exit
         self.should_exit = threading.Event()
+        # When False, an ExecuteStaleRequest is inflight to the kernel
         self.run_is_processed = threading.Event()
         self.run_is_processed.set()
+        # To communicate staleness to the FE
         self.stream = stream
+        # If autorun, stale cells are automatically scheduled for execution
         self.mode = mode
+        # A callable that signals the kernel to run stale cells
         self.enqueue_run_stale_cells = enqueue_run_stale_cells
         threading.Thread(
             target=watch_modules,

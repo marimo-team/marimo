@@ -354,7 +354,7 @@ export const UserConfigForm: React.FC = () => {
                       data-testid="auto-reload-select"
                       onChange={(e) => field.onChange(e.target.value)}
                       value={field.value}
-                      disabled={field.disabled}
+                      disabled={isWasm}
                       className="inline-flex mr-2"
                     >
                       {["off", "detect", "autorun"].map((option) => (

@@ -248,7 +248,7 @@ class Kernel:
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
-    - control_queue: queue from which kernel is getting commands, optional
+    - execute_stale_cells_callback: callback to enqueue a stale cells request
     """
 
     def __init__(
@@ -260,9 +260,9 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
+        execute_stale_cells_callback: Callable[[], None],
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
-        control_queue: QueueType[ControlRequest] | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
@@ -270,6 +270,7 @@ class Kernel:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
+        self.execute_stale_cells_callback = execute_stale_cells_callback
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -298,8 +299,6 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
-        self.control_queue = control_queue
-
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
@@ -345,11 +344,7 @@ class Kernel:
             if self.module_watcher is None:
                 self.module_watcher = ModuleWatcher(
                     self.graph,
-                    enqueue_run_stale_cells=lambda: self.control_queue.put(
-                        ExecuteStaleRequest()
-                    )
-                    if self.control_queue is not None
-                    else None,
+                    enqueue_run_stale_cells=self.execute_stale_cells_callback,
                     mode=autoreload_mode,
                     stream=self.stream,
                 )
@@ -396,7 +391,9 @@ class Kernel:
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
-                    self.module_reloader.check(modules=sys.modules, reload=True)
+                    self.module_reloader.check(
+                        modules=sys.modules, reload=True
+                    )
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -515,7 +512,9 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = self.module_registry.missing_modules()
+        missing_modules_before_deletion = (
+            self.module_registry.missing_modules()
+        )
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -615,7 +614,9 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
+            old_children, error = self._maybe_register_cell(
+                er.cell_id, er.code
+            )
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -686,7 +687,8 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation
+            - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -709,7 +711,8 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation
+            - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -1024,7 +1027,9 @@ class Kernel:
                 )
             )
 
-    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
+    async def run(
+        self, execution_requests: Sequence[ExecutionRequest]
+    ) -> None:
         """Run cells and their descendants.
 
 
@@ -1102,7 +1107,9 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
+                LOGGER.debug(
+                    "Could not resolve UIElement with id%s", object_id
+                )
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1442,7 +1449,9 @@ def launch_kernel(
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,
-        control_queue=control_queue,
+        execute_stale_cells_callback=lambda: control_queue.put_nowait(
+            ExecuteStaleRequest()
+        ),
     )
     initialize_context(
         kernel=kernel,
