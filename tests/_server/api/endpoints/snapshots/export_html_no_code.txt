@@ -53,29 +53,25 @@
         resizeObserver.observe(obj.contentWindow.document.body);
       }
     </script>
-    <marimo-filename hidden>notebook.py</marimo-filename>
+    <marimo-filename hidden>test.py</marimo-filename>
     <marimo-mode data-mode='read' hidden></marimo-mode>
     <marimo-version data-version='0.0.0' hidden></marimo-version>
     <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": true}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default"}}' hidden></marimo-user-config>
     <marimo-app-config data-config='{"layout_file": null, "width": "normal"}' hidden></marimo-app-config>
-    <marimo-server-token data-token='token' hidden></marimo-server-token>
-    <title>notebook</title>
+    <marimo-server-token data-token='static' hidden></marimo-server-token>
+    <title>test</title>
     <script type="module" crossorigin crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.js""></script>
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
   
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {};
         window.__MARIMO_STATIC__.version = "0.0.0";
-        window.__MARIMO_STATIC__.notebookState = {"cellIds": ["cell1", "cell2"], "cellNames": ["Q2VsbCUyMDE=", "Q2VsbCUyMDI="], "cellCodes": ["cHJpbnQlMjglMjdIZWxsbyUyQyUyMENlbGwlMjAxJTI3JTI5", "cHJpbnQlMjglMjdIZWxsbyUyQyUyMENlbGwlMjAyJTI3JTI5"], "cellConfigs": ["JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE", "JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE"], "cellOutputs": {"cell1": "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMm91dHB1dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dC9wbGFpbiUyMiUyQyUyMCUyMmRhdGElMjIlM0ElMjAlMjJIZWxsbyUyQyUyMENlbGwlMjAxJTIyJTJDJTIwJTIydGltZXN0YW1wJTIyJTNBJTIwMCU3RA=="}, "cellConsoleOutputs": {"cell1": ["JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZG91dCUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dC9wbGFpbiUyMiUyQyUyMCUyMmRhdGElMjIlM0ElMjAlMjJIZWxsbyUyQyUyMENlbGwlMjAxJTIyJTJDJTIwJTIydGltZXN0YW1wJTIyJTNBJTIwMCU3RA==", "JTdCJTIyY2hhbm5lbCUyMiUzQSUyMCUyMnN0ZGVyciUyMiUyQyUyMCUyMm1pbWV0eXBlJTIyJTNBJTIwJTIydGV4dC9wbGFpbiUyMiUyQyUyMCUyMmRhdGElMjIlM0ElMjAlMjJFcnJvciUyMGluJTIwQ2VsbCUyMDElMjIlMkMlMjAlMjJ0aW1lc3RhbXAlMjIlM0ElMjAwJTdE"]}};
+        window.__MARIMO_STATIC__.notebookState = {"cellIds": ["Hbol"], "cellNames": ["X18="], "cellCodes": [""], "cellConfigs": ["JTdCJTIyZGlzYWJsZWQlMjIlM0ElMjBmYWxzZSUyQyUyMCUyMmhpZGVfY29kZSUyMiUzQSUyMGZhbHNlJTdE"], "cellOutputs": {}, "cellConsoleOutputs": {}};
         window.__MARIMO_STATIC__.assetUrl = "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist";
-        window.__MARIMO_STATIC__.files = {"file1": "File 1 content", "file2": "File 2 content"};
+        window.__MARIMO_STATIC__.files = {};
     </script>
     </head>
   <body>
     <div id="root"></div>
-  
-    <marimo-code hidden="">
-        print%28%27Hello%2C%20World%21%27%29
-    </marimo-code>
-    </body>
+  <marimo-code hidden=""></marimo-code></body>
 </html>

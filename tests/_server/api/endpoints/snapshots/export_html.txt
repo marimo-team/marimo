@@ -56,9 +56,9 @@
     <marimo-filename hidden>test.py</marimo-filename>
     <marimo-mode data-mode='read' hidden></marimo-mode>
     <marimo-version data-version='0.0.0' hidden></marimo-version>
-    <marimo-user-config data-config='{"ai": {"open_ai": {"api_key": "", "base_url": "https://my-openai-instance.com", "model": "gpt-marimo"}}, "completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": true}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default"}}' hidden></marimo-user-config>
+    <marimo-user-config data-config='{"completion": {"activate_on_typing": true, "copilot": false}, "display": {"cell_output": "above", "code_editor_font_size": 14, "theme": "light"}, "formatting": {"line_length": 79}, "keymap": {"preset": "default"}, "package_management": {"manager": "pip"}, "runtime": {"auto_instantiate": true, "auto_reload": true}, "save": {"autosave": "after_delay", "autosave_delay": 1000, "format_on_save": false}, "server": {"browser": "default"}}' hidden></marimo-user-config>
     <marimo-app-config data-config='{"layout_file": null, "width": "normal"}' hidden></marimo-app-config>
-    <marimo-server-token data-token='fake-token' hidden></marimo-server-token>
+    <marimo-server-token data-token='static' hidden></marimo-server-token>
     <title>test</title>
     <script type="module" crossorigin crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.js""></script>
     <link rel="stylesheet" crossorigin crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.0.0/dist/assets/index.css"">
@@ -75,7 +75,7 @@
     <div id="root"></div>
   
     <marimo-code hidden="">
-        %22import%20marimo%5Cn%5Cn__generated_with%20%3D%20%5C%220.0.0%5C%22%5Cnapp%20%3D%20marimo.App%28%29%5Cn%5Cn%5Cn%40app.cell%5Cndef%20__%28%29%3A%5Cn%20%20%20%20import%20marimo%20as%20mo%5Cn%20%20%20%20return%20mo%2C%5Cn%5Cn%5Cnif%20__name__%20%3D%3D%20%5C%22__main__%5C%22%3A%5Cn%20%20%20%20app.run%28%29%5Cn%22
+        import%20marimo%0A%0A__generated_with%20%3D%20%220.0.0%22%0Aapp%20%3D%20marimo.App%28%29%0A%0A%0A%40app.cell%0Adef%20__%28%29%3A%0A%20%20%20%20import%20marimo%20as%20mo%0A%20%20%20%20return%20mo%2C%0A%0A%0Aif%20__name__%20%3D%3D%20%22__main__%22%3A%0A%20%20%20%20app.run%28%29%0A
     </marimo-code>
     </body>
 </html>

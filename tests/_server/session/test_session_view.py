@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
 
 from typing import Any
 from unittest.mock import patch
@@ -326,3 +327,99 @@ def test_stdin(time_mock: Any) -> None:
         CellOutput.stdout("Hello"),
         CellOutput.stdout("What is your name? marimo\n"),
     ]
+
+
+@patch("time.time", return_value=123)
+def test_get_cell_outputs(time_mock: Any) -> None:
+    del time_mock
+    cell_2_id = "cell_2"
+    session_view = SessionView()
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=initial_output,
+            status=initial_status,
+        ),
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_2_id,
+            output=None,
+            status=updated_status,
+        ),
+    )
+
+    assert session_view.get_cell_outputs([cell_id]) == {
+        cell_id: initial_output
+    }
+    assert session_view.get_cell_outputs([cell_id, cell_2_id]) == {
+        cell_id: initial_output
+    }
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            output=updated_output,
+            status=updated_status,
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_2_id,
+            output=updated_output,
+            status=updated_status,
+        )
+    )
+
+    assert session_view.get_cell_outputs([cell_id, cell_2_id]) == {
+        cell_id: updated_output,
+        cell_2_id: updated_output,
+    }
+
+
+@patch("time.time", return_value=123)
+def test_get_cell_console_outputs(time_mock: Any) -> None:
+    del time_mock
+    cell_2_id = "cell_2"
+    session_view = SessionView()
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=[CellOutput.stdout("one")],
+            status=initial_status,
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_2_id,
+            console=None,
+            status=updated_status,
+        )
+    )
+
+    assert session_view.get_cell_console_outputs([cell_id]) == {
+        cell_id: [CellOutput.stdout("one")]
+    }
+    assert session_view.get_cell_console_outputs([cell_id, cell_2_id]) == {
+        cell_id: [CellOutput.stdout("one")],
+    }
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=[CellOutput.stdout("two")],
+            status=updated_status,
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_2_id,
+            console=[CellOutput.stdout("two")],
+            status=updated_status,
+        )
+    )
+
+    assert session_view.get_cell_console_outputs([cell_id, cell_2_id]) == {
+        cell_id: [CellOutput.stdout("one"), CellOutput.stdout("two")],
+        cell_2_id: [CellOutput.stdout("two")],
+    }

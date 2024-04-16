@@ -155,7 +155,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             ],
             "cell2": [],
         }
-        self.files = {"file1": b"File 1 content", "file2": b"File 2 content"}
+        self.files = {"file1": "File 1 content", "file2": "File 2 content"}
 
     def test_static_notebook_template(self):
         result = templates.static_notebook_template(
@@ -190,7 +190,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.cell_configs,
             self.cell_outputs,
             self.cell_console_outputs,
-            self.files,
+            files=self.files,
         )
 
         snapshot("export2.txt", normalize_index_html(result))

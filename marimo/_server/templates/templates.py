@@ -124,7 +124,7 @@ def static_notebook_template(
 
     code_block = f"""
     <marimo-code hidden="">
-        {urllib.parse.quote(json.dumps(code))}
+        {urllib.parse.quote(code)}
     </marimo-code>
     """
     if not code:

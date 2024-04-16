@@ -198,6 +198,7 @@ export interface ShutdownSessionRequest {
 
 export interface ExportHTMLRequest {
   assetUrl?: string;
+  includeCode: boolean;
   files: string[];
   download: boolean;
 }

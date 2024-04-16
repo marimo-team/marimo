@@ -9,4 +9,5 @@ from typing import List, Optional
 class ExportAsHTMLRequest:
     download: bool
     files: List[str]
+    include_code: bool
     asset_url: Optional[str] = None

@@ -11,6 +11,7 @@ export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
   const html = await exportHTML({
     download: true,
+    includeCode: true,
     files: VirtualFileTracker.INSTANCE.filenames(),
   });
   const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";

@@ -5,6 +5,16 @@ from typing import Callable
 
 
 def snapshotter(current_file: str) -> Callable[[str, str], None]:
+    """
+    Utility function to create and compare snapshots.
+
+    If the snapshot doesn't exist, it will be created.
+
+    If the snapshot exists, it will be compared with the new result.
+    If the result is different, the test will fail,
+    but the snapshot will be updated with the new result.
+    """
+
     def snapshot(filename: str, result: str) -> None:
         filepath = os.path.join(
             os.path.dirname(current_file), "snapshots", filename

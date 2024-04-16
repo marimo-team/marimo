@@ -31,7 +31,26 @@ def test_export_html(client: TestClient) -> None:
         json={
             "download": False,
             "files": [],
+            "include_code": True,
         },
     )
     body = response.text
     snapshot("export_html.txt", normalize_index_html(body))
+
+
+@with_session(SESSION_ID)
+def test_export_html_no_code(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    body = response.text
+    snapshot("export_html_no_code.txt", normalize_index_html(body))

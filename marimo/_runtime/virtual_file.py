@@ -8,7 +8,6 @@ import random
 import string
 import sys
 import threading
-from multiprocessing import shared_memory
 from typing import TYPE_CHECKING, Optional, cast
 
 from marimo import _loggers
@@ -272,6 +271,9 @@ def _without_leading_dot(ext: str) -> str:
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
+    if not shared_memory:
+        raise RuntimeError("Shared memory is not supported on this platform")
+
     key = filename
     shm = None
     try:
