@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +13,7 @@ from marimo._utils.paths import maybe_make_dirs
 
 
 @click.group()
-def export():
+def export() -> None:
     pass
 
 
@@ -58,7 +59,7 @@ def html(
     include_code: bool,
     out_file: str,
     watch: bool,
-):
+) -> None:
     """
     Run a notebook and export it as an HTML file.
     """
@@ -68,7 +69,7 @@ def html(
             + "an output file with --out-file."
         )
 
-    def write_html(html: str):
+    def write_html(html: str) -> None:
         if out_file:
             # Make dirs if needed
             maybe_make_dirs(out_file)
@@ -86,7 +87,7 @@ def html(
         write_html(html)
         return
 
-    async def on_file_changed(file_path: Path):
+    async def on_file_changed(file_path: Path) -> None:
         click.echo(
             f"File {str(file_path)} changed. Re-exporting to {green(out_file)}"
         )
@@ -95,7 +96,7 @@ def html(
         )
         write_html(html)
 
-    async def start():
+    async def start() -> None:
         # Watch the file for changes
         watcher = FileWatcher.create(Path(name), on_file_changed)
         click.echo(f"Watching {green(name)} for changes...")
