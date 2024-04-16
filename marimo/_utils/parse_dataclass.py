@@ -61,8 +61,11 @@ def _build_value(value: Any, cls: Type[T]) -> T:
         for arg_type in arg_types:
             try:
                 return _build_value(value, arg_type)  # type: ignore # noqa: E501
-            except Exception:
+            # catch expected exceptions when conversion fails
+            except (TypeError, ValueError):
                 continue
+            except:
+                raise
         raise ValueError(f"Value '{value}' does not fit any type of the union")
     elif origin_cls is Literal:
         # if its a single Literal of an enum, we can just return the enum
@@ -87,12 +90,24 @@ def _build_value(value: Any, cls: Type[T]) -> T:
         return value  # type: ignore[no-any-return]
 
 
-def build_dataclass(value: dict[Any, Any], cls: Type[T]) -> T:
+def build_dataclass(values: dict[Any, Any], cls: Type[T]) -> T:
+    """Returns instance of dataclass [cls] instantiated from [values]."""
+
+    if not isinstance(values, dict):
+        raise ValueError(
+            "value passed to build_dataclass needs to be a dictionary"
+        )
+
     types = get_type_hints(cls)
 
+    snake_cased_values = {to_snake(k): v for k, v in values.items()}
+    if not snake_cased_values.keys() <= types.keys():
+        raise ValueError(
+            "values in build_dataclass do not match arguments for constructor"
+        )
+
     transformed = {
-        to_snake(k): _build_value(v, types[to_snake(k)])
-        for k, v in value.items()
+        k: _build_value(v, types[k]) for k, v in snake_cased_values.items()
     }
 
     return cls(**transformed)
