@@ -12,7 +12,7 @@ from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.paths import maybe_make_dirs
 
 
-@click.group()
+@click.group(help="""Export a notebook to various formats.""")
 def export() -> None:
     pass
 
@@ -45,7 +45,8 @@ Example:
     """,
 )
 @click.option(
-    "--out-file",
+    "-o",
+    "--output",
     type=str,
     default=None,
     help="""
@@ -66,7 +67,7 @@ def html(
     if watch and not out_file:
         raise click.UsageError(
             "Cannot use --watch without providing "
-            + "an output file with --out-file."
+            + "an output file with --output."
         )
 
     def write_html(html: str) -> None:

@@ -45,7 +45,7 @@ async def test_export_watch(temp_marimo_file: str) -> None:
             "html",
             temp_marimo_file,
             "--watch",
-            "--out-file",
+            "--output",
             temp_out_file,
         ],
         stdout=subprocess.PIPE,
@@ -93,7 +93,7 @@ def test_export_watch_no_out_dir(temp_marimo_file: str) -> None:
         if line:
             assert (
                 "Cannot use --watch without providing "
-                + "an output file with --out-file."
+                + "an output file with --output."
                 in line
             )
             break
