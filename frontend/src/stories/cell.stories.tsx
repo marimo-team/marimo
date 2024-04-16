@@ -27,6 +27,7 @@ const props: CellProps = {
   interrupted: false,
   errored: false,
   stopped: false,
+  staleInputs: false,
   updateCellCode: Logger.log,
   prepareForRun: Logger.log,
   runStartTimestamp: 0 as Seconds,

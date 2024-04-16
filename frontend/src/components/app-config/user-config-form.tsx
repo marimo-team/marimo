@@ -357,7 +357,7 @@ export const UserConfigForm: React.FC = () => {
                       disabled={field.disabled}
                       className="inline-flex mr-2"
                     >
-                      {["off", "on", "reactive"].map((option) => (
+                      {["off", "detect", "autorun"].map((option) => (
                         <option value={option} key={option}>
                           {option}
                         </option>
@@ -370,8 +370,9 @@ export const UserConfigForm: React.FC = () => {
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically reload modules before
-                  executing cells. If "reactive", marimo will mark cells
-                  affected by module modifications as stale.
+                  executing cells. If "detect", marimo will mark cells affected
+                  by module modifications as stale; if "automatic", affected
+                  cells will be automatically re-run.
                 </FormDescription>
               </div>
             )}

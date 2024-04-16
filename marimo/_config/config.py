@@ -70,12 +70,13 @@ class RuntimeConfig(TypedDict):
         run on startup. This only applies when editing a notebook,
         and not when running as an application.
         The default is `True`.
-    - `auto_reload`: if `True`, modified modules will be automatically reloaded
-       before cell execution; similar to IPython's %autoreload 2.
+    - `auto_reload`: if `detect`, cells importing modified modules will marked
+      as stale; if `autorun`, affected cells will be automatically run. similar
+      to IPython's %autoreload extension but with more code intelligence.
     """
 
     auto_instantiate: bool
-    auto_reload: Literal["off", "imperative", "reactive"]
+    auto_reload: Literal["off", "detect", "autorun"]
 
 
 @mddoc

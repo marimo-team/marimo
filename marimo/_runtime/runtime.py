@@ -95,6 +95,7 @@ from marimo._runtime.requests import (
     CreationRequest,
     DeleteRequest,
     ExecuteMultipleRequest,
+    ExecuteStaleRequest,
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
@@ -247,6 +248,7 @@ class Kernel:
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
+    - control_queue: queue from which kernel is getting commands, optional
     """
 
     def __init__(
@@ -260,6 +262,7 @@ class Kernel:
         stdin: Stdin | None,
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
+        control_queue: QueueType[ControlRequest] | None = None,
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
@@ -295,12 +298,12 @@ class Kernel:
         self.module_registry = ModuleRegistry(
             self.graph, excluded_modules=set()
         )
+        self.control_queue = control_queue
 
-        # Load runtime settings from user config
         self.package_manager: PackageManager | None = None
         self.module_reloader: ModuleReloader | None = None
-        self.module_watcher = ModuleWatcher(self.graph, self.stream)
-        self.user_config = user_config
+        self.module_watcher: ModuleWatcher | None = None
+        # Load runtime settings from user config
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -321,25 +324,39 @@ class Kernel:
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
-        autoreload = config["runtime"]["auto_reload"]
+        autoreload_mode = config["runtime"]["auto_reload"]
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
 
-        if autoreload == "imperative":
+        if autoreload_mode == "detect" or autoreload_mode == "autorun":
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
-            self.module_watcher.stop()
-        elif autoreload == "reactive":
-            if self.module_reloader is None:
-                self.module_reloader = ModuleReloader()
-            if not self.module_watcher.is_running():
-                self.module_watcher.start()
+
+            if (
+                self.module_watcher is not None
+                and self.module_watcher.mode != autoreload_mode
+            ):
+                self.module_watcher.stop()
+                self.module_watcher = None
+
+            if self.module_watcher is None:
+                self.module_watcher = ModuleWatcher(
+                    self.graph,
+                    enqueue_run_stale_cells=lambda: self.control_queue.put(
+                        ExecuteStaleRequest()
+                    )
+                    if self.control_queue is not None
+                    else None,
+                    mode=autoreload_mode,
+                    stream=self.stream,
+                )
         else:
             self.module_reloader = None
-            self.module_watcher.stop()
+            if self.module_watcher is not None:
+                self.module_watcher.stop()
 
         self.user_config = config
 
@@ -379,9 +396,7 @@ class Kernel:
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -500,9 +515,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -602,9 +615,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -675,8 +686,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -699,8 +709,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -1015,9 +1024,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -1030,6 +1037,15 @@ class Kernel:
 
         await self._run_cells(
             self.mutate_graph(execution_requests, deletion_requests=[])
+        )
+
+    async def run_stale_cells(self) -> None:
+        cells_to_run: set[CellId_t] = set()
+        for cid, cell_impl in self.graph.cells.items():
+            if cell_impl.stale and not self.graph.is_disabled(cid):
+                cells_to_run.add(cid)
+        await self._run_cells(
+            dataflow.transitive_closure(self.graph, cells_to_run)
         )
 
     async def set_cell_config(self, request: SetCellConfigRequest) -> None:
@@ -1084,9 +1100,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1343,6 +1357,8 @@ class Kernel:
         elif isinstance(request, ExecuteMultipleRequest):
             await self.run(request.execution_requests)
             CompletedRun().broadcast()
+        elif isinstance(request, ExecuteStaleRequest):
+            await self.run_stale_cells()
         elif isinstance(request, SetCellConfigRequest):
             await self.set_cell_config(request)
         elif isinstance(request, SetUserConfigRequest):
@@ -1424,6 +1440,7 @@ def launch_kernel(
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,
+        control_queue=control_queue,
     )
     initialize_context(
         kernel=kernel,

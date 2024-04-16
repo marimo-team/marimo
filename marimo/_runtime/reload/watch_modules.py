@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from modulefinder import ModuleFinder
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Literal
 
 from marimo._ast.cell import CellId_t, CellImpl
 from marimo._messaging.types import Stream
@@ -41,9 +41,17 @@ def depends_on(
     finder = ModuleFinder()
     try:
         finder.run_script(src_module.__file__)
+    except SyntaxError:
+        # user introduced a syntax error, maybe; don't
+        # exclude this module from future searches
+        return True
     except Exception:
+        # some modules like numpy fail when called with run_script;
+        # run_script takes a long time before failing on them, so
+        # don't try to analyze them again
         failed_filenames.add(src_module.__file__)
         return False
+
 
     for found_module in itertools.chain([src_module], finder.modules.values()):
         if (
@@ -75,7 +83,11 @@ def check_modules(
 
 
 def watch_modules(
-    graph: dataflow.DirectedGraph, should_exit: threading.Event, stream: Stream
+    graph: dataflow.DirectedGraph,
+    mode: Literal["detect", "autorun"],
+    enqueue_run_stale_cells: Callable[[], None],
+    should_exit: threading.Event,
+    stream: Stream,
 ) -> None:
     reloader = ModuleReloader()
     failed_filenames: set[str] = set()
@@ -103,27 +115,34 @@ def watch_modules(
             for cid in stale_cell_ids:
                 with graph.lock:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
+            if mode == "autorun":
+                enqueue_run_stale_cells()
 
 
 class ModuleWatcher:
-    def __init__(self, graph: dataflow.DirectedGraph, stream: Stream) -> None:
+    def __init__(
+        self,
+        graph: dataflow.DirectedGraph,
+        mode: Literal["detect", "autorun"],
+        enqueue_run_stale_cells: Callable[[], None] | None,
+        stream: Stream,
+    ) -> None:
         self.graph = graph
         self.should_exit = threading.Event()
         self.stream = stream
-        self.watcher_thread: threading.Thread | None = None
-
-    def start(self) -> None:
-        self.should_exit.clear()
-        self.watcher_thread = threading.Thread(
+        self.mode = mode
+        self.enqueue_run_stale_cells = enqueue_run_stale_cells
+        threading.Thread(
             target=watch_modules,
-            args=(self.graph, self.should_exit, self.stream),
+            args=(
+                self.graph,
+                self.mode,
+                self.enqueue_run_stale_cells,
+                self.should_exit,
+                self.stream,
+            ),
             daemon=True,
-        )
-        self.watcher_thread.start()
-
+        ).start()
+ 
     def stop(self) -> None:
         self.should_exit.set()
-        self.watcher_thread = None
-
-    def is_running(self) -> bool:
-        return self.watcher_thread is not None

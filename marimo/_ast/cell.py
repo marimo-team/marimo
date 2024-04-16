@@ -6,7 +6,6 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
-from marimo._messaging.types import Stream
 from marimo._utils.deep_merge import deep_merge
 
 CellId_t = str
@@ -17,6 +16,7 @@ if TYPE_CHECKING:
     from types import CodeType
 
     from marimo._ast.app import InternalApp
+    from marimo._messaging.types import Stream
     from marimo._output.hypertext import Html
 
 
@@ -182,9 +182,7 @@ class CellImpl:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(
-            cell_id=self.cell_id, stale=stale, stream=stream
-        )
+        CellOp.broadcast_stale(cell_id=self.cell_id, stale=stale, stream=stream)
 
 
 @dataclasses.dataclass
@@ -293,8 +291,7 @@ class Cell:
     def run(
         self, **refs: Any
     ) -> (
-        tuple[Any, Mapping[str, Any]]
-        | Awaitable[tuple[Any, Mapping[str, Any]]]
+        tuple[Any, Mapping[str, Any]] | Awaitable[tuple[Any, Mapping[str, Any]]]
     ):
         """Run this cell and return its visual output and definitions
 

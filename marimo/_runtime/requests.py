@@ -21,6 +21,10 @@ class ExecutionRequest:
 
 
 @dataclass
+class ExecuteStaleRequest: ...
+
+
+@dataclass
 class ExecuteMultipleRequest:
     execution_requests: List[ExecutionRequest]
 
@@ -91,6 +95,7 @@ class InstallMissingPackagesRequest:
 
 ControlRequest = Union[
     ExecuteMultipleRequest,
+    ExecuteStaleRequest,
     CreationRequest,
     DeleteRequest,
     FunctionCallRequest,
