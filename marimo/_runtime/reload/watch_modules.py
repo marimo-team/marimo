@@ -52,7 +52,6 @@ def depends_on(
         failed_filenames.add(src_module.__file__)
         return False
 
-
     for found_module in itertools.chain([src_module], finder.modules.values()):
         if (
             hasattr(found_module, "__file__")
@@ -109,11 +108,14 @@ def watch_modules(
             failed_filenames=failed_filenames,
         )
         if stale_modules:
-            stale_cell_ids = [
-                modname_to_cell_id[modname] for modname in stale_modules
-            ]
-            for cid in stale_cell_ids:
-                with graph.lock:
+            with graph.lock:
+                stale_cell_ids = dataflow.transitive_closure(
+                    graph,
+                    set(
+                        modname_to_cell_id[modname] for modname in stale_modules
+                    ),
+                )
+                for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             if mode == "autorun":
                 enqueue_run_stale_cells()
@@ -143,6 +145,6 @@ class ModuleWatcher:
             ),
             daemon=True,
         ).start()
- 
+
     def stop(self) -> None:
         self.should_exit.set()
