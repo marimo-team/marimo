@@ -80,9 +80,11 @@ async def test_reload_function_kernel(
     )
 
     config = DEFAULT_CONFIG.copy()
-    config["runtime"]["auto_reload"] = True
+    config["runtime"]["auto_reload"] = "detect"
     k.set_user_config(SetUserConfigRequest(config=config))
-    await k.run([exec_req.get(f"import {py_modname}; x={py_modname}.foo()")])
+    await k.run(
+        [er := exec_req.get(f"import {py_modname}; x={py_modname}.foo()")]
+    )
     assert k.globals["x"] == 1
     update_file(
         py_file,
@@ -92,5 +94,9 @@ async def test_reload_function_kernel(
         """,
     )
 
-    await k.run([exec_req.get(f"y={py_modname}.foo()")])
-    assert k.globals["y"] == 2
+    # wait for the watcher to pick up the change
+    time.sleep(1.5)
+    assert k.graph.cells[er.cell_id].stale
+    await k.run_stale_cells()
+    assert not k.graph.cells[er.cell_id].stale
+    assert k.globals["x"] == 2
