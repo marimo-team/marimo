@@ -1,11 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import argparse
 import inspect
 import json
 import os
 import pathlib
 import tempfile
+from argparse import ArgumentParser
 from typing import Any, Literal, Optional
 
 import click
@@ -62,11 +64,7 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
         # "\b" tells click not to reformat our text
         lines.append("\b")
         lines.append(
-            "  * "
-            + key
-            + _sep(desc)
-            + " " * (max_length - len(key) + 2)
-            + desc
+            "  * " + key + _sep(desc) + " " * (max_length - len(key) + 2) + desc
         )
     return "\n".join(lines)
 
@@ -202,9 +200,7 @@ def edit(
         # The second return value is an optional temporary directory. It is
         # unused, but must be kept around because its lifetime on disk is bound
         # to the life of the Python object
-        name, _ = validate_name(
-            name, allow_new_file=True, allow_directory=True
-        )
+        name, _ = validate_name(name, allow_new_file=True, allow_directory=True)
         is_dir = os.path.isdir(name)
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
@@ -338,15 +334,22 @@ Example:
     callback=validators.base_url,
 )
 @click.argument("name", required=True)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: Optional[int],
     host: str,
     headless: bool,
     include_code: bool,
     watch: bool,
-    name: str,
     base_url: str,
+    name: str,
+    args: tuple[str],
 ) -> None:
+    print("args", args)
+    parser = argparse.ArgumentParser()
+    args_as_dict = parser.parse_args(args, namespace="a")
+    print(args_as_dict)
+
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
