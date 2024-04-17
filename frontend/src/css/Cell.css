@@ -355,7 +355,7 @@
 .output-area {
   max-width: inherit;
   width: 100%;
-  padding: 0.25rem 1.85rem;
+  padding: 1rem;
 
   /* Prevent floated elements from extending out of the output areas and into
    * the editor. */
