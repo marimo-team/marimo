@@ -30,6 +30,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
+from marimo._cli.print import red
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import Alert, MessageOperation, Reload
 from marimo._messaging.types import KernelMessage
@@ -124,6 +125,7 @@ class KernelManager:
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
         user_config_manager: UserConfigManager,
+        virtual_files_supported: bool,
     ) -> None:
         self.kernel_task: Optional[threading.Thread] | Optional[mp.Process]
         self.queue_manager = queue_manager
@@ -132,6 +134,7 @@ class KernelManager:
         self.app_metadata = app_metadata
         self.user_config_manager = user_config_manager
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
+        self._virtual_files_supported = virtual_files_supported
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -153,6 +156,7 @@ class KernelManager:
                     self.configs,
                     self.app_metadata,
                     self.user_config_manager.config,
+                    self._virtual_files_supported,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -189,6 +193,7 @@ class KernelManager:
                     self.configs,
                     self.app_metadata,
                     self.user_config_manager.config,
+                    self._virtual_files_supported,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -248,12 +253,18 @@ class Session:
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
         user_config_manager: UserConfigManager,
+        virtual_files_supported: bool,
     ) -> Session:
         configs = app_file_manager.app.cell_manager.config_map()
         use_multiprocessing = mode == SessionMode.EDIT
         queue_manager = QueueManager(use_multiprocessing)
         kernel_manager = KernelManager(
-            queue_manager, mode, configs, app_metadata, user_config_manager
+            queue_manager,
+            mode,
+            configs,
+            app_metadata,
+            user_config_manager,
+            virtual_files_supported=virtual_files_supported,
         )
         return cls(
             initialization_id,
@@ -302,7 +313,7 @@ class Session:
             LOGGER.debug("Closing session because kernel died")
             self.close()
             print()
-            print_tabbed("\033[31mThe Python kernel died unexpectedly.\033[0m")
+            print_tabbed(red("The Python kernel died unexpectedly."))
             print()
             sys.exit()
 
@@ -469,6 +480,7 @@ class SessionManager:
                 ),
                 app_file_manager=app_file_manager,
                 user_config_manager=self.user_config_manager,
+                virtual_files_supported=True,
             )
         return self.sessions[session_id]
 

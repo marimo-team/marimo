@@ -15,7 +15,9 @@ from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
+from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
+from marimo._cli.print import red
 from marimo._cli.upgrade import check_for_updates
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
@@ -25,21 +27,12 @@ DEVELOPMENT_MODE = False
 QUIET = False
 
 
-def colorize(string: str, color: Literal["red"]) -> str:
-    if color == "red":
-        color_code = "31"
-    else:
-        raise ValueError("Unrecognized color ", color)
-
-    return f"\033[;{color_code}m{string}\033[0m"
-
-
 def helpful_usage_error(self: Any, file: Any = None) -> None:
     if file is None:
         file = click.get_text_stream("stderr")
     color = None
     click.echo(
-        colorize("Error", "red") + ": %s\n" % self.format_message(),
+        red("Error") + ": %s\n" % self.format_message(),
         file=file,
         color=color,
     )
@@ -532,3 +525,6 @@ def env() -> None:
         marimo env
     """
     print(json.dumps(get_system_info(), indent=2))
+
+
+main.add_command(export)

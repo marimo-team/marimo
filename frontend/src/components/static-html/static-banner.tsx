@@ -25,6 +25,11 @@ export const StaticBanner: React.FC = () => {
     return null;
   }
 
+  const code = getMarimoCode();
+  if (!code) {
+    return null;
+  }
+
   return (
     <div className="px-4 py-2 bg-[var(--sky-2)] border-b border-[var(--sky-7)] text-md text-[var(--sky-11)] font-semibold flex justify-between items-center gap-4">
       <span>
@@ -41,13 +46,13 @@ export const StaticBanner: React.FC = () => {
         Some interactive features may not work, see ways to run or edit this.
       </span>
       <span className="flex-shrink-0">
-        <StaticBannerDialog />
+        <StaticBannerDialog code={code} />
       </span>
     </div>
   );
 };
 
-const StaticBannerDialog = () => {
+const StaticBannerDialog = ({ code }: { code: string }) => {
   let filename = getFilenameFromDOM() || "notebook.py";
   // Trim the path
   const lastSlash = filename.lastIndexOf("/");
@@ -56,7 +61,6 @@ const StaticBannerDialog = () => {
   }
 
   const href = window.location.href;
-  const code = getMarimoCode();
   const wasmLink = createShareableLink({ code });
 
   return (

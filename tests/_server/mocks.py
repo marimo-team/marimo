@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import tempfile
-from typing import Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 from unittest.mock import MagicMock
-
-from starlette.testclient import TestClient
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import LspServer, SessionManager
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
