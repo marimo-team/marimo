@@ -153,7 +153,8 @@ class CLIArgs:
     def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
         """Get the value of the CLI arg.
 
-        Returns a singleton value if there is only one item, a list of values otherwise.
+        Returns a singleton value if there is only one item,
+        a list of values otherwise.
         """
         if key not in self._params:
             return None
