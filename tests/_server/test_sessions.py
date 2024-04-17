@@ -26,7 +26,7 @@ app_metadata = AppMetadata(
 def save_and_restore_main(f):
     """Kernels swap out the main module; restore it after running tests"""
 
-    def wrapper():
+    def wrapper() -> None:
         main = sys.modules["__main__"]
         try:
             f()

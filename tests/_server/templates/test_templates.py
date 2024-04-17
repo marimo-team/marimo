@@ -17,7 +17,7 @@ snapshot = snapshotter(__file__)
 
 
 class TestNotebookPageTemplate(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         root = os.path.realpath(
             os.path.join(os.path.dirname(__file__), "data")
         )
@@ -32,7 +32,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         self.filename = "notebook.py"
         self.mode = SessionMode.RUN
 
-    def test_notebook_page_template(self):
+    def test_notebook_page_template(self) -> None:
         result = templates.notebook_page_template(
             self.html,
             self.base_url,
@@ -48,7 +48,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert self.filename in result
         assert "read" in result
 
-    def test_notebook_page_template_no_filename(self):
+    def test_notebook_page_template_no_filename(self) -> None:
         result = templates.notebook_page_template(
             self.html,
             self.base_url,
@@ -64,7 +64,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         assert "<title>marimo</title>" in result
         assert "read" in result
 
-    def test_notebook_page_template_edit_mode(self):
+    def test_notebook_page_template_edit_mode(self) -> None:
         result = templates.notebook_page_template(
             self.html,
             self.base_url,
@@ -82,7 +82,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
 
 class TestHomePageTemplate(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         root = os.path.realpath(
             os.path.join(os.path.dirname(__file__), "data")
         )
@@ -94,7 +94,7 @@ class TestHomePageTemplate(unittest.TestCase):
         self.user_config = DEFAULT_CONFIG
         self.server_token = "token"
 
-    def test_home_page_template(self):
+    def test_home_page_template(self) -> None:
         result = templates.home_page_template(
             self.html,
             self.base_url,
@@ -112,7 +112,7 @@ class TestHomePageTemplate(unittest.TestCase):
 
 
 class TestStaticNotebookTemplate(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         root = os.path.realpath(
             os.path.join(os.path.dirname(__file__), "data")
         )
@@ -156,7 +156,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
         }
         self.files = {"file1": "File 1 content", "file2": "File 2 content"}
 
-    def test_static_notebook_template(self):
+    def test_static_notebook_template(self) -> None:
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -175,7 +175,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         snapshot("export1.txt", normalize_index_html(result))
 
-    def test_static_notebook_template_no_filename(self):
+    def test_static_notebook_template_no_filename(self) -> None:
         result = templates.static_notebook_template(
             self.html,
             self.user_config,
@@ -194,7 +194,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
 
         snapshot("export2.txt", normalize_index_html(result))
 
-    def test_static_notebook_template_no_code(self):
+    def test_static_notebook_template_no_code(self) -> None:
         result = templates.static_notebook_template(
             self.html,
             self.user_config,

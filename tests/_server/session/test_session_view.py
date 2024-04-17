@@ -120,7 +120,7 @@ def test_session_view_variable_values() -> None:
     assert list(variables_names) == ["var2"]
 
 
-def test_ui_values():
+def test_ui_values() -> None:
     session_view = SessionView()
     session_view.add_control_request(
         SetUIElementValueRequest([("test_ui", 123)])
@@ -150,7 +150,7 @@ def test_ui_values():
     assert "test_ui3" in session_view.ui_values
 
 
-def test_last_run_code():
+def test_last_run_code() -> None:
     session_view = SessionView()
     session_view.add_control_request(
         ExecuteMultipleRequest(
@@ -187,7 +187,7 @@ def test_last_run_code():
     assert session_view.last_executed_code[cell_id] == "print('hello')"
 
 
-def test_add_variables():
+def test_add_variables() -> None:
     session_view = SessionView()
 
     session_view.add_raw_operation(
@@ -221,7 +221,7 @@ def test_add_variables():
     assert session_view.variable_values["var2"].value == "hello"
 
 
-def test_add_cell_op():
+def test_add_cell_op() -> None:
     session_view = SessionView()
     session_view.add_raw_operation(
         serialize(

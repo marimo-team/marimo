@@ -866,7 +866,7 @@ async def test_set_ui_element_value_with_cell_run(
     assert k.globals["counter"][0] == 1
 
 
-def test_sys_path_updated(tmp_path: pathlib.Path):
+def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
     main: ModuleType | None = None
     try:
         filename = str(tmp_path / "notebook.py")

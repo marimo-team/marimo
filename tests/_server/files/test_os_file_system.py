@@ -9,17 +9,17 @@ from marimo._server.models.files import FileDetailsResponse
 
 
 class TestOSFileSystem(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         # Create a temporary directory for the tests
         self.temp_dir = TemporaryDirectory()
         self.test_dir = self.temp_dir.name
         self.fs = OSFileSystem()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         # Cleanup the temporary directory after each test
         self.temp_dir.cleanup()
 
-    def test_create_file(self):
+    def test_create_file(self) -> None:
         test_file_name = "test_file.txt"
         self.fs.create_file_or_directory(
             self.test_dir, "file", test_file_name, None
@@ -27,7 +27,7 @@ class TestOSFileSystem(unittest.TestCase):
         expected_path = os.path.join(self.test_dir, test_file_name)
         assert os.path.exists(expected_path)
 
-    def test_create_file_with_duplicate_name(self):
+    def test_create_file_with_duplicate_name(self) -> None:
         test_file_name = "test_file.txt"
         self.fs.create_file_or_directory(
             self.test_dir, "file", test_file_name, None
@@ -40,7 +40,7 @@ class TestOSFileSystem(unittest.TestCase):
         expected_path = os.path.join(self.test_dir, "test_file_1.txt")
         assert os.path.exists(expected_path)
 
-    def test_create_directory(self):
+    def test_create_directory(self) -> None:
         test_dir_name = "test_dir"
         self.fs.create_file_or_directory(
             self.test_dir, "directory", test_dir_name, None
@@ -48,29 +48,29 @@ class TestOSFileSystem(unittest.TestCase):
         expected_path = os.path.join(self.test_dir, test_dir_name)
         assert os.path.isdir(expected_path)
 
-    def test_create_with_empty_name(self):
+    def test_create_with_empty_name(self) -> None:
         with pytest.raises(ValueError):
             self.fs.create_file_or_directory(self.test_dir, "file", "", None)
 
-    def test_create_with_disallowed_name(self):
+    def test_create_with_disallowed_name(self) -> None:
         with pytest.raises(ValueError):
             self.fs.create_file_or_directory(self.test_dir, "file", ".", None)
 
-    def test_list_files(self):
+    def test_list_files(self) -> None:
         # Create a test file and directory
         self.test_create_file()
         self.test_create_directory()
         files = self.fs.list_files(self.test_dir)
         assert len(files) == 2  # Expecting 1 file and 1 directory
 
-    def test_list_files_with_broken_directory_symlink(self):
+    def test_list_files_with_broken_directory_symlink(self) -> None:
         # Create a broken symlink
         broken_symlink = os.path.join(self.test_dir, "broken_symlink")
         os.symlink("non_existent_file", broken_symlink)
         files = self.fs.list_files(self.test_dir)
         assert len(files) == 0
 
-    def test_get_details(self):
+    def test_get_details(self) -> None:
         test_file_name = "test_file.txt"
         self.fs.create_file_or_directory(
             self.test_dir,
@@ -86,7 +86,7 @@ class TestOSFileSystem(unittest.TestCase):
         assert file_info.mime_type == "text/plain"
         assert file_info.contents == "some content"
 
-    def test_get_details_marimo_file(self):
+    def test_get_details_marimo_file(self) -> None:
         test_file_name = "app.py"
         content = """
             import marimo
@@ -108,7 +108,7 @@ class TestOSFileSystem(unittest.TestCase):
         assert isinstance(file_info, FileDetailsResponse)
         assert file_info.file.is_marimo_file
 
-    def test_open_file(self):
+    def test_open_file(self) -> None:
         test_file_name = "test_file.txt"
         test_content = "Hello, World!"
         with open(os.path.join(self.test_dir, test_file_name), "w") as f:
@@ -118,7 +118,7 @@ class TestOSFileSystem(unittest.TestCase):
         )
         assert content == test_content
 
-    def test_delete_file(self):
+    def test_delete_file(self) -> None:
         test_file_name = "test_file.txt"
         file_path = os.path.join(self.test_dir, test_file_name)
         with open(file_path, "w"):
@@ -126,7 +126,7 @@ class TestOSFileSystem(unittest.TestCase):
         self.fs.delete_file_or_directory(file_path)
         assert not os.path.exists(file_path)
 
-    def test_move_file(self):
+    def test_move_file(self) -> None:
         original_file_name = "original.txt"
         new_file_name = "new.txt"
         original_path = os.path.join(self.test_dir, original_file_name)
@@ -137,7 +137,7 @@ class TestOSFileSystem(unittest.TestCase):
         assert os.path.exists(new_path)
         assert not os.path.exists(original_path)
 
-    def test_move_with_disallowed_name(self):
+    def test_move_with_disallowed_name(self) -> None:
         original_file_name = "original.txt"
         new_file_name = "."
         original_path = os.path.join(self.test_dir, original_file_name)
@@ -147,7 +147,7 @@ class TestOSFileSystem(unittest.TestCase):
         with pytest.raises(ValueError):
             self.fs.move_file_or_directory(original_path, new_path)
 
-    def test_update_file(self):
+    def test_update_file(self) -> None:
         test_file_name = "test_file.txt"
         file_path = os.path.join(self.test_dir, test_file_name)
         with open(file_path, "w") as f:

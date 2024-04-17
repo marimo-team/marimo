@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
 
 class TestASGIAppBuilder(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         # Create a temporary directory for the tests
         self.temp_dir = tempfile.TemporaryDirectory()
         self.app1 = os.path.join(self.temp_dir.name, "app1.py")
@@ -36,11 +36,11 @@ class TestASGIAppBuilder(unittest.TestCase):
         with open(self.app2, "w") as f:
             f.write(contents.replace("placeholder", "app2"))
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         # Clean up the temporary directory
         self.temp_dir.cleanup()
 
-    def test_create_asgi_app(self):
+    def test_create_asgi_app(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         assert isinstance(builder, ASGIAppBuilder)
 
@@ -51,7 +51,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         app = builder.build()
         assert callable(app)
 
-    def test_app_base(self):
+    def test_app_base(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/", root=self.app1)
         app = builder.build()
@@ -60,7 +60,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200
         assert "app1.py" in response.text
 
-    def test_app_redirect(self):
+    def test_app_redirect(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/test", root=self.app1)
         app = builder.build()
@@ -69,7 +69,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200, response.text
         assert "app1.py" in response.text
 
-    def test_multiple_apps(self):
+    def test_multiple_apps(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/app1", root=self.app1)
         builder = builder.with_app(path="/app2", root=self.app2)
@@ -86,7 +86,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         response = client.get("/app3")
         assert response.status_code == 404, response.text
 
-    def test_root_doesnt_conflict_when_root_is_last(self):
+    def test_root_doesnt_conflict_when_root_is_last(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/app1", root=self.app1)
         builder = builder.with_app(path="/", root=self.app2)
@@ -99,7 +99,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200, response.text
         assert "app2.py" in response.text
 
-    def test_root_doesnt_conflict_when_root_is_first(self):
+    def test_root_doesnt_conflict_when_root_is_first(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/", root=self.app2)
         builder = builder.with_app(path="/app1", root=self.app1)
@@ -112,7 +112,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200, response.text
         assert "app2.py" in response.text
 
-    def test_can_include_code(self):
+    def test_can_include_code(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/app1", root=self.app1)
         app = builder.build()
@@ -121,7 +121,7 @@ class TestASGIAppBuilder(unittest.TestCase):
         assert response.status_code == 200, response.text
         assert "app1.py" in response.text
 
-    def test_can_hit_health(self):
+    def test_can_hit_health(self) -> None:
         builder = create_asgi_app(quiet=True, include_code=True)
         builder = builder.with_app(path="/app1", root=self.app1)
         app = builder.build()
