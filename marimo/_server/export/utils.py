@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from typing import Callable
 
 from marimo._config.manager import UserConfigManager
@@ -11,6 +12,7 @@ from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._server.models.models import InstantiateRequest
 from marimo._server.sessions import Session
 
 
@@ -24,6 +26,8 @@ async def run_app_then_export_as_html(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
+    instantiated_event = asyncio.Event()
+
     # Create a no-op session consumer
     class NoopSessionConsumer(SessionConsumer):
         def on_start(
@@ -31,7 +35,12 @@ async def run_app_then_export_as_html(
             check_alive: Callable[[], None],
         ) -> Callable[[KernelMessage], None]:
             del check_alive
-            return lambda _: None
+
+            def listener(message: KernelMessage) -> None:
+                if message[0] == "completed-run":
+                    instantiated_event.set()
+
+            return listener
 
         def on_stop(self) -> None:
             pass
@@ -55,7 +64,8 @@ async def run_app_then_export_as_html(
     )
 
     # Run the app to completion once
-    await session.app_file_manager.app.run_async()
+    session.instantiate(InstantiateRequest(object_ids=[], values=[]))
+    await instantiated_event.wait()
 
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
