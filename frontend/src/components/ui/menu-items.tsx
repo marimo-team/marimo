@@ -55,6 +55,10 @@ export const menuItemVariants = cva(
           "focus:bg-accent focus:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
         danger:
           "focus:bg-[var(--red-5)] focus:text-[var(--red-12)] aria-selected:bg-[var(--red-5)] aria-selected:text-[var(--red-12)]",
+        muted:
+          "focus:bg-muted/70 focus:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
+        success:
+          "focus:bg-[var(--grass-3)] focus:text-[var(--grass-11)] aria-selected:bg-[var(--grass-3)] aria-selected:text-[var(--grass-11)]",
       },
     },
     defaultVariants: {
