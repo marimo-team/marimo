@@ -151,7 +151,7 @@ class CLIArgs:
         self._params = params
 
     def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
-        """Get the value of the query parameter.
+        """Get the value of the CLI arg.
 
         Returns a str if there is only one item, a list of str otherwise.
         """
