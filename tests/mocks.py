@@ -4,6 +4,8 @@ import difflib
 import os
 from typing import Callable
 
+from marimo._utils.paths import maybe_make_dirs
+
 
 def snapshotter(current_file: str) -> Callable[[str, str], None]:
     """
@@ -22,8 +24,7 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
         )
 
         # If snapshot directory doesn't exist, create it
-        if not os.path.exists(os.path.dirname(filepath)):
-            os.makedirs(os.path.dirname(filepath))
+        maybe_make_dirs(filepath)
 
         # If doesn't exist, create snapshot
         if not os.path.exists(filepath):

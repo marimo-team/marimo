@@ -44,7 +44,7 @@ HEADERS = {
 
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: dict[str, Any]
-):
+) -> None:
     data = parse_raw(raw_data["data"], KernelReady)
     expected = parse_raw(response, KernelReady)
     assert data.cell_ids == expected.cell_ids

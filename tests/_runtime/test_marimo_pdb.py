@@ -3,7 +3,7 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-async def test_pdb_patched(k: Kernel, exec_req: ExecReqProvider):
+async def test_pdb_patched(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run([exec_req.get("import pdb")])
 
     pdb = k.globals["pdb"]

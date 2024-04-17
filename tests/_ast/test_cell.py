@@ -151,7 +151,7 @@ class TestCellRun:
         app = App()
 
         @app.cell
-        def f():
+        def f() -> None:
             return
 
         assert f.run() == (None, {})
@@ -191,12 +191,12 @@ def help_smoke() -> None:
     app = App()
 
     @app.cell
-    async def f(x):
+    async def f(x) -> None:
         await x
         return
 
     @app.cell
-    def g():
+    def g() -> None:
         return
 
     assert "Async" in f._help().text

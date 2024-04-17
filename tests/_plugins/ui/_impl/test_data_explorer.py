@@ -11,7 +11,7 @@ HAS_DEPS = DependencyManager.has_pandas()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_data_explorer(executing_kernel: Kernel):
+def test_data_explorer(executing_kernel: Kernel) -> None:
     # unused, except for the side effect of giving the kernel an execution
     # context
     del executing_kernel

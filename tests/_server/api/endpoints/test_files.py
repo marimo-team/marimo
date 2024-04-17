@@ -3,13 +3,16 @@ from __future__ import annotations
 
 import os
 import random
+from typing import TYPE_CHECKING
 
 import pytest
-from starlette.testclient import TestClient
 
 from marimo._server.api.status import HTTPException
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
+
+if TYPE_CHECKING:
+    from fastapi.testclient import TestClient
 
 SESSION_ID = "session-123"
 HEADERS = {
