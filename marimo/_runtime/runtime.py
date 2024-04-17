@@ -219,22 +219,22 @@ def query_params() -> QueryParams:
 def cli_args() -> CLIArgs:
     """Get the command line arguments of a marimo notebook.
 
-    **Examples**:
+        **Examples**:
 
-`marimo edit notebook.py -- -size 10`
+    `marimo edit notebook.py -- -size 10`
 
-    ```python3
-    # Access the command line arguments
-    size = mo.cli_args().get("size") or 100
+        ```python3
+        # Access the command line arguments
+        size = mo.cli_args().get("size") or 100
 
-    for i in range(size):
-        print(i)
-    ```
+        for i in range(size):
+            print(i)
+        ```
 
-    **Returns**:
+        **Returns**:
 
-    - A dictionary containing the command line arguments.
-      This dictionary is read-only and cannot be mutated.
+        - A dictionary containing the command line arguments.
+          This dictionary is read-only and cannot be mutated.
     """
     return get_context().kernel.cli_args
 
