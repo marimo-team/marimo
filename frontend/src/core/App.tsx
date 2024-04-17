@@ -7,8 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import { sendInterrupt, sendRename, sendSave } from "@/core/network/requests";
 
 import { Controls } from "@/components/editor/controls/Controls";
-import { DirCompletionInput } from "@/components/editor/DirCompletionInput";
-import { FilenameForm } from "@/components/editor/FilenameForm";
+import { FilenameInput } from "@/components/editor/header/filename-input";
+import { FilenameForm } from "@/components/editor/header/filename-form";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
@@ -99,32 +99,30 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     sessionId: getSessionId(),
   });
 
-  const handleFilenameChange = useEvent(
-    (name: string | null): Promise<string | null> => {
-      if (connStatus.state !== WebSocketState.OPEN) {
-        alertSaveFailed();
-        return Promise.resolve(null);
+  const handleFilenameChange = useEvent(async (name: string | null) => {
+    if (connStatus.state !== WebSocketState.OPEN) {
+      alertSaveFailed();
+      return null;
+    }
+
+    updateQueryParams((params) => {
+      if (name === null) {
+        params.delete("file");
+      } else {
+        params.set("file", name);
       }
+    });
 
-      updateQueryParams((params) => {
-        if (name === null) {
-          params.delete("file");
-        } else {
-          params.set("file", name);
-        }
+    return sendRename(name)
+      .then(() => {
+        setFilename(name);
+        return name;
+      })
+      .catch((error) => {
+        openAlert(error.message);
+        return null;
       });
-
-      return sendRename(name)
-        .then(() => {
-          setFilename(name);
-          return name;
-        })
-        .catch((error) => {
-          openAlert(error.message);
-          return null;
-        });
-    },
-  );
+  });
 
   const cells = notebookCells(notebook);
   const cellIds = cells.map((cell) => cell.id);
@@ -188,12 +186,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
     // Filename does not exist and we are connected to a kernel
     if (filename === null && connStatus.state !== WebSocketState.CLOSED) {
-      openModal(
-        <SaveDialog
-          onClose={closeModal}
-          onSubmitSaveDialog={onSubmitSaveDialog}
-        />,
-      );
+      openModal(<SaveDialog onClose={closeModal} onSave={handleSaveDialog} />);
     }
   });
 
@@ -221,18 +214,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     }
   });
 
-  const onSubmitSaveDialog = (e: React.FormEvent<HTMLFormElement>) => {
-    const value = new FormData(e.currentTarget).get("SaveDialogInput");
-    if (typeof value !== "string") {
-      alert("Filename cannot be empty");
-      return;
-    }
-    if (value.length === 0 || value === ".py") {
-      alert("Filename cannot be empty");
-      return;
-    }
-
-    const pythonFilename = value.endsWith(".py") ? value : `${value}.py`;
+  const handleSaveDialog = (pythonFilename: string) => {
     handleFilenameChange(pythonFilename).then((name) => {
       if (name !== null) {
         saveNotebook(name, true);
@@ -343,7 +325,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           )}
         >
           {isEditing && (
-            <div id="Welcome">
+            <div className="flex items-center justify-center container">
               <FilenameForm
                 filename={filename}
                 setFilename={handleFilenameChange}
@@ -416,59 +398,49 @@ const NoiseBackground = () => (
 
 const SaveDialog = (props: {
   onClose: () => void;
-  onSubmitSaveDialog: (e: React.FormEvent<HTMLFormElement>) => void;
+  onSave: (filename: string) => void;
 }) => {
-  const { onClose, onSubmitSaveDialog } = props;
+  const { onClose, onSave } = props;
   const cancelButtonLabel = "Cancel";
+  const [filename, setFilename] = useState<string>();
+  const handleFilenameChange = (name: string) => {
+    setFilename(name);
+    if (name.trim()) {
+      onSave(name);
+      onClose();
+    }
+  };
+
   return (
-    <DialogContent className="w-fit">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmitSaveDialog(e);
-          onClose();
-        }}
-        onKeyDown={(e) => {
-          // We don't submit on Enter because the user may
-          // have focused the cancel button ...
-          if (e.key === "Escape") {
-            onClose();
-          } else if (
-            e.key === "Enter" &&
-            document.activeElement?.ariaLabel !== cancelButtonLabel
-          ) {
-            onSubmitSaveDialog(e);
-            onClose();
-          }
-        }}
-      >
-        <DialogTitle className="text-accent mb-6">Save?</DialogTitle>
-        <div className="flex items-center gap-5 mb-6 ml-4 mr-16">
-          <Label className="text-md text-muted-foreground">Save as</Label>
-          <DirCompletionInput
-            name="SaveDialogInput"
-            className="missing-filename"
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            data-testid="cancel-save-dialog-button"
-            aria-label={cancelButtonLabel}
-            variant="secondary"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            data-testid="submit-save-dialog-button"
-            aria-label="Save"
-            variant="default"
-            type="submit"
-          >
-            Save
-          </Button>
-        </DialogFooter>
-      </form>
+    <DialogContent>
+      <DialogTitle>Save notebook</DialogTitle>
+      <div className="flex flex-col">
+        <Label className="text-md pt-6 px-1">Save as</Label>
+        <FilenameInput
+          onNameChange={handleFilenameChange}
+          placeholderText="filename"
+          className="missing-filename"
+        />
+      </div>
+      <DialogFooter>
+        <Button
+          data-testid="cancel-save-dialog-button"
+          aria-label={cancelButtonLabel}
+          variant="secondary"
+          onClick={onClose}
+        >
+          Cancel
+        </Button>
+        <Button
+          data-testid="submit-save-dialog-button"
+          aria-label="Save"
+          variant="default"
+          disabled={!filename}
+          type="submit"
+        >
+          Save
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };
