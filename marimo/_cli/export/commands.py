@@ -23,7 +23,7 @@ def export() -> None:
 Example:
 
   \b
-  * marimo export html notebook.py
+  * marimo export html notebook.py -o notebook.html
 """
 )
 @click.option(
@@ -31,7 +31,7 @@ Example:
     default=True,
     show_default=True,
     type=bool,
-    help="Include notebook code the exported HTML file.",
+    help="Include notebook code in the exported HTML file.",
 )
 @click.option(
     "--watch/--no-watch",
@@ -39,7 +39,7 @@ Example:
     show_default=True,
     type=bool,
     help="""
-    Watch the file for changes and reload the app.
+    Watch notebook for changes and regenerate HTML on modification.
     If watchdog is installed, it will be used to watch the file.
     Otherwise, file watcher will poll the file every 1s.
     """,
@@ -58,23 +58,23 @@ Example:
 def html(
     name: str,
     include_code: bool,
-    out_file: str,
+    output: str,
     watch: bool,
 ) -> None:
     """
     Run a notebook and export it as an HTML file.
     """
-    if watch and not out_file:
+    if watch and not output:
         raise click.UsageError(
             "Cannot use --watch without providing "
             + "an output file with --output."
         )
 
     def write_html(html: str) -> None:
-        if out_file:
+        if output:
             # Make dirs if needed
-            maybe_make_dirs(out_file)
-            with open(out_file, "w") as f:
+            maybe_make_dirs(output)
+            with open(output, "w") as f:
                 f.write(html)
                 f.close()
         else:
@@ -90,7 +90,7 @@ def html(
 
     async def on_file_changed(file_path: Path) -> None:
         click.echo(
-            f"File {str(file_path)} changed. Re-exporting to {green(out_file)}"
+            f"File {str(file_path)} changed. Re-exporting to {green(output)}"
         )
         (html, _filename) = await run_app_then_export_as_html(
             str(file_path), include_code=include_code
