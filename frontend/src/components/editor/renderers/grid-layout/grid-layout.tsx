@@ -130,7 +130,6 @@ export const GridLayoutRenderer: React.FC<Props> = ({
   if (enableInteractions) {
     styles.backgroundImage =
       "repeating-linear-gradient(var(--gray-4) 0 1px, transparent 1px 100%), repeating-linear-gradient(90deg, var(--gray-4) 0 1px, transparent 1px 100%)";
-
     styles.backgroundSize = `calc((100% / ${layout.columns})) ${layout.rowHeight}px`;
   }
 
@@ -271,9 +270,9 @@ export const GridLayoutRenderer: React.FC<Props> = ({
     grid = (
       <div
         style={styles}
-        className="bg-background border-t border-x rounded-t shadow-sm w-full mx-auto overflow-hidden mt-4"
+        className="bg-background border-t border-x rounded-t shadow-sm w-full mx-auto mt-4 flex flex-col"
       >
-        {grid}
+        <div className="flex-1 overflow-auto">{grid}</div>
       </div>
     );
   }
