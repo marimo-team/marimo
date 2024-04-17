@@ -33,7 +33,7 @@ EXPOSE 8080
 RUN useradd -m app_user
 USER app_user
 
-CMD [ "marimo", "run", "app.py", "-p", "8080" ]
+CMD [ "marimo", "run", "app.py", "--host", "0.0.0.0", "-p", "8080" ]
 ```
 
 ## Breaking it down
