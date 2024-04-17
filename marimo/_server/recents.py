@@ -1,5 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 import os
+import pathlib
 from dataclasses import dataclass, field
 from typing import List
 
@@ -13,6 +14,15 @@ class RecentFilesState:
     files: List[str] = field(default_factory=list)
 
 
+_IGNORED_FOLDERS = ("/tmp", "/var")
+
+
+def _should_ignore_file(filename: str) -> bool:
+    return any(
+        filename.startswith(folder_name) for folder_name in _IGNORED_FOLDERS
+    ) or not pathlib.Path(filename).is_relative_to(pathlib.Path.cwd())
+
+
 class RecentFilesManager:
     MAX_FILES = 10
     LOCATION = "recent_files.toml"
@@ -24,7 +34,7 @@ class RecentFilesManager:
         if not self.config:
             return
 
-        if filename.startswith("/tmp"):
+        if _should_ignore_file(filename):
             return
 
         state = self.config.read_toml(
@@ -60,7 +70,8 @@ class RecentFilesManager:
         files: List[MarimoFile] = []
 
         for file in state.files:
-            # Check for existence of file
+            if _should_ignore_file(file):
+                continue
             if not os.path.exists(file):
                 continue
             files.append(
