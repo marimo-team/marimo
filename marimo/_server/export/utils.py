@@ -58,7 +58,9 @@ async def run_app_then_export_as_html(
         initialization_id=file_key,
         session_consumer=NoopSessionConsumer(),
         mode=SessionMode.RUN,
-        app_metadata=AppMetadata(query_params={}, filename=file_manager.path),
+        app_metadata=AppMetadata(
+            query_params={}, filename=file_manager.path, cli_args={}
+        ),
         app_file_manager=file_manager,
         user_config_manager=config,
         virtual_files_supported=False,
