@@ -153,14 +153,14 @@ class CLIArgs:
     def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
         """Get the value of the CLI arg.
 
-        Returns a str if there is only one item, a list of str otherwise.
+        Returns a singleton value if there is only one item, a list of values otherwise.
         """
         if key not in self._params:
             return None
         return self._params[key]
 
     def get_all(self, key: str) -> List[Primitive]:
-        """Get the value of a query parameter as a list."""
+        """Get the value of a CLI arg as a list."""
         value = self._params.get(key)
         if value is None:
             return []
