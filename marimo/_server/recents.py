@@ -17,10 +17,10 @@ class RecentFilesState:
 _IGNORED_FOLDERS = ("/tmp", "/var")
 
 
-def _should_ignore_file(filename: str) -> bool:
+def _is_tmp_file(filename: str) -> bool:
     return any(
         filename.startswith(folder_name) for folder_name in _IGNORED_FOLDERS
-    ) or not pathlib.Path(filename).is_relative_to(pathlib.Path.cwd())
+    )
 
 
 class RecentFilesManager:
@@ -34,7 +34,7 @@ class RecentFilesManager:
         if not self.config:
             return
 
-        if _should_ignore_file(filename):
+        if _is_tmp_file(filename):
             return
 
         state = self.config.read_toml(
@@ -70,7 +70,9 @@ class RecentFilesManager:
         files: List[MarimoFile] = []
 
         for file in state.files:
-            if _should_ignore_file(file):
+            if _is_tmp_file(file) or not pathlib.Path(file).is_relative_to(
+                pathlib.Path.cwd()
+            ):
                 continue
             if not os.path.exists(file):
                 continue
