@@ -21,7 +21,6 @@ marimo is a reactive notebook for Python. It allows you to rapidly experiment
 with data and models, code with confidence in your notebook's correctness, and
 productionize notebooks as pipelines or interactive web apps.
 
-
 **Highlights**.
 
 - **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
@@ -30,7 +29,6 @@ productionize notebooks as pipelines or interactive web apps.
 - **executable**: execute as a Python script
 - **shareable**: deploy as an app
 - **git-friendly**: stored as `.py` files
-
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -124,7 +122,6 @@ marimo tutorial --help
 
 See the [FAQ](https://docs.marimo.io/faq.html) at our docs.
 
-
 ## Learn more
 
 marimo is easy to get started with, with lots of room for power users.
@@ -140,46 +137,60 @@ the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn mo
   <tr>
     <td>
       <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
-        <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height:150px; width:auto; display:block;">
+        <img src="https://docs.marimo.io/_static/reactive.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
-        <img src="docs/_static/readme-ui.gif" style="max-height:150px; width:auto; display:block;">
+        <img src="docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
-        <img src="docs/_static/docs-intro.gif" style="max-height:150px; width:auto; display:block;">
+        <img src="docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
-        <img src="docs/_static/outputs.gif" style="max-height:150px; width:auto; display:block;">
+        <img src="docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
-    </tr>
+  </tr>
   <tr>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/overview.html">
-	  Tutorial
-	  </a>
-	</td>
+      <a target="_blank" href="https://docs.marimo.io/guides/overview.html"> Tutorial </a>
+    </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
-	  Inputs
-	  </a>
-	</td>
+      <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html"> Inputs </a>
+    </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
-	  Plots
-	  </a>
-	</td>
+      <a target="_blank" href="https://docs.marimo.io/guides/plotting.html"> Plots </a>
+    </td>
     <td>
-      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
-	  Layout
-	  </a>
-	</td>
+      <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html"> Layout </a>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a target="_blank" href="https://marimo.app/l/c7h6pz">
+        <img src="https://marimo.io/shield.svg"/>
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://marimo.app/l/0ue871">
+        <img src="https://marimo.io/shield.svg"/>
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://marimo.app/l/lxp1jk">
+        <img src="https://marimo.io/shield.svg"/>
+      </a>
+    </td>
+    <td>
+      <a target="_blank" href="https://marimo.app/l/14ovyr">
+        <img src="https://marimo.io/shield.svg"/>
+      </a>
+    </td>
   </tr>
 </table>
 
@@ -198,8 +209,8 @@ We're building a community. Come hang out with us!
 - 🌟 [Star us on GitHub](https://github.com/marimo-team/marimo)
 - 💬 [Chat with us on Discord](https://discord.gg/JE7nhX6mD8)
 - 📧 [Subscribe to our Newsletter](https://marimo.io/newsletter)
-- ☁️  [Join our Cloud Waitlist](https://marimo.io/cloud)
-- ✏️  [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
+- ☁️ [Join our Cloud Waitlist](https://marimo.io/cloud)
+- ✏️ [Start a GitHub Discussion](https://github.com/marimo-team/marimo/discussions)
 - 🐦 [Follow us on Twitter](https://twitter.com/marimo_io)
 - 🕴️ [Follow us on LinkedIn](https://www.linkedin.com/company/marimo-io)
 
