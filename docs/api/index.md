@@ -19,7 +19,7 @@
   cli_args
   state
   cell
-  debugging
+  miscellaneous
 ```
 
 Use the marimo library in marimo notebooks (`import marimo as mo`) to
@@ -46,4 +46,4 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`cli_args`      | Access command-line arguments with `mo.cli_args`          |
 | {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
 | {doc}`cell`          | Run cells defined in another notebook                     |
-| {doc}`debugging`     | Debugging utilities                                       |
+| {doc}`miscellaneous` | Miscellaneous utilities                                   |
