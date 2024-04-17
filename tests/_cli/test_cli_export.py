@@ -65,6 +65,7 @@ async def test_export_watch(temp_marimo_file: str) -> None:
     with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101
         f.write("\n# comment\n")
 
+    assert p.poll() is None
     # Wait for rebuild
     while True:
         line = p.stdout.readline().decode()
