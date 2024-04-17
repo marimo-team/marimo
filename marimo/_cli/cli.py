@@ -17,6 +17,7 @@ from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
+from marimo._cli.parse_args import parse_args
 from marimo._cli.print import red
 from marimo._cli.upgrade import check_for_updates
 from marimo._server.file_router import AppFileRouter
@@ -181,11 +182,13 @@ edit_help_msg = "\n".join(
     help="Don't launch a browser.",
 )
 @click.argument("name", required=False)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
     host: str,
     headless: bool,
-    name: Optional[str] = None,
+    name: Optional[str],
+    args: tuple[str],
 ) -> None:
     # Check for version updates
     check_for_updates()
@@ -223,6 +226,7 @@ def edit(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
+        cli_args=parse_args(args),
     )
 
 
@@ -265,6 +269,7 @@ def new(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
+        cli_args={},
     )
 
 
@@ -331,14 +336,16 @@ Example:
     callback=validators.base_url,
 )
 @click.argument("name", required=True)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
     port: Optional[int],
     host: str,
     headless: bool,
     include_code: bool,
     watch: bool,
-    name: str,
     base_url: str,
+    name: str,
+    args: tuple[str],
 ) -> None:
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
@@ -360,6 +367,7 @@ def run(
         include_code=include_code,
         watch=watch,
         base_url=base_url,
+        cli_args=parse_args(args),
     )
 
 
@@ -490,6 +498,7 @@ def tutorial(
         include_code=True,
         headless=headless,
         watch=False,
+        cli_args={},
     )
 
 

@@ -40,6 +40,7 @@ from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
     ExecutionRequest,
+    SerializedCLIArgs,
     SerializedQueryParams,
     SetUIElementValueRequest,
 )
@@ -425,6 +426,7 @@ class SessionManager:
         include_code: bool,
         lsp_server: LspServer,
         user_config_manager: UserConfigManager,
+        cli_args: SerializedCLIArgs,
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -436,6 +438,7 @@ class SessionManager:
         self.watcher: Optional[FileWatcher] = None
         self.recents = RecentFilesManager()
         self.user_config_manager = user_config_manager
+        self.cli_args = cli_args
 
         if mode == SessionMode.EDIT:
             # In edit mode, the server gets a random token to prevent
@@ -476,7 +479,9 @@ class SessionManager:
                 session_consumer=session_consumer,
                 mode=self.mode,
                 app_metadata=AppMetadata(
-                    query_params=query_params, filename=app_file_manager.path
+                    query_params=query_params,
+                    filename=app_file_manager.path,
+                    cli_args=self.cli_args,
                 ),
                 app_file_manager=app_file_manager,
                 user_config_manager=self.user_config_manager,

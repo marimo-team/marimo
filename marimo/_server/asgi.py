@@ -123,6 +123,10 @@ def create_asgi_app(
                 # which doesn't require an LSP server
                 lsp_server=NoopLspServer(),
                 user_config_manager=user_config_mgr,
+                # We don't pass any CLI args for now
+                # since we don't want to read arbitrary args and apply them
+                # to each application
+                cli_args={},
             )
             app = create_starlette_app(
                 base_url="",

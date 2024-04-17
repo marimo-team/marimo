@@ -1,6 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import Dict, Iterator, List, Optional, Union
 
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import (
     QueryParamsAppend,
     QueryParamsClear,
@@ -9,7 +12,12 @@ from marimo._messaging.ops import (
 )
 from marimo._messaging.types import Stream
 from marimo._output.rich_help import mddoc
-from marimo._runtime.requests import SerializedQueryParams
+from marimo._runtime.requests import (
+    ListOrValue,
+    Primitive,
+    SerializedCLIArgs,
+    SerializedQueryParams,
+)
 from marimo._runtime.state import State
 
 
@@ -117,6 +125,11 @@ class QueryParams(State[SerializedQueryParams]):
         QueryParamsDelete(key, value).broadcast(self._stream)
         self._set_value(self._params)
 
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        from marimo._plugins.stateless.tree import tree
+
+        return tree(self._params)._mime_()
+
     def clear(self) -> None:
         """Clear all query params."""
         self._params.clear()
@@ -124,4 +137,60 @@ class QueryParams(State[SerializedQueryParams]):
         self._set_value(self._params)
 
     def to_dict(self) -> Dict[str, Union[str, List[str]]]:
+        return self._params
+
+
+@mddoc
+class CLIArgs:
+    """CLI args passed to a marimo app."""
+
+    def __init__(
+        self,
+        params: SerializedCLIArgs,
+    ):
+        self._params = params
+
+    def get(self, key: str) -> Optional[ListOrValue[Primitive]]:
+        """Get the value of the CLI arg.
+
+        Returns a singleton value if there is only one item,
+        a list of values otherwise.
+        """
+        if key not in self._params:
+            return None
+        return self._params[key]
+
+    def get_all(self, key: str) -> List[Primitive]:
+        """Get the value of a CLI arg as a list."""
+        value = self._params.get(key)
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return [value]
+
+    def __getitem__(self, key: str) -> Optional[ListOrValue[Primitive]]:
+        return self.get(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._params
+
+    def __len__(self) -> int:
+        return len(self._params)
+
+    def __iter__(self) -> Iterator[ListOrValue[Primitive]]:
+        return iter(self._params)
+
+    def __repr__(self) -> str:
+        return f"CLIArgs({self._params})"
+
+    def __str__(self) -> str:
+        return str(self._params)
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        from marimo._plugins.stateless.tree import tree
+
+        return tree(self._params)._mime_()
+
+    def to_dict(self) -> SerializedCLIArgs:
         return self._params

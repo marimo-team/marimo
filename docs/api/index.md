@@ -16,6 +16,7 @@
   control_flow
   html
   query_params
+  cli_args
   state
   cell
   debugging
@@ -42,6 +43,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | {doc}`control_flow`  | Control how cells execute                                 |
 | {doc}`html`          | Manipulate HTML objects                                   |
 | {doc}`query_params`  | Access and set query parameters with `mo.query_params`    |
+| {doc}`cli_args`      | Access command-line arguments with `mo.cli_args`          |
 | {doc}`state`         | Synchronize multiple UI elements with `mo.state`          |
 | {doc}`cell`          | Run cells defined in another notebook                     |
 | {doc}`debugging`     | Debugging utilities                                       |

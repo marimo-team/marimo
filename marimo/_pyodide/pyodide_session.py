@@ -94,7 +94,9 @@ def create_session(
 
     app_file_manager = AppFileManager(filename=filename)
     app = app_file_manager.app
-    app_metadata = AppMetadata(query_params=query_params, filename=filename)
+    app_metadata = AppMetadata(
+        query_params=query_params, filename=filename, cli_args={}
+    )
 
     session = PyodideSession(
         app_file_manager,
