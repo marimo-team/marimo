@@ -17,7 +17,13 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async
+from marimo._ast.cell import (
+    Cell,
+    CellConfig,
+    CellId_t,
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -221,15 +227,37 @@ class App:
         finally:
             self._initialized = True
 
+    def _outputs_and_defs(
+        self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
+    ) -> tuple[Sequence[Any], dict[str, Any]]:
+        # Return
+        # - the outputs, sorted in the order that cells were added to the
+        #   graph
+        # - dict of defs -> values
+        return (
+            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids()),
+            # omit defs that were never defined at runtime, eg due to
+            # conditional definitions like
+            #
+            # if cond:
+            #   x = 0
+            {name: glbls[name] for name in self._defs if name in glbls},
+        )
+
+    def _run_sync(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        # No need to provide `file`, `input_override` here, since this
+        # function is only called when running as a script
+        with patch_main_module_context() as module:
+            glbls = module.__dict__
+            # Execute cells and collect outputs
+            outputs: dict[CellId_t, Any] = {}
+            for cid in self._execution_order:
+                cell = self._cell_manager.cell_data_at(cid).cell
+                if cell is not None:
+                    outputs[cid] = execute_cell(cell._cell, glbls)
+            return self._outputs_and_defs(outputs, glbls)
+
     async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
-        # TODO: We'll maybe expose this in the future
-        if self._unparsable:
-            raise UnparsableError(
-                "This app can't be run because it has unparsable cells."
-            )
-
-        self._maybe_initialize()
-
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
         with patch_main_module_context() as module:
@@ -241,21 +269,7 @@ class App:
                 if cell is not None:
                     outputs[cid] = await execute_cell_async(cell._cell, glbls)
 
-            # Return
-            # - the outputs, sorted in the order that cells were added to the
-            #   graph
-            # - dict of defs -> values
-            return (
-                tuple(
-                    outputs[cid] for cid in self._cell_manager.valid_cell_ids()
-                ),
-                # omit defs that were never defined at runtime, eg due to
-                # conditional definitions like
-                #
-                # if cond:
-                #   x = 0
-                {name: glbls[name] for name in self._defs if name in glbls},
-            )
+            return self._outputs_and_defs(outputs, glbls)
 
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
         # formatters aren't automatically registered when running as a script
@@ -267,7 +281,28 @@ class App:
         if not FORMATTERS:
             register_formatters()
 
-        return asyncio.run(self._run_async())
+        if self._unparsable:
+            raise UnparsableError(
+                "This app can't be run because it has unparsable cells."
+            )
+
+        self._maybe_initialize()
+        is_async = False
+        for cell in self._cell_manager.cells():
+            if cell is None:
+                raise RuntimeError(
+                    "Unparseable cell encountered. This is a bug in marimo, "
+                    "please raise an issue."
+                )
+
+            if cell._is_coroutine():
+                is_async = True
+                break
+
+        if is_async:
+            return asyncio.run(self._run_async())
+        else:
+            return self._run_sync()
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
