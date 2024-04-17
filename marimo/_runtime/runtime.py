@@ -217,9 +217,11 @@ def query_params() -> QueryParams:
 
 @mddoc
 def cli_args() -> CLIArgs:
-    """Get the command line arguments of a marimo app.
+    """Get the command line arguments of a marimo notebook.
 
     **Examples**:
+
+`marimo edit notebook.py -- -size 10`
 
     ```python3
     # Access the command line arguments
