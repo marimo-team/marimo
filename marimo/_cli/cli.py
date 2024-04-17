@@ -1,13 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import argparse
 import inspect
 import json
 import os
 import pathlib
 import tempfile
-from argparse import ArgumentParser
 from typing import Any, Literal, Optional
 
 import click
@@ -18,6 +16,7 @@ from marimo._ast import codegen
 from marimo._cli import ipynb_to_marimo
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.file_path import validate_name
+from marimo._cli.parse_args import parse_args
 from marimo._cli.upgrade import check_for_updates
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
@@ -64,7 +63,11 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
         # "\b" tells click not to reformat our text
         lines.append("\b")
         lines.append(
-            "  * " + key + _sep(desc) + " " * (max_length - len(key) + 2) + desc
+            "  * "
+            + key
+            + _sep(desc)
+            + " " * (max_length - len(key) + 2)
+            + desc
         )
     return "\n".join(lines)
 
@@ -186,11 +189,13 @@ edit_help_msg = "\n".join(
     help="Don't launch a browser.",
 )
 @click.argument("name", required=False)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
     host: str,
     headless: bool,
-    name: Optional[str] = None,
+    name: Optional[str],
+    args: tuple[str],
 ) -> None:
     # Check for version updates
     check_for_updates()
@@ -200,7 +205,9 @@ def edit(
         # The second return value is an optional temporary directory. It is
         # unused, but must be kept around because its lifetime on disk is bound
         # to the life of the Python object
-        name, _ = validate_name(name, allow_new_file=True, allow_directory=True)
+        name, _ = validate_name(
+            name, allow_new_file=True, allow_directory=True
+        )
         is_dir = os.path.isdir(name)
         if os.path.exists(name) and not is_dir:
             # module correctness check - don't start the server
@@ -226,6 +233,7 @@ def edit(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
+        cli_args=parse_args(args),
     )
 
 
@@ -268,6 +276,7 @@ def new(
         mode=SessionMode.EDIT,
         include_code=True,
         watch=False,
+        cli_args={},
     )
 
 
@@ -345,11 +354,6 @@ def run(
     name: str,
     args: tuple[str],
 ) -> None:
-    print("args", args)
-    parser = argparse.ArgumentParser()
-    args_as_dict = parser.parse_args(args, namespace="a")
-    print(args_as_dict)
-
     # Validate name, or download from URL
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
@@ -370,6 +374,7 @@ def run(
         include_code=include_code,
         watch=watch,
         base_url=base_url,
+        cli_args=parse_args(args),
     )
 
 
@@ -500,6 +505,7 @@ def tutorial(
         include_code=True,
         headless=headless,
         watch=False,
+        cli_args={},
     )
 
 

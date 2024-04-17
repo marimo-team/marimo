@@ -5,6 +5,8 @@ Crude CLI tests
 Requires frontend to be built
 """
 
+from __future__ import annotations
+
 import contextlib
 import os
 import signal
@@ -171,6 +173,28 @@ def test_cli_edit_new_file() -> None:
     _check_contents(p, b"marimo-server-token", contents)
 
 
+def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--",
+            "-a=foo",
+            "--b=bar",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+
+
 def test_cli_new() -> None:
     port = _get_port()
     p = subprocess.Popen(["marimo", "new", "-p", str(port), "--headless"])
@@ -182,18 +206,10 @@ def test_cli_new() -> None:
     _check_contents(p, b"marimo-server-token", contents)
 
 
-def test_cli_run() -> None:
-    filecontents = codegen.generate_filecontents(
-        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
-    )
-    d = tempfile.TemporaryDirectory()
-    path = os.path.join(d.name, "run.py")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(filecontents)
-
+def test_cli_run(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "run", path, "-p", str(port), "--headless"]
+        ["marimo", "run", temp_marimo_file, "-p", str(port), "--headless"]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='read'", contents)
@@ -202,25 +218,39 @@ def test_cli_run() -> None:
     )
 
 
-def test_cli_run_with_show_code() -> None:
-    filecontents = codegen.generate_filecontents(
-        ["import marimo as mo"], ["one"], cell_configs=[CellConfig()]
-    )
-    d = tempfile.TemporaryDirectory()
-    path = os.path.join(d.name, "run.py")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(filecontents)
-
+def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "run",
-            path,
+            temp_marimo_file,
             "-p",
             str(port),
             "--headless",
             "--include-code",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+
+
+def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--",
+            "-a=foo",
+            "--b=bar",
         ]
     )
     contents = _try_fetch(port)

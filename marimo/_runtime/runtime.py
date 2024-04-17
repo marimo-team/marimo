@@ -84,7 +84,7 @@ from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
-from marimo._runtime.query_params import QueryParams
+from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
@@ -215,6 +215,28 @@ def query_params() -> QueryParams:
     return get_context().kernel.query_params
 
 
+@mddoc
+def cli_args() -> CLIArgs:
+    """Get the command line arguments of a marimo app.
+
+    **Examples**:
+
+    ```python3
+    # Access the command line arguments
+    size = mo.cli_args().get("size") or 100
+
+    for i in range(size):
+        print(i)
+    ```
+
+    **Returns**:
+
+    - A dictionary containing the command line arguments.
+      This dictionary is read-only and cannot be mutated.
+    """
+    return get_context().kernel.cli_args
+
+
 @dataclasses.dataclass
 class ExecutionContext:
     cell_id: CellId_t
@@ -266,6 +288,7 @@ class Kernel:
     ) -> None:
         self.app_metadata = app_metadata
         self.query_params = QueryParams(app_metadata.query_params)
+        self.cli_args = CLIArgs(app_metadata.cli_args)
         self.stream = stream
         self.stdout = stdout
         self.stderr = stderr

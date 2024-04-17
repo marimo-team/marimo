@@ -8,3 +8,10 @@ state of the notebook while running as an application with `marimo run`.
 ```{eval-rst}
 .. autofunction:: marimo.query_params
 ```
+
+```{admonition} CLI arguments
+:class: note
+
+You can also access command-line arguments passed to the notebook using
+`mo.cli_args`. This allows you to pass arguments to the notebook that are not controllable by the user.
+```

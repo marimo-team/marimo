@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import unittest
 from unittest.mock import MagicMock
 
+import pytest
+
 from marimo._messaging.types import Stream
-from marimo._runtime.query_params import QueryParams
+from marimo._runtime.params import CLIArgs, QueryParams
 
 
 class TestQueryParams(unittest.TestCase):
@@ -180,3 +184,50 @@ class TestQueryParams(unittest.TestCase):
             "op": "query-params-clear",
             "data": {},
         }
+
+
+class TestCLIArgs(unittest.TestCase):
+    def setUp(self):
+        self.params = CLIArgs(
+            {"key1": "value1", "key2": ["value2", "value3"]},
+        )
+
+    def test_get(self):
+        assert self.params.get("key1") == "value1"
+        assert self.params.get("key2") == ["value2", "value3"]
+
+    def test_get_all(self):
+        assert self.params.get_all("key1") == ["value1"]
+        assert self.params.get_all("key2") == ["value2", "value3"]
+        assert self.params.get_all("non_existent_key") == []
+
+    def test_contains(self):
+        assert "key1" in self.params
+        assert "non_existent_key" not in self.params
+
+    def test_len(self):
+        assert len(self.params) == 2
+
+    def test_iter(self):
+        keys = [key for key in self.params]
+        assert keys, ["key1", "key2"]
+
+    def test_repr(self):
+        assert (
+            repr(self.params)
+            == "CLIArgs({'key1': 'value1', 'key2': ['value2', 'value3']})"
+        )
+
+    def test_str(self):
+        assert (
+            str(self.params)
+            == "{'key1': 'value1', 'key2': ['value2', 'value3']}"
+        )
+
+    def test_setitem(self):
+        with pytest.raises(TypeError):
+            self.params["key3"] = "value4"
+
+    def test_delete(self):
+        with pytest.raises(TypeError):
+            del self.params["key1"]
