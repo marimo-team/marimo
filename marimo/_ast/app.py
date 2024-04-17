@@ -291,7 +291,7 @@ class App:
         for cell in self._cell_manager.cells():
             if cell is None:
                 raise RuntimeError(
-                    "Unparseable cell encountered. This is a bug in marimo, "
+                    "Unparsable cell encountered. This is a bug in marimo, "
                     "please raise an issue."
                 )
 
