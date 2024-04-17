@@ -880,7 +880,9 @@ def test_sys_path_updated(tmp_path: pathlib.Path):
             stdin=None,
             cell_configs={},
             user_config=DEFAULT_CONFIG,
-            app_metadata=AppMetadata(query_params={}, filename=filename),
+            app_metadata=AppMetadata(
+                query_params={}, filename=filename, cli_args={}
+            ),
             execute_stale_cells_callback=lambda: None,
         )
         assert str(tmp_path) in sys.path

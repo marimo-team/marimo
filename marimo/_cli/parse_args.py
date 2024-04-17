@@ -1,4 +1,7 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
+
+from typing import Any
 
 from marimo._runtime.requests import SerializedCLIArgs
 
@@ -26,6 +29,8 @@ def parse_args(
         if arg.startswith(("-", "--")):
             # Strip leading dashes
             arg = arg.lstrip("-")
+            key: str
+            value: Any
 
             if "=" in arg:
                 key, value = arg.split("=", 1)

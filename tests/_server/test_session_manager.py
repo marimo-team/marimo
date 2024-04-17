@@ -32,6 +32,7 @@ def session_manager():
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
         user_config_manager=UserConfigManager(),
+        cli_args={},
     )
 
 
