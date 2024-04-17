@@ -171,7 +171,10 @@ export const FilenameInput = ({
             placeholder={placeholderText}
             autoComplete="off"
             style={flexibleWidth ? { maxWidth: size } : undefined}
-            className={cn(className, "w-full px-4 py-1 my-1 h-9 font-mono")}
+            className={cn(
+              className,
+              "w-full px-4 py-1 my-1 h-9 font-mono text-foreground/60",
+            )}
           />
         </PopoverAnchor>
 
