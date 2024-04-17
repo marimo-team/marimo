@@ -4,7 +4,6 @@ import io
 from typing import Union
 
 from marimo._plugins.core.media import is_data_empty
-from marimo._runtime.context import get_context
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
     VirtualFile,
@@ -24,7 +23,7 @@ def pdf(data: bytes) -> VirtualFile:
     A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext="pdf", buffer=data)
-    get_context().cell_lifecycle_registry.add(item)
+    item.add_to_cell_lifecycle_registry()
     return item.virtual_file
 
 
@@ -40,7 +39,7 @@ def image(data: bytes, ext: str = "png") -> VirtualFile:
     A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext=ext, buffer=data)
-    get_context().cell_lifecycle_registry.add(item)
+    item.add_to_cell_lifecycle_registry()
     return item.virtual_file
 
 
@@ -56,7 +55,7 @@ def audio(data: bytes, ext: str = "wav") -> VirtualFile:
     A `VirtualFile` object.
     """
     item = VirtualFileLifecycleItem(ext=ext, buffer=data)
-    get_context().cell_lifecycle_registry.add(item)
+    item.add_to_cell_lifecycle_registry()
     return item.virtual_file
 
 
@@ -144,7 +143,7 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
         base64str = data.split(",")[1]
         buffer = base64.b64decode(base64str)
         item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)
-        get_context().cell_lifecycle_registry.add(item)
+        item.add_to_cell_lifecycle_registry()
         return item.virtual_file
 
     # URL
@@ -154,13 +153,13 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
     # Bytes
     if isinstance(data, bytes):
         item = VirtualFileLifecycleItem(ext=ext, buffer=data)
-        get_context().cell_lifecycle_registry.add(item)
+        item.add_to_cell_lifecycle_registry()
         return item.virtual_file
 
     # String
     if isinstance(data, str):
         item = VirtualFileLifecycleItem(ext=ext, buffer=data.encode("utf-8"))
-        get_context().cell_lifecycle_registry.add(item)
+        item.add_to_cell_lifecycle_registry()
         return item.virtual_file
 
     # BytesIO
@@ -168,7 +167,7 @@ def any_data(data: Union[str, bytes, io.BytesIO], ext: str) -> VirtualFile:
         # clone before reading, so we don't consume the stream
         buffer = io.BytesIO(data.getvalue()).read()
         item = VirtualFileLifecycleItem(ext=ext, buffer=buffer)
-        get_context().cell_lifecycle_registry.add(item)
+        item.add_to_cell_lifecycle_registry()
         return item.virtual_file
 
     raise ValueError(f"Unsupported data type: {type(data)}")
