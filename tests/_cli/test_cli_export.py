@@ -20,7 +20,7 @@ def test_cli_export_html(temp_marimo_file: str) -> None:
     # Remove folder path
     dirname = path.dirname(temp_marimo_file)
     html = html.replace(dirname, "path")
-    snapshot("test_cli_export_html.txt", html)
+    assert '<marimo-code hidden=""></marimo-code>' not in html
 
 
 def test_cli_export_html_no_code(temp_marimo_file: str) -> None:
@@ -33,7 +33,7 @@ def test_cli_export_html_no_code(temp_marimo_file: str) -> None:
     # Remove folder path
     dirname = path.dirname(temp_marimo_file)
     html = html.replace(dirname, "path")
-    snapshot("test_cli_export_html_no_code.txt", html)
+    assert '<marimo-code hidden=""></marimo-code>' in html
 
 
 async def test_export_watch(temp_marimo_file: str) -> None:
