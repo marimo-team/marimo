@@ -59,7 +59,12 @@ def test_kernel_manager() -> None:
 
     # Instantiate a KernelManager
     kernel_manager = KernelManager(
-        queue_manager, mode, {}, app_metadata, UserConfigManager()
+        queue_manager,
+        mode,
+        {},
+        app_metadata,
+        UserConfigManager(),
+        virtual_files_supported=True,
     )
 
     kernel_manager.start_kernel()
@@ -84,7 +89,12 @@ def test_session() -> None:
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManager(use_multiprocessing=False)
     kernel_manager = KernelManager(
-        queue_manager, SessionMode.RUN, {}, app_metadata, UserConfigManager()
+        queue_manager,
+        SessionMode.RUN,
+        {},
+        app_metadata,
+        UserConfigManager(),
+        virtual_files_supported=True,
     )
 
     # Instantiate a Session
@@ -129,6 +139,7 @@ def test_session_disconnect_reconnect() -> None:
         {},
         AppMetadata(query_params={}),
         UserConfigManager(),
+        virtual_files_supported=True,
     )
 
     # Instantiate a Session

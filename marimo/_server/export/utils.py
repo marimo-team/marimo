@@ -61,6 +61,7 @@ async def run_app_then_export_as_html(
         app_metadata=AppMetadata(query_params={}, filename=file_manager.path),
         app_file_manager=file_manager,
         user_config_manager=config,
+        virtual_files_supported=False,
     )
 
     # Run the app to completion once

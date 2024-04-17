@@ -1362,6 +1362,7 @@ def launch_kernel(
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
+    virtual_files_supported: bool,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1412,6 +1413,7 @@ def launch_kernel(
     initialize_context(
         kernel=kernel,
         stream=stream,
+        virtual_files_supported=virtual_files_supported,
     )
 
     if is_edit_mode:
