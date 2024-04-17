@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+import subprocess
+import textwrap
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -12,6 +14,9 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 # don't complain for useless expressions (cell outputs)
@@ -395,3 +400,31 @@ def test_app_config_extra_args_ignored() -> None:
     assert config.width == "full"
     assert config.layout_file is None
     assert config.asdict() == {"width": "full", "layout_file": None}
+
+
+def test_cli_args(tmp_path: pathlib.Path) -> None:
+    py_file = tmp_path / "cli_args_script.py"
+    content = """
+    import marimo
+    app = marimo.App()
+
+    @app.cell
+    def __():
+        import marimo as mo
+        print(mo.cli_args())
+        return mo,
+
+    if __name__ == "__main__":
+        app.run()
+    """
+    py_file.write_text(textwrap.dedent(content))
+    p = subprocess.run(
+        ["python", str(py_file), "--foo", "value1", "--bar", "value2"],
+        stdout=subprocess.PIPE,
+    )
+    assert p.returncode == 0
+    output = p.stdout.decode()
+    assert "foo" in output
+    assert "value1" in output
+    assert "bar" in output
+    assert "value2" in output

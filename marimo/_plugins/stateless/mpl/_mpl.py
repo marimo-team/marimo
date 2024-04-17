@@ -280,9 +280,9 @@ def interactive(figure: "Figure | Axes") -> Html:  # type: ignore[name-defined] 
             return True
 
     figure_managers.add(figure_manager)
-    assert ctx.kernel.execution_context is not None
+    assert ctx.execution_context is not None
     ctx.cell_lifecycle_registry.add(CleanupHandle())
-    ctx.stream.cell_id = ctx.kernel.execution_context.cell_id
+    ctx.stream.cell_id = ctx.execution_context.cell_id
 
     content = _template(host, port, str(figure_manager.num))
 

@@ -26,12 +26,16 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from marimo._runtime.context.types import ExecutionContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -126,6 +130,7 @@ class App:
 
         self._cell_manager = CellManager()
         self._graph = dataflow.DirectedGraph()
+        self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
 
         self._unparsable = False
@@ -222,6 +227,8 @@ class App:
             self._initialized = True
 
     async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        from marimo._runtime.context.types import ExecutionContext
+
         # TODO: We'll maybe expose this in the future
         if self._unparsable:
             raise UnparsableError(
@@ -239,7 +246,11 @@ class App:
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
                 if cell is not None:
+                    self._execution_context = ExecutionContext(
+                        cell_id=cid, setting_element_value=False
+                    )
                     outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    self._execution_context = None
 
             # Return
             # - the outputs, sorted in the order that cells were added to the
@@ -258,16 +269,33 @@ class App:
             )
 
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
-        # formatters aren't automatically registered when running as a script
-        from marimo._output.formatters.formatters import (
-            register_formatters,
+        from marimo._runtime.context.script_context import (
+            initialize_script_context,
         )
-        from marimo._output.formatting import FORMATTERS
+        from marimo._runtime.context.types import runtime_context_installed
 
-        if not FORMATTERS:
-            register_formatters()
+        installed_script_context = False
+        try:
+            if not runtime_context_installed():
+                initialize_script_context(
+                    app=InternalApp(self), stream=NoopStream()
+                )
+                installed_script_context = True
 
-        return asyncio.run(self._run_async())
+            # formatters aren't automatically registered when running as a
+            # script
+            from marimo._output.formatters.formatters import (
+                register_formatters,
+            )
+            from marimo._output.formatting import FORMATTERS
+
+            if not FORMATTERS:
+                register_formatters()
+
+            return asyncio.run(self._run_async())
+        finally:
+            if installed_script_context:
+                teardown_context()
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -448,6 +476,15 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    @property
+    def graph(self) -> dataflow.DirectedGraph:
+        self._app._maybe_initialize()
+        return self._app._graph
+
+    @property
+    def execution_context(self) -> ExecutionContext | None:
+        return self._app._execution_context
 
     @property
     def runner(self) -> dataflow.Runner:

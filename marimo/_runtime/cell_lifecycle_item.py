@@ -5,7 +5,7 @@ import abc
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from marimo._runtime.context import RuntimeContext
+    from marimo._runtime.context.types import RuntimeContext
 
 
 class CellLifecycleItem(abc.ABC):

@@ -37,15 +37,15 @@ class UIElementRegistry:
         object_id: UIElementId,
         ui_element: UIElement[Any, Any],
     ) -> None:
-        kernel = get_context().kernel
+        execution_context = get_context().execution_context
         if object_id in self._objects:
             # on cell re-run, a UI element may be (re)-registered before
             # its destructor was called, so manually delete the old element
             # here
             self.delete(object_id, id(self._objects[object_id]))
         self._objects[object_id] = weakref.ref(ui_element)
-        assert kernel.execution_context is not None
-        self._constructing_cells[object_id] = kernel.execution_context.cell_id
+        assert execution_context is not None
+        self._constructing_cells[object_id] = execution_context.cell_id
         # bindings must be lazily registered, since there aren't any
         # bindings at UIElement object creation time
         if object_id in self._bindings:
@@ -94,10 +94,13 @@ class UIElementRegistry:
         return bindings
 
     def _register_bindings(self, object_id: UIElementId) -> None:
-        kernel = get_context().kernel
-        self._bindings[object_id] = self._find_bindings_in_namespace(
-            object_id, kernel.globals
-        )
+        from marimo._runtime.context.kernel_context import KernelRuntimeContext
+
+        ctx = get_context()
+        if isinstance(ctx, KernelRuntimeContext):
+            self._bindings[object_id] = self._find_bindings_in_namespace(
+                object_id, ctx.globals
+            )
 
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
@@ -169,3 +172,41 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
+
+
+class NoopUIElementRegistry(UIElementRegistry):
+    def __init__(self) -> None:
+        pass
+
+    def register(
+        self,
+        object_id: UIElementId,
+        ui_element: UIElement[Any, Any],
+    ) -> None:
+        del object_id
+        del ui_element
+        pass
+
+    def bound_names(self, object_id: UIElementId) -> Iterable[str]:
+        del object_id
+        return []
+
+    def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
+        del object_id
+        raise NotImplementedError
+
+    def get_cell(self, object_id: UIElementId) -> CellId_t:
+        del object_id
+        raise NotImplementedError
+
+    def resolve_lens(
+        self, object_id: UIElementId, value: LensValue[T]
+    ) -> tuple[str, LensValue[T]]:
+        del object_id
+        del value
+        raise NotImplementedError
+
+    def delete(self, object_id: UIElementId, python_id: int) -> None:
+        del object_id
+        del python_id
+        pass

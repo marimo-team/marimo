@@ -21,7 +21,7 @@ from marimo._utils.platform import is_pyodide
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from marimo._runtime.context import RuntimeContext
+    from marimo._runtime.context.types import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
 

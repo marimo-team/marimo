@@ -60,7 +60,6 @@ from marimo._messaging.types import (
     Stream,
 )
 from marimo._output import formatting
-from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
@@ -74,10 +73,11 @@ from marimo._runtime import (
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
+    ExecutionContext,
     get_context,
     get_global_context,
-    initialize_context,
 )
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
@@ -130,13 +130,11 @@ def defs() -> tuple[str, ...]:
     except ContextNotInitializedError:
         return tuple()
 
-    if ctx.kernel.execution_context is not None:
+    if ctx.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[
-                    ctx.kernel.execution_context.cell_id
-                ].defs
+                for defn in ctx.graph.cells[ctx.execution_context.cell_id].defs
             )
         )
     return tuple()
@@ -157,16 +155,14 @@ def refs() -> tuple[str, ...]:
 
     # builtins that have not been shadowed by the user
     unshadowed_builtins = set(builtins.__dict__.keys()).difference(
-        set(ctx.kernel.graph.definitions.keys())
+        set(ctx.graph.definitions.keys())
     )
 
-    if ctx.kernel.execution_context is not None:
+    if ctx.execution_context is not None:
         return tuple(
             sorted(
                 defn
-                for defn in ctx.kernel.graph.cells[
-                    ctx.kernel.execution_context.cell_id
-                ].refs
+                for defn in ctx.graph.cells[ctx.execution_context.cell_id].refs
                 # exclude builtins that have not been shadowed
                 if defn not in unshadowed_builtins
             )
@@ -212,7 +208,7 @@ def query_params() -> QueryParams:
       query parameters and any other cells referencing the query parameters
       will automatically re-run.
     """
-    return get_context().kernel.query_params
+    return get_context().query_params
 
 
 @mddoc
@@ -236,15 +232,7 @@ def cli_args() -> CLIArgs:
         - A dictionary containing the command line arguments.
           This dictionary is read-only and cannot be mutated.
     """
-    return get_context().kernel.cli_args
-
-
-@dataclasses.dataclass
-class ExecutionContext:
-    cell_id: CellId_t
-    setting_element_value: bool
-    # output object set imperatively
-    output: Optional[list[Html]] = None
+    return get_context().cli_args
 
 
 @dataclasses.dataclass
@@ -1479,7 +1467,7 @@ def launch_kernel(
             ExecuteStaleRequest()
         ),
     )
-    initialize_context(
+    initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         virtual_files_supported=virtual_files_supported,
