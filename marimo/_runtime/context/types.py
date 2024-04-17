@@ -6,20 +6,23 @@ Each client gets its own context.
 
 from __future__ import annotations
 
+import abc
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
+from marimo._runtime import dataflow
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.functions import FunctionRegistry
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellId_t
     from marimo._messaging.types import Stream
+    from marimo._output.hypertext import Html
     from marimo._plugins.ui._core.registry import UIElementRegistry
-    from marimo._runtime.runtime import Kernel
+    from marimo._runtime.params import CLIArgs, QueryParams
+    from marimo._runtime.state import State
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
 
@@ -45,37 +48,66 @@ def get_global_context() -> GlobalContext:
 
 
 @dataclass
-class RuntimeContext:
-    """Encapsulates runtime state for a session."""
+class ExecutionContext:
+    cell_id: CellId_t
+    setting_element_value: bool
+    # output object set imperatively
+    output: Optional[list[Html]] = None
 
-    kernel: Kernel
+
+@dataclass
+class RuntimeContext(abc.ABC):
     ui_element_registry: UIElementRegistry
     function_registry: FunctionRegistry
     cell_lifecycle_registry: CellLifecycleRegistry
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
     stream: Stream
-    _id_provider: Optional[IDProvider] = None
 
     @property
+    @abc.abstractmethod
+    def graph(self) -> dataflow.DirectedGraph:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def execution_context(self) -> ExecutionContext | None:
+        pass
+
+    @property
+    @abc.abstractmethod
     def cell_id(self) -> Optional[CellId_t]:
         """Get the cell id of the currently executing cell, if any."""
-        if self.kernel.execution_context is not None:
-            return self.kernel.execution_context.cell_id
-        return None
+        pass
+
+    @property
+    @abc.abstractmethod
+    def cli_args(self) -> CLIArgs:
+        """Get the CLI args."""
+        pass
+
+    @property
+    @abc.abstractmethod
+    def query_params(self) -> QueryParams:
+        """Get the query params."""
+        pass
+
+    @abc.abstractmethod
+    def get_ui_initial_value(self, object_id: str) -> Any:
+        pass
 
     @contextmanager
+    @abc.abstractmethod
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
-        try:
-            self._id_provider = IDProvider(prefix)
-            yield
-        finally:
-            self._id_provider = None
+        pass
 
+    @abc.abstractmethod
     def take_id(self) -> str:
-        if self._id_provider is None:
-            raise NoIDProviderException
-        return self._id_provider.take_id()
+        pass
+
+    @abc.abstractmethod
+    def register_state_update(self, state: State[Any]) -> None:
+        pass
 
 
 class _ThreadLocalContext(threading.local):
@@ -98,30 +130,12 @@ class ContextNotInitializedError(Exception):
 _THREAD_LOCAL_CONTEXT = _ThreadLocalContext()
 
 
-def initialize_context(
-    kernel: Kernel, stream: Stream, virtual_files_supported: bool = True
-) -> None:
-    """Initializes thread-local/session-specific context.
-
-    Must be called exactly once for each client thread.
-    """
-    from marimo._plugins.ui._core.registry import UIElementRegistry
-    from marimo._runtime.virtual_file import VirtualFileRegistry
-
+def initialize_context(runtime_context: RuntimeContext) -> None:
     try:
         get_context()
         raise RuntimeError("RuntimeContext was already initialized.")
     except ContextNotInitializedError:
         global _THREAD_LOCAL_CONTEXT
-        runtime_context = RuntimeContext(
-            kernel=kernel,
-            ui_element_registry=UIElementRegistry(),
-            function_registry=FunctionRegistry(),
-            cell_lifecycle_registry=CellLifecycleRegistry(),
-            virtual_file_registry=VirtualFileRegistry(),
-            virtual_files_supported=virtual_files_supported,
-            stream=stream,
-        )
         _THREAD_LOCAL_CONTEXT.initialize(runtime_context=runtime_context)
 
 

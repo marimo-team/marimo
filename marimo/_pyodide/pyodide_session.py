@@ -20,7 +20,7 @@ from marimo._pyodide.streams import (
     PyodideStream,
 )
 from marimo._runtime import handlers, patches, requests
-from marimo._runtime.context import initialize_context
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import (
@@ -390,7 +390,7 @@ def launch_pyodide_kernel(
         debugger_override=debugger,
         user_config=user_config,
     )
-    initialize_context(
+    initialize_kernel_context(
         kernel=kernel,
         stream=stream,
         virtual_files_supported=False,

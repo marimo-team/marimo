@@ -1,13 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+import sys
+from typing import TYPE_CHECKING, Any
 
 from marimo._runtime.requests import SerializedCLIArgs
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 def parse_args(
-    args: tuple[str],
+    args: Iterable[str],
 ) -> SerializedCLIArgs:
     """
     Parse command line arguments into a dictionary.
@@ -72,3 +76,7 @@ def parse_args(
                 args_dict[key] = value
 
     return args_dict
+
+
+def args_from_argv() -> SerializedCLIArgs:
+    return parse_args(sys.argv[1:])
