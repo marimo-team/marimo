@@ -34,9 +34,21 @@ def _modules_imported_by_cell(cell: CellImpl) -> set[str]:
     return modules
 
 
+def is_submodule(src_name: str, target_name: str) -> bool:
+    """Returns True if src_name is a parent of target_name
+
+    eg: "marimo.plugins" is a parent of "marimo.plugins.ui", returns True
+    """
+    src_parts = src_name.split(".")
+    target_parts = target_name.split(".")
+    if len(src_parts) > len(target_parts):
+        return False
+    return all(src_parts[i] == target_parts[i] for i in range(len(src_parts)))
+
+
 def _depends_on(
     src_module: types.ModuleType,
-    target_filenames: set[str],
+    target_modules: set[types.ModuleType],
     failed_filenames: set[str],
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
@@ -60,12 +72,26 @@ def _depends_on(
         failed_filenames.add(src_module.__file__)
         return False
 
+    target_filenames = set(
+        t.__file__ for t in target_modules if hasattr(t, "__file__")
+    )
     for found_module in itertools.chain([src_module], finder.modules.values()):
-        if (
-            hasattr(found_module, "__file__")
-            and found_module.__file__ in target_filenames
+        file = getattr(found_module, "__file__", None)
+        if file is None:
+            continue
+
+        # easy case: a discovered module was directly modified
+        if file in target_filenames:
+            return True
+
+        # if a discovered module is a package, check if any of the modified
+        # modules are contained in that package
+        if file.endswith("__init__.py") and any(
+            is_submodule(src_module.__name__, target_module.__name__)
+            for target_module in target_modules
         ):
             return True
+
     return False
 
 
@@ -80,9 +106,7 @@ def _check_modules(
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
-            target_filenames=set(
-                m.__file__ for m in modified_modules if m.__file__ is not None
-            ),
+            target_modules=set(m for m in modified_modules if m is not None),
             failed_filenames=failed_filenames,
         ):
             stale_modules[modname] = module
