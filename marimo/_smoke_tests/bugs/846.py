@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.4.0"
@@ -69,6 +70,12 @@ def __():
     y_data = [1, 2, 3, 2, 3, 4]
     fig = px.scatter(x=x_data, y=y_data)
     return fig, px, x_data, y_data
+
+
+@app.cell
+def __(fig):
+    fig  # Uses the default renderer "notebook"
+    return
 
 
 @app.cell

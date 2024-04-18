@@ -122,7 +122,7 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
             default_renderer: Any = pio.renderers[resolved_name]
             if default_renderer is not None:
                 try:
-                    resolved_config = default_renderer.config
+                    resolved_config = default_renderer.config or {}
                 except AttributeError:
                     LOGGER.warning(
                         "Could not find default renderer configuration. "

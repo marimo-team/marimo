@@ -17,7 +17,7 @@ class PlotlyFormatter(FormatterFactory):
 
     def register(self) -> None:
         import plotly.graph_objects  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-        import plotly.io  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
 
@@ -25,15 +25,26 @@ class PlotlyFormatter(FormatterFactory):
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
-            json_str: str = plotly.io.to_json(fig)
-            plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
+            resolved_config: dict[str, Any] = {}
+            try:
+                default_renderer: Any = pio.renderers[pio.renderers.default]
+                resolved_config = default_renderer.config or {}
+            except AttributeError:
+                pass
+
+            json_str: str = pio.to_json(fig)
+            plugin = PlotlyFormatter.render_plotly_dict(
+                json.loads(json_str), resolved_config
+            )
             return ("text/html", plugin.text)
 
     @staticmethod
-    def render_plotly_dict(json: dict[Any, Any]) -> Html:
+    def render_plotly_dict(
+        json: dict[Any, Any], config: dict[str, Any]
+    ) -> Html:
         return Html(
             build_stateless_plugin(
                 component_name="marimo-plotly",
-                args={"figure": json},
+                args={"figure": json, "config": config},
             )
         )
