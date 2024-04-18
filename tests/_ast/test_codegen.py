@@ -80,6 +80,42 @@ class TestGeneration:
         )
 
     @staticmethod
+    def test_generate_filecontents_async_long_signature() -> None:
+        cell_one = cleandoc(
+            """
+            (
+                client,
+                get_calculation_trigger,
+                get_components_configuration,
+                get_conditions_state,
+            ) = (1, 1, 1, 1)
+            """
+        )
+        cell_two = cleandoc(
+            """
+            _conditions = [c for c in get_conditions_state().values()]
+            _configuration = get_components_configuration()
+
+            _configuration_conditions_list = {
+                "configuration": _configuration,
+                "condition": _conditions,
+            }
+
+            _trigger = get_calculation_trigger()
+
+            async for data_point in client("test", "ws://localhost:8000"):
+                print(data_point)
+            data_point
+            """
+        )
+        codes = [cell_one, cell_two]
+        names = ["one", "two"]
+        contents = generate_filecontents(codes, names)
+        assert contents == get_expected_filecontents(
+            "test_generate_filecontents_async_long_signature"
+        )
+
+    @staticmethod
     def test_generate_filecontents_single_cell() -> None:
         cell_one = "import numpy as np"
         codes = [cell_one]

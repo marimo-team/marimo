@@ -71,11 +71,11 @@ def to_functiondef(
 
     decorator = _to_decorator(cell.config)
     signature = f"def {name}({args}):"
-    if cell.is_coroutine():
-        signature = "async " + signature
-
-    if len(INDENT + signature) >= MAX_LINE_LENGTH:
+    prefix = "" if not cell.is_coroutine() else "async "
+    if len(INDENT + prefix + signature) >= MAX_LINE_LENGTH:
         signature = f"def {name}{_multiline_tuple(refs)}:"
+    signature = prefix + signature
+
     fndef = decorator + "\n" + signature + "\n"
     body = indent_text(cell.code)
     if body:
