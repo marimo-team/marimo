@@ -13,9 +13,11 @@ import useEvent from "react-use-event-hook";
 import { PlotlyTemplateParser, createParser } from "./parse-from-template";
 import { Objects } from "@/utils/objects";
 import { set } from "lodash-es";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 
 interface Data {
   figure: Figure;
+  config: Partial<Plotly.Config>;
 }
 
 type AxisName = string;
@@ -46,6 +48,7 @@ export class PlotlyPlugin implements IPlugin<T, Data> {
       .object({})
       .passthrough()
       .transform((spec) => spec as unknown as Figure),
+    config: z.object({}).passthrough(),
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
@@ -81,7 +84,7 @@ function initialLayout(figure: Figure): Partial<Plotly.Layout> {
 }
 
 export const PlotlyComponent = memo(
-  ({ figure, value, setValue }: PlotlyPluginProps) => {
+  ({ figure, value, setValue, config }: PlotlyPluginProps) => {
     const [layout, setLayout] = useState<Partial<Plotly.Layout>>(() => {
       return {
         ...initialLayout(figure),
@@ -98,7 +101,7 @@ export const PlotlyComponent = memo(
       setNonce((prev) => prev + 1);
     });
 
-    const config = useMemo((): Partial<Plotly.Config> => {
+    const plotlyConfig = useMemo((): Partial<Plotly.Config> => {
       return {
         displaylogo: false,
         modeBarButtonsToAdd: [
@@ -117,8 +120,11 @@ export const PlotlyComponent = memo(
             click: handleReset,
           },
         ],
+        // Prioritize user's config
+        ...config,
       };
-    }, [handleReset]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [handleReset, useDeepCompareMemoize(config)]);
 
     useEffect(() => {
       // Update layout when figure.layout changes
@@ -158,7 +164,7 @@ export const PlotlyComponent = memo(
             setValue((prev) => ({ ...prev, ...obj }));
           }
         }}
-        config={config}
+        config={plotlyConfig}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
             return;
