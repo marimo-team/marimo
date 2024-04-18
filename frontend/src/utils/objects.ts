@@ -84,4 +84,9 @@ export const Objects = {
     }
     return result;
   },
+
+  omit<V extends object, K extends keyof V>(obj: V, keys: K[]): Partial<V> {
+    const set = new Set<K>(keys);
+    return Objects.filter(obj, (_, key) => !set.has(key));
+  },
 };
