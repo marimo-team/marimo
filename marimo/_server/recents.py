@@ -69,10 +69,10 @@ class RecentFilesManager:
         )
         files: List[MarimoFile] = []
 
+        cwd = pathlib.Path.cwd()
         for file in state.files:
-            if _is_tmp_file(file) or not pathlib.Path(file).is_relative_to(
-                pathlib.Path.cwd()
-            ):
+            file_path = pathlib.Path(file)
+            if _is_tmp_file(file) or cwd not in file_path.parents:
                 continue
             if not os.path.exists(file):
                 continue
