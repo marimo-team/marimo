@@ -25,26 +25,24 @@ class PlotlyFormatter(FormatterFactory):
         def _show_plotly_figure(
             fig: plotly.graph_objects.Figure,
         ) -> tuple[KnownMimeType, str]:
-            resolved_config: dict[str, Any] = {}
-            try:
-                default_renderer: Any = pio.renderers[pio.renderers.default]
-                resolved_config = default_renderer.config or {}
-            except AttributeError:
-                pass
-
             json_str: str = pio.to_json(fig)
-            plugin = PlotlyFormatter.render_plotly_dict(
-                json.loads(json_str), resolved_config
-            )
+            plugin = PlotlyFormatter.render_plotly_dict(json.loads(json_str))
             return ("text/html", plugin.text)
 
     @staticmethod
-    def render_plotly_dict(
-        json: dict[Any, Any], config: dict[str, Any]
-    ) -> Html:
+    def render_plotly_dict(json: dict[Any, Any]) -> Html:
+        import plotly.io as pio  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+
+        resolved_config: dict[str, Any] = {}
+        try:
+            default_renderer: Any = pio.renderers[pio.renderers.default]
+            resolved_config = default_renderer.config or {}
+        except AttributeError:
+            pass
+
         return Html(
             build_stateless_plugin(
                 component_name="marimo-plotly",
-                args={"figure": json, "config": config},
+                args={"figure": json, "config": resolved_config},
             )
         )
