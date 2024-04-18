@@ -14,6 +14,7 @@
   dataframes
   plotting
   state
+  integrating_with_marimo/index
   apps
   scripts
   wasm
@@ -25,24 +26,25 @@
 
 These guides cover marimo's core concepts.
 
-|                            |                                                         |
-| :------------------------- | :------------------------------------------------------ |
-| {doc}`overview`            | An overview of basic concepts                           |
-| {doc}`reactivity`          | How reactive execution works                            |
-| {doc}`interactivity`       | Using interactive UI elements                           |
-| {doc}`coming_from_jupyter` | marimo for Jupyter users                                |
-| {doc}`outputs`             | Markdown, plots, and other visual outputs               |
-| {doc}`editor_features`     | View variables, cell dependencies, errors, and more     |
-| {doc}`dataframes`          | Working with dataframes                                 |
-| {doc}`plotting`            | Interactive and reactive plots                          |
-| {doc}`state`               | Mutable, reactive state                                 |
-| {doc}`apps`                | Running notebooks as apps                               |
-| {doc}`scripts`             | Running notebooks as scripts                            |
-| {doc}`best_practices`      | Best practices when working with marimo                 |
-| {doc}`performance`         | Writing performant notebooks                            |
-| {doc}`wasm`                | Running notebooks in the browser (no backend required!) |
-| {doc}`ai_completion`       | Using AI to speed up your coding                        |
-| {doc}`deploying/index`     | Deploying marimo notebooks and apps                     |
+|                                      |                                                         |
+| :----------------------------------- | :------------------------------------------------------ |
+| {doc}`overview`                      | An overview of basic concepts                           |
+| {doc}`reactivity`                    | How reactive execution works                            |
+| {doc}`interactivity`                 | Using interactive UI elements                           |
+| {doc}`coming_from_jupyter`           | marimo for Jupyter users                                |
+| {doc}`outputs`                       | Markdown, plots, and other visual outputs               |
+| {doc}`editor_features`               | View variables, cell dependencies, errors, and more     |
+| {doc}`dataframes`                    | Working with dataframes                                 |
+| {doc}`plotting`                      | Interactive and reactive plots                          |
+| {doc}`state`                         | Mutable, reactive state                                 |
+| {doc}`integrating_with_marimo/index` | Rich displays of objects, custom UI plugins             |
+| {doc}`apps`                          | Running notebooks as apps                               |
+| {doc}`scripts`                       | Running notebooks as scripts                            |
+| {doc}`best_practices`                | Best practices when working with marimo                 |
+| {doc}`performance`                   | Writing performant notebooks                            |
+| {doc}`wasm`                          | Running notebooks in the browser (no backend required!) |
+| {doc}`ai_completion`                 | Using AI to speed up your coding                        |
+| {doc}`deploying/index`               | Deploying marimo notebooks and apps                     |
 
 ```{admonition} Learn by doing!
 :class: tip

@@ -82,6 +82,27 @@ Hit `Cmd/Ctrl+K` to open the command palette.
 _Missing a command? File a
 [GitHub issue](https://github.com/marimo-team/marimo/issues)._
 
+## Module autoreloading
+
+Enable module autoreloading via the settings icon (top right). When enabled,
+when Python modules that your notebook imports are modified, marimo reloads
+those modifications so you can use the latest version of your code. This works
+recursively, meaning that marimo tracks modifications for modules imported
+by your notebook's imported modules too.
+
+Autoreloading comes in two types:
+
+- "detect": automatically marks cells affected by module
+  modifications as stale, letting you know which cells need to be re-run.
+- "autorun": automatically re-runs cells affected by module modification.
+
+**Note:** Make sure the imported modules are in packages/folders with
+`__init__.py` files, otherwise marimo's detection may fail.
+
+**Why autoreload?** Autoreloading enables a workflow that many developers find
+productive: develop complex logic in Python modules, and use the marimo
+notebook as a DAG or main script that orchestrates your logic.
+
 ## Export to static HTML
 
 Export the current view your notebook to static HTML via the notebook
@@ -93,6 +114,13 @@ menu:
 <figcaption>Download as static HTML.</figcaption>
 </figure>
 </div>
+
+You can also export to HTML at the command-line:
+
+```bash
+marimo export html notebook.py -o notebook.html
+```
+
 
 ## Configuration
 
@@ -107,7 +135,7 @@ You can also enable GitHub Copilot from this menu.
 </figure>
 </div>
 
-A non-exhausted list of settings (for searchability):
+A non-exhausted list of settings:
 
 - Vim keymaps
 - Dark mode
@@ -116,6 +144,7 @@ A non-exhausted list of settings (for searchability):
 - Editor font-size
 - Formatting rules
 - GitHub Copilot
+- Autoreloading/Hot-reloading
 
 ## Send feedback
 

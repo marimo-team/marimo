@@ -1,5 +1,8 @@
 # AnyWidget
 
+Build custom UI plugins that hook into marimo's reactive
+execution engine by using [AnyWidget](https://anywidget.dev/).
+
 [AnyWidget](https://anywidget.dev/) is a Python library and specification for creating custom Jupyter-compatible widgets. marimo supports AnyWidget, allowing you to import AnyWidget widgets or create your own custom widgets and use them in your notebooks and apps.
 
 ## Custom widget
@@ -56,7 +59,7 @@ widget.value
 # pip install drawdata
 from drawdata import ScatterWidget
 
-widget mo.ui.anywidget(ScatterWidget())
+widget = mo.ui.anywidget(ScatterWidget())
 
 # In another cell, you can access the widget's value
 widget.value
