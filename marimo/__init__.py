@@ -25,8 +25,8 @@ __all__ = [
     "capture_stdout",
     "capture_stderr",
     "center",
+    "cli_args",
     "defs",
-    "query_params",
     "doc",
     "download",
     "hstack",
@@ -41,10 +41,12 @@ __all__ = [
     "output",
     "plain_text",
     "pdf",
+    "query_params",
     "redirect_stderr",
     "redirect_stdout",
     "refs",
     "right",
+    "running_in_notebook",
     "stat",
     "state",
     "status",
@@ -92,6 +94,12 @@ from marimo._runtime.capture import (
     redirect_stdout,
 )
 from marimo._runtime.control_flow import MarimoStopError, stop
-from marimo._runtime.runtime import defs, query_params, refs
+from marimo._runtime.runtime import (
+    cli_args,
+    defs,
+    query_params,
+    refs,
+    running_in_notebook,
+)
 from marimo._runtime.state import state
 from marimo._server.asgi import create_asgi_app

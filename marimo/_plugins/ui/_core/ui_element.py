@@ -192,9 +192,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 # TODO(akshayka): parametrize UIElement with an optional
                 # string ID, so users can provide their own IDs to make
                 # sure a mismatch never happens ...
-                initial_value = cast(
-                    S, ctx.kernel.get_ui_initial_value(self._id)
-                )
+                initial_value = cast(S, ctx.get_ui_initial_value(self._id))
             except KeyError:
                 # we weren't asked to override the UI element's value
                 pass
@@ -262,10 +260,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             return self._value
 
         if (
-            ctx.kernel.execution_context is not None
-            and not ctx.kernel.execution_context.setting_element_value
+            ctx.execution_context is not None
+            and not ctx.execution_context.setting_element_value
             and (
-                ctx.kernel.execution_context.cell_id
+                ctx.execution_context.cell_id
                 == ctx.ui_element_registry.get_cell(self._id)
             )
         ):

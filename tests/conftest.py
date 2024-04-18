@@ -18,7 +18,8 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
-from marimo._runtime.context import initialize_context, teardown_context
+from marimo._runtime.context import teardown_context
+from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
@@ -93,14 +94,13 @@ class MockedKernel:
             cell_configs={},
             user_config=DEFAULT_CONFIG,
             app_metadata=AppMetadata(
-                query_params={},
-                filename=None,
+                query_params={}, filename=None, cli_args={}
             ),
             debugger_override=MarimoPdb(stdout=self.stdout, stdin=self.stdin),
             execute_stale_cells_callback=lambda: None,
         )
 
-        initialize_context(
+        initialize_kernel_context(
             kernel=self.k,
             stream=self.stream,  # type: ignore
         )

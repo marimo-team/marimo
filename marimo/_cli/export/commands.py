@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 
+from marimo._cli.parse_args import parse_args
 from marimo._cli.print import green
 from marimo._server.export.utils import run_app_then_export_as_html
 from marimo._utils.file_watcher import FileWatcher
@@ -24,6 +25,11 @@ Example:
 
   \b
   * marimo export html notebook.py -o notebook.html
+
+Optionally pass CLI args to the notebook:
+
+  \b
+  * marimo export html notebook.py -o notebook.html -- -arg1 foo -arg2 bar
 """
 )
 @click.option(
@@ -55,11 +61,13 @@ Example:
     """,
 )
 @click.argument("name", required=True)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def html(
     name: str,
     include_code: bool,
     output: str,
     watch: bool,
+    args: tuple[str],
 ) -> None:
     """
     Run a notebook and export it as an HTML file.
@@ -80,10 +88,13 @@ def html(
         else:
             click.echo(html)
 
+    cli_args = parse_args(args)
     # No watch, just run once
     if not watch:
         (html, _filename) = asyncio.run(
-            run_app_then_export_as_html(name, include_code=include_code)
+            run_app_then_export_as_html(
+                name, include_code=include_code, cli_args=cli_args
+            )
         )
         write_html(html)
         return
@@ -93,7 +104,7 @@ def html(
             f"File {str(file_path)} changed. Re-exporting to {green(output)}"
         )
         (html, _filename) = await run_app_then_export_as_html(
-            str(file_path), include_code=include_code
+            str(file_path), include_code=include_code, cli_args=cli_args
         )
         write_html(html)
 

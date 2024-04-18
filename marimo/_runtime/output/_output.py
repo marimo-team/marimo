@@ -35,13 +35,13 @@ def replace(value: object) -> None:
     - `value`: object to output
     """
     ctx = get_context()
-    if ctx.kernel.execution_context is None:
+    if ctx.execution_context is None:
         return
     elif value is None:
-        ctx.kernel.execution_context.output = None
+        ctx.execution_context.output = None
     else:
-        ctx.kernel.execution_context.output = [formatting.as_html(value)]
-    write_internal(cell_id=ctx.kernel.execution_context.cell_id, value=value)
+        ctx.execution_context.output = [formatting.as_html(value)]
+    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 @mddoc
@@ -56,16 +56,16 @@ def append(value: object) -> None:
     - `value`: object to output
     """
     ctx = get_context()
-    if ctx.kernel.execution_context is None:
+    if ctx.execution_context is None:
         return
 
-    if ctx.kernel.execution_context.output is None:
-        ctx.kernel.execution_context.output = [formatting.as_html(value)]
+    if ctx.execution_context.output is None:
+        ctx.execution_context.output = [formatting.as_html(value)]
     else:
-        ctx.kernel.execution_context.output.append(formatting.as_html(value))
+        ctx.execution_context.output.append(formatting.as_html(value))
     write_internal(
-        cell_id=ctx.kernel.execution_context.cell_id,
-        value=vstack(ctx.kernel.execution_context.output),
+        cell_id=ctx.execution_context.cell_id,
+        value=vstack(ctx.execution_context.output),
     )
 
 
@@ -78,28 +78,23 @@ def clear() -> None:
 def flush() -> None:
     """Internal function to re-render the cell's output."""
     ctx = get_context()
-    if ctx.kernel.execution_context is None:
+    if ctx.execution_context is None:
         return
 
-    if ctx.kernel.execution_context.output is not None:
-        value = vstack(ctx.kernel.execution_context.output)
+    if ctx.execution_context.output is not None:
+        value = vstack(ctx.execution_context.output)
     else:
         value = None
-    write_internal(cell_id=ctx.kernel.execution_context.cell_id, value=value)
+    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 def remove(value: object) -> None:
     """Internal function to remove an object from a cell's output."""
     ctx = get_context()
-    if (
-        ctx.kernel.execution_context is None
-        or ctx.kernel.execution_context.output is None
-    ):
+    if ctx.execution_context is None or ctx.execution_context.output is None:
         return
     output = [
-        item
-        for item in ctx.kernel.execution_context.output
-        if item is not value
+        item for item in ctx.execution_context.output if item is not value
     ]
-    ctx.kernel.execution_context.output = output if output else None
+    ctx.execution_context.output = output if output else None
     flush()

@@ -31,9 +31,7 @@ class State(Generic[T]):
             ctx = get_context()
         except ContextNotInitializedError:
             return
-        kernel = ctx.kernel
-        assert kernel is not None
-        kernel.register_state_update(self)
+        ctx.register_state_update(self)
 
 
 @mddoc

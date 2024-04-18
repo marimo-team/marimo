@@ -24,7 +24,7 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.runtime import Kernel
+from marimo._runtime.runtime import Kernel, running_in_notebook
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -880,7 +880,9 @@ def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
             stdin=None,
             cell_configs={},
             user_config=DEFAULT_CONFIG,
-            app_metadata=AppMetadata(query_params={}, filename=filename),
+            app_metadata=AppMetadata(
+                query_params={}, filename=filename, cli_args={}
+            ),
             execute_stale_cells_callback=lambda: None,
         )
         assert str(tmp_path) in sys.path
@@ -890,6 +892,19 @@ def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
             sys.path.remove(str(tmp_path))
         if main is not None:
             sys.modules["__main__"] = main
+
+
+async def test_running_in_notebook(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [exec_req.get("import marimo as mo; in_nb = mo.running_in_notebook()")]
+    )
+    assert k.globals["in_nb"]
+
+
+def test_not_running_in_notebook() -> None:
+    assert not running_in_notebook()
 
 
 class TestAsyncIO:

@@ -21,7 +21,7 @@ from marimo._messaging.ops import (
 from marimo._messaging.types import KernelMessage, NoopStream
 from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
-from marimo._runtime.query_params import QueryParams
+from marimo._runtime.params import QueryParams
 from marimo._server.api.deps import AppState
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.model import (

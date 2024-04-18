@@ -47,8 +47,8 @@ class Function(Generic[S, T]):
         except ContextNotInitializedError:
             ctx = None
 
-        if ctx is not None and ctx.kernel.execution_context is not None:
-            self.cell_id = ctx.kernel.execution_context.cell_id
+        if ctx is not None and ctx.execution_context is not None:
+            self.cell_id = ctx.execution_context.cell_id
         else:
             self.cell_id = None
 

@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 from typing import Optional
 
@@ -6,6 +8,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._config.manager import UserConfigManager
+from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
@@ -34,6 +37,7 @@ def start(
     port: Optional[int],
     host: str,
     watch: bool,
+    cli_args: SerializedCLIArgs,
     base_url: str = "",
 ) -> None:
     """
@@ -53,6 +57,7 @@ def start(
         include_code=include_code,
         lsp_server=LspServer(port * 10),
         user_config_manager=user_config_mgr,
+        cli_args=cli_args,
     )
 
     log_level = "info" if development_mode else "error"

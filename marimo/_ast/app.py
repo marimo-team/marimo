@@ -17,7 +17,13 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ast.cell import Cell, CellConfig, CellId_t, execute_cell_async
+from marimo._ast.cell import (
+    Cell,
+    CellConfig,
+    CellId_t,
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
     CycleError,
@@ -26,12 +32,16 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
+from marimo._runtime.context.types import teardown_context
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from marimo._runtime.context.types import ExecutionContext
 
 LOGGER = _loggers.marimo_logger()
 
@@ -126,6 +136,7 @@ class App:
 
         self._cell_manager = CellManager()
         self._graph = dataflow.DirectedGraph()
+        self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
 
         self._unparsable = False
@@ -221,14 +232,25 @@ class App:
         finally:
             self._initialized = True
 
-    async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
-        # TODO: We'll maybe expose this in the future
-        if self._unparsable:
-            raise UnparsableError(
-                "This app can't be run because it has unparsable cells."
-            )
+    def _outputs_and_defs(
+        self, outputs: dict[CellId_t, Any], glbls: dict[str, Any]
+    ) -> tuple[Sequence[Any], dict[str, Any]]:
+        # Return
+        # - the outputs, sorted in the order that cells were added to the
+        #   graph
+        # - dict of defs -> values
+        return (
+            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids()),
+            # omit defs that were never defined at runtime, eg due to
+            # conditional definitions like
+            #
+            # if cond:
+            #   x = 0
+            {name: glbls[name] for name in self._defs if name in glbls},
+        )
 
-        self._maybe_initialize()
+    def _run_sync(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        from marimo._runtime.context.types import ExecutionContext
 
         # No need to provide `file`, `input_override` here, since this
         # function is only called when running as a script
@@ -239,35 +261,81 @@ class App:
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
                 if cell is not None:
-                    outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    self._execution_context = ExecutionContext(
+                        cell_id=cid, setting_element_value=False
+                    )
+                    outputs[cid] = execute_cell(cell._cell, glbls)
+            return self._outputs_and_defs(outputs, glbls)
 
-            # Return
-            # - the outputs, sorted in the order that cells were added to the
-            #   graph
-            # - dict of defs -> values
-            return (
-                tuple(
-                    outputs[cid] for cid in self._cell_manager.valid_cell_ids()
-                ),
-                # omit defs that were never defined at runtime, eg due to
-                # conditional definitions like
-                #
-                # if cond:
-                #   x = 0
-                {name: glbls[name] for name in self._defs if name in glbls},
-            )
+    async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+        from marimo._runtime.context.types import ExecutionContext
+
+        # No need to provide `file`, `input_override` here, since this
+        # function is only called when running as a script
+        with patch_main_module_context() as module:
+            glbls = module.__dict__
+            # Execute cells and collect outputs
+            outputs: dict[CellId_t, Any] = {}
+            for cid in self._execution_order:
+                cell = self._cell_manager.cell_data_at(cid).cell
+                if cell is not None:
+                    self._execution_context = ExecutionContext(
+                        cell_id=cid, setting_element_value=False
+                    )
+                    outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    self._execution_context = None
+
+            return self._outputs_and_defs(outputs, glbls)
 
     def run(self) -> tuple[Sequence[Any], dict[str, Any]]:
-        # formatters aren't automatically registered when running as a script
-        from marimo._output.formatters.formatters import (
-            register_formatters,
+        from marimo._runtime.context.script_context import (
+            initialize_script_context,
         )
-        from marimo._output.formatting import FORMATTERS
+        from marimo._runtime.context.types import runtime_context_installed
 
-        if not FORMATTERS:
-            register_formatters()
+        if self._unparsable:
+            raise UnparsableError(
+                "This app can't be run because it has unparsable cells."
+            )
+        self._maybe_initialize()
 
-        return asyncio.run(self._run_async())
+        is_async = False
+        for cell in self._cell_manager.cells():
+            if cell is None:
+                raise RuntimeError(
+                    "Unparsable cell encountered. This is a bug in marimo, "
+                    "please raise an issue."
+                )
+
+            if cell._is_coroutine():
+                is_async = True
+                break
+
+        installed_script_context = False
+        try:
+            if not runtime_context_installed():
+                initialize_script_context(
+                    app=InternalApp(self), stream=NoopStream()
+                )
+                installed_script_context = True
+
+            # formatters aren't automatically registered when running as a
+            # script
+            from marimo._output.formatters.formatters import (
+                register_formatters,
+            )
+            from marimo._output.formatting import FORMATTERS
+
+            if not FORMATTERS:
+                register_formatters()
+
+            if is_async:
+                return asyncio.run(self._run_async())
+            else:
+                return self._run_sync()
+        finally:
+            if installed_script_context:
+                teardown_context()
 
     async def _run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
@@ -448,6 +516,15 @@ class InternalApp:
     @property
     def cell_manager(self) -> CellManager:
         return self._app._cell_manager
+
+    @property
+    def graph(self) -> dataflow.DirectedGraph:
+        self._app._maybe_initialize()
+        return self._app._graph
+
+    @property
+    def execution_context(self) -> ExecutionContext | None:
+        return self._app._execution_context
 
     @property
     def runner(self) -> dataflow.Runner:

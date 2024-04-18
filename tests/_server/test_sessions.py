@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import queue
 import sys
 from multiprocessing.queues import Queue as MPQueue
@@ -17,8 +19,7 @@ initialize_asyncio()
 
 
 app_metadata = AppMetadata(
-    query_params={"some_param": "some_value"},
-    filename="test.py",
+    query_params={"some_param": "some_value"}, filename="test.py", cli_args={}
 )
 
 
@@ -137,7 +138,7 @@ def test_session_disconnect_reconnect() -> None:
         queue_manager,
         SessionMode.RUN,
         {},
-        AppMetadata(query_params={}),
+        AppMetadata(query_params={}, cli_args={}),
         UserConfigManager(),
         virtual_files_supported=True,
     )

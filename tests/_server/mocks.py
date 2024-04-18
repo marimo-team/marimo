@@ -53,6 +53,7 @@ if __name__ == "__main__":
         include_code=True,
         lsp_server=lsp_server,
         user_config_manager=UserConfigManager(),
+        cli_args={},
     )
     sm.server_token = "fake-token"
     return sm

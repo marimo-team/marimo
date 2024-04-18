@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
@@ -11,7 +11,11 @@ UIElementId = str
 CompletionRequestId = str
 FunctionCallId = str
 
-SerializedQueryParams = Dict[str, Union[str, List[str]]]
+T = TypeVar("T")
+ListOrValue = Union[T, List[T]]
+SerializedQueryParams = Dict[str, ListOrValue[str]]
+Primitive = Union[str, bool, int, float]
+SerializedCLIArgs = Dict[str, ListOrValue[Union[Primitive]]]
 
 
 @dataclass
@@ -48,6 +52,7 @@ class AppMetadata:
     """Hold metadata about the app, like its filename."""
 
     query_params: SerializedQueryParams
+    cli_args: SerializedCLIArgs
 
     filename: Optional[str] = None
 

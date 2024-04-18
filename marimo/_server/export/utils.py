@@ -7,7 +7,7 @@ from typing import Callable
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
-from marimo._runtime.requests import AppMetadata
+from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
@@ -19,6 +19,7 @@ from marimo._server.sessions import Session
 async def run_app_then_export_as_html(
     filename: str,
     include_code: bool,
+    cli_args: SerializedCLIArgs | None = None,
 ) -> tuple[str, str]:
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(filename)
@@ -58,7 +59,11 @@ async def run_app_then_export_as_html(
         initialization_id=file_key,
         session_consumer=NoopSessionConsumer(),
         mode=SessionMode.RUN,
-        app_metadata=AppMetadata(query_params={}, filename=file_manager.path),
+        app_metadata=AppMetadata(
+            query_params={},
+            filename=file_manager.path,
+            cli_args=cli_args if cli_args is not None else {},
+        ),
         app_file_manager=file_manager,
         user_config_manager=config,
         virtual_files_supported=False,
