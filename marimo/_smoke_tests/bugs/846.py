@@ -9,7 +9,7 @@ app = marimo.App()
 @app.cell
 def __(mo):
     mo.md(
-        "This notebook covers a couple different cases for rendering plotly under different configs and with diferrent renderers."
+        "This notebook covers a couple different cases for rendering plotly under different configs and with different renderers."
     )
     return
 
