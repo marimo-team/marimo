@@ -65,7 +65,7 @@ mo.md(
 
 ## Layout
 
-The marimo library also comes with elements for laying out output, including
+The marimo library also comes with elements for laying out outputs, including
 [`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
 [`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
 [`mo.ui.table`](#marimo.ui.table), and [many
