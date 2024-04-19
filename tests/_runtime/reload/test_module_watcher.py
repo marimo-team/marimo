@@ -231,7 +231,6 @@ async def test_reload_nested_module_import_module_autorun(
 
 async def test_reload_package(
     tmp_path: pathlib.Path,
-    py_modname: str,
     k: Kernel,
     exec_req: ExecReqProvider,
 ):

@@ -34,7 +34,7 @@ class RunResult:
     # Raw output of cell
     output: Any
     # Exception raised by cell, if any
-    exception: Optional[Exception | MarimoInterrupt | MarimoStopError]
+    exception: Optional[BaseException]
 
     def success(self) -> bool:
         """Whether the cell expected successfully"""
@@ -244,11 +244,9 @@ class Runner:
             run_result = RunResult(output=e.output, exception=e)
             # don't print a traceback, since quitting is the intended
             # behavior (like sys.exit())
-        except Exception as e:
-            # Don't catch BaseExceptions:
-            # - KeyboardInterrupt shouldn't be raised, since marimo
-            #   redirects it to a MarimoInterrupt
-            # - SystemExit should kill the process
+        except BaseException as e:
+            # Catch-all: some libraries have bugs and raise BaseExceptions,
+            # which shouldn't crash the marimo kernel
             if isinstance(e, ModuleNotFoundError):
                 self.missing_packages = True
 
