@@ -36,6 +36,21 @@ def test_cli_export_html_no_code(temp_marimo_file: str) -> None:
     assert '<marimo-code hidden=""></marimo-code>' in html
 
 
+def test_cli_export_async(temp_async_marimo_file: str) -> None:
+    p = subprocess.run(
+        ["marimo", "export", "html", temp_async_marimo_file],
+        capture_output=True,
+    )
+    assert p.returncode == 0, p.stderr.decode()
+    assert "ValueError" not in p.stderr.decode()
+    assert "Traceback" not in p.stderr.decode()
+    html = normalize_index_html(p.stdout.decode())
+    # Remove folder path
+    dirname = path.dirname(temp_async_marimo_file)
+    html = html.replace(dirname, "path")
+    assert '<marimo-code hidden=""></marimo-code>' not in html
+
+
 async def test_export_watch(temp_marimo_file: str) -> None:
     temp_out_file = temp_marimo_file.replace(".py", ".html")
     p = subprocess.Popen(  # noqa: ASYNC101
