@@ -170,7 +170,8 @@ def watch_modules(
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
                     set(
-                        modname_to_cell_id[modname] for modname in stale_modules
+                        modname_to_cell_id[modname]
+                        for modname in stale_modules
                     ),
                 )
                 for cid in stale_cell_ids:

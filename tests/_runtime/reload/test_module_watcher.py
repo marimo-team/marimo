@@ -6,14 +6,14 @@ import pathlib
 import sys
 import textwrap
 from queue import Queue
-from marimo._dependencies.dependencies import DependencyManager
 
+import pytest
 from reload_test_utils import random_modname, update_file
 
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.requests import ExecuteStaleRequest, SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
-import pytest
 from tests.conftest import ExecReqProvider
 
 
