@@ -65,7 +65,7 @@ In Jupyter notebooks, the code you see doesn't necessarily match the outputs on
 the page or the program state. If you
 delete a cell, its variables stay in memory, which other cells may still
 reference; users can execute cells in arbitrary order. This leads to
-widespread reproducibility issues. [One study](https://blog.jetbrains.com/datalore/2020/12/17/we-downloaded-10-000-000-jupyter-notebooks-from-github-this-is-what-we-learned/#consistency-of-notebooks) analyzed 1 million Jupyter
+widespread reproducibility issues. [One study](https://blog.jetbrains.com/datalore/2020/12/17/we-downloaded-10-000-000-jupyter-notebooks-from-github-this-is-what-we-learned/#consistency-of-notebooks) analyzed 10 million Jupyter
 notebooks and found that 36% of them weren't reproducible.
 
 In contrast, marimo guarantees that your code, outputs, and program state are
