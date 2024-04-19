@@ -218,7 +218,7 @@
 .katex {
   text-rendering: auto;
   font-family: "KaTeX_Main", "Times New Roman", serif;
-  font-size: inherit;
+  font-size: 110%;
   line-height: inherit;
   text-indent: 0;
 }
