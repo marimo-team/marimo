@@ -26,3 +26,6 @@ Use these functions to embed media in your outputs.
   marimo.download
   marimo.plain_text
 ```
+
+Most of these methods accept URLs (including data URLs), paths to local
+files, or file-like objects.
