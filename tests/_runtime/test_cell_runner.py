@@ -47,3 +47,34 @@ async def test_traceback_includes_lineno(
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
     assert "line 3" in buffer.getvalue()
+
+
+async def test_base_exception_caught(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # Raise an exception and test that the runner generates a traceback that
+    # includes the line number where the exception was raised
+    #
+    # Make sure BaseException is caught
+    #
+    # first run the cell to populate the graph
+    await k.run(
+        [
+            er := exec_req.get(
+                """
+                x = 0
+                raise BaseException
+                """
+            )
+        ]
+    )
+
+    runner = Runner(
+        cell_ids=set(k.graph.cells.keys()),
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+    )
+    with capture_stderr() as buffer:
+        await runner.run(er.cell_id)
+    assert "line 3" in buffer.getvalue()
