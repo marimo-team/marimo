@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import pathlib
 import sys
 import threading
 import time
@@ -48,6 +49,7 @@ def is_submodule(src_name: str, target_name: str) -> bool:
 
 def _depends_on(
     src_module: types.ModuleType,
+    modules_excluded_from_analysis: list[str],
     target_modules: set[types.ModuleType],
     failed_filenames: set[str],
 ) -> bool:
@@ -58,7 +60,7 @@ def _depends_on(
     if src_module.__file__ in failed_filenames:
         return False
 
-    finder = ModuleFinder()
+    finder = ModuleFinder(excludes=modules_excluded_from_analysis)
     try:
         finder.run_script(src_module.__file__)
     except SyntaxError:
@@ -95,6 +97,13 @@ def _depends_on(
     return False
 
 
+def _is_third_party_module(module: types.ModuleType) -> bool:
+    filepath = getattr(module, "__file__", None)
+    if filepath is None:
+        return False
+    return "site-packages" in pathlib.Path(filepath).parts
+
+
 def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
@@ -103,9 +112,16 @@ def _check_modules(
     """Returns the set of modules used by the graph that have been modified"""
     stale_modules: dict[str, types.ModuleType] = {}
     modified_modules = reloader.check(modules=sys.modules, reload=False)
+    modules_excluded_from_analysis = [
+        modname
+        for modname in sys.modules
+        if (m := sys.modules.get(modname)) is not None
+        and _is_third_party_module(m)
+    ]
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
+            modules_excluded_from_analysis=modules_excluded_from_analysis,
             target_modules=set(m for m in modified_modules if m is not None),
             failed_filenames=failed_filenames,
         ):
