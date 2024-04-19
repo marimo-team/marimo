@@ -337,7 +337,14 @@ buttons = mo.ui.array(
     ]
 )
 
-mo.hstack(buttons)
+# Put the buttons array into the table
+table = mo.ui.table(
+    {
+        "Action": ["Action Name"] * len(buttons),
+        "Trigger": list(buttons),
+    }
+)
+table
 ```
 
 3. Get the state value
