@@ -250,6 +250,7 @@ def progress_bar(
     subtitle: Optional[str] = None,
     completion_title: Optional[str] = None,
     completion_subtitle: Optional[str] = None,
+    total: Optional[int] = None,
     show_rate: bool = True,
     show_eta: bool = True,
 ) -> Iterable[S | int]:
@@ -275,6 +276,7 @@ def progress_bar(
     - `subtitle`: optional subtitle
     - `completion_title`: optional title to show during completion
     - `completion_subtitle`: optional subtitle to show during completion
+    - `total`: optional total number of items to iterate over
     - `show_rate`: if True, show the rate of progress (items per second)
     - `show_eta`: if True, show the estimated time of completion
 
@@ -282,12 +284,13 @@ def progress_bar(
 
     An iterable object that wraps `collection`
     """
-    if isinstance(collection, range):
-        total = collection.stop - collection.start
-        step = collection.step
-    else:
-        total = len(collection)
-        step = 1
+    try:
+        total = total or len(collection)
+        step = collection.step if isinstance(collection, range) else 1
+    except TypeError:  # if collection is a generator
+        raise TypeError(
+            "fail to determine length of collection, use `total` to specify"
+        ) from None
     progress = ProgressBar(
         title=title,
         subtitle=subtitle,
