@@ -133,6 +133,10 @@ details.sd-dropdown .sd-summary-up {
   width: 100%;
   max-width: 500px;
   margin-top: 0;
+  border-radius: 6px;
+}
+
+.announcement .sidebar-search {
   border-right: 1px solid var(--color-sidebar-search-border);
   border-left: 1px solid var(--color-sidebar-search-border);
   border-radius: 6px;
