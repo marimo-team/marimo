@@ -138,7 +138,11 @@ collections of elements.
 </figure>
 </div>
 
+
 ## Layout
 
-The marimo library also comes with layout elements, including `mo.hstack`,
-`mo.vstack`, and `mo.ui.tabs`. See the [API reference](https://docs.marimo.io/api/layouts/index.html) for more info.
+The marimo library also comes with elements for laying out output, including
+[`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
+[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
+[`mo.ui.table`](#marimo.ui.table), and and [many
+more](https://docs.marimo.io/api/layouts/index.html).

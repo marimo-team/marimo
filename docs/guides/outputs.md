@@ -61,3 +61,17 @@ mo.md(
   """
 )
 ```
+
+
+## Layout
+
+The marimo library also comes with elements for laying out output, including
+[`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
+[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
+[`mo.ui.table`](#marimo.ui.table), and [many
+more](https://docs.marimo.io/api/layouts/index.html).
+
+## Media
+
+marimo comes with functions to display media, including images, audio,
+video, pdfs, and more. See the [API docs](/api/media/index.md) for more info.
