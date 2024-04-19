@@ -6,12 +6,14 @@ import pathlib
 import sys
 import textwrap
 from queue import Queue
+from marimo._dependencies.dependencies import DependencyManager
 
 from reload_test_utils import random_modname, update_file
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.requests import ExecuteStaleRequest, SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
+import pytest
 from tests.conftest import ExecReqProvider
 
 
@@ -260,6 +262,61 @@ async def test_reload_package(
     assert k.globals[b_name]
     assert k.globals["x"] == 1
     update_file(nested_module, "func = lambda : 2")
+
+    # wait for the watcher to pick up the change
+    await asyncio.sleep(1.5)
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    await k.run_stale_cells()
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    assert not k.graph.cells[er_3.cell_id].stale
+    assert k.globals["x"] == 2
+
+
+@pytest.mark.skipif(
+    not DependencyManager.has_numpy(), reason="NumPy not installed"
+)
+async def test_reload_third_party(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    k: Kernel,
+    exec_req: ExecReqProvider,
+):
+    # make sure that importing a third-party package like numpy doesn't
+    # break the module finder
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            import numpy as np
+
+            def foo():
+                return 1
+            """
+        )
+    )
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "detect"
+    k.set_user_config(SetUserConfigRequest(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+            er_3 := exec_req.get("pass"),
+        ]
+    )
+    assert k.globals["x"] == 1
+    update_file(
+        py_file,
+        """
+        def foo():
+            return 2
+        """,
+    )
 
     # wait for the watcher to pick up the change
     await asyncio.sleep(1.5)
