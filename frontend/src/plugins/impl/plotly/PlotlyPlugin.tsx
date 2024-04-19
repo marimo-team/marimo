@@ -164,6 +164,25 @@ export const PlotlyComponent = memo(
             setValue((prev) => ({ ...prev, ...obj }));
           }
         }}
+        onUpdate={(figure) => {
+          // If the user double-clicks, all selection will be cleared
+          // But this does not call onSelected, so we need to clear it here
+          const selections =
+            "selections" in figure.layout &&
+            Array.isArray(figure.layout.selections)
+              ? figure.layout.selections
+              : [];
+          if (selections.length === 0) {
+            console.log("Clearing selections");
+            setValue((prev) => ({
+              ...prev,
+              selections: selections,
+              points: [],
+              indices: [],
+              range: undefined,
+            }));
+          }
+        }}
         config={plotlyConfig}
         onSelected={useEvent((evt: Readonly<Plotly.PlotSelectionEvent>) => {
           if (!evt) {
