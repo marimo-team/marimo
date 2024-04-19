@@ -83,6 +83,15 @@ notebooks_</a>.
    community
 ```
 
+```{eval-rst}
+.. toctree::
+   :caption: Links
+   :maxdepth: 2
+
+   GitHub <https://github.com/marimo-team/marimo>
+   Discord <https://discord.gg/JE7nhX6mD8>
+```
+
 <h3>Index</h3>
 
 ```{eval-rst}

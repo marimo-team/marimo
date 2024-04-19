@@ -89,6 +89,21 @@ html_js_files = [
 ]
 html_title = f"{project}"
 html_theme_options = {
+    "announcement": """
+        <div class="announcement-body" style="display: flex; justify-content: center; align-items: center;">
+            <div class="hide-md" style="flex: 1;"></div>
+            <form style="flex: 3;" class="sidebar-search-container" method="get" action="../search.html" role="search">
+                <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+                <input type="hidden" name="check_keywords" value="yes">
+                <input type="hidden" name="area" value="default">
+            </form>
+            <div style="flex: 1; display: flex; justify-content: flex-end; padding-left: 1rem;">
+                <a target="_blank" href="https://github.com/marimo-team/marimo" class="muted-link fa-brands fa-solid fa-github fa-2x px-2"></a>
+                <a target="_blank" href="https://discord.gg/JE7nhX6mD8" class="muted-link fa-brands fa-solid fa-discord fa-2x px-2"></a>
+                <a target="_blank" href="https://twitter.com/marimo_io" class="muted-link fa-brands fa-solid fa-twitter fa-2x px-2"></a>
+            </div>
+        </div>
+    """,
     "sidebar_hide_name": True,
     "light_logo": "marimo-logotype-thick.svg",
     "dark_logo": "marimo-logotype-thick.svg",
@@ -110,13 +125,19 @@ html_theme_options = {
             "name": "GitHub",
             "url": "https://github.com/marimo-team/marimo",
             "html": "",
-            "class": "fa-brands fa-solid fa-github fa-2x",
+            "class": "fa-brands fa-solid fa-github fa-2x px-1",
         },
         {
             "name": "Discord",
             "url": "https://discord.gg/JE7nhX6mD8",
             "html": "",
-            "class": "fa-brands fa-solid fa-discord fa-2x",
+            "class": "fa-brands fa-solid fa-discord fa-2x px-1",
+        },
+        {
+            "name": "Twitter",
+            "url": "https://twitter.com/marimo_io",
+            "html": "",
+            "class": "fa-brands fa-solid fa-twitter fa-2x px-1",
         },
     ],
 }
