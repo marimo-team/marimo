@@ -6,6 +6,7 @@ import contextlib
 import functools
 import signal
 import sys
+import threading
 import traceback
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
@@ -223,7 +224,13 @@ class Runner:
                 return_value_future = asyncio.ensure_future(
                     execute_cell_async(cell, self.glbls)
                 )
-                with Runner._cancel_on_sigint(return_value_future):
+                if threading.current_thread() == threading.main_thread():
+                    # edit mode: need to handle user interrupts
+                    with Runner._cancel_on_sigint(return_value_future):
+                        return_value = await return_value_future
+                else:
+                    # run mode: can't use signal.signal, not interruptible
+                    # by user anyway.
                     return_value = await return_value_future
             else:
                 return_value = execute_cell(cell, self.glbls)

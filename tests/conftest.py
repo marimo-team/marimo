@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
 import sys
 import textwrap
 from tempfile import TemporaryDirectory
@@ -145,24 +146,56 @@ def executing_kernel() -> Generator[Kernel, None, None]:
 def temp_marimo_file() -> Generator[str, None, None]:
     tmp_dir = TemporaryDirectory()
     tmp_file = tmp_dir.name + "/notebook.py"
-    content = """
-    import marimo
-    app = marimo.App()
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
 
-    @app.cell
-    def __():
-        import marimo as mo
-        return mo,
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
 
-    if __name__ == "__main__":
-        app.run()
-    """
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
 
-    with open(tmp_file, "w") as f:
-        f.write(content)
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
         yield tmp_file
+    finally:
+        tmp_dir.cleanup()
 
-    tmp_dir.cleanup()
+
+@pytest.fixture
+def temp_async_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        async def __():
+            import asyncio
+            await asyncio.sleep(0.1)
+            return asyncio,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+            f.flush()
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
 
 
 # Factory to create ExecutionRequests and abstract away cell ID
