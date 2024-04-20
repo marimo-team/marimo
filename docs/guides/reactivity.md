@@ -1,7 +1,13 @@
 # Reactivity
 
-marimo notebooks _react_ to your code changes. Reactive execution is based
-on a single rule:
+Every marimo notebook is a directed acyclic graph (DAG) that models how data
+flows across blocks of Python code, i.e., cells.
+
+marimo _react_ to code changes, automatically executing cells with the latest
+data. Execution order is determined by the DAG, not by the order of cells on
+the page.
+
+Reactive execution is based on a single rule:
 
 ```{admonition} Runtime Rule
 :class: tip
@@ -10,14 +16,10 @@ When a cell is run, marimo automatically runs all other cells that
 **reference** any of the global variables it **defines**.
 ```
 
-To provide reactive execution, marimo creates a directed acyclic graph
-(DAG) out of your cells. Execution order is determined by the DAG, not by the
-order of cells on the page.
-
 ## References and definitions
-A marimo notebook is a DAG where nodes are cells and edges are
-data dependencies. marimo creates this graph by analyzing each cell, without
-running it, to determine its
+A marimo notebook is a DAG where nodes are cells and edges are data
+dependencies. marimo creates this graph by statically analyzing each cell
+(i.e., without running it) to determine its
 
 - references, the global variables it reads but doesn't define;
 - definitions, the global variables it defines.
@@ -25,16 +27,14 @@ running it, to determine its
 ```{admonition} Global variables
 :class: tip
 
-A global variable can refer to any Python object. In particular, functions,
-classes, and imported names can all count as global variables.
+A variable can refer to any Python object. In particular, functions,
+classes, and imported names are all variables.
 ```
-
 
 There is an edge from one cell to another if the latter cell references any
 global variables defined by the former cell. The rule for reactive execution
 can be restated in terms of the graph: when a cell is run, its descendants are
 run automatically.
-
 
 ## Global variable names must be unique
 

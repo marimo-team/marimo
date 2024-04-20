@@ -1,10 +1,11 @@
 # Overview
 
 marimo notebooks are **reactive**: they automatically react to your code
-changes and UI interactions and keep your notebook up-to-date (like a
-spreadsheet).
+changes and UI interactions and keep your notebook up-to-date, not unlike a
+spreadsheet.
 
 ```{admonition} Creating marimo notebooks
+:class: tip
 
 Make sure to first read the [getting started](/getting_started/index.md) page,
 which teaches you how to install marimo and create notebooks.
@@ -16,9 +17,9 @@ A marimo notebook is made of small blocks of Python code called **cells**.
 _When you run a cell, marimo automatically runs all cells that read any global
 variables defined by that cell._ This is reactive execution.
 
-> **Reactive execution lets your notebooks double as interactive
-> apps**. It also guarantees that your code and program state are
-> consistent.
+> **Reactive execution guarantees that your code and program state are
+> consistent.**  It also gives notebooks a deterministic execution order,
+> letting them double as both reproducible scripts and interactive apps.
 
 <div align="center">
 <figure>
@@ -26,13 +27,15 @@ variables defined by that cell._ This is reactive execution.
 </figure>
 </div>
 
+
 **Execution order.**
 The order of cells on the page has no bearing on the order cells are
-executed in: execution order is completely determined by the variables
-cells define and the cells they read. You have full freedom over
-how to organize your code and tell your stories: move helper functions and
-other "appendices" to the bottom of your notebook, or put cells with important
-outputs at the top.
+executed in: execution order is determined by the variables
+cells define and the variables they read.
+
+You have full freedom over how to organize your code and tell your stories:
+move helper functions and other "appendices" to the bottom of your notebook, or
+put cells with important outputs at the top.
 
 **No hidden state.**
 marimo notebooks have no hidden state because the program state is
@@ -52,6 +55,8 @@ For more on reactive execution, open the dataflow tutorial:
 ```bash
 marimo tutorial dataflow
 ```
+
+or read the [reactivity guide](/guides/reactivity.md).
 
 ## The marimo library
 
