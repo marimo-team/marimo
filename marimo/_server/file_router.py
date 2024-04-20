@@ -161,10 +161,13 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         files: List[MarimoFile] = []
         skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
         LOGGER.debug("Searching directory %s", directory)
-        for root, _, filenames in os.walk(directory, topdown=True):
+        for root, dirnames, filenames in os.walk(directory, topdown=True):
             # Skip directories that are too deep
             depth = root[len(directory) :].count(os.sep)
-            if depth > MAX_DEPTH:
+            if depth >= MAX_DEPTH:
+                # mutating `dirnames` like this prunes all the dirs in it
+                # from the search
+                dirnames[:] = []
                 continue
             # Skip directories that we don't want to search
             root_name = os.path.basename(root)
