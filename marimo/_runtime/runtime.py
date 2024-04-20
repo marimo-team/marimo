@@ -414,19 +414,23 @@ class Kernel:
             stderr=self.stderr,
             stdin=self.stdin,
         ):
+            modules = None
             try:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
+                    modules = set(sys.modules)
                     self.module_reloader.check(
                         modules=sys.modules, reload=True
                     )
                 yield self.execution_context
             finally:
                 self.execution_context = None
-                if self.module_reloader is not None:
-                    # Note timestamps for when we last saw these modules
+                if self.module_reloader is not None and modules is not None:
+                    # Note timestamps for newly loaded modules
+                    new_modules = set(sys.modules) - modules
                     self.module_reloader.check(
-                        modules=sys.modules, reload=False
+                        modules={m: sys.modules[m] for m in new_modules},
+                        reload=False,
                     )
 
     def _try_registering_cell(
