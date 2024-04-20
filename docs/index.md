@@ -2,9 +2,18 @@
   <img src="_static/marimo-logotype-thick.svg" width="210px">
 </p>
 
-**marimo** is a reactive notebook for Python. It allows you to rapidly experiment
-with data and models, code with confidence in your notebook's correctness, and
-productionize notebooks as pipelines or interactive web apps.
+**marimo** is a reactive notebook for Python that models notebooks
+as dataflow graphs: run a cell or interact with a UI element, and marimo
+automatically runs affected cells. Every marimo notebook is stored as pure
+Python, executable as a script, and deployable as an app.
+
+```{admonition} Built from the ground up
+:class: tip
+
+marimo was built from the ground up to solve <a
+href="/faq.html#faq-jupyter">well-known problems associated with traditional
+notebooks</a>.
+```
 
 ::::{tab-set}
 :::{tab-item} install with pip
@@ -23,17 +32,19 @@ conda install -c conda-forge marimo && marimo tutorial intro
 :::
 ::::
 
+Developer experience is core to marimo, with an emphasis on
+reproducibility, maintainability, composability, and shareability.
+
+
 **Highlights.**
 
-- **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
+- **reactive**: run a cell and marimo automatically runs affected cells and updates their outputs
 - **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
-- **reproducible**: no hidden state, deterministic execution order
+- **reproducible**: no hidden state, deterministic execution order — code with confidence in your notebook's correctness
 - **deployable**: executable as a script, deployable as an app
 - **developer-friendly**: git-friendly `.py` file format, GitHub Copilot, fast autocomplete, code formatting, and more
 
-_marimo was built from the ground up to solve many <a
-href="/faq.html#faq-jupyter">well-known problems associated with traditional
-notebooks_</a>.
+
 
 > ⚡ marimo notebooks run automatically with interactions and code changes
 
@@ -59,7 +70,7 @@ notebooks_</a>.
 </figure>
 </div>
 
-> 🚀 deploy your creations as interactive web apps
+> 🚀 deploy as interactive web apps
 
 <div align="center">
 <figure>
