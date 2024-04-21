@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import * as React from "react";
-import * as SliderPrimitive from "@radix-ui/react-Slider";
+import * as SliderPrimitive from "@radix-ui/react-slider";
 
 import { cn } from "@/utils/cn";
 import {

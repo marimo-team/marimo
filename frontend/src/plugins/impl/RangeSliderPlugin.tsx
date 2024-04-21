@@ -101,14 +101,14 @@ const RangeSliderComponent = ({
           step={step}
           orientation={orientation}
           // Triggered on all value changes
-          onValueChange={(nextValue) => {
+          onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);
             if (!debounce) {
               setValue(nextValue);
             }
           }}
           // Triggered on mouse up
-          onValueCommit={(nextValue) => {
+          onValueCommit={(nextValue: number[]) => {
             if (debounce) {
               setValue(nextValue);
             }
