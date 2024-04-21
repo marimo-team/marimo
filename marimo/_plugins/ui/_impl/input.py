@@ -269,7 +269,7 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
     ) -> None:
         value_has_float = (
             any(isinstance(num, float) for num in (value[0], value[1]))
-            if value
+            if value is not None
             else False
         )
 

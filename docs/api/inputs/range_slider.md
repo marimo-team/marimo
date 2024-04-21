@@ -1,4 +1,4 @@
-# range_slider
+# Range Slider
 
 ```{eval-rst}
 .. marimo-embed::
