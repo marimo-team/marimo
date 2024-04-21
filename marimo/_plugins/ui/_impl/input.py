@@ -274,23 +274,22 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
         )
 
         self._dtype = (
-            List[float]
+            list[float]
             if any(isinstance(num, float) for num in (start, stop, step))
             or value_has_float
-            else List[int]
+            else list[int]
         )
 
         value = [start, stop] if value is None else value
 
-        if stop < start:
+        if stop < start or value[1] < value[0]:
             raise ValueError(
-                f"Invalid bounds: stop value ({stop}) must be greater than "
-                f"start value ({start})"
+                "Invalid bounds: stop value must be greater than start value."
             )
         elif value[0] < start or value[1] > stop:
             raise ValueError(
                 f"Value out of bounds: default value ({value}) must be "
-                f"greater than start ({start}) and less than stop ({stop})."
+                f"a range within start ({start}) and stop ({stop})."
             )
 
         self.start = start
@@ -298,7 +297,7 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
         self.step = step
 
         super().__init__(
-            component_name=slider._name,
+            component_name=range_slider._name,
             initial_value=value,
             label=label,
             args={
@@ -313,8 +312,8 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: List[Numeric]) -> List[Numeric]:
-        return cast(List[Numeric], self._dtype(value))
+    def _convert_value(self, value: List[Numeric]) -> list[Numeric]:
+        return cast(list[Numeric], self._dtype(value))
 
 
 @mddoc

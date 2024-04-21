@@ -13,6 +13,7 @@ import { FormPlugin } from "./impl/FormPlugin";
 import { MultiselectPlugin } from "./impl/MultiselectPlugin";
 import { NumberPlugin } from "./impl/NumberPlugin";
 import { RadioPlugin } from "./impl/RadioPlugin";
+import { RangeSliderPlugin } from "./impl/RangeSliderPlugin";
 import { SliderPlugin } from "./impl/SliderPlugin";
 import { SwitchPlugin } from "./impl/SwitchPlugin";
 import { TextInputPlugin } from "./impl/TextInputPlugin";
@@ -57,6 +58,7 @@ export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
   new NumberPlugin(),
   new RadioPlugin(),
   new RefreshPlugin(),
+  new RangeSliderPlugin(),
   new SliderPlugin(),
   new SwitchPlugin(),
   new TabsPlugin(),
