@@ -217,6 +217,107 @@ class slider(UIElement[Numeric, Numeric]):
 
 
 @mddoc
+class range_slider(UIElement[List[Numeric], List[Numeric]]):
+    """
+    A numeric slider for specifying a range over an interval.
+
+    **Example.**
+
+    ```python
+    range_slider = mo.ui.range_slider(start=1, stop=10, step=2, value=[2, 6])
+    ```
+
+    **Attributes.**
+
+    - `value`: the current range value of the slider
+    - `start`: the minimum value of the interval
+    - `stop`: the maximum value of the interval
+    - `step`: the slider increment
+
+    **Initialization Args.**
+
+    - `start`: the minimum value of the interval
+    - `stop`: the maximum value of the interval
+    - `step`: the slider increment
+    - `value`: default value
+    - `debounce`: whether to debounce the slider to only send
+        the value on mouse-up or drag-end
+    - `orientation`: the orientation of the slider,
+        either "horizontal" or "vertical"
+    - `show_value`: whether to display the current value of the slider
+    - `label`: text label for the element
+    - `on_change`: optional callback to run when this element's value changes
+    - `full_width`: whether the input should take up the full width of its
+        container
+    """
+
+    _name: Final[str] = "marimo-range-slider"
+
+    def __init__(
+        self,
+        start: float,
+        stop: float,
+        step: Optional[float] = None,
+        value: Optional[List[float]] = None,
+        debounce: bool = False,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
+        show_value: bool = False,
+        *,
+        label: str = "",
+        on_change: Optional[Callable[[List[Numeric]], None]] = None,
+        full_width: bool = False,
+    ) -> None:
+        value_has_float = (
+            any(isinstance(num, float) for num in (value[0], value[1]))
+            if value
+            else False
+        )
+
+        self._dtype = (
+            List[float]
+            if any(isinstance(num, float) for num in (start, stop, step))
+            or value_has_float
+            else List[int]
+        )
+
+        value = [start, stop] if value is None else value
+
+        if stop < start:
+            raise ValueError(
+                f"Invalid bounds: stop value ({stop}) must be greater than "
+                f"start value ({start})"
+            )
+        elif value[0] < start or value[1] > stop:
+            raise ValueError(
+                f"Value out of bounds: default value ({value}) must be "
+                f"greater than start ({start}) and less than stop ({stop})."
+            )
+
+        self.start = start
+        self.stop = stop
+        self.step = step
+
+        super().__init__(
+            component_name=slider._name,
+            initial_value=value,
+            label=label,
+            args={
+                "start": start,
+                "stop": stop,
+                "step": step if step is not None else None,
+                "debounce": debounce,
+                "orientation": orientation,
+                "show-value": show_value,
+                "full-width": full_width,
+            },
+            on_change=on_change,
+        )
+
+    def _convert_value(self, value: List[Numeric]) -> List[Numeric]:
+        return cast(List[Numeric], self._dtype(value))
+
+
+@mddoc
 class checkbox(UIElement[bool, bool]):
     """
     A boolean checkbox.
