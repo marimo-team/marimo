@@ -217,7 +217,7 @@ class slider(UIElement[Numeric, Numeric]):
 
 
 @mddoc
-class range_slider(UIElement[List[Numeric], List[Numeric]]):
+class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     """
     A numeric slider for specifying a range over an interval.
 
@@ -264,7 +264,7 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
         show_value: bool = False,
         *,
         label: str = "",
-        on_change: Optional[Callable[[List[Numeric]], None]] = None,
+        on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
         value_has_float = (
@@ -312,8 +312,8 @@ class range_slider(UIElement[List[Numeric], List[Numeric]]):
             on_change=on_change,
         )
 
-    def _convert_value(self, value: List[Numeric]) -> list[Numeric]:
-        return cast(list[Numeric], self._dtype(value))
+    def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
+        return cast(Sequence[Numeric], self._dtype(value))
 
 
 @mddoc
