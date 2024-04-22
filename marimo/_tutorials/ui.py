@@ -562,6 +562,7 @@ def __(mo):
                     "multiselect": mo.ui.multiselect,
                     "number": mo.ui.number,
                     "radio": mo.ui.radio,
+                    "range_slider": mo.ui.range_slider,
                     "slider": mo.ui.slider,
                     "switch": mo.ui.switch,
                     "tabs": mo.ui.tabs,
@@ -623,6 +624,8 @@ def __(mo):
             return mo.ui.number(start=1, stop=10, step=0.5)
         elif value == mo.ui.radio:
             return mo.ui.radio(["a", "b", "c"], value="a")
+        elif value == mo.ui.range_slider:
+            return mo.ui.range_slider(start=1, stop=10, step=0.5)
         elif value == mo.ui.slider:
             return mo.ui.slider(start=1, stop=10, step=0.5)
         elif value == mo.ui.switch:
