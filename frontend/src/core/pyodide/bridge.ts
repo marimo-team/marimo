@@ -102,8 +102,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     await this.rpc.proxy.request.startSession({
       queryParameters: queryParameters,
-      code,
-      fallbackCode: fallbackCode || "",
+      code: code || fallbackCode || "",
       filename,
       userConfig,
     });

@@ -15,9 +15,19 @@ import { JsonString } from "@/utils/json/base64";
 import InlineWorker from "./worker/worker.ts?worker&inline";
 import { CellId } from "@/core/cells/ids";
 import { throwNotImplemented } from "@/utils/functions";
+import { isIslands } from "@/core/islands/utils";
 
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
-  static INSTANCE = new IslandsPyodideBridge();
+  /**
+   * Lazy singleton instance of the IslandsPyodideBridge.
+   */
+  private static _instance: IslandsPyodideBridge | undefined;
+  public static get INSTANCE() {
+    if (!IslandsPyodideBridge._instance) {
+      IslandsPyodideBridge._instance = new IslandsPyodideBridge();
+    }
+    return IslandsPyodideBridge._instance;
+  }
 
   private rpc: ReturnType<typeof getWorkerRPC>;
   private messageConsumer:
@@ -31,7 +41,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     const worker = new InlineWorker({
       // Pass the version to the worker
       /* @vite-ignore */
-      name: getMarimoVersion(),
+      name: isIslands() ? getMarimoVersion() : "dev",
     });
 
     // Create the RPC
