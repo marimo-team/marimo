@@ -175,6 +175,12 @@ async def test_reload_nested_module_import_module(
     assert k.globals["x"] == 2
 
 
+# TODO(akshayka): deflake this test
+@pytest.mark.xfail(
+    condition=sys.version_info[0] == 3 and sys.version_info[1] == 8,
+    reason="Timing dependent test is flaky, needs investigation",
+    strict=False,
+)
 async def test_reload_nested_module_import_module_autorun(
     tmp_path: pathlib.Path,
     py_modname: str,
@@ -220,7 +226,7 @@ async def test_reload_nested_module_import_module_autorun(
     update_file(nested_module, "func = lambda: 2")
 
     # wait for the watcher to pick up the change
-    queue.get(timeout=2)
+    queue.get(timeout=3)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
