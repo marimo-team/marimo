@@ -2,6 +2,9 @@
 import { test, expect } from "@playwright/test";
 import { getAppUrl, startServer } from "../playwright.config";
 import { takeScreenshot } from "./helper";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 test("can resume a session", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");

@@ -2,6 +2,9 @@
 import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 const appUrl = getAppUrl("components.py");
 test.beforeEach(async ({ page }, info) => {
