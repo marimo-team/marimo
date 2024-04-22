@@ -274,10 +274,10 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         )
 
         self._dtype = (
-            list[float]
+            float
             if any(isinstance(num, float) for num in (start, stop, step))
             or value_has_float
-            else list[int]
+            else int
         )
 
         value = [start, stop] if value is None else value
@@ -313,7 +313,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         )
 
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
-        return cast(Sequence[Numeric], self._dtype(value))
+        return cast(Sequence[Numeric], list(self._dtype(v) for v in value))
 
 
 @mddoc
