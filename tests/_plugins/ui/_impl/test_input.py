@@ -110,7 +110,9 @@ def test_range_slider_init() -> None:
     slider._update([3, 6])
     assert slider.value == [3.0, 6.0]
     for num in slider.value:
-        assert isinstance(num, int)
+        # initial value was a float, so ints should be
+        # cast to floats
+        assert isinstance(num, float)
 
 
 def test_range_slider_invalid_bounds() -> None:
