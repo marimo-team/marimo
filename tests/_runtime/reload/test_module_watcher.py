@@ -178,6 +178,7 @@ async def test_reload_nested_module_import_module(
 # TODO(akshayka): deflake this test
 @pytest.mark.xfail(
     condition=sys.version_info[0] == 3 and sys.version_info[1] == 8,
+    reason="Timing dependent test is flaky, needs investigation",
     strict=False,
 )
 async def test_reload_nested_module_import_module_autorun(
