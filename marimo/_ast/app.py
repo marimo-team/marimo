@@ -497,6 +497,15 @@ class CellManager:
     def cell_data_at(self, cell_id: CellId_t) -> CellData:
         return self._cell_data[cell_id]
 
+    def get_cell_id_by_code(self, code: str) -> Optional[CellId_t]:
+        """
+        Finds the first cell with the given code and returns its cell ID.
+        """
+        for cell_id, cell_data in self._cell_data.items():
+            if cell_data.code == code:
+                return cell_id
+        return None
+
 
 class InternalApp:
     """

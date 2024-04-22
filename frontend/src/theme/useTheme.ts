@@ -18,6 +18,9 @@ function setupThemeListener(): void {
   if (typeof window === "undefined") {
     return;
   }
+  if (!window.matchMedia) {
+    return;
+  }
 
   const media = window.matchMedia("(prefers-color-scheme: dark)");
   store.set(prefersDarkModeAtom, media.matches);

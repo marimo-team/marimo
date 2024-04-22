@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import inspect
 from collections.abc import Awaitable
 
 from marimo._ast.app import App
@@ -77,7 +76,7 @@ async def test_decorator_async() -> None:
     cell = app.cell(__)
     assert cell is not None
 
-    assert inspect.iscoroutinefunction(cell._f)
+    assert cell._cell.is_coroutine()
     assert cell._cell.config.disabled is False
     assert cell.name == "__"
 

@@ -24,8 +24,13 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .marimo {
     color-scheme: light;
+
+    --monospace-font: "Fira Mono";
+    --text-font: "PT Sans", sans-serif;
+    --heading-font: "Lora", serif;
 
     /* Radix light colors for reference: https://github.com/radix-ui/colors/blob/main/src/light.ts */
 
@@ -171,16 +176,20 @@
     @apply border-border;
   }
 
-  body {
+  body,
+  .marimo {
     @apply bg-background text-foreground;
 
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
-}
 
-button {
-  padding: 0;
-  margin: 0;
+  a.hyperlink {
+    @apply text-link;
+  }
+
+  a.hyperlink:hover {
+    text-decoration: underline;
+  }
 }

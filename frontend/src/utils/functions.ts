@@ -15,3 +15,7 @@ export const Functions = {
       : () => updater;
   },
 };
+
+export function throwNotImplemented(): never {
+  throw new Error("Not implemented");
+}

@@ -18,6 +18,9 @@ import type {
   SaveUserConfigRequest,
   SnippetsResponse,
 } from "../../network/types";
+import { OperationMessage } from "@/core/kernel/messages";
+import { JsonString } from "@/utils/json/base64";
+import { UserConfig } from "@/core/config/config-schema";
 
 export interface WasmController {
   /**
@@ -33,10 +36,10 @@ export interface WasmController {
    */
   startSession(opts: {
     queryParameters: Record<string, string | string[]>;
-    code: string | null;
-    fallbackCode: string;
+    code: string;
     filename: string | null;
-    onMessage: (message: string) => void;
+    userConfig: UserConfig | null;
+    onMessage: (message: JsonString<OperationMessage>) => void;
   }): Promise<SerializedBridge>;
 }
 

@@ -39,6 +39,7 @@ import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
+import { throwNotImplemented } from "@/utils/functions";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -49,7 +50,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   public initialized = new Deferred<void>();
 
-  constructor() {
+  private constructor() {
     if (isPyodide()) {
       // Create a worker
       const worker = new Worker(
@@ -390,10 +391,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 }
 
-function throwNotImplemented(): never {
-  throw new Error("Not implemented");
-}
-
 export class PyodideWebsocket implements IReconnectingWebSocket {
   CONNECTING = WebSocket.CONNECTING;
   OPEN = WebSocket.OPEN;
@@ -415,7 +412,7 @@ export class PyodideWebsocket implements IReconnectingWebSocket {
   messageSubscriptions = new Set<(event: MessageEvent) => void>();
   errorSubscriptions = new Set<(event: Event) => void>();
 
-  constructor(private bridge: PyodideBridge) {}
+  constructor(private bridge: Pick<PyodideBridge, "consumeMessages">) {}
 
   private consumeMessages() {
     this.bridge.consumeMessages((message) => {

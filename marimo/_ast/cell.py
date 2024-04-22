@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
 
 from marimo._ast.visitor import ImportData, Name, VariableData
 from marimo._utils.deep_merge import deep_merge
@@ -215,7 +215,7 @@ class Cell:
     """
 
     # Function from which this cell was created
-    _f: Callable[..., Any]
+    _name: str
 
     # Internal cell representation
     _cell: CellImpl
@@ -225,7 +225,7 @@ class Cell:
 
     @property
     def name(self) -> str:
-        return self._f.__name__
+        return self._name
 
     @property
     def refs(self) -> set[str]:

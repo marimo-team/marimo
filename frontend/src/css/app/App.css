@@ -1,8 +1,10 @@
-@import url("./Header.css");
+@import url("./reset.css");
 @import url("./Cell.css");
-@import url("./md.css");
-@import url("./table.css");
 @import url("./codemirror.css");
+@import url("./common.css");
+@import url("./fonts.css");
+@import url("./Header.css");
+@import url("./print.css");
 
 /* stylelint-disable unit-allowed-list */
 
@@ -21,9 +23,6 @@ html {
 :root {
   --content-width: 740px;
   --content-width-medium: 1110px;
-  --monospace-font: "Fira Mono";
-  --text-font: "PT Sans", sans-serif;
-  --heading-font: "Lora", serif;
 }
 
 #App {
@@ -45,7 +44,7 @@ html {
 
   /* Use an image because hard to get consistent result across browsers with
    * css gradients. */
-  background-image: url("../assets/gradient.png");
+  background-image: url("../../assets/gradient.png");
   background-repeat: no-repeat;
 
   /* Scale gradient with zoom in/out. */
@@ -59,7 +58,7 @@ html {
   width: 100vw;
   height: 100vh;
   z-index: -1;
-  background-image: url("../assets/noise.png");
+  background-image: url("../../assets/noise.png");
   background-repeat: repeat;
   opacity: 0.5;
 }

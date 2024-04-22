@@ -5,6 +5,7 @@ import { FilePath } from "@/utils/paths";
 import { serializeBlob } from "@/utils/blob";
 import { DropzoneOptions, useDropzone } from "react-dropzone";
 import { refreshRoot } from "./state";
+import { Logger } from "@/utils/Logger";
 
 const MAX_SIZE = 1024 * 1024 * 50; // 50MB
 
@@ -13,7 +14,7 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
     multiple: true,
     maxSize: MAX_SIZE,
     onError: (error) => {
-      console.error(error);
+      Logger.error(error);
       toast({
         title: "File upload failed",
         description: error.message,

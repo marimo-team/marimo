@@ -1,33 +1,9 @@
-@import url("./fonts.css");
-@import url("./common.css");
 @import url("./globals.css");
+
+@import url("./app/App.css");
 @import url("./codehilite.css");
+@import url("./common.css");
+@import url("./katex-fonts.css");
 @import url("./katex.min.css");
-
-html {
-  box-sizing: border-box;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
-}
-
-body {
-  margin: 0;
-  font-family: var(--text-font);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-#root {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-code {
-  font-family: var(--monospace-font);
-}
+@import url("./md.css");
+@import url("./table.css");

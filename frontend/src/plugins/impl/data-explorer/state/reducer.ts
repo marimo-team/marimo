@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { SpecificEncoding } from "../encoding";
-import { createReducer } from "@/utils/createReducer";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ChartSpec } from "./types";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
-import { atom, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { atom } from "jotai";
 import {
   mainViewResult,
   allRelatedViewResults,
@@ -31,44 +30,36 @@ function initialState(): ChartSpec {
   };
 }
 
-const { reducer, createActions } = createReducer(initialState, {
-  setSchema: (state, schema: Schema) => {
-    return { ...state, schema };
-  },
-  setMark: (state, mark: SpecMark) => {
-    return { ...state, mark };
-  },
-  setEncoding: (state, encoding: SpecificEncoding) => {
-    // Merge and remove undefined values
-    const nextEncoding = removeUndefined({
-      ...state.encoding,
-      ...encoding,
-    });
-
-    return { ...state, encoding: nextEncoding };
-  },
-  set: (state, next: ChartSpec) => {
-    // remove schema
-    const { schema, ...rest } = next;
-    return { ...state, ...rest };
-  },
-});
-
-export const chartSpecAtom = atom<ChartSpec>(initialState());
-
-export function useChartSpecActions(onChange?: (spec: ChartSpec) => void) {
-  const setState = useSetAtom(chartSpecAtom);
-
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => {
-        const newState = reducer(state, action);
-        onChange?.(newState);
-        return newState;
+const { valueAtom: chartSpecAtom, useActions } = createReducerAndAtoms(
+  initialState,
+  {
+    setSchema: (state, schema: Schema) => {
+      return { ...state, schema };
+    },
+    setMark: (state, mark: SpecMark) => {
+      return { ...state, mark };
+    },
+    setEncoding: (state, encoding: SpecificEncoding) => {
+      // Merge and remove undefined values
+      const nextEncoding = removeUndefined({
+        ...state.encoding,
+        ...encoding,
       });
-    });
-    return actions;
-  }, [setState, onChange]);
+
+      return { ...state, encoding: nextEncoding };
+    },
+    set: (state, next: ChartSpec) => {
+      // remove schema
+      const { schema, ...rest } = next;
+      return { ...state, ...rest };
+    },
+  },
+);
+
+export { chartSpecAtom };
+
+export function useChartSpecActions() {
+  return useActions();
 }
 
 export const relatedChartSpecsAtom = atom<Partial<ResultingCharts>>((get) => {

@@ -1,9 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { GridLayout } from "@/components/editor/renderers/grid-layout/types";
 import { LayoutType } from "@/components/editor/renderers/types";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { createReducer } from "@/utils/createReducer";
-import { useMemo } from "react";
+import { useAtomValue } from "jotai";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import { cellRendererPlugins } from "@/components/editor/renderers/plugins";
 import { getNotebook, notebookCells } from "../cells/cells";
 import { store } from "../state/jotai";
@@ -23,52 +22,46 @@ export function initialLayoutState(): LayoutState {
   };
 }
 
-const { reducer, createActions } = createReducer(initialLayoutState, {
-  setLayoutView: (state, payload: LayoutType) => {
-    return {
-      ...state,
-      selectedLayout: payload,
-    };
+const { valueAtom: layoutStateAtom, useActions } = createReducerAndAtoms(
+  initialLayoutState,
+  {
+    setLayoutView: (state, payload: LayoutType) => {
+      return {
+        ...state,
+        selectedLayout: payload,
+      };
+    },
+    setLayoutData: (
+      state,
+      payload: { layoutView: LayoutType; data: LayoutData },
+    ) => {
+      return {
+        ...state,
+        selectedLayout: payload.layoutView,
+        layoutData: {
+          ...state.layoutData,
+          [payload.layoutView]: payload.data,
+        },
+      };
+    },
+    setCurrentLayoutData: (state, payload: LayoutData) => {
+      return {
+        ...state,
+        layoutData: {
+          ...state.layoutData,
+          [state.selectedLayout]: payload,
+        },
+      };
+    },
   },
-  setLayoutData: (
-    state,
-    payload: { layoutView: LayoutType; data: LayoutData },
-  ) => {
-    return {
-      ...state,
-      selectedLayout: payload.layoutView,
-      layoutData: {
-        ...state.layoutData,
-        [payload.layoutView]: payload.data,
-      },
-    };
-  },
-  setCurrentLayoutData: (state, payload: LayoutData) => {
-    return {
-      ...state,
-      layoutData: {
-        ...state.layoutData,
-        [state.selectedLayout]: payload,
-      },
-    };
-  },
-});
-
-const layoutStateAtom = atom<LayoutState>(initialLayoutState());
+);
 
 export const useLayoutState = () => {
   return useAtomValue(layoutStateAtom);
 };
 
 export const useLayoutActions = () => {
-  const setState = useSetAtom(layoutStateAtom);
-
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 };
 
 /**

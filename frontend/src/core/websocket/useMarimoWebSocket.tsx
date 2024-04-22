@@ -5,21 +5,12 @@ import { connectionAtom } from "../network/connection";
 import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/cells/cells";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { OperationMessage } from "@/core/kernel/messages";
-import { sendInstantiate } from "../network/requests";
 import { CellData } from "../cells/types";
-import { createCell } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
-import {
-  LayoutState,
-  initialLayoutState,
-  useLayoutActions,
-} from "../layout/layout";
-import { deserializeLayout } from "@/components/editor/renderers/plugins";
+import { LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -28,14 +19,21 @@ import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import { VirtualFileTracker } from "../static/virtual-file-tracker";
-import { Objects } from "@/utils/objects";
 import { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
 import { createWsUrl } from "./createWsUrl";
 import { useSetAppConfig } from "../config/config";
+import {
+  handleCellOperation,
+  handleCompletedRun,
+  handleInterrupted,
+  handleKernelReady,
+  handleRemoveUIElements,
+} from "../kernel/handlers";
+import { queryParamHandlers } from "../kernel/queryParamHandlers";
+import { JsonString } from "@/utils/json/base64";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -58,130 +56,43 @@ export function useMarimoWebSocket(opts: {
   const { addBanner } = useBannersActions();
   const { addPackageAlert } = useAlertActions();
 
-  const handleMessage = (e: MessageEvent<string>) => {
-    const msg = jsonParseWithSpecialChar<OperationMessage>(e.data);
+  const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
+    const msg = jsonParseWithSpecialChar(e.data);
     switch (msg.op) {
       case "reload":
         window.location.reload();
         return;
-      case "kernel-ready": {
-        const {
-          codes,
-          names,
-          layout,
-          configs,
-          resumed,
-          ui_values,
-          cell_ids,
-          last_executed_code = {},
-          app_config,
-        } = msg.data;
-
-        // Set the layout, initial codes, cells
-        const cells = codes.map((code, i) => {
-          const cellId = cell_ids[i];
-
-          // A cell is stale if we did not auto-instantiate (i.e. nothing has run yet)
-          // or if the code has changed since the last time it was run.
-          let edited = false;
-          if (autoInstantiate || resumed) {
-            const lastCodeRun = last_executed_code[cellId];
-            if (lastCodeRun) {
-              edited = lastCodeRun !== code;
-            }
-          } else {
-            edited = true;
-          }
-
-          return createCell({
-            id: cellId,
-            code,
-            edited: edited,
-            name: names[i],
-            lastCodeRun: last_executed_code[cellId] ?? null,
-            config: configs[i],
-          });
+      case "kernel-ready":
+        handleKernelReady(msg.data, {
+          autoInstantiate,
+          setCells,
+          setLayoutData,
+          setAppConfig,
+          onError: showBoundary,
         });
-
-        const layoutState = initialLayoutState();
-        if (layout) {
-          const layoutData = deserializeLayout(layout.type, layout.data, cells);
-          layoutState.selectedLayout = layout.type;
-          layoutState.layoutData[layout.type] = layoutData;
-          setLayoutData({ layoutView: layout.type, data: layoutData });
-        }
-        setCells(cells, layoutState);
-        setAppConfig(app_config);
-
-        // If resumed, we don't need to instantiate the UI elements,
-        // and we should read in th existing values from the kernel.
-        if (resumed) {
-          for (const [objectId, value] of Objects.entries(ui_values || {})) {
-            UI_ELEMENT_REGISTRY.set(objectId, value);
-          }
-          return;
-        }
-
-        // Auto-instantiate, in future this can be configurable
-        // or include initial values
-        const objectIds: string[] = [];
-        const values: unknown[] = [];
-        // If we already have values for some objects, we should
-        // send them to the kernel. This may happen after re-connecting
-        // to the kernel after the computer wakes from sleep.
-        UI_ELEMENT_REGISTRY.entries.forEach((entry, objectId) => {
-          objectIds.push(objectId);
-          values.push(entry.value);
-        });
-        // Send the instantiate message
-        if (autoInstantiate) {
-          // Start the run
-          RuntimeState.INSTANCE.registerRunStart();
-          sendInstantiate({ objectIds, values }).catch((error) => {
-            RuntimeState.INSTANCE.registerRunEnd();
-            showBoundary(new Error("Failed to instantiate", { cause: error }));
-          });
-        }
         return;
-      }
+
       case "completed-run":
+        handleCompletedRun();
+        return;
       case "interrupted":
-        if (msg.op === "completed-run") {
-          RuntimeState.INSTANCE.registerRunEnd();
-        }
+        handleInterrupted();
+        return;
 
-        if (!RuntimeState.INSTANCE.running()) {
-          RuntimeState.INSTANCE.flushUpdates();
-        }
+      case "remove-ui-elements":
+        handleRemoveUIElements(msg.data);
         return;
-      case "remove-ui-elements": {
-        // This removes the element from the registry to (1) clean-up
-        // memory and (2) make sure that the old value doesn't get re-used
-        // if the same cell-id is later reused for another element.
-        const { cell_id } = msg.data;
-        UI_ELEMENT_REGISTRY.removeElementsByCell(cell_id);
-        VirtualFileTracker.INSTANCE.removeForCellId(cell_id);
-        return;
-      }
+
       case "completion-result":
         AUTOCOMPLETER.resolve(msg.data.completion_id, msg.data);
         return;
       case "function-call-result":
         FUNCTIONS_REGISTRY.resolve(msg.data.function_call_id, msg.data);
         return;
-      case "cell-op": {
-        /* Register a state transition for a cell.
-         *
-         * The cell may have a new output, a new console output,
-         * it may have been queued, it may have started running, or
-         * it may have stopped running. Each of these things
-         * affects how the cell should be rendered.
-         */
-        const body = msg.data;
-        handleCellMessage({ cellId: body.cell_id, message: body });
-        VirtualFileTracker.INSTANCE.track(body);
+      case "cell-op":
+        handleCellOperation(msg.data, handleCellMessage);
         return;
-      }
+
       case "variables":
         setVariables(
           msg.data.variables.map((v) => ({
@@ -227,41 +138,22 @@ export function useMarimoWebSocket(opts: {
           kind: "installing",
         });
         return;
-      case "query-params-append": {
-        const url = new URL(window.location.href);
-        url.searchParams.append(msg.data.key, msg.data.value);
-        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+      case "query-params-append":
+        queryParamHandlers.append(msg.data);
         return;
-      }
-      case "query-params-set": {
-        const url = new URL(window.location.href);
-        if (Array.isArray(msg.data.value)) {
-          url.searchParams.delete(msg.data.key);
-          msg.data.value.forEach((v) =>
-            url.searchParams.append(msg.data.key, v),
-          );
-        } else {
-          url.searchParams.set(msg.data.key, msg.data.value);
-        }
-        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+
+      case "query-params-set":
+        queryParamHandlers.set(msg.data);
         return;
-      }
-      case "query-params-delete": {
-        const url = new URL(window.location.href);
-        if (msg.data.value == null) {
-          url.searchParams.delete(msg.data.key);
-        } else {
-          url.searchParams.delete(msg.data.key, msg.data.value);
-        }
-        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+
+      case "query-params-delete":
+        queryParamHandlers.delete(msg.data);
         return;
-      }
-      case "query-params-clear": {
-        const url = new URL(window.location.href);
-        url.search = "";
-        window.history.pushState({}, "", `${url.pathname}${url.search}`);
+
+      case "query-params-clear":
+        queryParamHandlers.clear();
         return;
-      }
+
       default:
         logNever(msg);
     }

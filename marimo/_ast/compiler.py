@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import ast
 import inspect
 import io
@@ -220,4 +222,6 @@ def cell_factory(
             # handle return written on same line as last statement in cell
             cell_code += "\n" + lines[end_line][:return_offset]
 
-    return Cell(_f=f, _cell=compile_cell(cell_code, cell_id=cell_id))
+    return Cell(
+        _name=f.__name__, _cell=compile_cell(cell_code, cell_id=cell_id)
+    )

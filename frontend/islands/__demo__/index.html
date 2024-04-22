@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="a marimo app" />
+
+    <title>my demo app</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css"
+      integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
+      crossorigin="anonymous"
+    />
+    <!-- <script type="module" src="../src/core/islands/main.ts"></script> -->
+    <script type="module" src="http://localhost:8000/main.js"></script>
+    <link
+      href="http://localhost:8000/style.css?source=@marimo-team/frontend"
+      rel="stylesheet"
+      crossorigin="anonymous"
+    ></link>
+  </head>
+  <body>
+    <marimo-island data-app-id="main">
+      <marimo-cell-output>
+        <div>
+          <h1>hello world</h1>
+        </div>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        import%20marimo%20as%20mo%0Amo.md(%22%23%20hello%20world!%22)
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main">
+      <marimo-cell-output>
+        <div>
+          <h1>good bye</h1>
+        </div>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>mo.md("## good bye!")</marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main">
+      <marimo-cell-output>
+        <div>
+          Latex
+        </div>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        mo.md("$$\\int_0^\\infty x^2 dx$$")
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main">
+      <marimo-cell-output> </marimo-cell-output>
+      <marimo-cell-code hidden>
+        slider = mo.ui.slider(0, 100, 2); slider
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main">
+      <marimo-cell-output> </marimo-cell-output>
+      <marimo-cell-code hidden> slider.value </marimo-cell-code>
+    </marimo-island>
+
+    <br />
+    <br />
+    <br />
+    <br />
+    <br />
+    <div class="bg-blue-500 p-4 border-2 border-red-500 bg-background">
+      this should not be affected by global tailwind styles
+    </div>
+    <div class="marimo">
+      <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+        this should be affected by global tailwind styles
+      </div>
+    </div>
+    <div class="marimo">
+      <div class="dark">
+        <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+          this should be affected by global tailwind styles (dark)
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

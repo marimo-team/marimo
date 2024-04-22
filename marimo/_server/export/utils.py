@@ -9,6 +9,7 @@ from marimo._messaging.ops import MessageOperation
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
+from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -19,7 +20,7 @@ from marimo._server.sessions import Session
 async def run_app_then_export_as_html(
     filename: str,
     include_code: bool,
-    cli_args: SerializedCLIArgs | None = None,
+    cli_args: SerializedCLIArgs,
 ) -> tuple[str, str]:
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(filename)
@@ -27,6 +28,28 @@ async def run_app_then_export_as_html(
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
 
+    config = UserConfigManager()
+    session = await run_app_until_completion(file_manager, cli_args)
+
+    # Export the session as HTML
+    html, filename = Exporter().export_as_html(
+        file_manager=session.app_file_manager,
+        session_view=session.session_view,
+        display_config=config.get_config()["display"],
+        request=ExportAsHTMLRequest(
+            include_code=include_code,
+            download=False,
+            files=[],
+        ),
+    )
+
+    return html, filename
+
+
+async def run_app_until_completion(
+    file_manager: AppFileManager,
+    cli_args: SerializedCLIArgs,
+) -> Session:
     instantiated_event = asyncio.Event()
 
     # Create a no-op session consumer
@@ -56,13 +79,13 @@ async def run_app_then_export_as_html(
 
     # Create a session
     session = Session.create(
-        initialization_id=file_key,
+        initialization_id="_any_",
         session_consumer=NoopSessionConsumer(),
         mode=SessionMode.RUN,
         app_metadata=AppMetadata(
             query_params={},
             filename=file_manager.path,
-            cli_args=cli_args if cli_args is not None else {},
+            cli_args=cli_args,
         ),
         app_file_manager=file_manager,
         user_config_manager=config,
@@ -73,16 +96,4 @@ async def run_app_then_export_as_html(
     session.instantiate(InstantiateRequest(object_ids=[], values=[]))
     await instantiated_event.wait()
 
-    # Export the session as HTML
-    html, filename = Exporter().export_as_html(
-        file_manager=session.app_file_manager,
-        session_view=session.session_view,
-        display_config=config.get_config()["display"],
-        request=ExportAsHTMLRequest(
-            include_code=include_code,
-            download=False,
-            files=[],
-        ),
-    )
-
-    return html, filename
+    return session
