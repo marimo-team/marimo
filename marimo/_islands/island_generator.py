@@ -28,7 +28,9 @@ class MarimoIslandStub:
     def code(self) -> str:
         return self._code
 
-    def render(self, include_code: bool = True, include_output: bool = True) -> str:
+    def render(
+        self, include_code: bool = True, include_output: bool = True
+    ) -> str:
         """
         Render the HTML island code for the cell.
 
@@ -41,8 +43,12 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
-        assert self._internal_app is not None, "You must call build() before rendering"
-        assert self._session is not None, "You must call build() before rendering"
+        assert (
+            self._internal_app is not None
+        ), "You must call build() before rendering"
+        assert (
+            self._session is not None
+        ), "You must call build() before rendering"
 
         if include_code is False and include_output is False:
             raise ValueError("You must include either code or output")
@@ -192,9 +198,7 @@ class MarimoIslandGenerator:
         # - Fonts from KaTeX
         #   (otherwise they would get bundled in the css)
 
-        base_url = (
-            f"https://cdn.jsdelivr.net/npm/@marimo-team/islands@{version_override}"
-        )
+        base_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/islands@{version_override}"
         # This should be kept in sync fonts.css in the frontend
         # Since this is embedded on other pages, we want display=swap
         # for the most compatible font loading
@@ -220,7 +224,10 @@ class MarimoIslandGenerator:
             base_url = "http://localhost:5174"
             return dedent(
                 f"""
-                <script type="module" src="{base_url}/src/core/islands/main.ts"></script>
+                <script
+                    type="module"
+                    src="{base_url}/src/core/islands/main.ts"
+                ></script>
                 {fonts}
                 """
             ).strip()

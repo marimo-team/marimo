@@ -65,4 +65,6 @@ async def test_render_head():
     await generator.build()
 
     # Check if render_head works after build() is called
-    snapshot("header.txt", generator.render_head().replace(__version__, "0.0.0"))
+    snapshot(
+        "header.txt", generator.render_head().replace(__version__, "0.0.0")
+    )
