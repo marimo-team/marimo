@@ -52,6 +52,7 @@ from marimo._messaging.streams import (
     ThreadSafeStdout,
     ThreadSafeStream,
 )
+from marimo._messaging.tracebacks import write_traceback
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -910,7 +911,7 @@ class Kernel:
                     formatted_output = formatting.try_format(run_result.output)
                 if formatted_output.traceback is not None:
                     with self._install_execution_context(cell_id):
-                        sys.stderr.write(formatted_output.traceback)
+                        write_traceback(formatted_output.traceback)
                 CellOp.broadcast_output(
                     channel=CellChannel.OUTPUT,
                     mimetype=formatted_output.mimetype,
@@ -1177,7 +1178,7 @@ class Kernel:
                     tmpio = io.StringIO()
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
-                    sys.stderr.write(tmpio.read())
+                    write_traceback(tmpio.read())
                     # Don't run referring elements of this UI element
                     continue
                 except Exception:
@@ -1190,7 +1191,7 @@ class Kernel:
                     tmpio = io.StringIO()
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
-                    sys.stderr.write(tmpio.read())
+                    write_traceback(tmpio.read())
 
             bound_names = (
                 name
@@ -1224,7 +1225,7 @@ class Kernel:
                     tmpio = io.StringIO()
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
-                    sys.stderr.write(tmpio.read())
+                    write_traceback(tmpio.read())
                     # Entering undefined behavior territory ...
                     continue
 

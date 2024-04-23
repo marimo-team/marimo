@@ -1,7 +1,10 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 
-def highlight_trace_back(traceback: str) -> str:
+
+def _highlight_traceback(traceback: str) -> str:
     """
     Highlight the traceback with color.
     """
@@ -14,3 +17,12 @@ def highlight_trace_back(traceback: str) -> str:
 
     body = highlight(traceback, PythonTracebackLexer(), formatter)
     return f'<span class="codehilite">{body}</span>'
+
+
+def write_traceback(traceback: str) -> None:
+    from marimo._runtime.runtime import running_in_notebook
+
+    if running_in_notebook():
+        sys.stderr.write(_highlight_traceback(traceback))
+    else:
+        sys.stderr.write(traceback)

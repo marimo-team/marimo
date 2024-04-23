@@ -13,7 +13,6 @@ from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
-from marimo._messaging.traceback import highlight_trace_back
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -256,7 +255,7 @@ class ThreadSafeStderr(Stderr):
                 ConsoleMsg(
                     stream=CellChannel.STDERR,
                     cell_id=self._stream.cell_id,
-                    data=highlight_trace_back(data),
+                    data=data,
                 )
             )
             self._stream.console_msg_cv.notify()
