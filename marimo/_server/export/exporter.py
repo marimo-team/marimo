@@ -99,6 +99,8 @@ class Exporter:
     ) -> tuple[str, str]:
         # Check if any code is async, if so, raise an error
         for cell in file_manager.app.cell_manager.cells():
+            if not cell:
+                continue
             if cell._is_coroutine():
                 raise UsageError(
                     "Cannot export a notebook with async code to a flat script"
