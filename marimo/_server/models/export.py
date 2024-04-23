@@ -11,3 +11,8 @@ class ExportAsHTMLRequest:
     files: List[str]
     include_code: bool
     asset_url: Optional[str] = None
+
+
+@dataclass
+class ExportAsScriptRequest:
+    download: bool

@@ -53,3 +53,16 @@ def test_export_html_no_code(client: TestClient) -> None:
     )
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' in body
+
+
+@with_session(SESSION_ID)
+def test_export_script(client: TestClient) -> None:
+    response = client.post(
+        "/api/export/script",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert "__generated_with = " in response.text

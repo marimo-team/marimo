@@ -17,6 +17,17 @@ from marimo._server.models.models import InstantiateRequest
 from marimo._server.sessions import Session
 
 
+def export_as_script(
+    filename: str,
+) -> tuple[str, str]:
+    file_router = AppFileRouter.from_filename(filename)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    return Exporter().export_as_script(file_manager)
+
+
 async def run_app_then_export_as_html(
     filename: str,
     include_code: bool,

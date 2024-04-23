@@ -5,6 +5,9 @@ import mimetypes
 import os
 from typing import cast
 
+from click import UsageError
+
+from marimo import __version__
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -12,6 +15,7 @@ from marimo._config.config import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
+from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -88,3 +92,33 @@ class Exporter:
         download_filename = f"{os.path.splitext(basename)[0]}.html"
 
         return html, download_filename
+
+    def export_as_script(
+        self,
+        file_manager: AppFileManager,
+    ) -> tuple[str, str]:
+        # Check if any code is async, if so, raise an error
+        for cell in file_manager.app.cell_manager.cells():
+            if cell._is_coroutine():
+                raise UsageError(
+                    "Cannot export a notebook with async code to a flat script"
+                )
+
+        graph = file_manager.app.graph
+        codes: list[str] = [
+            graph.cells[cid].code
+            for cid in dataflow.topological_sort(graph, graph.cells.keys())
+        ]
+        filename = file_manager.filename
+        if not filename:
+            filename = "notebook.script.py"
+
+        basename = os.path.basename(filename)
+        download_filename = f"{os.path.splitext(basename)[0]}.script.py"
+
+        code = (
+            f'\n__generated_with = "{__version__}"\n\n'
+            + "\n\n# ---\n\n".join(codes)
+        )
+
+        return code, download_filename

@@ -1,0 +1,8 @@
+
+__generated_with = "0.4.2"
+
+import marimo as mo
+
+# ---
+
+slider = mo.ui.slider(0, 10)
