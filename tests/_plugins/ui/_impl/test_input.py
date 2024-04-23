@@ -87,6 +87,53 @@ def test_slider_out_of_bounds() -> None:
     assert "out of bounds" in str(e.value)
 
 
+def test_range_slider_init() -> None:
+    slider = ui.range_slider(1, 10)
+    assert slider.start == 1
+    assert slider.stop == 10
+    assert slider.step is None
+    assert slider.value == [1, 10]
+
+    slider = ui.range_slider(1, 10, value=[2, 5])
+    assert slider.start == 1
+    assert slider.stop == 10
+    assert slider.step is None
+    assert slider.value == [2, 5]
+    for num in slider.value:
+        assert isinstance(num, int)
+
+    slider = ui.range_slider(1, 10, value=[2.0, 5.0])
+    assert slider.value == [2.0, 5.0]
+    for num in slider.value:
+        assert isinstance(num, float)
+
+    slider._update([3, 6])
+    assert slider.value == [3.0, 6.0]
+    for num in slider.value:
+        # initial value was a float, so ints should be
+        # cast to floats
+        assert isinstance(num, float)
+
+
+def test_range_slider_invalid_bounds() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.range_slider(1, 0)
+
+    assert "Invalid bounds" in str(e.value)
+
+
+def test_range_slider_out_of_bounds() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.range_slider(1, 10, value=[1, 11])
+
+    assert "out of bounds" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.range_slider(1, 10, value=[0, 10])
+
+    assert "out of bounds" in str(e.value)
+
+
 def test_text() -> None:
     assert ui.text().value == ""
     assert ui.text(value="hello world").value == "hello world"

@@ -22,6 +22,7 @@
   multiselect
   number
   radio
+  range_slider
   refresh
   slider
   switch
@@ -56,6 +57,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.multiselect
   marimo.ui.number
   marimo.ui.radio
+  marimo.ui.range_slider
   marimo.ui.refresh
   marimo.ui.slider
   marimo.ui.switch
