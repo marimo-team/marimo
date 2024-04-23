@@ -1,8 +1,9 @@
 {
   "name": "@marimo-team/frontend",
   "version": "0.0.0-placeholder",
-  "main": "lib/marimo.js",
-  "types": "lib/index.d.ts",
+  "main": "dist/main.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
   "license": "Apache-2.0",
   "sideEffects": [
     "*.css",
@@ -144,6 +145,8 @@
     "lint:prettier:fix": "prettier --write src/ e2e-tests/",
     "format": "prettier --write src/ e2e-tests/",
     "preview": "vite preview",
+    "dev:islands": "VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
+    "build:islands": "VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -185,6 +188,7 @@
     "jsdom": "^24.0.0",
     "npm-run-all2": "^6.1.2",
     "postcss": "^8.4.35",
+    "postcss-plugin-namespace": "^0.0.3",
     "prettier": "^3.2.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

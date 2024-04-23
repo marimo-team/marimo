@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { IslandsPyodideBridge } from "../islands/bridge";
+import { isIslands } from "../islands/utils";
 import { PyodideBridge } from "../pyodide/bridge";
 import { isPyodide } from "../pyodide/utils";
 import { isStaticNotebook } from "../static/static-state";
@@ -7,6 +9,12 @@ import { createStaticRequests } from "./requests-static";
 import { createErrorToastingRequests } from "./requests-toasting";
 
 function getRequest() {
+  if (isIslands()) {
+    // We don't wrap in error toasting, since we don't currently mount
+    // the ToastProvider in islands
+    return IslandsPyodideBridge.INSTANCE;
+  }
+
   const base = isPyodide()
     ? PyodideBridge.INSTANCE
     : isStaticNotebook()

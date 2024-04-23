@@ -1,0 +1,130 @@
+import asyncio
+from textwrap import dedent
+import marimo
+
+generator = marimo.experimental_MarimoIslandGenerator()
+
+stubs = [
+    generator.add_code("import marimo as mo"),
+    generator.add_code("mo.md('Hello, islands!')"),
+    generator.add_code(
+        """
+    slider = mo.ui.slider(0, 100, 2)
+    slider
+    """
+    ),
+    generator.add_code(
+        """
+    mo.md(f"Slider value: {slider.value}")
+    """
+    ),
+    generator.add_code(
+        """
+    mo.md(
+        \"\"\"
+        # Hello, Markdown!
+
+        Use marimo's "`md`" function to embed rich text into your marimo
+        apps. This function compiles Markdown into HTML that marimo
+        can display.
+
+        For example, here's the code that rendered the above title and
+        paragraph:
+
+        ```python3
+        mo.md(
+            '''
+            # Hello, Markdown!
+
+            Use marimo's "`md`" function to embed rich text into your marimo
+            apps. This function compiles your Markdown into HTML that marimo
+            can display.
+            '''
+        )
+        ```
+        \"\"\"
+    )
+    """
+    ),
+    generator.add_code(
+        """
+    mo.md(
+        r\"\"\"
+        ## LaTeX
+        You can embed LaTeX in Markdown.
+
+        For example,
+
+        ```python3
+        mo.md(r'$f : \mathbf{R} \to \mathbf{R}$')
+        ```
+
+        renders $f : \mathbf{R} \to \mathbf{R}$, while
+
+        ```python3
+        mo.md(
+            r'''
+            \[
+            f: \mathbf{R} \to \mathbf{R}
+            \]
+            '''
+        )
+        ```
+
+        renders the display math
+
+        \[
+        f: \mathbf{R} \to \mathbf{R}.
+        \]
+        \"\"\"
+    )
+    """
+    ),
+]
+
+app = asyncio.run(generator.build())
+
+NEW_LINE = "\n"
+output = f"""
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="description" content="a marimo app" />
+        <title>🏝️</title>
+
+        {generator.render_head(_development_url=True)}
+    </head>
+    <body>
+
+{dedent(NEW_LINE.join([stub.render() for stub in stubs]))}
+
+
+    <br />
+    <br />
+    <br />
+    <br />
+    <hr />
+    <div class="bg-blue-500 p-4 border-2 border-red-500 bg-background">
+      this should not be affected by global tailwind styles
+    </div>
+    <div class="marimo">
+      <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+        this should be affected by global tailwind styles
+      </div>
+    </div>
+    <div class="marimo">
+      <div class="dark">
+        <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+          this should be affected by global tailwind styles (dark)
+        </div>
+      </div>
+    </div>
+
+    </body>
+</html>
+"""
+
+print(output)

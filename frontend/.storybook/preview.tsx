@@ -1,6 +1,6 @@
 import type { Preview, Decorator } from "@storybook/react";
 import "../src/css/index.css";
-import "../src/css/App.css";
+import "../src/css/app/App.css";
 import "./sb.css";
 import "tailwindcss/tailwind.css";
 import React, { useEffect } from "react";

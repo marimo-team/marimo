@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import urllib.parse
 from typing import Optional, Union
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -22,3 +23,8 @@ def create_style(
         return None
 
     return ";".join([f"{k}: {v}" for k, v in pairs.items() if v is not None])
+
+
+def uri_encode_component(code: str) -> str:
+    """Equivalent to `encodeURIComponent` in JavaScript."""
+    return urllib.parse.quote(code, safe="~()*!.'")

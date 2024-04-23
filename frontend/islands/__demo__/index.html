@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="a marimo app" />
+    <title>my demo app</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&amp;family=Lora&amp;family=PT+Sans:wght@400;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css"
+      integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
+      crossorigin="anonymous"
+    />
+    <script type="module" src="../src/core/islands/main.ts"></script>
+
+    <style type="text/css">
+      marimo-island {
+        display: block;
+        margin: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <marimo-island data-app-id="main" data-cell-id="Hbol">
+      <marimo-cell-output> </marimo-cell-output>
+      <marimo-cell-code hidden> import%20marimo%20as%20mo </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main" data-cell-id="MJUe">
+      <marimo-cell-output>
+        <span class="markdown"
+          ><span class="paragraph">Hello, islands!</span></span
+        >
+      </marimo-cell-output>
+      <marimo-cell-code hidden> mo.md('Hello%2C%20islands!') </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main" data-cell-id="vblA">
+      <marimo-cell-output>
+        <marimo-ui-element
+          object-id="vblA-0"
+          random-id="3fa4b908-82a9-40b2-af66-f7ba633f5f9e"
+        >
+          <marimo-slider
+            data-initial-value="0"
+            data-label="null"
+            data-start="0"
+            data-stop="100"
+            data-step="2"
+            data-debounce="false"
+            data-orientation='"horizontal"'
+            data-show-value="false"
+            data-full-width="false"
+          ></marimo-slider>
+        </marimo-ui-element>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        %0A%20%20%20%20slider%20%3D%20mo.ui.slider(0%2C%20100%2C%202)%0A%20%20%20%20slider%0A%20%20%20%20
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main" data-cell-id="bkHC">
+      <marimo-cell-output>
+        <span class="markdown">
+          <span class="paragraph">
+            Slider value: <span class="code">0</span>
+          </span>
+        </span>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        %0A%20%20%20%20mo.md(f%22Slider%20value%3A%20%7Bslider.value%7D%22)%0A%20%20%20%20
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main" data-cell-id="lEQa">
+      <marimo-cell-output>
+        <span class="markdown">
+          <h1 id="hello-markdown">Hello, Markdown!</h1>
+          <span class="paragraph"
+            >Use marimo's "<code>md</code>" function to embed rich text into
+            your marimo apps. This function compiles Markdown into HTML that
+            marimo can display.</span
+          >
+          <span class="paragraph"
+            >For example, here's the code that rendered the above title and
+            paragraph:</span
+          >
+          <div class="codehilite">
+            <pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    # Hello, Markdown!</span>
+<span class="sd">    Use marimo&#39;s &quot;`md`&quot; function to embed rich text into your marimo</span>
+<span class="sd">    apps. This function compiles your Markdown into HTML that marimo</span>
+<span class="sd">    can display.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre>
+          </div>
+        </span>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        %0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20%22%22%22%0A%20%20%20%20%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20%20%20%20%20apps.%20This%20function%20compiles%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20%20%20%20%20can%20display.%0A%0A%20%20%20%20%20%20%20%20For%20example%2C%20here's%20the%20code%20that%20rendered%20the%20above%20title%20and%0A%20%20%20%20%20%20%20%20paragraph%3A%0A%0A%20%20%20%20%20%20%20%20%60%60%60python3%0A%20%20%20%20%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20%20%20%20%20%23%20Hello%2C%20Markdown!%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20Use%20marimo's%20%22%60md%60%22%20function%20to%20embed%20rich%20text%20into%20your%20marimo%0A%20%20%20%20%20%20%20%20%20%20%20%20apps.%20This%20function%20compiles%20your%20Markdown%20into%20HTML%20that%20marimo%0A%20%20%20%20%20%20%20%20%20%20%20%20can%20display.%0A%20%20%20%20%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20)%0A%20%20%20%20%20%20%20%20%60%60%60%0A%20%20%20%20%20%20%20%20%22%22%22%0A%20%20%20%20)%0A%20%20%20%20
+      </marimo-cell-code>
+    </marimo-island>
+    <marimo-island data-app-id="main" data-cell-id="PKri">
+      <marimo-cell-output>
+        <span class="markdown">
+          <h2 id="latex">LaTeX</h2>
+          <span class="paragraph">You can embed LaTeX in Markdown.</span>
+          <span class="paragraph">For example,</span>
+          <div class="codehilite">
+            <pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;$f : \mathbf</span><span class="si">{R}</span><span class="s1">     o \mathbf</span><span class="si">{R}</span><span class="s1">$&#39;</span><span class="p">)</span>
+</code></pre>
+          </div>
+          <span class="paragraph">
+            renders
+            <marimo-tex class="arithmatex"
+              >||(f : \mathbf{R} o \mathbf{R}||)</marimo-tex
+            >
+            , while
+          </span>
+          <div class="codehilite">
+            <pre><span></span><code><span class="n">mo</span><span class="o">.</span><span class="n">md</span><span class="p">(</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    \[</span>
+<span class="sd">    f: \mathbf{R}   o \mathbf{R}</span>
+<span class="sd">    \]</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<span class="p">)</span>
+</code></pre>
+          </div>
+          <span class="paragraph">renders the display math</span>
+          <marimo-tex class="arithmatex"
+            >||[ f: \mathbf{R} o \mathbf{R}. ||]</marimo-tex
+          >
+        </span>
+      </marimo-cell-output>
+      <marimo-cell-code hidden>
+        %0A%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20r%22%22%22%0A%20%20%20%20%20%20%20%20%23%23%20LaTeX%0A%20%20%20%20%20%20%20%20You%20can%20embed%20LaTeX%20in%20Markdown.%0A%0A%20%20%20%20%20%20%20%20For%20example%2C%0A%0A%20%20%20%20%20%20%20%20%60%60%60python3%0A%20%20%20%20%20%20%20%20mo.md(r'%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24')%0A%20%20%20%20%20%20%20%20%60%60%60%0A%0A%20%20%20%20%20%20%20%20renders%20%24f%20%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%24%2C%20while%0A%0A%20%20%20%20%20%20%20%20%60%60%60python3%0A%20%20%20%20%20%20%20%20mo.md(%0A%20%20%20%20%20%20%20%20%20%20%20%20r'''%0A%20%20%20%20%20%20%20%20%20%20%20%20%5C%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D%0A%20%20%20%20%20%20%20%20%20%20%20%20%5C%5D%0A%20%20%20%20%20%20%20%20%20%20%20%20'''%0A%20%20%20%20%20%20%20%20)%0A%20%20%20%20%20%20%20%20%60%60%60%0A%0A%20%20%20%20%20%20%20%20renders%20the%20display%20math%0A%0A%20%20%20%20%20%20%20%20%5C%5B%0A%20%20%20%20%20%20%20%20f%3A%20%5Cmathbf%7BR%7D%20%09o%20%5Cmathbf%7BR%7D.%0A%20%20%20%20%20%20%20%20%5C%5D%0A%20%20%20%20%20%20%20%20%22%22%22%0A%20%20%20%20)%0A%20%20%20%20
+      </marimo-cell-code>
+    </marimo-island>
+    <br />
+    <br />
+    <br />
+    <br />
+    <hr />
+    <div class="bg-blue-500 p-4 border-2 border-red-500 bg-background">
+      this should not be affected by global tailwind styles
+    </div>
+    <div class="marimo">
+      <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+        this should be affected by global tailwind styles
+      </div>
+    </div>
+    <div class="marimo">
+      <div class="dark">
+        <div class="bg-background p-4 border-2 border-red-500 text-foreground">
+          this should be affected by global tailwind styles (dark)
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

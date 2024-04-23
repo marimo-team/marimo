@@ -10,6 +10,7 @@ import { buttonVariants } from "../../components/ui/button";
 import { renderHTML } from "../core/RenderHTML";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { Logger } from "@/utils/Logger";
 
 type FileUploadType = "button" | "area";
 
@@ -132,7 +133,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
       multiple: multiple,
       maxSize: MAX_SIZE,
       onError: (error) => {
-        console.error(error);
+        Logger.error(error);
         toast({
           title: "File upload failed",
           description: error.message,
@@ -161,7 +162,7 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
             setValue(value);
           })
           .catch((error) => {
-            console.error(error);
+            Logger.error(error);
             toast({
               title: "File upload failed",
               description: "Failed to convert file to base64.",

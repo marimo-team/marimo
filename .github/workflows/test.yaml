@@ -63,6 +63,15 @@ jobs:
       - name: 📦 Build
         run: pnpm turbo build
 
+      - name: 📦 Build islands frontend
+        env:
+          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_VERSION: "0.0.0"
+        run: |
+          npm version 0.0.0 --no-git-tag-version
+          pnpm turbo build:islands
+          ./islands/validate.sh
+
   test_python:
     name: Tests on ${{ matrix.os }}, Python ${{ matrix.python-version }} with ${{ matrix.dependencies }} dependencies
     runs-on: ${{ matrix.os }}

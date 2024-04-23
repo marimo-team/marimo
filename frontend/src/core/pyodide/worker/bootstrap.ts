@@ -5,6 +5,9 @@ import { Logger } from "../../../utils/Logger";
 import { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
 import { UserConfig } from "@/core/config/config-schema";
+import { getMarimoWheel } from "./getMarimoWheel";
+import { OperationMessage } from "@/core/kernel/messages";
+import { JsonString } from "@/utils/json/base64";
 
 declare let loadPyodide: (opts: {
   packages: string[];
@@ -12,7 +15,12 @@ declare let loadPyodide: (opts: {
 }) => Promise<PyodideInterface>;
 
 export class DefaultWasmController implements WasmController {
-  private pyodide: PyodideInterface | null = null;
+  protected pyodide: PyodideInterface | null = null;
+
+  get requirePyodide() {
+    invariant(this.pyodide, "Pyodide not loaded");
+    return this.pyodide;
+  }
 
   async bootstrap(opts: { version: string }): Promise<PyodideInterface> {
     const pyodide = await this.loadPyoideAndPackages();
@@ -79,20 +87,24 @@ export class DefaultWasmController implements WasmController {
       `);
   }
 
+  protected mountFilesystem(opts: { code: string; filename: string | null }) {
+    return mountFilesystem({
+      pyodide: this.requirePyodide,
+      ...opts,
+    });
+  }
+
   async startSession(opts: {
     queryParameters: Record<string, string | string[]>;
-    code: string | null;
-    fallbackCode: string;
+    code: string;
     filename: string | null;
-    onMessage: (message: string) => void;
+    onMessage: (message: JsonString<OperationMessage>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
-    invariant(this.pyodide, "Pyodide not loaded");
-
     // Set up the filesystem
-    const { filename, content } = await mountFilesystem({
-      pyodide: this.pyodide,
-      ...opts,
+    const { filename, content } = await this.mountFilesystem({
+      code: opts.code,
+      filename: opts.filename,
     });
 
     // We pass down a messenger object to the code
@@ -108,12 +120,12 @@ export class DefaultWasmController implements WasmController {
     self.user_config = opts.userConfig;
 
     // Load packages from the code
-    await this.pyodide.loadPackagesFromImports(content, {
+    await this.requirePyodide.loadPackagesFromImports(content, {
       messageCallback: Logger.log,
       errorCallback: Logger.error,
     });
 
-    const bridge = await this.pyodide.runPythonAsync(
+    const bridge = await this.requirePyodide.runPythonAsync(
       `
       print("[py] Starting marimo...")
       import asyncio
@@ -137,14 +149,4 @@ export class DefaultWasmController implements WasmController {
 
     return bridge;
   }
-}
-
-function getMarimoWheel(version: string) {
-  if (!version) {
-    return "marimo >= 0.3.0";
-  }
-  if (version === "local") {
-    return "http://localhost:8000/dist/marimo-0.4.2-py3-none-any.whl";
-  }
-  return `marimo==${version}`;
 }

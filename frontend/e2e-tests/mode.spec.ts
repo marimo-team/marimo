@@ -2,6 +2,9 @@
 import { test, expect } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 test("page renders edit feature in edit mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");

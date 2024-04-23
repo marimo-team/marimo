@@ -6,6 +6,9 @@ import {
   exportAsPNG,
   takeScreenshot,
 } from "./helper";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 const appUrl = getAppUrl("kitchen_sink.py//edit");
 

@@ -1,29 +1,73 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-
+import { assertExists } from "@/utils/assertExists";
 import { invariant } from "@/utils/invariant";
 
-export function getMarimoVersion(): string {
-  return getMarimoDOMValue("marimo-version", "version");
+interface MarimoSettings {
+  getMarimoVersion: () => string;
+  getMarimoServerToken: () => string;
+  getMarimoAppConfig: () => unknown;
+  getMarimoUserConfig: () => unknown;
+  getMarimoCode: () => string;
 }
 
-export function getMarimoServerToken(): string {
-  return getMarimoDOMValue("marimo-server-token", "token");
-}
+const domBasedMarimoSettings: MarimoSettings = {
+  getMarimoVersion: () => {
+    return getMarimoDOMValue("marimo-version", "version");
+  },
+  getMarimoServerToken: () => {
+    return getMarimoDOMValue("marimo-server-token", "token");
+  },
+  getMarimoAppConfig: () => {
+    return JSON.parse(getMarimoDOMValue("marimo-app-config", "config"));
+  },
+  getMarimoUserConfig: () => {
+    return JSON.parse(getMarimoDOMValue("marimo-user-config", "config"));
+  },
+  getMarimoCode: () => {
+    const tag = document.querySelector("marimo-code");
+    invariant(tag, "internal-error: marimo-code not tag not found");
+    const inner = tag.innerHTML;
+    return decodeURIComponent(inner).trim();
+  },
+};
 
-export function getRawMarimoAppConfig(): string {
-  return getMarimoDOMValue("marimo-app-config", "config");
-}
+// We don't control the DOM so we need to use a different method to get the values
+const islandsBasedMarimoSettings: MarimoSettings = {
+  getMarimoVersion: () => {
+    assertExists(import.meta.env.VITE_MARIMO_VERSION);
+    return import.meta.env.VITE_MARIMO_VERSION;
+  },
+  getMarimoServerToken: () => {
+    return "";
+  },
+  getMarimoAppConfig: () => {
+    return {};
+  },
+  getMarimoUserConfig: () => {
+    return {};
+  },
+  getMarimoCode: () => {
+    return "";
+  },
+};
 
-export function getRawMarimoUserConfig(): string {
-  return getMarimoDOMValue("marimo-user-config", "config");
-}
+const {
+  getMarimoVersion,
+  getMarimoServerToken,
+  getMarimoAppConfig,
+  getMarimoUserConfig,
+  getMarimoCode,
+} = import.meta.env.VITE_MARIMO_ISLANDS
+  ? islandsBasedMarimoSettings
+  : domBasedMarimoSettings;
 
-export function getMarimoCode(): string {
-  const tag = document.querySelector("marimo-code");
-  invariant(tag, "internal-error: marimo-code not tag not found");
-  const inner = tag.innerHTML;
-  return decodeURIComponent(inner).trim();
-}
+export {
+  getMarimoVersion,
+  getMarimoServerToken,
+  getMarimoAppConfig,
+  getMarimoUserConfig,
+  getMarimoCode,
+};
 
 function getMarimoDOMValue(tagName: string, key: string) {
   const tag = document.querySelector(tagName);

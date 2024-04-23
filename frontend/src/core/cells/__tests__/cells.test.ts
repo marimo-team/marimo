@@ -273,15 +273,12 @@ describe("cell reducer", () => {
 
     // Receive queued messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(10).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
@@ -293,15 +290,12 @@ describe("cell reducer", () => {
 
     // Receive running messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(20).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -313,20 +307,17 @@ describe("cell reducer", () => {
 
     // Console messages shouldn't transition status
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: {
-          channel: "stdout",
-          mimetype: "text/plain",
-          data: "hello!",
-          timestamp: 0,
-        },
-        status: null,
-        stale_inputs: null,
-        timestamp: new Date(22).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: null,
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "hello!",
+        timestamp: 0,
       },
+      status: null,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -337,25 +328,22 @@ describe("cell reducer", () => {
 
     // Receive output messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "output",
-          mimetype: "text/plain",
-          data: "ok",
-          timestamp: 0,
-        },
-        console: {
-          channel: "stdout",
-          mimetype: "text/plain",
-          data: "hello!",
-          timestamp: 0,
-        },
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(33).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "ok",
+        timestamp: 0,
       },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "hello!",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
@@ -409,50 +397,41 @@ describe("cell reducer", () => {
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(40).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(50).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(50).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "marimo-error",
-          mimetype: "application/vnd.marimo+error",
-          data: [
-            { type: "exception", exception_type: "ValueError", msg: "Oh no!" },
-          ],
-          timestamp: 0,
-        },
-        console: null,
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(61).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [
+          { type: "exception", exception_type: "ValueError", msg: "Oh no!" },
+        ],
+        timestamp: 0,
       },
+      console: null,
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
@@ -473,48 +452,39 @@ describe("cell reducer", () => {
     expect(cell.output).not.toBe(null); // keep old output
     // Queue
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(40).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Running
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(50).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(50).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.output).not.toBe(null); // keep old output
     // Receive error
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "marimo-error",
-          mimetype: "application/vnd.marimo+error",
-          data: [{ type: "interruption" }],
-          timestamp: 0,
-        },
-        console: null,
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(61).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [{ type: "interruption" }],
+        timestamp: 0,
       },
+      console: null,
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
@@ -552,15 +522,12 @@ describe("cell reducer", () => {
 
     // Receive queued messages
     actions.handleCellMessage({
-      cellId: secondCell,
-      message: {
-        cell_id: secondCell,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(10).getTime() as Seconds,
-      },
+      cell_id: secondCell,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[1];
     expect(cell.status).toBe("queued");
@@ -572,15 +539,12 @@ describe("cell reducer", () => {
 
     // Receive stale message
     actions.handleCellMessage({
-      cellId: secondCell,
-      message: {
-        cell_id: secondCell,
-        output: null,
-        console: null,
-        status: null,
-        stale_inputs: true,
-        timestamp: new Date(20).getTime() as Seconds,
-      },
+      cell_id: secondCell,
+      output: null,
+      console: null,
+      status: null,
+      stale_inputs: true,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[1];
     expect(cell.status).toBe("queued");
@@ -608,25 +572,22 @@ describe("cell reducer", () => {
       cellId: firstCellId,
     });
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "output",
-          mimetype: "text/plain",
-          data: "ok",
-          timestamp: 0,
-        },
-        console: {
-          channel: "stdout",
-          mimetype: "text/plain",
-          data: "hello!",
-          timestamp: 0,
-        },
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(33).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: {
+        channel: "output",
+        mimetype: "text/plain",
+        data: "ok",
+        timestamp: 0,
       },
+      console: {
+        channel: "stdout",
+        mimetype: "text/plain",
+        data: "hello!",
+        timestamp: 0,
+      },
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(33).getTime() as Seconds,
     });
 
     // Check steady state
@@ -684,15 +645,12 @@ describe("cell reducer", () => {
 
     // Receive queued messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(10).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
     });
     let cell = cells[0];
     expect(cell.status).toBe("queued");
@@ -706,41 +664,35 @@ describe("cell reducer", () => {
 
     // Receive idle message
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(20).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive stop output
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "marimo-error",
-          mimetype: "application/vnd.marimo+error",
-          data: [
-            {
-              msg: "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
-              raising_cell: "2" as CellId,
-              type: "ancestor-stopped",
-            },
-          ],
-          timestamp: new Date(20).getTime() as Seconds,
-        },
-        console: null,
-        status: "idle",
-        stale_inputs: null,
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [
+          {
+            msg: "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
+            raising_cell: "2" as CellId,
+            type: "ancestor-stopped",
+          },
+        ],
         timestamp: new Date(20).getTime() as Seconds,
       },
+      console: null,
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
@@ -753,15 +705,12 @@ describe("cell reducer", () => {
 
     // Receive queued message
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(30).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(30).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
@@ -770,15 +719,12 @@ describe("cell reducer", () => {
 
     // Receive running message
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(40).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(40).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -824,15 +770,12 @@ describe("cell reducer", () => {
 
     // Receive queued messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(10).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
@@ -840,15 +783,12 @@ describe("cell reducer", () => {
 
     // Receive running messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(20).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -856,15 +796,12 @@ describe("cell reducer", () => {
 
     // Add console
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: STDOUT,
-        status: null,
-        stale_inputs: null,
-        timestamp: new Date(22).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: STDOUT,
+      status: null,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -877,15 +814,12 @@ describe("cell reducer", () => {
 
     // Ask via stdin
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: STD_IN_1,
-        status: null,
-        stale_inputs: null,
-        timestamp: new Date(22).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: STD_IN_1,
+      status: null,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.consoleOutputs).toEqual([STDOUT, STD_IN_1]);
@@ -911,15 +845,12 @@ describe("cell reducer", () => {
 
     // Ask via stdin, again
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: STD_IN_2,
-        status: null,
-        stale_inputs: null,
-        timestamp: new Date(22).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: STD_IN_2,
+      status: null,
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.consoleOutputs).toEqual([
@@ -932,20 +863,17 @@ describe("cell reducer", () => {
 
     // Interrupt, so we respond with ""
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: {
-          channel: "marimo-error",
-          mimetype: "application/vnd.marimo+error",
-          data: [{ type: "interruption" }],
-          timestamp: 0,
-        },
-        console: null,
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(61).getTime() as Seconds,
+      cell_id: firstCellId,
+      output: {
+        channel: "marimo-error",
+        mimetype: "application/vnd.marimo+error",
+        data: [{ type: "interruption" }],
+        timestamp: 0,
       },
+      console: null,
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(61).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
@@ -978,15 +906,12 @@ describe("cell reducer", () => {
 
     // Add console
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: [OLD_STDOUT],
-        status: null,
-        stale_inputs: null,
-        timestamp: new Date(1).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: [OLD_STDOUT],
+      status: null,
+      stale_inputs: null,
+      timestamp: new Date(1).getTime() as Seconds,
     });
 
     // Prepare for run
@@ -1000,15 +925,12 @@ describe("cell reducer", () => {
 
     // Receive queued messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: null,
-        status: "queued",
-        stale_inputs: null,
-        timestamp: new Date(10).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: null,
+      status: "queued",
+      stale_inputs: null,
+      timestamp: new Date(10).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
@@ -1017,15 +939,12 @@ describe("cell reducer", () => {
 
     // Receive running messages
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: [], // Backend sends an empty array to clearu
-        status: "running",
-        stale_inputs: null,
-        timestamp: new Date(20).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: [], // Backend sends an empty array to clearu
+      status: "running",
+      stale_inputs: null,
+      timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
@@ -1034,15 +953,12 @@ describe("cell reducer", () => {
 
     // Add console
     actions.handleCellMessage({
-      cellId: firstCellId,
-      message: {
-        cell_id: firstCellId,
-        output: null,
-        console: [STDOUT],
-        status: "idle",
-        stale_inputs: null,
-        timestamp: new Date(22).getTime() as Seconds,
-      },
+      cell_id: firstCellId,
+      output: null,
+      console: [STDOUT],
+      status: "idle",
+      stale_inputs: null,
+      timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
     expect(cell.consoleOutputs).toEqual([STDOUT]);

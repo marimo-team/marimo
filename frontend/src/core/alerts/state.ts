@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { PackageInstallationStatus } from "@/core/kernel/messages";
-import { createReducer } from "@/utils/createReducer";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import { generateUUID } from "@/utils/uuid";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { useAtomValue } from "jotai";
 
 type Identified<T> = { id: string } & T;
 
@@ -42,7 +41,7 @@ interface AlertState {
     | null;
 }
 
-const { reducer, createActions } = createReducer(
+const { valueAtom: alertAtom, useActions } = createReducerAndAtoms(
   () => ({ packageAlert: null }) as AlertState,
   {
     addPackageAlert: (
@@ -63,10 +62,6 @@ const { reducer, createActions } = createReducer(
   },
 );
 
-const alertAtom = atom<AlertState>({
-  packageAlert: null,
-});
-
 /**
  * React hook to get the Alert state.
  */
@@ -76,11 +71,5 @@ export const useAlerts = () => useAtomValue(alertAtom);
  * React hook to get the Alerts actions.
  */
 export function useAlertActions() {
-  const setState = useSetAtom(alertAtom);
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 }

@@ -1,22 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
+import { getFS } from "./getFS";
 
-const FALLBACK_FILE = "notebook.py";
-
-export function getFS(pyodide: PyodideInterface): typeof FS {
-  return pyodide.FS;
-}
+const NOTEBOOK_FILENAME = "notebook.py";
 
 export async function mountFilesystem(opts: {
   pyodide: PyodideInterface;
-  code: string | null;
-  fallbackCode: string;
+  code: string;
   filename: string | null;
 }): Promise<{
   content: string;
   filename: string;
 }> {
-  const { pyodide, filename, code, fallbackCode } = opts;
+  const { pyodide, filename, code } = opts;
   const FS = getFS(pyodide);
 
   // This is our home directory
@@ -38,11 +34,9 @@ export async function mountFilesystem(opts: {
     }
   };
 
-  const content = code || fallbackCode;
-
   // If there is a filename, read the file if it exists
   // We don't want to change the contents of the file if it already exists
-  if (filename && filename !== FALLBACK_FILE) {
+  if (filename && filename !== NOTEBOOK_FILENAME) {
     const existingContent = readIfExist(filename);
     if (existingContent) {
       return {
@@ -50,20 +44,13 @@ export async function mountFilesystem(opts: {
         filename,
       };
     }
-
-    // If the filename does not exist in the FS, write the content to the file
-    FS.writeFile(filename, content);
-    return {
-      content,
-      filename,
-    };
   }
 
   // If there is no filename, write the code to the last used file
-  FS.writeFile(FALLBACK_FILE, content);
+  FS.writeFile(NOTEBOOK_FILENAME, code);
   return {
-    content: content,
-    filename: FALLBACK_FILE,
+    content: code,
+    filename: NOTEBOOK_FILENAME,
   };
 }
 

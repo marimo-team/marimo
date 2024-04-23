@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createReducer } from "@/utils/createReducer";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import { useAtomValue } from "jotai";
 
 interface Banner {
   id: string;
@@ -16,7 +15,7 @@ interface BannerState {
   banners: Banner[];
 }
 
-const { reducer, createActions } = createReducer(
+const { valueAtom: bannersAtom, useActions } = createReducerAndAtoms(
   () => ({ banners: [] }) as BannerState,
   {
     addBanner: (state, banner: Banner) => {
@@ -34,8 +33,6 @@ const { reducer, createActions } = createReducer(
   },
 );
 
-const bannersAtom = atom<BannerState>({ banners: [] });
-
 /**
  * React hook to get the Banner state.
  */
@@ -45,11 +42,5 @@ export const useBanners = () => useAtomValue(bannersAtom);
  * React hook to get the Banners actions.
  */
 export function useBannersActions() {
-  const setState = useSetAtom(bannersAtom);
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 }

@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
 import { NoInfer } from "@tanstack/react-table";
-import { Reducer } from "react";
+import { atom, useSetAtom } from "jotai";
+import { Reducer, useMemo } from "react";
 
 interface ReducerAction<T> {
   type: string;
@@ -65,4 +66,26 @@ export function createReducer<
       return actions;
     },
   };
+}
+
+export function createReducerAndAtoms<
+  State,
+  RH extends ReducerHandlers<NoInfer<State>>,
+>(initialState: () => State, reducers: RH) {
+  const { reducer, createActions } = createReducer(initialState, reducers);
+
+  const valueAtom = atom(initialState());
+
+  function useActions() {
+    const setState = useSetAtom(valueAtom);
+
+    return useMemo(() => {
+      const actions = createActions((action) => {
+        setState((state) => reducer(state, action));
+      });
+      return actions;
+    }, [setState]);
+  }
+
+  return { reducer, createActions, valueAtom, useActions };
 }

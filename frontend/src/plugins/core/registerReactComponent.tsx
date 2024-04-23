@@ -43,6 +43,7 @@ import { PluginFunctions } from "./rpc";
 import { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
+import { StyleNamespace } from "@/theme/namespace";
 
 export interface PluginSlotHandle {
   /**
@@ -188,18 +189,20 @@ function PluginSlotInternal<T>(
 
   // Render the plugin
   return (
-    <div className={`contents ${theme}`}>
-      <Suspense fallback={<div />}>
-        {plugin.render({
-          setValue: setValueAndSendInput,
-          value,
-          data: parsedResult.data,
-          children: childNodes,
-          host: hostElement,
-          functions: functionMethods,
-        })}
-      </Suspense>
-    </div>
+    <StyleNamespace>
+      <div className={`contents ${theme}`}>
+        <Suspense fallback={<div />}>
+          {plugin.render({
+            setValue: setValueAndSendInput,
+            value,
+            data: parsedResult.data,
+            children: childNodes,
+            host: hostElement,
+            functions: functionMethods,
+          })}
+        </Suspense>
+      </div>
+    </StyleNamespace>
   );
 }
 
@@ -341,6 +344,9 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
       invariant(shadowRoot, "Shadow root should exist");
       // If we don't support adopted stylesheets, we need to copy the styles
       if (!this.isAdoptedStyleSheetsSupported()) {
+        Logger.warn(
+          "adoptedStyleSheets not supported, copying stylesheets in a less performance way. Please consider upgrading your browser.",
+        );
         this.copyStylesFallback();
         return;
       }
@@ -444,7 +450,7 @@ function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
     return true;
   }
 
-  if (sheet.href.includes("@marimo-team/frontend")) {
+  if (sheet.href.includes("/@marimo-team/")) {
     return true;
   }
 

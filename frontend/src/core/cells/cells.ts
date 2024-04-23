@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ReducerWithoutAction, createRef, useMemo } from "react";
+import { atom, useAtom, useAtomValue } from "jotai";
+import { ReducerWithoutAction, createRef } from "react";
 import { CellMessage } from "../kernel/messages";
 import {
   CellConfig,
@@ -18,7 +18,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { CellId } from "./ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "../state/jotai";
-import { createReducer } from "../../utils/createReducer";
+import { createReducerAndAtoms } from "../../utils/createReducer";
 import { arrayInsert, arrayDelete, arrayShallowEquals } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { mergeOutlines } from "../dom/outline";
@@ -145,7 +145,12 @@ function initialNotebookState(): NotebookState {
 /**
  * Actions and reducer for the notebook state.
  */
-const { reducer, createActions } = createReducer(initialNotebookState, {
+const {
+  reducer,
+  createActions,
+  useActions,
+  valueAtom: notebookAtom,
+} = createReducerAndAtoms(initialNotebookState, {
   createNewCell: (
     state,
     action: { cellId: CellId | "__end__"; before: boolean; code?: string },
@@ -430,11 +435,8 @@ const { reducer, createActions } = createReducer(initialNotebookState, {
       };
     });
   },
-  handleCellMessage: (
-    state,
-    action: { cellId: CellId; message: CellMessage },
-  ) => {
-    const { cellId, message } = action;
+  handleCellMessage: (state, message: CellMessage) => {
+    const cellId = message.cell_id;
     const nextState = updateCellRuntimeState(state, cellId, (cell) => {
       return transitionCell(cell, message);
     });
@@ -642,9 +644,13 @@ function updateCellData(
   };
 }
 
-/// ATOMS
+export {
+  createActions as createNotebookActions,
+  reducer as notebookReducer,
+  notebookAtom,
+};
 
-export const notebookAtom = atom<NotebookState>(initialNotebookState());
+/// ATOMS
 
 const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
@@ -872,14 +878,7 @@ export function flattenNotebookCells(state: NotebookState) {
  * when cells change.
  */
 export function useCellActions() {
-  const setState = useSetAtom(notebookAtom);
-
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 }
 
 /**

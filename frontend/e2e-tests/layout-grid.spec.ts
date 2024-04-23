@@ -2,6 +2,9 @@
 import { test, expect, Page } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 import { takeScreenshot } from "./helper";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 const runUrl = getAppUrl("layout_grid.py//run");
 const runMaxWidthUrl = getAppUrl("layout_grid_max_width.py//run");

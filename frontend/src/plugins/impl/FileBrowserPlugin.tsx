@@ -15,6 +15,7 @@ import {
 import { renderHTML } from "../core/RenderHTML";
 import { PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
+import { Logger } from "@/utils/Logger";
 
 /**
  * Arguments for a file browser component.
@@ -128,7 +129,7 @@ export const FileBrowser = ({
   );
 
   if (error) {
-    console.error(error);
+    Logger.error(error);
     toast({
       title: `Could not load files in directory ${path}`,
       description: error.message,

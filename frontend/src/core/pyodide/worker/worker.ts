@@ -17,12 +17,13 @@ import { ParentSchema } from "../rpc";
 import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
 import { invariant } from "../../../utils/invariant";
-import { UserConfig } from "vite";
+import { OperationMessage } from "@/core/kernel/messages";
+import { JsonString } from "@/utils/json/base64";
+import { UserConfig } from "@/core/config/config-schema";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
   controller: WasmController;
-  rpc: ReturnType<typeof createRPC>;
 };
 
 // Initialize pyodide
@@ -58,9 +59,11 @@ async function getController(version: string) {
 }
 
 const pyodideReadyPromise = loadPyodideAndPackages();
-const messageBuffer = new MessageBuffer((message: string) => {
-  rpc.send.kernelMessage({ message });
-});
+const messageBuffer = new MessageBuffer(
+  (message: JsonString<OperationMessage>) => {
+    rpc.send.kernelMessage({ message });
+  },
+);
 const bridgeReady = new Deferred<SerializedBridge>();
 let started = false;
 
@@ -71,8 +74,7 @@ const requestHandler = createRPCRequestHandler({
    */
   startSession: async (opts: {
     queryParameters: Record<string, string | string[]>;
-    code: string | null;
-    fallbackCode: string;
+    code: string;
     filename: string | null;
     userConfig: UserConfig | null;
   }) => {
@@ -87,7 +89,10 @@ const requestHandler = createRPCRequestHandler({
     try {
       invariant(self.controller, "Controller not loaded");
       const bridge = await self.controller.startSession({
-        ...opts,
+        code: opts.code,
+        filename: opts.filename,
+        queryParameters: opts.queryParameters,
+        userConfig: opts.userConfig,
         onMessage: messageBuffer.push,
       });
       bridgeReady.resolve(bridge);
@@ -192,7 +197,7 @@ export type WorkerSchema = RPCSchema<
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message
-      kernelMessage: { message: string };
+      kernelMessage: { message: JsonString<OperationMessage> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide fails to initialize
@@ -209,7 +214,6 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
   requestHandler,
 });
 
-self.rpc = rpc;
 rpc.send("ready", {});
 
 /// Listeners

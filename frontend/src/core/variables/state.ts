@@ -1,15 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { createReducer } from "@/utils/createReducer";
+import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Variable, VariableName, Variables } from "./types";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { useAtomValue } from "jotai";
 
 function initialState(): Variables {
   return {};
 }
 
-const { reducer, createActions } = createReducer(initialState, {
+const {
+  reducer,
+  createActions,
+  valueAtom: variablesAtom,
+  useActions,
+} = createReducerAndAtoms(initialState, {
   setVariables: (state, variables: Variable[]) => {
     // start with empty state, but keep the old state's metadata
     const oldVariables = { ...state };
@@ -52,8 +56,6 @@ const { reducer, createActions } = createReducer(initialState, {
   },
 });
 
-const variablesAtom = atom(initialState());
-
 /**
  * React hook to get the variables state.
  */
@@ -63,13 +65,7 @@ export const useVariables = () => useAtomValue(variablesAtom);
  * React hook to get the variables actions.
  */
 export function useVariablesActions() {
-  const setState = useSetAtom(variablesAtom);
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 }
 
 export const exportedForTesting = {

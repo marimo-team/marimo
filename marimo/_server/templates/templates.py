@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import json
-import urllib.parse
 from typing import List, Optional
 
 from marimo import __version__
@@ -11,6 +10,7 @@ from marimo._ast.app import _AppConfig
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._config.config import MarimoConfig
 from marimo._messaging.cell_output import CellOutput
+from marimo._output.utils import uri_encode_component
 from marimo._server.api.utils import parse_title
 from marimo._server.model import SessionMode
 
@@ -124,7 +124,7 @@ def static_notebook_template(
 
     code_block = f"""
     <marimo-code hidden="">
-        {urllib.parse.quote(code)}
+        {uri_encode_component(code)}
     </marimo-code>
     """
     if not code:
@@ -148,7 +148,7 @@ def static_notebook_template(
 
 def _serialize_to_base64(value: str) -> str:
     # Encode the JSON string to URL-encoded format
-    url_encoded = urllib.parse.quote(value)
+    url_encoded = uri_encode_component(value)
     # Encode the URL-encoded string to Base64
     base64_encoded = base64.b64encode(url_encoded.encode()).decode()
     return base64_encoded

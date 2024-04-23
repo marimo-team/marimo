@@ -1,0 +1,10 @@
+<marimo-island
+    data-app-id="main"
+    data-cell-id="MJUe"
+>
+    <marimo-cell-output>
+    <span class="markdown"><span class="paragraph">Hello, islands!</span></span>
+    </marimo-cell-output>
+    <marimo-cell-code hidden>
+    </marimo-cell-code>
+</marimo-island>

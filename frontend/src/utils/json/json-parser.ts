@@ -1,10 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { JsonString } from "./base64";
+
 /**
  * Parse an attribute value as JSON.
  * This also handles NaN, Infinity, and -Infinity.
  */
-export function jsonParseWithSpecialChar<T>(value: string): T {
+export function jsonParseWithSpecialChar<T = unknown>(
+  value: JsonString<T> | string,
+): T {
   // This regex handling is expensive and often not needed.
   // We try to parse with JSON.parse first, and if that fails, we use the regex.
   try {

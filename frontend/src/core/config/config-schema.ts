@@ -1,10 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
-import {
-  getRawMarimoAppConfig,
-  getRawMarimoUserConfig,
-} from "../dom/marimo-tag";
+import { getMarimoAppConfig, getMarimoUserConfig } from "../dom/marimo-tag";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -111,7 +108,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {
   try {
-    return AppConfigSchema.parse(JSON.parse(getRawMarimoAppConfig()));
+    return AppConfigSchema.parse(getMarimoAppConfig());
   } catch (error) {
     Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
@@ -122,7 +119,7 @@ export function parseAppConfig() {
 
 export function parseUserConfig(): UserConfig {
   try {
-    const parsed = UserConfigSchema.parse(JSON.parse(getRawMarimoUserConfig()));
+    const parsed = UserConfigSchema.parse(getMarimoUserConfig());
     for (const [key, value] of Object.entries(parsed.experimental)) {
       if (value === true) {
         Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
@@ -133,6 +130,10 @@ export function parseUserConfig(): UserConfig {
     Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
     );
-    return UserConfigSchema.parse({});
+    return defaultUserConfig();
   }
+}
+
+export function defaultUserConfig(): UserConfig {
+  return UserConfigSchema.parse({});
 }

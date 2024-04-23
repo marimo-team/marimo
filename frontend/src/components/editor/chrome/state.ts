@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createReducer } from "@/utils/createReducer";
-import { atom, useAtomValue, useSetAtom } from "jotai";
-import { useMemo } from "react";
+import { createReducerAndAtoms } from "@/utils/createReducer";
+import { useAtomValue } from "jotai";
 import { PanelType } from "./types";
 
 export interface ChromeState {
@@ -18,7 +17,12 @@ function initialState(): ChromeState {
   };
 }
 
-const { reducer, createActions } = createReducer(initialState, {
+const {
+  reducer,
+  createActions,
+  valueAtom: chromeAtom,
+  useActions,
+} = createReducerAndAtoms(initialState, {
   openApplication: (state, selectedPanel: PanelType) => ({
     ...state,
     selectedPanel,
@@ -36,7 +40,6 @@ const { reducer, createActions } = createReducer(initialState, {
   }),
 });
 
-const chromeAtom = atom<ChromeState>(initialState());
 export const useChromeState = () => {
   const state = useAtomValue(chromeAtom);
   if (state.isOpen) {
@@ -49,14 +52,7 @@ export const useChromeState = () => {
 };
 
 export function useChromeActions() {
-  const setState = useSetAtom(chromeAtom);
-
-  return useMemo(() => {
-    const actions = createActions((action) => {
-      setState((state) => reducer(state, action));
-    });
-    return actions;
-  }, [setState]);
+  return useActions();
 }
 
 /**
