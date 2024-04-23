@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import List, Optional, cast
+from typing import TYPE_CHECKING, List, Optional, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._output.utils import uri_encode_component
-from marimo._server.export.utils import run_app_until_completion
-from marimo._server.file_manager import AppFileManager
-from marimo._server.sessions import Session
+
+if TYPE_CHECKING:
+    from marimo._server.sessions import Session
 
 LOGGER = _loggers.marimo_logger()
 
@@ -162,6 +162,8 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
+        from marimo._server.export.utils import run_app_until_completion
+        from marimo._server.file_manager import AppFileManager
 
         if self.has_run:
             raise ValueError("You can only call build() once")
@@ -234,9 +236,9 @@ class MarimoIslandGenerator:
 
         return dedent(
             f"""
-            <script src="{base_url}/dist/main.js"></script>
+            <script type="module" src="{base_url}/dist/main.js"></script>
             <link
-                href="{base_url}/dist/styles.css"
+                href="{base_url}/dist/style.css"
                 rel="stylesheet"
                 crossorigin="anonymous"
             />
