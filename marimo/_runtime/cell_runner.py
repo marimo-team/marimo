@@ -4,8 +4,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import functools
+import io
 import signal
-import sys
 import threading
 import traceback
 from dataclasses import dataclass
@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
 from marimo._loggers import marimo_logger
+from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -218,6 +219,7 @@ class Runner:
 
     async def run(self, cell_id: CellId_t) -> RunResult:
         """Run a cell."""
+
         cell = self.graph.cells[cell_id]
         try:
             if cell.is_coroutine():
@@ -243,7 +245,10 @@ class Runner:
                 e = MarimoInterrupt()
             self.interrupted = True
             run_result = RunResult(output=None, exception=e)
-            traceback.print_exc(file=sys.stderr)
+            tmpio = io.StringIO()
+            traceback.print_exc(file=tmpio)
+            tmpio.seek(0)
+            write_traceback(tmpio.read())
         except MarimoStopError as e:
             # Raised by mo.stop().
             # cancel only the descendants of this cell
@@ -259,7 +264,10 @@ class Runner:
 
             self.cancel(cell_id)
             run_result = RunResult(output=None, exception=e)
-            traceback.print_exc(file=sys.stderr)
+            tmpio = io.StringIO()
+            traceback.print_exc(file=tmpio)
+            tmpio.seek(0)
+            write_traceback(tmpio.read())
         finally:
             # if a debugger is active, force it to skip past marimo code.
             try:

@@ -359,3 +359,43 @@ span.linenos.special {
 .codehilite .il {
   color: var(--codehilite-il);
 } /* Literal.Number.Integer.Long */
+
+/* Special formatting for Python traceback */
+.stderr .codehilite {
+  .highlight {
+    color: var(--sky-8);
+  }
+  .gt {
+    color: var(--red-9);
+  }
+  .nb {
+    color: var(--grass-8);
+  }
+  .m {
+    color: var(--sky-11);
+  }
+  .n {
+    color: var(--slate-10);
+  }
+  .w {
+    color: var(--slate-10);
+  }
+  .o {
+    color: var(--slate-10);
+  }
+  .p {
+    color: var(--slate-10);
+  }
+  .bp {
+    color: var(--slate-10);
+  }
+  .pm {
+    color: var(--slate-10);
+  }
+  .k {
+    color: var(--slate-10);
+  }
+  .x {
+    color: var(--red-9);
+  }
+}

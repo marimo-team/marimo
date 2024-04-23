@@ -46,7 +46,8 @@ async def test_traceback_includes_lineno(
     )
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
-    assert "line 3" in buffer.getvalue()
+    # pygments inserts HTML in traceback
+    assert 'line <span class="m">3</span>' in buffer.getvalue()
 
 
 async def test_base_exception_caught(
@@ -77,4 +78,5 @@ async def test_base_exception_caught(
     )
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
-    assert "line 3" in buffer.getvalue()
+    # pygments inserts HTML in traceback
+    assert 'line <span class="m">3</span>' in buffer.getvalue()

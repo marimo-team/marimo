@@ -68,6 +68,7 @@ dev = [
     "click < 8.1.4",  # https://github.com/pallets/click/issues/2558
     "black~=23.3.0",
     "build~=0.10.0",
+    "types-Pygments~=2.17.0.20240310",
     # for server testing
     "httpx~=0.26.0",
     # For testing mo.ui.chart, dataframes, tables
