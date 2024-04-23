@@ -283,4 +283,5 @@ extend-exclude = [
     "MultiSelectPlugin.test.ts",
     "module_name_to_pypi_name.py",
     "**/snapshots/*",
+    "**/__demo__/index.html",
 ]
