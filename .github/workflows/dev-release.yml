@@ -99,7 +99,6 @@ jobs:
           VITE_MARIMO_VERSION: ${{ env.NPM_TOKEN }}
         run: |
           echo "Updating package.json name to @marimo-team/islands"
-          npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
           sed -i 's/"name": "@marimo-team\/frontend"/"name": "@marimo-team\/islands"/' package.json
 
       - name: 📦 Rebuild frontend
