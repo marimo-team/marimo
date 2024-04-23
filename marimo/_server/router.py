@@ -11,6 +11,7 @@ from starlette.responses import (
     FileResponse,
     HTMLResponse,
     JSONResponse,
+    PlainTextResponse,
     Response,
     StreamingResponse,
 )
@@ -55,6 +56,8 @@ class APIRouter(Router):
                 if isinstance(response, StreamingResponse):
                     return response
                 if isinstance(response, HTMLResponse):
+                    return response
+                if isinstance(response, PlainTextResponse):
                     return response
 
                 if dataclasses.is_dataclass(response):

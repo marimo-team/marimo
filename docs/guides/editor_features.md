@@ -22,7 +22,6 @@ To access these settings, click the gear icon in the top-right of the editor.
 </figure>
 </div>
 
-
 ## Overview panels
 
 marimo ships with the following IDE-like panels that help provide an overview
@@ -120,7 +119,6 @@ You can also export to HTML at the command-line:
 ```bash
 marimo export html notebook.py -o notebook.html
 ```
-
 
 ## Configuration
 

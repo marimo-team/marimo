@@ -156,6 +156,11 @@ def temp_marimo_file() -> Generator[str, None, None]:
             import marimo as mo
             return mo,
 
+        @app.cell
+        def __(mo):
+            slider = mo.ui.slider(0, 10)
+            return slider,
+
         if __name__ == "__main__":
             app.run()
         """
