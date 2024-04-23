@@ -395,9 +395,6 @@ span.linenos.special {
   .k {
     color: var(--slate-10);
   }
-  .n {
-    color: var(--slate-10);
-  }
   .x {
     color: var(--red-9);
   }
