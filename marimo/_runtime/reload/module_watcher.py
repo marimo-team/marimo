@@ -49,9 +49,9 @@ def is_submodule(src_name: str, target_name: str) -> bool:
 
 def _depends_on(
     src_module: types.ModuleType,
-    modules_excluded_from_analysis: list[str],
     target_modules: set[types.ModuleType],
     failed_filenames: set[str],
+    finder: ModuleFinder,
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
     if not hasattr(src_module, "__file__") or src_module.__file__ is None:
@@ -60,7 +60,6 @@ def _depends_on(
     if src_module.__file__ in failed_filenames:
         return False
 
-    finder = ModuleFinder(excludes=modules_excluded_from_analysis)
     try:
         finder.run_script(src_module.__file__)
     except SyntaxError:
@@ -104,26 +103,32 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
     return "site-packages" in pathlib.Path(filepath).parts
 
 
-def _check_modules(
-    modules: dict[str, types.ModuleType],
-    reloader: ModuleReloader,
-    failed_filenames: set[str],
-) -> dict[str, types.ModuleType]:
-    """Returns the set of modules used by the graph that have been modified"""
-    stale_modules: dict[str, types.ModuleType] = {}
-    modified_modules = reloader.check(modules=sys.modules, reload=False)
-    modules_excluded_from_analysis = [
+def _get_excluded_modules() -> list[str]:
+    return [
         modname
         for modname in sys.modules
         if (m := sys.modules.get(modname)) is not None
         and _is_third_party_module(m)
     ]
+
+
+def _check_modules(
+    modules: dict[str, types.ModuleType],
+    reloader: ModuleReloader,
+    failed_filenames: set[str],
+    finder: ModuleFinder,
+) -> dict[str, types.ModuleType]:
+    """Returns the set of modules used by the graph that have been modified"""
+    stale_modules: dict[str, types.ModuleType] = {}
+    modified_modules = reloader.check(modules=sys.modules, reload=False)
+    # TODO(akshayka): could also exclude modules part of the standard library;
+    # haven't found a reliable way to do this, however.
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
-            modules_excluded_from_analysis=modules_excluded_from_analysis,
             target_modules=set(m for m in modified_modules if m is not None),
             failed_filenames=failed_filenames,
+            finder=finder,
         ):
             stale_modules[modname] = module
 
@@ -147,6 +152,7 @@ def watch_modules(
     reloader = ModuleReloader()
     # modules that failed to be analyzed
     failed_filenames: set[str] = set()
+    finder = ModuleFinder(excludes=_get_excluded_modules())
     while not should_exit.is_set():
         run_is_processed.wait()
         time.sleep(1)
@@ -163,6 +169,7 @@ def watch_modules(
             modules=modules,
             reloader=reloader,
             failed_filenames=failed_filenames,
+            finder=finder,
         )
         if stale_modules:
             with graph.lock:
@@ -179,6 +186,8 @@ def watch_modules(
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()
+        # Update excluded modules in case the module set has changed.
+        finder.excludes = _get_excluded_modules()
 
 
 class ModuleWatcher:
