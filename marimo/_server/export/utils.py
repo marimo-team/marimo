@@ -79,6 +79,7 @@ async def run_app_until_completion(
 
     # Create a session
     session = Session.create(
+        # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=NoopSessionConsumer(),
         mode=SessionMode.RUN,

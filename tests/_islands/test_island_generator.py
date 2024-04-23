@@ -33,28 +33,36 @@ async def test_build():
 
 async def test_render():
     generator = MarimoIslandGenerator()
-    generator.add_code("import marimo as mo")
-    generator.add_code("mo.md('Hello, islands!')")
+    block1 = generator.add_code("import marimo as mo")
+    block2 = generator.add_code("mo.md('Hello, islands!')")
 
     # Check if render raises an error when build() is not called
-    with pytest.raises(ValueError):
-        generator.render("mo.md('Hello, islands!')")
+    with pytest.raises(AssertionError) as e:
+        block1.render()
+    assert "You must call build() before rendering" in str(e.value)
+
+    with pytest.raises(AssertionError) as e:
+        block2.render(include_code=False)
+    assert "You must call build() before rendering" in str(e.value)
 
     await generator.build()
 
+    with pytest.raises(ValueError) as e:
+        block1.render(include_code=False, include_output=False)
+    assert str(e.value) == "You must include either code or output"
+
     # Check if render works after build() is called
-    snapshot("island.txt", generator.render("mo.md('Hello, islands!')"))
+    snapshot("island.txt", block2.render())
 
-    # Check if render returns an empty string for a non-existent cell
-    assert generator.render("mo.md('Non-existent cell')") == ""
+    snapshot("islan d-no-code.txt", block2.render(include_code=False))
+
+    snapshot("island-no-output.txt", block2.render(include_output=False))
 
 
-async def test_render_header():
+async def test_render_head():
     generator = MarimoIslandGenerator()
     generator.add_code("print('Hello, islands!')")
     await generator.build()
 
-    # Check if render_header works after build() is called
-    snapshot(
-        "header.txt", generator.render_header().replace(__version__, "0.0.0")
-    )
+    # Check if render_head works after build() is called
+    snapshot("header.txt", generator.render_head().replace(__version__, "0.0.0"))

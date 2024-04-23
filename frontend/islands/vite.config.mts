@@ -12,7 +12,7 @@ const htmlDevPlugin = (): Plugin => {
     name: "html-transform",
     transformIndexHtml: async () => {
       const indexHtml = await fs.promises.readFile(
-        path.resolve(__dirname, "index.html"),
+        path.resolve(__dirname, "__demo__", "index.html"),
         "utf-8",
       );
 

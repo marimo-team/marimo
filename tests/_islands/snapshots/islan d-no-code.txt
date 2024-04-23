@@ -6,6 +6,5 @@
     <span class="markdown"><span class="paragraph">Hello, islands!</span></span>
     </marimo-cell-output>
     <marimo-cell-code hidden>
-    mo.md('Hello%2C%20islands!')
     </marimo-cell-code>
 </marimo-island>

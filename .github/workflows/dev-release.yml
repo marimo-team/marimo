@@ -108,7 +108,7 @@ jobs:
           VITE_MARIMO_ISLANDS: "true"
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
         run: |
-          pnpm build:islands
+          pnpm turbo build:islands
           ./islands/validate.sh
 
       - name: 📤 Upload islands to npm

@@ -36,12 +36,18 @@ interface MarimoIslandCell {
    * Code of the cell.
    */
   code: string;
+  /**
+   * Index of the cell.
+   */
+  idx: number;
 }
 
 export function parseMarimoIslandApps(): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
-  const embeds = document.querySelectorAll<HTMLElement>("marimo-island");
+  const embeds = document.querySelectorAll<HTMLElement>(
+    MarimoIslandElement.tagName,
+  );
   if (embeds.length === 0) {
     Logger.warn("No embedded marimo apps found.");
     return [];
@@ -71,16 +77,23 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const app = apps.get(id)!;
+    const idx = app.cells.length;
     app.cells.push({
       output: cellOutput.innerHTML,
       code: parseIslandCode(cellCode.textContent),
+      idx: idx,
     });
+
+    // Add data-cell-idx attribute to the island element
+    embed.dataset.cellIdx = idx.toString();
   }
 
   return [...apps.values()];
 }
 
-export function createMarimoFile(app: MarimoIslandApp): string {
+export function createMarimoFile(app: {
+  cells: Array<{ code: string }>;
+}): string {
   const lines = [
     "import marimo",
     "app = marimo.App()",
@@ -92,7 +105,8 @@ export function createMarimoFile(app: MarimoIslandApp): string {
           .map((line) => `    ${line}`)
           .join("\n");
 
-        // HACK: This is probably not the best way to check if the code is async
+        // TODO: Handle async cells better
+        // This is probably not the best way to check if the code is async
         // Ideally this is pushed into the Python code
         const isAsync = code.includes("await ");
         const prefix = isAsync ? "async def" : "def";

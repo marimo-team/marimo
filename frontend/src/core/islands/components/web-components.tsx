@@ -27,24 +27,21 @@ export class MarimoIslandElement extends HTMLElement {
     this.classList.add(MarimoIslandElement.styleNamespace);
   }
 
-  get appId() {
+  get appId(): string {
     invariant(this.dataset.appId, "Missing data-app-id attribute");
     return this.dataset.appId;
   }
 
-  get cellId() {
+  get cellId(): CellId {
     // Get the cell ID from the code
-    const { cellData } = store.get(notebookAtom);
-    for (const [cellId, data] of Object.entries(cellData)) {
-      if (data.code === this.code) {
-        return cellId as CellId;
-      }
-    }
-
-    throw new Error("Cell ID not found");
+    invariant(this.dataset.cellIdx, "Missing data-cell-idx attribute");
+    const { cellIds } = store.get(notebookAtom);
+    const idx = Number.parseInt(this.dataset.cellIdx, 10);
+    invariant(cellIds[idx], `Cell ID not found for index ${idx}`);
+    return cellIds[idx];
   }
 
-  get code() {
+  get code(): string {
     const codeElement = this.querySelectorOrThrow(
       MarimoIslandElement.codeTagName,
     );

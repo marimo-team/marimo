@@ -5,10 +5,13 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { NotebookState, notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { CellRuntimeState } from "@/core/cells/types";
+import { RuntimeState } from "@/core/kernel/RuntimeState";
+import { sendRun } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
+import { Logger } from "@/utils/Logger";
 import { useAtomValue } from "jotai";
 import { selectAtom } from "jotai/utils";
-import { CopyIcon, Loader2Icon } from "lucide-react";
+import { CopyIcon, Loader2Icon, PlayIcon } from "lucide-react";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 
 interface Props {
@@ -50,8 +53,8 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
       {formatOutput({ message: runtime.output })}
       <Indicator state={runtime} />
       <div
-        className="absolute top-0 right-0 z-50"
-        style={{ display: pressed ? "block" : "none" }}
+        className="absolute top-0 right-0 z-50 flex items-center justify-center gap-1"
+        style={{ display: pressed ? "flex" : "none" }}
       >
         <Tooltip content="Copy code">
           <Button
@@ -61,6 +64,22 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
             onClick={() => navigator.clipboard.writeText(code)}
           >
             <CopyIcon className="size-3" />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Re-run cell">
+          <Button
+            size="icon"
+            variant="outline"
+            className="bg-background h-5 w-5 mb-0"
+            onClick={async () => {
+              RuntimeState.INSTANCE.registerRunStart();
+              await sendRun([cellId], [code]).catch((error) => {
+                Logger.error(error);
+                RuntimeState.INSTANCE.registerRunEnd();
+              });
+            }}
+          >
+            <PlayIcon className="size-3" />
           </Button>
         </Tooltip>
       </div>

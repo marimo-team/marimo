@@ -1,14 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { MarimoIslandApp, createMarimoFile } from "../parse";
+import { createMarimoFile } from "../parse";
 
 describe("createMarimoFile", () => {
   it("should return a string", () => {
-    const app: MarimoIslandApp = {
-      id: "1",
+    const app = {
       cells: [
         {
-          output: "Hello, World!",
           code: 'print("Hello, World!")',
         },
       ],
@@ -18,11 +16,9 @@ describe("createMarimoFile", () => {
   });
 
   it("should correctly format a single cell", () => {
-    const app: MarimoIslandApp = {
-      id: "1",
+    const app = {
       cells: [
         {
-          output: "Hello, World!",
           code: 'print("Hello, World!")',
         },
       ],
@@ -40,15 +36,12 @@ describe("createMarimoFile", () => {
   });
 
   it("should correctly format multiple cells", () => {
-    const app: MarimoIslandApp = {
-      id: "1",
+    const app = {
       cells: [
         {
-          output: "",
           code: 'print("Hello, World!")',
         },
         {
-          output: "",
           code: 'print("Goodbye, World!")',
         },
       ],

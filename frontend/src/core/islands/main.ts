@@ -85,7 +85,7 @@ export async function initialize() {
         });
         // Define the custom element for the marimo-island tag.
         // This comes after initializing since this reads from the store.
-        defineCustomElement("marimo-island", MarimoIslandElement);
+        defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
         return;
       case "completed-run":
         handleCompletedRun();
