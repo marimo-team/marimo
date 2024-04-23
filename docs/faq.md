@@ -18,6 +18,7 @@
   - [How do I display objects in rows and columns?](#faq-rows-columns)
   - [How do I create an output with a dynamic number of UI elements?](#faq-dynamic-ui-elements)
   - [Why aren't my `on_change` handlers being called?](#faq-on-change-called)
+  - [Why are my `on_change` handlers in an array all referencing the last element?](#faq-on-change-last)
   - [How do I restart a notebook?](#faq-restart)
   - [How do I reload modules?](#faq-reload)
   - [How does marimo treat type annotations?](#faq-annotations)
@@ -333,7 +334,7 @@ A UI Element's `on_change` (or for buttons, `on_click`) handlers are only
 called if the element is bound to a global variable. For example, this won't work
 
 ```python
-mo.vstack([mo.ui.button(on_change=lambda _: print('I was called")) for _ in range(10)])
+mo.vstack([mo.ui.button(on_change=lambda _: print("I was called")) for _ in range(10)])
 ```
 
 In such cases (when you want to output a dynamic number of UI elements),
@@ -345,6 +346,31 @@ you need to use
 See the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
 for example code.
+
+
+<a name="faq-on-change-last"></a>
+
+### Why are my `on_change` handlers in an array all referencing the last element?
+
+**Don't do this**: In the below snippet, every `on_change` will print `9`!.
+
+```python
+array = mo.ui.array(
+  [mo.ui.button(on_change=lambda value: print(i)) for i in range(10)
+])
+```
+
+
+**Instead, do this**: Explicitly bind `i` to the current loop value:
+
+```python
+array = mo.ui.array(
+    [mo.ui.button(on_change=lambda value, i=i: print(i)) for i in range(10)]
+)
+array
+```
+
+This is necessary because [in Python, closures are late-binding](https://docs.python-guide.org/writing/gotchas/#late-binding-closures).
 
 <a name="faq-annotations"></a>
 
