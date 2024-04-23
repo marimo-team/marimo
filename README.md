@@ -17,17 +17,18 @@
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
-marimo is a reactive notebook for Python. It allows you to rapidly experiment
-with data and models, code with confidence in your notebook's correctness, and
-productionize notebooks as pipelines or interactive web apps.
+**marimo** is a reactive Python notebook: run a cell or interact with a UI
+element, and marimo automatically runs dependent cells, keeping code and outputs
+consistent. marimo notebooks are stored as pure Python, executable as scripts,
+and deployable as apps.
 
 **Highlights**.
 
-- **reactive**: run a cell, and marimo automatically updates all affected cells and outputs
+- **reactive**: run a cell, and marimo automatically runs all dependent cells
 - **interactive**: bind sliders, tables, plots, and more to Python — no callbacks required
-- **reproducible**: no hidden state, deterministic execution order
-- **executable**: execute as a Python script
-- **shareable**: deploy as an app
+- **reproducible**: no hidden state, deterministic execution
+- **executable**: execute as a Python script, parametrized by CLI args
+- **shareable**: deploy as an interactive web app, or run in the browser via WASM
 - **git-friendly**: stored as `.py` files
 
 ```python
