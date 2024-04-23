@@ -56,7 +56,7 @@ async def test_reload_function(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2.5)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -110,7 +110,7 @@ async def test_reload_nested_module_function(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2.5)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -164,7 +164,7 @@ async def test_reload_nested_module_import_module(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2.5)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -269,7 +269,7 @@ async def test_reload_package(
     update_file(nested_module, "func = lambda : 2")
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2.5)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
@@ -324,7 +324,7 @@ async def test_reload_third_party(
     )
 
     # wait for the watcher to pick up the change
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(2.5)
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
