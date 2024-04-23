@@ -107,9 +107,7 @@ def _depends_on(
             # don't try to analyze them again
             failed_filenames.add(src_module.__file__)
             return False
-        module_dependencies = set(
-            [src_module] + list(*finder.modules.values())
-        )
+        module_dependencies = set([src_module] + list(finder.modules.values()))
         module_dependency_cache.update(
             src_module,
             module_dependencies,  # type: ignore
@@ -219,8 +217,7 @@ def watch_modules(
                 stale_cell_ids = dataflow.transitive_closure(
                     graph,
                     set(
-                        modname_to_cell_id[modname]
-                        for modname in stale_modules
+                        modname_to_cell_id[modname] for modname in stale_modules
                     ),
                 )
                 for cid in stale_cell_ids:
