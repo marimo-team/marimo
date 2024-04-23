@@ -1,8 +1,11 @@
 import asyncio
 from textwrap import dedent
 import marimo
+import sys
 
 generator = marimo.experimental_MarimoIslandGenerator()
+
+development = "--development" in sys.argv
 
 stubs = [
     generator.add_code("import marimo as mo"),
@@ -95,7 +98,7 @@ output = f"""
         <meta name="description" content="a marimo app" />
         <title>🏝️</title>
 
-        {generator.render_head(_development_url=True)}
+        {generator.render_head(_development_url=development)}
     </head>
     <body>
 
