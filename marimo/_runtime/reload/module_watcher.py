@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import itertools
 import pathlib
 import sys
 import threading
@@ -47,11 +46,44 @@ def is_submodule(src_name: str, target_name: str) -> bool:
     return all(src_parts[i] == target_parts[i] for i in range(len(src_parts)))
 
 
+class _ModuleDependencyCache:
+    """Caches the dependencies of a module"""
+
+    def __init__(self) -> None:
+        self._cache: dict[str, set[types.ModuleType]] = {}
+
+    def key(self, module: types.ModuleType) -> str | None:
+        file = getattr(module, "__file__", None)
+        return file
+
+    def __contains__(self, module: types.ModuleType) -> bool:
+        return self.key(module) in self._cache
+
+    def get(self, module: types.ModuleType) -> set[types.ModuleType] | None:
+        key = self.key(module)
+        if key in self._cache:
+            return self._cache[key]
+        return None
+
+    def update(
+        self, module: types.ModuleType, dependencies: set[types.ModuleType]
+    ) -> None:
+        key = self.key(module)
+        if key is not None:
+            self._cache[key] = dependencies
+
+    def evict(self, module: types.ModuleType) -> None:
+        key = self.key(module)
+        if key in self._cache:
+            del self._cache[key]
+
+
 def _depends_on(
     src_module: types.ModuleType,
     modules_excluded_from_analysis: list[str],
     target_modules: set[types.ModuleType],
     failed_filenames: set[str],
+    module_dependency_cache: _ModuleDependencyCache,
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
     if not hasattr(src_module, "__file__") or src_module.__file__ is None:
@@ -60,24 +92,33 @@ def _depends_on(
     if src_module.__file__ in failed_filenames:
         return False
 
-    finder = ModuleFinder(excludes=modules_excluded_from_analysis)
-    try:
-        finder.run_script(src_module.__file__)
-    except SyntaxError:
-        # user introduced a syntax error, maybe; don't
-        # exclude this module from future searches
-        return True
-    except Exception:
-        # some modules like numpy fail when called with run_script;
-        # run_script takes a long time before failing on them, so
-        # don't try to analyze them again
-        failed_filenames.add(src_module.__file__)
-        return False
+    module_dependencies = module_dependency_cache.get(src_module)
+    if module_dependencies is None:
+        finder = ModuleFinder(excludes=modules_excluded_from_analysis)
+        try:
+            finder.run_script(src_module.__file__)
+        except SyntaxError:
+            # user introduced a syntax error, maybe; don't
+            # exclude this module from future searches
+            return True
+        except Exception:
+            # some modules like numpy fail when called with run_script;
+            # run_script takes a long time before failing on them, so
+            # don't try to analyze them again
+            failed_filenames.add(src_module.__file__)
+            return False
+        module_dependencies = set(
+            [src_module] + list(*finder.modules.values())
+        )
+        module_dependency_cache.update(
+            src_module,
+            module_dependencies,  # type: ignore
+        )
 
     target_filenames = set(
         t.__file__ for t in target_modules if hasattr(t, "__file__")
     )
-    for found_module in itertools.chain([src_module], finder.modules.values()):
+    for found_module in module_dependencies:
         file = getattr(found_module, "__file__", None)
         if file is None:
             continue
@@ -108,23 +149,29 @@ def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
     failed_filenames: set[str],
+    module_dependency_cache: _ModuleDependencyCache,
 ) -> dict[str, types.ModuleType]:
     """Returns the set of modules used by the graph that have been modified"""
     stale_modules: dict[str, types.ModuleType] = {}
     modified_modules = reloader.check(modules=sys.modules, reload=False)
+    # TODO(akshayka): could also exclude modules part of the standard library;
+    # haven't found a reliable way to do this, however.
     modules_excluded_from_analysis = [
         modname
         for modname in sys.modules
         if (m := sys.modules.get(modname)) is not None
         and _is_third_party_module(m)
     ]
+
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
             modules_excluded_from_analysis=modules_excluded_from_analysis,
             target_modules=set(m for m in modified_modules if m is not None),
             failed_filenames=failed_filenames,
+            module_dependency_cache=module_dependency_cache,
         ):
+            module_dependency_cache.evict(module)
             stale_modules[modname] = module
 
     return stale_modules
@@ -147,6 +194,7 @@ def watch_modules(
     reloader = ModuleReloader()
     # modules that failed to be analyzed
     failed_filenames: set[str] = set()
+    module_dependency_cache = _ModuleDependencyCache()
     while not should_exit.is_set():
         run_is_processed.wait()
         time.sleep(1)
@@ -163,6 +211,7 @@ def watch_modules(
             modules=modules,
             reloader=reloader,
             failed_filenames=failed_filenames,
+            module_dependency_cache=module_dependency_cache,
         )
         if stale_modules:
             with graph.lock:
