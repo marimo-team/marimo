@@ -3,11 +3,11 @@ import signal
 import threading
 from _thread import interrupt_main
 
-from marimo._server.types import QueueType
+from multiprocessing import Queue
 
 
 class Win32InterruptHandler(threading.Thread):
-    def __init__(self, interrupt_queue: QueueType[bool]) -> None:
+    def __init__(self, interrupt_queue: Queue) -> None:
         super(Win32InterruptHandler, self).__init__()
         self.daemon = True
         self.interrupt_queue = interrupt_queue
