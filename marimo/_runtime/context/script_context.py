@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Optional
 from marimo._ast.app import InternalApp
 from marimo._cli.parse_args import args_from_argv
 from marimo._plugins.ui._core.ids import NoIDProviderException
+from marimo._plugins.ui._core.registry import UIElementRegistry
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
     ExecutionContext,
@@ -83,12 +84,11 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
 
     Must be called exactly once for each client thread.
     """
-    from marimo._plugins.ui._core.registry import NoopUIElementRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
 
     runtime_context = ScriptRuntimeContext(
         _app=app,
-        ui_element_registry=NoopUIElementRegistry(),
+        ui_element_registry=UIElementRegistry(),
         function_registry=FunctionRegistry(),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         virtual_file_registry=VirtualFileRegistry(),
