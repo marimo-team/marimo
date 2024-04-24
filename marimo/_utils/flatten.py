@@ -12,7 +12,7 @@ installation of dm-tree on macOS is buggy
 from __future__ import annotations
 
 import itertools
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 STRUCT_TYPE = Union[Tuple[Any, ...], List[Any], Dict[Any, Any]]
 UNFLATTEN_TYPE = Callable[[List[Any]], Union[STRUCT_TYPE, Any]]
@@ -31,6 +31,7 @@ def _flatten_sequence(
     value: list[Any] | tuple[Any, ...], json_compat_keys: bool, seen: set[int]
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
+    base_type: Type[List[Any]] | Type[Tuple[Any, ...]]
     if isinstance(value, list):
         base_type = list
     elif isinstance(value, tuple):
@@ -144,7 +145,9 @@ def _flatten(
         lengths = []
         keys = []
         for k, v in value.items():
-            curr_flattened, curr_unflatten = _flatten(v, json_compat_keys, seen)
+            curr_flattened, curr_unflatten = _flatten(
+                v, json_compat_keys, seen
+            )
             flattened.append(curr_flattened)
             unflatteners.append(curr_unflatten)
             lengths.append(len(curr_flattened))

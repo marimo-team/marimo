@@ -6,6 +6,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import pytest
+
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -13,7 +14,9 @@ if TYPE_CHECKING:
 
 
 class TestRunTutorialsAsScripts:
-    def assert_not_errored(self, p: subprocess.CompletedProcess[bytes]) -> None:
+    def assert_not_errored(
+        self, p: subprocess.CompletedProcess[bytes]
+    ) -> None:
         assert p.returncode == 0
         assert not any(
             line.startswith("Traceback")
