@@ -240,7 +240,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         try:
             ctx = get_context()
             ctx.ui_element_registry.delete(self._id, id(self))
-        except Exception:
+        except ContextNotInitializedError:
             pass
 
         super().__del__()
