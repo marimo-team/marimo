@@ -19,7 +19,7 @@ class Win32InterruptHandler(threading.Thread):
             try:
                 while self.interrupt_queue.get_nowait():
                     pass
-            except queue.Empty
+            except queue.Empty:
                 pass
             if callable(signal.getsignal(signal.SIGINT)):
                 print("interrupting main")
