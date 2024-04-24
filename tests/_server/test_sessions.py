@@ -146,16 +146,17 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
     time.sleep(0.5)
     kernel_manager.interrupt_kernel()
 
-    with open(file, "r") as f:
-        assert f.read() == "0"
+    try:
+        with open(file, "r") as f:
+            assert f.read() == "0"
+    finally:
+        assert queue_manager.input_queue.empty()
+        assert queue_manager.control_queue.empty()
 
-    assert queue_manager.input_queue.empty()
-    assert queue_manager.control_queue.empty()
-    kernel_manager.close_kernel()
-
-    # Assert shutdown
-    kernel_manager.kernel_task.join()
-    assert not kernel_manager.is_alive()
+        # Assert shutdown
+        kernel_manager.close_kernel()
+        kernel_manager.kernel_task.join()
+        assert not kernel_manager.is_alive()
 
 
 @save_and_restore_main
