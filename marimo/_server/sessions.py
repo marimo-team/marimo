@@ -526,7 +526,8 @@ class SessionManager:
             maybe_session = self.get_session(new_session_id)
             if (
                 maybe_session
-                and maybe_session.connection_state() == ConnectionState.ORPHANED
+                and maybe_session.connection_state()
+                == ConnectionState.ORPHANED
             ):
                 LOGGER.debug(
                     "Found a resumable RUN session: prev_id=%s",

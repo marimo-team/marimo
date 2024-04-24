@@ -37,7 +37,7 @@ def save_and_restore_main(f):
     """Kernels swap out the main module; restore it after running tests"""
 
     @functools.wraps(f)
-    def wrapper(*args, **kwargs) -> None:
+    def wrapper(*args: Any, **kwargs: Any) -> None:
         main = sys.modules["__main__"]
         try:
             f(*args, **kwargs)
@@ -118,7 +118,10 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
         import string
 
         # Having trouble persisting the write to a temp file on Windows
-        file = "".join(random.choice(string.ascii_uppercase) for _ in range(10)) + ".txt"
+        file = (
+            "".join(random.choice(string.ascii_uppercase) for _ in range(10))
+            + ".txt"
+        )
     else:
         file = str(tmp_path / "output.txt")
 
