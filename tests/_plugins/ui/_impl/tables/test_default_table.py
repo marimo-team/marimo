@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 from typing import Any, Dict
 
@@ -63,3 +65,6 @@ class TestColumnarDefaultTable(unittest.TestCase):
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
+
+    def test_get_field_types(self) -> None:
+        assert self.manager.get_field_types() == {}

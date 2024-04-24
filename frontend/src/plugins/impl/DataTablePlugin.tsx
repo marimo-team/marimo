@@ -12,6 +12,9 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
+import { VegaType } from "./vega/vega-loader";
+import { value } from "compassql/build/src/query/shorthand";
+import { getVegaFieldTypes } from "./vega/utils";
 
 /**
  * Arguments for a data table
@@ -27,6 +30,7 @@ interface Data<T> {
   selection: "single" | "multi" | null;
   showDownload: boolean;
   rowHeaders: Array<[string, string[]]>;
+  fieldTypes?: Record<string, VegaType> | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -47,6 +51,11 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
+      fieldTypes: z
+        .record(
+          z.enum(["boolean", "integer", "number", "date", "string", "unknown"]),
+        )
+        .nullish(),
     }),
   )
   .withFunctions<Functions>({
@@ -90,8 +99,12 @@ export const LoadingDataTableComponent = (
     if (!props.data) {
       return Promise.resolve([]);
     }
-    return vegaLoadData(props.data, { type: "csv", parse: "auto" }, true);
-  }, [props.data]);
+    return vegaLoadData(
+      props.data,
+      { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
+      true,
+    );
+  }, [props.data, props.fieldTypes]);
 
   if (loading && !data) {
     return null;

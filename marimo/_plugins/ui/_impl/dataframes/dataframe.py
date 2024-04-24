@@ -5,6 +5,7 @@ import inspect
 import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.handlers import TransformsContainer
 from marimo._plugins.ui._impl.dataframes.transforms import Transformations
 from marimo._plugins.ui._impl.tables.pandas_table import (
@@ -90,6 +91,14 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         df: pd.DataFrame,
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
+        DependencyManager.require_pandas("to use the dataframe plugin")
+        import pandas as pd
+
+        if not isinstance(df, pd.DataFrame):
+            raise ValueError(
+                "Dataframe plugin only supports Pandas DataFrames"
+            )
+
         # HACK: this is a hack to get the name of the variable that was passed
         dataframe_name = "df"
         try:

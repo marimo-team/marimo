@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-// @ts-expect-error - no types
-import { loader as createLoader, read, typeParsers } from "vega-loader";
 import { DataFormat } from "./types";
 import { isNumber } from "lodash-es";
+import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
@@ -11,6 +10,12 @@ const previousIntegerParser = typeParsers.integer;
 const bigIntIntegerParser = (v: string) => {
   if (v === "") {
     return "";
+  }
+  if (v === "-inf") {
+    return v;
+  }
+  if (v === "inf") {
+    return v;
   }
 
   if (isNumber(Number.parseInt(v))) {
@@ -25,13 +30,26 @@ const bigIntIntegerParser = (v: string) => {
     return "";
   }
 };
+const previousNumberParser = typeParsers.number;
+// Custom number parser for inf and -inf
+typeParsers.number = (v: string) => {
+  if (v === "-inf") {
+    return v;
+  }
+  if (v === "inf") {
+    return v;
+  }
+  return previousNumberParser(v);
+};
 
 function enableBigInt() {
   typeParsers.integer = bigIntIntegerParser;
+  typeParsers.number = bigIntIntegerParser;
 }
 
 function disableBigInt() {
   typeParsers.integer = previousIntegerParser;
+  typeParsers.number = previousNumberParser;
 }
 
 export const vegaLoader = createLoader();
@@ -46,7 +64,7 @@ export function vegaLoadData(
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
   handleBigInt = false,
 ): Promise<object[]> {
-  return vegaLoader.load(url).then((csvData: string) => {
+  return vegaLoader.load(url).then((csvData) => {
     // CSV data comes columnar and may have duplicate column names.
     // We need to uniquify the column names before parsing since vega-loader
     // returns an array of objects which drops duplicate keys.
@@ -68,7 +86,10 @@ export function vegaLoadData(
     const results =
       format && format.type === "csv"
         ? // csv -> json
-          read(csvData, { ...format, parse: "auto" })
+          read(csvData, {
+            ...format,
+            parse: (format.parse as FieldTypes) || "auto",
+          })
         : read(csvData, format);
 
     if (handleBigInt) {

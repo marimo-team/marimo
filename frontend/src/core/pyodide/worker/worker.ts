@@ -76,7 +76,7 @@ const requestHandler = createRPCRequestHandler({
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    userConfig: UserConfig | null;
+    userConfig: UserConfig;
   }) => {
     await pyodideReadyPromise; // Make sure loading is done
 

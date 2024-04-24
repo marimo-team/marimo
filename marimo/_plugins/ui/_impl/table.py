@@ -21,7 +21,9 @@ from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    TableManager,
+)
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
 from marimo._runtime.functions import Function
@@ -164,6 +166,7 @@ class table(
         can_download = (
             DependencyManager.has_pandas() or DependencyManager.has_polars()
         )
+        field_types = self._manager.get_field_types()
 
         super().__init__(
             component_name=table._name,
@@ -173,6 +176,7 @@ class table(
                 "data": self._manager.to_data(),
                 "pagination": pagination,
                 "page-size": page_size,
+                "field-types": field_types if field_types else None,
                 "selection": selection,
                 "show-download": can_download,
                 "row-headers": self._manager.get_row_headers(),

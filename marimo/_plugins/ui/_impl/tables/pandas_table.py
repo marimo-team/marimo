@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 from marimo._plugins.ui._impl.tables.table_manager import (
+    FieldType,
+    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -76,5 +78,34 @@ class PandasTableManagerFactory(TableManagerFactory):
                         return [(name, index.tolist())]  # type: ignore[list-item]
 
                 return []
+
+            def get_field_types(self) -> FieldTypes:
+                return {
+                    column: PandasTableManager._get_field_type(
+                        self.data[column]
+                    )
+                    for column in self.data.columns
+                }
+
+            @staticmethod
+            def _get_field_type(series: pd.Series[Any]) -> FieldType:
+                dtype = str(series.dtype)
+                if dtype.startswith("int") or dtype.startswith("uint"):
+                    return "integer"
+                if dtype.startswith("float"):
+                    return "number"
+                if dtype == "object":
+                    return "string"
+                if dtype == "bool":
+                    return "boolean"
+                if dtype == "datetime64[ns]":
+                    return "date"
+                if dtype == "timedelta64[ns]":
+                    return "unknown"
+                if dtype == "category":
+                    return "string"
+                if dtype.startswith("complex"):
+                    return "unknown"
+                return "unknown"
 
         return PandasTableManager

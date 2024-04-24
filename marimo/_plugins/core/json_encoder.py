@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import json
 from json import JSONEncoder
 from typing import Any
@@ -24,7 +26,7 @@ class WebComponentEncoder(JSONEncoder):
             elif isinstance(obj, np.ndarray):
                 if any([np.issubdtype(obj.dtype, i) for i in dtypes]):
                     return obj.astype(str).tolist()
-                return obj.tolist()
+                return str(obj.tolist())
             elif isinstance(obj, np.dtype):
                 return str(obj)
 
@@ -39,10 +41,16 @@ class WebComponentEncoder(JSONEncoder):
                 return obj.to_list()
             elif isinstance(obj, pd.Categorical):
                 return obj.tolist()
+            elif isinstance(obj, pd.CategoricalDtype):
+                return str(obj)
             elif isinstance(obj, pd.Timestamp):
+                return str(obj)
+            elif isinstance(obj, pd.Timedelta):
                 return str(obj)
             elif isinstance(obj, pd.Interval):
                 return str(obj)
+            elif isinstance(obj, pd.TimedeltaIndex):
+                return str(obj.astype(str).tolist())
 
             # Catch-all for other pandas objects
             try:
@@ -59,6 +67,10 @@ class WebComponentEncoder(JSONEncoder):
         # Handle bytes objects
         if isinstance(obj, bytes):
             return obj.decode("utf-8")
+
+        # Handle set
+        if isinstance(obj, set):
+            return list(obj)
 
         # Fallthrough to default encoder
         return JSONEncoder.default(self, obj)

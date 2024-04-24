@@ -17,7 +17,7 @@ def test_numpy_encoding() -> None:
 
     arr = np.array([1, 2, 3])
     encoded = json.dumps(arr, cls=WebComponentEncoder)
-    assert encoded == "[1, 2, 3]"
+    assert encoded == '"[1, 2, 3]"'
 
     dt64 = np.datetime64("2021-01-01T12:00:00")
     encoded_dt64 = json.dumps(dt64, cls=WebComponentEncoder)
@@ -70,6 +70,20 @@ def test_pandas_encoding() -> None:
     encoded_interval = json.dumps(interval, cls=WebComponentEncoder)
     assert encoded_interval == '"(0, 5]"'
 
+    # Timedelta
+    timedelta = pd.Timedelta("1 days")
+    encoded_timedelta = json.dumps(timedelta, cls=WebComponentEncoder)
+    assert encoded_timedelta == '"1 days 00:00:00"'
+
+    timedelta_arr = pd.to_timedelta(["1 days", "2 days", "3 days"])
+    encoded_timedelta_arr = json.dumps(timedelta_arr, cls=WebComponentEncoder)
+    assert encoded_timedelta_arr == "\"['1 days', '2 days', '3 days']\""
+
+    # Catch-all
+    other = pd.Series(["a", "b", "c"])
+    encoded_other = json.dumps(other, cls=WebComponentEncoder)
+    assert encoded_other == '["a", "b", "c"]'
+
 
 class MockMIMEObject:
     def _mime_(self) -> tuple[str, str]:
@@ -86,3 +100,51 @@ def test_bytes_encoding() -> None:
     bytes_obj = b"hello"
     encoded = json.dumps(bytes_obj, cls=WebComponentEncoder)
     assert encoded == '"hello"'
+
+
+def test_set_encoding() -> None:
+    set_obj = set(["a", "b"])
+    encoded = json.dumps(set_obj, cls=WebComponentEncoder)
+    assert encoded == '["a", "b"]' or encoded == '["b", "a"]'
+    empty_set = set()
+    encoded_empty = json.dumps(empty_set, cls=WebComponentEncoder)
+    assert encoded_empty == "[]"
+    number_set = set([1, 2])
+    encoded_number = json.dumps(number_set, cls=WebComponentEncoder)
+    assert encoded_number == "[1, 2]" or encoded_number == "[2, 1]"
+
+
+def test_null_encoding() -> None:
+    null = None
+    encoded = json.dumps(null, cls=WebComponentEncoder)
+    assert encoded == "null"
+
+
+def test_inf_encoding() -> None:
+    inf = float("inf")
+    encoded = json.dumps(inf, cls=WebComponentEncoder)
+    assert encoded == "Infinity"
+
+
+def test_nan_encoding() -> None:
+    nan = float("nan")
+    encoded = json.dumps(nan, cls=WebComponentEncoder)
+    assert encoded == "NaN"
+
+
+def test_empty_encoding() -> None:
+    empty = ""
+    encoded = json.dumps(empty, cls=WebComponentEncoder)
+    assert encoded == '""'
+    empty_list = []
+    encoded_list = json.dumps(empty_list, cls=WebComponentEncoder)
+    assert encoded_list == "[]"
+    empty_dict = {}
+    encoded_dict = json.dumps(empty_dict, cls=WebComponentEncoder)
+    assert encoded_dict == "{}"
+    empty_tuple = ()
+    encoded_tuple = json.dumps(empty_tuple, cls=WebComponentEncoder)
+    assert encoded_tuple == "[]"
+    empty_nested = [[], [], []]
+    encoded_nested = json.dumps(empty_nested, cls=WebComponentEncoder)
+    assert encoded_nested == "[[], [], []]"

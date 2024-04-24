@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 
 import pytest
@@ -49,3 +51,10 @@ class TestPandasTableManager(unittest.TestCase):
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
+
+    def test_get_field_types(self) -> None:
+        expected_field_types = {
+            "A": "integer",
+            "B": "string",
+        }
+        assert self.manager.get_field_types() == expected_field_types

@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Union
+from typing import Any, Union, cast
 
 from marimo._plugins.ui._impl.tables.table_manager import (
+    FieldType,
+    FieldTypes,
     TableManager,
     TableManagerFactory,
 )
@@ -56,5 +58,34 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 return isinstance(value, pa.Table) or isinstance(
                     value, pa.RecordBatch
                 )
+
+            def get_field_types(self) -> FieldTypes:
+                return {
+                    column: PyArrowTableManager._get_field_type(
+                        cast(Any, self.data)[idx]
+                    )
+                    for idx, column in enumerate(self.data.schema.names)
+                }
+
+            @staticmethod
+            def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:
+                if isinstance(column, pa.NullArray):
+                    return "unknown"
+                elif pa.types.is_string(column.type):
+                    return "string"
+                elif pa.types.is_boolean(column.type):
+                    return "boolean"
+                elif pa.types.is_integer(column.type):
+                    return "integer"
+                elif pa.types.is_floating(column.type) or pa.types.is_decimal(
+                    column.type
+                ):
+                    return "number"
+                elif pa.types.is_date(column.type) or pa.types.is_timestamp(
+                    column.type
+                ):
+                    return "date"
+                else:
+                    return "unknown"
 
         return PyArrowTableManager
