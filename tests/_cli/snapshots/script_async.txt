@@ -1,6 +1,0 @@
-
-
-__generated_with = "0.4.2"
-
-import asyncio
-await asyncio.sleep(0.1)
