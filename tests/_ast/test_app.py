@@ -14,6 +14,7 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
     import pathlib
@@ -384,6 +385,32 @@ class TestApp:
 
         assert defs["x"] == 0
         assert defs["y"] == 1
+
+    @pytest.mark.skipif(
+        condition=not DependencyManager.has_matplotlib(),
+        reason="requires matplotlib",
+    )
+    def test_app_run_matplotlib_figures_closed(self) -> None:
+        from matplotlib.axes import Axes
+
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            import matplotlib.pyplot as plt
+
+            plt.plot([1, 2])
+            plt.gca()
+
+        @app.cell
+        def __(plt: Any) -> None:
+            plt.plot([1, 1])
+            plt.gca()
+
+        outputs, _ = app.run()
+        assert isinstance(outputs[0], Axes)
+        assert isinstance(outputs[1], Axes)
+        assert outputs[0] != outputs[1]
 
 
 def test_app_config() -> None:
