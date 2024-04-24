@@ -847,6 +847,10 @@ export function enabledCellIds(state: NotebookState) {
     .filter((cell) => !cell.config.disabled);
 }
 
+export function canUndoDeletes(state: NotebookState) {
+  return state.history.length > 0;
+}
+
 /**
  * Cells that are stale and can be run.
  */
