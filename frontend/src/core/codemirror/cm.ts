@@ -3,6 +3,7 @@ import {
   acceptCompletion,
   closeBrackets,
   closeBracketsKeymap,
+  startCompletion,
 } from "@codemirror/autocomplete";
 import {
   history,
@@ -103,6 +104,20 @@ export const setupCodeMirror = ({
   ];
 };
 
+const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
+  const { from, to } = cm.state.selection.main;
+  if (from !== to) {
+    // this is a selection
+    return false;
+  }
+
+  const line = cm.state.doc.lineAt(to);
+  return line.text.slice(0, to - line.from).trim() === ""
+    ? // in the whitespace prefix of a line
+      false
+    : startCompletion(cm);
+};
+
 // Based on codemirror's basicSetup extension
 export const basicBundle = (
   completionConfig: CompletionConfig,
@@ -152,7 +167,11 @@ export const basicBundle = (
       {
         key: "Tab",
         run: (cm) => {
-          return acceptCompletion(cm) || indentMore(cm);
+          return (
+            acceptCompletion(cm) ||
+            startCompletionAtEndOfLine(cm) ||
+            indentMore(cm)
+          );
         },
         preventDefault: true,
       },
