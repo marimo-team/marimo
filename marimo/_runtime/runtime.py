@@ -1435,6 +1435,7 @@ def launch_kernel(
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
     virtual_files_supported: bool,
+    interrupt_queue: QueueType[bool] | None = None,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1515,6 +1516,7 @@ def launch_kernel(
         )
 
         if sys.platform == "win32" or sys.platform == "cygwin":
+            Win32InterruptHandler().start()
             # windows doesn't handle SIGTERM
             signal.signal(
                 signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
