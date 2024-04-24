@@ -18,7 +18,7 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         import pyarrow as pa
 
         self.factory = PyArrowTableManagerFactory()
-        self.data = pa.table({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        self.data = pa.table({"A": [1, 2, 3], "B": ["a", "b", "c"]})  # type: ignore
         self.manager = self.factory.create()(self.data)
 
     def test_package_name(self) -> None:
@@ -49,8 +49,31 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
+        import pyarrow as pa
+
         expected_field_types = {
             "A": "integer",
             "B": "string",
         }
         assert self.manager.get_field_types() == expected_field_types
+
+        complex_data = pa.table(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [None, None, None],
+            }  # type: ignore
+        )
+        expected_field_types = {
+            "A": "integer",
+            "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "unknown",
+        }
+        assert (
+            self.factory.create()(complex_data).get_field_types()
+            == expected_field_types
+        )

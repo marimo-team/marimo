@@ -90,6 +90,8 @@ class PandasTableManagerFactory(TableManagerFactory):
             @staticmethod
             def _get_field_type(series: pd.Series[Any]) -> FieldType:
                 dtype = str(series.dtype)
+                if dtype.startswith("interval"):
+                    return "string"
                 if dtype.startswith("int") or dtype.startswith("uint"):
                     return "integer"
                 if dtype.startswith("float"):
@@ -101,7 +103,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if dtype == "datetime64[ns]":
                     return "date"
                 if dtype == "timedelta64[ns]":
-                    return "unknown"
+                    return "string"
                 if dtype == "category":
                     return "string"
                 if dtype.startswith("complex"):

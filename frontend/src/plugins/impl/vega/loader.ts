@@ -5,9 +5,13 @@ import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
+const previousNumberParser = typeParsers.number;
 const previousIntegerParser = typeParsers.integer;
-// We need to use BigInt for numbers to support large numbers
-const bigIntIntegerParser = (v: string) => {
+
+// Custom parser to:
+// - handle BigInt
+// - handle inf and -inf
+const customIntegerParser = (v: string) => {
   if (v === "") {
     return "";
   }
@@ -30,9 +34,10 @@ const bigIntIntegerParser = (v: string) => {
     return "";
   }
 };
-const previousNumberParser = typeParsers.number;
-// Custom number parser for inf and -inf
-typeParsers.number = (v: string) => {
+
+// Custom number parser to:
+// - handle inf and -inf
+const customNumberParser = (v: string) => {
   if (v === "-inf") {
     return v;
   }
@@ -43,8 +48,8 @@ typeParsers.number = (v: string) => {
 };
 
 function enableBigInt() {
-  typeParsers.integer = bigIntIntegerParser;
-  typeParsers.number = bigIntIntegerParser;
+  typeParsers.integer = customIntegerParser;
+  typeParsers.number = customNumberParser;
 }
 
 function disableBigInt() {

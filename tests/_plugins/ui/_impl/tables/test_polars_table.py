@@ -50,8 +50,53 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert not self.manager.is_type("not a dataframe")
 
     def test_get_field_types(self) -> None:
+        import polars as pl
+
         expected_field_types = {
             "A": "integer",
             "B": "string",
         }
         assert self.manager.get_field_types() == expected_field_types
+
+        complex_data = pl.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [1 + 2j, 3 + 4j, 5 + 6j],
+                "F": [None, None, None],
+                "G": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "H": [
+                    pl.Date(2021, 1, 1),
+                    pl.Date(2021, 1, 2),
+                    pl.Date(2021, 1, 3),
+                ],
+                "I": [
+                    pl.Time(0, 0, 0),
+                    pl.Time(1, 0, 0),
+                    pl.Time(2, 0, 0),
+                ],
+                "J": [
+                    pl.Duration("ms"),
+                    pl.Duration("ms"),
+                    pl.Duration("ms"),
+                ],
+            }
+        )
+        expected_field_types = {
+            "A": "integer",
+            "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "unknown",
+            "F": "number",
+            "G": "unknown",
+            "H": "unknown",
+            "I": "unknown",
+            "J": "unknown",
+        }
+        assert (
+            self.factory.create()(complex_data).get_field_types()
+            == expected_field_types
+        )

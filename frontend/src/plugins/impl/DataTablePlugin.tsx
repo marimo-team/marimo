@@ -13,7 +13,6 @@ import { rpc } from "../core/rpc";
 import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
 import { VegaType } from "./vega/vega-loader";
-import { value } from "compassql/build/src/query/shorthand";
 import { getVegaFieldTypes } from "./vega/utils";
 
 /**
