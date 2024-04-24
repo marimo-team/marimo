@@ -138,7 +138,7 @@ def patch_main_module(
 
     if file is not None:
         _module.__dict__.setdefault("__file__", file)
-    else:
+    elif hasattr(sys.modules["__main__"], "__file__"):
         _module.__dict__.setdefault(
             "__file__", sys.modules["__main__"].__file__
         )
