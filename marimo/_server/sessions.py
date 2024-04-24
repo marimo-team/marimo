@@ -137,7 +137,7 @@ class KernelManager:
         self.user_config_manager = user_config_manager
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
-        self._interrupt_event: object = None
+        self._win32_interrupt_event: object = None
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -149,8 +149,10 @@ class KernelManager:
         is_edit_mode = self.mode == SessionMode.EDIT
         if is_edit_mode:
             if sys.platform == "win32":
-                self._interrupt_event = create_interrupt_event()
-                interrupt_handle = str(self._interrupt_event)
+                self._win32_interrupt_event = create_interrupt_event()
+                print("HANDLE created: ", self._win32_interrupt_event)
+                print("str handle: ", str(self._win32_interrupt_event))
+                interrupt_handle = int(self._win32_interrupt_event)
             else:
                 interrupt_handle = None
             self.kernel_task = mp.Process(
@@ -224,9 +226,11 @@ class KernelManager:
             isinstance(self.kernel_task, mp.Process)
             and self.kernel_task.pid is not None
         ):
-            if sys.platform == "win32" and self._interrupt_event is not None:
+            if sys.platform == "win32" and self._win32_interrupt_event is not None:
                 LOGGER.debug("Setting interrupt event")
-                send_interrupt(self.kernel_task.win32_interrupt_event)
+                print("SETTING EVENT")
+                print(self._win32_interrupt_event)
+                send_interrupt(self._win32_interrupt_event)
             else:
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self.kernel_task.pid, signal.SIGINT)

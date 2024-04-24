@@ -19,8 +19,8 @@ class ParentPollerWindows(Thread):
 
     def __init__(
         self,
-        interrupt_handle: str | None = None,
-        parent_handle: str | None = None,
+        interrupt_handle: int | None = None,
+        parent_handle: int | None = None,
     ) -> None:
         """Create the poller. At least one of the optional parameters must be
         provided.
@@ -52,6 +52,7 @@ class ParentPollerWindows(Thread):
 
         # Build the list of handle to listen on.
         handles = []
+        print("HANDLE: ", self.interrupt_handle)
         if self.interrupt_handle:
             handles.append(self.interrupt_handle)
         if self.parent_handle:
@@ -61,17 +62,22 @@ class ParentPollerWindows(Thread):
 
         # Listen forever.
         while True:
-            result = ctypes.windll.kernel32.WaitForMultipleObjects(
-                len(handles),  # nCount
-                (c_int * len(handles))(*handles),  # lpHandles
-                False,  # bWaitAll
-                INFINITE,
-            )  # dwMilliseconds
+            #result = ctypes.windll.kernel32.WaitForMultipleObjects(
+            #    len(handles),  # nCount
+            #    (c_int * len(handles))(*handles),  # lpHandles
+            #    False,  # bWaitAll
+            #    INFINITE,
+            #)  # dwMilliseconds
+            result = ctypes.windll.kernel32.WaitForSingleObject(
+                    c_int(handles[0]), INFINITE)
+            
 
             if WAIT_OBJECT_0 <= result < len(handles):
                 handle = handles[result - WAIT_OBJECT_0]
 
+                print("GOT HANDLE ", handle)
                 if handle == self.interrupt_handle:
+                    print("INTERRUPTING MAIN")
                     # check if signal handler is callable
                     # to avoid 'int not callable' error (Python issue #23395)
                     if callable(signal.getsignal(signal.SIGINT)):
@@ -81,10 +87,11 @@ class ParentPollerWindows(Thread):
                     os._exit(1)
             elif result < 0:
                 # wait failed, just give up and stop polling.
+                #print(ctypes.windll.kernel32.GetLastError())
                 warnings.warn(
                     """Parent poll failed.  If the frontend dies,
                 the kernel may be left running.  Please let us know
                 about your system (bitness, Python, etc.) at
                 ipython-dev@scipy.org"""
                 )
-                return
+                #return

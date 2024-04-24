@@ -1424,6 +1424,7 @@ def launch_kernel(
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
     virtual_files_supported: bool,
+    interrupt_handle: int | None = None,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
