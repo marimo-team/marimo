@@ -60,6 +60,7 @@ from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
+from marimo._server.win_interrupt import create_interrupt_event, send_interrupt
 from marimo._utils.disposable import Disposable
 from marimo._utils.distributor import Distributor
 from marimo._utils.file_watcher import FileWatcher
@@ -136,6 +137,7 @@ class KernelManager:
         self.user_config_manager = user_config_manager
         self._read_conn: Optional[TypedConnection[KernelMessage]] = None
         self._virtual_files_supported = virtual_files_supported
+        self._interrupt_event: object = None
 
     def start_kernel(self) -> None:
         # Need to use a socket for windows compatibility
@@ -146,6 +148,11 @@ class KernelManager:
         # since there's only one client sess
         is_edit_mode = self.mode == SessionMode.EDIT
         if is_edit_mode:
+            if sys.platform == "win32":
+                self._interrupt_event = create_interrupt_event()
+                interrupt_handle = str(self._interrupt_event)
+            else:
+                interrupt_handle = None
             self.kernel_task = mp.Process(
                 target=runtime.launch_kernel,
                 args=(
@@ -158,6 +165,7 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    interrupt_handle,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -195,6 +203,8 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    # interrupt handle
+                    None,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -214,8 +224,12 @@ class KernelManager:
             isinstance(self.kernel_task, mp.Process)
             and self.kernel_task.pid is not None
         ):
-            LOGGER.debug("Sending SIGINT to kernel")
-            os.kill(self.kernel_task.pid, signal.SIGINT)
+            if sys.platform == "win32" and self._interrupt_event is not None:
+                LOGGER.debug("Setting interrupt event")
+                send_interrupt(self.kernel_task.win32_interrupt_event)
+            else:
+                LOGGER.debug("Sending SIGINT to kernel")
+                os.kill(self.kernel_task.pid, signal.SIGINT)
 
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
@@ -506,8 +520,7 @@ class SessionManager:
             maybe_session = self.get_session(new_session_id)
             if (
                 maybe_session
-                and maybe_session.connection_state()
-                == ConnectionState.ORPHANED
+                and maybe_session.connection_state() == ConnectionState.ORPHANED
             ):
                 LOGGER.debug(
                     "Found a resumable RUN session: prev_id=%s",

@@ -86,6 +86,7 @@ from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.params import CLIArgs, QueryParams
+from marimo._runtime.parent_pollers import ParentPollerWindows
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
@@ -420,9 +421,7 @@ class Kernel:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
                     modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -543,9 +542,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -645,9 +642,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -718,8 +713,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -742,8 +736,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -1058,9 +1051,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -1138,9 +1129,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1510,16 +1499,17 @@ def launch_kernel(
         # install the formatter import hooks
         register_formatters()
 
-        signal.signal(
-            signal.SIGINT, handlers.construct_interrupt_handler(kernel)
-        )
-
-        if sys.platform == "win32" or sys.platform == "cygwin":
+        if sys.platform == "win32":
+            if interrupt_handle is not None:
+                ParentPollerWindows(interrupt_handle=interrupt_handle).start()
             # windows doesn't handle SIGTERM
             signal.signal(
                 signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
             )
         else:
+            signal.signal(
+                signal.SIGINT, handlers.construct_interrupt_handler(kernel)
+            )
             signal.signal(
                 signal.SIGTERM, handlers.construct_sigterm_handler(kernel)
             )
