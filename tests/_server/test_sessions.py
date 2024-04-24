@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import os
 import queue
 import sys
 import time
@@ -112,7 +113,15 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
     assert kernel_manager.kernel_task is not None
     assert kernel_manager._read_conn is not None
     assert kernel_manager.is_alive()
-    file = str(tmp_path / "output.txt")
+    if sys.platform == "win32":
+        import random
+        import string
+
+        # Having trouble persisting the write to a temp file on Windows
+        file = "".join(random.choice(string.ascii_uppercase) for _ in range(10)) + ".txt"
+    else:
+        file = str(tmp_path / "output.txt")
+
     with open(file, "w") as f:
         f.write("-1")
 
@@ -125,11 +134,11 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
                         code=inspect.cleandoc(
                             f"""
                             import time
-                            with open('{file}', "w") as f:
-                                f.write("0")
-                            time.sleep(5)
-                            with open('{file}', "w") as f:
-                                f.write("1")
+                            with open("{file}", 'w') as f:
+                                f.write('0')
+                            time.sleep(1)
+                            with open("{file}", 'w') as f:
+                                f.write('1')
                             """
                         ),
                     )
@@ -143,13 +152,20 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
 
     # give time for the file to be written to 0, but not enough for it to be
     # written to 1
-    time.sleep(0.5)
+    time.sleep(0.1)
     kernel_manager.interrupt_kernel()
 
     try:
         with open(file, "r") as f:
             assert f.read() == "0"
+        # if kernel failed to interrupt, f will read as "1"
+        time.sleep(1.5)
+        with open(file, "r") as f:
+            assert f.read() == "0"
     finally:
+        if sys.platform == "win32":
+            os.remove(file)
+
         assert queue_manager.input_queue.empty()
         assert queue_manager.control_queue.empty()
 
