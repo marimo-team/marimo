@@ -390,8 +390,7 @@ class TestApp:
         condition=not DependencyManager.has_matplotlib(),
         reason="requires matplotlib",
     )
-    @staticmethod
-    def test_app_run_matplotlib_figures_closed() -> None:
+    def test_app_run_matplotlib_figures_closed(self) -> None:
         from matplotlib.axes import Axes
 
         app = App()
