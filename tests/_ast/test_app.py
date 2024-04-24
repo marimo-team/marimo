@@ -404,6 +404,28 @@ class TestApp:
 
         assert defs["backend"] != "module://marimo._output.mpl"
 
+    def test_app_run_matplotlib_figures_closed(self) -> None:
+        from matplotlib.axes import Axes
+
+        app = App()
+
+        @app.cell
+        def __() -> None:
+            import matplotlib.pyplot as plt
+
+            plt.plot([1, 2])
+            plt.gca()
+
+        @app.cell
+        def __(plt: Any) -> None:
+            plt.plot([1, 1])
+            plt.gca()
+
+        outputs, _ = app.run()
+        assert isinstance(outputs[0], Axes)
+        assert isinstance(outputs[1], Axes)
+        assert outputs[0] != outputs[1]
+
 
 def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
