@@ -38,7 +38,7 @@ export interface WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    userConfig: UserConfig | null;
+    userConfig: UserConfig;
     onMessage: (message: JsonString<OperationMessage>) => void;
   }): Promise<SerializedBridge>;
 }

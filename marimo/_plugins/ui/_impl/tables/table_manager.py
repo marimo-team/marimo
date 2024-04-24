@@ -2,12 +2,19 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, TypeVar
+from typing import Any, Dict, Generic, Literal, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo._plugins.core.web_component import JSONType
 
 T = TypeVar("T")
+
+
+# This is the frontend type for how the frontend should parse the data
+FieldType = Literal[
+    "string", "boolean", "integer", "number", "date", "unknown"
+]
+FieldTypes = Dict[str, FieldType]
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -38,6 +45,11 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def get_row_headers(self) -> list[tuple[str, list[str | int | float]]]:
         raise NotImplementedError
+
+    def get_field_types(self) -> FieldTypes:
+        # By default, don't provide any field types
+        # so the frontend can infer them
+        return {}
 
     @staticmethod
     @abc.abstractmethod

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 
 import pytest
@@ -49,3 +51,55 @@ class TestPandasTableManager(unittest.TestCase):
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
+
+    def test_get_field_types(self) -> None:
+        import pandas as pd
+
+        expected_field_types = {
+            "A": "integer",
+            "B": "string",
+        }
+        assert self.manager.get_field_types() == expected_field_types
+
+        complex_data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+                "C": [1.0, 2.0, 3.0],
+                "D": [True, False, True],
+                "E": [1 + 2j, 3 + 4j, 5 + 6j],
+                "F": [None, None, None],
+                "G": [set([1, 2]), set([3, 4]), set([5, 6])],
+                "H": [
+                    pd.Timestamp("2021-01-01"),
+                    pd.Timestamp("2021-01-02"),
+                    pd.Timestamp("2021-01-03"),
+                ],
+                "I": [
+                    pd.Timedelta("1 days"),
+                    pd.Timedelta("2 days"),
+                    pd.Timedelta("3 days"),
+                ],
+                "J": [
+                    pd.Interval(left=0, right=5),
+                    pd.Interval(left=5, right=10),
+                    pd.Interval(left=10, right=15),
+                ],
+            }
+        )
+        expected_field_types = {
+            "A": "integer",
+            "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "unknown",
+            "F": "string",
+            "G": "string",
+            "H": "date",
+            "I": "string",
+            "J": "string",
+        }
+        assert (
+            self.factory.create()(complex_data).get_field_types()
+            == expected_field_types
+        )

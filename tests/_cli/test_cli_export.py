@@ -7,6 +7,7 @@ import subprocess
 from os import path
 from typing import TYPE_CHECKING
 
+from marimo import __version__
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -225,7 +226,9 @@ class TestExportScript:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-        snapshot("script.txt", p.stdout.decode())
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("script.txt", output)
 
     @staticmethod
     def test_export_script_async(temp_async_marimo_file: str) -> None:
