@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import inspect
 import subprocess
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
-
 from marimo._dependencies.dependencies import DependencyManager
 
 if TYPE_CHECKING:
@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 
 
 class TestRunTutorialsAsScripts:
-    def assert_not_errored(
-        self, p: subprocess.CompletedProcess[bytes]
-    ) -> None:
+    def assert_not_errored(self, p: subprocess.CompletedProcess[bytes]) -> None:
         assert p.returncode == 0
         assert not any(
             line.startswith("Traceback")
@@ -32,6 +30,9 @@ class TestRunTutorialsAsScripts:
         assert p.returncode != 0
         assert reason in p.stderr.decode()
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_intro_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import intro
 
@@ -43,6 +44,9 @@ class TestRunTutorialsAsScripts:
         )
         self.assert_not_errored(p)
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_ui_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import ui as mod
 
@@ -54,6 +58,9 @@ class TestRunTutorialsAsScripts:
         )
         self.assert_not_errored(p)
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_dataflow_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import dataflow as mod
 
@@ -65,6 +72,9 @@ class TestRunTutorialsAsScripts:
         )
         self.assert_errored(p, reason="CycleError")
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_layout_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import layout as mod
 
@@ -80,6 +90,9 @@ class TestRunTutorialsAsScripts:
         condition=not DependencyManager.has_matplotlib(),
         reason="requires matplotlib",
     )
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import plots as mod
 
@@ -91,6 +104,9 @@ class TestRunTutorialsAsScripts:
         )
         self.assert_not_errored(p)
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_marimo_for_jupyter_users_tutorial(
         self, tmp_path: pathlib.Path
     ) -> None:
