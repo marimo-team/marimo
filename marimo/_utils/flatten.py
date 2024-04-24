@@ -31,6 +31,13 @@ def _flatten_sequence(
     value: list[Any] | tuple[Any, ...], json_compat_keys: bool, seen: set[int]
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
+    if isinstance(value, list):
+        base_type = list
+    elif isinstance(value, tuple):
+        base_type = tuple
+    else:
+        raise ValueError("value is not a list or tuple: ", value)
+
     # Algorithm:
     #
     # Accumulate a list of flattened pieces and unflattener functions,
@@ -47,7 +54,7 @@ def _flatten_sequence(
     # the recursion stack depth compared to the reference implementation
     if not value:
         # unflattener returns an empty tuple or empty list
-        return [], lambda _: type(value)()
+        return [], lambda _: base_type()
 
     lengths = []
     flattened_pieces: list[list[Any]] = []
@@ -137,9 +144,7 @@ def _flatten(
         lengths = []
         keys = []
         for k, v in value.items():
-            curr_flattened, curr_unflatten = _flatten(
-                v, json_compat_keys, seen
-            )
+            curr_flattened, curr_unflatten = _flatten(v, json_compat_keys, seen)
             flattened.append(curr_flattened)
             unflatteners.append(curr_unflatten)
             lengths.append(len(curr_flattened))
