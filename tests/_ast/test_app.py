@@ -348,7 +348,8 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None: ...
+            def foo() -> None:
+                ...
 
             return (foo,)
 
@@ -404,6 +405,10 @@ class TestApp:
 
         assert defs["backend"] != "module://marimo._output.mpl"
 
+    @pytest.mark.skipif(
+        condition=not DependencyManager.has_matplotlib(),
+        reason="requires matplotlib",
+    )
     def test_app_run_matplotlib_figures_closed(self) -> None:
         from matplotlib.axes import Axes
 
