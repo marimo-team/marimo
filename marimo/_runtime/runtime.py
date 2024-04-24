@@ -107,6 +107,7 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
+from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
@@ -1435,6 +1436,7 @@ def launch_kernel(
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
     virtual_files_supported: bool,
+    interrupt_queue: QueueType[bool] | None = None,
 ) -> None:
     LOGGER.debug("Launching kernel")
     if is_edit_mode:
@@ -1514,7 +1516,9 @@ def launch_kernel(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)
         )
 
-        if sys.platform == "win32" or sys.platform == "cygwin":
+        if sys.platform == "win32":
+            if interrupt_queue is not None:
+                Win32InterruptHandler(interrupt_queue).start()
             # windows doesn't handle SIGTERM
             signal.signal(
                 signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)

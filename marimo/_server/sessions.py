@@ -88,6 +88,14 @@ class QueueManager:
             context.Queue() if context is not None else queue.Queue()
         )
 
+        self.win32_interrupt_queue: QueueType[bool] | None
+        if sys.platform == "win32":
+            self.win32_interrupt_queue = (
+                context.Queue() if context is not None else queue.Queue()
+            )
+        else:
+            self.win32_interrupt_queue = None
+
         # Input messages for the user's Python code are sent through the
         # input queue
         self.input_queue: QueueType[str] = (
@@ -116,6 +124,10 @@ class QueueManager:
         if isinstance(self.completion_queue, MPQueue):
             self.completion_queue.cancel_join_thread()
             self.completion_queue.close()
+
+        if isinstance(self.win32_interrupt_queue, MPQueue):
+            self.win32_interrupt_queue.cancel_join_thread()
+            self.win32_interrupt_queue.close()
 
 
 class KernelManager:
@@ -158,6 +170,7 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    self.queue_manager.win32_interrupt_queue,
                 ),
                 # The process can't be a daemon, because daemonic processes
                 # can't create children
@@ -195,6 +208,8 @@ class KernelManager:
                     self.app_metadata,
                     self.user_config_manager.config,
                     self._virtual_files_supported,
+                    # win32 interrupt queue
+                    None,
                 ),
                 # daemon threads can create child processes, unlike
                 # daemon processes
@@ -214,8 +229,13 @@ class KernelManager:
             isinstance(self.kernel_task, mp.Process)
             and self.kernel_task.pid is not None
         ):
-            LOGGER.debug("Sending SIGINT to kernel")
-            os.kill(self.kernel_task.pid, signal.SIGINT)
+            q = self.queue_manager.win32_interrupt_queue
+            if sys.platform == "win32" and q is not None:
+                LOGGER.debug("Queueing interrupt request for kernel.")
+                q.put_nowait(True)
+            else:
+                LOGGER.debug("Sending SIGINT to kernel")
+                os.kill(self.kernel_task.pid, signal.SIGINT)
 
     def close_kernel(self) -> None:
         assert self.kernel_task is not None, "kernel not started"
