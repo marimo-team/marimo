@@ -20,11 +20,9 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
-from marimo._runtime.context import (
-    ContextNotInitializedError,
-    get_context,
-)
+from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.functions import Function
+from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -229,11 +227,20 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         except ContextNotInitializedError:
             pass
 
-    def __del__(self) -> None:
+    # bind the function python_exiting to ensure it still exists at Python
+    # destruction time; for graceful exits when running as a script
+    def __del__(
+        self, _python_exiting: Callable[..., bool] = python_exiting
+    ) -> None:
+        if _python_exiting():
+            # imports can fail when python is exiting; clean-up
+            # is not important when exiting anyway
+            return
+
         try:
             ctx = get_context()
             ctx.ui_element_registry.delete(self._id, id(self))
-        except ContextNotInitializedError:
+        except Exception:
             pass
 
         super().__del__()
