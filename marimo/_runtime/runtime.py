@@ -1492,8 +1492,9 @@ def launch_kernel(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)
         )
 
-        if sys.platform == "win32" or sys.platform == "cygwin":
-            Win32InterruptHandler().start()
+        if sys.platform == "win32":
+            if interrupt_queue is not None:
+                Win32InterruptHandler(interrupt_queue).start()
             # windows doesn't handle SIGTERM
             signal.signal(
                 signal.SIGBREAK, handlers.construct_sigterm_handler(kernel)
