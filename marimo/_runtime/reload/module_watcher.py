@@ -18,13 +18,15 @@ if TYPE_CHECKING:
     import types
 
 
-def _modules_imported_by_cell(cell: CellImpl) -> set[str]:
+def _modules_imported_by_cell(
+    cell: CellImpl, sys_modules: dict[str, types.ModuleType]
+) -> set[str]:
     """Get the modules imported by a cell"""
     modules = set()
     for import_data in cell.imports:
-        if import_data.module in sys.modules:
+        if import_data.module in sys_modules:
             modules.add(import_data.module)
-        if import_data.imported_symbol in sys.modules:
+        if import_data.imported_symbol in sys_modules:
             # The imported symbol may or may not be a module, which
             # is why we check if it's in sys.modules
             #
@@ -103,11 +105,11 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
     return "site-packages" in pathlib.Path(filepath).parts
 
 
-def _get_excluded_modules() -> list[str]:
+def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> list[str]:
     return [
         modname
-        for modname in sys.modules
-        if (m := sys.modules.get(modname)) is not None
+        for modname in modules
+        if (m := modules.get(modname)) is not None
         and _is_third_party_module(m)
     ]
 
@@ -117,10 +119,11 @@ def _check_modules(
     reloader: ModuleReloader,
     failed_filenames: set[str],
     finder: ModuleFinder,
+    sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, types.ModuleType]:
     """Returns the set of modules used by the graph that have been modified"""
     stale_modules: dict[str, types.ModuleType] = {}
-    modified_modules = reloader.check(modules=sys.modules, reload=False)
+    modified_modules = reloader.check(modules=sys_modules, reload=False)
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     for modname, module in modules.items():
@@ -152,24 +155,26 @@ def watch_modules(
     reloader = ModuleReloader()
     # modules that failed to be analyzed
     failed_filenames: set[str] = set()
-    finder = ModuleFinder(excludes=_get_excluded_modules())
+    # work with a copy to avoid race conditions
+    # in CPython, dict.copy() is atomic
+    sys_modules = sys.modules.copy()
+    finder = ModuleFinder(excludes=_get_excluded_modules(sys_modules))
     while not should_exit.is_set():
-        run_is_processed.wait()
-        time.sleep(1)
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
             for cell_id, cell in graph.cells.items():
-                for modname in _modules_imported_by_cell(cell):
-                    if modname in sys.modules:
-                        modules[modname] = sys.modules[modname]
+                for modname in _modules_imported_by_cell(cell, sys_modules):
+                    if modname in sys_modules:
+                        modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
         stale_modules = _check_modules(
             modules=modules,
             reloader=reloader,
             failed_filenames=failed_filenames,
             finder=finder,
+            sys_modules=sys_modules,
         )
         if stale_modules:
             with graph.lock:
@@ -186,8 +191,14 @@ def watch_modules(
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()
+        # Don't proceed until enqueue_run_stale_cells() has been processed,
+        # ie until stale cells have been rerun
+        run_is_processed.wait()
+        time.sleep(1)
+        # Update our snapshot of sys.modules
+        sys_modules = sys.modules.copy()
         # Update excluded modules in case the module set has changed.
-        finder.excludes = _get_excluded_modules()
+        finder.excludes = _get_excluded_modules(sys_modules)
 
 
 class ModuleWatcher:

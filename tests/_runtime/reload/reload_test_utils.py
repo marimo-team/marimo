@@ -23,5 +23,5 @@ def update_file(path: pathlib.Path, code: str) -> None:
     (because that is stored in the file).  The only reliable way
     to achieve this seems to be to sleep.
     """
-    time.sleep(1.05)
+    time.sleep(1.5)
     path.write_text(textwrap.dedent(code))
