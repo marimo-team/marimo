@@ -348,7 +348,8 @@ class TestApp:
 
         @app.cell
         def __() -> tuple[Any]:
-            def foo() -> None: ...
+            def foo() -> None:
+                ...
 
             return (foo,)
 
@@ -385,6 +386,24 @@ class TestApp:
 
         assert defs["x"] == 0
         assert defs["y"] == 1
+
+    @pytest.mark.skipif(
+        condition=not DependencyManager.has_matplotlib(),
+        reason="requires matplotlib",
+    )
+    def test_marimo_mpl_backend_not_used(self):
+        app = App()
+
+        @app.cell
+        def __() -> tuple[str]:
+            import matplotlib
+
+            backend = matplotlib.get_backend()
+            return (backend,)
+
+        _, defs = app.run()
+
+        assert defs["backend"] != "module://marimo._output.mpl"
 
     @pytest.mark.skipif(
         condition=not DependencyManager.has_matplotlib(),

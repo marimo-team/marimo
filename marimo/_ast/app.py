@@ -36,7 +36,6 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
-from marimo._runtime.context.types import teardown_context
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:
@@ -300,7 +299,10 @@ class App:
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
-        from marimo._runtime.context.types import runtime_context_installed
+        from marimo._runtime.context.types import (
+            runtime_context_installed,
+            teardown_context,
+        )
 
         if self._unparsable:
             raise UnparsableError(
