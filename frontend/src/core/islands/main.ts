@@ -3,7 +3,6 @@ import "./islands.css";
 import "iconify-icon";
 
 import { initializePlugins } from "@/plugins/plugins";
-import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 import { IslandsPyodideBridge } from "./bridge";
 import { store } from "../state/jotai";
 import {
@@ -51,14 +50,6 @@ export async function initialize() {
 
   // Find all "applications" which consist of snippets of code that are inside <marimo-island> tags.
   const apps = parseMarimoIslandApps();
-
-  // Initialize each app
-  for (const app of apps) {
-    await IslandsPyodideBridge.INSTANCE.startSession({
-      code: createMarimoFile(app),
-      appId: app.id,
-    });
-  }
 
   const actions = createNotebookActions((action) => {
     store.set(notebookAtom, (state) => notebookReducer(state, action));

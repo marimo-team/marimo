@@ -17,6 +17,8 @@ import { CellId } from "@/core/cells/ids";
 import { throwNotImplemented } from "@/utils/functions";
 import { isIslands } from "@/core/islands/utils";
 
+import { createMarimoFile, parseMarimoIslandApps } from "./parse";
+
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Lazy singleton instance of the IslandsPyodideBridge.
@@ -37,17 +39,40 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public initialized = new Deferred<void>();
 
   private constructor() {
-    // Create a worker, must be inline to work with CORS restrictions
-    const worker = new InlineWorker({
-      // Pass the version to the worker
-      /* @vite-ignore */
-      name: isIslands() ? getMarimoVersion() : "dev",
-    });
+    // TODO: abstact out into a worker constructor
+    const js = `import ${JSON.stringify(new URL("./worker/worker.ts", import.meta.url))}`
+    const blob = new Blob([js], { type: "application/javascript" })
+    const objURL = URL.createObjectURL(blob)
+    const worker = new Worker(
+        // eslint-disable-next-line unicorn/relative-url-style
+        objURL,
+        {
+          type: "module",
+          // Pass the version to the worker
+          /* @vite-ignore */
+          name: getMarimoVersion(), // isIslands() ? getMarimoVersion() : "dev",
+        },
+      );
+
+    worker.addEventListener("error", (e) => {
+      // Fallback to cleaning up created object URL
+      URL.revokeObjectURL(objURL)
+    })
 
     // Create the RPC
     this.rpc = getWorkerRPC(worker);
 
     // Listeners
+    this.rpc.addMessageListener("ready", () => {
+      // TODO: Could register callback from main
+      const apps = parseMarimoIslandApps();
+      for (const app of apps) {
+        this.startSession({
+          code: createMarimoFile(app),
+          appId: app.id,
+        });
+      }
+    });
     this.rpc.addMessageListener("initialized", () => {
       this.initialized.resolve();
     });

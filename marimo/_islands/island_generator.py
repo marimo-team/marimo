@@ -10,6 +10,9 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._output.utils import uri_encode_component
 
+import functools
+import json
+
 if TYPE_CHECKING:
     from marimo._server.sessions import Session
 
@@ -25,11 +28,23 @@ class MarimoIslandStub:
         self._session: Optional[Session] = None
 
     @property
+    @functools.cache
+    def _output(self) -> str:
+        # Leave output accessible for direct use for non-interactive cases e.g.
+        # pdf.
+        assert all([
+            self._internal_app is not None,
+            self._session is not None
+        ]), "You must call build() before rendering"
+        outputs = self._session.session_view.get_cell_outputs([self._cell_id])
+        return outputs.get(self._cell_id, None)
+
+    @property
     def code(self) -> str:
         return self._code
 
     def render(
-        self, include_code: bool = True, include_output: bool = True
+        self, include_code: bool = True, include_output: bool = True,
     ) -> str:
         """
         Render the HTML island code for the cell.
@@ -43,18 +58,10 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
-        assert (
-            self._internal_app is not None
-        ), "You must call build() before rendering"
-        assert (
-            self._session is not None
-        ), "You must call build() before rendering"
-
         if include_code is False and include_output is False:
             raise ValueError("You must include either code or output")
 
-        outputs = self._session.session_view.get_cell_outputs([self._cell_id])
-        output = outputs.get(self._cell_id, None)
+        output = handle_mimetypes(self._output.data, self._output.mimetype)
 
         # Cell may not have output
         # (e.g. imports, but still needs to be included)
@@ -66,7 +73,7 @@ class MarimoIslandStub:
             data-cell-id="{self._cell_id}"
         >
             <marimo-cell-output>
-            {output.data if output and include_output else ""}
+            {output if output and include_output else ""}
             </marimo-cell-output>
             <marimo-cell-code hidden>
             {uri_encode_component(self.code) if include_code else ""}
@@ -184,7 +191,7 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: bool = False,
+        _development_url: Union[str | bool] = False,
     ) -> str:
         """
         Render the header for the app.
@@ -220,10 +227,20 @@ class MarimoIslandGenerator:
                 integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
                 crossorigin="anonymous"
             />
+
+            <marimo-version data-version="{version_override}" hidden=""></marimo-version>
+            <marimo-mode data-mode="island" hidden=""></marimo-mode>
+
+            <!-- Required to silence marimo expectations, but not actively used
+            right now -->
+            <marimo-user-config data-config="{{}}" hidden=""> </marimo-user-config>
+            <marimo-app-config data-config="{{}}"> </marimo-app-config>
         """.strip()
 
         if _development_url:
             base_url = "http://localhost:5174"
+            if isinstance(_development_url, str):
+                base_url = _development_url
             return dedent(
                 f"""
                 <script
@@ -249,3 +266,16 @@ class MarimoIslandGenerator:
 
 def remove_empty_lines(text: str) -> str:
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])
+
+def handle_mimetypes(output: str, mimetype: str) -> str:
+    # Since raw data, without wrapping in an image tag, this is just a huge
+    # blob.
+    if mimetype.startswith("image/"):
+        output = f"<img src='{output}'/>"
+    elif self._output.mimetype == "application/json":
+        # This isn't right, it's already a string from output
+        # and internal html is prefixed with mimetype.
+        # TODO: properly extract
+        output = json_output(json.loads(output))
+    return output
+
