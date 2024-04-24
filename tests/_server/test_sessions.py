@@ -1,15 +1,25 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import queue
 import sys
+import time
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
 
+import decorator
+
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import UserConfigManager
-from marimo._runtime.requests import AppMetadata
+from marimo._runtime.requests import (
+    AppMetadata,
+    CreationRequest,
+    ExecuteMultipleRequest,
+    ExecutionRequest,
+    SetUIElementValueRequest,
+)
 from marimo._server.file_manager import AppFileManager
 from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.sessions import KernelManager, QueueManager, Session
@@ -27,14 +37,14 @@ app_metadata = AppMetadata(
 def save_and_restore_main(f):
     """Kernels swap out the main module; restore it after running tests"""
 
-    def wrapper() -> None:
+    def wrapper(f, *args, **kwargs) -> None:
         main = sys.modules["__main__"]
         try:
-            f()
+            f(*args, **kwargs)
         finally:
             sys.modules["__main__"] = main
 
-    return wrapper
+    return decorator.decorator(wrapper, f)
 
 
 @save_and_restore_main
@@ -82,6 +92,71 @@ def test_kernel_manager() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
+
+
+@save_and_restore_main
+def test_kernel_manager_interrupt(tmp_path) -> None:
+    queue_manager = QueueManager(use_multiprocessing=True)
+    mode = SessionMode.EDIT
+
+    kernel_manager = KernelManager(
+        queue_manager,
+        mode,
+        {},
+        app_metadata,
+        UserConfigManager(),
+        virtual_files_supported=True,
+    )
+
+    # Assert startup
+    kernel_manager.start_kernel()
+    assert kernel_manager.kernel_task is not None
+    assert kernel_manager._read_conn is not None
+    assert kernel_manager.is_alive()
+    file = str(tmp_path / "output.txt")
+    with open(file, "w") as f:
+        f.write("-1")
+
+    queue_manager.control_queue.put(
+        CreationRequest(
+            execution_requests=tuple(
+                [
+                    ExecutionRequest(
+                        cell_id="1",
+                        code=inspect.cleandoc(
+                            f"""
+                            import time
+                            with open('{file}', "w") as f:
+                                f.write("0")
+                            time.sleep(5)
+                            with open('{file}', "w") as f:
+                                f.write("1")
+                            """
+                        ),
+                    )
+                ]
+            ),
+            set_ui_element_value_request=SetUIElementValueRequest(
+                ids_and_values=[]
+            ),
+        )
+    )
+
+    # give time for the file to be written to 0, but not enough for it to be
+    # written to 1
+    time.sleep(0.5)
+    kernel_manager.interrupt_kernel()
+
+    with open(file, "r") as f:
+        assert f.read() == "0"
+
+    assert queue_manager.input_queue.empty()
+    assert queue_manager.control_queue.empty()
+    kernel_manager.close_kernel()
+
+    # Assert shutdown
+    kernel_manager.kernel_task.join()
+    assert not kernel_manager.is_alive()
 
 
 @save_and_restore_main
