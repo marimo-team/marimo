@@ -13,6 +13,7 @@ import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
   LastSavedNotebook,
+  canUndoDeletes,
   notebookCells,
   notebookIsRunning,
   notebookNeedsRun,
@@ -360,7 +361,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
           closed={connStatus.state === WebSocketState.CLOSED}
           running={isRunning}
           needsRun={notebookNeedsRun(notebook)}
-          undoAvailable={notebook.history.length > 0}
+          undoAvailable={canUndoDeletes(notebook)}
           appWidth={appConfig.width}
         />
       )}

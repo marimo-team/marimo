@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { sendDeleteCell } from "@/core/network/requests";
 import { downloadCellOutput } from "@/components/export/export-output-button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -45,6 +44,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { aiEnabledAtom } from "@/core/config/config";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -64,12 +64,12 @@ export function useCellActionButtons({ cell }: Props) {
     updateCellConfig,
     updateCellCode,
     updateCellName,
-    deleteCell,
     moveCell,
     sendToTop,
     sendToBottom,
   } = useCellActions();
   const runCell = useRunCell(cell?.cellId);
+  const deleteCell = useDeleteCellCallback();
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
@@ -292,8 +292,7 @@ export function useCellActionButtons({ cell }: Props) {
         label: "Delete",
         variant: "danger",
         icon: <Trash2Icon size={13} strokeWidth={1.5} />,
-        handle: async () => {
-          await sendDeleteCell(cellId);
+        handle: () => {
           deleteCell({ cellId });
         },
       },

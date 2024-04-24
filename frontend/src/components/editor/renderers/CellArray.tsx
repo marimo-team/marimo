@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect } from "react";
-import { sendDeleteCell } from "@/core/network/requests";
 import { Cell } from "@/components/editor/Cell";
 import {
   ConnectionStatus,
@@ -14,7 +13,6 @@ import {
 import { AppConfig, UserConfig } from "../../../core/config/config-schema";
 import { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
-import { useEvent } from "../../../hooks/useEvent";
 import { formatAll } from "../../../core/codemirror/format";
 import { useTheme } from "../../../theme/useTheme";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
@@ -23,6 +21,7 @@ import { useChromeActions } from "../chrome/state";
 import { Functions } from "@/utils/functions";
 import { NotebookBanner } from "../notebook-banner";
 import { PackageAlert } from "@/components/editor/package-alert";
+import { useDeleteCellCallback } from "../cell/useDeleteCell";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -42,7 +41,6 @@ export const CellArray: React.FC<CellArrayProps> = ({
   const {
     updateCellCode,
     prepareForRun,
-    deleteCell,
     moveCell,
     moveToNextCell,
     updateCellConfig,
@@ -77,10 +75,7 @@ export const CellArray: React.FC<CellArrayProps> = ({
   useHotkey("cell.hideCode", Functions.NOOP);
   useHotkey("cell.format", Functions.NOOP);
 
-  const onDeleteCell: typeof deleteCell = useEvent((payload) => {
-    sendDeleteCell(payload.cellId);
-    deleteCell(payload);
-  });
+  const onDeleteCell = useDeleteCellCallback();
 
   // Scroll to a cell targeted by a previous action
   useEffect(() => {

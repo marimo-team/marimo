@@ -19,9 +19,11 @@ import {
   PanelLeftIcon,
   CheckIcon,
   KeyboardIcon,
+  Undo2Icon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
 import {
+  canUndoDeletes,
   disabledCellIds,
   enabledCellIds,
   useCellActions,
@@ -55,7 +57,7 @@ export function useNotebookActions() {
   const { selectedPanel } = useChromeState();
 
   const notebook = useNotebook();
-  const { updateCellConfig } = useCellActions();
+  const { updateCellConfig, undoDeleteCell } = useCellActions();
   const restartKernel = useRestartKernel();
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
@@ -215,6 +217,14 @@ export function useNotebookActions() {
         ids.forEach((cellId) =>
           updateCellConfig({ cellId, config: { disabled: true } }),
         );
+      },
+    },
+    {
+      icon: <Undo2Icon size={14} strokeWidth={1.5} />,
+      label: "Undo cell deletion",
+      hidden: !canUndoDeletes(notebook),
+      handle: () => {
+        undoDeleteCell();
       },
     },
 
