@@ -187,7 +187,7 @@ const Toolbar = ({ onRefresh }: { onRefresh: () => void }) => {
 const Show = ({ node }: { node: NodeApi<FileInfo> }) => {
   return (
     <span
-      className="flex-1"
+      className="flex-1 overflow-hidden text-ellipsis"
       onClick={(e) => {
         if (node.data.isDirectory) {
           return;
@@ -293,13 +293,13 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       <FolderArrow node={node} />
       <span
         className={cn(
-          "flex items-center gap-2 px-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1",
+          "flex items-center pl-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden",
           node.willReceiveDrop &&
             node.data.isDirectory &&
             "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
         )}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={1.5} />
+        <Icon className="w-5 h-5 flex-shrink-0 mr-2" strokeWidth={1.5} />
         {node.isEditing ? <Edit node={node} /> : <Show node={node} />}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger
