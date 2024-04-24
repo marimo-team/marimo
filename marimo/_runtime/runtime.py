@@ -237,19 +237,6 @@ def cli_args() -> CLIArgs:
     return get_context().cli_args
 
 
-@mddoc
-def running_in_notebook() -> bool:
-    """Returns True if running in a marimo notebook, False otherwise"""
-    from marimo._runtime.context.kernel_context import KernelRuntimeContext
-
-    try:
-        ctx = get_context()
-    except ContextNotInitializedError:
-        return False
-    else:
-        return isinstance(ctx, KernelRuntimeContext)
-
-
 @dataclasses.dataclass
 class CellMetadata:
     """CellMetadata

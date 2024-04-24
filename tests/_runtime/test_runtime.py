@@ -24,7 +24,7 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
     SetUIElementValueRequest,
 )
-from marimo._runtime.runtime import Kernel, running_in_notebook
+from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 if TYPE_CHECKING:
@@ -904,6 +904,8 @@ async def test_running_in_notebook(
 
 
 def test_not_running_in_notebook() -> None:
+    from marimo._runtime.context.utils import running_in_notebook
+
     assert not running_in_notebook()
 
 
