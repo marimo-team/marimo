@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import functools
 import inspect
 import queue
 import sys
@@ -9,14 +10,11 @@ from multiprocessing.queues import Queue as MPQueue
 from typing import Any
 from unittest.mock import MagicMock
 
-import decorator
-
 from marimo._ast.app import App, InternalApp
 from marimo._config.manager import UserConfigManager
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
-    ExecuteMultipleRequest,
     ExecutionRequest,
     SetUIElementValueRequest,
 )
@@ -37,14 +35,15 @@ app_metadata = AppMetadata(
 def save_and_restore_main(f):
     """Kernels swap out the main module; restore it after running tests"""
 
-    def wrapper(f, *args, **kwargs) -> None:
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs) -> None:
         main = sys.modules["__main__"]
         try:
             f(*args, **kwargs)
         finally:
             sys.modules["__main__"] = main
 
-    return decorator.decorator(wrapper, f)
+    return wrapper
 
 
 @save_and_restore_main
