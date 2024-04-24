@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import subprocess
 from os import path
+from typing import TYPE_CHECKING
 
 from marimo import __version__
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
+
+if TYPE_CHECKING:
+    import pathlib
 
 snapshot = snapshotter(__file__)
 
@@ -122,6 +127,95 @@ class TestExportHTML:
                     in line
                 )
                 break
+
+
+class TestExportHtmlSmokeTests:
+    def assert_not_errored(
+        self, p: subprocess.CompletedProcess[bytes]
+    ) -> None:
+        assert p.returncode == 0
+        assert not any(
+            line.startswith("Traceback")
+            for line in p.stderr.decode().splitlines()
+        )
+        assert not any(
+            line.startswith("Traceback")
+            for line in p.stdout.decode().splitlines()
+        )
+
+    def test_export_intro_tutorial(self, tmp_path: pathlib.Path) -> None:
+        from marimo._tutorials import intro
+
+        file = tmp_path / "intro.py"
+        out = tmp_path / "out.html"
+        file.write_text(inspect.getsource(intro))
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+
+    def test_export_ui_tutorial(self, tmp_path: pathlib.Path) -> None:
+        from marimo._tutorials import ui as mod
+
+        file = tmp_path / "mod.py"
+        file.write_text(inspect.getsource(mod))
+        out = tmp_path / "out.html"
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+
+    def test_export_dataflow_tutorial(self, tmp_path: pathlib.Path) -> None:
+        from marimo._tutorials import dataflow as mod
+
+        file = tmp_path / "mod.py"
+        file.write_text(inspect.getsource(mod))
+        out = tmp_path / "out.html"
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+
+    def test_export_layout_tutorial(self, tmp_path: pathlib.Path) -> None:
+        from marimo._tutorials import layout as mod
+
+        file = tmp_path / "mod.py"
+        file.write_text(inspect.getsource(mod))
+        out = tmp_path / "out.html"
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+
+    def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
+        from marimo._tutorials import plots
+
+        file = tmp_path / "plots.py"
+        file.write_text(inspect.getsource(plots))
+        out = tmp_path / "out.html"
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+
+    def test_export_marimo_for_jupyter_users(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        from marimo._tutorials import marimo_for_jupyter_users as mod
+
+        file = tmp_path / "mod.py"
+        file.write_text(inspect.getsource(mod))
+        out = tmp_path / "out.html"
+        p = subprocess.run(
+            ["marimo", "export", "html", str(file), "-o", str(out)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
 
 
 class TestExportScript:

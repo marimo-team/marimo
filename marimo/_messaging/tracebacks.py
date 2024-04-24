@@ -20,7 +20,7 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def write_traceback(traceback: str) -> None:
-    from marimo._runtime.runtime import running_in_notebook
+    from marimo._runtime.context.utils import running_in_notebook
 
     if running_in_notebook():
         sys.stderr.write(_highlight_traceback(traceback))

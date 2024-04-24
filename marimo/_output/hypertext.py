@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, final
+from typing import TYPE_CHECKING, Any, Callable, Literal, final
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
@@ -86,13 +86,17 @@ class Html(MIME):
                 ctx.virtual_file_registry.reference(virtual_filename)
                 self._virtual_filenames.append(virtual_filename)
 
-    def __del__(self) -> None:
+    # bind the function python_exiting to ensure it still exists at Python
+    # destruction time; for graceful exits when running as a script
+    def __del__(
+        self, _python_exiting: Callable[..., bool] = python_exiting
+    ) -> None:
         """Cleanup side-effects related to initialization.
 
         Subclasses MUST implement a __del__ method that ends by calling
         this method.
         """
-        if python_exiting():
+        if _python_exiting():
             # imports can fail when python is exiting; clean-up
             # is not important when exiting anyway
             return
@@ -107,7 +111,7 @@ class Html(MIME):
         except ContextNotInitializedError:
             return
 
-        if ctx is not None:
+        if ctx is not None and ctx.virtual_files_supported:
             for f in self._virtual_filenames:
                 ctx.virtual_file_registry.dereference(f)
 

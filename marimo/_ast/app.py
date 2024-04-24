@@ -31,11 +31,11 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
-from marimo._runtime.context.types import teardown_context
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:
@@ -249,7 +249,9 @@ class App:
             {name: glbls[name] for name in self._defs if name in glbls},
         )
 
-    def _run_sync(self) -> tuple[Sequence[Any], dict[str, Any]]:
+    def _run_sync(
+        self, post_execute_hooks: list[Callable[..., Any]]
+    ) -> tuple[Sequence[Any], dict[str, Any]]:
         from marimo._runtime.context.types import ExecutionContext
 
         # No need to provide `file`, `input_override` here, since this
@@ -265,9 +267,13 @@ class App:
                         cell_id=cid, setting_element_value=False
                     )
                     outputs[cid] = execute_cell(cell._cell, glbls)
+                    for hook in post_execute_hooks:
+                        hook()
             return self._outputs_and_defs(outputs, glbls)
 
-    async def _run_async(self) -> tuple[Sequence[Any], dict[str, Any]]:
+    async def _run_async(
+        self, post_execute_hooks: list[Callable[..., Any]]
+    ) -> tuple[Sequence[Any], dict[str, Any]]:
         from marimo._runtime.context.types import ExecutionContext
 
         # No need to provide `file`, `input_override` here, since this
@@ -283,6 +289,8 @@ class App:
                         cell_id=cid, setting_element_value=False
                     )
                     outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    for hook in post_execute_hooks:
+                        hook()
                     self._execution_context = None
 
             return self._outputs_and_defs(outputs, glbls)
@@ -291,7 +299,10 @@ class App:
         from marimo._runtime.context.script_context import (
             initialize_script_context,
         )
-        from marimo._runtime.context.types import runtime_context_installed
+        from marimo._runtime.context.types import (
+            runtime_context_installed,
+            teardown_context,
+        )
 
         if self._unparsable:
             raise UnparsableError(
@@ -329,10 +340,18 @@ class App:
             if not FORMATTERS:
                 register_formatters()
 
+            post_execute_hooks = []
+            if DependencyManager.has_matplotlib():
+                from marimo._output.mpl import close_figures
+
+                post_execute_hooks.append(close_figures)
+
             if is_async:
-                return asyncio.run(self._run_async())
+                return asyncio.run(
+                    self._run_async(post_execute_hooks=post_execute_hooks)
+                )
             else:
-                return self._run_sync()
+                return self._run_sync(post_execute_hooks=post_execute_hooks)
         finally:
             if installed_script_context:
                 teardown_context()

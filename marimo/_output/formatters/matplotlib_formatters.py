@@ -15,13 +15,13 @@ class MatplotlibFormatter(FormatterFactory):
 
         from marimo._runtime.context import (
             get_global_context,
-            runtime_context_installed,
         )
+        from marimo._runtime.context.utils import running_in_notebook
 
         get_global_context().set_mpl_installed(True)
         from marimo._output import mpl  # noqa: F401
 
-        if runtime_context_installed():
+        if running_in_notebook():
             matplotlib.use("module://marimo._output.mpl")
 
         import base64
