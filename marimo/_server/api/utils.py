@@ -53,7 +53,11 @@ def open_url_in_browser(browser: str, url: str) -> None:
     """
     if which("xdg-open") is not None and browser == "default":
         with open(os.devnull, "w") as devnull:
-            if sys.platform == "win32" or sys.platform == "cygwin":
+            if (
+                sys.platform == "win32"
+                or sys.platform == "cygwin"
+                or sys.implementation.name == "graalpy"
+            ):
                 preexec_fn = None
             else:
                 preexec_fn = os.setpgrp
