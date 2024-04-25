@@ -2,6 +2,7 @@
 import { initialMode } from "@/core/mode";
 
 export function isIslands() {
-  return (import.meta.env.VITE_MARIMO_ISLANDS === true
-    || initialMode === "island");
+  return (
+    import.meta.env.VITE_MARIMO_ISLANDS === true || initialMode === "island"
+  );
 }

@@ -9,13 +9,12 @@ import {
 } from "../network/types";
 import { Deferred } from "@/utils/Deferred";
 import { getMarimoVersion } from "../dom/marimo-tag";
-import { getWorkerRPC } from "./rpc";
+import { getWorkerRPC } from "@/core/pyodide/rpc";
 import { OperationMessage } from "../kernel/messages";
 import { JsonString } from "@/utils/json/base64";
-import InlineWorker from "./worker/worker.ts?worker&inline";
 import { CellId } from "@/core/cells/ids";
 import { throwNotImplemented } from "@/utils/functions";
-import { isIslands } from "@/core/islands/utils";
+import type { WorkerSchema } from "./worker/worker";
 
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
 
@@ -31,7 +30,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     return IslandsPyodideBridge._instance;
   }
 
-  private rpc: ReturnType<typeof getWorkerRPC>;
+  private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private messageConsumer:
     | ((message: JsonString<OperationMessage>) => void)
     | undefined;
@@ -39,32 +38,31 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   public initialized = new Deferred<void>();
 
   private constructor() {
-    // TODO: abstact out into a worker constructor
-    const js = `import ${JSON.stringify(new URL("./worker/worker.ts", import.meta.url))}`
-    const blob = new Blob([js], { type: "application/javascript" })
-    const objURL = URL.createObjectURL(blob)
+    // TODO: abstract out into a worker constructor
+    const js = `import ${JSON.stringify(new URL("worker/worker.ts", import.meta.url))}`;
+    const blob = new Blob([js], { type: "application/javascript" });
+    const objURL = URL.createObjectURL(blob);
     const worker = new Worker(
-        // eslint-disable-next-line unicorn/relative-url-style
-        objURL,
-        {
-          type: "module",
-          // Pass the version to the worker
-          /* @vite-ignore */
-          name: getMarimoVersion(), // isIslands() ? getMarimoVersion() : "dev",
-        },
-      );
+      // eslint-disable-next-line unicorn/relative-url-style
+      objURL,
+      {
+        type: "module",
+        // Pass the version to the worker
+        /* @vite-ignore */
+        name: getMarimoVersion(),
+      },
+    );
 
     worker.addEventListener("error", (e) => {
       // Fallback to cleaning up created object URL
-      URL.revokeObjectURL(objURL)
-    })
+      URL.revokeObjectURL(objURL);
+    });
 
     // Create the RPC
-    this.rpc = getWorkerRPC(worker);
+    this.rpc = getWorkerRPC<WorkerSchema>(worker);
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
-      // TODO: Could register callback from main
       const apps = parseMarimoIslandApps();
       for (const app of apps) {
         this.startSession({
