@@ -65,9 +65,9 @@ def _depends_on(
     try:
         finder.run_script(src_module.__file__)
     except SyntaxError:
-        # user introduced a syntax error, maybe; don't
-        # exclude this module from future searches
-        return True
+        # user introduced a syntax error, maybe; still check if the
+        # module itself has been modified
+        pass
     except Exception:
         # some modules like numpy fail when called with run_script;
         # run_script takes a long time before failing on them, so
