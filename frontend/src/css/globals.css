@@ -25,7 +25,7 @@
 
 @layer base {
   :root,
-  :not(.dark) .marimo {
+  .light .marimo {
     color-scheme: light;
 
     --monospace-font: "Fira Mono";
