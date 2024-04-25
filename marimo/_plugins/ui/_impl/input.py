@@ -135,12 +135,15 @@ class slider(UIElement[Numeric, Numeric]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
+    - `steps`: list of steps
 
     **Initialization Args.**
 
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
@@ -148,7 +151,6 @@ class slider(UIElement[Numeric, Numeric]):
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
     - `label`: text label for the element
-    - `values`: list of values to customize the slider
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
@@ -159,33 +161,52 @@ class slider(UIElement[Numeric, Numeric]):
 
     def __init__(
         self,
-        start: float = 0,
-        stop: float = 10,
-        step: Optional[float] = None,
-        value: Optional[float] = None,
+        start: Optional[Numeric] = None,
+        stop: Optional[Numeric] = None,
+        step: Optional[Numeric] = None,
+        steps: Optional[Sequence[Numeric]] = None,
+        value: Optional[Numeric] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
         *,
-        values: Optional[Sequence[Numeric]] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        # If values are provided, set the mapping
-        if values is not None:
-            self._dtype = (
-                float if any(isinstance(num, float) for num in values) else int
+        if steps is not None and (
+            start is not None or stop is not None or step is not None
+        ):
+            raise ValueError(
+                "Invalid arguments: `steps` is mutually exclusive with "
+                "`start`, `stop`, and `step`."
             )
-            self._mapping = dict(enumerate(values))
+        if steps is None and (start is None or stop is None):
+            raise ValueError(
+                "Missing arguments: `steps` xor both `start`"
+                "and `stop` must be provided."
+            )
+        # If steps are provided
+        if steps is not None:
+            self._dtype = float if any(isinstance(num, float) for num in steps) else int
+            self._mapping = dict(enumerate(steps))
             try:
-                value = 0 if value is None else value
-                value = values.index(value)
+                value = steps[0] if value is None else value
+                value = steps.index(value)
             except ValueError:
                 print(
-                    "Value out of bounds: default value must be in the values, set to first value."
+                    "Value out of bounds: default value must be in the steps, set to first value."
                 )
                 value = 0
+
+            # minimum value of interval
+            self.start = steps[0]
+            # maximum value of interval
+            self.stop = steps[-1]
+            # slider increment
+            self.step = None
+            # list of steps
+            self.steps = steps
 
             super().__init__(
                 component_name=slider._name,
@@ -193,9 +214,9 @@ class slider(UIElement[Numeric, Numeric]):
                 label=label,
                 args={
                     "start": 0,
-                    "stop": len(values) - 1,
+                    "stop": len(steps) - 1,
                     "step": 1,
-                    "values": values,
+                    "steps": steps,
                     "debounce": debounce,
                     "orientation": orientation,
                     "show-value": show_value,
@@ -222,12 +243,10 @@ class slider(UIElement[Numeric, Numeric]):
                     f"greater than start ({start}) and less than stop ({stop})."
                 )
 
-            # minimum value of interval
             self.start = start
-            # maximum value of interval
             self.stop = stop
-            # slider increment
             self.step = step
+            self.steps = None
 
             super().__init__(
                 component_name=slider._name,
@@ -237,7 +256,7 @@ class slider(UIElement[Numeric, Numeric]):
                     "start": start,
                     "stop": stop,
                     "step": step if step is not None else None,
-                    "values": None,
+                    "steps": [],
                     "debounce": debounce,
                     "orientation": orientation,
                     "show-value": show_value,
@@ -269,12 +288,15 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
+    - `steps`: list of steps
 
     **Initialization Args.**
 
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
@@ -288,13 +310,15 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     """
 
     _name: Final[str] = "marimo-range-slider"
+    _mapping: Optional[dict[int, Numeric]] = None
 
     def __init__(
         self,
-        start: float,
-        stop: float,
-        step: Optional[float] = None,
-        value: Optional[List[float]] = None,
+        start: Optional[Numeric] = None,
+        stop: Optional[Numeric] = None,
+        step: Optional[Numeric] = None,
+        steps: Optional[Sequence[Numeric]] = None,
+        value: Optional[Sequence[Numeric]] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
@@ -303,53 +327,102 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        value_has_float = (
-            any(isinstance(num, float) for num in (value[0], value[1]))
-            if value is not None
-            else False
-        )
-
-        self._dtype = (
-            float
-            if any(isinstance(num, float) for num in (start, stop, step))
-            or value_has_float
-            else int
-        )
-
-        value = [start, stop] if value is None else value
-
-        if stop < start or value[1] < value[0]:
+        if steps is not None and (
+            start is not None or stop is not None or step is not None
+        ):
             raise ValueError(
-                "Invalid bounds: stop value must be greater than start value."
+                "Invalid arguments: `steps` is mutually exclusive with "
+                "`start`, `stop`, and `step`."
             )
-        elif value[0] < start or value[1] > stop:
+        if steps is None and (start is None or stop is None):
             raise ValueError(
-                f"Value out of bounds: default value ({value}) must be "
-                f"a range within start ({start}) and stop ({stop})."
+                "Missing arguments: `steps` xor both `start`"
+                "and `stop` must be provided."
             )
 
-        self.start = start
-        self.stop = stop
-        self.step = step
+        if steps is not None:
+            self._dtype = float if any(isinstance(num, float) for num in steps) else int
+            self._mapping = dict(enumerate(steps))
 
-        super().__init__(
-            component_name=range_slider._name,
-            initial_value=value,
-            label=label,
-            args={
-                "start": start,
-                "stop": stop,
-                "step": step if step is not None else None,
-                "debounce": debounce,
-                "orientation": orientation,
-                "show-value": show_value,
-                "full-width": full_width,
-            },
-            on_change=on_change,
-        )
+            try:
+                value = [steps[0], steps[-1]] if value is None else value
+                value = [steps.index(num) for num in value]
+            except ValueError:
+                print(
+                    "Value out of bounds: default value must be in the steps, set to first value."
+                )
+                value = 0
+
+            # minimum value of interval
+            self.start = steps[0]
+            # maximum value of interval
+            self.stop = steps[-1]
+            # slider increment
+            self.step = None
+            # list of steps
+            self.steps = steps
+
+            super().__init__(
+                component_name=range_slider._name,
+                initial_value=value,
+                label=label,
+                args={
+                    "start": 0,
+                    "stop": len(steps) - 1,
+                    "step": 1,
+                    "steps": steps,
+                    "debounce": debounce,
+                    "orientation": orientation,
+                    "show-value": show_value,
+                    "full-width": full_width,
+                },
+                on_change=on_change,
+            )
+        else:
+            self._dtype = (
+                float
+                if any(isinstance(num, float) for num in (start, stop, step, value))
+                else int
+            )
+
+            value = [start, stop] if value is None else value
+
+            if stop < start or value[1] < value[0]:
+                raise ValueError(
+                    "Invalid bounds: stop value must be greater than start value."
+                )
+            if value[0] < start or value[1] > stop:
+                raise ValueError(
+                    f"Value out of bounds: default value ({value}) must be "
+                    f"a range within start ({start}) and stop ({stop})."
+                )
+
+            self.start = start
+            self.stop = stop
+            self.step = step
+            self.steps = None
+
+            super().__init__(
+                component_name=range_slider._name,
+                initial_value=value,
+                label=label,
+                args={
+                    "start": start,
+                    "stop": stop,
+                    "step": step if step is not None else None,
+                    "steps": [],
+                    "debounce": debounce,
+                    "orientation": orientation,
+                    "show-value": show_value,
+                    "full-width": full_width,
+                },
+                on_change=on_change,
+            )
 
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
-        return cast(Sequence[Numeric], list(self._dtype(v) for v in value))
+        if self._mapping is not None:
+            return cast(Sequence[Numeric], [self._mapping[v] for v in value])
+        return cast(Sequence[Numeric], [self._dtype(v) for v in value])
 
 
 @mddoc
