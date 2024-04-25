@@ -25,7 +25,7 @@
 
 @layer base {
   :root,
-  .marimo {
+  :not(.dark) .marimo {
     color-scheme: light;
 
     --monospace-font: "Fira Mono";
@@ -103,7 +103,8 @@
       0px 0px 2px 0px hsl(var(--accent));
   }
 
-  .dark {
+  .dark,
+  .dark .marimo {
     color-scheme: dark;
 
     /* Radix dark colors for reference: https://github.com/radix-ui/colors/blob/main/src/dark.ts */
