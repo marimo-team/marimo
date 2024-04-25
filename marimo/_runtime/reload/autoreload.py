@@ -10,6 +10,7 @@ Based on the autoreload extension from the IPython project (BSD-3 Clause).
 from __future__ import annotations
 
 import gc
+import io
 import os
 import sys
 import traceback
@@ -21,6 +22,7 @@ from importlib.util import source_from_cache
 from typing import Any, Callable, Dict, Generic, List, Tuple, Type, TypeVar
 
 from marimo import _loggers
+from marimo._messaging.tracebacks import write_traceback
 
 LOGGER = _loggers.marimo_logger()
 
@@ -312,10 +314,19 @@ def superreload(
 
     try:
         module = reload(module)
-    except:
-        # restore module dictionary on failed reload
-        if old_dict is not None:
-            module.__dict__.update(old_dict)
+    except Exception as e:
+        if isinstance(e, SyntaxError):
+            # User introduced a SyntaxError -- they should be told,
+            # and module dict should not be restored, ie don't fail
+            # silently.
+            tmpio = io.StringIO()
+            traceback.print_exc(file=tmpio)
+            tmpio.seek(0)
+            write_traceback(tmpio.read())
+        else:
+            # restore module dictionary on failed reload
+            if old_dict is not None:
+                module.__dict__.update(old_dict)
         raise
 
     # iterate over all objects and update functions & classes
