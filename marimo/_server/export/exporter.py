@@ -5,8 +5,6 @@ import mimetypes
 import os
 from typing import cast
 
-from click import UsageError
-
 from marimo import __version__
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -22,6 +20,15 @@ from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import static_notebook_template
 from marimo._utils.paths import import_files
+
+# Click not bound to be installed (e.g. pyodide).
+try:
+    from click import UsageError
+except ImportError:
+
+    class UsageError(Exception):  # type: ignore[no-redef]
+        pass
+
 
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
