@@ -96,6 +96,7 @@
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.338.0",
     "lz-string": "^1.5.0",
+    "mathjs": "^12.4.2",
     "mermaid": "^10.8.0",
     "partysocket": "0.0.25",
     "plotly.js": "^2.29.1",

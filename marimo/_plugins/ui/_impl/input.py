@@ -148,71 +148,107 @@ class slider(UIElement[Numeric, Numeric]):
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
     - `label`: text label for the element
+    - `values`: list of values to customize the slider
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
         container
     """
 
     _name: Final[str] = "marimo-slider"
+    _mapping: Optional[Dict[int, Numeric]] = None
 
     def __init__(
         self,
-        start: float,
-        stop: float,
+        start: float = 0,
+        stop: float = 10,
         step: Optional[float] = None,
         value: Optional[float] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
         *,
+        values: Optional[Sequence[Numeric]] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
-        self._dtype = (
-            float
-            if any(
-                isinstance(num, float) for num in (start, stop, step, value)
+        # If values are provided, set the mapping
+        if values is not None:
+            self._dtype = (
+                float if any(isinstance(num, float) for num in values) else int
             )
-            else int
-        )
-        value = start if value is None else value
+            self._mapping = dict(enumerate(values))
+            try:
+                value = 0 if value is None else value
+                value = values.index(value)
+            except ValueError:
+                print(
+                    "Value out of bounds: default value must be in the values, set to first value."
+                )
+                value = 0
 
-        if stop < start:
-            raise ValueError(
-                f"Invalid bounds: stop value ({stop}) must be greater than "
-                f"start value ({start})"
+            super().__init__(
+                component_name=slider._name,
+                initial_value=value,
+                label=label,
+                args={
+                    "start": 0,
+                    "stop": len(values) - 1,
+                    "step": 1,
+                    "values": values,
+                    "debounce": debounce,
+                    "orientation": orientation,
+                    "show-value": show_value,
+                    "full-width": full_width,
+                },
+                on_change=on_change,
             )
-        elif value < start or value > stop:
-            raise ValueError(
-                f"Value out of bounds: default value ({value}) must be "
-                f"greater than start ({start}) and less than stop ({stop})."
+        else:
+            self._dtype = (
+                float
+                if any(isinstance(num, float) for num in (start, stop, step, value))
+                else int
             )
+            value = start if value is None else value
 
-        # minimum value of interval
-        self.start = start
-        # maximum value of interval
-        self.stop = stop
-        # slider increment
-        self.step = step
+            if stop < start:
+                raise ValueError(
+                    f"Invalid bounds: stop value ({stop}) must be greater than "
+                    f"start value ({start})"
+                )
+            if value < start or value > stop:
+                raise ValueError(
+                    f"Value out of bounds: default value ({value}) must be "
+                    f"greater than start ({start}) and less than stop ({stop})."
+                )
 
-        super().__init__(
-            component_name=slider._name,
-            initial_value=value,
-            label=label,
-            args={
-                "start": start,
-                "stop": stop,
-                "step": step if step is not None else None,
-                "debounce": debounce,
-                "orientation": orientation,
-                "show-value": show_value,
-                "full-width": full_width,
-            },
-            on_change=on_change,
-        )
+            # minimum value of interval
+            self.start = start
+            # maximum value of interval
+            self.stop = stop
+            # slider increment
+            self.step = step
+
+            super().__init__(
+                component_name=slider._name,
+                initial_value=value,
+                label=label,
+                args={
+                    "start": start,
+                    "stop": stop,
+                    "step": step if step is not None else None,
+                    "values": None,
+                    "debounce": debounce,
+                    "orientation": orientation,
+                    "show-value": show_value,
+                    "full-width": full_width,
+                },
+                on_change=on_change,
+            )
 
     def _convert_value(self, value: Numeric) -> Numeric:
+        if self._mapping is not None:
+            return cast(Numeric, self._dtype(self._mapping[int(value)]))
         return cast(Numeric, self._dtype(value))
 
 
@@ -759,9 +795,7 @@ class multiselect(UIElement[List[str], List[object]]):
             if max_selections < 0:
                 raise ValueError("max_selections cannot be less than 0.")
             if max_selections < len(initial_value):
-                raise ValueError(
-                    "Initial value cannot be greater than max_selections."
-                )
+                raise ValueError("Initial value cannot be greater than max_selections.")
 
         super().__init__(
             component_name=multiselect._name,
@@ -963,9 +997,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         kind: Literal["button", "area"] = "button",
         *,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileUploadResults]], None]
-        ] = None,
+        on_change: Optional[Callable[[Sequence[FileUploadResults]], None]] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -983,8 +1015,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         self, value: list[tuple[str, str]]
     ) -> Sequence[FileUploadResults]:
         return tuple(
-            FileUploadResults(name=e[0], contents=base64.b64decode(e[1]))
-            for e in value
+            FileUploadResults(name=e[0], contents=base64.b64decode(e[1])) for e in value
         )
 
     def name(self, index: int = 0) -> Optional[str]:
@@ -1099,9 +1130,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(
-        self, value: list[Dict[str, Any]]
-    ) -> Sequence[FileInfo]:
+    def _convert_value(self, value: list[Dict[str, Any]]) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
                 id=file["id"],
@@ -1333,9 +1362,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
-        validate: Optional[
-            Callable[[Optional[JSONType]], Optional[str]]
-        ] = None,
+        validate: Optional[Callable[[Optional[JSONType]], Optional[str]]] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
