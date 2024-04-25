@@ -104,6 +104,8 @@ class MockedKernel:
         initialize_kernel_context(
             kernel=self.k,
             stream=self.stream,  # type: ignore
+            stdout=self.stdout,  # type: ignore
+            stderr=self.stderr,  # type: ignore
         )
 
     def teardown(self) -> None:

@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._messaging.types import Stderr, Stdout
 from marimo._plugins.ui._core.ids import IDProvider, NoIDProviderException
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.context.types import (
@@ -80,7 +81,11 @@ class KernelRuntimeContext(RuntimeContext):
 
 
 def initialize_kernel_context(
-    kernel: Kernel, stream: Stream, virtual_files_supported: bool = True
+    kernel: Kernel,
+    stream: Stream,
+    stdout: Stdout | None,
+    stderr: Stderr | None,
+    virtual_files_supported: bool = True,
 ) -> None:
     """Initializes thread-local/session-specific context.
 
@@ -97,5 +102,7 @@ def initialize_kernel_context(
         virtual_file_registry=VirtualFileRegistry(),
         virtual_files_supported=virtual_files_supported,
         stream=stream,
+        stdout=stdout,
+        stderr=stderr,
     )
     initialize_context(runtime_context=runtime_context)

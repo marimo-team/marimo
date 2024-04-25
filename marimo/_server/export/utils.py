@@ -93,6 +93,8 @@ async def run_app_until_completion(
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=NoopSessionConsumer(),
+        # TODO: in RUN, console outputs aren't captured; tried changing to
+        # EDIT, but they still weren't populated.
         mode=SessionMode.RUN,
         app_metadata=AppMetadata(
             query_params={},

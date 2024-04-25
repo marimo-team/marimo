@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from marimo._messaging.types import Stderr, Stdout
 from marimo._runtime import dataflow
 from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
 from marimo._runtime.functions import FunctionRegistry
@@ -63,6 +64,8 @@ class RuntimeContext(abc.ABC):
     virtual_file_registry: VirtualFileRegistry
     virtual_files_supported: bool
     stream: Stream
+    stdout: Stdout | None
+    stderr: Stderr | None
 
     @property
     @abc.abstractmethod
@@ -149,7 +152,7 @@ def get_context() -> RuntimeContext:
     """Return the runtime context.
 
     Throws a ContextNotInitializedError if the context has not been
-    created (which happens when running as a script).
+    created.
     """
     if _THREAD_LOCAL_CONTEXT.runtime_context is None:
         raise ContextNotInitializedError
