@@ -48,9 +48,6 @@ export async function initialize() {
   // This will display all the static HTML content.
   initializePlugins();
 
-  // Find all "applications" which consist of snippets of code that are inside <marimo-island> tags.
-  const apps = parseMarimoIslandApps();
-
   const actions = createNotebookActions((action) => {
     store.set(notebookAtom, (state) => notebookReducer(state, action));
   });

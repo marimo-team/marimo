@@ -9,6 +9,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._output.utils import uri_encode_component
+from marimo._plugins.stateless.json_output import json_output
 
 import functools
 import json
@@ -272,7 +273,7 @@ def handle_mimetypes(output: str, mimetype: str) -> str:
     # blob.
     if mimetype.startswith("image/"):
         output = f"<img src='{output}'/>"
-    elif self._output.mimetype == "application/json":
+    elif mimetype == "application/json":
         # This isn't right, it's already a string from output
         # and internal html is prefixed with mimetype.
         # TODO: properly extract
