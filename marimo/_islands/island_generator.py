@@ -151,7 +151,7 @@ class MarimoIslandGenerator:
         - code (str): The code to add to the app.
         - raw (bool): Handled the code unprocessed or formatted.
         """
-        if raw:
+        if not raw:
             code = dedent(code)
 
         cell_id = self._app.cell_manager.create_cell_id()
