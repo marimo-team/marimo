@@ -243,14 +243,6 @@ class MarimoIslandGenerator:
             <marimo-version data-version="{version_override}" hidden="">
             </marimo-version>
             <marimo-mode data-mode="island" hidden=""></marimo-mode>
-
-            <!--
-              Required to silence marimo expectations, but not actively used
-              right now.
-            -->
-            <marimo-user-config data-config="{{}}" hidden="">
-            </marimo-user-config>
-            <marimo-app-config data-config="{{}}"> </marimo-app-config>
         """.strip()
 
         if _development_url:
