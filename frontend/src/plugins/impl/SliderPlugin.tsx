@@ -52,7 +52,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
         {...props.data}
         value={props.value}
         setValue={props.setValue}
-        valueMap={valueMap} // Pass valueMap as a prop
+        valueMap={valueMap}
       />
     );
   }
@@ -61,7 +61,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
 interface SliderProps extends Data {
   value: T;
   setValue: Setter<T>;
-  valueMap: (sliderValue: number) => number; // Add valueMap to the interface
+  valueMap: (sliderValue: number) => number;
 }
 
 const SliderComponent = ({
