@@ -87,3 +87,15 @@ def test_unknown_file(client: TestClient) -> None:
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Not Found"}
+
+
+def test_vfile(client: TestClient) -> None:
+    response = client.get("/@file/empty.txt")
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert response.content == b""
+
+    response = client.get("/@file/bad.txt")
+    assert response.status_code == 404, response.text
+    assert response.headers["content-type"] == "application/json"
+    assert response.json() == {"detail": "Invalid virtual file request"}
