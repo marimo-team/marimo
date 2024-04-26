@@ -7,7 +7,7 @@ import {
   getEditorViewMode,
   toggleMarkdown,
 } from "@/core/codemirror/format";
-import { useCellActions } from "@/core/cells/cells";
+import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
 import {
   ImageIcon,
   Code2Icon,
@@ -69,6 +69,8 @@ export function useCellActionButtons({ cell }: Props) {
     sendToBottom,
   } = useCellActions();
   const runCell = useRunCell(cell?.cellId);
+  const hasOnlyOneCell = useAtomValue(hasOnlyOneCellAtom);
+  const canDelete = !hasOnlyOneCell;
   const deleteCell = useDeleteCellCallback();
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
@@ -290,6 +292,7 @@ export function useCellActionButtons({ cell }: Props) {
     [
       {
         label: "Delete",
+        hidden: !canDelete,
         variant: "danger",
         icon: <Trash2Icon size={13} strokeWidth={1.5} />,
         handle: () => {
