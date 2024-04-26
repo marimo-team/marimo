@@ -40,7 +40,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   private constructor() {
     // TODO: abstract out into a worker constructor
-    const js = `import ${JSON.stringify(new URL("worker/worker.ts", import.meta.url))}`;
+    const js = `import ${JSON.stringify(new URL("worker/worker.tsx", import.meta.url))}`;
     const blob = new Blob([js], { type: "application/javascript" });
     const objURL = URL.createObjectURL(blob);
     const worker = new Worker(

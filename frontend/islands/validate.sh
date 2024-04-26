@@ -22,6 +22,14 @@ if [ $? -eq 0 ]; then
   exit 1
 fi
 
+echo "[validate: data uri does not convert data:video/mp2t]"
+grep -R "data:video/mp2t" $(pwd)/dist
+if [ $? -eq 0 ]; then
+  echo "mininification misencoded typescript data uri."
+  echo "Try naming the file with a .tsx extension."
+  exit 1
+fi
+
 echo "[validate: files dist/main.js and dist/style.css exist]"
 if [ ! -f "$OUT_DIR/main.js" ] || [ ! -f "$OUT_DIR/style.css" ]; then
   echo "dist/main.js or dist/style.css does not exist"
