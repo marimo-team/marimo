@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import sys
 
+from marimo._runtime.context.types import ContextNotInitializedError
+
 
 def _highlight_traceback(traceback: str) -> str:
     """
@@ -20,9 +22,14 @@ def _highlight_traceback(traceback: str) -> str:
 
 
 def write_traceback(traceback: str) -> None:
-    from marimo._runtime.context.utils import running_in_notebook
+    from marimo._runtime.context import get_context
 
-    if running_in_notebook():
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        ctx = None
+
+    if ctx is not None and ctx.stderr is not None:
         sys.stderr.write(_highlight_traceback(traceback))
     else:
         sys.stderr.write(traceback)

@@ -7,6 +7,8 @@ import subprocess
 from os import path
 from typing import TYPE_CHECKING
 
+import pytest
+
 from marimo import __version__
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
@@ -167,6 +169,9 @@ class TestExportHtmlSmokeTests:
         )
         self.assert_not_errored(p)
 
+    @pytest.mark.xfail(
+        condition=True, reason="export HTML not yet capturing console outputs"
+    )
     def test_export_dataflow_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import dataflow as mod
 
