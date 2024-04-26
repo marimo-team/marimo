@@ -1477,6 +1477,8 @@ def launch_kernel(
     initialize_kernel_context(
         kernel=kernel,
         stream=stream,
+        stdout=stdout,
+        stderr=stderr,
         virtual_files_supported=virtual_files_supported,
     )
 
