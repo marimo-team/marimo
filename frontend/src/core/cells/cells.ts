@@ -654,6 +654,8 @@ export {
 
 const cellIdsAtom = atom((get) => get(notebookAtom).cellIds);
 
+export const hasOnlyOneCellAtom = atom((get) => get(cellIdsAtom).length === 1);
+
 const cellErrorsAtom = atom((get) => {
   const { cellIds, cellRuntime, cellData } = get(notebookAtom);
   const errors = cellIds
