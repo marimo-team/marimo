@@ -13,7 +13,7 @@ import { assertNever } from "@/utils/assertNever";
  * - `home`: A user is in the home page.
  * - `island`: A user is interacting with marimo from an external application.
  */
-export type AppMode = "read" | "edit" | "present" | "home" | "island";
+export type AppMode = "read" | "edit" | "present" | "home";
 
 export function getInitialAppMode(): AppMode {
   const tag = document.querySelector("marimo-mode");
@@ -29,8 +29,6 @@ export function getInitialAppMode(): AppMode {
       return "edit";
     case "home":
       return "home";
-    case "island":
-      return "island";
     case "present":
       throw new Error("internal-error: present mode is not supported");
     case undefined:

@@ -32,13 +32,8 @@ const domBasedMarimoSettings: MarimoSettings = {
   },
 };
 
-// We have limited access to the DOM, so defaults are provided.
 const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoVersion: () => {
-    if (import.meta.env.VITE_MARIMO_VERSION === undefined) {
-      // Version set by export, but can be overridden by ENV.
-      return getMarimoDOMValue("marimo-version", "version");
-    }
     assertExists(import.meta.env.VITE_MARIMO_VERSION);
     return import.meta.env.VITE_MARIMO_VERSION;
   },
@@ -56,41 +51,13 @@ const islandsBasedMarimoSettings: MarimoSettings = {
   },
 };
 
-function getMarimoSettingLookup<T extends keyof MarimoSettings>(
-  settingName: T,
-): () => ReturnType<MarimoSettings[T]> {
-  return () => {
-    // DOM isn't accessible at time of lookup, so defer to callback
-    const result = isIslands()
-      ? islandsBasedMarimoSettings[settingName]()
-      : domBasedMarimoSettings[settingName]();
-    return result as ReturnType<MarimoSettings[T]>;
-  };
-}
-
-const MarimoSettingsWrapper: MarimoSettings = {
-  getMarimoVersion: getMarimoSettingLookup("getMarimoVersion"),
-  getMarimoServerToken: getMarimoSettingLookup("getMarimoServerToken"),
-  getMarimoAppConfig: getMarimoSettingLookup("getMarimoAppConfig"),
-  getMarimoUserConfig: getMarimoSettingLookup("getMarimoUserConfig"),
-  getMarimoCode: getMarimoSettingLookup("getMarimoCode"),
-};
-
-const {
+export const {
   getMarimoVersion,
   getMarimoServerToken,
   getMarimoAppConfig,
   getMarimoUserConfig,
   getMarimoCode,
-} = MarimoSettingsWrapper;
-
-export {
-  getMarimoVersion,
-  getMarimoServerToken,
-  getMarimoAppConfig,
-  getMarimoUserConfig,
-  getMarimoCode,
-};
+} = isIslands() ? islandsBasedMarimoSettings : domBasedMarimoSettings;
 
 function getMarimoDOMValue(tagName: string, key: string) {
   const tag = document.querySelector(tagName);

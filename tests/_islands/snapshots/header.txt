@@ -17,7 +17,3 @@
     integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
     crossorigin="anonymous"
 />
-
-<marimo-version data-version="0.0.0" hidden="">
-</marimo-version>
-<marimo-mode data-mode="island" hidden=""></marimo-mode>
