@@ -143,8 +143,8 @@ def test_range_slider_init() -> None:
     assert slider.steps is None
     assert all(isinstance(num, int) for num in slider.value)
 
-    slider = ui.range_slider(1, 10, value=[2.0, 5.0])
-    assert slider.value == [2.0, 5.0]
+    slider = ui.range_slider(1, 10, value=[2.1, 5.1])
+    assert slider.value == [2.1, 5.1]
     assert all(isinstance(num, float) for num in slider.value)
 
     slider._update([3, 6])
@@ -162,7 +162,7 @@ def test_range_slider_init() -> None:
     assert slider.steps == [1, 3, 6, 10, 17, 20]
 
     # value not in steps, set to first value in steps
-    slider = ui.slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
+    slider = ui.range_slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
     assert slider.value == [1, 20]
 
 

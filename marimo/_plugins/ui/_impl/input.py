@@ -174,6 +174,11 @@ class slider(UIElement[Numeric, Numeric]):
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
+        self.start: Numeric
+        self.stop: Numeric
+        self.step: Optional[Numeric]
+        self.steps: Optional[Sequence[Numeric]]
+
         # Guard against conflicting arguments
         if steps is not None and (
             start is not None or stop is not None or step is not None
@@ -189,13 +194,11 @@ class slider(UIElement[Numeric, Numeric]):
             )
         # If steps are provided
         if steps is not None:
-            self._dtype = (
-                float if any(isinstance(num, float) for num in steps) else int
-            )
+            self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
             try:
                 # check if steps is a sequence of numbers
-                assert all(isinstance(num, Numeric) for num in steps)
+                assert all(isinstance(num, (int, float)) for num in steps)
                 assert len(steps) > 0
                 value = steps[0] if value is None else value
                 value = steps.index(value)
@@ -236,14 +239,10 @@ class slider(UIElement[Numeric, Numeric]):
                 on_change=on_change,
             )
         else:
-            self._dtype = (
-                float
-                if any(
-                    isinstance(num, float)
-                    for num in (start, stop, step, value)
-                )
-                else int
-            )
+            assert start is not None
+            assert stop is not None
+
+            self._dtype = _infer_dtype([start, stop, step, value])
             value = start if value is None else value
 
             if stop < start:
@@ -343,6 +342,11 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
+        self.start: Numeric
+        self.stop: Numeric
+        self.step: Optional[Numeric]
+        self.steps: Optional[Sequence[Numeric]]
+
         if steps is not None and (
             start is not None or stop is not None or step is not None
         ):
@@ -357,13 +361,11 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
         if steps is not None:
-            self._dtype = (
-                float if any(isinstance(num, float) for num in steps) else int
-            )
+            self._dtype = _infer_dtype(steps)
             self._mapping = dict(enumerate(steps))
 
             try:
-                assert all(isinstance(num, Numeric) for num in steps)
+                assert all(isinstance(num, (int, float)) for num in steps)
                 assert len(steps) > 0
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
@@ -389,7 +391,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
             super().__init__(
                 component_name=range_slider._name,
-                initial_value=value,
+                initial_value=list(value),
                 label=label,
                 args={
                     "start": 0,
@@ -404,14 +406,10 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 on_change=on_change,
             )
         else:
-            self._dtype = (
-                float
-                if any(
-                    isinstance(num, float)
-                    for num in (start, stop, step, value)
-                )
-                else int
-            )
+            assert start is not None
+            assert stop is not None
+
+            self._dtype = _infer_dtype([start, stop, step, value])
 
             value = [start, stop] if value is None else value
 
@@ -433,7 +431,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
             super().__init__(
                 component_name=range_slider._name,
-                initial_value=value,
+                initial_value=list(value),
                 label=label,
                 args={
                     "start": start,
@@ -452,9 +450,22 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         if self._mapping is not None:
             return cast(
                 Sequence[Numeric],
-                [self._dtype(self._mapping[v]) for v in value],
+                [self._dtype(self._mapping[int(v)]) for v in value],
             )
         return cast(Sequence[Numeric], [self._dtype(v) for v in value])
+
+
+def _infer_dtype(
+    items: Sequence[Union[Numeric, Sequence[Numeric], None]],
+) -> type[int] | type[float]:
+    """Infer the dtype of a sequence of numbers."""
+    for item in items:
+        if isinstance(item, Sequence):
+            if any(isinstance(subitem, float) for subitem in item):
+                return float
+        if any(isinstance(item, float) for item in items):
+            return float
+    return int
 
 
 @mddoc
