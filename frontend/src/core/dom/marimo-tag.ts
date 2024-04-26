@@ -34,10 +34,6 @@ const domBasedMarimoSettings: MarimoSettings = {
 
 const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoVersion: () => {
-    if (import.meta.env.VITE_MARIMO_VERSION === undefined) {
-      // Version set by export, but can be overridden by ENV.
-      return getMarimoDOMValue("marimo-version", "version");
-    }
     assertExists(import.meta.env.VITE_MARIMO_VERSION);
     return import.meta.env.VITE_MARIMO_VERSION;
   },
