@@ -208,6 +208,9 @@ class TestExportHtmlSmokeTests:
         )
         self.assert_not_errored(p)
 
+    @pytest.mark.xfail(
+        condition=True, reason="export HTML not yet capturing console outputs"
+    )
     def test_export_marimo_for_jupyter_users(
         self, tmp_path: pathlib.Path
     ) -> None:

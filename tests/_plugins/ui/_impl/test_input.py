@@ -82,7 +82,7 @@ def test_slider_init() -> None:
 
 
 def test_slider_invalid_steps() -> None:
-    """tests for invalid steps"""
+    """Tests for invalid steps"""
     # test for empty steps
     with pytest.raises(TypeError) as e:
         ui.slider(steps=[])
@@ -143,8 +143,8 @@ def test_range_slider_init() -> None:
     assert slider.steps is None
     assert all(isinstance(num, int) for num in slider.value)
 
-    slider = ui.range_slider(1, 10, value=[2.0, 5.0])
-    assert slider.value == [2.0, 5.0]
+    slider = ui.range_slider(1, 10, value=[2.1, 5.1])
+    assert slider.value == [2.1, 5.1]
     assert all(isinstance(num, float) for num in slider.value)
 
     slider._update([3, 6])
@@ -162,12 +162,12 @@ def test_range_slider_init() -> None:
     assert slider.steps == [1, 3, 6, 10, 17, 20]
 
     # value not in steps, set to first value in steps
-    slider = ui.slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
+    slider = ui.range_slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
     assert slider.value == [1, 20]
 
 
 def test_range_slider_invalid_steps() -> None:
-    """tests for invalid steps"""
+    """Tests for invalid steps"""
     # test for empty steps
     with pytest.raises(TypeError) as e:
         ui.range_slider(steps=[])
@@ -279,10 +279,14 @@ def test_multiselect() -> None:
     assert ms.value == ["Apples"]
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(options=options_list, value=options_list, max_selections=0)
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=0
+        )
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(options=options_list, value=options_list, max_selections=2)
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=2
+        )
 
     with pytest.raises(ValueError):
         ms = ui.multiselect(options=options_list, max_selections=-10)

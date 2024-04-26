@@ -51,7 +51,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
         {...props.data}
         value={props.value}
         setValue={props.setValue}
-        valueMap={valueMap} // Pass valueMap as a prop
+        valueMap={valueMap}
       />
     );
   }
@@ -60,7 +60,7 @@ export class RangeSliderPlugin implements IPlugin<T, Data> {
 interface RangeSliderProps extends Data {
   value: T;
   setValue: Setter<T>;
-  valueMap: (sliderValue: number) => number; // Add valueMap to the interface
+  valueMap: (sliderValue: number) => number;
 }
 
 const RangeSliderComponent = ({
