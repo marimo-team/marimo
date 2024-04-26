@@ -242,7 +242,6 @@ class MarimoIslandGenerator:
 
             <marimo-version data-version="{version_override}" hidden="">
             </marimo-version>
-            <marimo-mode data-mode="island" hidden=""></marimo-mode>
         """.strip()
 
         if _development_url:

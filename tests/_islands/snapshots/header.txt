@@ -20,4 +20,3 @@
 
 <marimo-version data-version="0.0.0" hidden="">
 </marimo-version>
-<marimo-mode data-mode="island" hidden=""></marimo-mode>
