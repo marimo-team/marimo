@@ -142,14 +142,14 @@ class slider(UIElement[Numeric, Numeric]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
     - `orientation`: the orientation of the slider,
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -164,11 +164,11 @@ class slider(UIElement[Numeric, Numeric]):
         start: Optional[Numeric] = None,
         stop: Optional[Numeric] = None,
         step: Optional[Numeric] = None,
-        steps: Optional[Sequence[Numeric]] = None,
         value: Optional[Numeric] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
@@ -310,14 +310,14 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
     - `orientation`: the orientation of the slider,
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -332,11 +332,11 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         start: Optional[Numeric] = None,
         stop: Optional[Numeric] = None,
         step: Optional[Numeric] = None,
-        steps: Optional[Sequence[Numeric]] = None,
         value: Optional[Sequence[Numeric]] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
