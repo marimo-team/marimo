@@ -142,14 +142,14 @@ class slider(UIElement[Numeric, Numeric]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
     - `orientation`: the orientation of the slider,
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -164,11 +164,11 @@ class slider(UIElement[Numeric, Numeric]):
         start: Optional[Numeric] = None,
         stop: Optional[Numeric] = None,
         step: Optional[Numeric] = None,
-        steps: Optional[Sequence[Numeric]] = None,
         value: Optional[Numeric] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
@@ -310,14 +310,14 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     - `start`: the minimum value of the interval
     - `stop`: the maximum value of the interval
     - `step`: the slider increment
-    - `steps`: list of steps to customize the slider, mutually exclusive
-        with `start`, `stop`, and `step`
     - `value`: default value
     - `debounce`: whether to debounce the slider to only send
         the value on mouse-up or drag-end
     - `orientation`: the orientation of the slider,
         either "horizontal" or "vertical"
     - `show_value`: whether to display the current value of the slider
+    - `steps`: list of steps to customize the slider, mutually exclusive
+        with `start`, `stop`, and `step`
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     - `full_width`: whether the input should take up the full width of its
@@ -332,11 +332,11 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         start: Optional[Numeric] = None,
         stop: Optional[Numeric] = None,
         step: Optional[Numeric] = None,
-        steps: Optional[Sequence[Numeric]] = None,
         value: Optional[Sequence[Numeric]] = None,
         debounce: bool = False,
         orientation: Literal["horizontal", "vertical"] = "horizontal",
         show_value: bool = False,
+        steps: Optional[Sequence[Numeric]] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[Sequence[Numeric]], None]] = None,
@@ -415,8 +415,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
             if stop < start or value[1] < value[0]:
                 raise ValueError(
-                    "Invalid bounds: stop value must be "
-                    "greater than start value."
+                    "Invalid bounds: stop value must be " "greater than start value."
                 )
             if value[0] < start or value[1] > stop:
                 raise ValueError(
@@ -911,9 +910,7 @@ class multiselect(UIElement[List[str], List[object]]):
             if max_selections < 0:
                 raise ValueError("max_selections cannot be less than 0.")
             if max_selections < len(initial_value):
-                raise ValueError(
-                    "Initial value cannot be greater than max_selections."
-                )
+                raise ValueError("Initial value cannot be greater than max_selections.")
 
         super().__init__(
             component_name=multiselect._name,
@@ -1115,9 +1112,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         kind: Literal["button", "area"] = "button",
         *,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileUploadResults]], None]
-        ] = None,
+        on_change: Optional[Callable[[Sequence[FileUploadResults]], None]] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -1135,8 +1130,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         self, value: list[tuple[str, str]]
     ) -> Sequence[FileUploadResults]:
         return tuple(
-            FileUploadResults(name=e[0], contents=base64.b64decode(e[1]))
-            for e in value
+            FileUploadResults(name=e[0], contents=base64.b64decode(e[1])) for e in value
         )
 
     def name(self, index: int = 0) -> Optional[str]:
@@ -1251,9 +1245,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(
-        self, value: list[Dict[str, Any]]
-    ) -> Sequence[FileInfo]:
+    def _convert_value(self, value: list[Dict[str, Any]]) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
                 id=file["id"],
@@ -1485,9 +1477,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
-        validate: Optional[
-            Callable[[Optional[JSONType]], Optional[str]]
-        ] = None,
+        validate: Optional[Callable[[Optional[JSONType]], Optional[str]]] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
