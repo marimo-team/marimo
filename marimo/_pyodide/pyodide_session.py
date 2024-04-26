@@ -28,7 +28,6 @@ from marimo._runtime.requests import (
     CompletionRequest,
     ControlRequest,
     CreationRequest,
-    ExecuteStaleRequest,
     ExecutionRequest,
     SerializedQueryParams,
     SetUIElementValueRequest,
@@ -383,9 +382,7 @@ def launch_pyodide_kernel(
         stdout=stdout,
         stderr=stderr,
         stdin=stdin,
-        execute_stale_cells_callback=lambda: control_queue.put_nowait(
-            ExecuteStaleRequest()
-        ),
+        enqueue_control_request=lambda req: control_queue.put_nowait(req),
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,

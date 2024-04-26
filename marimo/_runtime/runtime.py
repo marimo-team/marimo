@@ -262,7 +262,7 @@ class Kernel:
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
-    - execute_stale_cells_callback: callback to enqueue a stale cells request
+    - enqueue_control_request: callback to enqueue control requests
     """
 
     def __init__(
@@ -274,7 +274,7 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
-        execute_stale_cells_callback: Callable[[], None],
+        enqueue_control_request: Callable[[ControlRequest], None],
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
@@ -285,7 +285,7 @@ class Kernel:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-        self.execute_stale_cells_callback = execute_stale_cells_callback
+        self.enqueue_control_request = enqueue_control_request
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -336,6 +336,16 @@ class Kernel:
         exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
+    def _execute_stale_cells_callback(self) -> None:
+        return self.enqueue_control_request(ExecuteStaleRequest())
+
+    def _execute_install_missing_packages_callback(
+        self, package_manager: str
+    ) -> None:
+        return self.enqueue_control_request(
+            InstallMissingPackagesRequest(manager=package_manager)
+        )
+
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
@@ -359,7 +369,7 @@ class Kernel:
             if self.module_watcher is None:
                 self.module_watcher = ModuleWatcher(
                     self.graph,
-                    enqueue_run_stale_cells=self.execute_stale_cells_callback,
+                    enqueue_run_stale_cells=self._execute_stale_cells_callback,
                     mode=autoreload_mode,
                     stream=self.stream,
                 )
@@ -547,16 +557,21 @@ class Kernel:
             and missing_modules_after_deletion
             != missing_modules_before_deletion
         ):
-            # Deleting a cell can make the set of missing packages smaller
-            MissingPackageAlert(
-                packages=list(
-                    sorted(
-                        self.package_manager.module_to_package(mod)
-                        for mod in missing_modules_after_deletion
-                    )
-                ),
-                isolated=is_python_isolated(),
-            ).broadcast()
+            if self.package_manager.should_auto_install():
+                self._execute_install_missing_packages_callback(
+                    self.package_manager.name
+                )
+            else:
+                # Deleting a cell can make the set of missing packages smaller
+                MissingPackageAlert(
+                    packages=list(
+                        sorted(
+                            self.package_manager.module_to_package(mod)
+                            for mod in missing_modules_after_deletion
+                        )
+                    ),
+                    isolated=is_python_isolated(),
+                ).broadcast()
 
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
@@ -1014,10 +1029,15 @@ class Kernel:
                 for mod in self.module_registry.missing_modules()
             ]
             if missing_packages:
-                MissingPackageAlert(
-                    packages=list(sorted(missing_packages)),
-                    isolated=is_python_isolated(),
-                ).broadcast()
+                if self.package_manager.should_auto_install():
+                    self._execute_install_missing_packages_callback(
+                        self.package_manager.name
+                    )
+                else:
+                    MissingPackageAlert(
+                        packages=list(sorted(missing_packages)),
+                        isolated=is_python_isolated(),
+                    ).broadcast()
 
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates, self.errors
@@ -1470,9 +1490,7 @@ def launch_kernel(
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,
-        execute_stale_cells_callback=lambda: control_queue.put_nowait(
-            ExecuteStaleRequest()
-        ),
+        enqueue_control_request=lambda req: control_queue.put_nowait(req),
     )
     initialize_kernel_context(
         kernel=kernel,

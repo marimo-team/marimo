@@ -33,6 +33,10 @@ class PackageManager(abc.ABC):
         """
         ...
 
+    def should_auto_install(self) -> bool:
+        """Should this package manager auto-install packages"""
+        return False
+
     def run(self, command: list[str]) -> bool:
         proc = subprocess.run(command)  # noqa: ASYNC101
         return proc.returncode == 0
