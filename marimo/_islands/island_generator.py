@@ -239,9 +239,6 @@ class MarimoIslandGenerator:
                 integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
                 crossorigin="anonymous"
             />
-
-            <marimo-version data-version="{version_override}" hidden="">
-            </marimo-version>
         """.strip()
 
         if _development_url:
