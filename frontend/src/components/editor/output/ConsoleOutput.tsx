@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { useLayoutEffect } from "react";
 import { OutputMessage } from "@/core/kernel/messages";
-import { formatOutput } from "../Output";
+import { OutputRenderer } from "../Output";
 import { cn } from "@/utils/cn";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import { NameCellContentEditable } from "../actions/name-cell-input";
@@ -119,7 +119,7 @@ export const ConsoleOutput = (props: Props): React.ReactNode => {
 
         return (
           <React.Fragment key={idx}>
-            {formatOutput({ message: output })}
+            <OutputRenderer message={output} />
           </React.Fragment>
         );
       })}

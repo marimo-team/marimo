@@ -78,9 +78,14 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const app = apps.get(id)!;
     const idx = app.cells.length;
+    const code = parseIslandCode(cellCode.textContent);
+    if (!code) {
+      // Skip if the code is empty
+      continue;
+    }
     app.cells.push({
       output: cellOutput.innerHTML,
-      code: parseIslandCode(cellCode.textContent),
+      code: code,
       idx: idx,
     });
 
