@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-from multiprocessing import Process
 from typing import Callable
 
 from marimo._config.manager import UserConfigManager

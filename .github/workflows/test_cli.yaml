@@ -109,4 +109,4 @@ jobs:
 
       - name: Test CLI
         shell: bash
-        run: pytest -v tests/_cli/test_cli.py
+        run: pytest -v tests/_cli/test_cli.py tests/test_cli_export.py
