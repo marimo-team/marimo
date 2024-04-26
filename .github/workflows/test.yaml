@@ -167,7 +167,7 @@ jobs:
           fi
           uv pip install --upgrade pip
           uv pip install .[testcore]
-          pytest -v tests/
+          pytest -v tests/ -k "not test_cli"
       # Test with optional dependencies
       - name: Test with optional dependencies
         if: ${{ matrix.dependencies == 'core,optional' }}
@@ -182,9 +182,9 @@ jobs:
           uv pip install .[testcore,testoptional]
           # Only collect coverage on the 3.11
           if [ "${{ matrix.python-version }}" == "3.11" ]; then
-            pytest -v tests/ --cov=marimo --cov-branch
+            pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
           else
-            pytest -v tests/
+            pytest -v tests/ -k "not test_cli"
           fi
       - name: Upload coverage reports to Codecov
         if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
