@@ -179,8 +179,8 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                     continue
                 full_path = os.path.join(root, filename)
                 relative_path = os.path.relpath(full_path, directory)
-                with open(full_path, "r", encoding="utf-8") as f:
-                    try:
+                try:
+                    with open(full_path, "r", encoding="utf-8") as f:
                         if "marimo.App" in f.read():
                             files.append(
                                 MarimoFile(
@@ -189,8 +189,8 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                                     last_modified=os.path.getmtime(full_path),
                                 )
                             )
-                    except Exception as e:
-                        LOGGER.debug("Error reading file %s: %s", full_path, e)
+                except Exception as e:
+                    LOGGER.debug("Error reading file %s: %s", full_path, e)
         LOGGER.debug("Found %d files in directory %s", len(files), directory)
         return files
 
