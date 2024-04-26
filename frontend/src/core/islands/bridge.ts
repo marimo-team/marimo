@@ -17,6 +17,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
+import { Logger } from "@/utils/Logger";
 
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
@@ -65,8 +66,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     this.rpc.addMessageListener("ready", () => {
       const apps = parseMarimoIslandApps();
       for (const app of apps) {
+        Logger.debug("Starting session for app", app.id);
+        const file = createMarimoFile(app);
+        Logger.debug(file);
         this.startSession({
-          code: createMarimoFile(app),
+          code: file,
           appId: app.id,
         });
       }

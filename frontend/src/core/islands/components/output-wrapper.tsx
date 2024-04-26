@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { formatOutput } from "@/components/editor/Output";
+import { OutputRenderer } from "@/components/editor/Output";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { NotebookState, notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
+import { isOutputEmpty } from "@/core/cells/outputs";
 import { CellRuntimeState } from "@/core/cells/types";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendRun } from "@/core/network/requests";
@@ -48,9 +49,16 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
     return children;
   }
 
+  // No output to display
+  // Maybe in future, we can configure this to
+  // fallback to displaying the code.
+  if (isOutputEmpty(runtime.output)) {
+    return null;
+  }
+
   return (
     <div className="relative min-h-6">
-      {formatOutput({ message: runtime.output })}
+      <OutputRenderer message={runtime.output} />
       <Indicator state={runtime} />
       <div
         className="absolute top-0 right-0 z-50 flex items-center justify-center gap-1"

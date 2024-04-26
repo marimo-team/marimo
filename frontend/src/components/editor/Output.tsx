@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { OutputMessage } from "@/core/kernel/messages";
 
@@ -23,15 +23,24 @@ import { useExpandedOutput } from "@/core/cells/outputs";
 /**
  * Renders an output based on an OutputMessage.
  */
-export function formatOutput({
-  message,
-  parsedJsonData = {},
-}: {
+export const OutputRenderer: React.FC<{
   message: OutputMessage;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parsedJsonData?: Record<string, any>;
-}): React.ReactNode {
+}> = memo((props) => {
+  const { message } = props;
+
+  // Memoize parsing the json data
+  const parsedJsonData = useMemo(() => {
+    const data = message.data;
+    switch (message.mimetype) {
+      case "application/json":
+        return typeof data === "string" ? JSON.parse(data) : data;
+      default:
+        return;
+    }
+  }, [message.mimetype, message.data]);
+
   const channel = message.channel;
+
   // TODO(akshayka): audio; pdf; text/csv; excel?; text/css; text/javascript
   switch (message.mimetype) {
     case "text/html":
@@ -69,7 +78,8 @@ export function formatOutput({
       logNever(message);
       return null;
   }
-}
+});
+OutputRenderer.displayName = "OutputRenderer";
 
 interface OutputAreaProps {
   output: OutputMessage | null;
@@ -81,21 +91,6 @@ interface OutputAreaProps {
 
 export const OutputArea = React.memo(
   ({ output, cellId, stale, allowExpand, className }: OutputAreaProps) => {
-    // Memoize parsing the json data
-    const parsedJsonData = useMemo(() => {
-      if (!output) {
-        return;
-      }
-
-      const { mimetype, data } = output;
-      switch (mimetype) {
-        case "application/json":
-          return typeof data === "string" ? JSON.parse(data) : data;
-        default:
-          return;
-      }
-    }, [output]);
-
     if (output === null) {
       return null;
     } else if (output.channel === "output" && output.data === "") {
@@ -116,11 +111,7 @@ export const OutputArea = React.memo(
             id={`output-${cellId}`}
             className={cn(stale && "marimo-output-stale", className)}
           >
-            {formatOutput({
-              message: output,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              parsedJsonData: parsedJsonData as Record<string, any>,
-            })}
+            <OutputRenderer message={output} />
           </Container>
         </ErrorBoundary>
       );
