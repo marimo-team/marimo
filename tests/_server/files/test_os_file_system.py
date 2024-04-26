@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import os
 import unittest
 from tempfile import TemporaryDirectory
 
 import pytest
 
-from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.files.os_file_system import OSFileSystem, natural_sort
 from marimo._server.models.files import FileDetailsResponse
 
 
@@ -156,3 +158,28 @@ class TestOSFileSystem(unittest.TestCase):
         self.fs.update_file(file_path, new_content)
         with open(file_path, "r") as f:
             assert f.read() == new_content
+
+
+def test_natural_sort_key() -> None:
+    filenames = [
+        "file1.txt",
+        "file10.txt",
+        "file2.txt",
+        "file20.txt",
+        "1.txt",
+        "10.txt",
+        "2.txt",
+        "20.txt",
+    ]
+    sorted_files = sorted(filenames, key=natural_sort)
+    expected_order = [
+        "1.txt",
+        "2.txt",
+        "10.txt",
+        "20.txt",
+        "file1.txt",
+        "file2.txt",
+        "file10.txt",
+        "file20.txt",
+    ]
+    assert sorted_files == expected_order

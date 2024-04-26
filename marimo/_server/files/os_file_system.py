@@ -4,8 +4,9 @@ from __future__ import annotations
 import base64
 import mimetypes
 import os
+import re
 import shutil
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
@@ -30,6 +31,7 @@ class OSFileSystem(FileSystem):
 
     def list_files(self, path: str) -> List[FileInfo]:
         files: List[FileInfo] = []
+        folders: List[FileInfo] = []
         with os.scandir(path) as it:
             for entry in it:
                 if entry.name in IGNORE_LIST:
@@ -51,12 +53,14 @@ class OSFileSystem(FileSystem):
                     and self._is_marimo_file(entry.path),
                     last_modified_date=entry_stat.st_mtime,
                 )
-                files.append(info)
+                if is_directory:
+                    folders.append(info)
+                else:
+                    files.append(info)
 
-        # Sort by directory first, then by name
-        files.sort(key=lambda f: (not f.is_directory, f.name))
-
-        return files
+        return sorted(folders, key=natural_sort_file) + sorted(
+            files, key=natural_sort_file
+        )
 
     def _get_file_info(self, path: str) -> FileInfo:
         stat = os.stat(path)
@@ -157,3 +161,17 @@ class OSFileSystem(FileSystem):
         with open(path, "w") as file:
             file.write(contents)
         return self.get_details(path).file
+
+
+def natural_sort_file(file: FileInfo) -> List[Union[int, str]]:
+    return natural_sort(file.name)
+
+
+def natural_sort(filename: str) -> List[Union[int, str]]:
+    def convert(text: str) -> Union[int, str]:
+        return int(text) if text.isdigit() else text.lower()
+
+    def alphanum_key(key: str) -> List[Union[int, str]]:
+        return [convert(c) for c in re.split("([0-9]+)", key)]
+
+    return alphanum_key(filename)

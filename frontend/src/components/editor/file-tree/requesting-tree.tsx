@@ -159,6 +159,14 @@ export class RequestingTree {
     this.onChange(this.delegate.data);
   };
 
+  public relativeFromRoot = (path: FilePath): FilePath => {
+    const root = withTrailingSlash(this.rootPath);
+    if (path.startsWith(root)) {
+      return path.slice(root.length) as FilePath;
+    }
+    return path;
+  };
+
   private handleResponse = (response: FileOperationResponse): void => {
     if (!response.success) {
       toast({
@@ -168,4 +176,8 @@ export class RequestingTree {
       return;
     }
   };
+}
+
+function withTrailingSlash(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
 }

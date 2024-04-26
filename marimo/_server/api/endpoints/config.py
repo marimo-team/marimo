@@ -45,7 +45,8 @@ async def save_user_config(
         await app_state.session_manager.start_lsp_server()
 
     # Update the kernel's view of the config
-    app_state.require_current_session().put_control_request(
-        SetUserConfigRequest(body.config)
-    )
+    # Session could be None if the user is on the home page
+    session = app_state.get_current_session()
+    if session is not None:
+        session.put_control_request(SetUserConfigRequest(body.config))
     return SuccessResponse()

@@ -17,7 +17,7 @@ import { RecoveryButton } from "@/components/editor/RecoveryButton";
 import { Tooltip } from "../../ui/tooltip";
 import { renderShortcut } from "../../shortcuts/renderShortcut";
 import { useCellActions } from "../../../core/cells/cells";
-import { AppConfigButton } from "../../app-config/app-config-button";
+import { ConfigButton } from "../../app-config/app-config-button";
 import { LayoutSelect } from "../renderers/layout-select";
 import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { FindReplace } from "@/components/find-replace/find-replace";
@@ -89,7 +89,7 @@ export const Controls = ({
         <div className={topRightControls}>
           {presenting && <LayoutSelect />}
           <NotebookMenuDropdown />
-          <AppConfigButton />
+          <ConfigButton />
           <ShutdownButton description="This will terminate the Python kernel. You'll lose all data that's in memory." />
         </div>
       )}

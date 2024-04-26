@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { RunningNotebooksResponse } from "@/core/network/types";
+import { ConfigButton } from "../app-config/app-config-button";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -84,7 +85,8 @@ export const HomePage: React.FC = () => {
   return (
     <Suspense>
       {/*<GridBackground />*/}
-      <div className="absolute top-3 right-5">
+      <div className="absolute top-3 right-5 flex gap-2 z-10">
+        <ConfigButton showAppConfig={false} />
         <ShutdownButton
           description={`This will shutdown the notebook server and terminate all running notebooks (${running.files.length}). You'll lose all data that's in memory.`}
         />

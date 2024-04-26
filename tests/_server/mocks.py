@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, cast
-from unittest.mock import MagicMock
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
-from marimo._server.sessions import LspServer, SessionManager
+from marimo._server.sessions import NoopLspServer, SessionManager
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
@@ -42,8 +41,7 @@ if __name__ == "__main__":
 
     temp_file.close()
 
-    lsp_server = MagicMock(spec=LspServer)
-    lsp_server.is_running.return_value = False
+    lsp_server = NoopLspServer()
 
     sm = SessionManager(
         file_router=AppFileRouter.from_filename(temp_file.name),
