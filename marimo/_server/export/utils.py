@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from multiprocessing import Process
 from typing import Callable
 
 from marimo._config.manager import UserConfigManager
@@ -41,7 +42,6 @@ async def run_app_then_export_as_html(
 
     config = UserConfigManager()
     session = await run_app_until_completion(file_manager, cli_args)
-
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,
@@ -53,7 +53,6 @@ async def run_app_then_export_as_html(
             files=[],
         ),
     )
-
     return html, filename
 
 
@@ -93,9 +92,8 @@ async def run_app_until_completion(
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=NoopSessionConsumer(),
-        # TODO: in RUN, console outputs aren't captured; tried changing to
-        # EDIT, but they still weren't populated.
-        mode=SessionMode.RUN,
+        # Run in EDIT mode so that console outputs are captured
+        mode=SessionMode.EDIT,
         app_metadata=AppMetadata(
             query_params={},
             filename=file_manager.path,
@@ -106,8 +104,23 @@ async def run_app_until_completion(
         virtual_files_supported=False,
     )
 
-    # Run the app to completion once
+    # Run the notebook to completion once
     session.instantiate(InstantiateRequest(object_ids=[], values=[]))
     await instantiated_event.wait()
+    # Process console messages
+    #
+    # TODO(akshayka): A timing issue with the console output worker
+    # might still exist; the better thing to do would be to flush
+    # the worker, then ask it to quit and join on it. If we have an
+    # issue with some outputs being missed, that's what we should do.
+    session.message_distributor.flush()
+    # Hack: yield to give the session view a chance to process the incoming
+    # console operations.
+    await asyncio.sleep(0.1)
 
+    # Terminate the running kernel task -- all information is captured by
+    # the session view.
+    kernel_task = session.kernel_manager.kernel_task
+    if kernel_task is not None and isinstance(kernel_task, Process):
+        kernel_task.terminate()
     return session
