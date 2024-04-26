@@ -67,9 +67,31 @@ jobs:
         working-directory: frontend
         run: |
           echo "Updating package.json version to $(python -m marimo --version)"
+          echo "MARIMO_VERSION=$(python -m marimo --version)" >> $GITHUB_ENV
           npm version $(python -m marimo --version) --no-git-tag-version
 
-      - name: 📤 Upload to npm
+      - name: 📤 Upload wasm to npm
+        working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: 📦 Update package.json name to @marimo-team/islands
+        working-directory: frontend
+        run: |
+          sed -i 's/"name": "@marimo-team\/frontend"/"name": "@marimo-team\/islands"/' package.json
+
+      - name: 📦 Rebuild frontend
+        working-directory: frontend
+        env:
+          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
+        run: |
+          pnpm turbo build:islands
+          ./islands/validate.sh
+
+      - name: 📤 Upload islands to npm
         working-directory: frontend
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

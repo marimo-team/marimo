@@ -94,11 +94,7 @@ jobs:
 
       - name: 📦 Update package.json name to @marimo-team/islands
         working-directory: frontend
-        env:
-          VITE_MARIMO_ISLANDS: "true"
-          VITE_MARIMO_VERSION: ${{ env.NPM_TOKEN }}
         run: |
-          echo "Updating package.json name to @marimo-team/islands"
           sed -i 's/"name": "@marimo-team\/frontend"/"name": "@marimo-team\/islands"/' package.json
 
       - name: 📦 Rebuild frontend
