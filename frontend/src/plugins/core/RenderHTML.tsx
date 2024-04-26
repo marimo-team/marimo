@@ -22,6 +22,12 @@ export const renderHTML = ({ html }: Options) => {
       ) {
         const element = document.createElement("iframe");
         Object.entries(domNode.attribs).forEach(([key, value]) => {
+          // If it is wrapped in quotes, remove them
+          // html-react-parser will return quoted keys if they are
+          // valueless attributes (e.g. "allowfullscreen")
+          if (key.startsWith('"') && key.endsWith('"')) {
+            key = key.slice(1, -1);
+          }
           element.setAttribute(key, value);
         });
         return <div dangerouslySetInnerHTML={{ __html: element.outerHTML }} />;

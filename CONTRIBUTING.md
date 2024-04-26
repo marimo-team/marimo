@@ -27,7 +27,9 @@ To build marimo from source, you'll need to have Node.js, pnpm, GNU make, and
 Python (>=3.8) installed.
 
 - Install [Node.js](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm#using-a-node-version-manager-to-install-nodejs-and-npm)
-- Install [pnpm](https://github.com/pnpm/pnpm) with `npm install -g pnpm`
+- Install [pnpm](https://github.com/pnpm/pnpm) with `npm install -g pnpm@8`
+  - We use version 8 of pnpm. If you have a different version installed, you can
+    install version 8 with `npm install -g pnpm@8`
 - Install [GNU Make](https://www.gnu.org/software/make/) (you may already have it installed)
 - Install [Python](https://www.python.org/). (You may already it installed. To see your version, use
   `python -v` at the command line.)
