@@ -25,6 +25,9 @@ class PipPackageManager(PypiPackageManager):
 class MicropipPackageManager(PypiPackageManager):
     name = "micropip"
 
+    def should_auto_install(self) -> bool:
+        return True
+
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 

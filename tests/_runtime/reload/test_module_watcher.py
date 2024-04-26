@@ -12,7 +12,7 @@ from reload_test_utils import random_modname, update_file
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.requests import ExecuteStaleRequest, SetUserConfigRequest
+from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -211,7 +211,7 @@ async def test_reload_nested_module_import_module_autorun(
     )
 
     queue = Queue()
-    k.execute_stale_cells_callback = lambda: queue.put(ExecuteStaleRequest())
+    k.enqueue_control_request = lambda req: queue.put(req)
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "autorun"
     k.set_user_config(SetUserConfigRequest(config=config))

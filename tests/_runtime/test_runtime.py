@@ -883,7 +883,7 @@ def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
             app_metadata=AppMetadata(
                 query_params={}, filename=filename, cli_args={}
             ),
-            execute_stale_cells_callback=lambda: None,
+            enqueue_control_request=lambda _: None,
         )
         assert str(tmp_path) in sys.path
         assert str(tmp_path) == sys.path[0]
