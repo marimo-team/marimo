@@ -48,6 +48,60 @@ class TestPandasTableManager(unittest.TestCase):
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
 
+    def test_get_row_headers_date_index(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": [4, 5, 6],
+                "C": [7, 8, 9],
+            },
+            index=pd.to_datetime(["2021-01-01", "2021-06-01", "2021-09-01"]),
+        )
+        manager = self.factory.create()(data)
+        expected_headers = [
+            ("", ["2021-01-01", "2021-06-01", "2021-09-01"]),
+        ]
+        assert manager.get_row_headers() == expected_headers
+
+    def test_get_row_headers_timedelta_index(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": [4, 5, 6],
+                "C": [7, 8, 9],
+            },
+            index=pd.to_timedelta(["1 days", "2 days", "3 days"]),
+        )
+        manager = self.factory.create()(data)
+        expected_headers = [
+            ("", ["1 days", "2 days", "3 days"]),
+        ]
+        assert manager.get_row_headers() == expected_headers
+
+    def test_get_row_headers_multi_index(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": [4, 5, 6],
+                "C": [7, 8, 9],
+            },
+            index=pd.MultiIndex.from_tuples(
+                [("a", 1), ("b", 2), ("c", 3)], names=["X", "Y"]
+            ),
+        )
+        manager = self.factory.create()(data)
+        expected_headers = [
+            ("X", ["a", "b", "c"]),
+            ("Y", [1, 2, 3]),
+        ]
+        assert manager.get_row_headers() == expected_headers
+
     def test_is_type(self) -> None:
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
