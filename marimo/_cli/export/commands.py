@@ -12,6 +12,7 @@ from marimo._server.export.utils import (
     export_as_script,
     run_app_then_export_as_html,
 )
+from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.paths import maybe_make_dirs
 
@@ -94,7 +95,7 @@ def html(
     cli_args = parse_args(args)
     # No watch, just run once
     if not watch:
-        (html, _filename) = asyncio.run(
+        (html, _filename) = asyncio_run(
             run_app_then_export_as_html(
                 name, include_code=include_code, cli_args=cli_args
             )
@@ -123,7 +124,7 @@ def html(
         except KeyboardInterrupt:
             watcher.stop()
 
-    asyncio.run(start())
+    asyncio_run(start())
 
 
 @click.command(
@@ -212,7 +213,7 @@ def script(
         except KeyboardInterrupt:
             watcher.stop()
 
-    asyncio.run(start())
+    asyncio_run(start())
 
 
 export.add_command(html)
