@@ -10,7 +10,11 @@ import { UserConfigForm } from "./user-config-form";
 import { Tooltip } from "../ui/tooltip";
 import { AppConfigForm } from "@/components/app-config/app-config-form";
 
-export const AppConfigButton = () => {
+interface Props {
+  showAppConfig?: boolean;
+}
+
+export const ConfigButton: React.FC<Props> = ({ showAppConfig = true }) => {
   return (
     <Popover>
       <PopoverTrigger asChild={true}>
@@ -35,8 +39,12 @@ export const AppConfigButton = () => {
         // interacting with buttons closes the popover ...
         onFocusOutside={(evt) => evt.preventDefault()}
       >
-        <AppConfigForm />
-        <div className="h-px bg-border my-4" />
+        {showAppConfig && (
+          <>
+            <AppConfigForm />
+            <div className="h-px bg-border my-4" />
+          </>
+        )}
         <UserConfigForm />
       </PopoverContent>
     </Popover>

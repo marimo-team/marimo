@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { NodeApi, NodeRendererProps, Tree } from "react-arborist";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowLeftIcon,
   ChevronDownIcon,
@@ -15,7 +15,6 @@ import {
   UploadIcon,
   ViewIcon,
 } from "lucide-react";
-import { openFile } from "@/core/network/requests";
 import { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
@@ -25,10 +24,7 @@ import {
 } from "./types";
 import { toast } from "@/components/ui/use-toast";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import {
-  AlertDialogAction,
-  AlertDialogDestructiveAction,
-} from "@/components/ui/alert-dialog";
+import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
 import { useAtom } from "jotai";
 import { Button, buttonVariants } from "@/components/ui/button";
 
@@ -48,6 +44,9 @@ import { isPyodide } from "@/core/pyodide/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "@/components/icons/spinner";
+import { RequestingTree } from "./requesting-tree";
+
+const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
 export const FileExplorer: React.FC<{
   height: number;
@@ -94,53 +93,55 @@ export const FileExplorer: React.FC<{
           tree.refreshAll(Object.keys(openState).filter((id) => openState[id]))
         }
       />
-      <Tree<FileInfo>
-        width="100%"
-        height={height - 26}
-        className="h-full"
-        data={data}
-        initialOpenState={openState}
-        openByDefault={false}
-        // Hide the drop cursor
-        renderCursor={() => null}
-        // Disable dropping files into files
-        disableDrop={({ parentNode }) => !parentNode.data.isDirectory}
-        onDelete={async ({ ids }) => {
-          for (const id of ids) {
-            await tree.delete(id);
-          }
-        }}
-        onRename={async ({ id, name }) => {
-          await tree.rename(id, name);
-        }}
-        onMove={async ({ dragIds, parentId }) => {
-          await tree.move(dragIds, parentId);
-        }}
-        onSelect={(nodes) => {
-          const first = nodes[0];
-          if (!first) {
-            return;
-          }
-          if (!first.data.isDirectory) {
-            setOpenFile(first.data);
-          }
-        }}
-        onToggle={async (id) => {
-          const result = await tree.expand(id);
-          if (result) {
-            const prevOpen = openState[id] ?? false;
-            setOpenState({ ...openState, [id]: !prevOpen });
-          }
-        }}
-        padding={15}
-        rowHeight={30}
-        indent={INDENT_STEP}
-        overscanCount={1000}
-        // Disable multi-selection
-        disableMultiSelection={true}
-      >
-        {Node}
-      </Tree>
+      <RequestingTreeContext.Provider value={tree}>
+        <Tree<FileInfo>
+          width="100%"
+          height={height - 33}
+          className="h-full"
+          data={data}
+          initialOpenState={openState}
+          openByDefault={false}
+          // Hide the drop cursor
+          renderCursor={() => null}
+          // Disable dropping files into files
+          disableDrop={({ parentNode }) => !parentNode.data.isDirectory}
+          onDelete={async ({ ids }) => {
+            for (const id of ids) {
+              await tree.delete(id);
+            }
+          }}
+          onRename={async ({ id, name }) => {
+            await tree.rename(id, name);
+          }}
+          onMove={async ({ dragIds, parentId }) => {
+            await tree.move(dragIds, parentId);
+          }}
+          onSelect={(nodes) => {
+            const first = nodes[0];
+            if (!first) {
+              return;
+            }
+            if (!first.data.isDirectory) {
+              setOpenFile(first.data);
+            }
+          }}
+          onToggle={async (id) => {
+            const result = await tree.expand(id);
+            if (result) {
+              const prevOpen = openState[id] ?? false;
+              setOpenState({ ...openState, [id]: !prevOpen });
+            }
+          }}
+          padding={15}
+          rowHeight={30}
+          indent={INDENT_STEP}
+          overscanCount={1000}
+          // Disable multi-selection
+          disableMultiSelection={true}
+        >
+          {Node}
+        </Tree>
+      </RequestingTreeContext.Provider>
     </>
   );
 };
@@ -235,25 +236,13 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
 
   const Icon = FILE_TYPE_ICONS[fileType];
   const { openConfirm } = useImperativeModal();
+  const tree = useContext(RequestingTreeContext);
 
   const handleOpenMarimoFile = async (evt: Event) => {
     evt.stopPropagation();
     evt.preventDefault();
-    openConfirm({
-      title: "Open notebook",
-      description:
-        "This will close the current notebook and open the selected notebook. You'll lose all data that's in memory.",
-      confirmAction: (
-        <AlertDialogAction
-          onClick={async () => {
-            await openFile({ path: node.data.path });
-          }}
-          aria-label="Confirm"
-        >
-          Open
-        </AlertDialogAction>
-      ),
-    });
+    const path = tree ? tree.relativeFromRoot(node.data.path) : node.data.path;
+    window.open(`/?file=${path}`, "_blank");
   };
 
   const handleDeleteFile = async (evt: Event) => {
@@ -327,8 +316,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             onClick={(e) => e.stopPropagation()}
             onCloseAutoFocus={(e) => e.preventDefault()}
           >
-            {/* Not shown in Pyodide */}
-            {!node.data.isDirectory && !isPyodide() && (
+            {!node.data.isDirectory && (
               <DropdownMenuItem onSelect={() => node.select()}>
                 <ViewIcon className="mr-2" size={14} strokeWidth={1.5} />
                 Open file
@@ -353,7 +341,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               <CopyIcon className="mr-2" size={14} strokeWidth={1.5} />
               Copy snippet to clipboard
             </DropdownMenuItem>
-            {node.data.isMarimoFile && (
+            {/* Not shown in Pyodide */}
+            {node.data.isMarimoFile && !isPyodide() && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={handleOpenMarimoFile}>
