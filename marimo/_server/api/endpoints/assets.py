@@ -101,8 +101,19 @@ def virtual_file(
     LOGGER.debug("Getting virtual file: %s", filename_and_length)
     if filename_and_length == EMPTY_VIRTUAL_FILE.filename:
         return Response(content=b"", media_type="application/octet-stream")
+    if "-" not in filename_and_length:
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid virtual file request",
+        )
 
     byte_length, filename = filename_and_length.split("-", 1)
+    if not byte_length.isdigit():
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid byte length in virtual file request",
+        )
+
     buffer_contents = read_virtual_file(filename, int(byte_length))
     mimetype, _ = mimetypes.guess_type(filename)
     return Response(
