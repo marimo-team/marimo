@@ -150,7 +150,7 @@ class TestExportHtmlSmokeTests:
 
         file = tmp_path / "intro.py"
         out = tmp_path / "out.html"
-        file.write_text(inspect.getsource(intro))
+        file.write_text(inspect.getsource(intro), encoding="utf-8")
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
@@ -161,7 +161,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import ui as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -176,7 +176,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import dataflow as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -188,7 +188,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import layout as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -197,10 +197,10 @@ class TestExportHtmlSmokeTests:
         self.assert_not_errored(p)
 
     def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
-        from marimo._tutorials import plots
+        from marimo._tutorials import plots as mod
 
         file = tmp_path / "plots.py"
-        file.write_text(inspect.getsource(plots))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -217,7 +217,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import marimo_for_jupyter_users as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
