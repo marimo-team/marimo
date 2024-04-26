@@ -5,7 +5,7 @@ const config = {
     require("tailwindcss"),
     process.env.VITE_MARIMO_ISLANDS === "true"
       ? require("postcss-plugin-namespace")(".marimo", {
-          ignore: [".marimo", "html", "body"],
+          ignore: [".marimo", "html", ".marimo:is(.dark *)"],
         })
       : undefined,
     process.env.NODE_ENV === "production" ? require("cssnano") : undefined,

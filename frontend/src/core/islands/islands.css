@@ -4,3 +4,7 @@
 @import url("../../css/katex.min.css");
 @import url("../../css/table.css");
 @import url("../../css/md.css");
+
+.marimo {
+  @apply bg-background text-foreground;
+}
