@@ -77,6 +77,33 @@ class PandasTableManagerFactory(TableManagerFactory):
                         name = str(index.name) if index.name else ""
                         return [(name, index.tolist())]  # type: ignore[list-item]
 
+                if isinstance(index, pd.DatetimeIndex):
+                    # Format to Y-m-d if the time is 00:00:00
+                    formatted: list[str] = index.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ).tolist()
+                    if all(time.endswith(" 00:00:00") for time in formatted):
+                        return [
+                            (
+                                index.name or "",
+                                index.strftime("%Y-%m-%d").tolist(),
+                            )
+                        ]
+                    return [
+                        (
+                            index.name or "",
+                            index.strftime("%Y-%m-%d %H:%M:%S").tolist(),
+                        )
+                    ]
+
+                if isinstance(index, pd.TimedeltaIndex):
+                    return [
+                        (
+                            index.name or "",
+                            index.astype(str).tolist(),
+                        )
+                    ]
+
                 return []
 
             def get_field_types(self) -> FieldTypes:
