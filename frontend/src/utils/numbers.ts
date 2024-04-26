@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import { undefined } from "zod";
 import { format } from "mathjs";
 
 export function prettyNumber(value: number): string {
@@ -19,6 +21,10 @@ export function prettyScientificNumber(value: number): string {
   if (!Number.isFinite(value)) {
     return value > 0 ? "Infinity" : "-Infinity";
   }
+  const numberFormat = new Intl.NumberFormat("en-US", {
+    notation: "scientific",
+    maximumSignificantDigits: 2,
+  });
 
   return Math.trunc(value) === 0
     ? // No integer part, use scientific notation

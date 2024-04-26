@@ -23,7 +23,8 @@ describe("prettyScientificNumber", () => {
     expect(prettyScientificNumber(123_456.7)).toBe("123,456.7");
     expect(prettyScientificNumber(12_345.6789)).toBe("12,345.68");
     expect(prettyScientificNumber(1.2345)).toBe("1.23");
-    expect(prettyScientificNumber(1.000001234)).toBe("1");
+    expect(prettyScientificNumber(1.000_001_234)).toBe("1");
+    expect(prettyScientificNumber(0.12)).toBe("0.12");
     expect(prettyScientificNumber(0.1234)).toBe("0.12");
     expect(prettyScientificNumber(0.000_123_4)).toBe("1.2e-4");
     expect(prettyScientificNumber(-1.2345)).toBe("-1.23"); // Test with negative numbers

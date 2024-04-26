@@ -174,6 +174,7 @@ class slider(UIElement[Numeric, Numeric]):
         on_change: Optional[Callable[[Optional[Numeric]], None]] = None,
         full_width: bool = False,
     ) -> None:
+        # Guard against conflicting arguments
         if steps is not None and (
             start is not None or stop is not None or step is not None
         ):
@@ -191,13 +192,19 @@ class slider(UIElement[Numeric, Numeric]):
             self._dtype = float if any(isinstance(num, float) for num in steps) else int
             self._mapping = dict(enumerate(steps))
             try:
+                # check if steps is a sequence of numbers
+                assert all(isinstance(num, Numeric) for num in steps) and len(steps) > 0
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
                 print(
-                    "Value out of bounds: default value must be in the steps, set to first value."
+                    "Value out of bounds: default value should be in the steps, set to first value."
                 )
                 value = 0
+            except AssertionError as e:
+                raise TypeError(
+                    "Invalid steps: steps must be a sequence of numbers."
+                ) from e
 
             # minimum value of interval
             self.start = steps[0]
@@ -345,13 +352,18 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             self._mapping = dict(enumerate(steps))
 
             try:
+                assert all(isinstance(num, Numeric) for num in steps) and len(steps) > 0
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
                 print(
-                    "Value out of bounds: default value must be in the steps, set to first value."
+                    "Value out of bounds: default value should be in the steps, set to first and last values."
                 )
-                value = 0
+                value = [0, len(steps) - 1]
+            except AssertionError as e:
+                raise TypeError(
+                    "Invalid steps: steps must be a sequence of numbers."
+                ) from e
 
             # minimum value of interval
             self.start = steps[0]
@@ -421,7 +433,9 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
-            return cast(Sequence[Numeric], [self._mapping[v] for v in value])
+            return cast(
+                Sequence[Numeric], [self._dtype(self._mapping[v]) for v in value]
+            )
         return cast(Sequence[Numeric], [self._dtype(v) for v in value])
 
 

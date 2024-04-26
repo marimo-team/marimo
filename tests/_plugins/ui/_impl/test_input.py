@@ -76,6 +76,25 @@ def test_slider_init() -> None:
     assert slider.value == 3
     assert slider.steps == [1, 3, 6]
 
+    # value not in steps, set to first value in steps
+    slider = ui.slider(steps=[1, 3, 6], value=7)
+    assert slider.value == 1
+
+
+def test_slider_invalid_steps() -> None:
+    """tests for invalid steps"""
+    # test for empty steps
+    with pytest.raises(TypeError) as e:
+        ui.slider(steps=[])
+
+    assert "Invalid steps" in str(e.value)
+
+    # test for non-numeric steps
+    with pytest.raises(TypeError) as e:
+        ui.slider(steps=[1, 4, "3"])
+
+    assert "Invalid steps" in str(e.value)
+
 
 def test_slider_invalid_bounds() -> None:
     with pytest.raises(ValueError) as e:
@@ -122,13 +141,11 @@ def test_range_slider_init() -> None:
     assert slider.step is None
     assert slider.value == [2, 5]
     assert slider.steps is None
-    for num in slider.value:
-        assert isinstance(num, int)
+    assert all(isinstance(num, int) for num in slider.value)
 
     slider = ui.range_slider(1, 10, value=[2.0, 5.0])
     assert slider.value == [2.0, 5.0]
-    for num in slider.value:
-        assert isinstance(num, float)
+    assert all(isinstance(num, float) for num in slider.value)
 
     slider._update([3, 6])
     assert slider.value == [3.0, 6.0]
@@ -143,6 +160,25 @@ def test_range_slider_init() -> None:
     assert slider.step is None
     assert slider.value == [3, 17]
     assert slider.steps == [1, 3, 6, 10, 17, 20]
+
+    # value not in steps, set to first value in steps
+    slider = ui.slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
+    assert slider.value == [1, 20]
+
+
+def test_range_slider_invalid_steps() -> None:
+    """tests for invalid steps"""
+    # test for empty steps
+    with pytest.raises(TypeError) as e:
+        ui.range_slider(steps=[])
+
+    assert "Invalid steps" in str(e.value)
+
+    # test for non-numeric steps
+    with pytest.raises(TypeError) as e:
+        ui.range_slider(steps=[1, 4, "3"])
+
+    assert "Invalid steps" in str(e.value)
 
 
 def test_range_slider_invalid_bounds() -> None:
