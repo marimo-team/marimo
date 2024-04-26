@@ -23,7 +23,7 @@ if [ $? -eq 0 ]; then
 fi
 
 echo "[validate: data uri does not convert data:video/mp2t]"
-grep -R "video/mp2t" $(pwd)/dist
+grep -R "data:video/mp2t" $(pwd)/dist
 if [ $? -eq 0 ]; then
   echo "mininification misencoded typescript data uri."
   echo "Try naming the file with a .tsx extension."
