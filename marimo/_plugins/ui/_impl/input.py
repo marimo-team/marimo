@@ -189,16 +189,20 @@ class slider(UIElement[Numeric, Numeric]):
             )
         # If steps are provided
         if steps is not None:
-            self._dtype = float if any(isinstance(num, float) for num in steps) else int
+            self._dtype = (
+                float if any(isinstance(num, float) for num in steps) else int
+            )
             self._mapping = dict(enumerate(steps))
             try:
                 # check if steps is a sequence of numbers
-                assert all(isinstance(num, Numeric) for num in steps) and len(steps) > 0
+                assert all(isinstance(num, Numeric) for num in steps)
+                assert len(steps) > 0
                 value = steps[0] if value is None else value
                 value = steps.index(value)
             except ValueError:
                 print(
-                    "Value out of bounds: default value should be in the steps, set to first value."
+                    "Value out of bounds: default value should be in the steps"
+                    ", set to first value."
                 )
                 value = 0
             except AssertionError as e:
@@ -234,20 +238,25 @@ class slider(UIElement[Numeric, Numeric]):
         else:
             self._dtype = (
                 float
-                if any(isinstance(num, float) for num in (start, stop, step, value))
+                if any(
+                    isinstance(num, float)
+                    for num in (start, stop, step, value)
+                )
                 else int
             )
             value = start if value is None else value
 
             if stop < start:
                 raise ValueError(
-                    f"Invalid bounds: stop value ({stop}) must be greater than "
+                    f"Invalid bounds: stop value ({stop}) "
+                    "must be greater than "
                     f"start value ({start})"
                 )
             if value < start or value > stop:
                 raise ValueError(
                     f"Value out of bounds: default value ({value}) must be "
-                    f"greater than start ({start}) and less than stop ({stop})."
+                    f"greater than start ({start}) "
+                    f"and less than stop ({stop})."
                 )
 
             self.start = start
@@ -348,16 +357,20 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             )
 
         if steps is not None:
-            self._dtype = float if any(isinstance(num, float) for num in steps) else int
+            self._dtype = (
+                float if any(isinstance(num, float) for num in steps) else int
+            )
             self._mapping = dict(enumerate(steps))
 
             try:
-                assert all(isinstance(num, Numeric) for num in steps) and len(steps) > 0
+                assert all(isinstance(num, Numeric) for num in steps)
+                assert len(steps) > 0
                 value = [steps[0], steps[-1]] if value is None else value
                 value = [steps.index(num) for num in value]
             except ValueError:
                 print(
-                    "Value out of bounds: default value should be in the steps, set to first and last values."
+                    "Value out of bounds: default value should be in the"
+                    "steps, set to first and last values."
                 )
                 value = [0, len(steps) - 1]
             except AssertionError as e:
@@ -393,7 +406,10 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
         else:
             self._dtype = (
                 float
-                if any(isinstance(num, float) for num in (start, stop, step, value))
+                if any(
+                    isinstance(num, float)
+                    for num in (start, stop, step, value)
+                )
                 else int
             )
 
@@ -401,7 +417,8 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
             if stop < start or value[1] < value[0]:
                 raise ValueError(
-                    "Invalid bounds: stop value must be greater than start value."
+                    "Invalid bounds: stop value must be "
+                    "greater than start value."
                 )
             if value[0] < start or value[1] > stop:
                 raise ValueError(
@@ -434,7 +451,8 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
         if self._mapping is not None:
             return cast(
-                Sequence[Numeric], [self._dtype(self._mapping[v]) for v in value]
+                Sequence[Numeric],
+                [self._dtype(self._mapping[v]) for v in value],
             )
         return cast(Sequence[Numeric], [self._dtype(v) for v in value])
 
@@ -882,7 +900,9 @@ class multiselect(UIElement[List[str], List[object]]):
             if max_selections < 0:
                 raise ValueError("max_selections cannot be less than 0.")
             if max_selections < len(initial_value):
-                raise ValueError("Initial value cannot be greater than max_selections.")
+                raise ValueError(
+                    "Initial value cannot be greater than max_selections."
+                )
 
         super().__init__(
             component_name=multiselect._name,
@@ -1084,7 +1104,9 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         kind: Literal["button", "area"] = "button",
         *,
         label: str = "",
-        on_change: Optional[Callable[[Sequence[FileUploadResults]], None]] = None,
+        on_change: Optional[
+            Callable[[Sequence[FileUploadResults]], None]
+        ] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -1102,7 +1124,8 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         self, value: list[tuple[str, str]]
     ) -> Sequence[FileUploadResults]:
         return tuple(
-            FileUploadResults(name=e[0], contents=base64.b64decode(e[1])) for e in value
+            FileUploadResults(name=e[0], contents=base64.b64decode(e[1]))
+            for e in value
         )
 
     def name(self, index: int = 0) -> Optional[str]:
@@ -1217,7 +1240,9 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(self, value: list[Dict[str, Any]]) -> Sequence[FileInfo]:
+    def _convert_value(
+        self, value: list[Dict[str, Any]]
+    ) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
                 id=file["id"],
@@ -1449,7 +1474,9 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
-        validate: Optional[Callable[[Optional[JSONType]], Optional[str]]] = None,
+        validate: Optional[
+            Callable[[Optional[JSONType]], Optional[str]]
+        ] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:

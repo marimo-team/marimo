@@ -82,7 +82,7 @@ def test_slider_init() -> None:
 
 
 def test_slider_invalid_steps() -> None:
-    """tests for invalid steps"""
+    """Tests for invalid steps"""
     # test for empty steps
     with pytest.raises(TypeError) as e:
         ui.slider(steps=[])
@@ -167,7 +167,7 @@ def test_range_slider_init() -> None:
 
 
 def test_range_slider_invalid_steps() -> None:
-    """tests for invalid steps"""
+    """Tests for invalid steps"""
     # test for empty steps
     with pytest.raises(TypeError) as e:
         ui.range_slider(steps=[])
@@ -279,10 +279,14 @@ def test_multiselect() -> None:
     assert ms.value == ["Apples"]
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(options=options_list, value=options_list, max_selections=0)
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=0
+        )
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(options=options_list, value=options_list, max_selections=2)
+        ms = ui.multiselect(
+            options=options_list, value=options_list, max_selections=2
+        )
 
     with pytest.raises(ValueError):
         ms = ui.multiselect(options=options_list, max_selections=-10)
