@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 from marimo import __version__
-from marimo._islands.island_generator import MarimoIslandGenerator
+from marimo._islands.island_generator import (
+    MarimoIslandGenerator,
+    handle_mimetypes,
+)
+from marimo._messaging.cell_output import CellChannel, CellOutput
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -54,7 +58,7 @@ async def test_render():
     # Check if render works after build() is called
     snapshot("island.txt", block2.render())
 
-    snapshot("islan d-no-code.txt", block2.render(include_code=False))
+    snapshot("island-no-code.txt", block2.render(include_code=False))
 
     snapshot("island-no-output.txt", block2.render(include_output=False))
 
@@ -68,3 +72,21 @@ async def test_render_head():
     snapshot(
         "header.txt", generator.render_head().replace(__version__, "0.0.0")
     )
+
+
+async def test_handle_image_mimetype():
+    small_image = CellOutput(
+        data="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+        mimetype="image/gif",
+        channel=CellChannel.OUTPUT,
+    )
+    assert handle_mimetypes(small_image).startswith("<img")
+
+
+async def test_handle_json_mimetype():
+    small_image = CellOutput(
+        data="[1, 2, 3]",
+        mimetype="application/json",
+        channel=CellChannel.OUTPUT,
+    )
+    assert handle_mimetypes(small_image).startswith("<marimo-json")

@@ -1,7 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { createWorkerTransport, createRPC, type RPCSchema } from "rpc-anywhere";
+import {
+  createWorkerTransport,
+  createRPC,
+  type RPCSchema,
+  type RPCOptions,
+} from "rpc-anywhere";
 
-import type { WorkerSchema } from "./worker/worker";
 import { TRANSPORT_ID } from "./worker/constants";
 import { Logger } from "@/utils/Logger";
 
@@ -11,7 +15,7 @@ export type ParentSchema = RPCSchema<{
   };
 }>;
 
-export function getWorkerRPC(worker: Worker) {
+export function getWorkerRPC<WorkerSchema extends RPCSchema>(worker: Worker) {
   return createRPC<ParentSchema, WorkerSchema>({
     transport: createWorkerTransport(worker, {
       transportId: TRANSPORT_ID,
@@ -25,5 +29,5 @@ export function getWorkerRPC(worker: Worker) {
         Logger.debug("[rpc] Worker -> Parent", message);
       },
     },
-  });
+  } as RPCOptions<ParentSchema, WorkerSchema>);
 }

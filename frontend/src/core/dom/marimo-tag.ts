@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
 import { invariant } from "@/utils/invariant";
+import { isIslands } from "@/core/islands/utils";
 
 interface MarimoSettings {
   getMarimoVersion: () => string;
@@ -31,9 +32,13 @@ const domBasedMarimoSettings: MarimoSettings = {
   },
 };
 
-// We don't control the DOM so we need to use a different method to get the values
+// We have limited access to the DOM, so defaults are provided.
 const islandsBasedMarimoSettings: MarimoSettings = {
   getMarimoVersion: () => {
+    if (import.meta.env.VITE_MARIMO_VERSION === undefined) {
+      // Version set by export, but can be overridden by ENV.
+      return getMarimoDOMValue("marimo-version", "version");
+    }
     assertExists(import.meta.env.VITE_MARIMO_VERSION);
     return import.meta.env.VITE_MARIMO_VERSION;
   },
@@ -51,15 +56,33 @@ const islandsBasedMarimoSettings: MarimoSettings = {
   },
 };
 
+function getMarimoSettingLookup<T extends keyof MarimoSettings>(
+  settingName: T,
+): () => ReturnType<MarimoSettings[T]> {
+  return () => {
+    // DOM isn't accessible at time of lookup, so defer to callback
+    const result = isIslands()
+      ? islandsBasedMarimoSettings[settingName]()
+      : domBasedMarimoSettings[settingName]();
+    return result as ReturnType<MarimoSettings[T]>;
+  };
+}
+
+const MarimoSettingsWrapper: MarimoSettings = {
+  getMarimoVersion: getMarimoSettingLookup("getMarimoVersion"),
+  getMarimoServerToken: getMarimoSettingLookup("getMarimoServerToken"),
+  getMarimoAppConfig: getMarimoSettingLookup("getMarimoAppConfig"),
+  getMarimoUserConfig: getMarimoSettingLookup("getMarimoUserConfig"),
+  getMarimoCode: getMarimoSettingLookup("getMarimoCode"),
+};
+
 const {
   getMarimoVersion,
   getMarimoServerToken,
   getMarimoAppConfig,
   getMarimoUserConfig,
   getMarimoCode,
-} = import.meta.env.VITE_MARIMO_ISLANDS
-  ? islandsBasedMarimoSettings
-  : domBasedMarimoSettings;
+} = MarimoSettingsWrapper;
 
 export {
   getMarimoVersion,

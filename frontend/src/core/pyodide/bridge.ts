@@ -40,11 +40,12 @@ import { API } from "../network/api";
 import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
+import type { WorkerSchema } from "./worker/worker";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
-  private rpc!: ReturnType<typeof getWorkerRPC>;
+  private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
 
@@ -65,7 +66,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       );
 
       // Create the RPC
-      this.rpc = getWorkerRPC(worker);
+      this.rpc = getWorkerRPC<WorkerSchema>(worker);
 
       // Listeners
       this.rpc.addMessageListener("ready", () => {

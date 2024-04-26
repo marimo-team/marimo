@@ -1,14 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 from textwrap import dedent
-from typing import TYPE_CHECKING, List, Optional, cast
+from typing import TYPE_CHECKING, List, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
+from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
+from marimo._plugins.stateless.json_output import json_output
 
 if TYPE_CHECKING:
     from marimo._server.sessions import Session
@@ -23,13 +26,33 @@ class MarimoIslandStub:
         self._code = code
         self._internal_app: Optional[InternalApp] = None
         self._session: Optional[Session] = None
+        self._output: Optional[CellOutput] = None
+
+    @property
+    def output(self) -> Optional[CellOutput]:
+        # Leave output accessible for direct use for non-interactive cases e.g.
+        # pdf.
+        if self._output is None:
+            assert (
+                self._session is not None
+            ), "You must call build() before rendering"
+            assert (
+                self._internal_app is not None
+            ), "You must call build() accessing output"
+            outputs = self._session.session_view.get_cell_outputs(
+                [self._cell_id]
+            )
+            self._output = outputs.get(self._cell_id, None)
+        return self._output
 
     @property
     def code(self) -> str:
         return self._code
 
     def render(
-        self, include_code: bool = True, include_output: bool = True
+        self,
+        include_code: bool = True,
+        include_output: bool = True,
     ) -> str:
         """
         Render the HTML island code for the cell.
@@ -43,18 +66,10 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
-        assert (
-            self._internal_app is not None
-        ), "You must call build() before rendering"
-        assert (
-            self._session is not None
-        ), "You must call build() before rendering"
-
         if include_code is False and include_output is False:
             raise ValueError("You must include either code or output")
 
-        outputs = self._session.session_view.get_cell_outputs([self._cell_id])
-        output = outputs.get(self._cell_id, None)
+        output = handle_mimetypes(self.output) if self.output else None
 
         # Cell may not have output
         # (e.g. imports, but still needs to be included)
@@ -66,7 +81,7 @@ class MarimoIslandStub:
             data-cell-id="{self._cell_id}"
         >
             <marimo-cell-output>
-            {output.data if output and include_output else ""}
+            {output if output and include_output else ""}
             </marimo-cell-output>
             <marimo-cell-code hidden>
             {uri_encode_component(self.code) if include_code else ""}
@@ -127,16 +142,20 @@ class MarimoIslandGenerator:
     def add_code(
         self,
         code: str,
+        raw: bool = False,
     ) -> MarimoIslandStub:
         """Add a code cell to the app.
 
         *Args:*
 
         - code (str): The code to add to the app.
+        - raw (bool): Handled the code unprocessed or formatted.
         """
+        if not raw:
+            code = dedent(code)
 
         cell_id = self._app.cell_manager.create_cell_id()
-        cell_impl = compile_cell(dedent(code), cell_id)
+        cell_impl = compile_cell(code, cell_id)
         cell_impl.configure(CellConfig(disabled=False, hide_code=False))
         cell = Cell(_name="__", _cell=cell_impl)
 
@@ -184,7 +203,7 @@ class MarimoIslandGenerator:
         self,
         *,
         version_override: str = __version__,
-        _development_url: bool = False,
+        _development_url: Union[str | bool] = False,
     ) -> str:
         """
         Render the header for the app.
@@ -220,10 +239,16 @@ class MarimoIslandGenerator:
                 integrity="sha384-wcIxkf4k558AjM3Yz3BBFQUbk/zgIYC2R0QpeeYb+TwlBVMrlgLqwRjRtGZiK7ww"
                 crossorigin="anonymous"
             />
+
+            <marimo-version data-version="{version_override}" hidden="">
+            </marimo-version>
+            <marimo-mode data-mode="island" hidden=""></marimo-mode>
         """.strip()
 
         if _development_url:
             base_url = "http://localhost:5174"
+            if isinstance(_development_url, str):
+                base_url = _development_url
             return dedent(
                 f"""
                 <script
@@ -249,3 +274,17 @@ class MarimoIslandGenerator:
 
 def remove_empty_lines(text: str) -> str:
     return "\n".join([line for line in text.split("\n") if line.strip() != ""])
+
+
+def handle_mimetypes(output: CellOutput) -> str:
+    data = output.data
+    if not isinstance(data, str):
+        return f"{data}"
+    mimetype = output.mimetype
+    # Since raw data, without wrapping in an image tag, this is just a huge
+    # blob.
+    if mimetype.startswith("image/"):
+        data = f"<img src='{data}'/>"
+    elif mimetype == "application/json":
+        data = f"{json_output(json.loads(data))}"
+    return data
