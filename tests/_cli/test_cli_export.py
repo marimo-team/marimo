@@ -8,6 +8,7 @@ from os import path
 from typing import TYPE_CHECKING
 
 import pytest
+
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from tests._server.templates.utils import normalize_index_html
@@ -139,7 +140,9 @@ class TestExportHTML:
 
 
 class TestExportHtmlSmokeTests:
-    def assert_not_errored(self, p: subprocess.CompletedProcess[bytes]) -> None:
+    def assert_not_errored(
+        self, p: subprocess.CompletedProcess[bytes]
+    ) -> None:
         assert p.returncode == 0
         assert not any(
             line.startswith("Traceback")

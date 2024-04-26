@@ -73,7 +73,7 @@ T = TypeVar("T")
 
 
 def asyncio_run(coro: Coroutine[Any, Any, T], **kwargs: dict[Any, Any]) -> T:
-    """asyncio.run() with platform-specific initializiation.
+    """asyncio.run() with platform-specific initialization.
 
     When using Sessions, make sure to use this method instead of `asyncio.run`.
 
