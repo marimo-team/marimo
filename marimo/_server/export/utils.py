@@ -117,10 +117,7 @@ async def run_app_until_completion(
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)
-
-    # Terminate the running kernel task -- all information is captured by
-    # the session view.
-    kernel_task = session.kernel_manager.kernel_task
-    if kernel_task is not None and isinstance(kernel_task, Process):
-        kernel_task.terminate()
+    # Stop distributor, terminate kernel process, etc -- all information is
+    # captured by the session view.
+    session.close()
     return session
