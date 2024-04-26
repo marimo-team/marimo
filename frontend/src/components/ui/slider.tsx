@@ -11,12 +11,14 @@ import {
 } from "./tooltip";
 import { useBoolean } from "../../hooks/useBoolean";
 import { TooltipPortal } from "@radix-ui/react-tooltip";
-import { prettyNumber } from "@/utils/numbers";
+import { prettyScientificNumber } from "@/utils/numbers";
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
+    valueMap: (sliderValue: number) => number;
+  }
+>(({ className, valueMap, ...props }, ref) => {
   const [open, openActions] = useBoolean(false);
 
   return (
@@ -62,7 +64,7 @@ const Slider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 1 && (
               <TooltipContent key={props.value[0]}>
-                {prettyNumber(props.value[0])}
+                {prettyScientificNumber(valueMap(props.value[0]))}
               </TooltipContent>
             )}
           </TooltipPortal>

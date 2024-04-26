@@ -51,12 +51,14 @@ def test_slider_init() -> None:
     assert slider.stop == 10
     assert slider.step is None
     assert slider.value == 1
+    assert slider.steps is None
 
     slider = ui.slider(1, 10, value=5)
     assert slider.start == 1
     assert slider.stop == 10
     assert slider.step is None
     assert slider.value == 5
+    assert slider.steps is None
     assert isinstance(slider.value, int)
 
     slider = ui.slider(1, 10, value=5.0)
@@ -67,12 +69,50 @@ def test_slider_init() -> None:
     assert slider.value == 6.0
     assert isinstance(slider.value, float)
 
+    slider = ui.slider(steps=[1, 3, 6], value=3)
+    assert slider.start == 1
+    assert slider.stop == 6
+    assert slider.step is None
+    assert slider.value == 3
+    assert slider.steps == [1, 3, 6]
+
+    # value not in steps, set to first value in steps
+    slider = ui.slider(steps=[1, 3, 6], value=7)
+    assert slider.value == 1
+
+
+def test_slider_invalid_steps() -> None:
+    """tests for invalid steps"""
+    # test for empty steps
+    with pytest.raises(TypeError) as e:
+        ui.slider(steps=[])
+
+    assert "Invalid steps" in str(e.value)
+
+    # test for non-numeric steps
+    with pytest.raises(TypeError) as e:
+        ui.slider(steps=[1, 4, "3"])
+
+    assert "Invalid steps" in str(e.value)
+
 
 def test_slider_invalid_bounds() -> None:
     with pytest.raises(ValueError) as e:
         ui.slider(1, 0)
 
     assert "Invalid bounds" in str(e.value)
+
+
+def test_slider_exclusive_args() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.slider(start=1, steps=[1, 3, 6])
+
+    assert "Invalid arguments" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.slider(step=2, start=3)
+
+    assert "Missing arguments" in str(e.value)
 
 
 def test_slider_out_of_bounds() -> None:
@@ -93,19 +133,19 @@ def test_range_slider_init() -> None:
     assert slider.stop == 10
     assert slider.step is None
     assert slider.value == [1, 10]
+    assert slider.steps is None
 
     slider = ui.range_slider(1, 10, value=[2, 5])
     assert slider.start == 1
     assert slider.stop == 10
     assert slider.step is None
     assert slider.value == [2, 5]
-    for num in slider.value:
-        assert isinstance(num, int)
+    assert slider.steps is None
+    assert all(isinstance(num, int) for num in slider.value)
 
     slider = ui.range_slider(1, 10, value=[2.0, 5.0])
     assert slider.value == [2.0, 5.0]
-    for num in slider.value:
-        assert isinstance(num, float)
+    assert all(isinstance(num, float) for num in slider.value)
 
     slider._update([3, 6])
     assert slider.value == [3.0, 6.0]
@@ -114,12 +154,50 @@ def test_range_slider_init() -> None:
         # cast to floats
         assert isinstance(num, float)
 
+    slider = ui.range_slider(steps=[1, 3, 6, 10, 17, 20], value=[3, 17])
+    assert slider.start == 1
+    assert slider.stop == 20
+    assert slider.step is None
+    assert slider.value == [3, 17]
+    assert slider.steps == [1, 3, 6, 10, 17, 20]
+
+    # value not in steps, set to first value in steps
+    slider = ui.slider(steps=[1, 3, 6, 10, 17, 20], value=[7, 10])
+    assert slider.value == [1, 20]
+
+
+def test_range_slider_invalid_steps() -> None:
+    """tests for invalid steps"""
+    # test for empty steps
+    with pytest.raises(TypeError) as e:
+        ui.range_slider(steps=[])
+
+    assert "Invalid steps" in str(e.value)
+
+    # test for non-numeric steps
+    with pytest.raises(TypeError) as e:
+        ui.range_slider(steps=[1, 4, "3"])
+
+    assert "Invalid steps" in str(e.value)
+
 
 def test_range_slider_invalid_bounds() -> None:
     with pytest.raises(ValueError) as e:
         ui.range_slider(1, 0)
 
     assert "Invalid bounds" in str(e.value)
+
+
+def test_range_slider_exclusive_args() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.range_slider(start=1, steps=[1, 3, 6])
+
+    assert "Invalid arguments" in str(e.value)
+
+    with pytest.raises(ValueError) as e:
+        ui.range_slider(step=2, start=3)
+
+    assert "Missing arguments" in str(e.value)
 
 
 def test_range_slider_out_of_bounds() -> None:
@@ -201,14 +279,10 @@ def test_multiselect() -> None:
     assert ms.value == ["Apples"]
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(
-            options=options_list, value=options_list, max_selections=0
-        )
+        ms = ui.multiselect(options=options_list, value=options_list, max_selections=0)
 
     with pytest.raises(ValueError):
-        ms = ui.multiselect(
-            options=options_list, value=options_list, max_selections=2
-        )
+        ms = ui.multiselect(options=options_list, value=options_list, max_selections=2)
 
     with pytest.raises(ValueError):
         ms = ui.multiselect(options=options_list, max_selections=-10)

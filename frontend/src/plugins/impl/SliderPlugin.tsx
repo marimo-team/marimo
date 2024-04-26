@@ -6,7 +6,7 @@ import { IPlugin, IPluginProps, Setter } from "../types";
 import { Slider } from "../../components/ui/slider";
 import { Labeled } from "./common/labeled";
 import { cn } from "@/utils/cn";
-import { prettyNumber } from "@/utils/numbers";
+import { prettyScientificNumber } from "@/utils/numbers";
 
 type T = number;
 
@@ -15,6 +15,7 @@ interface Data {
   stop: T;
   step?: T;
   label: string | null;
+  steps: T[] | null;
   debounce: boolean;
   orientation: "horizontal" | "vertical";
   showValue: boolean;
@@ -30,6 +31,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
     start: z.number(),
     stop: z.number(),
     step: z.number().optional(),
+    steps: z.array(z.number()).nullable(),
     debounce: z.boolean().default(false),
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
@@ -37,11 +39,20 @@ export class SliderPlugin implements IPlugin<T, Data> {
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
+    // Create the valueMap function
+    const valueMap = (sliderValue: number): number => {
+      if (props.data.steps && props.data.steps.length > 0) {
+        return props.data.steps[sliderValue];
+      }
+      return sliderValue;
+    };
+
     return (
       <SliderComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
+        valueMap={valueMap} // Pass valueMap as a prop
       />
     );
   }
@@ -50,6 +61,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
 interface SliderProps extends Data {
   value: T;
   setValue: Setter<T>;
+  valueMap: (sliderValue: number) => number; // Add valueMap to the interface
 }
 
 const SliderComponent = ({
@@ -59,10 +71,12 @@ const SliderComponent = ({
   start,
   stop,
   step,
+  steps,
   debounce,
   orientation,
   showValue,
   fullWidth,
+  valueMap,
 }: SliderProps): JSX.Element => {
   const id = useId();
 
@@ -112,10 +126,11 @@ const SliderComponent = ({
               setValue(nextValue);
             }
           }}
+          valueMap={valueMap} // Pass valueMap to Slider
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {prettyNumber(internalValue)}
+            {prettyScientificNumber(valueMap(internalValue))}
           </div>
         )}
       </div>
