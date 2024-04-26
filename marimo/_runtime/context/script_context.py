@@ -94,5 +94,7 @@ def initialize_script_context(app: InternalApp, stream: Stream) -> None:
         virtual_file_registry=VirtualFileRegistry(),
         virtual_files_supported=False,
         stream=stream,
+        stdout=None,
+        stderr=None,
     )
     initialize_context(runtime_context=runtime_context)
