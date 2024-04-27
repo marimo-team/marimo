@@ -285,13 +285,29 @@ class DirectedGraph:
                     return ref
         return None
 
+    def descendants(self, cell_id: CellId_t) -> set[CellId_t]:
+        return transitive_closure(self, set([cell_id]), inclusive=False)
+
+    def ancestors(self, cell_id: CellId_t) -> set[CellId_t]:
+        return transitive_closure(
+            self, set([cell_id]), children=False, inclusive=False
+        )
+
+    def set_stale(self, cell_ids: set[CellId_t]) -> None:
+        for cid in transitive_closure(self, cell_ids):
+            self.cells[cid].set_stale(stale=True)
+
 
 def transitive_closure(
-    graph: DirectedGraph, cell_ids: set[CellId_t], children: bool = True
+    graph: DirectedGraph,
+    cell_ids: set[CellId_t],
+    children: bool = True,
+    inclusive: bool = True,
 ) -> set[CellId_t]:
     """Return a set of the passed-in cells and their descendants or ancestors
 
     If children is True, returns descendants; otherwise, returns ancestors
+    If inclusive, includes passed-in cells in the set.
     """
     cells = set()
     queue = list(cell_ids)
@@ -301,7 +317,10 @@ def transitive_closure(
 
     while queue:
         cid = queue.pop(0)
-        cells.add(cid)
+        if inclusive:
+            cells.add(cid)
+        elif cid not in cell_ids:
+            cells.add(cid)
         for relative in relatives(cid):
             if relative not in cells:
                 queue.append(relative)
@@ -438,9 +457,7 @@ class Runner:
             await execute_cell_async(graph.cells[cid], glbls)
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
-        output = await execute_cell_async(
-            graph.cells[cell_impl.cell_id], glbls
-        )
+        output = await execute_cell_async(graph.cells[cell_impl.cell_id], glbls)
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
 

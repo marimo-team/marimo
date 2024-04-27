@@ -73,9 +73,9 @@ class RuntimeConfig(TypedDict):
     - `auto_reload`: if `detect`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
-    - `reactivity`: if `detect`, cells will be marked stale when their ancestors
-       run but won't autorun; if `autorun`, cells will automatically run when
-       their ancestors run.
+    - `reactivity`: if `detect`, cells will be marked stale when their
+      ancestors run but won't autorun; if `autorun`, cells will automatically
+      run when their ancestors run.
     """
 
     auto_instantiate: bool

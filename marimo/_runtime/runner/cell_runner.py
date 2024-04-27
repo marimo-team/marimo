@@ -9,9 +9,14 @@ import signal
 import threading
 import traceback
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Optional
 
-from marimo._ast.cell import CellId_t, execute_cell, execute_cell_async
+from marimo._ast.cell import (
+    CellId_t,
+    CellImpl,
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._loggers import marimo_logger
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
@@ -21,8 +26,9 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Container
+    from collections.abc import Container, Sequence
 
+    from marimo._runtime.context.types import ExecutionContext
     from marimo._runtime.state import State
 
 
@@ -33,10 +39,12 @@ def cell_filename(cell_id: CellId_t) -> str:
 
 @dataclass
 class RunResult:
-    # Raw output of cell
+    # Raw output of cell: last expression
     output: Any
     # Exception raised by cell, if any
     exception: Optional[BaseException]
+    # Accumulated output: via imperative mo.output.append()
+    accumulated_output: Any = None
 
     def success(self) -> bool:
         """Whether the cell expected successfully"""
@@ -48,17 +56,60 @@ class Runner:
 
     def __init__(
         self,
-        cell_ids: set[CellId_t],
+        roots: set[CellId_t],
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
+        execution_mode: Literal["detect", "autorun"] = "autorun",
+        errors: set[CellId_t] | None = None,
+        execution_context: Callable[
+            [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
+        ]
+        | None = None,
+        preparation_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
+        pre_execution_hooks: Sequence[Callable[[CellImpl, "Runner"], Any]]
+        | None = None,
+        post_execution_hooks: Sequence[
+            Callable[[CellImpl, "Runner", RunResult], Any]
+        ]
+        | None = None,
+        on_finish_hooks: Sequence[Callable[["Runner"], Any]] | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
+        self.errors = errors or set()
+
+        # injected context and hooks
+        self.execution_context = execution_context
+        self.preparation_hooks: Sequence[Callable[["Runner"], Any]] = (
+            preparation_hooks or []
+        )
+        self.pre_execution_hooks: Sequence[
+            Callable[[CellImpl, "Runner"], Any]
+        ] = pre_execution_hooks or []
+        self.post_execution_hooks: Sequence[
+            Callable[[CellImpl, "Runner", RunResult], Any]
+        ] = post_execution_hooks or []
+        self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
+            on_finish_hooks or []
+        )
+
         # runtime globals
         self.glbls = glbls
-        # cells that the runner will run.
-        self.cells_to_run = dataflow.topological_sort(graph, cell_ids)
+        self.execution_mode = execution_mode
+
+        # cells that the runner will run, subtracting out cells with errors:
+        #
+        # cells with errors can't be run, but are still in the graph
+        # so that they can be transitioned out of error if a future
+        # run request repairs the graph
+        self.cells_to_run = (
+            dataflow.topological_sort(
+                graph, dataflow.transitive_closure(graph, roots) - self.errors
+            )
+            if self.execution_mode == "autorun"
+            else dataflow.topological_sort(graph, roots - self.errors)
+        )
         # map from a cell that was cancelled to its descendants that have
         # not yet run:
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
@@ -297,3 +348,28 @@ class Runner:
             self.exceptions[cell_id] = run_result.exception
 
         return run_result
+
+    async def run_all(self) -> None:
+        for prep_hook in self.preparation_hooks:
+            prep_hook(self)
+
+        while self.pending():
+            cell_id = self.pop_cell()
+            if self.cancelled(cell_id):
+                continue
+            if self.graph.is_disabled(cell_id):
+                continue
+            cell = self.graph.cells[cell_id]
+            for pre_hook in self.pre_execution_hooks:
+                pre_hook(cell, self)
+            if self.execution_context is not None:
+                with self.execution_context(cell_id) as exc_ctx:
+                    run_result = await self.run(cell_id)
+                    run_result.accumulated_output = exc_ctx.output
+            else:
+                run_result = await self.run(cell_id)
+            for post_hook in self.post_execution_hooks:
+                post_hook(cell, self, run_result)
+
+        for finish_hook in self.on_finish_hooks:
+            finish_hook(self)
