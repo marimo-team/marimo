@@ -1,11 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._output.builder import _join_params, h
 
 
 def test_div() -> None:
     assert h.div("Hello") == "<div>Hello</div>"
     assert h.div(["Hello", "World"]) == "<div>HelloWorld</div>"
-    assert h.div("Hello", "color:red") == "<div style='color:red'>Hello</div>"
+    assert (
+        h.div("Hello", style="color:red")
+        == "<div style='color:red'>Hello</div>"
+    )
 
 
 def test_img() -> None:
@@ -31,10 +36,10 @@ def test_audio() -> None:
 
 
 def test_iframe() -> None:
-    assert h.iframe() == "<iframe />"
+    assert h.iframe() == "<iframe frameborder='0' />"
     assert (
         h.iframe(src="https://marimo.io")
-        == "<iframe src='https://marimo.io' />"
+        == "<iframe src='https://marimo.io' frameborder='0' />"
     )
 
 

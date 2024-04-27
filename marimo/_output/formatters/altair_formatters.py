@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.utils import flatten_string
 
 
@@ -12,8 +14,6 @@ class AltairFormatter(FormatterFactory):
         return "altair"
 
     def register(self) -> None:
-        import html
-
         import altair  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         from marimo._output import formatting
@@ -26,10 +26,6 @@ class AltairFormatter(FormatterFactory):
 
         @formatting.formatter(altair.TopLevelMixin)
         def _show_chart(chart: altair.Chart) -> tuple[KnownMimeType, str]:
-            # TODO(akshayka): remove the `onload` hack and handle iframe
-            # resizing entirely in the frontend
-            # `__resizeIframe` is a script defined in the frontend that sets
-            # the height of the iframe to the height of the contained document
             import altair as alt
 
             # If the user has not set the max_rows option, we set it to 20_000
@@ -40,10 +36,11 @@ class AltairFormatter(FormatterFactory):
                 "text/html",
                 (
                     flatten_string(
-                        f"<iframe srcdoc='{html.escape(chart.to_html())}'"
-                        "frameborder='0' scrolling='auto'"
-                        "style='width: 100%'"
-                        "onload='__resizeIframe(this)'></iframe>"
+                        h.iframe(
+                            **src_or_src_doc(chart.to_html()),
+                            onload="__resizeIframe(this)",
+                            style="width: 100%",
+                        )
                     )
                 ),
             )
