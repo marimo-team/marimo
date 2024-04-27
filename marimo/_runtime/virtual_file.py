@@ -128,7 +128,7 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
         filename = random_filename(self.ext)
         if context is None or not context.virtual_files_supported:
             self._virtual_file = VirtualFile(
-                filename="", buffer=self.buffer, as_data_url=True
+                filename=filename, buffer=self.buffer, as_data_url=True
             )
             return
 
