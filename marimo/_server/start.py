@@ -12,14 +12,8 @@ from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
-from marimo._server.sessions import (
-    LspServer,
-    SessionManager,
-)
-from marimo._server.utils import (
-    find_free_port,
-    initialize_asyncio,
-)
+from marimo._server.sessions import LspServer, SessionManager
+from marimo._server.utils import find_free_port, initialize_asyncio
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._utils.paths import import_files
 

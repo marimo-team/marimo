@@ -26,6 +26,11 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
         # If snapshot directory doesn't exist, create it
         maybe_make_dirs(filepath)
 
+        def normalize(string: str) -> str:
+            return string.replace("\r\n", "\n")
+
+        result = normalize(result)
+
         # If doesn't exist, create snapshot
         if not os.path.exists(filepath):
             with open(filepath, "w") as f:
@@ -34,13 +39,14 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
 
         # Read snapshot
         with open(filepath, "r") as f:
-            expected = f.read()
+            expected = normalize(f.read())
 
         with open(filepath, "w") as f:
             f.write(result)
 
         assert result, "Result is empty"
         assert expected, "Expected is empty"
+
         text_diff = "\n".join(
             list(
                 difflib.unified_diff(
@@ -50,8 +56,7 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
                 )
             )
         )
-        if expected != result:
-            print(f"Snapshot differs:\n{text_diff}")
-        assert result == expected
+
+        assert result == expected, f"Snapshot differs:\n{text_diff}"
 
     return snapshot

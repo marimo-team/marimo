@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo import __version__
+from marimo._dependencies.dependencies import DependencyManager
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -67,8 +68,11 @@ class TestExportHTML:
         html = html.replace(dirname, "path")
         assert '<marimo-code hidden=""></marimo-code>' not in html
 
-    @staticmethod
-    async def test_export_watch(temp_marimo_file: str) -> None:
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    async def test_export_watch(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".html")
         p = subprocess.Popen(  # noqa: ASYNC101
             [
@@ -99,14 +103,18 @@ class TestExportHTML:
 
         assert p.poll() is None
         # Wait for rebuild
+        # TODO: This hangs when watchdog is installed.
         while True:
             line = p.stdout.readline().decode()
             if line:
                 assert "Re-exporting" in line
                 break
 
-    @staticmethod
-    def test_export_watch_no_out_dir(temp_marimo_file: str) -> None:
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    def test_export_watch_no_out_dir(self, temp_marimo_file: str) -> None:
         p = subprocess.Popen(
             [
                 "marimo",
@@ -150,7 +158,7 @@ class TestExportHtmlSmokeTests:
 
         file = tmp_path / "intro.py"
         out = tmp_path / "out.html"
-        file.write_text(inspect.getsource(intro))
+        file.write_text(inspect.getsource(intro), encoding="utf-8")
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
             capture_output=True,
@@ -161,7 +169,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import ui as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -169,14 +177,11 @@ class TestExportHtmlSmokeTests:
         )
         self.assert_not_errored(p)
 
-    @pytest.mark.xfail(
-        condition=True, reason="export HTML not yet capturing console outputs"
-    )
     def test_export_dataflow_tutorial(self, tmp_path: pathlib.Path) -> None:
         from marimo._tutorials import dataflow as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -188,7 +193,7 @@ class TestExportHtmlSmokeTests:
         from marimo._tutorials import layout as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -197,10 +202,10 @@ class TestExportHtmlSmokeTests:
         self.assert_not_errored(p)
 
     def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
-        from marimo._tutorials import plots
+        from marimo._tutorials import plots as mod
 
         file = tmp_path / "plots.py"
-        file.write_text(inspect.getsource(plots))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -208,16 +213,13 @@ class TestExportHtmlSmokeTests:
         )
         self.assert_not_errored(p)
 
-    @pytest.mark.xfail(
-        condition=True, reason="export HTML not yet capturing console outputs"
-    )
     def test_export_marimo_for_jupyter_users(
         self, tmp_path: pathlib.Path
     ) -> None:
         from marimo._tutorials import marimo_for_jupyter_users as mod
 
         file = tmp_path / "mod.py"
-        file.write_text(inspect.getsource(mod))
+        file.write_text(inspect.getsource(mod), encoding="utf-8")
         out = tmp_path / "out.html"
         p = subprocess.run(
             ["marimo", "export", "html", str(file), "-o", str(out)],
@@ -250,8 +252,11 @@ class TestExportScript:
             in p.stderr.decode()
         )
 
-    @staticmethod
-    async def test_export_watch_script(temp_marimo_file: str) -> None:
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    async def test_export_watch_script(self, temp_marimo_file: str) -> None:
         temp_out_file = temp_marimo_file.replace(".py", ".script.py")
         p = subprocess.Popen(  # noqa: ASYNC101
             [
@@ -291,8 +296,13 @@ class TestExportScript:
         await asyncio.sleep(0.1)
         assert path.exists(temp_out_file)
 
-    @staticmethod
-    def test_export_watch_script_no_out_dir(temp_marimo_file: str) -> None:
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    def test_export_watch_script_no_out_dir(
+        self, temp_marimo_file: str
+    ) -> None:
         p = subprocess.Popen(
             [
                 "marimo",

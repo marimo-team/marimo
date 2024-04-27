@@ -22,6 +22,14 @@ class Distributor(Generic[T]):
     consumers.
 
     This also handles adding and removing new consumers.
+
+    NOTE: This class uses the `add_reader()` API, which requires the
+    SelectorEventLoop to be used on Windows, not the default ProactorEventLoop.
+    See
+
+    https://bugs.python.org/issue37373#:~:text=On%20Windows%20there%20are%20two,subprocesses%20and%20generally%20lower%20scalability.
+
+    for context.
     """
 
     def __init__(self, input_connection: TypedConnection[T]) -> None:
