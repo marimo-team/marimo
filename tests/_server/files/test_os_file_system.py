@@ -100,10 +100,34 @@ class TestOSFileSystem(unittest.TestCase):
                 return mo,
 
             if __name__ == "__main__":
+                # mäin
                 app.run()
             """
         self.fs.create_file_or_directory(
             self.test_dir, "file", test_file_name, content.encode("utf-8")
+        )
+        file_path = os.path.join(self.test_dir, test_file_name)
+        file_info = self.fs.get_details(file_path)
+        assert isinstance(file_info, FileDetailsResponse)
+        assert file_info.file.is_marimo_file
+
+    def test_get_details_marimo_file_nonutf(self) -> None:
+        test_file_name = "app.py"
+        content = """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def __():
+                import marimo as mo
+                return mo,
+
+            if __name__ == "__main__":
+                # mäin
+                app.run()
+            """
+        self.fs.create_file_or_directory(
+            self.test_dir, "file", test_file_name, content.encode("iso-8859-1")
         )
         file_path = os.path.join(self.test_dir, test_file_name)
         file_info = self.fs.get_details(file_path)
