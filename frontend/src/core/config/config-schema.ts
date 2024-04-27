@@ -50,6 +50,7 @@ export const UserConfigSchema = z
     runtime: z
       .object({
         auto_instantiate: z.boolean().default(true),
+        reactivity: z.enum(["detect", "autorun"]).default("autorun"),
         auto_reload: z.enum(["off", "detect", "autorun"]).default("off"),
       })
       .default({}),

@@ -345,6 +345,41 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
+            name="runtime.reactivity"
+            render={({ field }) => (
+              <div className="flex flex-col gap-y-1">
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="reactivity-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={isWasm}
+                      className="inline-flex mr-2"
+                    >
+                      {["detect", "autorun"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormLabel className="font-normal">
+                    Reactive execution configuration
+                  </FormLabel>
+                </FormItem>
+                <FormDescription>
+                  Whether marimo should automatically run cells or just mark
+                  them as stale. If "autorun", marimo will automatically run
+                  affected cells when a cell is run or a UI element is
+                  interacted with; if "detect", marimo will affectected cells as
+                  stale but won't re-run them.
+                </FormDescription>
+              </div>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="runtime.auto_reload"
             render={({ field }) => (
               <div className="flex flex-col gap-y-1">

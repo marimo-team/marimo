@@ -318,6 +318,7 @@ class Kernel:
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
         # Load runtime settings from user config
+        self.reactivity = user_config["runtime"]["reactivity"]
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -339,6 +340,8 @@ class Kernel:
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
+        self.reactivity = config["runtime"]["reactivity"]
+
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
@@ -408,9 +411,7 @@ class Kernel:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
                     modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -531,9 +532,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -633,9 +632,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -706,8 +703,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         for cid in cells_that_no_longer_have_errors:
             # clear error outputs before running
@@ -730,8 +726,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -753,13 +748,6 @@ class Kernel:
                 )
             )
             & cells_in_graph
-        )
-        descendants = (
-            dataflow.transitive_closure(self.graph, roots)
-            # cells with errors can't be run, but are still in the graph
-            # so that they can be transitioned out of error if a future
-            # run request repairs the graph
-            - cells_with_errors_after_mutation
         )
 
         self.errors = all_errors
@@ -790,7 +778,29 @@ class Kernel:
                 for variable, declared_by in self.graph.definitions.items()
             ]
         ).broadcast()
-        return descendants
+
+        if self.reactivity == "detect":
+            # prune the set of roots to run, and mark the rest as stale
+            roots_to_run = set(er.cell_id for er in execution_requests).union(
+                set(er.cell_id for er in deletion_requests)
+            )
+            stale_roots = roots - roots_to_run
+            for cid in (
+                dataflow.transitive_closure(self.graph, stale_roots)
+                - cells_with_errors_after_mutation
+            ):
+                self.graph.cells[cid].set_stale(stale=True)
+            return roots_to_run
+        else:
+            descendants = (
+                dataflow.transitive_closure(self.graph, roots)
+                # cells with errors can't be run, but are still in the graph
+                # so that they can be transitioned out of error if a future
+                # run request repairs the graph
+                - cells_with_errors_after_mutation
+            )
+
+            return descendants
 
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
@@ -808,6 +818,10 @@ class Kernel:
             cell_ids = dataflow.transitive_closure(
                 self.graph, cells_with_stale_state
             )
+            if self.reactivity == "detect":
+                for cid in cell_ids:
+                    self.graph.cells[cid].set_stale(stale=True)
+                break
         LOGGER.debug("Finished run.")
 
     async def _run_cells_internal(
@@ -826,8 +840,10 @@ class Kernel:
                 self.graph.cells[cid].set_stale(stale=True)
             else:
                 self.graph.cells[cid].set_status(status="queued")
+                # TODO maybe only change stale when running
                 if self.graph.cells[cid].stale:
-                    self.graph.cells[cid].set_stale(stale=False)
+                    if self.reactivity == "autorun":
+                        self.graph.cells[cid].set_stale(stale=False)
             # State clean-up: don't leak names, UI elements, ...
             #
             # Clean-up state for all cells upfront, before running
@@ -858,8 +874,24 @@ class Kernel:
             if runner.cancelled(cell_id):
                 continue
             cell = self.graph.cells[cell_id]
-            if cell.stale:
+            if self.graph.is_disabled(cell_id):
                 continue
+            if (
+                # TODO: maybe for both modes
+                self.reactivity == "detect"
+                and cell.stale
+                and not any(
+                    self.graph.cells[cid].stale
+                    for cid in (
+                        dataflow.transitive_closure(
+                            self.graph, set([cell_id]), children=False
+                        )
+                        - set([cell_id])
+                    )
+                )
+            ):
+                # only no longer stale if its parents are not stale
+                cell.set_stale(stale=False)
 
             LOGGER.debug("running cell %s", cell_id)
             cell.set_status(status="running")
@@ -1046,9 +1078,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -1068,6 +1098,8 @@ class Kernel:
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
+        # TODO: should there just be one reactive exec mode, and one
+        # reload mode? ie no mix and match? otherwise what do we do here?
         await self._run_cells(
             dataflow.transitive_closure(self.graph, cells_to_run)
         )
@@ -1098,9 +1130,18 @@ class Kernel:
                 self.graph.disable_cell(cell_id)
 
         if cells_to_run:
-            await self._run_cells(
-                dataflow.transitive_closure(self.graph, cells_to_run)
-            )
+            if self.reactivity == "autorun":
+                await self._run_cells(
+                    dataflow.transitive_closure(self.graph, cells_to_run)
+                )
+            else:
+                descendants = (
+                    dataflow.transitive_closure(self.graph, cells_to_run)
+                    - cells_to_run
+                )
+                for cid in descendants:
+                    self.graph.cells[cid].set_stale(stale=True)
+                await self._run_cells(cells_to_run)
 
     def set_user_config(self, request: SetUserConfigRequest) -> None:
         self._update_runtime_from_user_config(request.config)
@@ -1126,9 +1167,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1219,9 +1258,15 @@ class Kernel:
 
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
-        await self._run_cells(
-            dataflow.transitive_closure(self.graph, referring_cells)
-        )
+        if self.reactivity == "autorun":
+            await self._run_cells(
+                dataflow.transitive_closure(self.graph, referring_cells)
+            )
+        else:
+            # TODO: should this do nothing, and only mark stale?
+            # TODO: or should this run referrents and mark rest as stale?
+            for cid in dataflow.transitive_closure(self.graph, referring_cells):
+                self.graph.cells[cid].set_stale(stale=True)
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any
@@ -1370,9 +1415,17 @@ class Kernel:
             if (cid := self.module_registry.defining_cell(module)) is not None
         )
         if cells_to_run:
-            await self._run_cells(
-                dataflow.transitive_closure(self.graph, cells_to_run)
-            )
+            if self.reactivity == "autorun":
+                await self._run_cells(
+                    dataflow.transitive_closure(self.graph, cells_to_run)
+                )
+            else:
+                # TODO: should this do nothing, and only mark stale?
+                # TODO: or should this run referrents and mark rest as stale?
+                for cid in dataflow.transitive_closure(
+                    self.graph, cells_to_run
+                ):
+                    self.graph.cells[cid].set_stale(stale=True)
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
