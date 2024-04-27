@@ -364,11 +364,11 @@ span.linenos.special {
 .stderr .codehilite {
   .highlight {
     /* Chosen to match error coloring in other parts of notebook. */
-    color: hsl(var(--error)/var(--tw-text-opacity));
+    color: hsl(var(--error) / var(--tw-text-opacity));
   }
 
   .gt {
-    color: hsl(var(--error)/var(--tw-text-opacity));
+    color: hsl(var(--error) / var(--tw-text-opacity));
   }
 
   .nb {
