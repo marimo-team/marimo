@@ -285,4 +285,5 @@ extend-exclude = [
     "module_name_to_pypi_name.py",
     "**/snapshots/*",
     "**/__demo__/*",
+    "base64.test.ts",
 ]
