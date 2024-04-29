@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 import { useDebounceControlledState } from "@/hooks/useDebounce";
 import { Events } from "@/utils/events";
 import { NumberField, NumberFieldProps } from "@/components/ui/number-field";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon?: React.ReactNode;
@@ -108,14 +108,17 @@ export const SearchInput = React.forwardRef<
   InputProps & {
     rootClassName?: string;
     icon?: React.ReactNode | null;
+    clearable?: boolean;
   }
->(({ className, rootClassName, icon, ...props }, ref) => {
+>(({ className, rootClassName, icon, clearable = true, ...props }, ref) => {
+  const id = React.useId();
   return (
     <div className={cn("flex items-center border-b px-3", rootClassName)}>
       {icon === null ? null : (
         <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
       )}
       <input
+        id={id}
         ref={ref}
         className={cn(
           "placeholder:text-foreground-muted flex h-7 m-1 w-full rounded-md bg-transparent py-3 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -123,6 +126,27 @@ export const SearchInput = React.forwardRef<
         )}
         {...props}
       />
+      {clearable && props.value && (
+        <span
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const input = document.getElementById(id);
+            if (input && input instanceof HTMLInputElement) {
+              input.focus();
+              input.value = "";
+              props.onChange?.({
+                ...e,
+                target: input,
+                currentTarget: input,
+                type: "change",
+              } as React.ChangeEvent<HTMLInputElement>);
+            }
+          }}
+        >
+          <XIcon className="h-4 w-4 opacity-50 hover:opacity-90" />
+        </span>
+      )}
     </div>
   );
 });
