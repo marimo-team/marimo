@@ -38,15 +38,16 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
-def generate_filecontents(
+def wrap_generate_filecontents(
     codes: list[str],
     names: list[str],
-    configs: Optional[list[CellConfig]] = None,
+    cell_configs: Optional[list[CellConfig]] = None,
 ) -> str:
-    if configs is None:
+    """Wraps codegen.generate_filecontents to make the cell_configs argument optional."""
+    if cell_configs is None:
         resolved_configs = [CellConfig() for _ in range(len(codes))]
     else:
-        resolved_configs = configs
+        resolved_configs = cell_configs
     return codegen.generate_filecontents(
         codes, names, cell_configs=resolved_configs
     )
@@ -62,7 +63,7 @@ class TestGeneration:
         cell_five = "# just a comment"
         codes = [cell_one, cell_two, cell_three, cell_four, cell_five]
         names = ["one", "two", "three", "four", "five"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents"
         )
@@ -74,7 +75,7 @@ class TestGeneration:
         cell_three = "async def _():\n    await asyncio.sleep(x)"
         codes = [cell_one, cell_two, cell_three]
         names = ["one", "two", "three"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_async"
         )
@@ -110,7 +111,7 @@ class TestGeneration:
         )
         codes = [cell_one, cell_two]
         names = ["one", "two"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_async_long_signature"
         )
@@ -120,7 +121,7 @@ class TestGeneration:
         cell_one = "import numpy as np"
         codes = [cell_one]
         names = ["one"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_single_cell"
         )
@@ -133,7 +134,7 @@ class TestGeneration:
         cell_four = '_ another_error\n_ and """another"""\n\n    \\t'
         codes = [cell_one, cell_two, cell_three, cell_four]
         names = ["one", "two", "__", "__"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_with_syntax_error"
         )
@@ -180,7 +181,7 @@ class TestGeneration:
             + "i_am_another_very_long_name + "
             + "yet_another_very_long_name"
         )
-        contents = generate_filecontents([cell_one, cell_two], ["one", "two"])
+        contents = wrap_generate_filecontents([cell_one, cell_two], ["one", "two"])
         assert contents == get_expected_filecontents("test_long_line_in_main")
 
     @staticmethod
@@ -188,7 +189,7 @@ class TestGeneration:
         cell_one = "type"
         codes = [cell_one]
         names = ["one"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_unshadowed_builtin"
         )
@@ -199,7 +200,7 @@ class TestGeneration:
         cell_two = "type"
         codes = [cell_one, cell_two]
         names = ["one", "two"]
-        contents = generate_filecontents(codes, names)
+        contents = wrap_generate_filecontents(codes, names)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_shadowed_builtin"
         )
@@ -499,7 +500,7 @@ def test_recover() -> None:
     ]
     names = ["a", "b", "c"]
 
-    expected = generate_filecontents(codes, names)
+    expected = wrap_generate_filecontents(codes, names)
     assert recovered == expected
 
 
@@ -524,3 +525,7 @@ def test_get_header_comments_invalid() -> None:
     comments = codegen.get_header_comments(filepath)
 
     assert comments is None, "Comments found when there should be none"
+
+
+def test_app_with_title() -> None:
+    pass
