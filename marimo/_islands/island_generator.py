@@ -27,7 +27,6 @@ class MarimoIslandStub:
         include_code: bool = False,
         include_output: bool = True,
         is_reactive: bool = True,
-        is_raw: bool = False,
         *,
         cell_id: str,
         app_id: str,
@@ -38,7 +37,6 @@ class MarimoIslandStub:
         self._code = code
         self._include_code = include_code
         self._include_output = include_output
-        self._is_raw = is_raw
         self._is_reactive = is_reactive
 
         self._internal_app: Optional[InternalApp] = None
@@ -122,7 +120,6 @@ class MarimoIslandStub:
         <marimo-island
             data-app-id="{self._app_id}"
             data-cell-id="{self._cell_id}"
-            data-raw="{str(self._is_raw).lower()}"
             data-reactive="{str(is_reactive).lower()}"
         >
             <marimo-cell-output>
@@ -220,7 +217,6 @@ class MarimoIslandGenerator:
             include_code=include_code,
             include_output=include_output,
             is_reactive=is_reactive,
-            is_raw=is_raw,
         )
         self._stubs.append(stub)
 

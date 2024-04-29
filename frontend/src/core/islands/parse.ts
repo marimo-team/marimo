@@ -42,35 +42,19 @@ interface MarimoIslandCell {
   idx: number;
 }
 
-function formatCode(code: string, raw: boolean | undefined): string {
-  if (raw) {
-    return code;
-  }
-  // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-  return dedent(`\n${code}\n`).trim();
-}
-
-function parseIslandEditor(
-  code: string | undefined | null,
-  raw: boolean | undefined,
-): string {
+function parseIslandEditor(code: string | undefined | null): string {
   if (!code) {
     return "";
   }
   // Remove the first and last character, which are quotes
-  code = code.slice(1, -1);
-  return formatCode(code, raw);
+  return code.slice(1, -1);
 }
 
-function parseIslandCode(
-  code: string | undefined | null,
-  raw: boolean | undefined,
-): string {
+function parseIslandCode(code: string | undefined | null): string {
   if (!code) {
     return "";
   }
-  code = decodeURIComponent(code);
-  return formatCode(code, raw);
+  return decodeURIComponent(code);
 }
 
 export function parseMarimoIslandApps(): MarimoIslandApp[] {
@@ -150,7 +134,6 @@ export function createMarimoFile(app: {
 }
 
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
-  const raw = embed.dataset.raw === "true";
   const reactive = embed.dataset.reactive === "true";
   // Non-reactive cells are not guaranteed to have code, and should be treated as
   // such.
@@ -162,7 +145,7 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
     MarimoIslandElement.codeTagName,
   );
   if (cellCodeElement) {
-    return parseIslandCode(cellCodeElement.textContent, raw);
+    return parseIslandCode(cellCodeElement.textContent);
   }
 
   const editorCodeElement = embed.querySelector<HTMLElement>(
@@ -170,7 +153,7 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   );
   if (editorCodeElement) {
     // TODO: Consider getting from value, and making this editable.
-    return parseIslandEditor(editorCodeElement.dataset.initialValue, raw);
+    return parseIslandEditor(editorCodeElement.dataset.initialValue);
   }
 
   return "";

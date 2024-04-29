@@ -1,7 +1,6 @@
 <marimo-island
     data-app-id="main"
     data-cell-id="MJUe"
-    data-raw="false"
     data-reactive="true"
 >
     <marimo-cell-output>
