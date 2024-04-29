@@ -13,7 +13,9 @@ import {
   AppConfig,
   AppConfigSchema,
   APP_WIDTHS,
+  AppTitleSchema,
 } from "../../core/config/config-schema";
+import { Input } from "../ui/input";
 import { NativeSelect } from "../ui/native-select";
 import { useAppConfig } from "@/core/config/config";
 import { saveAppConfig } from "@/core/network/requests";
@@ -76,6 +78,28 @@ export const AppConfigForm: React.FC = () => {
                     </option>
                   ))}
                 </NativeSelect>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="apptitle"
+          render={({ field }) => (
+            <FormItem className="mb-2">
+              <FormLabel>App title</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value}
+                  onChange={(e) => {
+                    field.onChange(e.target.value);
+                    if (AppTitleSchema.safeParse(e.target.value).success) {
+                      document.title = e.target.value;
+                    }
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

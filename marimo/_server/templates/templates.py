@@ -48,7 +48,12 @@ def notebook_page_template(
     html = html.replace("{{ server_token }}", server_token)
     html = html.replace("{{ version }}", __version__)
 
-    html = html.replace("{{ title }}", parse_title(filename))
+    html = html.replace(
+        "{{ title }}",
+        parse_title(filename)
+        if app_config.apptitle is None
+        else app_config.apptitle,
+    )
     html = html.replace("{{ app_config }}", json.dumps(app_config.asdict()))
     html = html.replace("{{ filename }}", filename or "")
     html = html.replace(
@@ -85,7 +90,12 @@ def static_notebook_template(
     html = html.replace("{{ server_token }}", server_token)
     html = html.replace("{{ version }}", __version__)
 
-    html = html.replace("{{ title }}", parse_title(filename))
+    html = html.replace(
+        "{{ title }}",
+        parse_title(filename)
+        if app_config.apptitle is None
+        else app_config.apptitle,
+    )
     html = html.replace(
         "{{ app_config }}", json.dumps(app_config.asdict(), sort_keys=True)
     )
