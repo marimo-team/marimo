@@ -12,7 +12,10 @@ import pytest
 
 from marimo import __version__
 from marimo._ast import codegen, compiler
+from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
+
+import codegen_data.test_main as mod
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -44,6 +47,7 @@ def wrap_generate_filecontents(
     codes: list[str],
     names: list[str],
     cell_configs: Optional[list[CellConfig]] = None,
+    config: Optional[_AppConfig] = None,
 ) -> str:
     """Wraps codegen.generate_filecontents to make the cell_configs argument optional."""
     if cell_configs is None:
@@ -51,11 +55,26 @@ def wrap_generate_filecontents(
     else:
         resolved_configs = cell_configs
     return codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs
+        codes, names, cell_configs=resolved_configs, config=config
     )
 
 
 class TestGeneration:
+    @staticmethod
+    def test_generate_filecontents_empty() -> None:
+        contents = wrap_generate_filecontents([], [])
+        assert contents == get_expected_filecontents(
+            "test_generate_filecontents_empty"
+        )
+
+    @staticmethod
+    def test_generate_filecontents_empty_with_config() -> None:
+        config = _AppConfig(apptitle="test_title", width="full")
+        contents = wrap_generate_filecontents([], [], config=config)
+        assert contents == get_expected_filecontents(
+            "test_generate_filecontents_empty_with_config"
+        )
+
     @staticmethod
     def test_generate_filecontents() -> None:
         cell_one = "import numpy as np"
@@ -347,13 +366,10 @@ class TestGetCodes:
         ]
 
 
-import codegen_data.test_main as mod
-from marimo._ast.app import App, InternalApp
 
 @pytest.fixture
 def marimo_app() -> App:
     return mod.app
-
 
 class TestApp:
     @staticmethod
