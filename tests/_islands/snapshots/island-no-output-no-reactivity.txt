@@ -1,0 +1,10 @@
+<marimo-island
+    data-app-id="main"
+    data-cell-id="MJUe"
+    data-raw="false"
+    data-reactive="false"
+>
+    <marimo-cell-output>
+    </marimo-cell-output>
+    <marimo-ui-element object-id='4bcfefb1-3727-4fa3-8e7a-acec095f937b' random-id='4bcfefb1-3727-4fa3-8e7a-acec095f937b'><marimo-code-editor data-initial-value='&quot;mo.md(&#x27;Hello, islands!&#x27;)&quot;' data-label='null' data-language='&quot;python&quot;' data-placeholder='&quot;&quot;' data-disabled='true'></marimo-code-editor></marimo-ui-element>
+</marimo-island>

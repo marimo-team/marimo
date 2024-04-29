@@ -4,7 +4,7 @@ import { CellId } from "../../cells/ids";
 import { store } from "../../state/jotai";
 import { notebookAtom } from "../../cells/cells";
 import ReactDOM, { Root } from "react-dom/client";
-import { parseIslandCode } from "../parse";
+import { extractIslandCodeFromEmbed } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 import { Provider } from "jotai";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -20,6 +20,7 @@ export class MarimoIslandElement extends HTMLElement {
   public static readonly tagName = "marimo-island";
   public static readonly outputTagName = "marimo-cell-output";
   public static readonly codeTagName = "marimo-cell-code";
+  public static readonly editorTagName = "marimo-code-editor";
   public static readonly styleNamespace = "marimo";
 
   constructor() {
@@ -42,10 +43,7 @@ export class MarimoIslandElement extends HTMLElement {
   }
 
   get code(): string {
-    const codeElement = this.querySelectorOrThrow(
-      MarimoIslandElement.codeTagName,
-    );
-    return parseIslandCode(codeElement.textContent || "");
+    return extractIslandCodeFromEmbed(this);
   }
 
   connectedCallback() {

@@ -1,10 +1,10 @@
 <marimo-island
     data-app-id="main"
     data-cell-id="MJUe"
+    data-raw="false"
+    data-reactive="true"
 >
     <marimo-cell-output>
     </marimo-cell-output>
-    <marimo-cell-code hidden>
-    mo.md('Hello%2C%20islands!')
-    </marimo-cell-code>
+    <marimo-cell-code hidden>mo.md('Hello%2C%20islands!')</marimo-cell-code>
 </marimo-island>

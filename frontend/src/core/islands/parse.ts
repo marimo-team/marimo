@@ -42,6 +42,37 @@ interface MarimoIslandCell {
   idx: number;
 }
 
+function formatCode(code: string, raw: boolean | undefined): string {
+  if (raw) {
+    return code;
+  }
+  // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
+  return dedent(`\n${code}\n`).trim();
+}
+
+function parseIslandEditor(
+  code: string | undefined | null,
+  raw: boolean | undefined,
+): string {
+  if (!code) {
+    return "";
+  }
+  // Remove the first and last character, which are quotes
+  code = code.slice(1, -1);
+  return formatCode(code, raw);
+}
+
+function parseIslandCode(
+  code: string | undefined | null,
+  raw: boolean | undefined,
+): string {
+  if (!code) {
+    return "";
+  }
+  code = decodeURIComponent(code);
+  return formatCode(code, raw);
+}
+
 export function parseMarimoIslandApps(): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
@@ -63,11 +94,9 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     const cellOutput = embed.querySelector<HTMLElement>(
       MarimoIslandElement.outputTagName,
     );
-    const cellCode = embed.querySelector<HTMLElement>(
-      MarimoIslandElement.codeTagName,
-    );
+    const code = extractIslandCodeFromEmbed(embed);
 
-    if (!cellOutput || !cellCode) {
+    if (!cellOutput || !code) {
       Logger.warn(`Embedded marimo app ${id} missing cell output or code.`);
       continue;
     }
@@ -78,11 +107,6 @@ export function parseMarimoIslandApps(): MarimoIslandApp[] {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const app = apps.get(id)!;
     const idx = app.cells.length;
-    const code = parseIslandCode(cellCode.textContent);
-    if (!code) {
-      // Skip if the code is empty
-      continue;
-    }
     app.cells.push({
       output: cellOutput.innerHTML,
       code: code,
@@ -125,11 +149,29 @@ export function createMarimoFile(app: {
   return lines.join("\n");
 }
 
-export function parseIslandCode(code: string | undefined | null): string {
-  if (!code) {
+export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
+  const raw = embed.dataset.raw === "true";
+  const reactive = embed.dataset.reactive === "true";
+  // Non-reactive cells are not guaranteed to have code, and should be treated as
+  // such.
+  if (!reactive) {
     return "";
   }
-  code = decodeURIComponent(code);
-  // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-  return dedent(`\n${code}\n`).trim();
+
+  const cellCodeElement = embed.querySelector<HTMLElement>(
+    MarimoIslandElement.codeTagName,
+  );
+  if (cellCodeElement) {
+    return parseIslandCode(cellCodeElement.textContent, raw);
+  }
+
+  const editorCodeElement = embed.querySelector<HTMLElement>(
+    MarimoIslandElement.editorTagName,
+  );
+  if (editorCodeElement) {
+    // TODO: Consider getting from value, and making this editable.
+    return parseIslandEditor(editorCodeElement.dataset.initialValue, raw);
+  }
+
+  return "";
 }

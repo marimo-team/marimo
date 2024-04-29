@@ -10,8 +10,10 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
+from marimo._output.formatting import as_html
 from marimo._output.utils import uri_encode_component
 from marimo._plugins.stateless.json_output import json_output
+from marimo._plugins.ui import code_editor
 
 if TYPE_CHECKING:
     from marimo._server.sessions import Session
@@ -20,10 +22,25 @@ LOGGER = _loggers.marimo_logger()
 
 
 class MarimoIslandStub:
-    def __init__(self, *, cell_id: str, app_id: str, code: str):
+    def __init__(
+        self,
+        include_code: bool = False,
+        include_output: bool = True,
+        is_reactive: bool = True,
+        is_raw: bool = False,
+        *,
+        cell_id: str,
+        app_id: str,
+        code: str,
+    ):
         self._cell_id = cell_id
         self._app_id = app_id
         self._code = code
+        self._include_code = include_code
+        self._include_output = include_output
+        self._is_raw = is_raw
+        self._is_reactive = is_reactive
+
         self._internal_app: Optional[InternalApp] = None
         self._session: Optional[Session] = None
         self._output: Optional[CellOutput] = None
@@ -51,25 +68,51 @@ class MarimoIslandStub:
 
     def render(
         self,
-        include_code: bool = True,
-        include_output: bool = True,
+        include_code: Optional[bool] = None,
+        include_output: Optional[bool] = None,
+        is_reactive: Optional[bool] = None,
     ) -> str:
         """
         Render the HTML island code for the cell.
+        Note: This will override construction defaults.
 
         *Args:*
 
-        - include_code (bool): Whether to include the code in the HTML.
+        - include_code (bool): Whether to show the output in the HTML.
         - include_output (bool): Whether to include the output in the HTML.
+        - is_reactive (bool): Whether this code block will run with pyodide.
 
         *Returns:*
 
         - str: The HTML code.
         """
-        if include_code is False and include_output is False:
+        is_reactive = (
+            is_reactive if is_reactive is not None else self._is_reactive
+        )
+        include_code = (
+            include_code if include_code is not None else self._include_code
+        )
+        include_output = (
+            include_output
+            if include_output is not None
+            else self._include_output
+        )
+
+        if not (include_code or include_output or is_reactive):
             raise ValueError("You must include either code or output")
 
         output = handle_mimetypes(self.output) if self.output else None
+
+        # Specifying include_code=False will hide the code block, but still
+        # make it present for reactivity, unless reactivity is disabled.
+        if include_code:
+            code_block = as_html(code_editor(self.code, disabled=True)).text
+        else:
+            code_block = (
+                "<marimo-cell-code hidden>"
+                f"{uri_encode_component(self.code) if is_reactive else ''}"
+                "</marimo-cell-code>"
+            )
 
         # Cell may not have output
         # (e.g. imports, but still needs to be included)
@@ -79,13 +122,13 @@ class MarimoIslandStub:
         <marimo-island
             data-app-id="{self._app_id}"
             data-cell-id="{self._cell_id}"
+            data-raw="{str(self._is_raw).lower()}"
+            data-reactive="{str(is_reactive).lower()}"
         >
             <marimo-cell-output>
             {output if output and include_output else ""}
             </marimo-cell-output>
-            <marimo-cell-code hidden>
-            {uri_encode_component(self.code) if include_code else ""}
-            </marimo-cell-code>
+            {code_block}
         </marimo-island>
         """
             ).strip()
@@ -142,21 +185,27 @@ class MarimoIslandGenerator:
     def add_code(
         self,
         code: str,
-        raw: bool = False,
+        include_code: bool = False,
+        include_output: bool = True,
+        is_reactive: bool = True,
+        is_raw: bool = False,
     ) -> MarimoIslandStub:
         """Add a code cell to the app.
 
         *Args:*
 
         - code (str): The code to add to the app.
-        - raw (bool): Handled the code unprocessed or formatted.
+        - include_code (bool): Whether to display the code in the HTML.
+        - include_output (bool): Whether to display the output in the HTML.
+        - is_raw (bool): Whether to handled the code without formatting.
+        - is_reactive (bool): Whether this code block will run with pyodide.
         """
-        if not raw:
+        if not is_raw:
             code = dedent(code)
 
         cell_id = self._app.cell_manager.create_cell_id()
         cell_impl = compile_cell(code, cell_id)
-        cell_impl.configure(CellConfig(disabled=False, hide_code=False))
+        cell_impl.configure(CellConfig(hide_code=False))
         cell = Cell(_name="__", _cell=cell_impl)
 
         self._app.cell_manager._register_cell(
@@ -168,6 +217,10 @@ class MarimoIslandGenerator:
             cell_id=cell_id,
             app_id=self._app_id,
             code=code,
+            include_code=include_code,
+            include_output=include_output,
+            is_reactive=is_reactive,
+            is_raw=is_raw,
         )
         self._stubs.append(stub)
 
@@ -283,4 +336,6 @@ def handle_mimetypes(output: CellOutput) -> str:
         data = f"<img src='{data}'/>"
     elif mimetype == "application/json":
         data = f"{json_output(json.loads(data))}"
+    # TODO: Errors are displayed as just json strings until reactivity kicks
+    # in. Ideally, handle application/vnd.marimo+error
     return data

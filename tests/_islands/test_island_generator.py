@@ -52,7 +52,7 @@ async def test_render():
     await generator.build()
 
     with pytest.raises(ValueError) as e:
-        block1.render(include_code=False, include_output=False)
+        block1.render(include_code=False, include_output=False, is_reactive=False)
     assert str(e.value) == "You must include either code or output"
 
     # Check if render works after build() is called
@@ -62,6 +62,11 @@ async def test_render():
 
     snapshot("island-no-output.txt", block2.render(include_output=False))
 
+    snapshot(
+        "island-no-output-no-reactivity.txt",
+        block2.render(include_code=True, include_output=False, is_reactive=False),
+    )
+
 
 async def test_render_head():
     generator = MarimoIslandGenerator()
@@ -69,9 +74,7 @@ async def test_render_head():
     await generator.build()
 
     # Check if render_head works after build() is called
-    snapshot(
-        "header.txt", generator.render_head().replace(__version__, "0.0.0")
-    )
+    snapshot("header.txt", generator.render_head().replace(__version__, "0.0.0"))
 
 
 async def test_handle_image_mimetype():
