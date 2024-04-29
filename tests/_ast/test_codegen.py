@@ -8,6 +8,8 @@ from functools import partial
 from inspect import cleandoc
 from typing import Optional
 
+import pytest
+
 from marimo import __version__
 from marimo._ast import codegen, compiler
 from marimo._ast.cell import CellConfig
@@ -345,14 +347,32 @@ class TestGetCodes:
         ]
 
 
+import codegen_data.test_main as mod
+from marimo._ast.app import App, InternalApp
+
+@pytest.fixture
+def marimo_app() -> App:
+    return mod.app
+
+
 class TestApp:
     @staticmethod
-    def test_run() -> None:
-        import codegen_data.test_main as mod
-
-        outputs, defs = mod.app.run()
+    def test_run(marimo_app: App) -> None:
+        outputs, defs = marimo_app.run()
         assert outputs == (None, "z", None)
         assert defs == {"x": 0, "y": 1, "z": 2, "a": 1}
+
+    @staticmethod
+    def test_app_with_title(marimo_app: App) -> None:
+        """update title in app config"""
+        NEW_TITLE = "test_title"
+        marimo_internal_app = InternalApp(marimo_app)
+        assert marimo_internal_app.config.apptitle is None
+        marimo_internal_app.update_config({
+            "apptitle": NEW_TITLE
+        })
+        assert marimo_internal_app.config.apptitle == "test_title"
+
 
 
 class TestToFunctionDef:
@@ -527,5 +547,3 @@ def test_get_header_comments_invalid() -> None:
     assert comments is None, "Comments found when there should be none"
 
 
-def test_app_with_title() -> None:
-    pass
