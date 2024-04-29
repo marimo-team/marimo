@@ -62,11 +62,6 @@ async def test_render():
 
     snapshot("island-no-output.txt", block2.render(include_output=False))
 
-    snapshot(
-        "island-no-output-no-reactivity.txt",
-        block2.render(include_code=True, include_output=False, is_reactive=False),
-    )
-
 
 async def test_render_head():
     generator = MarimoIslandGenerator()

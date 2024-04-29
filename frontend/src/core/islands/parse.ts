@@ -2,7 +2,6 @@
 
 import { MarimoIslandElement } from "@/core/islands/components/web-components";
 import { Logger } from "@/utils/Logger";
-import dedent from "string-dedent";
 
 /**
  * DOM elements look like this:
