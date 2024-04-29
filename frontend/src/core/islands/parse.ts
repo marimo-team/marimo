@@ -2,7 +2,6 @@
 
 import { MarimoIslandElement } from "@/core/islands/components/web-components";
 import { Logger } from "@/utils/Logger";
-import dedent from "string-dedent";
 
 /**
  * DOM elements look like this:
@@ -129,7 +128,5 @@ export function parseIslandCode(code: string | undefined | null): string {
   if (!code) {
     return "";
   }
-  code = decodeURIComponent(code);
-  // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
-  return dedent(`\n${code}\n`).trim();
+  return decodeURIComponent(code).trim();
 }
