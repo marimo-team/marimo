@@ -92,7 +92,7 @@ html_theme_options = {
     "announcement": """
         <div class="announcement-body" style="display: flex; justify-content: center; align-items: center;">
             <div class="hide-md" style="flex: 1;"></div>
-            <form style="flex: 3;" class="sidebar-search-container" method="get" action="../search.html" role="search">
+            <form style="flex: 3;" class="sidebar-search-container" method="get" action="/search.html" role="search">
                 <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
                 <input type="hidden" name="check_keywords" value="yes">
                 <input type="hidden" name="area" value="default">
