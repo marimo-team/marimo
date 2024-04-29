@@ -283,7 +283,7 @@ class TestApp:
     @staticmethod
     def test_app_config_extra_args_ignored() -> None:
         app = App(width="full", fake_config="foo")
-        assert app._config.asdict() == {"width": "full", "layout_file": None}
+        assert app._config.asdict() == {"apptitle": None, "width": "full", "layout_file": None}
 
     @staticmethod
     def test_cell_config() -> None:
@@ -435,7 +435,7 @@ def test_app_config() -> None:
     config = _AppConfig.from_untrusted_dict({"width": "full"})
     assert config.width == "full"
     assert config.layout_file is None
-    assert config.asdict() == {"width": "full", "layout_file": None}
+    assert config.asdict() == {"apptitle": None, "width": "full", "layout_file": None}
 
 
 def test_app_config_extra_args_ignored() -> None:
@@ -444,7 +444,7 @@ def test_app_config_extra_args_ignored() -> None:
     )
     assert config.width == "full"
     assert config.layout_file is None
-    assert config.asdict() == {"width": "full", "layout_file": None}
+    assert config.asdict() == {"apptitle": None, "width": "full", "layout_file": None}
 
 
 def test_cli_args(tmp_path: pathlib.Path) -> None:
