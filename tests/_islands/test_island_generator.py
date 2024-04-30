@@ -46,21 +46,23 @@ async def test_render():
     assert "You must call build() before rendering" in str(e.value)
 
     with pytest.raises(AssertionError) as e:
-        block2.render(include_code=False)
+        block2.render(display_code=False)
     assert "You must call build() before rendering" in str(e.value)
 
     await generator.build()
 
     with pytest.raises(ValueError) as e:
-        block1.render(include_code=False, include_output=False)
+        block1.render(
+            display_code=False, display_output=False, is_reactive=False
+        )
     assert str(e.value) == "You must include either code or output"
 
     # Check if render works after build() is called
     snapshot("island.txt", block2.render())
 
-    snapshot("island-no-code.txt", block2.render(include_code=False))
+    snapshot("island-no-code.txt", block2.render(display_code=False))
 
-    snapshot("island-no-output.txt", block2.render(include_output=False))
+    snapshot("island-no-output.txt", block2.render(display_output=False))
 
 
 async def test_render_head():

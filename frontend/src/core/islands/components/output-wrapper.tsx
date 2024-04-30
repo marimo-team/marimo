@@ -17,33 +17,71 @@ import React, { PropsWithChildren, useCallback, useState } from "react";
 
 interface Props {
   cellId: CellId;
-  code: string;
+  codeCallback: () => string;
+  alwaysShowRun: boolean;
   children: React.ReactNode;
 }
 
+interface IconButtonProps {
+  tooltip: string;
+  icon: JSX.Element;
+  action: () => void;
+}
+
+const IconButton: React.FC<IconButtonProps> = ({ tooltip, icon, action }) => (
+  <Tooltip content={tooltip}>
+    <Button
+      size="icon"
+      variant="outline"
+      className="bg-background h-5 w-5 mb-0"
+      onClick={action}
+    >
+      {icon}
+    </Button>
+  </Tooltip>
+);
+
 export const MarimoOutputWrapper: React.FC<Props> = ({
   cellId,
-  code,
+  codeCallback,
+  alwaysShowRun,
   children,
 }) => {
-  const [pressed, setPressed] = useState<boolean>(false);
+  const [pressed, setPressed] = useState<boolean>(alwaysShowRun);
   const selector = useCallback(
     (s: NotebookState) => s.cellRuntime[cellId],
     [cellId],
   );
   const runtime = useAtomValue(selectAtom(notebookAtom, selector));
 
-  useEventListener(document, "keydown", (e) => {
-    if (e.metaKey || e.ctrlKey) {
-      setPressed(true);
-    }
-  });
+  // No need to register, if display is default.
+  // Lint still wants use to have the same event listeners per instance (which
+  // makes sense), so noop is used.
+  const maybeNoop = (fn: (e: KeyboardEvent) => void) =>
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    alwaysShowRun ? () => {} : fn;
 
-  useEventListener(document, "keyup", (e) => {
-    if (e.metaKey || e.ctrlKey || e.key === "Meta" || e.key === "Control") {
-      setPressed(false);
-    }
-  });
+  useEventListener(
+    document,
+    "keydown",
+    maybeNoop((e) => {
+      if (!alwaysShowRun && (e.metaKey || e.ctrlKey)) {
+        setPressed(true);
+      }
+    }),
+  );
+  useEventListener(
+    document,
+    "keyup",
+    maybeNoop((e) => {
+      if (
+        !alwaysShowRun &&
+        (e.metaKey || e.ctrlKey || e.key === "Meta" || e.key === "Control")
+      ) {
+        setPressed(false);
+      }
+    }),
+  );
 
   if (!runtime?.output) {
     return children;
@@ -64,32 +102,22 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
         className="absolute top-0 right-0 z-50 flex items-center justify-center gap-1"
         style={{ display: pressed ? "flex" : "none" }}
       >
-        <Tooltip content="Copy code">
-          <Button
-            size="icon"
-            variant="outline"
-            className="bg-background h-5 w-5 mb-0"
-            onClick={() => navigator.clipboard.writeText(code)}
-          >
-            <CopyIcon className="size-3" />
-          </Button>
-        </Tooltip>
-        <Tooltip content="Re-run cell">
-          <Button
-            size="icon"
-            variant="outline"
-            className="bg-background h-5 w-5 mb-0"
-            onClick={async () => {
-              RuntimeState.INSTANCE.registerRunStart();
-              await sendRun([cellId], [code]).catch((error) => {
-                Logger.error(error);
-                RuntimeState.INSTANCE.registerRunEnd();
-              });
-            }}
-          >
-            <PlayIcon className="size-3" />
-          </Button>
-        </Tooltip>
+        <IconButton
+          tooltip="Copy code"
+          icon={<CopyIcon className="size-3" />}
+          action={() => navigator.clipboard.writeText(codeCallback())}
+        />
+        <IconButton
+          tooltip="Re-run cell"
+          icon={<PlayIcon className="size-3" />}
+          action={async () => {
+            RuntimeState.INSTANCE.registerRunStart();
+            await sendRun([cellId], [codeCallback()]).catch((error) => {
+              Logger.error(error);
+              RuntimeState.INSTANCE.registerRunEnd();
+            });
+          }}
+        />
       </div>
     </div>
   );
