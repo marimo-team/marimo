@@ -90,7 +90,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     def __init__(
         self,
         df: pd.DataFrame,
-        page_size: int = 5,
+        page_size: Optional[int] = 5,
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
         DependencyManager.require_pandas("to use the dataframe plugin")
@@ -119,6 +119,8 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         self._transform_container = TransformsContainer(df)
         self._error: Optional[str] = None
 
+        if page_size not in range(1, len(df) + 1):  # check if page_size is valid
+            page_size = min(len(df) + 1, 5)
         super().__init__(
             component_name=dataframe._name,
             initial_value={
