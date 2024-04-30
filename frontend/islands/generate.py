@@ -20,7 +20,7 @@ def run():
         ),
         generator.add_code("""
         mo.md("We can also show the island code!")
-        """, include_code=True),
+        """, display_code=True),
         generator.add_code("""
         # Also run expensive outputs without performing them in the browser
         import matplotlib.pyplot as plt
@@ -29,7 +29,7 @@ def run():
         y = np.sin(x)
         plt.plot(x, y)
         plt.gca()
-        """, include_code=True, is_reactive=False),
+        """, display_code=True, is_reactive=False),
         generator.add_code(
             """
         mo.md(f"Slider value: {slider.value}")

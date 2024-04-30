@@ -24,8 +24,8 @@ LOGGER = _loggers.marimo_logger()
 class MarimoIslandStub:
     def __init__(
         self,
-        include_code: bool = False,
-        include_output: bool = True,
+        display_code: bool = False,
+        display_output: bool = True,
         is_reactive: bool = True,
         *,
         cell_id: str,
@@ -35,8 +35,8 @@ class MarimoIslandStub:
         self._cell_id = cell_id
         self._app_id = app_id
         self._code = code
-        self._include_code = include_code
-        self._include_output = include_output
+        self._display_code = display_code
+        self._display_output = display_output
         self._is_reactive = is_reactive
 
         self._internal_app: Optional[InternalApp] = None
@@ -66,8 +66,8 @@ class MarimoIslandStub:
 
     def render(
         self,
-        include_code: Optional[bool] = None,
-        include_output: Optional[bool] = None,
+        display_code: Optional[bool] = None,
+        display_output: Optional[bool] = None,
         is_reactive: Optional[bool] = None,
     ) -> str:
         """
@@ -76,8 +76,8 @@ class MarimoIslandStub:
 
         *Args:*
 
-        - include_code (bool): Whether to show the output in the HTML.
-        - include_output (bool): Whether to include the output in the HTML.
+        - display_code (bool): Whether to display the code in HTML.
+        - display_output (bool): Whether to include the output in the HTML.
         - is_reactive (bool): Whether this code block will run with pyodide.
 
         *Returns:*
@@ -87,24 +87,25 @@ class MarimoIslandStub:
         is_reactive = (
             is_reactive if is_reactive is not None else self._is_reactive
         )
-        include_code = (
-            include_code if include_code is not None else self._include_code
+        display_code = (
+            display_code if display_code is not None else self._display_code
         )
-        include_output = (
-            include_output
-            if include_output is not None
-            else self._include_output
+        display_output = (
+            display_output
+            if display_output is not None
+            else self._display_output
         )
 
-        if not (include_code or include_output or is_reactive):
+        if not (display_code or display_output or is_reactive):
             raise ValueError("You must include either code or output")
 
         output = handle_mimetypes(self.output) if self.output else None
 
-        # Specifying include_code=False will hide the code block, but still
+        # Specifying display_code=False will hide the code block, but still
         # make it present for reactivity, unless reactivity is disabled.
-        if include_code:
-            code_block = as_html(code_editor(self.code, disabled=True)).text
+        if display_code:
+            # TODO: Allow for non-disabled code editors.
+            code_block = as_html(code_editor(self.code, disabled=False)).text
         else:
             code_block = (
                 "<marimo-cell-code hidden>"
@@ -120,10 +121,10 @@ class MarimoIslandStub:
         <marimo-island
             data-app-id="{self._app_id}"
             data-cell-id="{self._cell_id}"
-            data-reactive="{str(is_reactive).lower()}"
+            data-reactive="{json.dumps(is_reactive)}"
         >
             <marimo-cell-output>
-            {output if output and include_output else ""}
+            {output if output and display_output else ""}
             </marimo-cell-output>
             {code_block}
         </marimo-island>
@@ -165,7 +166,7 @@ class MarimoIslandGenerator:
             {generator.render_head()}
         </head>
         <body>
-            {block1.render(include_output=False)}
+            {block1.render(display_output=False)}
             {block2.render()}
         </body>
     </html>
@@ -182,8 +183,8 @@ class MarimoIslandGenerator:
     def add_code(
         self,
         code: str,
-        include_code: bool = False,
-        include_output: bool = True,
+        display_code: bool = False,
+        display_output: bool = True,
         is_reactive: bool = True,
         is_raw: bool = False,
     ) -> MarimoIslandStub:
@@ -192,8 +193,8 @@ class MarimoIslandGenerator:
         *Args:*
 
         - code (str): The code to add to the app.
-        - include_code (bool): Whether to display the code in the HTML.
-        - include_output (bool): Whether to display the output in the HTML.
+        - display_code (bool): Whether to display the code in the HTML.
+        - display_output (bool): Whether to display the output in the HTML.
         - is_raw (bool): Whether to handled the code without formatting.
         - is_reactive (bool): Whether this code block will run with pyodide.
         """
@@ -214,8 +215,8 @@ class MarimoIslandGenerator:
             cell_id=cell_id,
             app_id=self._app_id,
             code=code,
-            include_code=include_code,
-            include_output=include_output,
+            display_code=display_code,
+            display_output=display_output,
             is_reactive=is_reactive,
         )
         self._stubs.append(stub)

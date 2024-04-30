@@ -41,21 +41,6 @@ interface MarimoIslandCell {
   idx: number;
 }
 
-function parseIslandEditor(code: string | undefined | null): string {
-  if (!code) {
-    return "";
-  }
-  // Remove the first and last character, which are quotes
-  return code.slice(1, -1);
-}
-
-function parseIslandCode(code: string | undefined | null): string {
-  if (!code) {
-    return "";
-  }
-  return decodeURIComponent(code);
-}
-
 export function parseMarimoIslandApps(): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
@@ -132,6 +117,24 @@ export function createMarimoFile(app: {
   return lines.join("\n");
 }
 
+export function parseIslandEditor(code: string | undefined | null): string {
+  if (!code) {
+    return "";
+  }
+  try {
+    return `${JSON.parse(code)}`;
+  } catch {
+    return code;
+  }
+}
+
+export function parseIslandCode(code: string | undefined | null): string {
+  if (!code) {
+    return "";
+  }
+  return decodeURIComponent(code);
+}
+
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
   const reactive = embed.dataset.reactive === "true";
   // Non-reactive cells are not guaranteed to have code, and should be treated as
@@ -151,7 +154,6 @@ export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
     MarimoIslandElement.editorTagName,
   );
   if (editorCodeElement) {
-    // TODO: Consider getting from value, and making this editable.
     return parseIslandEditor(editorCodeElement.dataset.initialValue);
   }
 
