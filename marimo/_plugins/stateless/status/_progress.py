@@ -265,11 +265,11 @@ class spinner:
         self.spinner = Spinner(title=self.title, subtitle=self.subtitle)
         # output.append(self.spinner)
 
-    def __enter__(self):
+    def __enter__(self) -> Spinner:
         output.append(self.spinner)
         return self.spinner
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         if self.remove_on_exit:
             self.spinner.clear()
         # TODO(akshayka): else consider transitioning to a done state
