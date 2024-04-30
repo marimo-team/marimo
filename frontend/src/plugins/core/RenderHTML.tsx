@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import parse, { Element } from "html-react-parser";
+import React from "react";
 
 interface Options {
   html: string;
@@ -12,6 +13,14 @@ interface Options {
 export const renderHTML = ({ html }: Options) => {
   return parse(html, {
     replace: (domNode) => {
+      // Don't render invalid tags
+      if (
+        domNode instanceof Element &&
+        !/^[A-Za-z][\w-]*$/.test(domNode.name)
+      ) {
+        return React.createElement(React.Fragment);
+      }
+
       // For iframe, we just want to use dangerouslySetInnerHTML so:
       // 1) we can remount the iframe when the src changes
       // 2) keep event attributes (onload, etc.) since this library removes them
