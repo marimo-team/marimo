@@ -237,13 +237,7 @@ class spinner:
     You can also show the spinner without a context manager:
 
     ```python
-    mo.hstack(
-        [
-            mo.status.spinner(title="Loading ...")
-            if condition
-            else mo.md("Done!")
-        ]
-    )
+    mo.status.spinner(title="Loading ...") if condition else mo.md("Done!")
     ```
 
     **Args:**
@@ -263,7 +257,6 @@ class spinner:
         self.subtitle = subtitle
         self.remove_on_exit = remove_on_exit
         self.spinner = Spinner(title=self.title, subtitle=self.subtitle)
-        # output.append(self.spinner)
 
     def __enter__(self) -> Spinner:
         output.append(self.spinner)
