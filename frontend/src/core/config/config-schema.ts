@@ -107,7 +107,7 @@ export const AppTitleSchema = z
 export const AppConfigSchema = z
   .object({
     width: z.enum(APP_WIDTHS).default("normal"),
-    app_title: AppTitleSchema.optional(),
+    app_title: AppTitleSchema.nullish(),
   })
   .default({ width: "normal" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
