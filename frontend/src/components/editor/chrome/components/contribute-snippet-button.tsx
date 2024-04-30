@@ -14,10 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
 import { Input } from "@/components/ui/input";
-import AnyLanguageCodeMirror from "@/plugins/impl/code/any-language-editor";
 import { EditorView } from "@codemirror/view";
 import { useState } from "react";
 import { useTheme } from "@/theme/useTheme";
+import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 
 export const ContributeSnippetButton: React.FC<PropsWithChildren> = ({
   children,
@@ -32,6 +32,8 @@ export const ContributeSnippetButton: React.FC<PropsWithChildren> = ({
     </Slot>
   );
 };
+
+const extensions = [EditorView.lineWrapping];
 
 const ContributeSnippetModal: React.FC<{
   onClose: () => void;
@@ -105,13 +107,13 @@ const ContributeSnippetModal: React.FC<{
             autoComplete="off"
           />
           <input type="hidden" name="code" value={code} />
-          <AnyLanguageCodeMirror
+          <LazyAnyLanguageCodeMirror
             theme={theme === "dark" ? "dark" : "light"}
             language="python"
             className="cm border rounded overflow-hidden"
-            extensions={[EditorView.lineWrapping]}
+            extensions={extensions}
             value={code}
-            onChange={(value) => setCode(value)}
+            onChange={setCode}
           />
         </div>
         <DialogFooter>

@@ -2,12 +2,13 @@
 import { TinyCode } from "@/components/editor/cell/TinyCode";
 import { cn } from "@/utils/cn";
 import { useAtomValue } from "jotai";
-import { memo } from "react";
+import React, { memo, useContext } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { CustomNodeProps, getNodeHeight } from "./elements";
 import { displayCellName } from "@/core/cells/names";
 import { CellId } from "@/core/cells/ids";
 import { useCellIds } from "@/core/cells/cells";
+import { LayoutDirection } from "./types";
 
 function getWidth(canvasWidth: number) {
   const minWidth = 100;
@@ -16,14 +17,25 @@ function getWidth(canvasWidth: number) {
   return Math.min(Math.max(canvasWidth - padding * 2, minWidth), maxWidth);
 }
 
+export const EdgeMarkerContext = React.createContext<LayoutDirection>("LR");
+
+const EQUALITY_CHECK = (
+  prevProps: CustomNodeProps,
+  nextProps: CustomNodeProps,
+) => {
+  const keys: Array<keyof CustomNodeProps> = ["data", "selected", "id"];
+  return keys.every((key) => prevProps[key] === nextProps[key]);
+};
+
 export const CustomNode = memo((props: CustomNodeProps) => {
-  const { data, selected, id } = props;
+  const { data, selected, id } = props; // must match the equality check
   const cell = useAtomValue(data.atom);
   const cellIndex = useCellIds().indexOf(id as CellId);
   const nonSelectedColor = "var(--gray-3)";
   const selectedColor = "var(--gray-9)";
   const color = selected ? selectedColor : nonSelectedColor;
   const reactFlowWidth = useStore(({ width }) => width);
+  const edgeMarkers = useContext(EdgeMarkerContext);
 
   const linesOfCode = cell.code.split("\n").length;
   return (
@@ -31,13 +43,13 @@ export const CustomNode = memo((props: CustomNodeProps) => {
       <Handle
         type="target"
         id="inputs"
-        position={Position.Left}
+        position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
       <Handle
         type="source"
         id="inputs"
-        position={Position.Left}
+        position={edgeMarkers === "LR" ? Position.Left : Position.Top}
         style={{ background: color }}
       />
       <div
@@ -47,7 +59,7 @@ export const CustomNode = memo((props: CustomNodeProps) => {
         )}
         style={{
           height: getNodeHeight(linesOfCode),
-          width: getWidth(reactFlowWidth),
+          width: data.forceWidth || getWidth(reactFlowWidth),
         }}
       >
         <div className="text-muted-foreground font-semibold text-xs py-1 px-2 bg-muted border-b">
@@ -58,16 +70,20 @@ export const CustomNode = memo((props: CustomNodeProps) => {
       <Handle
         type="source"
         id="outputs"
-        position={Position.Right}
+        position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
       <Handle
         type="target"
         id="outputs"
-        position={Position.Right}
+        position={edgeMarkers === "LR" ? Position.Right : Position.Bottom}
         style={{ background: color }}
       />
     </div>
   );
-});
+}, EQUALITY_CHECK);
 CustomNode.displayName = "CustomNode";
+
+export const nodeTypes = {
+  custom: CustomNode,
+};
