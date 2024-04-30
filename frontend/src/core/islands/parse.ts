@@ -132,7 +132,7 @@ export function parseIslandCode(code: string | undefined | null): string {
   if (!code) {
     return "";
   }
-  return decodeURIComponent(code);
+  return decodeURIComponent(code).trim();
 }
 
 export function extractIslandCodeFromEmbed(embed: HTMLElement): string {
