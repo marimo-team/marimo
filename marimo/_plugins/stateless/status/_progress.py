@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import contextlib
 import time
 from typing import (
     TYPE_CHECKING,
@@ -218,7 +217,7 @@ class Spinner(_Progress):
 
 
 @mddoc
-class spinner(contextlib.AbstractContextManager[Spinner]):
+class spinner:
     """Show a loading spinner
 
     Use `mo.status.spinner()` as a context manager to show a loading spinner.
