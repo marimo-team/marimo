@@ -97,8 +97,8 @@ const SliderComponent = ({
             "data-[orientation=vertical]:h-36",
           )}
           value={[internalValue]}
-          min={steps[0]}
-          max={steps[steps.length - 1]}
+          min={0}
+          max={steps.length - 1}
           step={1}
           orientation={orientation}
           // Triggered on all value changes
