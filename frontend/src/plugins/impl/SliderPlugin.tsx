@@ -11,11 +11,8 @@ import { prettyScientificNumber } from "@/utils/numbers";
 type T = number;
 
 interface Data {
-  start: T;
-  stop: T;
-  step?: T;
+  steps: T[];
   label: string | null;
-  steps: T[] | null;
   debounce: boolean;
   orientation: "horizontal" | "vertical";
   showValue: boolean;
@@ -27,11 +24,8 @@ export class SliderPlugin implements IPlugin<T, Data> {
 
   validator = z.object({
     initialValue: z.number(),
+    steps: z.array(z.number()),
     label: z.string().nullable(),
-    start: z.number(),
-    stop: z.number(),
-    step: z.number().optional(),
-    steps: z.array(z.number()).nullable(),
     debounce: z.boolean().default(false),
     orientation: z.enum(["horizontal", "vertical"]).default("horizontal"),
     showValue: z.boolean().default(false),
@@ -41,10 +35,7 @@ export class SliderPlugin implements IPlugin<T, Data> {
   render(props: IPluginProps<T, Data>): JSX.Element {
     // Create the valueMap function
     const valueMap = (sliderValue: number): number => {
-      if (props.data.steps && props.data.steps.length > 0) {
-        return props.data.steps[sliderValue];
-      }
-      return sliderValue;
+      return props.data.steps[sliderValue];
     };
 
     return (
@@ -68,9 +59,6 @@ const SliderComponent = ({
   label,
   setValue,
   value,
-  start,
-  stop,
-  step,
   steps,
   debounce,
   orientation,
@@ -109,9 +97,9 @@ const SliderComponent = ({
             "data-[orientation=vertical]:h-36",
           )}
           value={[internalValue]}
-          min={start}
-          max={stop}
-          step={step}
+          min={steps[0]}
+          max={steps[steps.length - 1]}
+          step={1}
           orientation={orientation}
           // Triggered on all value changes
           onValueChange={([nextValue]) => {

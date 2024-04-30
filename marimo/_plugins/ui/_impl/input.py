@@ -227,9 +227,6 @@ class slider(UIElement[Numeric, Numeric]):
                 initial_value=value,
                 label=label,
                 args={
-                    "start": 0,
-                    "stop": len(steps) - 1,
-                    "step": 1,
                     "steps": steps,
                     "debounce": debounce,
                     "orientation": orientation,
@@ -244,6 +241,7 @@ class slider(UIElement[Numeric, Numeric]):
 
             self._dtype = _infer_dtype([start, stop, step, value])
             value = start if value is None else value
+            step = 1 if step is None else step
 
             if stop < start:
                 raise ValueError(
@@ -261,17 +259,14 @@ class slider(UIElement[Numeric, Numeric]):
             self.start = start
             self.stop = stop
             self.step = step
-            self.steps = None
+            self.steps = [start + i * step for i in range(int((stop - start) / step))]
 
             super().__init__(
                 component_name=slider._name,
                 initial_value=value,
                 label=label,
                 args={
-                    "start": start,
-                    "stop": stop,
-                    "step": step if step is not None else None,
-                    "steps": [],
+                    "steps": self.steps,
                     "debounce": debounce,
                     "orientation": orientation,
                     "show-value": show_value,
@@ -415,8 +410,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
 
             if stop < start or value[1] < value[0]:
                 raise ValueError(
-                    "Invalid bounds: stop value must be "
-                    "greater than start value."
+                    "Invalid bounds: stop value must be " "greater than start value."
                 )
             if value[0] < start or value[1] > stop:
                 raise ValueError(
@@ -542,6 +536,8 @@ class radio(UIElement[Optional[str], Any]):
     - `options`: sequence of text options, or dict mapping option name
                  to option value
     - `value`: default option name, if None, starts with nothing checked
+    - `inline`: whether the radio buttons should be inline
+    - `chunk`: number of options to display in a row
     - `label`: optional text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -553,6 +549,7 @@ class radio(UIElement[Optional[str], Any]):
         options: Sequence[str] | dict[str, Any],
         value: Optional[str] = None,
         inline: bool = False,
+        chunk: Optional[int] = None,
         *,
         label: str = "",
         on_change: Optional[Callable[[Any], None]] = None,
@@ -562,6 +559,12 @@ class radio(UIElement[Optional[str], Any]):
                 raise ValueError("A radio group cannot have repeated options.")
             options = {option: option for option in options}
         self.options = options
+        if not inline and chunk is not None:
+            chunk = None
+        if (
+            inline and chunk is not None and chunk not in range(1, len(options) + 1)
+        ):  # check if chunk is valid
+            chunk = None
         super().__init__(
             component_name=radio._name,
             initial_value=value,
@@ -569,6 +572,7 @@ class radio(UIElement[Optional[str], Any]):
             args={
                 "options": list(options.keys()),
                 "inline": inline,
+                "chunk": chunk,
             },
             on_change=on_change,
         )
@@ -911,9 +915,7 @@ class multiselect(UIElement[List[str], List[object]]):
             if max_selections < 0:
                 raise ValueError("max_selections cannot be less than 0.")
             if max_selections < len(initial_value):
-                raise ValueError(
-                    "Initial value cannot be greater than max_selections."
-                )
+                raise ValueError("Initial value cannot be greater than max_selections.")
 
         super().__init__(
             component_name=multiselect._name,
@@ -1115,9 +1117,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         kind: Literal["button", "area"] = "button",
         *,
         label: str = "",
-        on_change: Optional[
-            Callable[[Sequence[FileUploadResults]], None]
-        ] = None,
+        on_change: Optional[Callable[[Sequence[FileUploadResults]], None]] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -1135,8 +1135,7 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         self, value: list[tuple[str, str]]
     ) -> Sequence[FileUploadResults]:
         return tuple(
-            FileUploadResults(name=e[0], contents=base64.b64decode(e[1]))
-            for e in value
+            FileUploadResults(name=e[0], contents=base64.b64decode(e[1])) for e in value
         )
 
     def name(self, index: int = 0) -> Optional[str]:
@@ -1251,9 +1250,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(
-        self, value: list[Dict[str, Any]]
-    ) -> Sequence[FileInfo]:
+    def _convert_value(self, value: list[Dict[str, Any]]) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
                 id=file["id"],
@@ -1485,9 +1482,7 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
-        validate: Optional[
-            Callable[[Optional[JSONType]], Optional[str]]
-        ] = None,
+        validate: Optional[Callable[[Optional[JSONType]], Optional[str]]] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
