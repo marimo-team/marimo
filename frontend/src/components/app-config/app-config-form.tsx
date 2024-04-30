@@ -94,7 +94,7 @@ export const AppConfigForm: React.FC = () => {
                 <FormControl>
                   <Input
                     {...field}
-                    value={field.value}
+                    value={field.value ?? ""}
                     onChange={(e) => {
                       field.onChange(e.target.value);
                       if (AppTitleSchema.safeParse(e.target.value).success) {
