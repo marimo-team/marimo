@@ -5,14 +5,15 @@ import contextlib
 import time
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     Iterable,
-    Iterator,
     Optional,
     TypeVar,
 )
 
 import marimo._runtime.output._output as output
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
@@ -217,12 +218,7 @@ class Spinner(_Progress):
 
 
 @mddoc
-@contextlib.contextmanager
-def spinner(
-    title: Optional[str] = None,
-    subtitle: Optional[str] = None,
-    remove_on_exit: bool = True,
-) -> Iterator[Spinner]:
+class spinner(contextlib.AbstractContextManager[Spinner]):
     """Show a loading spinner
 
     Use `mo.status.spinner()` as a context manager to show a loading spinner.
@@ -239,21 +235,49 @@ def spinner(
     mo.ui.table(data)
     ```
 
+    You can also show the spinner without a context manager:
+
+    ```python
+    mo.hstack(
+        [
+            mo.status.spinner(title="Loading ...")
+            if condition
+            else mo.md("Done!")
+        ]
+    )
+    ```
+
     **Args:**
 
     - `title`: optional title
     - `subtitle`: optional subtitle
     - `remove_on_exit`: if True, the spinner is removed from output on exit
     """
-    spinner = Spinner(title=title, subtitle=subtitle)
-    output.append(spinner)
-    try:
-        yield spinner
-    finally:
-        if remove_on_exit:
-            spinner.clear()
+
+    def __init__(
+        self,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        remove_on_exit: bool = True,
+    ):
+        self.title = title
+        self.subtitle = subtitle
+        self.remove_on_exit = remove_on_exit
+        self.spinner = Spinner(title=self.title, subtitle=self.subtitle)
+        # output.append(self.spinner)
+
+    def __enter__(self):
+        output.append(self.spinner)
+        return self.spinner
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
+        if self.remove_on_exit:
+            self.spinner.clear()
         # TODO(akshayka): else consider transitioning to a done state
-        spinner.close()
+        self.spinner.close()
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        return self.spinner._mime_()
 
 
 def progress_bar(

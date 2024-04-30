@@ -48,7 +48,9 @@ def wrap_generate_filecontents(
     cell_configs: Optional[list[CellConfig]] = None,
     config: Optional[_AppConfig] = None,
 ) -> str:
-    """Wraps codegen.generate_filecontents to make the cell_configs argument optional."""
+    """
+    Wraps codegen.generate_filecontents to make the
+    cell_configs argument optional."""
     if cell_configs is None:
         resolved_configs = [CellConfig() for _ in range(len(codes))]
     else:
