@@ -51,8 +51,8 @@ def notebook_page_template(
     html = html.replace(
         "{{ title }}",
         parse_title(filename)
-        if app_config.apptitle is None
-        else app_config.apptitle,
+        if app_config.app_title is None
+        else app_config.app_title,
     )
     html = html.replace("{{ app_config }}", json.dumps(app_config.asdict()))
     html = html.replace("{{ filename }}", filename or "")
@@ -93,8 +93,8 @@ def static_notebook_template(
     html = html.replace(
         "{{ title }}",
         parse_title(filename)
-        if app_config.apptitle is None
-        else app_config.apptitle,
+        if app_config.app_title is None
+        else app_config.app_title,
     )
     html = html.replace(
         "{{ app_config }}", json.dumps(app_config.asdict(), sort_keys=True)

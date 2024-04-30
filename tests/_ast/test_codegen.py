@@ -8,14 +8,13 @@ from functools import partial
 from inspect import cleandoc
 from typing import Optional
 
+import codegen_data.test_main as mod
 import pytest
 
 from marimo import __version__
 from marimo._ast import codegen, compiler
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
-
-import codegen_data.test_main as mod
 
 compile_cell = partial(compiler.compile_cell, cell_id="0")
 
@@ -69,7 +68,7 @@ class TestGeneration:
 
     @staticmethod
     def test_generate_filecontents_empty_with_config() -> None:
-        config = _AppConfig(apptitle="test_title", width="full")
+        config = _AppConfig(app_title="test_title", width="full")
         contents = wrap_generate_filecontents([], [], config=config)
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_empty_with_config"
@@ -202,7 +201,9 @@ class TestGeneration:
             + "i_am_another_very_long_name + "
             + "yet_another_very_long_name"
         )
-        contents = wrap_generate_filecontents([cell_one, cell_two], ["one", "two"])
+        contents = wrap_generate_filecontents(
+            [cell_one, cell_two], ["one", "two"]
+        )
         assert contents == get_expected_filecontents("test_long_line_in_main")
 
     @staticmethod
@@ -366,10 +367,10 @@ class TestGetCodes:
         ]
 
 
-
 @pytest.fixture
 def marimo_app() -> App:
     return mod.app
+
 
 class TestApp:
     @staticmethod
@@ -380,15 +381,12 @@ class TestApp:
 
     @staticmethod
     def test_app_with_title(marimo_app: App) -> None:
-        """update title in app config"""
+        """Update title in app config"""
         NEW_TITLE = "test_title"
         marimo_internal_app = InternalApp(marimo_app)
-        assert marimo_internal_app.config.apptitle is None
-        marimo_internal_app.update_config({
-            "apptitle": NEW_TITLE
-        })
-        assert marimo_internal_app.config.apptitle == "test_title"
-
+        assert marimo_internal_app.config.app_title is None
+        marimo_internal_app.update_config({"app_title": NEW_TITLE})
+        assert marimo_internal_app.config.app_title == "test_title"
 
 
 class TestToFunctionDef:
@@ -561,5 +559,3 @@ def test_get_header_comments_invalid() -> None:
     comments = codegen.get_header_comments(filepath)
 
     assert comments is None, "Comments found when there should be none"
-
-

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -85,24 +86,30 @@ export const AppConfigForm: React.FC = () => {
         />
         <FormField
           control={form.control}
-          name="apptitle"
+          name="app_title"
           render={({ field }) => (
-            <FormItem className="mb-2">
-              <FormLabel>App title</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  value={field.value}
-                  onChange={(e) => {
-                    field.onChange(e.target.value);
-                    if (AppTitleSchema.safeParse(e.target.value).success) {
-                      document.title = e.target.value;
-                    }
-                  }}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <div className="flex flex-col gap-y-1">
+              <FormItem className="mb-2">
+                <FormLabel>Application title</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      if (AppTitleSchema.safeParse(e.target.value).success) {
+                        document.title = e.target.value;
+                      }
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+              <FormDescription>
+                The application title is put in the title tag in the HTML code
+                and typically displayed in the title bar of the browser window.
+              </FormDescription>
+            </div>
           )}
         />
       </form>
