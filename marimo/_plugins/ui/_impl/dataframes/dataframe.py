@@ -97,7 +97,9 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         import pandas as pd
 
         if not isinstance(df, pd.DataFrame):
-            raise ValueError("Dataframe plugin only supports Pandas DataFrames")
+            raise ValueError(
+                "Dataframe plugin only supports Pandas DataFrames"
+            )
 
         # HACK: this is a hack to get the name of the variable that was passed
         dataframe_name = "df"
@@ -119,7 +121,9 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         self._transform_container = TransformsContainer(df)
         self._error: Optional[str] = None
 
-        if page_size not in range(1, len(df) + 1):  # check if page_size is valid
+        if page_size not in range(
+            1, len(df) + 1
+        ):  # check if page_size is valid
             page_size = min(len(df) + 1, 5)
         super().__init__(
             component_name=dataframe._name,
@@ -166,7 +170,9 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             row_headers=manager.get_row_headers(),
         )
 
-    def get_column_values(self, args: GetColumnValuesArgs) -> GetColumnValuesResponse:
+    def get_column_values(
+        self, args: GetColumnValuesArgs
+    ) -> GetColumnValuesResponse:
         """Get all the unique values in a column."""
         LIMIT = 500
 

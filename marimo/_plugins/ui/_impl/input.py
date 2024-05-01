@@ -157,7 +157,7 @@ class slider(UIElement[Numeric, Numeric]):
     """
 
     _name: Final[str] = "marimo-slider"
-    _mapping: Optional[Dict[int, Numeric]] = None
+    _mapping: Dict[int, Numeric] = {}
 
     def __init__(
         self,
@@ -176,7 +176,9 @@ class slider(UIElement[Numeric, Numeric]):
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
-        self.step: Optional[Numeric]
+        self.step: Optional[Numeric] = (
+            1 if (step is None and steps is None) else step
+        )
         self.steps: Optional[Sequence[Numeric]]
 
         # Guard against conflicting arguments
@@ -192,65 +194,44 @@ class slider(UIElement[Numeric, Numeric]):
                 "Missing arguments: `steps` xor both `start`"
                 "and `stop` must be provided."
             )
-        # If steps are provided
-        if steps is not None:
-            self._dtype = _infer_dtype(steps)
-            self._mapping = dict(enumerate(steps))
-            try:
-                # check if steps is a sequence of numbers
-                assert all(isinstance(num, (int, float)) for num in steps)
-                assert len(steps) > 0
-                value = 0 if value is None else steps.index(value)
-            except ValueError:
-                print(
-                    "Value out of bounds: default value should be in the steps"
-                    ", set to first value."
-                )
-                value = 0
-            except AssertionError as e:
-                raise TypeError(
-                    "Invalid steps: steps must be a sequence of numbers."
-                ) from e
 
-            # minimum value of interval
-            self.start = steps[0]
-            # maximum value of interval
-            self.stop = steps[-1]
-            # slider increment
-            self.step = None
-            # list of steps
-            self.steps = steps
-
-        else:
+        if steps is None:
             assert start is not None
             assert stop is not None
-
-            self._dtype = _infer_dtype([start, stop, step, value])
-            value = start if value is None else value
-            step = 1 if step is None else step
-
             if stop < start:
                 raise ValueError(
-                    f"Invalid bounds: stop value ({stop}) "
-                    "must be greater than "
+                    f"Invalid bounds: stop value ({stop}) must be greater than "
                     f"start value ({start})"
                 )
-            if value < start or value > stop:
-                raise ValueError(
-                    f"Value out of bounds: default value ({value}) must be "
-                    f"greater than start ({start}) "
-                    f"and less than stop ({stop})."
-                )
-
-            self.start = start
-            # stop value should be the last value in the steps
-            self.stop = start + int((stop - start) / step) * step
-            self.step = step
             self.steps = [
-                start + i * step for i in range(int((stop - start) / step) + 1)
+                start + i * (self.step or 1)
+                for i in range(int((stop - start) / (self.step or 1)) + 1)
             ]
-            self._mapping = dict(enumerate(self.steps))
-            value = self.steps.index(value)
+        else:
+            self.steps = steps
+        try:
+            # check if steps is a sequence of numbers
+            assert all(isinstance(num, (int, float)) for num in self.steps)
+            assert len(self.steps) > 0
+            value = 0 if value is None else self.steps.index(value)
+        except ValueError:
+            print(
+                "Value out of bounds: default value should be in the steps"
+                ", set to first value."
+            )
+            value = 0
+        except AssertionError as e:
+            raise TypeError(
+                "Invalid steps: steps must be a sequence of numbers."
+            ) from e
+
+        self._dtype = _infer_dtype(self.steps)
+        # create mapping from index to value
+        self._mapping = dict(enumerate(self.steps))
+        # minimum value of interval
+        self.start = self.steps[0]
+        # maximum value of interval
+        self.stop = self.steps[-1]
 
         super().__init__(
             component_name=slider._name,
@@ -309,7 +290,7 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     """
 
     _name: Final[str] = "marimo-range-slider"
-    _mapping: Optional[dict[int, Numeric]] = None
+    _mapping: dict[int, Numeric] = {}
 
     def __init__(
         self,
@@ -328,9 +309,12 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
     ) -> None:
         self.start: Numeric
         self.stop: Numeric
-        self.step: Optional[Numeric]
+        self.step: Optional[Numeric] = (
+            1 if (step is None and steps is None) else step
+        )
         self.steps: Optional[Sequence[Numeric]]
 
+        # Guard against conflicting arguments
         if steps is not None and (
             start is not None or stop is not None or step is not None
         ):
@@ -343,90 +327,65 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
                 "Missing arguments: `steps` xor both `start`"
                 "and `stop` must be provided."
             )
-
-        if steps is not None:
-            self._dtype = _infer_dtype(steps)
-            self._mapping = dict(enumerate(steps))
-
-            try:
-                # the values of steps must be a sequence of numbers
-                assert all(isinstance(num, (int, float)) for num in steps)
-                assert len(steps) > 0
-                value = list(
-                    value
-                )  # raise error when value is not a Sequence, e.g. None
-                value = (
-                    [0, len(steps) - 1]
-                    if value is None
-                    else [
-                        steps.index(num) for num in value[:2]
-                    ]  # if length of value is greater than 2
-                )
-            except ValueError:
-                print(
-                    "Value out of bounds: default value should be in the "
-                    "steps, set to first and last values."
-                )
-                value = [0, len(steps) - 1]
-            except AssertionError as e:
-                raise TypeError(
-                    "Invalid steps: steps must be a sequence of numbers."
-                ) from e
-
-            except TypeError as e:
-                raise TypeError(
-                    "Invalid values: values must be a sequence of numbers."
-                ) from e
-
-            # minimum value of interval
-            self.start = steps[0]
-            # maximum value of interval
-            self.stop = steps[-1]
-            # slider increment
-            self.step = None
-            # list of steps
-            self.steps = steps
-
-        else:
+        if steps is None:
             assert start is not None
             assert stop is not None
-
-            self._dtype = _infer_dtype([start, stop, step, value])
-            value = [start, stop] if value is None else value
-            step = 1 if step is None else step
-
             if stop < start:
                 raise ValueError(
-                    "Invalid bounds: stop value must be " "greater than start value."
+                    f"Invalid bounds: stop value ({stop}) must be greater than "
+                    f"start value ({start})"
                 )
-
-            self.start = start
-            self.stop = start + int((stop - start) / step) * step
-            self.step = step
             self.steps = [
-                start + i * step for i in range(int((stop - start) / step) + 1)
+                start + i * (self.step or 1)
+                for i in range(int((stop - start) / (self.step or 1)) + 1)
+                if self.step is not None
             ]
-            self._mapping = dict(enumerate(self.steps))
-            try:
-                assert isinstance(value, Sequence)
-                value = (
-                    [0, len(self.steps) - 1]
-                    if value is None
-                    else [self.steps.index(num) for num in value]
-                )
-            except AssertionError as e:
-                raise TypeError(
-                    "Invalid value: value must be a sequence of numbers."
-                ) from e
-            except ValueError:
-                print(
-                    "Value out of bounds: default value should be in the steps. Set to first and last values."
-                )
-                value = [0, len(self.steps) - 1]
+        else:
+            self.steps = steps
+        try:
+            # check if steps is a sequence of numbers
+            assert all(isinstance(num, (int, float)) for num in self.steps)
+            assert len(self.steps) > 0
+            # raise error when value is not a Sequence, e.g. None
+            value = list(value) if value is not None else None
+            value = (
+                [0, len(self.steps) - 1]
+                if value is None
+                else [
+                    self.steps.index(value[0]),
+                    (
+                        self.steps.index(value[1])
+                        if len(value) > 1
+                        else len(self.steps) - 1
+                    ),
+                ]  # if length of value is greater than 2
+            )
+        except AssertionError as e:
+            raise TypeError(
+                "Invalid steps: steps must be a sequence of numbers."
+            ) from e
+        except TypeError as e:
+            raise TypeError(
+                "Invalid values: values must be a sequence of numbers."
+            ) from e
+        except ValueError:
+            print(
+                "Value out of bounds: default value should be in the "
+                "steps, set to first and last values."
+            )
+            value = [0, len(self.steps) - 1]
+
+        self._dtype = _infer_dtype(self.steps)
+        # create mapping from index to value
+        self._mapping = dict(enumerate(self.steps))
+        # minimum value of interval
+        self.start = self.steps[0]
+        # maximum value of interval
+        self.stop = self.steps[-1]
 
         super().__init__(
             component_name=range_slider._name,
-            initial_value=list(value),
+            initial_value=value,
             label=label,
             args={
                 "steps": self.steps,
@@ -559,7 +518,9 @@ class radio(UIElement[Optional[str], Any]):
         if not inline and chunk is not None:
             chunk = None
         if (
-            inline and chunk is not None and chunk not in range(1, len(options) + 1)
+            inline
+            and chunk is not None
+            and chunk not in range(1, len(options) + 1)
         ):  # check if chunk is valid
             chunk = None
         super().__init__(
@@ -912,7 +873,9 @@ class multiselect(UIElement[List[str], List[object]]):
             if max_selections < 0:
                 raise ValueError("max_selections cannot be less than 0.")
             if max_selections < len(initial_value):
-                raise ValueError("Initial value cannot be greater than max_selections.")
+                raise ValueError(
+                    "Initial value cannot be greater than max_selections."
+                )
 
         super().__init__(
             component_name=multiselect._name,
@@ -1114,7 +1077,9 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         kind: Literal["button", "area"] = "button",
         *,
         label: str = "",
-        on_change: Optional[Callable[[Sequence[FileUploadResults]], None]] = None,
+        on_change: Optional[
+            Callable[[Sequence[FileUploadResults]], None]
+        ] = None,
     ) -> None:
         super().__init__(
             component_name=file._name,
@@ -1132,7 +1097,8 @@ class file(UIElement[List[Tuple[str, str]], Sequence[FileUploadResults]]):
         self, value: list[tuple[str, str]]
     ) -> Sequence[FileUploadResults]:
         return tuple(
-            FileUploadResults(name=e[0], contents=base64.b64decode(e[1])) for e in value
+            FileUploadResults(name=e[0], contents=base64.b64decode(e[1]))
+            for e in value
         )
 
     def name(self, index: int = 0) -> Optional[str]:
@@ -1247,7 +1213,9 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         return ListDirectoryResponse(files)
 
-    def _convert_value(self, value: list[Dict[str, Any]]) -> Sequence[FileInfo]:
+    def _convert_value(
+        self, value: list[Dict[str, Any]]
+    ) -> Sequence[FileInfo]:
         return tuple(
             FileInfo(
                 id=file["id"],
@@ -1479,7 +1447,9 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
         show_clear_button: bool = False,
         clear_button_label: str = "Clear",
         clear_button_tooltip: Optional[str] = None,
-        validate: Optional[Callable[[Optional[JSONType]], Optional[str]]] = None,
+        validate: Optional[
+            Callable[[Optional[JSONType]], Optional[str]]
+        ] = None,
         label: str = "",
         on_change: Optional[Callable[[Optional[T]], None]] = None,
     ) -> None:
