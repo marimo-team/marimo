@@ -22,24 +22,26 @@ def test_img() -> None:
 
 
 def test_video() -> None:
-    assert h.video() == "<video controls />"
+    assert h.video() == "<video controls></video>"
     assert (
-        h.video(src="video.mp4", controls=False) == "<video src='video.mp4' />"
+        h.video(src="video.mp4", controls=False)
+        == "<video src='video.mp4'></video>"
     )
 
 
 def test_audio() -> None:
-    assert h.audio() == "<audio controls />"
+    assert h.audio() == "<audio controls></audio>"
     assert (
-        h.audio(src="audio.mp3", controls=False) == "<audio src='audio.mp3' />"
+        h.audio(src="audio.mp3", controls=False)
+        == "<audio src='audio.mp3'></audio>"
     )
 
 
 def test_iframe() -> None:
-    assert h.iframe() == "<iframe frameborder='0' />"
+    assert h.iframe() == "<iframe frameborder='0'></iframe>"
     assert (
         h.iframe(src="https://marimo.io")
-        == "<iframe src='https://marimo.io' frameborder='0' />"
+        == "<iframe src='https://marimo.io' frameborder='0'></iframe>"
     )
 
 
