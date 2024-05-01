@@ -62,7 +62,7 @@ class Runner:
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
         execution_mode: OnCellChangeType = "autorun",
-        errors: set[CellId_t] | None = None,
+        excluded_cells: set[CellId_t] | None = None,
         execution_context: Callable[
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
         ]
@@ -78,7 +78,7 @@ class Runner:
     ):
         self.graph = graph
         self.debugger = debugger
-        self.errors = errors or set()
+        self.excluded_cells = excluded_cells or set()
 
         # injected context and hooks
         self.execution_context = execution_context
@@ -108,18 +108,20 @@ class Runner:
 
         if self.execution_mode == "autorun":
             self.cells_to_run = dataflow.topological_sort(
-                graph, dataflow.transitive_closure(graph, roots) - self.errors
+                graph,
+                dataflow.transitive_closure(graph, roots) - self.excluded_cells,
             )
         else:
             self.cells_to_run = dataflow.topological_sort(
                 graph,
+                # also run stale ancestors
                 dataflow.transitive_closure(
                     graph,
                     roots,
                     children=False,
                     predicate=lambda cell: cell.stale,
                 )
-                - self.errors,
+                - self.excluded_cells,
             )
         # map from a cell that was cancelled to its descendants that have
         # not yet run:

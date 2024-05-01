@@ -837,7 +837,7 @@ class Kernel:
             roots=roots,
             graph=self.graph,
             glbls=self.globals,
-            errors=set(self.errors.keys()),
+            excluded_cells=set(self.errors.keys()),
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
             execution_context=self._install_execution_context,
