@@ -21,6 +21,8 @@ import { Atom } from "jotai";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { NodeData, VerticalElementsBuilder } from "./elements";
 import useEvent from "react-use-event-hook";
+import { scrollToCell } from "../editor/links/cell-link";
+import { GraphSelectionPanel } from "./panels";
 
 interface Props {
   cellIds: CellId[];
@@ -36,19 +38,17 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
   cellAtoms,
   children,
 }) => {
-  const { nodes: initialNodes, edges: initialEdges } =
+  const { nodes: initialNodes, edges: allEdges } =
     elementsBuilder.createElements(cellIds, cellAtoms, variables);
   const [edges, setEdges] = useEdgesState([]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 
-  const [allEdges, setAllEdges] = useState<Edge[]>(initialEdges);
-  const [selectedNodeId, setSelectedNodeId] = useState<string>();
+  const [selectedNodeId, setSelectedNodeId] = useState<CellId>();
 
   // If the cellIds change, update the nodes.
   const syncChanges = useEvent(
     (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
       setNodes(nodes);
-      setAllEdges(edges);
       setEdges([]);
 
       // Update positions of nodes
@@ -109,8 +109,11 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
         if (id === selectedNodeId) {
           return;
         }
-        setSelectedNodeId(id);
+        setSelectedNodeId(id as CellId);
         setEdges([]);
+      }}
+      onNodeDoubleClick={(_event, node) => {
+        scrollToCell(node.id as CellId, "focus");
       }}
       // On
       snapToGrid={true}
@@ -134,6 +137,13 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
       autoPanOnNodeDrag={false}
       autoPanOnConnect={false}
     >
+      {selectedNodeId && (
+        <GraphSelectionPanel
+          selection={{ type: "node", id: selectedNodeId }}
+          variables={variables}
+          edges={edges}
+        />
+      )}
       {children}
     </ReactFlow>
   );

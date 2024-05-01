@@ -9,7 +9,7 @@ import { Atom, atom, useAtom } from "jotai";
 
 import { GraphLayoutView } from "./types";
 import { DependencyGraphMinimap } from "./dependency-graph-minimap";
-import { GraphToolbar } from "./graph-toolbar";
+import { GraphToolbar } from "./panels";
 import { DependencyGraphTree } from "./dependency-graph-tree";
 
 import "reactflow/dist/style.css";
