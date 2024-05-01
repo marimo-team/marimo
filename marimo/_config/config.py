@@ -221,13 +221,11 @@ def merge_config(
 
     # Patches for backward compatibility
     if (
-        merged["runtime"]["auto_reload"]
-        is False  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "off"
     if (
-        merged["runtime"]["auto_reload"]
-        is True  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "detect"
     return merged

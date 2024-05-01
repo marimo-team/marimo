@@ -87,10 +87,10 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = (pre_execution_hooks or [])
+        ] = pre_execution_hooks or []
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = (post_execution_hooks or [])
+        ] = post_execution_hooks or []
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )
@@ -109,7 +109,8 @@ class Runner:
         if self.execution_mode == "autorun":
             self.cells_to_run = dataflow.topological_sort(
                 graph,
-                dataflow.transitive_closure(graph, roots) - self.excluded_cells,
+                dataflow.transitive_closure(graph, roots)
+                - self.excluded_cells,
             )
         else:
             self.cells_to_run = dataflow.topological_sort(
@@ -209,7 +210,9 @@ class Runner:
             else None
         )
 
-    def _runs_after(self, source: CellId_t, target: CellId_t) -> Optional[bool]:
+    def _runs_after(
+        self, source: CellId_t, target: CellId_t
+    ) -> Optional[bool]:
         """Compare run positions.
 
         Returns `True` if source runs after target, `False` if target runs

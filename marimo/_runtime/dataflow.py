@@ -332,9 +332,10 @@ def transitive_closure(
     while queue:
         cid = queue.pop(0)
         seen.add(cid)
-        if inclusive:
+        cell = graph.cells[cid]
+        if inclusive and predicate(cell):
             cells.add(cid)
-        elif cid not in cell_ids and predicate(graph.cells[cid]):
+        elif cid not in cell_ids and predicate(cell):
             cells.add(cid)
         for relative in relatives(cid):
             if relative not in seen:
