@@ -46,7 +46,7 @@ def _tree_to_app(root: Element) -> str:
 class MarimoParser(Markdown):
     """Parses Markdown to marimo notebook."""
 
-    # Considering how ubiquitous "markdown" is, it's a little suprising the
+    # Considering how ubiquitous "markdown" is, it's a little surprising the
     # internal structure isn't cleaner/ more modular. This "monkey-patching"
     # is comparable to some of the code in markdown extensions- and given this
     # library has been around since 2004, the internals should be relatively
@@ -59,7 +59,7 @@ class MarimoParser(Markdown):
         """
         Creates blank registries as a base.
 
-        Note that envoked by itself, will create an infinite loop, since
+        Note that evoked by itself, will create an infinite loop, since
         block-parsers will never dequeue the extracted blocks.
         """
         self.preprocessors = Registry()
@@ -71,7 +71,7 @@ class MarimoParser(Markdown):
 
 
 class ExpandAndClassifyProcessor(BlockProcessor):
-    """Seperates code blocks and markdown blocks."""
+    """Separates code blocks and markdown blocks."""
 
     stash: dict[str, Any]
     yaml_meta: bool

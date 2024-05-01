@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import json
 
-from marimo._cli.convert.utils import generate_from_sources, markdown_to_marimo, load_external_file
+from marimo._cli.convert.utils import (
+    generate_from_sources,
+    load_external_file,
+    markdown_to_marimo,
+)
 
 
 def convert_from_ipynb(raw_notebook: str) -> str:
@@ -25,6 +29,7 @@ def convert_from_ipynb(raw_notebook: str) -> str:
         sources.append("import marimo as mo")
 
     return generate_from_sources(sources)
+
 
 def convert_from_ipynb_file(file_path: str) -> str:
     raw_notebook = load_external_file(file_path, "ipynb")

@@ -11,7 +11,9 @@ from marimo._ast.cell import Cell
 from marimo._server.file_manager import AppFileManager
 
 
-def get_filename(file_manager: AppFileManager, default: str = "notebook.py") -> str:
+def get_filename(
+    file_manager: AppFileManager, default: str = "notebook.py"
+) -> str:
     filename = file_manager.filename
     if not filename:
         filename = default
