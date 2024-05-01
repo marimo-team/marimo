@@ -457,7 +457,9 @@ class Runner:
             await execute_cell_async(graph.cells[cid], glbls)
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
-        output = await execute_cell_async(graph.cells[cell_impl.cell_id], glbls)
+        output = await execute_cell_async(
+            graph.cells[cell_impl.cell_id], glbls
+        )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
 

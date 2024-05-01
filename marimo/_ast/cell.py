@@ -104,7 +104,7 @@ class CellImpl:
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
-        """Update the cel config.
+        """Update the cell config.
 
         `update` can be a partial config.
         """
@@ -181,13 +181,16 @@ class CellImpl:
             cell_id=self.cell_id, status=status, stream=stream
         )
 
-    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
+    def set_stale(
+        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
+    ) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        CellOp.broadcast_stale(
-            cell_id=self.cell_id, stale=stale, stream=stream
-        )
+        if broadcast:
+            CellOp.broadcast_stale(
+                cell_id=self.cell_id, stale=stale, stream=stream
+            )
 
 
 @dataclasses.dataclass

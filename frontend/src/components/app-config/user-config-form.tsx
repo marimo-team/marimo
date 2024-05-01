@@ -365,15 +365,15 @@ export const UserConfigForm: React.FC = () => {
                     </NativeSelect>
                   </FormControl>
                   <FormLabel className="font-normal">
-                    Reactive execution configuration
+                    On cell change
                   </FormLabel>
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically run cells or just mark
                   them as stale. If "autorun", marimo will automatically run
                   affected cells when a cell is run or a UI element is
-                  interacted with; if "detect", marimo will affectected cells as
-                  stale but won't re-run them.
+                  interacted with; if "detect", marimo will mark affected cells
+                  as stale but won't re-run them.
                 </FormDescription>
               </div>
             )}
@@ -400,7 +400,7 @@ export const UserConfigForm: React.FC = () => {
                     </NativeSelect>
                   </FormControl>
                   <FormLabel className="font-normal">
-                    Autoreload modules
+                    On module change
                   </FormLabel>
                 </FormItem>
                 <FormDescription>
