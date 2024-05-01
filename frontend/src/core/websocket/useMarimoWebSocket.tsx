@@ -52,7 +52,7 @@ export function useMarimoWebSocket(opts: {
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { setLayoutData } = useLayoutActions();
-  const [connStatus, setConnStatus] = useAtom(connectionAtom);
+  const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
   const { addPackageAlert } = useAlertActions();
 
@@ -182,7 +182,7 @@ export function useMarimoWebSocket(opts: {
     onOpen: () => {
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
-      setConnStatus({ state: WebSocketState.OPEN });
+      setConnection({ state: WebSocketState.OPEN });
     },
 
     /**
@@ -206,7 +206,7 @@ export function useMarimoWebSocket(opts: {
     onClose: (e) => {
       switch (e.reason) {
         case "MARIMO_ALREADY_CONNECTED":
-          setConnStatus({
+          setConnection({
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.ALREADY_RUNNING,
             reason: "another browser tab is already connected to the kernel",
@@ -217,7 +217,7 @@ export function useMarimoWebSocket(opts: {
         case "MARIMO_WRONG_KERNEL_ID":
         case "MARIMO_SHUTDOWN":
           Logger.warn("WebSocket closed", e.reason);
-          setConnStatus({
+          setConnection({
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.KERNEL_DISCONNECTED,
             reason: "kernel not found",
@@ -226,7 +226,7 @@ export function useMarimoWebSocket(opts: {
           return;
 
         case "MARIMO_MALFORMED_QUERY":
-          setConnStatus({
+          setConnection({
             state: WebSocketState.CLOSED,
             code: WebSocketClosedReason.MALFORMED_QUERY,
             reason:
@@ -240,7 +240,7 @@ export function useMarimoWebSocket(opts: {
           // - computer might have just woken from sleep
           //
           // so try reconnecting.
-          setConnStatus({ state: WebSocketState.CONNECTING });
+          setConnection({ state: WebSocketState.CONNECTING });
           tryReconnecting(e.code, e.reason);
       }
     },
@@ -250,7 +250,7 @@ export function useMarimoWebSocket(opts: {
      */
     onError: (e) => {
       Logger.warn("WebSocket error", e);
-      setConnStatus({
+      setConnection({
         state: WebSocketState.CLOSED,
         code: WebSocketClosedReason.KERNEL_DISCONNECTED,
         reason: "kernel not found",
@@ -259,5 +259,5 @@ export function useMarimoWebSocket(opts: {
     },
   });
 
-  return { connStatus };
+  return { connection };
 }

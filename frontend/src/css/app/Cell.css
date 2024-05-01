@@ -304,7 +304,7 @@
 }
 
 .cm-editor {
-  font-size: var(--marimo-code-editor-font-size);
+  font-size: var(--marimo-code-editor-font-size, 0.9rem);
 }
 
 /* .Cell is needed to take precedence over codemirror's generated class ... */
@@ -337,7 +337,7 @@
   }
 
   .cm-content {
-    font-size: var(--marimo-code-editor-font-size);
+    font-size: var(--marimo-code-editor-font-size, 0.9rem);
     font-family: var(--monospace-font);
   }
 }

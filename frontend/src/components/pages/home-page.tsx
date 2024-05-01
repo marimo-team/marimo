@@ -32,7 +32,7 @@ function tabTarget(path: string) {
   return `${getSessionId()}-${encodeURIComponent(path)}`;
 }
 
-export const HomePage: React.FC = () => {
+const HomePage: React.FC = () => {
   const fileResponse = useAsyncData(async () => {
     const [workspace, recents] = await Promise.all([
       getWorkspaceFiles(),
@@ -276,3 +276,5 @@ const CreateNewNotebook: React.FC = () => {
 //     </div>
 //   );
 // };
+
+export default HomePage;

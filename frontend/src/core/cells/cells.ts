@@ -19,13 +19,12 @@ import { CellId } from "./ids";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { store } from "../state/jotai";
 import { createReducerAndAtoms } from "../../utils/createReducer";
-import { arrayInsert, arrayDelete, arrayShallowEquals } from "@/utils/arrays";
+import { arrayInsert, arrayDelete } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { mergeOutlines } from "../dom/outline";
 import { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
-import { EditorView } from "@codemirror/view";
 import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
 import { CellLog, getCellLogsForMessage } from "./logs";
@@ -33,7 +32,7 @@ import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import { LayoutState } from "../layout/layout";
-import { isEqual } from "lodash-es";
+import { notebookIsRunning } from "./utils";
 
 /**
  * The state of the notebook.
@@ -685,6 +684,8 @@ const cellErrorsAtom = atom((get) => {
   return errors;
 });
 
+export const notebookHasCellsAtom = atom((get) => get(cellIdsAtom).length > 0);
+
 export const notebookOutline = atom((get) => {
   const { cellIds, cellRuntime } = get(notebookAtom);
   const outlines = cellIds.map((cellId) => cellRuntime[cellId].outline);
@@ -755,6 +756,10 @@ const cellDataAtoms = splitAtom(
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
+export const notebookIsRunningAtom = atom((get) =>
+  notebookIsRunning(get(notebookAtom)),
+);
+
 /**
  * Get the editor views for all cells.
  */
@@ -769,89 +774,6 @@ export const getCellEditorView = (cellId: CellId) => {
   const { cellHandles } = store.get(notebookAtom);
   return cellHandles[cellId].current?.editorView;
 };
-
-/// HELPERS
-
-export function notebookIsRunning(state: NotebookState) {
-  return Object.values(state.cellRuntime).some(
-    (cell) => cell.status === "running",
-  );
-}
-
-export function notebookScrollToRunning() {
-  // find cell that is currently in "running" state
-  const { cellRuntime } = store.get(notebookAtom);
-  const cell = Objects.entries(cellRuntime).find(
-    ([cellid, runtimestate]) => runtimestate.status === "running",
-  );
-  if (!cell) {
-    return;
-  }
-  const view = getCellEditorView(cell[0]);
-  view?.dispatch({
-    selection: { anchor: 0 },
-    effects: [EditorView.scrollIntoView(0, { y: "center" })],
-  });
-}
-
-export function notebookNeedsSave(
-  state: NotebookState,
-  layout: LayoutState,
-  lastSavedNotebook: LastSavedNotebook | undefined,
-) {
-  if (!lastSavedNotebook) {
-    return false;
-  }
-  const { cellIds, cellData } = state;
-  const data = cellIds.map((cellId) => cellData[cellId]);
-  const codes = data.map((d) => d.code);
-  const configs = data.map((d) => d.config);
-  const names = data.map((d) => d.name);
-  return (
-    !arrayShallowEquals(codes, lastSavedNotebook.codes) ||
-    !arrayShallowEquals(configs, lastSavedNotebook.configs) ||
-    !arrayShallowEquals(names, lastSavedNotebook.names) ||
-    !isEqual(layout.selectedLayout, lastSavedNotebook.layout.selectedLayout) ||
-    !isEqual(layout.layoutData, lastSavedNotebook.layout.layoutData)
-  );
-}
-
-export function notebookNeedsRun(state: NotebookState) {
-  return staleCellIds(state).length > 0;
-}
-
-export function notebookCells(state: NotebookState) {
-  return state.cellIds.map((cellId) => state.cellData[cellId]);
-}
-
-export function notebookCellEditorViews({ cellHandles }: NotebookState) {
-  const views: Record<CellId, EditorView> = {};
-  for (const [cell, ref] of Objects.entries(cellHandles)) {
-    if (!ref.current) {
-      continue;
-    }
-    views[cell] = ref.current.editorView;
-  }
-  return views;
-}
-
-export function disabledCellIds(state: NotebookState) {
-  const { cellIds, cellData } = state;
-  return cellIds
-    .map((cellId) => cellData[cellId])
-    .filter((cell) => cell.config.disabled);
-}
-
-export function enabledCellIds(state: NotebookState) {
-  const { cellIds, cellData } = state;
-  return cellIds
-    .map((cellId) => cellData[cellId])
-    .filter((cell) => !cell.config.disabled);
-}
-
-export function canUndoDeletes(state: NotebookState) {
-  return state.history.length > 0;
-}
 
 /**
  * Cells that are stale and can be run.

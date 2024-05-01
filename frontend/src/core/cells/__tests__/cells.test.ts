@@ -4,8 +4,8 @@ import {
   NotebookState,
   exportedForTesting,
   flattenNotebookCells,
-  notebookCells,
 } from "../cells";
+import { notebookCells } from "../utils";
 import { CellId } from "@/core/cells/ids";
 import { OutputMessage } from "@/core/kernel/messages";
 import { Seconds } from "@/utils/time";

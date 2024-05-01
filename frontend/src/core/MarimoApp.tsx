@@ -2,26 +2,25 @@
 import "../css/index.css";
 import "iconify-icon";
 
-import { PropsWithChildren, memo, useEffect } from "react";
+import React, { PropsWithChildren, Suspense, memo } from "react";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
-import { initializePlugins } from "../plugins/plugins";
-import { App } from "./App";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { DayPickerProvider } from "react-day-picker";
-import { CommandPalette } from "../components/editor/controls/command-palette";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
-import { AppChrome } from "../components/editor/chrome/wrapper/app-chrome";
-import { StaticBanner } from "../components/static-html/static-banner";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { isPyodide } from "./pyodide/utils";
 import { PyodideBridge } from "./pyodide/bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
-import { TailwindIndicator } from "@/components/indicator";
-import { HomePage } from "@/components/home/home-page";
+import { TailwindIndicator } from "@/components/debug/indicator";
+
+// Lazy imports
+const LazyHomePage = React.lazy(() => import("@/components/pages/home-page"));
+const LazyRunPage = React.lazy(() => import("@/components/pages/run-page"));
+const LazyEditPage = React.lazy(() => import("@/components/pages/edit-page"));
 
 /**
  * The root component of the Marimo app.
@@ -29,57 +28,62 @@ import { HomePage } from "@/components/home/home-page";
 export const MarimoApp: React.FC = memo(() => {
   const [userConfig] = useUserConfig();
   const [appConfig] = useAppConfig();
+  const editorFontSize = toRem(userConfig.display.code_editor_font_size);
 
-  useEffect(() => {
-    initializePlugins();
-  }, []);
-
-  const body =
-    initialMode === "home" ? (
-      <HomePage />
-    ) : initialMode === "read" ? (
-      <>
-        <StaticBanner />
-        <App userConfig={userConfig} appConfig={appConfig} />
-      </>
-    ) : (
-      <AppChrome>
-        <App userConfig={userConfig} appConfig={appConfig} />
-        <CommandPalette />
-      </AppChrome>
-    );
+  const renderBody = () => {
+    if (initialMode === "home") {
+      return <LazyHomePage />;
+    } else if (initialMode === "read") {
+      return <LazyRunPage appConfig={appConfig} />;
+    } else {
+      return <LazyEditPage userConfig={userConfig} appConfig={appConfig} />;
+    }
+  };
 
   return (
-    <ErrorBoundary>
-      <TooltipProvider>
-        <DayPickerProvider initialProps={{}}>
-          <PyodideLoader>
-            <ModalProvider>
-              <CssVariables
-                variables={{
-                  "--marimo-code-editor-font-size": toRem(
-                    userConfig.display.code_editor_font_size,
-                  ),
-                }}
-              >
-                {body}
-                <Toaster />
-              </CssVariables>
-              <TailwindIndicator />
-            </ModalProvider>
-          </PyodideLoader>
-        </DayPickerProvider>
-      </TooltipProvider>
-    </ErrorBoundary>
+    <Providers>
+      <CssVariables
+        variables={{ "--marimo-code-editor-font-size": editorFontSize }}
+      >
+        {renderBody()}
+      </CssVariables>
+    </Providers>
   );
 });
 MarimoApp.displayName = "MarimoApp";
+
+/**
+ * The root with all the providers.
+ */
+const Providers = memo(({ children }: PropsWithChildren) => {
+  return (
+    <ErrorBoundary>
+      <Suspense>
+        <TooltipProvider>
+          <DayPickerProvider initialProps={{}}>
+            <PyodideLoader>
+              <ModalProvider>
+                {children}
+                <Toaster />
+                <TailwindIndicator />
+              </ModalProvider>
+            </PyodideLoader>
+          </DayPickerProvider>
+        </TooltipProvider>
+      </Suspense>
+    </ErrorBoundary>
+  );
+});
+Providers.displayName = "Providers";
 
 function toRem(px: number) {
   return `${px / 16}rem`;
 }
 
-export const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
+/**
+ * HOC to load Pyodide before rendering children, if necessary.
+ */
+const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
   if (!isPyodide()) {
     return children;
   }

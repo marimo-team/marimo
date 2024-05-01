@@ -4,7 +4,8 @@ import { LayoutType } from "@/components/editor/renderers/types";
 import { useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { cellRendererPlugins } from "@/components/editor/renderers/plugins";
-import { getNotebook, notebookCells } from "../cells/cells";
+import { getNotebook } from "../cells/cells";
+import { notebookCells } from "../cells/utils";
 import { store } from "../state/jotai";
 import { Logger } from "@/utils/Logger";
 

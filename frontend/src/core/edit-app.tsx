@@ -1,7 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import "../css/app/App.css";
-
-import { HourglassIcon, UnlinkIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { sendInterrupt, sendRename, sendSave } from "@/core/network/requests";
@@ -13,20 +10,19 @@ import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
   LastSavedNotebook,
-  canUndoDeletes,
-  notebookCells,
-  notebookIsRunning,
-  notebookNeedsRun,
-  notebookNeedsSave,
-  notebookScrollToRunning,
+  notebookIsRunningAtom,
   useCellActions,
   useNotebook,
 } from "./cells/cells";
-import { Disconnected } from "../components/editor/Disconnected";
+import {
+  canUndoDeletes,
+  notebookCells,
+  notebookNeedsRun,
+  notebookNeedsSave,
+} from "./cells/utils";
 import { AppConfig, UserConfig } from "./config/config-schema";
 import { toggleAppMode, viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
-import { Tooltip } from "../components/ui/tooltip";
 import { useImperativeModal } from "../components/modal/ImperativeModal";
 import {
   DialogContent,
@@ -46,7 +42,7 @@ import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { getSerializedLayout, useLayoutState } from "./layout/layout";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useRunStaleCells } from "../components/editor/cell/useRunCells";
 import { formatAll } from "./codemirror/format";
 import { cn } from "@/utils/cn";
@@ -54,13 +50,15 @@ import { isStaticNotebook } from "./static/static-state";
 import { useFilename } from "./saving/filename";
 import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
+import { AppHeader } from "@/components/editor/header/app-header";
+import { AppContainer } from "../components/editor/app-container";
 
 interface AppProps {
   userConfig: UserConfig;
   appConfig: AppConfig;
 }
 
-export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
+export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const notebook = useNotebook();
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);
@@ -72,8 +70,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   const isEditing = viewState.mode === "edit";
   const isPresenting = viewState.mode === "present";
-  const isReading = viewState.mode === "read";
-  const isRunning = notebookIsRunning(notebook);
+  const isRunning = useAtomValue(notebookIsRunningAtom);
 
   function alertSaveFailed() {
     openAlert("Failed to save notebook: not connected to a kernel.");
@@ -87,7 +84,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     };
   }, []);
 
-  const { connStatus } = useMarimoWebSocket({
+  const { connection } = useMarimoWebSocket({
     autoInstantiate:
       userConfig.runtime.auto_instantiate || viewState.mode === "read",
     setCells: (cells, layout) => {
@@ -101,7 +98,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   });
 
   const handleFilenameChange = useEvent(async (name: string | null) => {
-    if (connStatus.state !== WebSocketState.OPEN) {
+    if (connection.state !== WebSocketState.OPEN) {
       alertSaveFailed();
       return null;
     }
@@ -139,13 +136,8 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       return;
     }
 
-    // Don't save if we are in read mode
-    if (isReading) {
-      return;
-    }
-
     // Don't save if we are not connected to a kernel
-    if (connStatus.state !== WebSocketState.OPEN) {
+    if (connection.state !== WebSocketState.OPEN) {
       alertSaveFailed();
       return;
     }
@@ -176,7 +168,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   // Save the notebook with the current filename, only if the filename exists
   const saveIfNotebookIsNamed = useEvent((userInitiated = false) => {
-    if (filename !== null && connStatus.state === WebSocketState.OPEN) {
+    if (filename !== null && connection.state === WebSocketState.OPEN) {
       saveNotebook(filename, userInitiated);
     }
   });
@@ -186,7 +178,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     saveIfNotebookIsNamed(true);
 
     // Filename does not exist and we are connected to a kernel
-    if (filename === null && connStatus.state !== WebSocketState.CLOSED) {
+    if (filename === null && connection.state !== WebSocketState.CLOSED) {
       openModal(<SaveDialog onClose={closeModal} onSave={handleSaveDialog} />);
     }
   });
@@ -199,7 +191,7 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     codes: codes,
     cellConfigs: configs,
     cellNames: cellNames,
-    connStatus: connStatus,
+    connStatus: connection,
     config: userConfig,
   });
 
@@ -268,9 +260,6 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     sendInterrupt();
   });
   useHotkey("global.hideCode", () => {
-    if (isReading) {
-      return;
-    }
     togglePresenting();
   });
 
@@ -292,110 +281,60 @@ export const App: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   const editableCellsArray = (
     <CellArray
       notebook={notebook}
-      connStatus={connStatus}
+      connStatus={connection}
       mode={viewState.mode}
       userConfig={userConfig}
       appConfig={appConfig}
     />
   );
 
-  const statusOverlay = (
-    <>
-      {connStatus.state === WebSocketState.OPEN && isRunning && <RunningIcon />}
-      {connStatus.state === WebSocketState.CLOSED && <NoiseBackground />}
-      {connStatus.state === WebSocketState.CLOSED && <DisconnectedIcon />}
-    </>
-  );
-
   return (
-    <>
-      {statusOverlay}
-      <div
-        id="App"
-        className={cn(
-          connStatus.state === WebSocketState.CLOSED && "disconnected",
-          "bg-background w-full h-full text-textColor",
-          "flex flex-col overflow-y-auto overflow-x-hidden",
-          appConfig.width === "full" && "config-width-full",
-        )}
+    <AppContainer
+      connectionState={connection.state}
+      isRunning={isRunning}
+      width={appConfig.width}
+    >
+      <AppHeader
+        connection={connection}
+        className={cn("pt-4 sm:pt-12 pb-2 mb-4")}
       >
-        <div
-          className={cn(
-            (isEditing || isPresenting) && "pt-4 sm:pt-12 pb-2 mb-4",
-            isReading && "sm:pt-8",
-          )}
-        >
-          {isEditing && (
-            <div className="flex items-center justify-center container">
-              <FilenameForm
-                filename={filename}
-                setFilename={handleFilenameChange}
-              />
-            </div>
-          )}
-          {connStatus.state === WebSocketState.CLOSED && (
-            <Disconnected reason={connStatus.reason} />
-          )}
-        </div>
-
-        {/* Don't render until we have a single cell */}
-        {cells.length > 0 && (
-          <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-            <SortableCellsProvider disabled={!isEditing}>
-              {editableCellsArray}
-            </SortableCellsProvider>
-          </CellsRenderer>
+        {isEditing && (
+          <div className="flex items-center justify-center container">
+            <FilenameForm
+              filename={filename}
+              setFilename={handleFilenameChange}
+            />
+          </div>
         )}
-      </div>
+      </AppHeader>
 
-      {(isEditing || isPresenting) && (
-        <Controls
-          filename={filename}
-          needsSave={needsSave}
-          onSaveNotebook={saveOrNameNotebook}
-          getCellsAsJSON={getCellsAsJSON}
-          presenting={isPresenting}
-          onTogglePresenting={togglePresenting}
-          onInterrupt={sendInterrupt}
-          onRun={runStaleCells}
-          closed={connStatus.state === WebSocketState.CLOSED}
-          running={isRunning}
-          needsRun={notebookNeedsRun(notebook)}
-          undoAvailable={canUndoDeletes(notebook)}
-          appWidth={appConfig.width}
-        />
+      {/* Don't render until we have a single cell */}
+      {cells.length > 0 && (
+        <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
+          <SortableCellsProvider disabled={!isEditing}>
+            {editableCellsArray}
+          </SortableCellsProvider>
+        </CellsRenderer>
       )}
-    </>
+
+      <Controls
+        filename={filename}
+        needsSave={needsSave}
+        onSaveNotebook={saveOrNameNotebook}
+        getCellsAsJSON={getCellsAsJSON}
+        presenting={isPresenting}
+        onTogglePresenting={togglePresenting}
+        onInterrupt={sendInterrupt}
+        onRun={runStaleCells}
+        closed={connection.state === WebSocketState.CLOSED}
+        running={isRunning}
+        needsRun={notebookNeedsRun(notebook)}
+        undoAvailable={canUndoDeletes(notebook)}
+        appWidth={appConfig.width}
+      />
+    </AppContainer>
   );
 };
-
-const topLeftStatus =
-  "absolute top-3 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
-const DisconnectedIcon = () => (
-  <Tooltip content="App disconnected">
-    <div className={topLeftStatus}>
-      <UnlinkIcon className="closed-app-icon" />
-    </div>
-  </Tooltip>
-);
-
-const RunningIcon = () => (
-  <div
-    className={topLeftStatus}
-    data-testid="loading-indicator"
-    title={"Marimo is busy computing. Hang tight!"}
-    onClick={notebookScrollToRunning}
-  >
-    <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-  </div>
-);
-
-const NoiseBackground = () => (
-  <>
-    <div className="noise" />
-    <div className="disconnected-gradient" />
-  </>
-);
 
 const SaveDialog = (props: {
   onClose: () => void;
