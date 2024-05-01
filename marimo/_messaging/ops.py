@@ -355,8 +355,8 @@ class VariableDeclaration:
 @dataclass
 class VariableValue:
     name: str
-    datatype: Optional[str]
     value: Optional[str]
+    datatype: Optional[str]
 
     def __init__(
         self, name: str, value: object, datatype: Optional[str] = None
@@ -365,9 +365,15 @@ class VariableValue:
 
         # Defensively try-catch attribute accesses, which could raise
         # exceptions
-        try:
-            self.datatype = type(value).__name__ if value is not None else None
-        except Exception:
+        # If datatype is already defined, don't try to infer it
+        if datatype is None:
+            try:
+                self.datatype = (
+                    type(value).__name__ if value is not None else None
+                )
+            except Exception:
+                self.datatype = datatype
+        else:
             self.datatype = datatype
 
         try:
