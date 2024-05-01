@@ -7,6 +7,7 @@ import ReactFlow, {
   BackgroundVariant,
   Node,
   Edge,
+  Panel,
 } from "reactflow";
 
 import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
@@ -24,6 +25,15 @@ import { getLayoutedElements } from "./utils/layout";
 import { LayoutDirection } from "./types";
 import useEvent from "react-use-event-hook";
 import { getNodeChanges, getEdgeChanges } from "./utils/changes";
+import { CellLink, scrollToCell } from "../editor/links/cell-link";
+import {
+  ArrowRightFromLineIcon,
+  ArrowRightIcon,
+  ArrowRightToLineIcon,
+  WorkflowIcon,
+} from "lucide-react";
+import { CellLinkList } from "../editor/links/cell-link-list";
+import { VariableName } from "../variables/common";
 
 interface Props {
   cellIds: CellId[];
@@ -31,6 +41,18 @@ interface Props {
   cellAtoms: Array<Atom<CellData>>;
   layoutDirection: LayoutDirection;
 }
+
+type Selection =
+  | {
+      type: "node";
+      id: CellId;
+    }
+  | {
+      type: "edge";
+      source: CellId;
+      target: CellId;
+    }
+  | undefined;
 
 const elementsBuilder = new TreeElementsBuilder();
 
@@ -74,7 +96,77 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     syncChanges(elementsBuilder.createElements(cellIds, cellAtoms, variables));
   }, [cellIds, variables, cellAtoms, syncChanges]);
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string>();
+  const [selection, setSelection] = useState<Selection>();
+
+  const renderSelection = () => {
+    if (!selection) {
+      return null;
+    }
+
+    if (selection.type === "node") {
+      const inputs = edges.flatMap((edge) =>
+        edge.target === selection.id ? [edge.source as CellId] : [],
+      );
+      const outputs = edges.flatMap((edge) =>
+        edge.source === selection.id ? [edge.target as CellId] : [],
+      );
+      return (
+        <div>
+          <div className="text-foreground/60 font-bold mb-4 flex items-center gap-1">
+            <WorkflowIcon className="w-4 h-4" />
+            <CellLink cellId={selection.id} />
+          </div>
+          <div className="text-sm text-muted-foreground flex flex-col">
+            <div className="flex items-center gap-2">
+              <ArrowRightToLineIcon className="w-5 h-5 mr-2" />
+              <CellLinkList maxCount={3} cellIds={inputs} />
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowRightFromLineIcon className="w-5 h-5 mr-2" />
+              <CellLinkList maxCount={3} cellIds={outputs} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (selection.type === "edge") {
+      const variableUsed = Object.values(variables).filter(
+        (variable) =>
+          variable.declaredBy.includes(selection.source) &&
+          variable.usedBy.includes(selection.target),
+      );
+      return (
+        <div>
+          <div className="text-foreground/60 font-bold mb-4 flex items-center gap-1">
+            <WorkflowIcon className="w-4 h-4" />
+            <CellLink cellId={selection.source} />
+            <ArrowRightIcon className="w-4 h-4" />
+            <CellLink cellId={selection.target} />
+          </div>
+          <div className="grid grid-cols-3 gap-3 max-w-[250px] items-center text-sm">
+            {variableUsed.map((variable) => (
+              <React.Fragment key={variable.name}>
+                <VariableName
+                  declaredBy={variable.declaredBy}
+                  name={variable.name}
+                />
+                <div className="text-ellipsis overflow-hidden whitespace-nowrap text-foreground/60 font-mono">
+                  {variable.dataType}
+                </div>
+                <div
+                  className="text-ellipsis overflow-hidden whitespace-nowrap"
+                  title={variable.value}
+                >
+                  {variable.value}
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      );
+    }
+  };
 
   return (
     <EdgeMarkerContext.Provider value={layoutDirection}>
@@ -88,11 +180,18 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
           maxZoom: 1.5,
         }}
         onNodeClick={(_event, node) => {
-          const id = node.id;
-          if (id === selectedNodeId) {
-            return;
-          }
-          setSelectedNodeId(id);
+          setSelection({ type: "node", id: node.id as CellId });
+        }}
+        onEdgeClick={(_event, edge) => {
+          const { source, target } = edge;
+          setSelection({
+            type: "edge",
+            source: source as CellId,
+            target: target as CellId,
+          });
+        }}
+        onNodeDoubleClick={(_event, node) => {
+          scrollToCell(node.id as CellId, "focus");
         }}
         fitView={true}
         onNodesChange={onNodesChange}
@@ -101,7 +200,14 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         nodesConnectable={false}
       >
         <Background color="#ccc" variant={BackgroundVariant.Dots} />
-        <Controls showInteractive={false} />
+        <Controls position="bottom-right" showInteractive={false} />
+        <Panel position="bottom-left">
+          {selection && (
+            <div className="min-h-[100px] p-3 shadow-md rounded-md border border-primary/40 my-4 min-w-[200px] bg-[var(--slate-1)]">
+              {renderSelection()}
+            </div>
+          )}
+        </Panel>
         {children}
       </ReactFlow>
     </EdgeMarkerContext.Provider>
