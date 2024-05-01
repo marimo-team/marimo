@@ -116,11 +116,14 @@ class Runner:
             self.cells_to_run = dataflow.topological_sort(
                 graph,
                 # also run stale ancestors
-                dataflow.transitive_closure(
-                    graph,
-                    roots,
-                    children=False,
-                    predicate=lambda cell: cell.stale,
+                roots.union(
+                    dataflow.transitive_closure(
+                        graph,
+                        roots,
+                        children=False,
+                        inclusive=False,
+                        predicate=lambda cell: cell.stale,
+                    )
                 )
                 - self.excluded_cells,
             )

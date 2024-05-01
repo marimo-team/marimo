@@ -124,6 +124,13 @@ def k() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
+# kernel configured with runtime=detect
+@pytest.fixture
+def detect_kernel(k: Kernel) -> Kernel:
+    k.reactive_execution_mode = "detect"
+    return k
+
+
 # fixture that wraps a kernel and other mocked objects
 @pytest.fixture
 def mocked_kernel() -> Generator[MockedKernel, None, None]:
