@@ -83,6 +83,9 @@ function handleCarriageReturns(
     carriageIdx = text.search(carriagePattern);
   }
 
-  newConsoleOutputs[newConsoleOutputs.length - 1] = { ...lastOutput, data: text };
+  newConsoleOutputs[newConsoleOutputs.length - 1] = {
+    ...lastOutput,
+    data: text,
+  };
   return newConsoleOutputs;
 }
