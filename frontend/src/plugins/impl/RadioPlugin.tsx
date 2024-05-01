@@ -18,7 +18,6 @@ import { cn } from "@/utils/cn";
 interface Data {
   label: string | null;
   inline: boolean;
-  chunk: number | null;
   options: string[];
 }
 
@@ -31,7 +30,6 @@ export class RadioPlugin implements IPlugin<S, Data> {
   validator = z.object({
     initialValue: z.string().nullable(),
     inline: z.boolean().default(false),
-    chunk: z.number().nullable(),
     label: z.string().nullable(),
     options: z.array(z.string()),
   });
@@ -58,7 +56,6 @@ export const Radio = (props: RadioProps): JSX.Element => {
         value={props.value ?? ""}
         onValueChange={props.setValue}
         className={cn(props.inline && "grid-flow-col gap-4")}
-        // style={props.inline ?}
         aria-label="Radio Group"
       >
         {props.options.map((option, i) => (
