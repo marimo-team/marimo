@@ -3,6 +3,7 @@
 # Validate
 # - no process.env variables in any of the js files
 # - version does not equal 0.0.0-placeholder
+# - typescript data uris are not converted to data:video/mp2t
 # - files dist/main.js and dist/style.css exist
 
 OUT_DIR=$(pwd)/dist

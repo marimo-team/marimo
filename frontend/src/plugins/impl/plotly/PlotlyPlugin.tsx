@@ -12,8 +12,9 @@ import { lazy, memo, useEffect, useMemo, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { PlotlyTemplateParser, createParser } from "./parse-from-template";
 import { Objects } from "@/utils/objects";
-import { set } from "lodash-es";
+import { isEqual, set } from "lodash-es";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
+import { usePrevious } from "@uidotdev/usehooks";
 
 interface Data {
   figure: Figure;
@@ -126,17 +127,29 @@ export const PlotlyComponent = memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [handleReset, useDeepCompareMemoize(config)]);
 
+    const prevFigure = usePrevious(figure) ?? figure;
+
     useEffect(() => {
-      // Update layout when figure.layout changes
-      // Omit keys that we don't want to override
-      const layout = Objects.omit(figure.layout, [
+      const omitKeys = new Set<keyof Plotly.Layout>([
         "autosize",
         "dragmode",
         "xaxis",
         "yaxis",
       ]);
+
+      // If the key was updated externally (e.g. can be specifically passed in the config)
+      // then we need to update the layout
+      for (const key of omitKeys) {
+        if (!isEqual(figure.layout[key], prevFigure.layout[key])) {
+          omitKeys.delete(key);
+        }
+      }
+
+      // Update layout when figure.layout changes
+      // Omit keys that we don't want to override
+      const layout = Objects.omit(figure.layout, omitKeys);
       setLayout((prev) => ({ ...prev, ...layout }));
-    }, [figure.layout]);
+    }, [figure.layout, prevFigure.layout]);
 
     return (
       <LazyPlot
@@ -173,7 +186,6 @@ export const PlotlyComponent = memo(
               ? figure.layout.selections
               : [];
           if (selections.length === 0) {
-            console.log("Clearing selections");
             setValue((prev) => ({
               ...prev,
               selections: selections,

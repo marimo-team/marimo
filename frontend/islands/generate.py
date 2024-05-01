@@ -18,6 +18,18 @@ def run():
         slider
         """
         ),
+        generator.add_code("""
+        mo.md("We can also show the island code!")
+        """, display_code=True),
+        generator.add_code("""
+        # Also run expensive outputs without performing them in the browser
+        import matplotlib.pyplot as plt
+        import numpy as np
+        x = np.linspace(0, 2*np.pi, 100)
+        y = np.sin(x)
+        plt.plot(x, y)
+        plt.gca()
+        """, display_code=True, is_reactive=False),
         generator.add_code(
             """
         mo.md(f"Slider value: {slider.value}")
@@ -101,6 +113,14 @@ def run():
             <title>🏝️</title>
 
             {generator.render_head()}
+
+            <!-- If running a local server of the production build -->
+            <!-- <script type="module" src="http://127.0.0.1:8001/main.js"></script>
+            <link
+              href="http://127.0.0.1:8001/style.css"
+              rel="stylesheet"
+              crossorigin="anonymous"
+            /> -->
         </head>
         <body>
 
