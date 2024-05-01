@@ -13,7 +13,7 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
-from marimo._cli import ipynb_to_marimo
+from marimo._cli.convert.commands import convert
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
@@ -503,29 +503,6 @@ def tutorial(
 
 
 @main.command()
-@click.argument("ipynb", type=str, required=True)
-def convert(ipynb: str) -> None:
-    """Convert a Jupyter notebook to a marimo notebook.
-
-    The argument may be either a path to a local .ipynb file,
-    or an .ipynb file hosted on GitHub.
-
-    Example usage:
-
-        marimo convert your_nb.ipynb > your_nb.py
-
-    After conversion, you can open the notebook in the editor:
-
-        marimo edit your_nb.py
-
-    Since marimo is different from traditional notebooks, once in the editor,
-    you may need to fix errors like multiple definition errors or cycle
-    errors.
-    """
-    print(ipynb_to_marimo.convert_from_path(ipynb))
-
-
-@main.command()
 def env() -> None:
     """Print out environment information for debugging purposes.
 
@@ -536,4 +513,5 @@ def env() -> None:
     print(json.dumps(get_system_info(), indent=2))
 
 
+main.command()(convert)
 main.add_command(export)
