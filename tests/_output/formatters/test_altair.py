@@ -37,4 +37,4 @@ async def test_altair(
     result = executing_kernel.globals["result"]
     assert result is not None
     assert result[0] == "text/html"
-    assert result[1].startswith("<iframe src=")
+    assert result[1].startswith("<iframe srcdoc=")

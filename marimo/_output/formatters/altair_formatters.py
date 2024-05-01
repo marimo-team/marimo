@@ -1,10 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
+
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.utils import flatten_string
 
 
@@ -37,7 +38,10 @@ class AltairFormatter(FormatterFactory):
                 (
                     flatten_string(
                         h.iframe(
-                            **src_or_src_doc(chart.to_html()),
+                            # Must be srcdoc, or if you try to use src, see
+                            # https://github.com/marimo-team/marimo/issues/1279
+                            # and 1279.py
+                            srcdoc=html.escape(chart.to_html()),
                             onload="__resizeIframe(this)",
                             style="width: 100%",
                         )
