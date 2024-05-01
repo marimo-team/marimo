@@ -40,9 +40,9 @@ class _HTMLBuilder:
             params.append(("style", style))
 
         if len(params) == 0:
-            return "<img />"
+            return "<img></img>"
         else:
-            return f"<img {_join_params(params)} />"
+            return f"<img {_join_params(params)}></img>"
 
     @staticmethod
     def video(
@@ -69,9 +69,9 @@ class _HTMLBuilder:
             params.append(("loop", ""))
 
         if len(params) == 0:
-            return "<video />"
+            return "<video></video>"
         else:
-            return f"<video {_join_params(params)} />"
+            return f"<video {_join_params(params)}></video>"
 
     @staticmethod
     def audio(
@@ -86,9 +86,9 @@ class _HTMLBuilder:
             params.append(("controls", ""))
 
         if len(params) == 0:
-            return "<audio />"
+            return "<audio></audio>"
         else:
-            return f"<audio {_join_params(params)} />"
+            return f"<audio {_join_params(params)}></audio>"
 
     @staticmethod
     def iframe(
@@ -122,9 +122,9 @@ class _HTMLBuilder:
             params.append((key, value))
 
         if len(params) == 0:
-            return "<iframe />"
+            return "<iframe></iframe>"
         else:
-            return f"<iframe {_join_params(params)} />"
+            return f"<iframe {_join_params(params)}></iframe>"
 
     @staticmethod
     def pre(child: str, style: Optional[str] = None) -> str:
