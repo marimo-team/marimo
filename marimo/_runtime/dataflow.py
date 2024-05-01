@@ -158,6 +158,14 @@ class DirectedGraph:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
 
+        if any(self.cells[cid].stale for cid in self.ancestors(cell_id)):
+            self.set_stale(set([cell_id]))
+
+        if any(
+            self.cells[cid].config.disabled for cid in self.ancestors(cell_id)
+        ):
+            cell.set_status(status="disabled-transitively")
+
     def disable_cell(self, cell_id: CellId_t) -> None:
         """
         Disables a cell in the graph.

@@ -18,7 +18,7 @@ from multiprocessing import connection
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig, CellId_t, CellImpl
+from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import MarimoConfig
@@ -238,7 +238,6 @@ class CellMetadata:
     errors.
     """
 
-    stale: bool
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
@@ -301,7 +300,7 @@ class Kernel:
 
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
-            cell_id: CellMetadata(stale=False, config=config)
+            cell_id: CellMetadata(config=config)
             for cell_id, config in cell_configs.items()
         }
         self.module_registry = ModuleRegistry(
@@ -422,7 +421,6 @@ class Kernel:
         self,
         cell_id: CellId_t,
         code: str,
-        cell_being_replaced: CellImpl | None,
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -458,17 +456,10 @@ class Kernel:
             # syntax error or multiple definition error, for example) and then
             # re-registered
             cell.configure(self.cell_metadata[cell_id].config)
-            cell.set_stale(
-                stale=self.cell_metadata[cell_id].stale, broadcast=False
-            )
         elif cell_id not in self.cell_metadata:
-            self.cell_metadata[cell_id] = CellMetadata(stale=False)
+            self.cell_metadata[cell_id] = CellMetadata()
+
         if cell is not None:
-            if cell_being_replaced is not None:
-                # Copy over old state from cell
-                cell.set_stale(
-                    stale=cell_being_replaced.stale, broadcast=False
-                )
             self.graph.register_cell(cell_id, cell)
             LOGGER.debug("registered cell %s", cell_id)
             LOGGER.debug("parents: %s", self.graph.parents[cell_id])
@@ -494,15 +485,10 @@ class Kernel:
         previous_children: set[CellId_t] = set()
         error = None
         if not self.graph.is_cell_cached(cell_id, code):
-            cell_being_replaced: CellImpl | None = self.graph.cells.get(
-                cell_id, None
-            )
-            if cell_being_replaced is not None:
+            if cell_id in self.graph.cells:
                 LOGGER.debug("Deleting cell %s", cell_id)
                 previous_children = self._deactivate_cell(cell_id)
-            error = self._try_registering_cell(
-                cell_id, code, cell_being_replaced=cell_being_replaced
-            )
+            error = self._try_registering_cell(cell_id, code)
 
         LOGGER.debug(
             "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
@@ -582,10 +568,9 @@ class Kernel:
         In contrast to deleting a cell, which fully scrubs the cell
         from the kernel and graph.
         """
-        cell = self.graph.cells[cell_id]
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id, deletion=True)
-            children = self.graph.delete_cell(cell_id)
+            return self.graph.delete_cell(cell_id)
         else:
             # An errored cell can be thought of as a cell that's in the graph
             # but that has no state in the kernel (because it was never run).
@@ -593,11 +578,7 @@ class Kernel:
             # NOT delete/cleanup its defs from the kernel (i.e., an errored
             # cell shouldn't invalidate state of another cell).
             self.graph.delete_cell(cell_id)
-            children = set()
-        self.cell_metadata[cell_id] = CellMetadata(
-            stale=cell.stale, config=cell.config
-        )
-        return children
+            return set()
 
     def _delete_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """Delete a cell from the kernel and the graph.
@@ -792,12 +773,6 @@ class Kernel:
         if self.reactive_execution_mode == "detect":
             # prune the set of roots to run, and mark the rest as stale
             roots = cells_registered_without_error
-            # for cid in registered_cell_ids & cells_in_graph:
-            #    if self.graph.cells[cid] and not any(
-            #        self.graph.cells[parent].stale
-            #        for parent in self.graph.ancestors(cid)
-            #    ):
-            #        self.graph.cells[cid].set_stale(stale=False)
             stale_cells = (
                 set(
                     itertools.chain(
@@ -955,13 +930,8 @@ class Kernel:
         stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             # store the config, regardless of whether we've seen the cell yet
-            stale = (
-                self.cell_metadata[cell_id].stale
-                if cell_id in self.cell_metadata
-                else False
-            )
             self.cell_metadata[cell_id] = CellMetadata(
-                stale=stale, config=CellConfig.from_dict(config)
+                config=CellConfig.from_dict(config)
             )
             cell = self.graph.cells.get(cell_id)
             if cell is None:

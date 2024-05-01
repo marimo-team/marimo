@@ -181,16 +181,13 @@ class CellImpl:
             cell_id=self.cell_id, status=status, stream=stream
         )
 
-    def set_stale(
-        self, stale: bool, stream: Stream | None = None, broadcast: bool = True
-    ) -> None:
+    def set_stale(self, stale: bool, stream: Stream | None = None) -> None:
         from marimo._messaging.ops import CellOp
 
         self._stale.state = stale
-        if broadcast:
-            CellOp.broadcast_stale(
-                cell_id=self.cell_id, stale=stale, stream=stream
-            )
+        CellOp.broadcast_stale(
+            cell_id=self.cell_id, stale=stale, stream=stream
+        )
 
 
 @dataclasses.dataclass
