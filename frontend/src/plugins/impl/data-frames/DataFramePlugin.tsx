@@ -27,6 +27,7 @@ interface Data {
   label?: string | null;
   columns: ColumnDataTypes;
   dataframeName: string;
+  pageSize: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -51,6 +52,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
     z.object({
       label: z.string().nullish(),
       dataframeName: z.string(),
+      pageSize: z.number().default(5),
       columns: z
         .object({})
         .passthrough()
@@ -97,6 +99,7 @@ const EMPTY: Transformations = {
 export const DataFrameComponent = ({
   columns,
   dataframeName,
+  pageSize,
   value,
   setValue,
   get_dataframe,
@@ -156,7 +159,7 @@ export const DataFrameComponent = ({
         label={null}
         className="rounded-b border-x border-b"
         data={url || ""}
-        pageSize={5}
+        pageSize={pageSize}
         pagination={true}
         rowHeaders={row_headers || Arrays.EMPTY}
         showDownload={false}
