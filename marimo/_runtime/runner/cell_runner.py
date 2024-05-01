@@ -9,7 +9,7 @@ import signal
 import threading
 import traceback
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 
 from marimo._ast.cell import (
     CellId_t,
@@ -17,6 +17,7 @@ from marimo._ast.cell import (
     execute_cell,
     execute_cell_async,
 )
+from marimo._config.config import OnCellChangeType
 from marimo._loggers import marimo_logger
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
@@ -60,7 +61,7 @@ class Runner:
         graph: dataflow.DirectedGraph,
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
-        execution_mode: Literal["detect", "autorun"] = "autorun",
+        execution_mode: OnCellChangeType = "autorun",
         errors: set[CellId_t] | None = None,
         execution_context: Callable[
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
@@ -86,10 +87,10 @@ class Runner:
         )
         self.pre_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner"], Any]
-        ] = pre_execution_hooks or []
+        ] = (pre_execution_hooks or [])
         self.post_execution_hooks: Sequence[
             Callable[[CellImpl, "Runner", RunResult], Any]
-        ] = post_execution_hooks or []
+        ] = (post_execution_hooks or [])
         self.on_finish_hooks: Sequence[Callable[["Runner"], Any]] = (
             on_finish_hooks or []
         )
@@ -109,6 +110,8 @@ class Runner:
             self.cells_to_run = dataflow.topological_sort(
                 graph, dataflow.transitive_closure(graph, roots) - self.errors
             )
+            print(self.errors)
+            print(self.cells_to_run)
         else:
             self.cells_to_run = dataflow.topological_sort(
                 graph,
@@ -206,9 +209,7 @@ class Runner:
             else None
         )
 
-    def _runs_after(
-        self, source: CellId_t, target: CellId_t
-    ) -> Optional[bool]:
+    def _runs_after(self, source: CellId_t, target: CellId_t) -> Optional[bool]:
         """Compare run positions.
 
         Returns `True` if source runs after target, `False` if target runs

@@ -60,6 +60,9 @@ class KeymapConfig(TypedDict, total=False):
     preset: Literal["default", "vim"]
 
 
+OnCellChangeType = Literal["detect", "autorun"]
+
+
 @mddoc
 class RuntimeConfig(TypedDict):
     """Configuration for runtime.
@@ -80,7 +83,7 @@ class RuntimeConfig(TypedDict):
 
     auto_instantiate: bool
     auto_reload: Literal["off", "detect", "autorun"]
-    on_cell_change: Literal["detect", "autorun"]
+    on_cell_change: OnCellChangeType
 
 
 @mddoc
@@ -218,11 +221,13 @@ def merge_config(
 
     # Patches for backward compatibility
     if (
-        merged["runtime"]["auto_reload"] is False  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"]
+        is False  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "off"
     if (
-        merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
+        merged["runtime"]["auto_reload"]
+        is True  # type:ignore[comparison-overlap]
     ):
         merged["runtime"]["auto_reload"] = "detect"
     return merged

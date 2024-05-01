@@ -21,7 +21,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
-from marimo._config.config import MarimoConfig
+from marimo._config.config import MarimoConfig, OnCellChangeType
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
 from marimo._messaging.ops import (
@@ -310,7 +310,9 @@ class Kernel:
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
         # Load runtime settings from user config
-        self.reactive_execution_mode = user_config["runtime"]["on_cell_change"]
+        self.reactive_execution_mode: OnCellChangeType = user_config["runtime"][
+            "on_cell_change"
+        ]
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -403,9 +405,7 @@ class Kernel:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
                     modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -528,9 +528,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -630,9 +628,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -703,8 +699,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:
@@ -728,8 +723,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -770,33 +764,28 @@ class Kernel:
             ]
         ).broadcast()
 
-        if self.reactive_execution_mode == "detect":
-            # prune the set of roots to run, and mark the rest as stale
-            roots = cells_registered_without_error
-            stale_cells = (
-                set(
-                    itertools.chain(
-                        cells_that_were_children_of_mutated_cells,
-                        cells_that_no_longer_have_errors,
-                    )
+        stale_cells = (
+            set(
+                itertools.chain(
+                    cells_that_were_children_of_mutated_cells,
+                    set().union(
+                        *[
+                            self.graph.children[cid]
+                            for cid in cells_transitioned_to_error
+                            if cid in self.graph.cells
+                        ]
+                    ),
+                    cells_that_no_longer_have_errors,
                 )
-                - roots
-            ) & cells_in_graph
-            self.graph.set_stale(stale_cells)
-            return roots
-        else:
-            roots = (
-                set(
-                    itertools.chain(
-                        cells_registered_without_error,
-                        cells_that_were_children_of_mutated_cells,
-                        cells_transitioned_to_error,
-                        cells_that_no_longer_have_errors,
-                    )
-                )
-                & cells_in_graph
             )
-            return roots
+            - cells_registered_without_error
+        ) & cells_in_graph
+
+        if self.reactive_execution_mode == "detect":
+            self.graph.set_stale(stale_cells)
+            return cells_registered_without_error
+        else:
+            return cells_registered_without_error.union(stale_cells)
 
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
@@ -848,6 +837,7 @@ class Kernel:
             roots=roots,
             graph=self.graph,
             glbls=self.globals,
+            errors=set(self.errors.keys()),
             debugger=self.debugger,
             execution_mode=self.reactive_execution_mode,
             execution_context=self._install_execution_context,
@@ -891,9 +881,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -969,9 +957,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
