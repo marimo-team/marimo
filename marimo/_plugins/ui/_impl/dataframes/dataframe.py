@@ -82,6 +82,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     **Initialization Args.**
 
     - `df`: the DataFrame or series to transform
+    - `page_size`: the number of rows to show in the table
     """
 
     _name: Final[str] = "marimo-dataframe"
@@ -90,6 +91,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         self,
         df: pd.DataFrame,
         on_change: Optional[Callable[[pd.DataFrame], None]] = None,
+        page_size: Optional[int] = 5,
     ) -> None:
         DependencyManager.require_pandas("to use the dataframe plugin")
         import pandas as pd
@@ -130,6 +132,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
                 "columns": df.dtypes.to_dict(),
                 "dataframe-name": dataframe_name,
                 "total": len(df),
+                "page-size": page_size,
             },
             functions=(
                 Function(
