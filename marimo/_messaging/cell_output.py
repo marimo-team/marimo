@@ -10,6 +10,8 @@ from typing import Any, Sequence, Union
 
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.tracebacks import is_code_highlighting
+from marimo._messaging.utils import santize_message
 
 
 class CellChannel(str, Enum):
@@ -37,16 +39,30 @@ class CellOutput:
     def asdict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def __post_init__(self) -> None:
+        # For plain text outputs, we sanitize the message
+        # if it's already code highlighted.
+        if (
+            self.mimetype == "text/plain"
+            and isinstance(self.data, str)
+            and not is_code_highlighting(self.data)
+        ):
+            self.data = santize_message(self.data)
+
     @staticmethod
     def stdout(data: str) -> CellOutput:
         return CellOutput(
-            channel=CellChannel.STDOUT, mimetype="text/plain", data=data
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data=data,
         )
 
     @staticmethod
     def stderr(data: str) -> CellOutput:
         return CellOutput(
-            channel=CellChannel.STDERR, mimetype="text/plain", data=data
+            channel=CellChannel.STDERR,
+            mimetype="text/plain",
+            data=data,
         )
 
     @staticmethod

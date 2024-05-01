@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 
+from marimo._messaging.utils import santize_message
 from marimo._runtime.context.types import ContextNotInitializedError
 
 
@@ -30,6 +31,10 @@ def write_traceback(traceback: str) -> None:
         ctx = None
 
     if ctx is not None and ctx.stderr is not None:
-        sys.stderr.write(_highlight_traceback(traceback))
+        sys.stderr.write(_highlight_traceback(santize_message(traceback)))
     else:
-        sys.stderr.write(traceback)
+        sys.stderr.write(santize_message(traceback))
+
+
+def is_code_highlighting(value: str) -> bool:
+    return 'class="codehilite"' in value
