@@ -205,7 +205,7 @@ the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn mo
 ## Contributing
 
 We appreciate all contributions! You don't need to be an expert to help out.
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for more details on how to get
+Please see [CONTRIBUTING.md](https://github.com/marimo-team/marimo/blob/main/CONTRIBUTING.md) for more details on how to get
 started.
 
 > Questions? Reach out to us [on Discord](https://discord.gg/JE7nhX6mD8).
