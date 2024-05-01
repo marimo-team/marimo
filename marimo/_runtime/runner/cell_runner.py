@@ -103,13 +103,23 @@ class Runner:
         # cells with errors can't be run, but are still in the graph
         # so that they can be transitioned out of error if a future
         # run request repairs the graph
-        self.cells_to_run = (
-            dataflow.topological_sort(
+        self.cells_to_run: list[CellId_t]
+
+        if self.execution_mode == "autorun":
+            self.cells_to_run = dataflow.topological_sort(
                 graph, dataflow.transitive_closure(graph, roots) - self.errors
             )
-            if self.execution_mode == "autorun"
-            else dataflow.topological_sort(graph, roots - self.errors)
-        )
+        else:
+            self.cells_to_run = dataflow.topological_sort(
+                graph,
+                dataflow.transitive_closure(
+                    graph,
+                    roots,
+                    children=False,
+                    predicate=lambda cell: cell.stale,
+                )
+                - self.errors,
+            )
         # map from a cell that was cancelled to its descendants that have
         # not yet run:
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}

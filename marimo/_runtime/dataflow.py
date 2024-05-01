@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -193,7 +193,7 @@ class DirectedGraph:
                     # cell was previously disabled, is no longer
                     # disabled, and is stale: needs to run.
                     cells_to_run.add(cid)
-                elif child.disabled_transitively:
+                if child.disabled_transitively:
                     # cell is no longer disabled: status -> idle
                     child.set_status("idle")
         return cells_to_run
@@ -303,26 +303,33 @@ def transitive_closure(
     cell_ids: set[CellId_t],
     children: bool = True,
     inclusive: bool = True,
+    predicate: Callable[[CellImpl], bool] | None = None,
 ) -> set[CellId_t]:
     """Return a set of the passed-in cells and their descendants or ancestors
 
     If children is True, returns descendants; otherwise, returns ancestors
+
     If inclusive, includes passed-in cells in the set.
+
+    If predicate, only cells satisfying predicate(cell) are inclued
     """
+    seen = set()
     cells = set()
     queue = list(cell_ids)
+    predicate = predicate or (lambda _: True)
 
     def relatives(cid: CellId_t) -> set[CellId_t]:
         return graph.children[cid] if children else graph.parents[cid]
 
     while queue:
         cid = queue.pop(0)
+        seen.add(cid)
         if inclusive:
             cells.add(cid)
-        elif cid not in cell_ids:
+        elif cid not in cell_ids and predicate(graph.cells[cid]):
             cells.add(cid)
         for relative in relatives(cid):
-            if relative not in cells:
+            if relative not in seen:
                 queue.append(relative)
     return cells
 

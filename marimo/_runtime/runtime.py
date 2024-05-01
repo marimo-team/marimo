@@ -951,10 +951,8 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        # TODO: state transitions to disabled-transitively, stale, idle should
-        # be handled by the graph, not by kernel ...
         # Stale cells that are enabled will need to be run.
-        cells_to_run: set[CellId_t] = set()
+        stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             # store the config, regardless of whether we've seen the cell yet
             stale = (
@@ -970,12 +968,12 @@ class Kernel:
                 continue
             cell.configure(config)
             if not cell.config.disabled:
-                cells_to_run = self.graph.enable_cell(cell_id)
+                stale_cells = self.graph.enable_cell(cell_id)
             elif cell.config.disabled:
                 self.graph.disable_cell(cell_id)
 
-        if cells_to_run:
-            await self._run_cells(cells_to_run)
+        if stale_cells and self.reactive_execution_mode == "autorun":
+            await self._run_cells(stale_cells)
 
     def set_user_config(self, request: SetUserConfigRequest) -> None:
         self._update_runtime_from_user_config(request.config)
