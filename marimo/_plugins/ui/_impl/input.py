@@ -200,7 +200,8 @@ class slider(UIElement[Numeric, Numeric]):
             assert stop is not None
             if stop < start:
                 raise ValueError(
-                    f"Invalid bounds: stop value ({stop}) must be greater than "
+                    f"Invalid bounds: stop value ({stop}) "
+                    f"must be greater than "
                     f"start value ({start})"
                 )
             self.steps = [
@@ -332,7 +333,8 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             assert stop is not None
             if stop < start:
                 raise ValueError(
-                    f"Invalid bounds: stop value ({stop}) must be greater than "
+                    f"Invalid bounds: stop value ({stop}) "
+                    f"must be greater than "
                     f"start value ({start})"
                 )
             self.steps = [
