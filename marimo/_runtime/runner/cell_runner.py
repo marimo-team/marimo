@@ -110,8 +110,6 @@ class Runner:
             self.cells_to_run = dataflow.topological_sort(
                 graph, dataflow.transitive_closure(graph, roots) - self.errors
             )
-            print(self.errors)
-            print(self.cells_to_run)
         else:
             self.cells_to_run = dataflow.topological_sort(
                 graph,
