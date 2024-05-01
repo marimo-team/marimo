@@ -7,7 +7,6 @@ import ReactFlow, {
   BackgroundVariant,
   Node,
   Edge,
-  useReactFlow,
 } from "reactflow";
 
 import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
@@ -21,10 +20,9 @@ import { CellData } from "@/core/cells/types";
 import { Atom } from "jotai";
 
 import { NodeData, TreeElementsBuilder } from "./elements";
-import { getLayoutedElements } from "./utils/layout";
-import { GraphSelection, LayoutDirection } from "./types";
+import { layoutElements } from "./utils/layout";
+import { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 import useEvent from "react-use-event-hook";
-import { getNodeChanges, getEdgeChanges } from "./utils/changes";
 import { scrollToCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";
 
@@ -33,6 +31,7 @@ interface Props {
   variables: Variables;
   cellAtoms: Array<Atom<CellData>>;
   layoutDirection: LayoutDirection;
+  settings: GraphSettings;
 }
 
 const elementsBuilder = new TreeElementsBuilder();
@@ -43,14 +42,16 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   cellAtoms,
   children,
   layoutDirection,
+  settings,
 }) => {
   const initial = useMemo(() => {
     let elements = elementsBuilder.createElements(
       cellIds,
       cellAtoms,
       variables,
+      settings.hidePureMarkdown,
     );
-    elements = getLayoutedElements(elements.nodes, elements.edges, {
+    elements = layoutElements(elements.nodes, elements.edges, {
       direction: layoutDirection,
     });
 
@@ -59,23 +60,31 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [nodes, _setNodes, onNodesChange] = useNodesState(initial.nodes);
-  const [edges, _setEdges, onEdgesChange] = useEdgesState(initial.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
   const syncChanges = useEvent(
     (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
-      const nodeChanges = getNodeChanges(nodes, elements.nodes);
-      const edgeChanges = getEdgeChanges(edges, elements.edges);
-
-      onNodesChange(nodeChanges);
-      onEdgesChange(edgeChanges);
+      // Layout the elements
+      const result = layoutElements(elements.nodes, elements.edges, {
+        direction: layoutDirection,
+      });
+      setNodes(result.nodes);
+      setEdges(result.edges);
     },
   );
 
   // If the cellIds change, update the nodes.
   useEffect(() => {
-    syncChanges(elementsBuilder.createElements(cellIds, cellAtoms, variables));
-  }, [cellIds, variables, cellAtoms, syncChanges]);
+    syncChanges(
+      elementsBuilder.createElements(
+        cellIds,
+        cellAtoms,
+        variables,
+        settings.hidePureMarkdown,
+      ),
+    );
+  }, [cellIds, variables, cellAtoms, syncChanges, settings.hidePureMarkdown]);
 
   const [selection, setSelection] = useState<GraphSelection>();
 

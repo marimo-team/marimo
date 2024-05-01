@@ -7,7 +7,7 @@ import { CellId } from "@/core/cells/ids";
 import { CellData } from "@/core/cells/types";
 import { Atom, atom, useAtom } from "jotai";
 
-import { GraphLayoutView } from "./types";
+import { GraphLayoutView, GraphSettings } from "./types";
 import { DependencyGraphMinimap } from "./dependency-graph-minimap";
 import { GraphToolbar } from "./panels";
 import { DependencyGraphTree } from "./dependency-graph-tree";
@@ -23,21 +23,39 @@ interface Props {
 }
 
 const graphViewAtom = atom<GraphLayoutView>("_minimap_");
+const graphViewSettings = atom<GraphSettings>({
+  hidePureMarkdown: true,
+});
 
 export const DependencyGraph: React.FC<Props> = (props) => {
   const [layoutDirection, setLayoutDirection] = useAtom(graphViewAtom);
+  const [settings, setSettings] = useAtom(graphViewSettings);
 
   const renderGraph = () => {
     if (layoutDirection === "_minimap_") {
       return (
         <DependencyGraphMinimap {...props}>
-          <GraphToolbar view={layoutDirection} onChange={setLayoutDirection} />
+          <GraphToolbar
+            settings={settings}
+            onSettingsChange={setSettings}
+            view={layoutDirection}
+            onChange={setLayoutDirection}
+          />
         </DependencyGraphMinimap>
       );
     }
     return (
-      <DependencyGraphTree {...props} layoutDirection={layoutDirection}>
-        <GraphToolbar view={layoutDirection} onChange={setLayoutDirection} />
+      <DependencyGraphTree
+        {...props}
+        settings={settings}
+        layoutDirection={layoutDirection}
+      >
+        <GraphToolbar
+          settings={settings}
+          onSettingsChange={setSettings}
+          view={layoutDirection}
+          onChange={setLayoutDirection}
+        />
       </DependencyGraphTree>
     );
   };

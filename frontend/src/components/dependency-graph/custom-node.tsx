@@ -6,7 +6,6 @@ import React, { memo, useContext } from "react";
 import { Handle, Position, useStore } from "reactflow";
 import { CustomNodeProps, getNodeHeight } from "./elements";
 import { displayCellName } from "@/core/cells/names";
-import { CellId } from "@/core/cells/ids";
 import { useCellIds } from "@/core/cells/cells";
 import { LayoutDirection } from "./types";
 
@@ -28,9 +27,9 @@ const EQUALITY_CHECK = (
 };
 
 export const CustomNode = memo((props: CustomNodeProps) => {
-  const { data, selected, id } = props; // must match the equality check
+  const { data, selected } = props; // must match the equality check
   const cell = useAtomValue(data.atom);
-  const cellIndex = useCellIds().indexOf(id as CellId);
+  const cellIndex = useCellIds().indexOf(cell.id);
   const nonSelectedColor = "var(--gray-3)";
   const selectedColor = "var(--gray-9)";
   const color = selected ? selectedColor : nonSelectedColor;

@@ -8,10 +8,15 @@ import ReactFlow, {
   useStore,
   useReactFlow,
   CoordinateExtent,
-  NodePositionChange,
 } from "reactflow";
 
-import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
+import React, {
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { nodeTypes } from "@/components/dependency-graph/custom-node";
 import { Variables } from "@/core/variables/types";
 import { CellId } from "@/core/cells/ids";
@@ -38,35 +43,37 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
   cellAtoms,
   children,
 }) => {
+  // State
   const { nodes: initialNodes, edges: allEdges } =
-    elementsBuilder.createElements(cellIds, cellAtoms, variables);
+    elementsBuilder.createElements(cellIds, cellAtoms, variables, false);
   const [edges, setEdges] = useEdgesState([]);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-
+  const [nodes, setNodes] = useNodesState(initialNodes);
   const [selectedNodeId, setSelectedNodeId] = useState<CellId>();
+  const hasRenderer = useRef(false);
+
+  // Subscriptions
+  const instance = useReactFlow();
+  const width = useStore(({ width }) => width);
+  const height = useStore(({ height }) => height);
 
   // If the cellIds change, update the nodes.
   const syncChanges = useEvent(
     (elements: { nodes: Array<Node<NodeData>>; edges: Edge[] }) => {
-      setNodes(nodes);
+      setNodes(elements.nodes);
       setEdges([]);
-
-      // Update positions of nodes
-      onNodesChange(
-        elements.nodes.map(
-          (node): NodePositionChange => ({
-            type: "position",
-            id: node.id,
-            position: node.position,
-          }),
-        ),
-      );
     },
   );
 
   // If the cellIds change, update the nodes.
+  // Only on the second render, because the first render is the initial render.
   useEffect(() => {
-    syncChanges(elementsBuilder.createElements(cellIds, cellAtoms, variables));
+    if (!hasRenderer.current) {
+      hasRenderer.current = true;
+      return;
+    }
+    syncChanges(
+      elementsBuilder.createElements(cellIds, cellAtoms, variables, false),
+    );
   }, [cellIds, variables, cellAtoms, syncChanges]);
 
   // If the selected node changes, update the edges.
@@ -84,15 +91,15 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
     }
   }, [selectedNodeId, setEdges, allEdges]);
 
-  const instance = useReactFlow();
-  const [width, height] = useStore(({ width, height }) => [width, height]);
-
   const debounceFitView = useDebouncedCallback(() => {
     instance.fitView({ duration: 100 });
   }, 100);
 
   // When the window is resized, fit the view to the graph.
   useEffect(() => {
+    if (!width || !height) {
+      return;
+    }
     debounceFitView();
   }, [width, height, debounceFitView]);
 

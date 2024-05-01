@@ -6,6 +6,7 @@ import { store } from "@/core/state/jotai";
 import { Variables } from "@/core/variables/types";
 import { Edge, MarkerType, Node, NodeProps } from "reactflow";
 import { Atom } from "jotai";
+import { Arrays } from "@/utils/arrays";
 
 export interface NodeData {
   atom: Atom<CellData>;
@@ -23,6 +24,7 @@ interface ElementsBuilder {
     cellIds: CellId[],
     cellAtoms: Array<Atom<CellData>>,
     variables: Variables,
+    hidePureMarkdown: boolean,
   ) => { nodes: Array<Node<NodeData>>; edges: Edge[] };
 }
 
@@ -69,16 +71,15 @@ export class VerticalElementsBuilder implements ElementsBuilder {
     cellIds: CellId[],
     cellAtoms: Array<Atom<CellData>>,
     variables: Variables,
+    hidePureMarkdown: boolean,
   ) {
     let prevY = 0;
     const nodes: Array<Node<NodeData>> = [];
     const edges: Edge[] = [];
-    let index = 0;
-    for (const cellId of cellIds) {
-      const node = this.createNode(cellId, cellAtoms[index], prevY);
+    for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
+      const node = this.createNode(cellId, cellAtom, prevY);
       nodes.push(node);
       prevY = node.position.y + (node.height || 0);
-      index++;
     }
 
     const visited = new Set<string>();
@@ -136,10 +137,10 @@ export class TreeElementsBuilder implements ElementsBuilder {
     cellIds: CellId[],
     cellAtoms: Array<Atom<CellData>>,
     variables: Variables,
+    hidePureMarkdown: boolean,
   ) {
     const nodes: Array<Node<NodeData>> = [];
     const edges: Edge[] = [];
-    let index = 0;
 
     const nodesWithEdges = new Set<CellId>();
     const visited = new Set<string>();
@@ -165,12 +166,18 @@ export class TreeElementsBuilder implements ElementsBuilder {
       }
     }
 
-    for (const cellId of cellIds) {
-      if (nodesWithEdges.has(cellId)) {
-        const node = this.createNode(cellId, cellAtoms[index]);
-        nodes.push(node);
+    for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
+      // Show every cell
+      if (!hidePureMarkdown) {
+        nodes.push(this.createNode(cellId, cellAtom));
       }
-      index++;
+
+      const hasEdge = nodesWithEdges.has(cellId);
+      const isMarkdown = store.get(cellAtom).code.trim().startsWith("mo.md");
+      // Show only cells with edges or non-markdown cells
+      if (hasEdge || !isMarkdown) {
+        nodes.push(this.createNode(cellId, cellAtom));
+      }
     }
 
     return { nodes, edges };

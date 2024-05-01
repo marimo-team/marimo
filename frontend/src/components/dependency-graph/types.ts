@@ -15,3 +15,7 @@ export type GraphSelection =
       target: CellId;
     }
   | undefined;
+
+export interface GraphSettings {
+  hidePureMarkdown: boolean;
+}

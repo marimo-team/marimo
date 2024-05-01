@@ -1,4 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+import { invariant } from "./invariant";
+
 export function arrayDelete<T>(array: T[], index: number): T[] {
   return [...array.slice(0, index), ...array.slice(index + 1)];
 }
@@ -26,4 +28,12 @@ export function arrayShallowEquals<T>(a: T[], b: T[]): boolean {
 export const Arrays = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   EMPTY: [] as any[],
+  zip: <T, U>(a: T[], b: U[]): Array<[T, U]> => {
+    invariant(a.length === b.length, "Arrays must be the same length");
+    const result: Array<[T, U]> = [];
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+      result.push([a[i], b[i]]);
+    }
+    return result;
+  },
 };

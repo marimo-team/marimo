@@ -5,7 +5,7 @@ import { LayoutDirection } from "../types";
 
 const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-export const getLayoutedElements = (
+export const layoutElements = (
   nodes: Node[],
   edges: Edge[],
   options: { direction: LayoutDirection },
