@@ -5,21 +5,26 @@ import { LayoutDirection } from "../types";
 
 const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
-const PADDING = 30;
-
 export const getLayoutedElements = (
   nodes: Node[],
   edges: Edge[],
   options: { direction: LayoutDirection },
 ) => {
-  g.setGraph({ rankdir: options.direction });
+  g.setGraph({
+    rankdir: options.direction,
+    nodesep: 150,
+    ranksep: 200,
+    // So far, longest-path seems to give the best results as trees are
+    // generally quite wide.
+    ranker: "longest-path",
+  });
 
   edges.forEach((edge) => g.setEdge(edge.source, edge.target));
   nodes.forEach((node) =>
     g.setNode(node.id, {
       ...node,
-      width: (node.width || 0) + PADDING,
-      height: (node.height || 0) + PADDING,
+      width: node.width || 0,
+      height: node.height || 0,
     }),
   );
 

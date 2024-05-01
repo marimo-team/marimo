@@ -116,7 +116,7 @@ export const GraphSelectionPanel: React.FC<{
             <ArrowRightIcon className="w-4 h-4" />
             <CellLink cellId={selection.target} />
           </div>
-          <div className="grid grid-cols-3 gap-3 max-w-[350px] items-center text-sm p-3 flex-1">
+          <div className="grid grid-cols-4 gap-3 max-w-[350px] items-center text-sm p-3 flex-1">
             {variableUsed.map((variable) => (
               <React.Fragment key={variable.name}>
                 <VariableName
@@ -127,7 +127,7 @@ export const GraphSelectionPanel: React.FC<{
                   {variable.dataType}
                 </div>
                 <div
-                  className="text-ellipsis overflow-hidden whitespace-nowrap"
+                  className="text-ellipsis overflow-hidden whitespace-nowrap col-span-2"
                   title={variable.value}
                 >
                   {variable.value}

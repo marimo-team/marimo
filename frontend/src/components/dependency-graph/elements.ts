@@ -107,9 +107,11 @@ export class TreeElementsBuilder implements ElementsBuilder {
     return {
       animated: true,
       markerEnd: {
-        type: MarkerType.Arrow,
+        type: MarkerType.ArrowClosed,
       },
       id: `${source}-${target}`,
+      // Make thicker
+      style: { strokeWidth: 2 },
       source: source,
       sourceHandle: "outputs",
       targetHandle: "inputs",
@@ -138,14 +140,16 @@ export class TreeElementsBuilder implements ElementsBuilder {
     const nodes: Array<Node<NodeData>> = [];
     const edges: Edge[] = [];
     let index = 0;
-    for (const cellId of cellIds) {
-      const node = this.createNode(cellId, cellAtoms[index]);
-      nodes.push(node);
-      index++;
-    }
 
+    const nodesWithEdges = new Set<CellId>();
     const visited = new Set<string>();
+
     for (const variable of Object.values(variables)) {
+      // Skip marimo, since likely every cell uses it
+      if (variable.value === "marimo" && variable.name === "mo") {
+        continue;
+      }
+
       const { declaredBy, usedBy } = variable;
       for (const fromId of declaredBy) {
         for (const toId of usedBy) {
@@ -154,10 +158,21 @@ export class TreeElementsBuilder implements ElementsBuilder {
             continue;
           }
           visited.add(key);
+          nodesWithEdges.add(fromId);
+          nodesWithEdges.add(toId);
           edges.push(this.createEdge(fromId, toId));
         }
       }
     }
+
+    for (const cellId of cellIds) {
+      if (nodesWithEdges.has(cellId)) {
+        const node = this.createNode(cellId, cellAtoms[index]);
+        nodes.push(node);
+      }
+      index++;
+    }
+
     return { nodes, edges };
   }
 }
