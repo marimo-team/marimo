@@ -200,8 +200,7 @@ class slider(UIElement[Numeric, Numeric]):
                 # check if steps is a sequence of numbers
                 assert all(isinstance(num, (int, float)) for num in steps)
                 assert len(steps) > 0
-                value = steps[0] if value is None else value
-                value = steps.index(value)
+                value = 0 if value is None else steps.index(value)
             except ValueError:
                 print(
                     "Value out of bounds: default value should be in the steps"
@@ -222,19 +221,6 @@ class slider(UIElement[Numeric, Numeric]):
             # list of steps
             self.steps = steps
 
-            super().__init__(
-                component_name=slider._name,
-                initial_value=value,
-                label=label,
-                args={
-                    "steps": steps,
-                    "debounce": debounce,
-                    "orientation": orientation,
-                    "show-value": show_value,
-                    "full-width": full_width,
-                },
-                on_change=on_change,
-            )
         else:
             assert start is not None
             assert stop is not None
@@ -257,28 +243,31 @@ class slider(UIElement[Numeric, Numeric]):
                 )
 
             self.start = start
-            self.stop = stop
+            # stop value should be the last value in the steps
+            self.stop = start + int((stop - start) / step) * step
             self.step = step
-            self.steps = [start + i * step for i in range(int((stop - start) / step))]
+            self.steps = [
+                start + i * step for i in range(int((stop - start) / step) + 1)
+            ]
+            self._mapping = dict(enumerate(self.steps))
+            value = self.steps.index(value)
 
-            super().__init__(
-                component_name=slider._name,
-                initial_value=value,
-                label=label,
-                args={
-                    "steps": self.steps,
-                    "debounce": debounce,
-                    "orientation": orientation,
-                    "show-value": show_value,
-                    "full-width": full_width,
-                },
-                on_change=on_change,
-            )
+        super().__init__(
+            component_name=slider._name,
+            initial_value=value,
+            label=label,
+            args={
+                "steps": self.steps,
+                "debounce": debounce,
+                "orientation": orientation,
+                "show-value": show_value,
+                "full-width": full_width,
+            },
+            on_change=on_change,
+        )
 
     def _convert_value(self, value: Numeric) -> Numeric:
-        if self._mapping is not None:
-            return cast(Numeric, self._dtype(self._mapping[int(value)]))
-        return cast(Numeric, self._dtype(value))
+        return cast(Numeric, self._dtype(self._mapping[int(value)]))
 
 
 @mddoc
@@ -360,19 +349,33 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             self._mapping = dict(enumerate(steps))
 
             try:
+                # the values of steps must be a sequence of numbers
                 assert all(isinstance(num, (int, float)) for num in steps)
                 assert len(steps) > 0
-                value = [steps[0], steps[-1]] if value is None else value
-                value = [steps.index(num) for num in value]
+                value = list(
+                    value
+                )  # raise error when value is not a Sequence, e.g. None
+                value = (
+                    [0, len(steps) - 1]
+                    if value is None
+                    else [
+                        steps.index(num) for num in value[:2]
+                    ]  # if length of value is greater than 2
+                )
             except ValueError:
                 print(
-                    "Value out of bounds: default value should be in the"
+                    "Value out of bounds: default value should be in the "
                     "steps, set to first and last values."
                 )
                 value = [0, len(steps) - 1]
             except AssertionError as e:
                 raise TypeError(
                     "Invalid steps: steps must be a sequence of numbers."
+                ) from e
+
+            except TypeError as e:
+                raise TypeError(
+                    "Invalid values: values must be a sequence of numbers."
                 ) from e
 
             # minimum value of interval
@@ -384,69 +387,62 @@ class range_slider(UIElement[List[Numeric], Sequence[Numeric]]):
             # list of steps
             self.steps = steps
 
-            super().__init__(
-                component_name=range_slider._name,
-                initial_value=list(value),
-                label=label,
-                args={
-                    "start": 0,
-                    "stop": len(steps) - 1,
-                    "step": 1,
-                    "steps": steps,
-                    "debounce": debounce,
-                    "orientation": orientation,
-                    "show-value": show_value,
-                    "full-width": full_width,
-                },
-                on_change=on_change,
-            )
         else:
             assert start is not None
             assert stop is not None
 
             self._dtype = _infer_dtype([start, stop, step, value])
-
             value = [start, stop] if value is None else value
+            step = 1 if step is None else step
 
-            if stop < start or value[1] < value[0]:
+            if stop < start:
                 raise ValueError(
                     "Invalid bounds: stop value must be " "greater than start value."
                 )
-            if value[0] < start or value[1] > stop:
-                raise ValueError(
-                    f"Value out of bounds: default value ({value}) must be "
-                    f"a range within start ({start}) and stop ({stop})."
-                )
 
             self.start = start
-            self.stop = stop
+            self.stop = start + int((stop - start) / step) * step
             self.step = step
-            self.steps = None
+            self.steps = [
+                start + i * step for i in range(int((stop - start) / step) + 1)
+            ]
+            self._mapping = dict(enumerate(self.steps))
+            try:
+                assert isinstance(value, Sequence)
+                value = (
+                    [0, len(self.steps) - 1]
+                    if value is None
+                    else [self.steps.index(num) for num in value]
+                )
+            except AssertionError as e:
+                raise TypeError(
+                    "Invalid value: value must be a sequence of numbers."
+                ) from e
+            except ValueError:
+                print(
+                    "Value out of bounds: default value should be in the steps. Set to first and last values."
+                )
+                value = [0, len(self.steps) - 1]
 
-            super().__init__(
-                component_name=range_slider._name,
-                initial_value=list(value),
-                label=label,
-                args={
-                    "start": start,
-                    "stop": stop,
-                    "step": step if step is not None else None,
-                    "steps": [],
-                    "debounce": debounce,
-                    "orientation": orientation,
-                    "show-value": show_value,
-                    "full-width": full_width,
-                },
-                on_change=on_change,
-            )
+        super().__init__(
+            component_name=range_slider._name,
+            initial_value=list(value),
+            label=label,
+            args={
+                "steps": self.steps,
+                "debounce": debounce,
+                "orientation": orientation,
+                "show-value": show_value,
+                "full-width": full_width,
+            },
+            on_change=on_change,
+        )
 
     def _convert_value(self, value: List[Numeric]) -> Sequence[Numeric]:
-        if self._mapping is not None:
-            return cast(
-                Sequence[Numeric],
-                [self._dtype(self._mapping[int(v)]) for v in value],
-            )
-        return cast(Sequence[Numeric], [self._dtype(v) for v in value])
+        return cast(
+            Sequence[Numeric],
+            [self._dtype(self._mapping[int(v)]) for v in value],
+        )
 
 
 def _infer_dtype(
@@ -454,9 +450,10 @@ def _infer_dtype(
 ) -> type[int] | type[float]:
     """Infer the dtype of a sequence of numbers."""
     for item in items:
-        if isinstance(item, Sequence):
-            if any(isinstance(subitem, float) for subitem in item):
-                return float
+        if isinstance(item, Sequence) and any(
+            isinstance(subitem, float) for subitem in item
+        ):
+            return float
         if any(isinstance(item, float) for item in items):
             return float
     return int
