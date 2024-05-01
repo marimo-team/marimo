@@ -47,6 +47,14 @@ make fe && make py
 
 (All `make` commands should be run in the project's root directory.)
 
+**Building from source, unminified.**
+
+To build the frontend unminified, run:
+
+```bash
+NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=development make fe -B
+```
+
 ## Lint, Typecheck, Format
 
 **All checks.**
