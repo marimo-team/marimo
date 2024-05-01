@@ -40,9 +40,9 @@ class _HTMLBuilder:
             params.append(("style", style))
 
         if len(params) == 0:
-            return "<img></img>"
+            return "<img />"
         else:
-            return f"<img {_join_params(params)}></img>"
+            return f"<img {_join_params(params)} />"
 
     @staticmethod
     def video(

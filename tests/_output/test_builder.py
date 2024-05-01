@@ -14,10 +14,10 @@ def test_div() -> None:
 
 
 def test_img() -> None:
-    assert h.img() == "<img></img>"
+    assert h.img() == "<img />"
     assert (
         h.img(src="image.jpg", alt="image", style="width:100px")
-        == "<img src='image.jpg' alt='image' style='width:100px'></img>"
+        == "<img src='image.jpg' alt='image' style='width:100px' />"
     )
 
 
