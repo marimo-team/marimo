@@ -93,9 +93,7 @@ class Exporter:
             cell_codes=list(codes),
             cell_configs=list(file_manager.app.cell_manager.configs()),
             cell_outputs=session_view.get_cell_outputs(cell_ids),
-            cell_console_outputs=session_view.get_cell_console_outputs(
-                cell_ids
-            ),
+            cell_console_outputs=session_view.get_cell_console_outputs(cell_ids),
             files=files,
             asset_url=request.asset_url,
         )
@@ -121,10 +119,7 @@ class Exporter:
             graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
-        code = (
-            f'\n__generated_with = "{__version__}"\n\n'
-            + "\n\n# ---\n\n".join(codes)
-        )
+        code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n# ---\n\n".join(codes)
 
         download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename
@@ -133,11 +128,13 @@ class Exporter:
         # TODO: Provide filter or kernel in header such that markdown documents
         # are executable.
         document = [
-            dedent(f"""---
+            dedent(
+                f"""
+          ---
           title: {get_filename_title(file_manager)}
           marimo-version: {__version__}
-          ---
-        """)
+          ---"""
+            )
         ]
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
@@ -145,18 +142,12 @@ class Exporter:
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 if markdown:
-                    document.extend([markdown, "\n"])
+                    document.append(markdown)
                 else:
                     guard = "```"
                     while guard in code:
                         guard += "`"
-                    document.append(
-                        dedent(f"""
-                      {guard}{{marimo}}
-                      {code}
-                      {guard}
-                    """)
-                    )
+                    document.extend([f"""{guard}{{marimo}}""", code, guard])
 
         download_filename = get_download_filename(file_manager, ".md")
-        return "".join(document), download_filename
+        return "\n".join(document), download_filename

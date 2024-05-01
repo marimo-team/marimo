@@ -11,9 +11,7 @@ from marimo._ast.cell import Cell
 from marimo._server.file_manager import AppFileManager
 
 
-def get_filename(
-    file_manager: AppFileManager, default: str = "notebook.py"
-) -> str:
+def get_filename(file_manager: AppFileManager, default: str = "notebook.py") -> str:
     filename = file_manager.filename
     if not filename:
         filename = default
@@ -86,9 +84,10 @@ def get_markdown_from_cell(
     md_lines = [line.rstrip() for line in md_lines]
     md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
     if callout:
-        md = dedent(f"""
+        md = dedent(
+            f"""
           ::: {{.callout-{callout}}}
           {md}
-          :::
-        """)
+          :::"""
+        )
     return md
