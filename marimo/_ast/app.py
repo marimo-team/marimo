@@ -55,6 +55,7 @@ class _AppConfig:
     """
 
     width: Literal["normal", "medium", "full"] = "normal"
+    app_title: Optional[str] = None
 
     # The file path of the layout file, relative to the app file.
     layout_file: Optional[str] = None

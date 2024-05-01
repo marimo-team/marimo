@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { createMarimoFile } from "../parse";
+import { createMarimoFile, parseIslandCode } from "../parse";
 
 describe("createMarimoFile", () => {
   it("should return a string", () => {
@@ -61,4 +61,29 @@ describe("createMarimoFile", () => {
     ].join("\n");
     expect(result).toBe(expected);
   });
+});
+
+describe("parseIslandCode", () => {
+  let codes = [
+    `
+  def __():
+    print("Hello, World!")
+    return
+  `,
+    `def __():\n    print("Hello, World!")\n    return`,
+    `def __():
+    print("Hello, World!")
+    return`,
+  ];
+
+  codes = [...codes, ...codes.map(encodeURIComponent)];
+
+  it.each(codes)(
+    "should return the code without leading or trailing whitespace",
+    (code) => {
+      const result = parseIslandCode(code);
+      const expected = 'def __():\n    print("Hello, World!")\n    return';
+      expect(result).toBe(expected);
+    },
+  );
 });

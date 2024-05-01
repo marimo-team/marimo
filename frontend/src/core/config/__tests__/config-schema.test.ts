@@ -5,8 +5,21 @@ import { AppConfigSchema, UserConfigSchema } from "../config-schema";
 test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
+  {
+    "width": "normal",
+  }
+  `);
+});
+
+test("another AppConfig", () => {
+  const config = AppConfigSchema.parse({
+    width: "medium",
+    app_title: null,
+  });
+  expect(config).toMatchInlineSnapshot(`
     {
-      "width": "normal",
+      "app_title": null,
+      "width": "medium",
     }
   `);
 });
