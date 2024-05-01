@@ -310,7 +310,7 @@ class Kernel:
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
         # Load runtime settings from user config
-        self.reactive_execution_mode = user_config["runtime"]["reactivity"]
+        self.reactive_execution_mode = user_config["runtime"]["on_cell_change"]
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -332,7 +332,7 @@ class Kernel:
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
-        self.reactive_execution_mode = config["runtime"]["reactivity"]
+        self.reactive_execution_mode = config["runtime"]["on_cell_change"]
 
         if (
             self.package_manager is None

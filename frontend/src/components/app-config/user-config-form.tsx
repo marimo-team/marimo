@@ -345,13 +345,13 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
-            name="runtime.reactivity"
+            name="runtime.on_cell_change"
             render={({ field }) => (
               <div className="flex flex-col gap-y-1">
                 <FormItem className="flex flex-row items-start space-x-2 space-y-0">
                   <FormControl>
                     <NativeSelect
-                      data-testid="reactivity-select"
+                      data-testid="on-cell-change-select"
                       onChange={(e) => field.onChange(e.target.value)}
                       value={field.value}
                       disabled={isWasm}
