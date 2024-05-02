@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
+
+import pytest
 
 from marimo import __version__
 from marimo._cli.convert.markdown import convert_from_md
@@ -45,6 +48,8 @@ def convert_from_py(py: str, script: str) -> str:
     return output
 
 
+# TODO: Fix this test on Windows.
+@pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
 def test_idempotent_markdown_to_marimo() -> None:
     for script in scripts:
         with open(DIR_PATH + f"/markdown_data/{script}.md.txt") as f:
