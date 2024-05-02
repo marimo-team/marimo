@@ -364,9 +364,7 @@ export const UserConfigForm: React.FC = () => {
                       ))}
                     </NativeSelect>
                   </FormControl>
-                  <FormLabel className="font-normal">
-                    On cell change
-                  </FormLabel>
+                  <FormLabel className="font-normal">On cell change</FormLabel>
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically run cells or just mark
