@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
-from typing import Callable, Final, Union
+from typing import Callable, Coroutine, Final, Union
 
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
@@ -25,7 +26,8 @@ class lazy(UIElement[None, None]):
 
     The argument to `mo.lazy` can be an object to render lazily, or a function
     that returns the object to render (that is, functions are lazily
-    evaluated). Using a function is useful when the item to render is
+    evaluated). The function can be synchronous or asynchronous.
+    Using a function is useful when the item to render is
     the result of a database query or some other expensive operation.
 
     **Examples.**
@@ -44,6 +46,16 @@ class lazy(UIElement[None, None]):
     accordion = mo.ui.accordion({"Charts": mo.lazy(expensive_component)})
     ```
 
+    Usage with async functions:
+
+    ```python
+    async def expensive_component(): ...
+
+
+    mo.lazy(expensive_component)
+    ```
+
+
     **Initialization Args.**
 
     - `element`: object or callable that returns content to be lazily loaded
@@ -56,7 +68,11 @@ class lazy(UIElement[None, None]):
 
     def __init__(
         self,
-        element: Union[Callable[[], object], object],
+        element: Union[
+            Callable[[], object],
+            object,
+            Callable[[], Coroutine[None, None, object]],
+        ],
         show_loading_indicator: bool = False,
     ) -> None:
         self._element = element
@@ -81,11 +97,13 @@ class lazy(UIElement[None, None]):
     def _convert_value(self, value: None) -> None:
         return value
 
-    def load(self, _args: EmptyArgs) -> LoadResponse:
+    async def load(self, _args: EmptyArgs) -> LoadResponse:
         if callable(self._element) and not isinstance(
             self._element, UIElement
         ):
             el = self._element()
+            if asyncio.iscoroutine(el):
+                el = await el
             return LoadResponse(html=as_html(el).text)
         else:
             return LoadResponse(html=as_html(self._element).text)
