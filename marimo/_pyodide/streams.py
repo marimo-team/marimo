@@ -8,6 +8,7 @@ from typing import Any, Callable, Iterable, Optional
 from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.ops import CellOp
 from marimo._messaging.streams import STD_STREAM_MAX_BYTES
 from marimo._messaging.types import (
@@ -55,7 +56,7 @@ class PyodideStdout(Stdout):
     def seekable(self) -> bool:
         return False
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -70,7 +71,7 @@ class PyodideStdout(Stdout):
             cell_id=self.stream.cell_id,
             console=CellOutput(
                 channel=CellChannel.STDOUT,
-                mimetype="text/plain",
+                mimetype=mimetype,
                 data=data,
             ),
         ).broadcast(self.stream)
@@ -99,7 +100,7 @@ class PyodideStderr(Stderr):
     def seekable(self) -> bool:
         return False
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         assert self.stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -116,7 +117,7 @@ class PyodideStderr(Stderr):
             cell_id=self.stream.cell_id,
             console=CellOutput(
                 channel=CellChannel.STDERR,
-                mimetype="text/plain",
+                mimetype=mimetype,
                 data=data,
             ),
         ).broadcast(self.stream)

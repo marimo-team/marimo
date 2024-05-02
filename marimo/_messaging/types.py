@@ -4,6 +4,7 @@ import io
 from typing import Any, Dict, Optional, Tuple
 
 from marimo._ast.cell import CellId_t
+from marimo._messaging.mimetypes import KnownMimeType
 
 # The message from the kernel is a tuple of message type
 # and a json representation of the message
@@ -33,16 +34,22 @@ class Stdout(io.TextIOBase):
     name = "stdout"
 
     @abc.abstractmethod
-    def write(self, __s: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         pass
+
+    def write(self, __s: str) -> int:
+        return self._write_with_mimetype(__s, mimetype="text/plain")
 
 
 class Stderr(io.TextIOBase):
     name = "stderr"
 
     @abc.abstractmethod
-    def write(self, __s: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         pass
+
+    def write(self, __s: str) -> int:
+        return self._write_with_mimetype(__s, mimetype="text/plain")
 
 
 class Stdin(io.TextIOBase):
