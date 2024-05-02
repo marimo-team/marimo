@@ -6,7 +6,6 @@ import ReactFlow, {
   useNodesState,
   PanOnScrollMode,
   useStore,
-  useReactFlow,
   CoordinateExtent,
 } from "reactflow";
 
