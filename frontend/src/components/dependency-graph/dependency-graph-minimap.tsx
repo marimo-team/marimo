@@ -23,11 +23,11 @@ import { CellId } from "@/core/cells/ids";
 import { CellData } from "@/core/cells/types";
 import { Atom } from "jotai";
 
-import { useDebouncedCallback } from "@/hooks/useDebounce";
 import { NodeData, VerticalElementsBuilder } from "./elements";
 import useEvent from "react-use-event-hook";
 import { scrollToCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";
+import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
 interface Props {
   cellIds: CellId[];
@@ -53,8 +53,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
   const hasRenderer = useRef(false);
 
   // Subscriptions
-  const instance = useReactFlow();
-  const width = useStore(({ width }) => width);
+  useFitToViewOnDimensionChange();
   const height = useStore(({ height }) => height);
 
   // If the cellIds change, update the nodes.
@@ -91,18 +90,6 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
       setEdges(selectedEdges);
     }
   }, [selectedNodeId, setEdges, allEdges]);
-
-  const debounceFitView = useDebouncedCallback(() => {
-    instance.fitView({ duration: 100 });
-  }, 100);
-
-  // When the window is resized, fit the view to the graph.
-  useEffect(() => {
-    if (!width || !height) {
-      return;
-    }
-    debounceFitView();
-  }, [width, height, debounceFitView]);
 
   const translateExtent = useTranslateExtent(nodes, height);
 

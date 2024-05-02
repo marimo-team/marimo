@@ -25,6 +25,7 @@ import { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 import useEvent from "react-use-event-hook";
 import { scrollToCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";
+import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
 interface Props {
   cellIds: CellId[];
@@ -87,6 +88,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   }, [cellIds, variables, cellAtoms, syncChanges, settings.hidePureMarkdown]);
 
   const [selection, setSelection] = useState<GraphSelection>();
+  useFitToViewOnDimensionChange();
 
   return (
     <EdgeMarkerContext.Provider value={layoutDirection}>
