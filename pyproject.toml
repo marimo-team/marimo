@@ -37,6 +37,8 @@ dependencies = [
     "typing_extensions>=4.4.0; python_version < \"3.11\"",
     # for rst parsing
     "docutils>=0.17.0",
+    # to show RAM, CPU usage, other system utilities
+    "psutil>=5.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "black",
