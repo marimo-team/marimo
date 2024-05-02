@@ -13,6 +13,7 @@ import pytest
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -45,7 +46,8 @@ class MockStdout(ThreadSafeStdout):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        del mimetype
         self.messages.append(data)
         return len(data)
 
@@ -59,7 +61,8 @@ class MockStderr(ThreadSafeStderr):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        del mimetype
         self.messages.append(data)
         return len(data)
 

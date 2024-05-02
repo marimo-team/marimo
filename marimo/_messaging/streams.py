@@ -13,6 +13,7 @@ from marimo import _loggers
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.console_output_worker import ConsoleMsg, buffered_writer
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import (
     KernelMessage,
     Stderr,
@@ -178,7 +179,7 @@ class ThreadSafeStdout(Stdout):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -194,6 +195,7 @@ class ThreadSafeStdout(Stdout):
                 stream=CellChannel.STDOUT,
                 cell_id=self._stream.cell_id,
                 data=data,
+                mimetype=mimetype,
             )
         )
         with self._stream.console_msg_cv:
@@ -237,7 +239,7 @@ class ThreadSafeStderr(Stderr):
         # TODO(akshayka): maybe force the buffered writer to write
         return
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
         assert self._stream.cell_id is not None
         if not isinstance(data, str):
             raise TypeError(
@@ -256,6 +258,7 @@ class ThreadSafeStderr(Stderr):
                     stream=CellChannel.STDERR,
                     cell_id=self._stream.cell_id,
                     data=data,
+                    mimetype=mimetype,
                 )
             )
             self._stream.console_msg_cv.notify()
@@ -307,6 +310,7 @@ class ThreadSafeStdin(Stdin):
                     stream=CellChannel.STDIN,
                     cell_id=self._stream.cell_id,
                     data=prompt,
+                    mimetype="text/plain",
                 )
             )
             self._stream.console_msg_cv.notify()

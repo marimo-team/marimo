@@ -47,9 +47,6 @@ export const OutputRenderer: React.FC<{
       return <HtmlOutput className={channel} html={message.data} />;
 
     case "text/plain":
-      if (message.data.includes(`class="codehilite"`)) {
-        return <HtmlOutput className={channel} html={message.data} />;
-      }
       return <TextOutput channel={channel} text={message.data} />;
 
     case "application/json":
