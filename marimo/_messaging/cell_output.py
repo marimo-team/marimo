@@ -11,7 +11,7 @@ from typing import Any, Sequence, Union
 from marimo._messaging.errors import Error
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.tracebacks import is_code_highlighting
-from marimo._messaging.utils import santize_message
+from marimo._messaging.utils import sanitize_message
 
 
 class CellChannel(str, Enum):
@@ -47,7 +47,7 @@ class CellOutput:
             and isinstance(self.data, str)
             and not is_code_highlighting(self.data)
         ):
-            self.data = santize_message(self.data)
+            self.data = sanitize_message(self.data)
 
     @staticmethod
     def stdout(data: str) -> CellOutput:
