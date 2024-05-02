@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Set, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
 Edge = Tuple[CellId_t, CellId_t]
+EdgeWithVar = Tuple[CellId_t, Set[str], CellId_t]
 
 LOGGER = _loggers.marimo_logger()
 
