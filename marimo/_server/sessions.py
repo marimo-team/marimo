@@ -364,6 +364,10 @@ class Session:
         self.unsubscribe_consumer()
         self.session_consumer = None
 
+    def maybe_disconnect_consumer(self) -> None:
+        if self.session_consumer is not None:
+            self.disconnect_consumer()
+
     def connect_consumer(self, session_consumer: SessionConsumer) -> None:
         """Connect or resume the session with a new consumer"""
         assert (
