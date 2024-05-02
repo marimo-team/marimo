@@ -325,7 +325,7 @@ def transitive_closure(
 
     If inclusive, includes passed-in cells in the set.
 
-    If predicate, only cells satisfying predicate(cell) are inclued
+    If predicate, only cells satisfying predicate(cell) are included
     """
     seen = set()
     cells = set()
