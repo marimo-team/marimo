@@ -15,7 +15,7 @@ import threading
 import time
 import traceback
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
@@ -1265,7 +1265,7 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
-    def function_call_request(
+    async def function_call_request(
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType]:
         function = get_context().function_registry.get_function(
@@ -1291,8 +1291,12 @@ class Kernel:
         else:
             with self._install_execution_context(cell_id=function.cell_id):
                 try:
-                    return HumanReadableStatus(code="ok"), function(
-                        request.args
+                    response = function(request.args)
+                    if asyncio.iscoroutine(response):
+                        response = await response
+                        return HumanReadableStatus(code="ok"), response
+                    return HumanReadableStatus(code="ok"), cast(
+                        JSONType, response
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
@@ -1415,7 +1419,7 @@ class Kernel:
             await self.set_ui_element_value(request)
             CompletedRun().broadcast()
         elif isinstance(request, FunctionCallRequest):
-            status, ret = self.function_call_request(request)
+            status, ret = await self.function_call_request(request)
             FunctionCallResult(
                 function_call_id=request.function_call_id,
                 return_value=ret,
