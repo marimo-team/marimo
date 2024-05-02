@@ -15,7 +15,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
-from marimo._runtime.dataflow import Edge
+from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.requests import (
     AppMetadata,
     CreationRequest,
@@ -32,11 +32,11 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:
+def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
     assert isinstance(error, CycleError)
-    assert len(error.edges) == len(expected_edges)
+    assert len(error.edges_with_vars) == len(expected_edges)
     for edge in expected_edges:
-        assert edge in error.edges or (edge[1], edge[0]) in error.edges
+        assert edge in error.edges_with_vars or reversed(edge) in error.edges_with_vars
 
 
 # Test Basic Reactivity
@@ -335,8 +335,8 @@ async def test_cycle_error(k: Kernel) -> None:
     assert set(k.errors.keys()) == {"0", "1"}
     assert len(k.errors["0"]) == 1
     assert len(k.errors["1"]) == 1
-    _check_edges(k.errors["0"][0], [("0", "1"), ("1", "0")])
-    _check_edges(k.errors["1"][0], [("0", "1"), ("1", "0")])
+    _check_edges(k.errors["0"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
+    _check_edges(k.errors["1"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
 
     # break cycle by modifying cell
     await k.run([ExecutionRequest(cell_id="1", code="y=1")])
@@ -358,7 +358,7 @@ async def test_break_cycle_error_with_delete(k: Kernel) -> None:
     assert set(k.errors.keys()) == {"0", "1"}
     assert len(k.errors["0"]) == 1
     assert len(k.errors["1"]) == 1
-    _check_edges(k.errors["0"][0], [("0", "1"), ("1", "0")])
+    _check_edges(k.errors["0"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
 
     # break cycle by deleting cell
     await k.delete(DeleteRequest(cell_id="1"))
