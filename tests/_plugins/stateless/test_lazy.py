@@ -52,7 +52,9 @@ async def test_lazy_function(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert res.html == "<span>42</span>"
 
 
-async def test_lazy_async_function(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_lazy_async_function(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
     await k.run(
         [
             exec_req.get(

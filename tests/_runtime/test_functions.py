@@ -70,7 +70,10 @@ def test_function_registry() -> None:
     registry.register(namespace, function)
     assert registry.get_function(namespace, "test_function") == function
     assert registry.get_function(namespace, "non_existent_function") is None
-    assert registry.get_function("non_existent_namespace", "test_function") is None
+    assert (
+        registry.get_function("non_existent_namespace", "test_function")
+        is None
+    )
 
     registry.delete(namespace)
     assert registry.get_function(namespace, "test_function") is None
