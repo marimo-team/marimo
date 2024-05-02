@@ -15,7 +15,7 @@ import threading
 import time
 import traceback
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
@@ -254,7 +254,7 @@ class Kernel:
     - stdin: replacement for sys.stdin
     - input_override: a function that overrides the builtin input() function
     - debugger_override: a replacement for the built-in Pdb
-    - execute_stale_cells_callback: callback to enqueue a stale cells request
+    - enqueue_control_request: callback to enqueue control requests
     """
 
     def __init__(
@@ -266,7 +266,7 @@ class Kernel:
         stdout: Stdout | None,
         stderr: Stderr | None,
         stdin: Stdin | None,
-        execute_stale_cells_callback: Callable[[], None],
+        enqueue_control_request: Callable[[ControlRequest], None],
         input_override: Callable[[Any], str] = input_override,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
@@ -277,7 +277,7 @@ class Kernel:
         self.stdout = stdout
         self.stderr = stderr
         self.stdin = stdin
-        self.execute_stale_cells_callback = execute_stale_cells_callback
+        self.enqueue_control_request = enqueue_control_request
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -310,9 +310,9 @@ class Kernel:
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
         # Load runtime settings from user config
-        self.reactive_execution_mode: OnCellChangeType = user_config[
-            "runtime"
-        ]["on_cell_change"]
+        self.reactive_execution_mode: OnCellChangeType = user_config["runtime"][
+            "on_cell_change"
+        ]
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -330,6 +330,16 @@ class Kernel:
         # an empty string represents the current directory
         exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
+
+    def _execute_stale_cells_callback(self) -> None:
+        return self.enqueue_control_request(ExecuteStaleRequest())
+
+    def _execute_install_missing_packages_callback(
+        self, package_manager: str
+    ) -> None:
+        return self.enqueue_control_request(
+            InstallMissingPackagesRequest(manager=package_manager)
+        )
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
@@ -356,7 +366,7 @@ class Kernel:
             if self.module_watcher is None:
                 self.module_watcher = ModuleWatcher(
                     self.graph,
-                    enqueue_run_stale_cells=self.execute_stale_cells_callback,
+                    enqueue_run_stale_cells=self._execute_stale_cells_callback,
                     mode=autoreload_mode,
                     stream=self.stream,
                 )
@@ -405,9 +415,7 @@ class Kernel:
                 if self.module_reloader is not None:
                     # Reload modules if they have changed
                     modules = set(sys.modules)
-                    self.module_reloader.check(
-                        modules=sys.modules, reload=True
-                    )
+                    self.module_reloader.check(modules=sys.modules, reload=True)
                 yield self.execution_context
             finally:
                 self.execution_context = None
@@ -530,9 +538,7 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
-        missing_modules_before_deletion = (
-            self.module_registry.missing_modules()
-        )
+        missing_modules_before_deletion = self.module_registry.missing_modules()
         defs_to_delete = self.graph.cells[cell_id].defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
@@ -546,16 +552,21 @@ class Kernel:
             and missing_modules_after_deletion
             != missing_modules_before_deletion
         ):
-            # Deleting a cell can make the set of missing packages smaller
-            MissingPackageAlert(
-                packages=list(
-                    sorted(
-                        self.package_manager.module_to_package(mod)
-                        for mod in missing_modules_after_deletion
-                    )
-                ),
-                isolated=is_python_isolated(),
-            ).broadcast()
+            if self.package_manager.should_auto_install():
+                self._execute_install_missing_packages_callback(
+                    self.package_manager.name
+                )
+            else:
+                # Deleting a cell can make the set of missing packages smaller
+                MissingPackageAlert(
+                    packages=list(
+                        sorted(
+                            self.package_manager.module_to_package(mod)
+                            for mod in missing_modules_after_deletion
+                        )
+                    ),
+                    isolated=is_python_isolated(),
+                ).broadcast()
 
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
@@ -632,9 +643,7 @@ class Kernel:
 
         # Register and delete cells
         for er in execution_requests:
-            old_children, error = self._maybe_register_cell(
-                er.cell_id, er.code
-            )
+            old_children, error = self._maybe_register_cell(er.cell_id, er.code)
             cells_that_were_children_of_mutated_cells |= old_children
             if error is None:
                 registered_cell_ids.add(er.cell_id)
@@ -705,8 +714,7 @@ class Kernel:
         # Cells that previously had errors (eg, multiple definition or cycle)
         # that no longer have errors need to be refreshed.
         cells_that_no_longer_have_errors = (
-            cells_with_errors_before_mutation
-            - cells_with_errors_after_mutation
+            cells_with_errors_before_mutation - cells_with_errors_after_mutation
         ) & cells_in_graph
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:
@@ -730,8 +738,7 @@ class Kernel:
         # code didn't change), so its previous children were not added to
         # cells_that_were_children_of_mutated_cells
         cells_transitioned_to_error = (
-            cells_with_errors_after_mutation
-            - cells_with_errors_before_mutation
+            cells_with_errors_after_mutation - cells_with_errors_before_mutation
         ) & cells_before_mutation
 
         # Invalidate state defined by error-ed cells, with the exception of
@@ -835,11 +842,17 @@ class Kernel:
                     self.package_manager.module_to_package(mod)
                     for mod in self.module_registry.missing_modules()
                 ]
+
                 if missing_packages:
-                    MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
-                        isolated=is_python_isolated(),
-                    ).broadcast()
+                    if self.package_manager.should_auto_install():
+                        self._execute_install_missing_packages_callback(
+                            self.package_manager.name
+                        )
+                    else:
+                        MissingPackageAlert(
+                            packages=list(sorted(missing_packages)),
+                            isolated=is_python_isolated(),
+                        ).broadcast()
 
         runner = cell_runner.Runner(
             roots=roots,
@@ -861,7 +874,6 @@ class Kernel:
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
         await runner.run_all()
-
         cells_with_stale_state = runner.resolve_state_updates(
             self.state_updates, self.errors
         )
@@ -889,9 +901,7 @@ class Kernel:
                 )
             )
 
-    async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
-    ) -> None:
+    async def run(self, execution_requests: Sequence[ExecutionRequest]) -> None:
         """Run cells and their descendants.
 
 
@@ -967,9 +977,7 @@ class Kernel:
             except (KeyError, RuntimeError):
                 # KeyError: Trying to access an unnamed UIElement
                 # RuntimeError: UIElement was deleted somehow
-                LOGGER.debug(
-                    "Could not resolve UIElement with id%s", object_id
-                )
+                LOGGER.debug("Could not resolve UIElement with id%s", object_id)
                 continue
             resolved_requests[resolved_id] = resolved_value
         del request
@@ -1087,7 +1095,7 @@ class Kernel:
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
 
-    def function_call_request(
+    async def function_call_request(
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType]:
         function = get_context().function_registry.get_function(
@@ -1113,8 +1121,12 @@ class Kernel:
         else:
             with self._install_execution_context(cell_id=function.cell_id):
                 try:
-                    return HumanReadableStatus(code="ok"), function(
-                        request.args
+                    response = function(request.args)
+                    if asyncio.iscoroutine(response):
+                        response = await response
+                        return HumanReadableStatus(code="ok"), response
+                    return HumanReadableStatus(code="ok"), cast(
+                        JSONType, response
                     )
                 except MarimoInterrupt:
                     error_title = "Interrupted"
@@ -1240,7 +1252,7 @@ class Kernel:
             await self.set_ui_element_value(request)
             CompletedRun().broadcast()
         elif isinstance(request, FunctionCallRequest):
-            status, ret = self.function_call_request(request)
+            status, ret = await self.function_call_request(request)
             FunctionCallResult(
                 function_call_id=request.function_call_id,
                 return_value=ret,
@@ -1315,9 +1327,7 @@ def launch_kernel(
         input_override=input_override,
         debugger_override=debugger,
         user_config=user_config,
-        execute_stale_cells_callback=lambda: control_queue.put_nowait(
-            ExecuteStaleRequest()
-        ),
+        enqueue_control_request=lambda req: control_queue.put_nowait(req),
     )
     initialize_kernel_context(
         kernel=kernel,

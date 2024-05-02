@@ -315,18 +315,19 @@ def superreload(
     try:
         module = reload(module)
     except Exception as e:
-        if isinstance(e, SyntaxError):
-            # User introduced a SyntaxError -- they should be told,
-            # and module dict should not be restored, ie don't fail
-            # silently.
-            tmpio = io.StringIO()
-            traceback.print_exc(file=tmpio)
-            tmpio.seek(0)
-            write_traceback(tmpio.read())
-        else:
-            # restore module dictionary on failed reload
-            if old_dict is not None:
-                module.__dict__.update(old_dict)
+        # User introduced a SyntaxError, ModuleNotFoundError, etc -- they
+        # should be told, and module dict should not be restored, ie don't fail
+        # silently.
+        #
+        # It's possible that the module fails to reload for some other reason.
+        # In this case, too, the failure shouldn't be silent!
+        sys.stderr.write(
+            f"Error trying to reload module {module.__name__}: {str(e)} \n"
+        )
+        tmpio = io.StringIO()
+        traceback.print_exc(file=tmpio)
+        tmpio.seek(0)
+        write_traceback(tmpio.read())
         raise
 
     # iterate over all objects and update functions & classes

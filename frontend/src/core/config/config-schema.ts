@@ -100,9 +100,15 @@ export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
 export const APP_WIDTHS = ["normal", "medium", "full"] as const;
+export const AppTitleSchema = z
+  .string()
+  .regex(new RegExp("^[A-Za-z0-9-_' ]*$"), {
+    message: "Invalid application title",
+  });
 export const AppConfigSchema = z
   .object({
     width: z.enum(APP_WIDTHS).default("normal"),
+    app_title: AppTitleSchema.nullish(),
   })
   .default({ width: "normal" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;

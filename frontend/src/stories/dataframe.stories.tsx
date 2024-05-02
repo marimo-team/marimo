@@ -28,6 +28,7 @@ export const DataFrame: StoryObj = {
           picture: "bytes",
         }}
         dataframeName={"df"}
+        pageSize={5}
         value={value}
         setValue={(v) => {
           console.log(v);

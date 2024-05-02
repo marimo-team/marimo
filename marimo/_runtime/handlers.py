@@ -43,7 +43,7 @@ def construct_sigterm_handler(kernel: "Kernel") -> Callable[[int, Any], None]:
     shutting_down = Bit()
 
     def sigterm_handler(signum: int, frame: Any) -> None:
-        """Cleans up the kernel ands exit."""
+        """Cleans up the kernel and exits."""
         del signum
         del frame
 

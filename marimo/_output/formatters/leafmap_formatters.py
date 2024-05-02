@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-import marimo._output.data.data as mo_data
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._output.formatters.utils import src_or_src_doc
 from marimo._output.utils import flatten_string
 
 
@@ -27,17 +27,15 @@ class LeafmapFormatter(FormatterFactory):
             # leafmap.folium.Map has a _repr_html_, which we have
             # another custom formatter for, but this wraps the map in an
             # additional iframe which can cause weird layout issues
-            html = mo_data.html(cast(Any, fmap).to_html())
+            html_content = cast(Any, fmap).to_html()
             return (
                 "text/html",
                 flatten_string(
                     h.iframe(
-                        src=html.url,
-                        scrolling="auto",
-                        frameborder="0",
-                        width="100%",
-                        style="min-height: 540px",
+                        **src_or_src_doc(html_content),
                         onload="__resizeIframe(this)",
+                        style="min-height: 540px",
+                        width="100%",
                     )
                 ),
             )
@@ -50,17 +48,15 @@ class LeafmapFormatter(FormatterFactory):
             # notebook without scrolling
             height = lmap.layout.height or "540px"
             width = lmap.layout.width or "100%"
-            html = mo_data.html(lmap.to_html(width=width, height=height))
+            html_content = lmap.to_html(width=width, height=height)
             return (
                 "text/html",
                 (
                     flatten_string(
                         h.iframe(
-                            src=html.url,
-                            scrolling="auto",
-                            frameborder="0",
-                            width="100%",
+                            **src_or_src_doc(html_content),
                             onload="__resizeIframe(this)",
+                            width="100%",
                         )
                     )
                 ),

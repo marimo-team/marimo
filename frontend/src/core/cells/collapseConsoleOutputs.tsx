@@ -9,22 +9,24 @@ import { invariant } from "@/utils/invariant";
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
-  if (consoleOutputs.length < 2) {
-    return handleCarriageReturns(consoleOutputs);
+  const newConsoleOutputs = [...consoleOutputs];
+
+  if (newConsoleOutputs.length < 2) {
+    return handleCarriageReturns(newConsoleOutputs);
   }
 
-  const lastOutput = consoleOutputs[consoleOutputs.length - 1];
-  const secondLastOutput = consoleOutputs[consoleOutputs.length - 2];
+  const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
+  const secondLastOutput = newConsoleOutputs[newConsoleOutputs.length - 2];
 
   if (shouldCollapse(lastOutput, secondLastOutput)) {
     invariant(typeof lastOutput.data === "string", "expected string");
     invariant(typeof secondLastOutput.data === "string", "expected string");
 
     secondLastOutput.data += lastOutput.data;
-    consoleOutputs.pop();
+    newConsoleOutputs.pop();
   }
 
-  return handleCarriageReturns(consoleOutputs);
+  return handleCarriageReturns(newConsoleOutputs);
 }
 
 function shouldCollapse(
@@ -42,17 +44,17 @@ function shouldCollapse(
 
   return isTextPlain && isSameChannel && isNotStdin;
 }
-
 function handleCarriageReturns(
   consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
-  if (consoleOutputs.length === 0) {
-    return consoleOutputs;
+  const newConsoleOutputs = [...consoleOutputs];
+  if (newConsoleOutputs.length === 0) {
+    return newConsoleOutputs;
   }
 
-  const lastOutput = consoleOutputs[consoleOutputs.length - 1];
+  const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
   if (lastOutput.mimetype !== "text/plain") {
-    return consoleOutputs;
+    return newConsoleOutputs;
   }
 
   // eslint-disable-next-line no-control-regex
@@ -81,6 +83,9 @@ function handleCarriageReturns(
     carriageIdx = text.search(carriagePattern);
   }
 
-  lastOutput.data = text;
-  return consoleOutputs;
+  newConsoleOutputs[newConsoleOutputs.length - 1] = {
+    ...lastOutput,
+    data: text,
+  };
+  return newConsoleOutputs;
 }

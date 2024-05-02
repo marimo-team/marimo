@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
-import sys
 
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import CellOp
+from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.flex import vstack
@@ -13,7 +13,7 @@ from marimo._runtime.context import get_context
 def write_internal(cell_id: CellId_t, value: object) -> None:
     output = formatting.try_format(value)
     if output.traceback is not None:
-        sys.stderr.write(output.traceback)
+        write_traceback(output.traceback)
     CellOp.broadcast_output(
         channel=CellChannel.OUTPUT,
         mimetype=output.mimetype,

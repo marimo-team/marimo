@@ -1,10 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import asyncio
 import os
 import pathlib
 import sys
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
 
 # use spaces instead of a tab to play well with carriage returns;
 # \r\t doesn't appear to overwrite characters at the start of a line,
@@ -54,6 +60,26 @@ def initialize_mimetypes() -> None:
 
 
 def initialize_asyncio() -> None:
-    """Platform-specific initialization of asyncio."""
+    """Platform-specific initialization of asyncio.
+
+    Sessions use the `add_reader()` API, which is only available in the
+    SelectorEventLoop policy; Windows uses the Proactor by default.
+    """
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+T = TypeVar("T")
+
+
+def asyncio_run(coro: Coroutine[Any, Any, T], **kwargs: dict[Any, Any]) -> T:
+    """asyncio.run() with platform-specific initialization.
+
+    When using Sessions, make sure to use this method instead of `asyncio.run`.
+
+    If not using a Session, don't call this method.
+
+    `kwargs` are passed to `asyncio.run()`
+    """
+    initialize_asyncio()
+    return asyncio.run(coro, **kwargs)  # type: ignore[arg-type]

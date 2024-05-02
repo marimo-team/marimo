@@ -92,8 +92,8 @@ class OSFileSystem(FileSystem):
         if not path.endswith(".py"):
             return False
 
-        with open(path, "r") as file:
-            return "app = marimo.App(" in file.read()
+        with open(path, "rb") as file:
+            return b"app = marimo.App(" in file.read()
 
     def open_file(self, path: str, encoding: str | None = None) -> str:
         try:

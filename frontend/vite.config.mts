@@ -105,6 +105,10 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
   },
+  build: {
+    minify: isDev ? false : "terser",
+    sourcemap: isDev,
+  },
   resolve: {
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
   },

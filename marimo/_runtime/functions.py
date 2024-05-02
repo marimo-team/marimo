@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Generic, Type, TypeVar
+from typing import Any, Callable, Coroutine, Generic, Type, TypeVar
 
 from marimo._ast.cell import CellId_t
 from marimo._utils.parse_dataclass import build_dataclass
@@ -24,7 +24,7 @@ class EmptyArgs:
 class Function(Generic[S, T]):
     name: str
     arg_cls: Type[S]
-    function: Callable[[S], T]
+    function: Callable[[S], T] | Callable[[S], Coroutine[Any, Any, T]]
     cell_id: CellId_t | None
 
     def __init__(
@@ -52,7 +52,7 @@ class Function(Generic[S, T]):
         else:
             self.cell_id = None
 
-    def __call__(self, args: dict[Any, Any]) -> T:
+    def __call__(self, args: dict[Any, Any]) -> T | Coroutine[Any, Any, T]:
         return self.function(build_dataclass(args, self.arg_cls))
 
 

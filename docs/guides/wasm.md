@@ -108,7 +108,7 @@ import plotly
 
 **Try it!** A WASM notebook is embedded below. Try installing a package.
 
-<iframe src="https://marimo.app/l/wvz76s?embed=true" width=800 height=300>
+<iframe src="https://marimo.app/l/wvz76s?embed=true" width="100%" height=300 class="demo" frameBorder="0">
 </iframe>
 
 ## Configuration
@@ -161,12 +161,13 @@ providing your users with an interactive code playground.
 ```html
 <iframe
   src="https://marimo.app/l/aojjhb?embed=true"
-  width="800"
+  width="100%"
   height="300"
+  frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/aojjhb?embed=true" width="800" height="300"></iframe>
+<iframe src="https://marimo.app/l/aojjhb?embed=true" width="100%" height="300" class="demo" frameBorder="0"></iframe>
 
 ### Embedding an existing notebook
 
@@ -176,12 +177,13 @@ URL to your notebook](#creating-and-sharing-wasm-notebooks), then put it in an i
 ```html
 <iframe
   src="https://marimo.app/l/c7h6pz?embed=true"
-  width="800"
+  width="100%"
   height="300"
+  frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="800" height="600"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
 After obtaining a URL to your
 notebook,
@@ -194,12 +196,13 @@ You can optionally render embedded notebooks in read-only mode by appending
 ```html
 <iframe
   src="https://marimo.app/l/c7h6pz?mode=read&embed=true"
-  width="800"
+  width="100%"
   height="300"
+  frameborder="0"
 ></iframe>
 ```
 
-<iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="800" height="600"></iframe>
+<iframe src="https://marimo.app/l/c7h6pz?mode=read&embed=true" width="100%" height="600" class="demo" frameBorder="0"></iframe>
 
 ## Limitations
 

@@ -363,15 +363,16 @@ span.linenos.special {
 /* Special formatting for Python traceback */
 .stderr .codehilite {
   .highlight {
-    color: var(--sky-8);
+    /* Chosen to match error coloring in other parts of notebook. */
+    color: hsl(var(--error) / var(--tw-text-opacity));
   }
 
   .gt {
-    color: var(--red-9);
+    color: hsl(var(--error) / var(--tw-text-opacity));
   }
 
   .nb {
-    color: var(--grass-8);
+    color: var(--sky-8);
   }
 
   .m {

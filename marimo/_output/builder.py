@@ -1,11 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import List, Optional, Tuple, Union
 
 
 class _HTMLBuilder:
     @staticmethod
     def div(
-        children: Union[str, List[str]], style: Optional[str] = None
+        children: Union[str, List[str]], *, style: Optional[str] = None
     ) -> str:
         resolved_children = (
             [children] if isinstance(children, str) else children
@@ -24,6 +26,7 @@ class _HTMLBuilder:
 
     @staticmethod
     def img(
+        *,
         src: Optional[str] = None,
         alt: Optional[str] = None,
         style: Optional[str] = None,
@@ -43,6 +46,7 @@ class _HTMLBuilder:
 
     @staticmethod
     def video(
+        *,
         src: Optional[str] = None,
         controls: bool = True,
         muted: bool = False,
@@ -65,12 +69,13 @@ class _HTMLBuilder:
             params.append(("loop", ""))
 
         if len(params) == 0:
-            return "<video />"
+            return "<video></video>"
         else:
-            return f"<video {_join_params(params)} />"
+            return f"<video {_join_params(params)}></video>"
 
     @staticmethod
     def audio(
+        *,
         src: Optional[str] = None,
         controls: bool = True,
     ) -> str:
@@ -81,18 +86,21 @@ class _HTMLBuilder:
             params.append(("controls", ""))
 
         if len(params) == 0:
-            return "<audio />"
+            return "<audio></audio>"
         else:
-            return f"<audio {_join_params(params)} />"
+            return f"<audio {_join_params(params)}></audio>"
 
     @staticmethod
     def iframe(
+        *,
         src: Optional[str] = None,
         srcdoc: Optional[str] = None,
         width: Optional[str] = None,
         height: Optional[str] = None,
         style: Optional[str] = None,
         onload: Optional[str] = None,
+        # Opinionated defaults
+        frameborder: Optional[str] = "0",
         **kwargs: str,
     ) -> str:
         params: List[Tuple[str, Union[str, None]]] = []
@@ -108,13 +116,15 @@ class _HTMLBuilder:
             params.append(("style", style))
         if onload:
             params.append(("onload", onload))
+        if frameborder:
+            params.append(("frameborder", frameborder))
         for key, value in kwargs.items():
             params.append((key, value))
 
         if len(params) == 0:
-            return "<iframe />"
+            return "<iframe></iframe>"
         else:
-            return f"<iframe {_join_params(params)} />"
+            return f"<iframe {_join_params(params)}></iframe>"
 
     @staticmethod
     def pre(child: str, style: Optional[str] = None) -> str:

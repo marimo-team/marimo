@@ -23,11 +23,13 @@ import {
   SortingState,
   getSortedRowModel,
   ColumnSort,
+  getFilteredRowModel,
 } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../data-table/column-header";
 import { sortBy } from "lodash-es";
 import { getCellEditorView } from "@/core/cells/cells";
 import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
+import { SearchInput } from "../ui/input";
 
 interface Props {
   className?: string;
@@ -232,6 +234,7 @@ function sortData(
 export const VariableTable: React.FC<Props> = memo(
   ({ className, cellIds, variables }) => {
     const [sorting, setSorting] = React.useState<SortingState>([]);
+    const [globalFilter, setGlobalFilter] = React.useState("");
 
     const sortedVariables = useMemo(() => {
       const cellIdToIndex = new Map<CellId, number>();
@@ -243,39 +246,68 @@ export const VariableTable: React.FC<Props> = memo(
       data: sortedVariables,
       columns: COLUMNS,
       getCoreRowModel: getCoreRowModel(),
+      // filtering
+      onGlobalFilterChange: setGlobalFilter,
+      getFilteredRowModel: getFilteredRowModel(),
+      enableFilters: true,
+      enableGlobalFilter: true,
+      getColumnCanGlobalFilter(column) {
+        // Opt-out only
+        return column.columnDef.enableGlobalFilter ?? true;
+      },
+      globalFilterFn: "auto",
       // sorting
       manualSorting: true,
       onSortingChange: setSorting,
       getSortedRowModel: getSortedRowModel(),
-      state: { sorting },
+      state: {
+        sorting,
+        globalFilter,
+      },
     });
 
     return (
-      <Table className={cn("w-full overflow-hidden text-sm flex-1", className)}>
-        <TableHeader>
-          <TableRow className="whitespace-nowrap text-xs">
-            {table.getFlatHeaders().map((header) => (
-              <TableHead key={header.id}>
-                {flexRender(
-                  header.column.columnDef.header,
-                  header.getContext(),
-                )}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} className="hover:bg-accent">
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
+      <>
+        <SearchInput
+          className="w-full"
+          placeholder="Search"
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+        />
+        <Table
+          className={cn(
+            "w-full text-sm flex-1 border-separate border-spacing-0",
+            className,
+          )}
+        >
+          <TableHeader>
+            <TableRow className="whitespace-nowrap text-xs">
+              {table.getFlatHeaders().map((header) => (
+                <TableHead
+                  key={header.id}
+                  className="sticky top-0 bg-background border-b"
+                >
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext(),
+                  )}
+                </TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id} className="hover:bg-accent">
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="border-b">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </>
     );
   },
 );

@@ -123,4 +123,25 @@ describe("collapseConsoleOutputs", () => {
       !orld"
     `);
   });
+
+  it("doesn't mutate the input", () => {
+    const consoleOutputs: OutputMessage[] = [
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "Hello ",
+        timestamp: 0,
+      },
+      {
+        mimetype: "text/plain",
+        channel: "output",
+        data: "World",
+        timestamp: 0,
+      },
+    ];
+    const result = collapseConsoleOutputs(consoleOutputs);
+    expect(result).not.toBe(consoleOutputs);
+    expect(result[0]).not.toBe(consoleOutputs[0]);
+    expect(result[1]).not.toBe(consoleOutputs[1]);
+  });
 });
