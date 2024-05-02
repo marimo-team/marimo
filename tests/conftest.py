@@ -223,7 +223,7 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
 
         app._unparsable_cell(
             r\"""
-            partial_statment =
+            partial_statement =
             \""",
             name="__"
         )
