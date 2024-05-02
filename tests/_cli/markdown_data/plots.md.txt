@@ -1,0 +1,180 @@
+---
+title: Plots
+marimo-version: 0.0.0
+---
+
+# Plotting
+```{marimo}
+check_dependencies()
+```
+
+marimo supports several popular plotting libraries, including matplotlib,
+plotly, seaborn, and altair.
+
+This tutorial gives examples using matplotlib; other libraries are
+used similarly.
+## Matplotlib
+To show a plot, include it in the last expression of a cell (just
+like any other output).
+
+```python3
+# create the plot in the last line of the cell
+import matplotlib.pyplot as plt
+plt.plot([1, 2])
+```
+```{marimo}
+plt.plot([1, 2])
+```
+
+```python3
+# create a plot
+plt.plot([1, 2])
+# ... do some work ...
+# make plt.gca() the last line of the cell
+plt.gca()
+```
+```{marimo}
+plt.plot([1, 2])
+# ... do some work ...
+# make plt.gca() the last line of the cell
+plt.gca()
+```
+
+```{marimo}
+mo.accordion(plt_show_explainer)
+```
+
+**A new figure every cell.** Every cell starts with an empty figure for
+the imperative `pyplot` API.
+```{marimo}
+x = np.linspace(start=-4, stop=4, num=100, dtype=float)
+```
+
+```{marimo}
+plt.plot(x, x)
+plt.plot(x, x**2)
+plt.gca()
+```
+
+```{marimo}
+plt.plot(x, x**3)
+```
+
+To build a figure over multiple cells, use the object-oriented API and
+create your own axis:
+```{marimo}
+_, axis = plt.subplots()
+axis.plot(x, x)
+axis.plot(x, x**2)
+axis
+```
+
+```{marimo}
+axis.plot(x, x**3)
+axis
+```
+
+### Draw plots interactively
+
+Draw plots interactively by parametrizing them with UI elements.
+```{marimo}
+exponent = mo.ui.slider(1, 5, value=1, step=1, label='exponent')
+
+mo.md(
+    f"""
+    **Visualizing powers.**
+
+    {exponent}
+    """
+)
+```
+
+```{marimo}
+import functools
+
+
+@functools.cache
+def _plot(exponent):
+    plt.plot(x, x**exponent)
+    return plt.gca()
+
+
+_tex = (
+    f"$$f(x) = x^{exponent.value}$$" if exponent.value > 1 else "$$f(x) = x$$"
+)
+
+mo.md(
+    f"""
+
+    {_tex}
+
+    {mo.as_html(_plot(exponent.value))}
+    """
+)
+```
+
+## Other libraries
+marimo also supports these other plotting libraries:
+
+- Plotly
+- Seaborn
+- Altair
+
+Just output their figure objects as the last expression of a cell,
+or embed them in markdown with `mo.as_html`.
+
+If you would like another library to be integrated into marimo, please
+get in touch.
+````{marimo}
+module_not_found_explainer = mo.md(
+    """
+    ## Oops!
+
+    It looks like you're missing a package that this tutorial 
+    requires.
+
+    Close marimo, install **`numpy`** and **`matplotlib`**, then 
+    open this tutorial once more.
+
+    If you use `pip`, run
+
+    ```
+    pip install numpy matplotlib
+    ```
+
+    at your command line.
+    """
+).callout(kind='warn')
+
+def check_dependencies():
+    if missing_packages:
+        return module_not_found_explainer
+````
+
+```{marimo}
+plt_show_explainer = {
+    "Using `plt.show()`": """
+    You can use `plt.show()` or `figure.show()` to display
+    plots in the console area of a cell. Keep in mind that console
+    outputs are not shown in the app view.
+    """
+}
+```
+
+```{marimo}
+try:
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import numpy as np
+    missing_packages = False
+except ModuleNotFoundError:
+    missing_packages = True
+
+if not missing_packages:
+    matplotlib.rcParams['figure.figsize'] = (6, 2.4)
+```
+
+```{marimo}
+import marimo as mo
+```
+
