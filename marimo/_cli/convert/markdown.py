@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, Literal
 
-import sys
-
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 

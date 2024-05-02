@@ -1,0 +1,9 @@
+---
+title: Notebook
+marimo-version: 0.0.0
+---
+
+```{marimo}
+import asyncio
+await asyncio.sleep(0.1)
+```
