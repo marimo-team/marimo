@@ -75,7 +75,6 @@ export class RuntimeState {
   flushUpdates() {
     if (this.componentsToUpdate.size > 0) {
       // Start a run
-      // TODO(akshayka): don't register if automatic execution is disabled
       this.registerRunStart();
 
       // Store the components to update, in case the run fails to be sent
