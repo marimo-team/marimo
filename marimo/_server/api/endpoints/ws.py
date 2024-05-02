@@ -258,7 +258,7 @@ class WebsocketHandler(SessionConsumer):
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
                 # In case their is a lingering connection, close it
-                existing_session.disconnect_consumer()
+                existing_session.maybe_disconnect_consumer()
                 await self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
