@@ -49,6 +49,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
   const [edges, setEdges] = useEdgesState([]);
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [selectedNodeId, setSelectedNodeId] = useState<CellId>();
+  const [selectedEdge, setSelectedEdge] = useState<Edge>();
   const hasRenderer = useRef(false);
 
   // Subscriptions
@@ -105,6 +106,33 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
 
   const translateExtent = useTranslateExtent(nodes, height);
 
+  const renderGraphSelectionPanel = () => {
+    if (selectedEdge) {
+      return (
+        <GraphSelectionPanel
+          selection={{
+            type: "edge",
+            source: selectedEdge.source as CellId,
+            target: selectedEdge.target as CellId,
+          }}
+          variables={variables}
+          edges={edges}
+        />
+      );
+    }
+    if (selectedNodeId) {
+      return (
+        <GraphSelectionPanel
+          selection={{ type: "node", id: selectedNodeId }}
+          variables={variables}
+          edges={edges}
+        />
+      );
+    }
+
+    return null;
+  };
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -113,14 +141,15 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
       translateExtent={translateExtent}
       onNodeClick={(_event, node) => {
         const id = node.id;
-        if (id === selectedNodeId) {
-          return;
-        }
         setSelectedNodeId(id as CellId);
+        setSelectedEdge(undefined);
         setEdges([]);
       }}
       onNodeDoubleClick={(_event, node) => {
         scrollToCell(node.id as CellId, "focus");
+      }}
+      onEdgeClick={(_event, edge) => {
+        setSelectedEdge(edge);
       }}
       // On
       snapToGrid={true}
@@ -144,13 +173,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
       autoPanOnNodeDrag={false}
       autoPanOnConnect={false}
     >
-      {selectedNodeId && (
-        <GraphSelectionPanel
-          selection={{ type: "node", id: selectedNodeId }}
-          variables={variables}
-          edges={edges}
-        />
-      )}
+      {renderGraphSelectionPanel()}
       {children}
     </ReactFlow>
   );
