@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import "../css/index.css";
+import "../css/app/App.css";
 import "iconify-icon";
 
 import React, { PropsWithChildren, Suspense, memo } from "react";

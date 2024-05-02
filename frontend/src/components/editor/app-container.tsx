@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import "../../css/app/App.css";
 import { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
 import React, { PropsWithChildren } from "react";
