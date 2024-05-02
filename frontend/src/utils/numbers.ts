@@ -1,7 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { format } from "mathjs";
-
 export function prettyNumber(value: number): string {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: 0,
@@ -21,12 +19,23 @@ export function prettyScientificNumber(value: number): string {
     return value > 0 ? "Infinity" : "-Infinity";
   }
 
-  return Math.trunc(value) === 0
-    ? // No integer part, use scientific notation
-      format(value, { notation: "auto", precision: 2 })
-    : // Number has an integer part, format with 2 decimal places
-      value.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      });
+  // Determine if the number should be in scientific notation
+  const absValue = Math.abs(value);
+  if (absValue < 1e-2 || absValue >= 1e6) {
+    return new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+      notation: "scientific",
+    })
+      .format(value)
+      .toLowerCase();
+  }
+
+  // Number has an integer part, format with 2 decimal places
+  const formatter = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+
+  return formatter.format(value);
 }
