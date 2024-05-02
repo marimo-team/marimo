@@ -45,7 +45,7 @@ def _broadcast_variables(
         VariableValues(variables=values).broadcast()
 
 
-def _send_output_to_frontend(
+def _broadcast_outputs(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
@@ -141,6 +141,6 @@ def _reset_matplotlib_context(
 POST_EXECUTION_HOOKS = [
     _set_status_idle,
     _broadcast_variables,
-    _send_output_to_frontend,
+    _broadcast_outputs,
     _reset_matplotlib_context,
 ]

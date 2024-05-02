@@ -158,13 +158,19 @@ class DirectedGraph:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
 
-        if any(self.cells[cid].stale for cid in self.ancestors(cell_id)):
+        if self._is_any_ancestor_stale(cell_id):
             self.set_stale(set([cell_id]))
 
-        if any(
-            self.cells[cid].config.disabled for cid in self.ancestors(cell_id)
-        ):
+        if self._is_any_ancestor_disabled(cell_id):
             cell.set_status(status="disabled-transitively")
+
+    def _is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
+        return any(self.cells[cid].stale for cid in self.ancestors(cell_id))
+
+    def _is_any_ancestor_disabled(self, cell_id: CellId_t) -> bool:
+        return any(
+            self.cells[cid].config.disabled for cid in self.ancestors(cell_id)
+        )
 
     def disable_cell(self, cell_id: CellId_t) -> None:
         """

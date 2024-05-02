@@ -1,8 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 __all__ = [
+    # hooks to run before the runner starts running its subgraph
     "PREPARATION_HOOKS",
+    # hooks to run right before each cell is run
     "PRE_EXECUTION_HOOKS",
+    # hooks to run right after each cell is run
     "POST_EXECUTION_HOOKS",
+    # hooks to run once the runner has finished executing its subgraph
     "ON_FINISH_HOOKS",
 ]
 
