@@ -42,7 +42,7 @@ export const GraphToolbar: React.FC<Props> = memo(
       <Popover>
         <PopoverTrigger asChild={true}>
           <Button variant="text" size="xs">
-            <SettingsIcon />
+            <SettingsIcon className="w-4 h-4" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-2 text-muted-foreground">
