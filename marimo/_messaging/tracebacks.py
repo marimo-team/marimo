@@ -29,10 +29,7 @@ def write_traceback(traceback: str) -> None:
     except ContextNotInitializedError:
         ctx = None
 
-    if (
-        ctx is not None
-        and ctx.stderr is not None
-    ):
+    if ctx is not None and ctx.stderr is not None:
         ctx.stderr._write_with_mimetype(
             _highlight_traceback(traceback), mimetype="text/html"
         )
