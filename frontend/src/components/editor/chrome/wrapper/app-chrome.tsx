@@ -117,7 +117,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
       defaultSize={0}
-      maxSize={45}
+      maxSize={75}
       onResize={(size, prevSize) => {
         // This means it started closed and is opening for the first time
         if (prevSize === 0 && size === 10) {

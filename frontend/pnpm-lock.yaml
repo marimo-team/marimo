@@ -38,6 +38,9 @@ dependencies:
   '@codemirror/view':
     specifier: ^6.26.3
     version: 6.26.3
+  '@dagrejs/dagre':
+    specifier: ^1.1.2
+    version: 1.1.2
   '@dnd-kit/core':
     specifier: ^6.1.0
     version: 6.1.0(react-dom@18.3.1)(react@18.3.1)
@@ -2181,6 +2184,17 @@ packages:
     dependencies:
       postcss-selector-parser: 6.0.16
     dev: true
+
+  /@dagrejs/dagre@1.1.2:
+    resolution: {integrity: sha512-F09dphqvHsbe/6C2t2unbmpr5q41BNPEfJCdn8Z7aEBpVSy/zFQ/b4SWsweQjWNsYMDvE2ffNUN8X0CeFsEGNw==}
+    dependencies:
+      '@dagrejs/graphlib': 2.2.2
+    dev: false
+
+  /@dagrejs/graphlib@2.2.2:
+    resolution: {integrity: sha512-CbyGpCDKsiTg/wuk79S7Muoj8mghDGAESWGxcSyhHX5jD35vYMBZochYVFzlHxynpE9unpu6O+4ZuhrLxASsOg==}
+    engines: {node: '>17.0.0'}
+    dev: false
 
   /@discoveryjs/json-ext@0.5.7:
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
