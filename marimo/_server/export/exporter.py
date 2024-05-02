@@ -139,7 +139,7 @@ class Exporter:
           title: {get_filename_title(file_manager)}
           marimo-version: {__version__}
           ---"""
-            )
+            ).strip(), ""
         ]
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
@@ -152,7 +152,7 @@ class Exporter:
                     guard = "```"
                     while guard in code:
                         guard += "`"
-                    document.extend([f"""{guard}{{marimo}}""", code, guard])
+                    document.extend([f"""{guard}{{marimo}}""", code, guard, ""])
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document), download_filename

@@ -85,6 +85,7 @@ def get_markdown_from_cell(
     md_lines = _const_string(value.args).split("\n")
     md_lines = [line.rstrip() for line in md_lines]
     md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
+    md = md.strip()
     if callout:
         md = dedent(
             f"""

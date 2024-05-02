@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Literal
 
+import sys
+
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
@@ -93,13 +95,13 @@ class ExpandAndClassifyProcessor(BlockProcessor):
                     return
             if text:
                 paragraph = SubElement(parent, MARIMO_MD)
-                paragraph.text = "\n".join(text)
+                paragraph.text = "\n".join(text).strip()
                 text.clear()
 
         # Operate on line basis, not block basis, but use block processor
         # instead of preprocessor, because we still want to operate on the
         # xml tree.
-        for line in "\n".join(blocks).split("\n"):
+        for line in "\n\n".join(blocks).split("\n"):
             # Superfences replaces code blocks with a placeholder,
             # Check for the placeholder, and ensure it is a marimo code block,
             # otherwise consider it as markdown.
