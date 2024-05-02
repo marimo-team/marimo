@@ -28,6 +28,7 @@ export function createErrorToastingRequests(
     readCode: "Failed to read code",
     readSnippets: "Failed to fetch snippets",
     openFile: "Failed to open file",
+    getUsageStats: "", // Empty string because we don't show a toast for this
     sendListFiles: "Failed to list files",
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
@@ -49,12 +50,15 @@ export function createErrorToastingRequests(
       try {
         return await handler(...args);
       } catch (error) {
+        const title = MESSAGES[keyString];
         const message = prettyError(error);
-        toast({
-          title: MESSAGES[keyString],
-          description: message,
-          variant: "danger",
-        });
+        if (title) {
+          toast({
+            title: title,
+            description: message,
+            variant: "danger",
+          });
+        }
         Logger.error(`Failed to handle request: ${key}`, error);
         // Rethrow the error so that the caller can handle it
         throw error;
