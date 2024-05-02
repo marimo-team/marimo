@@ -71,6 +71,7 @@ dev = [
     "black~=23.3.0",
     "build~=0.10.0",
     "types-Pygments~=2.17.0.20240310",
+    "types-psutil~=5.9.5.20240423",
     # for server testing
     "httpx~=0.26.0",
     # For testing mo.ui.chart, dataframes, tables
