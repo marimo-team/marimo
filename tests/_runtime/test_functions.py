@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+
 from marimo._runtime.functions import (
     Function,
     FunctionNamespace,
@@ -7,15 +9,20 @@ from marimo._runtime.functions import (
 )
 
 
+@dataclasses.dataclass
+class Args:
+    value: int
+
+
 def test_function_init() -> None:
     function = Function(
         name="test_function",
-        arg_cls=int,
-        function=lambda x: x + 1,
+        arg_cls=Args,
+        function=lambda x: x.value + 1,
     )
 
     assert function.name == "test_function"
-    assert function.arg_cls == int
+    assert function.arg_cls == Args
     assert callable(function.function)
     assert function.cell_id is None
 
@@ -23,8 +30,8 @@ def test_function_init() -> None:
 def test_function_call() -> None:
     function = Function(
         name="test_function",
-        arg_cls=int,
-        function=lambda x: x + 1,
+        arg_cls=Args,
+        function=lambda x: x.value + 1,
     )
 
     result = function({"value": 1})
@@ -32,12 +39,12 @@ def test_function_call() -> None:
 
 
 async def test_function_async_call() -> None:
-    async def async_function(x: int) -> int:
-        return x + 1
+    async def async_function(x: Args) -> int:
+        return x.value + 1
 
     function = Function(
         name="test_function",
-        arg_cls=int,
+        arg_cls=Args,
         function=async_function,
     )
 
@@ -49,8 +56,8 @@ def test_function_namespace() -> None:
     namespace = FunctionNamespace(namespace="test_namespace")
     function = Function(
         name="test_function",
-        arg_cls=int,
-        function=lambda x: x + 1,
+        arg_cls=Args,
+        function=lambda x: x.value + 1,
     )
 
     namespace.add(function)
@@ -63,8 +70,8 @@ def test_function_registry() -> None:
     namespace = "test_namespace"
     function = Function(
         name="test_function",
-        arg_cls=int,
-        function=lambda x: x + 1,
+        arg_cls=Args,
+        function=lambda x: x.value + 1,
     )
 
     registry.register(namespace, function)
