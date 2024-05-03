@@ -63,7 +63,7 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
         cycle_with_vars = tuple(
             (
                 edge[0],
-                graph.cells[edge[0]].defs & graph.cells[edge[1]].refs,
+                list(graph.cells[edge[0]].defs & graph.cells[edge[1]].refs),
                 edge[1],
             )
             for edge in cycle

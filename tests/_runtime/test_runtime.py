@@ -335,8 +335,8 @@ async def test_cycle_error(k: Kernel) -> None:
     assert set(k.errors.keys()) == {"0", "1"}
     assert len(k.errors["0"]) == 1
     assert len(k.errors["1"]) == 1
-    _check_edges(k.errors["0"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
-    _check_edges(k.errors["1"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
+    _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
+    _check_edges(k.errors["1"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
     # break cycle by modifying cell
     await k.run([ExecutionRequest(cell_id="1", code="y=1")])
@@ -358,7 +358,7 @@ async def test_break_cycle_error_with_delete(k: Kernel) -> None:
     assert set(k.errors.keys()) == {"0", "1"}
     assert len(k.errors["0"]) == 1
     assert len(k.errors["1"]) == 1
-    _check_edges(k.errors["0"][0], [("0", {"x"}, "1"), ("1", {"y"}, "0")])
+    _check_edges(k.errors["0"][0], [("0", ["x"], "1"), ("1", ["y"], "0")])
 
     # break cycle by deleting cell
     await k.delete(DeleteRequest(cell_id="1"))
