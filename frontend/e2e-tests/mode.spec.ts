@@ -19,6 +19,19 @@ test("page renders edit feature in edit mode", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
+test("can bring up the find/replace dialog", async ({ page }) => {
+  const appUrl = getAppUrl("title.py");
+  await page.goto(appUrl);
+
+  // Click mod+f to bring up the find/replace dialog
+  await page.keyboard.press("Meta+f");
+
+  // Has placeholder text "Find"
+  await expect(page.locator("[placeholder='Find']")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
+});
+
 test("can toggle to presenter mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");
   await page.goto(appUrl);
