@@ -27,6 +27,8 @@ def convert(
 
         marimo convert your_nb.md > your_nb.py
 
+    Jupyter notebook conversion will strip out all outputs. Markdown cell
+    conversion with occur on the presence of `\`\`\`{python}` code blocks.
     After conversion, you can open the notebook in the editor:
 
         marimo edit your_nb.py

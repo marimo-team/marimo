@@ -36,7 +36,7 @@ MARIMO_CODE = "marimo-code"
 
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
-    return bool(re.search(r"\{.*marimo.*\}", head))
+    return bool(re.search(r"\{.*python.*\}", head))
 
 
 def _tree_to_app(root: Element) -> str:
