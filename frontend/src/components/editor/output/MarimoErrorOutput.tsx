@@ -66,8 +66,11 @@ export const MarimoErrorOutput = ({
               {error.edges_with_vars.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
                   <CellLinkError cellId={edge[0]} />
-                  {" -> "} {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}{" "}
-                  {" -> "}
+                  <span className="text-muted-foreground">
+                    {" -> "}
+                    {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}
+                    {" -> "}
+                  </span>
                   <CellLinkError cellId={edge[2]} />
                 </li>
               ))}

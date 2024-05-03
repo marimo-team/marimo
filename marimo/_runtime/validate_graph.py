@@ -58,12 +58,12 @@ def check_for_cycles(graph: DirectedGraph) -> dict[CellId_t, list[CycleError]]:
     for cycle in graph.cycles:
         nodes_in_cycle: set[CellId_t] = set(sum(cycle, ()))
         # before reporting the cells in the cycle to the user,
-        #   we first annotate the cycle with the variable names
-        #   that link its cells
+        # we first annotate the cycle with the variable names
+        # that link its cells
         cycle_with_vars = tuple(
             (
                 edge[0],
-                list(graph.cells[edge[0]].defs & graph.cells[edge[1]].refs),
+                sorted(graph.cells[edge[0]].defs & graph.cells[edge[1]].refs),
                 edge[1],
             )
             for edge in cycle

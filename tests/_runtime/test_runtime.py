@@ -36,7 +36,7 @@ def _check_edges(error: Error, expected_edges: Sequence[EdgeWithVar]) -> None:
     assert isinstance(error, CycleError)
     assert len(error.edges_with_vars) == len(expected_edges)
     for edge in expected_edges:
-        assert edge in error.edges_with_vars or reversed(edge) in error.edges_with_vars
+        assert edge in error.edges_with_vars
 
 
 # Test Basic Reactivity

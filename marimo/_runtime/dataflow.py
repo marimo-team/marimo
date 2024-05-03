@@ -20,7 +20,10 @@ if TYPE_CHECKING:
 
 Edge = Tuple[CellId_t, CellId_t]
 # EdgeWithVar uses a list rather than a set for the variables linking the cells
-#   as sets are not JSON-serializable (required by static_notebook_template())
+# as sets are not JSON-serializable (required by static_notebook_template()).
+# The first entry is the source node; the second entry is a list of defs from
+# the source read by the destination; and the third entry is the destination
+# node.
 EdgeWithVar = Tuple[CellId_t, List[str], CellId_t]
 
 LOGGER = _loggers.marimo_logger()

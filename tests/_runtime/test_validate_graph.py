@@ -99,9 +99,9 @@ def test_three_node_cycle() -> None:
         assert isinstance(t[0], CycleError)
         edges_with_vars = t[0].edges_with_vars
         assert len(edges_with_vars) == 3
-        assert ("0", ["x"], "1") in edges_with_vars or ("1", ["y"], "0") in edges_with_vars
-        assert ("1", ["y"], "2") in edges_with_vars or ("2", ["z"], "1") in edges_with_vars
-        assert ("2", ["z"], "0") in edges_with_vars or ("0", ["x"], "2") in edges_with_vars
+        assert ("0", ["x"], "2") in edges_with_vars
+        assert ("1", ["y"], "0") in edges_with_vars
+        assert ("2", ["z"], "1") in edges_with_vars
 
 
 def test_cycle_and_multiple_def() -> None:
