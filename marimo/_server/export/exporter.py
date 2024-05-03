@@ -17,9 +17,9 @@ from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._server.export.utils import (
+    get_app_title,
     get_download_filename,
     get_filename,
-    get_filename_title,
     get_markdown_from_cell,
 )
 from marimo._server.file_manager import AppFileManager
@@ -136,25 +136,31 @@ class Exporter:
             dedent(
                 f"""
           ---
-          title: {get_filename_title(file_manager)}
+          title: {get_app_title(file_manager)}
           marimo-version: {__version__}
           ---"""
             ).strip(),
             "",
         ]
+        previous_was_markdown = False
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
             code = cell_data.code
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 if markdown:
+                    previous_was_markdown = True
                     document.append(markdown)
                 else:
+                    # Add a blank line between markdown and code
+                    if previous_was_markdown:
+                        document.append("")
+                    previous_was_markdown = False
                     guard = "```"
                     while guard in code:
                         guard += "`"
                     document.extend(
-                        [f"""{guard}{{marimo}}""", code, guard, ""]
+                        [f"""{guard}{{.python.marimo}}""", code, guard, ""]
                     )
 
         download_filename = get_download_filename(file_manager, ".md")

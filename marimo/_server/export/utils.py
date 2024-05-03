@@ -27,7 +27,9 @@ def get_filename(
     return filename
 
 
-def get_filename_title(file_manager: AppFileManager) -> str:
+def get_app_title(file_manager: AppFileManager) -> str:
+    if file_manager.app.config.app_title:
+        return f"{file_manager.app.config.app_title}"
     filename = get_filename(file_manager)
     return format_filename_title(filename)
 

@@ -1,23 +1,34 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from typing import Any, Callable, Literal
 
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
+
+# Note: yaml is also a python builtin
+import yaml
 
 # Markdown is a dependency of marimo, as such we utilize it as much as possible
 # to parse markdown.
 from markdown import Markdown
 from markdown.blockparser import BlockParser
 from markdown.blockprocessors import BlockProcessor
-from markdown.extensions.meta import MetaPreprocessor
+from markdown.preprocessors import Preprocessor
 from markdown.util import HTML_PLACEHOLDER_RE, Registry
 
 # As are extensions
 from pymdownx.superfences import SuperFencesCodeExtension  # type: ignore
 
+from marimo._ast.app import _AppConfig
 from marimo._cli.convert.utils import generate_from_sources, markdown_to_marimo
+
+# CSafeLoader is faster than SafeLoader.
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore[assignment]
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
@@ -25,10 +36,19 @@ MARIMO_CODE = "marimo-code"
 
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
-    return head.endswith("{marimo}")
+    return bool(re.search(r"\{.*marimo.*\}", head))
 
 
 def _tree_to_app(root: Element) -> str:
+    # Extract meta data from root attributes.
+    config_keys = {"title": "app_title"}
+    config = {
+        config_keys[key]: value
+        for key, value in root.items()
+        if key in config_keys
+    }
+    app_config = _AppConfig.from_untrusted_dict(config)
+
     sources = []
     for child in root:
         source = child.text
@@ -40,7 +60,7 @@ def _tree_to_app(root: Element) -> str:
             assert child.tag == MARIMO_CODE, f"Unknown tag: {child.tag}"
         sources.append(source)
 
-    return generate_from_sources(sources)
+    return generate_from_sources(sources, app_config)
 
 
 class MarimoParser(Markdown):
@@ -54,6 +74,7 @@ class MarimoParser(Markdown):
     output_formats: dict[Literal["marimo"], Callable[[Element], str]] = {  # type: ignore[assignment, misc]
         "marimo": _tree_to_app,
     }
+    meta: dict[str, Any]
 
     def build_parser(self) -> MarimoParser:
         """
@@ -70,31 +91,79 @@ class MarimoParser(Markdown):
         return self
 
 
+class FrontMatterPreprocessor(Preprocessor):
+    """Preprocessor for to extract YAML front matter.
+
+    The built-in MetaPreprocessor does not handle frontmatter yaml properly, so
+    this is a custom implementation.
+
+    Like the built-in MetaPreprocessor, this preprocessor extracts yaml and
+    stores it in the Markdown's metadata attribute. Inspired by conversation
+    and linked project in github/Python-Markdown/markdown/497. See docdown
+    (BSD-3) or python-frontmatter (MIT) for similar implementations.
+    """
+
+    def __init__(self, md: MarimoParser):
+        super().__init__(md)
+        self.md = md
+        self.md.meta = {}
+        # Regex captures loose yaml for frontmatter
+        # Should match the following:
+        # ---
+        # title: "Title"
+        # whatever
+        # ---
+        self.yaml_front_matter_regex = re.compile(
+            r"^---\s*\n(.*?\n?)(?:---)\s*\n", re.UNICODE | re.DOTALL
+        )
+
+    def run(self, lines: list[str]) -> list[str]:
+        if not lines:
+            return lines
+
+        doc = "\n".join(lines)
+        result = self.yaml_front_matter_regex.match(doc)
+
+        if result:
+            yaml_content = result.group(1)
+            try:
+                meta = yaml.load(yaml_content, SafeLoader)
+                if isinstance(meta, dict):
+                    self.md.meta = meta  # type: ignore[attr-defined]
+                doc = doc[result.end() :].lstrip("\n")
+            # If there's an error in parsing YAML, ignore the meta and proceed.
+            except yaml.YAMLError as e:
+                raise e
+        return doc.split("\n")
+
+
 class ExpandAndClassifyProcessor(BlockProcessor):
     """Separates code blocks and markdown blocks."""
 
     stash: dict[str, Any]
-    yaml_meta: bool
 
     def test(*_args: Any) -> bool:
         return True
 
     def run(self, parent: Element, blocks: list[str]) -> None:
+        # Copy app metadata to the parent element.
+        for key, value in self.parser.md.meta.items():  # type: ignore[attr-defined]
+            if isinstance(value, str):
+                parent.set(key, value)
+
         text: list[str] = []
-        self.yaml_meta = True
 
         def add_paragraph() -> None:
-            # On first markdown block, check if it contains yaml
-            # (or partially parsed yaml).
-            if self.yaml_meta:
-                self.yaml_meta = False
-                if text[-1] == "---":
-                    text.clear()
+            if not text:
+                return
+            # An additional line break is added before code blocks.
+            if text[-1].strip() == "":
+                text.pop()
+                if not text:
                     return
-            if text:
-                paragraph = SubElement(parent, MARIMO_MD)
-                paragraph.text = "\n".join(text).strip()
-                text.clear()
+            paragraph = SubElement(parent, MARIMO_MD)
+            paragraph.text = "\n".join(text).strip()
+            text.clear()
 
         # Operate on line basis, not block basis, but use block processor
         # instead of preprocessor, because we still want to operate on the
@@ -110,8 +179,6 @@ class ExpandAndClassifyProcessor(BlockProcessor):
                     add_paragraph()
                     code_block = SubElement(parent, MARIMO_CODE)
                     code_block.text = "\n".join(code.split("\n")[1:-1])
-                    # If code block, then it cannot be the initial yaml.
-                    self.yaml_meta = False
                 else:
                     text.extend(code.split("\n"))
             else:
@@ -129,7 +196,7 @@ def _build_marimo_parser() -> MarimoParser:
 
     # Note: MetaPreprocessor does not properly handle frontmatter yaml, so
     # cleanup occurs in the block-processor.
-    md.preprocessors.register(MetaPreprocessor(md), "meta", 100)
+    md.preprocessors.register(FrontMatterPreprocessor(md), "frontmatter", 100)
     fences_ext = SuperFencesCodeExtension()
     fences_ext.extendMarkdown(md)
     # TODO: Consider adding the admonition extension, and integrating it with
@@ -145,5 +212,7 @@ def _build_marimo_parser() -> MarimoParser:
 
 
 def convert_from_md(text: str) -> str:
+    if not text:
+        raise ValueError("No content found in markdown.")
     md = _build_marimo_parser()
     return md.convert(text)
