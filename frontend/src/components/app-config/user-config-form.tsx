@@ -357,7 +357,7 @@ export const UserConfigForm: React.FC = () => {
                       disabled={isWasm}
                       className="inline-flex mr-2"
                     >
-                      {["detect", "autorun"].map((option) => (
+                      {["lazy", "autorun"].map((option) => (
                         <option value={option} key={option}>
                           {option}
                         </option>
@@ -370,8 +370,8 @@ export const UserConfigForm: React.FC = () => {
                   Whether marimo should automatically run cells or just mark
                   them as stale. If "autorun", marimo will automatically run
                   affected cells when a cell is run or a UI element is
-                  interacted with; if "detect", marimo will mark affected cells
-                  as stale but won't re-run them.
+                  interacted with; if "lazy", marimo will mark affected cells as
+                  stale but won't re-run them.
                 </FormDescription>
               </div>
             )}
@@ -390,7 +390,7 @@ export const UserConfigForm: React.FC = () => {
                       disabled={isWasm}
                       className="inline-flex mr-2"
                     >
-                      {["off", "detect", "autorun"].map((option) => (
+                      {["off", "lazy", "autorun"].map((option) => (
                         <option value={option} key={option}>
                           {option}
                         </option>
@@ -403,9 +403,9 @@ export const UserConfigForm: React.FC = () => {
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically reload modules before
-                  executing cells. If "detect", marimo will mark cells affected
-                  by module modifications as stale; if "automatic", affected
-                  cells will be automatically re-run.
+                  executing cells. If "lazy", marimo will mark cells affected by
+                  module modifications as stale; if "automatic", affected cells
+                  will be automatically re-run.
                 </FormDescription>
               </div>
             )}

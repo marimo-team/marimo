@@ -60,7 +60,7 @@ class KeymapConfig(TypedDict, total=False):
     preset: Literal["default", "vim"]
 
 
-OnCellChangeType = Literal["detect", "autorun"]
+OnCellChangeType = Literal["lazy", "autorun"]
 
 
 @mddoc
@@ -73,16 +73,16 @@ class RuntimeConfig(TypedDict):
         run on startup. This only applies when editing a notebook,
         and not when running as an application.
         The default is `True`.
-    - `auto_reload`: if `detect`, cells importing modified modules will marked
+    - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
-    - `on_cell_change`: if `detect`, cells will be marked stale when their
+    - `on_cell_change`: if `lazy`, cells will be marked stale when their
       ancestors run but won't autorun; if `autorun`, cells will automatically
       run when their ancestors run.
     """
 
     auto_instantiate: bool
-    auto_reload: Literal["off", "detect", "autorun"]
+    auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
 
 
@@ -227,7 +227,12 @@ def merge_config(
     if (
         merged["runtime"]["auto_reload"] is True  # type:ignore[comparison-overlap]
     ):
-        merged["runtime"]["auto_reload"] = "detect"
+        merged["runtime"]["auto_reload"] = "lazy"
+    if (
+        merged["runtime"]["auto_reload"] == "detect"  # type:ignore[comparison-overlap]
+    ):
+        merged["runtime"]["auto_reload"] = "lazy"
+
     return merged
 
 

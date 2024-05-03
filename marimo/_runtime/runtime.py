@@ -352,7 +352,7 @@ class Kernel:
         ):
             self.package_manager = create_package_manager(package_manager)
 
-        if autoreload_mode == "detect" or autoreload_mode == "autorun":
+        if autoreload_mode == "lazy" or autoreload_mode == "autorun":
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -804,7 +804,7 @@ class Kernel:
             - cells_registered_without_error
         ) & cells_in_graph
 
-        if self.reactive_execution_mode == "detect":
+        if self.reactive_execution_mode == "lazy":
             self.graph.set_stale(stale_cells)
             return cells_registered_without_error
         else:
@@ -821,7 +821,7 @@ class Kernel:
         patches.patch_sys_module(self._module)
         while cell_ids := await self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
-            if self.reactive_execution_mode == "detect" and cell_ids:
+            if self.reactive_execution_mode == "lazy" and cell_ids:
                 self.graph.set_stale(cell_ids)
                 break
         LOGGER.debug("Finished run.")

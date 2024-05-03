@@ -91,12 +91,9 @@ by your notebook's imported modules too.
 
 Autoreloading comes in two types:
 
-- "detect": automatically marks cells affected by module
+- "lazy": automatically marks cells affected by module
   modifications as stale, letting you know which cells need to be re-run.
 - "autorun": automatically re-runs cells affected by module modification.
-
-**Note:** Make sure the imported modules are in packages/folders with
-`__init__.py` files, otherwise marimo's detection may fail.
 
 **Why autoreload?** Autoreloading enables a workflow that many developers find
 productive: develop complex logic in Python modules, and use the marimo

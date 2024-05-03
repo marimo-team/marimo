@@ -6,7 +6,7 @@ from marimo._runtime.runner import cell_runner
 def _update_stale_statuses(runner: cell_runner.Runner) -> None:
     graph = runner.graph
 
-    if runner.execution_mode == "detect":
+    if runner.execution_mode == "lazy":
         for cid in dataflow.transitive_closure(
             graph, set(runner.cells_to_run), inclusive=False
         ):
