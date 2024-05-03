@@ -295,6 +295,7 @@ class progress_bar:
             bar.update()
     ```
 
+The `update` method accepts the optional keyword arguments `increment` (defaults to `1`), `title`, and `subtitle`.
     For performance reasons, the progress bar is only updated in the UI
     every 150ms.
 
@@ -342,7 +343,7 @@ class progress_bar:
         elif total is None:
             raise ValueError(
                 "`total` is required when using as a context manager"
-            ) from None
+            )
 
         self.progress = ProgressBar(
             title=title,
