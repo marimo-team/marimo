@@ -7,8 +7,9 @@ import { isStaticNotebook } from "../static/static-state";
 import { createNetworkRequests } from "./requests-network";
 import { createStaticRequests } from "./requests-static";
 import { createErrorToastingRequests } from "./requests-toasting";
+import { EditRequests, RunRequests } from "./types";
 
-function getRequest() {
+function getRequest(): EditRequests & RunRequests {
   if (isIslands()) {
     // We don't wrap in error toasting, since we don't currently mount
     // the ToastProvider in islands
@@ -45,6 +46,7 @@ export const {
   readCode,
   readSnippets,
   openFile,
+  getUsageStats,
   sendListFiles,
   sendCreateFileOrFolder,
   sendDeleteFileOrFolder,

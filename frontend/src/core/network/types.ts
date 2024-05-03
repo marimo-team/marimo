@@ -203,6 +203,19 @@ export interface ExportHTMLRequest {
   download: boolean;
 }
 
+export interface UsageResponse {
+  memory: {
+    total: number;
+    available: number;
+    percent: number;
+    used: number;
+    free: number;
+  };
+  cpu: {
+    percent: number;
+  };
+}
+
 /**
  * Requests sent to the BE during run/edit mode.
  */
@@ -235,6 +248,7 @@ export interface EditRequests {
   readCode: () => Promise<{ contents: string }>;
   readSnippets: () => Promise<SnippetsResponse>;
   openFile: (request: { path: string }) => Promise<null>;
+  getUsageStats: () => Promise<UsageResponse>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendCreateFileOrFolder: (

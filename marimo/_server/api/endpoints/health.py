@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from starlette.responses import JSONResponse
+from starlette.authentication import requires
+from starlette.responses import JSONResponse, PlainTextResponse
 
 from marimo import __version__, _loggers
 from marimo._server.api.deps import AppState
@@ -46,5 +47,36 @@ async def status(request: Request) -> JSONResponse:
             "requirements": get_required_modules_list(),
             "node_version": get_node_version(),
             "lsp_running": app_state.session_manager.lsp_server.is_running(),
+        }
+    )
+
+
+@router.get("/api/version")
+async def version(request: Request) -> PlainTextResponse:
+    del request  # Unused
+    return PlainTextResponse(__version__)
+
+
+@router.get("/api/usage")
+@requires("edit")
+async def usage(request: Request) -> JSONResponse:
+    del request
+    import psutil
+
+    memory = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=1)
+
+    return JSONResponse(
+        {
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "percent": memory.percent,
+                "used": memory.used,
+                "free": memory.free,
+            },
+            "cpu": {
+                "percent": cpu,
+            },
         }
     )

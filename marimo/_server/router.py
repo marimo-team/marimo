@@ -93,6 +93,8 @@ class APIRouter(Router):
                     return response
                 if isinstance(response, StreamingResponse):
                     return response
+                if isinstance(response, PlainTextResponse):
+                    return response
 
                 if dataclasses.is_dataclass(response):
                     return JSONResponse(
