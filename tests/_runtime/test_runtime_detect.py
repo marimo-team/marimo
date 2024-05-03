@@ -1,23 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
-import pytest
 
-from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
     Error,
     MultipleDefinitionError,
 )
-from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._runtime.dataflow import Edge
 from marimo._runtime.requests import (
-    AppMetadata,
     CreationRequest,
     DeleteRequest,
     ExecutionRequest,
@@ -26,10 +21,6 @@ from marimo._runtime.requests import (
 )
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
-
-if TYPE_CHECKING:
-    import pathlib
-    from types import ModuleType
 
 
 def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:
@@ -84,8 +75,8 @@ async def test_triangle_top_down(detect_kernel: Kernel) -> None:
     assert k.globals["z"] == 5
 
 
-# TODO: migrate the below tests to use detect_kernel
-async def test_set_ui_element_value(k: Kernel) -> None:
+async def test_set_ui_element_value(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run([ExecutionRequest(cell_id="0", code="import marimo as mo")])
     await k.run(
         [
@@ -99,11 +90,24 @@ async def test_set_ui_element_value(k: Kernel) -> None:
 
     element_id = k.globals["s"]._id
     await k.set_ui_element_value(SetUIElementValueRequest([(element_id, 5)]))
+    # UI element value updated ...
     assert k.globals["s"].value == 5
+
+    # ... but downstream cells not run
+    assert k.graph.cells["2"].stale
+    assert k.globals["x"] == 2
+
+    await k.run([ExecutionRequest(cell_id="2", code="x = s.value + 1")])
     assert k.globals["x"] == 6
 
 
-async def test_set_ui_element_value_not_found_doesnt_fail(k: Kernel) -> None:
+# TODO: migrate the below tests to use detect_kernel
+
+# TODO(akshayka): share code with runtime auto
+async def test_set_ui_element_value_not_found_doesnt_fail(
+    detect_kernel: Kernel,
+) -> None:
+    k = detect_kernel
     # smoke test -- this shouldn't raise an exception
     await k.set_ui_element_value(
         SetUIElementValueRequest([("does not exist", None)])
@@ -111,13 +115,14 @@ async def test_set_ui_element_value_not_found_doesnt_fail(k: Kernel) -> None:
 
 
 async def test_set_ui_element_value_lensed(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element.
 
     Make sure reactivity flows through its parent, and that its on_change
     handler is called exactly once.
     """
+    k = detect_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     # Create an array and output it ...
@@ -152,13 +157,14 @@ async def test_set_ui_element_value_lensed(
 
 
 async def test_set_ui_element_value_lensed_bound_child(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element.
 
     Make sure reactivity flows through its parent and also to names bound
     to children.
     """
+    k = detect_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     cell_one_code = """
@@ -177,9 +183,10 @@ async def test_set_ui_element_value_lensed_bound_child(
 
 
 async def test_set_ui_element_value_lensed_with_state(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element with on_change set_state"""
+    k = detect_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     # Create an array and output it ...
@@ -202,7 +209,8 @@ async def test_set_ui_element_value_lensed_with_state(
     assert k.globals["state"] == 5
 
 
-async def test_set_local_var_ui_element_value(k: Kernel) -> None:
+async def test_set_local_var_ui_element_value(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run([ExecutionRequest("0", "import marimo as mo")])
     await k.run(
         [ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
@@ -216,7 +224,9 @@ async def test_set_local_var_ui_element_value(k: Kernel) -> None:
     assert k.globals["_cell_1_s"].value == 5
 
 
-async def test_creation_with_ui_element_value(k: Kernel) -> None:
+# TODO(akshayka): share with runtime auto
+async def test_creation_with_ui_element_value(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     id_provider = IDProvider(prefix="1")
     await k.instantiate(
         CreationRequest(
@@ -235,9 +245,11 @@ async def test_creation_with_ui_element_value(k: Kernel) -> None:
 
 
 # Test errors in marimo semantics
+# TODO(akshayka): share with runtime auto
 async def test_kernel_simultaneous_multiple_definition_error(
-    k: Kernel,
+    detect_kernel: Kernel,
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -251,9 +263,11 @@ async def test_kernel_simultaneous_multiple_definition_error(
     assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
 
+# TODO(akshayka): share with runtime auto
 async def test_kernel_new_multiple_definition_does_not_invalidate(
-    k: Kernel,
+    detect_kernel: Kernel,
 ) -> None:
+    k = detect_kernel
     await k.run([ExecutionRequest(cell_id="0", code="x=0")])
     assert k.globals["x"] == 0
     assert not k.errors
@@ -272,7 +286,8 @@ async def test_kernel_new_multiple_definition_does_not_invalidate(
     assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
 
-async def test_clear_multiple_definition_error(k: Kernel) -> None:
+async def test_clear_multiple_definition_error(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -292,7 +307,10 @@ async def test_clear_multiple_definition_error(k: Kernel) -> None:
     assert not k.errors
 
 
-async def test_clear_multiple_definition_error_with_delete(k: Kernel) -> None:
+async def test_clear_multiple_definition_error_with_delete(
+    detect_kernel: Kernel,
+) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -310,7 +328,8 @@ async def test_clear_multiple_definition_error_with_delete(k: Kernel) -> None:
     assert not k.errors
 
 
-async def test_new_errors_update_old_ones(k: Kernel) -> None:
+async def test_new_errors_update_old_ones(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run([ExecutionRequest(cell_id="0", code="x=0")])
     await k.run([ExecutionRequest(cell_id="1", code="x, y =1, 2")])
     assert set(k.errors.keys()) == {"1"}
@@ -331,7 +350,8 @@ async def test_new_errors_update_old_ones(k: Kernel) -> None:
     assert k.globals["x"] == 0
 
 
-async def test_cycle_error(k: Kernel) -> None:
+async def test_cycle_error(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=y"),
@@ -355,7 +375,8 @@ async def test_cycle_error(k: Kernel) -> None:
     assert not k.errors
 
 
-async def test_break_cycle_error_with_delete(k: Kernel) -> None:
+async def test_break_cycle_error_with_delete(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=y"),
@@ -374,7 +395,8 @@ async def test_break_cycle_error_with_delete(k: Kernel) -> None:
     assert not k.errors
 
 
-async def test_delete_nonlocal_error(k: Kernel) -> None:
+async def test_delete_nonlocal_error(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -394,7 +416,10 @@ async def test_delete_nonlocal_error(k: Kernel) -> None:
     assert not k.errors
 
 
-async def test_defs_with_no_definers_are_removed_from_cell(k: Kernel) -> None:
+async def test_defs_with_no_definers_are_removed_from_cell(
+    detect_kernel: Kernel,
+) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -425,7 +450,8 @@ async def test_defs_with_no_definers_are_removed_from_cell(k: Kernel) -> None:
     assert k.globals["y"] == 2
 
 
-async def test_syntax_error(k: Kernel) -> None:
+async def test_syntax_error(detect_kernel: Kernel) -> None:
+    k = detect_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -452,8 +478,9 @@ async def test_syntax_error(k: Kernel) -> None:
 
 
 async def test_disable_and_reenable_not_stale(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (
@@ -494,8 +521,9 @@ async def test_disable_and_reenable_not_stale(
 
 
 async def test_disable_and_reenable_stale(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (
@@ -549,7 +577,7 @@ async def test_disable_and_reenable_stale(
 
 
 async def test_disable_and_reenable_tree(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     # x
     # x --> y
@@ -620,8 +648,9 @@ async def test_disable_and_reenable_tree(
 
 
 async def test_disable_consecutive(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),
@@ -667,8 +696,9 @@ async def test_disable_consecutive(
 
 
 async def test_disable_syntax_error(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),
@@ -698,7 +728,10 @@ async def test_disable_syntax_error(
     assert not k.graph.cells[er_1.cell_id].stale
 
 
-async def test_disable_cycle(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_disable_cycle(
+    detect_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = detect_kernel
     await k.run(
         [
             (er_1 := exec_req.get("a = b")),
@@ -734,8 +767,9 @@ async def test_disable_cycle(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_disable_cycle_incremental(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run([er_1 := exec_req.get("a = b")])
     await k.set_cell_config(
         SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
@@ -747,8 +781,9 @@ async def test_disable_cycle_incremental(
 
 
 async def test_enable_cycle_incremental(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (er_1 := exec_req.get("a = b")),
@@ -769,8 +804,9 @@ async def test_enable_cycle_incremental(
 
 
 async def test_set_config_before_registering_cell(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     er_1 = exec_req.get("x = 0")
     await k.set_cell_config(
         SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
@@ -780,7 +816,10 @@ async def test_set_config_before_registering_cell(
     assert "x" not in k.globals
 
 
-async def test_interrupt(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_interrupt(
+    detect_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = detect_kernel
     er = exec_req.get(
         """
         from marimo._runtime.control_flow import MarimoInterrupt
@@ -800,7 +839,10 @@ async def test_interrupt(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["tries"] == 0
 
 
-async def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_file_path(
+    detect_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = detect_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -812,8 +854,9 @@ async def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_cell_state_invalidated(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 0")),
@@ -828,7 +871,8 @@ async def test_cell_state_invalidated(
     assert "y" not in k.globals
 
 
-async def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_pickle(detect_kernel: Kernel, exec_req: ExecReqProvider) -> None:
+    k = detect_kernel
     await k.run(
         [
             exec_req.get("import pickle"),
@@ -847,8 +891,9 @@ async def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_set_ui_element_value_with_cell_run(
-    k: Kernel, exec_req: ExecReqProvider
+    detect_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = detect_kernel
     # This test imports a cell from another notebook that defines a UI element
     # It then sets a value on the UI element, and makes sure that reactivity
     # flows through the defs mapping that is returned
@@ -873,254 +918,3 @@ async def test_set_ui_element_value_with_cell_run(
     # reactive execution on the slider in `defs` shouldn't trigger reactive
     # execution on `second_defs`
     assert k.globals["counter"][0] == 1
-
-
-def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
-    main: ModuleType | None = None
-    try:
-        filename = str(tmp_path / "notebook.py")
-        if "__main__" in sys.modules:
-            # kernel patches __main__; need to reset it after test
-            main = sys.modules["__main__"]
-        Kernel(
-            stream=NoopStream(),
-            stdout=None,
-            stderr=None,
-            stdin=None,
-            cell_configs={},
-            user_config=DEFAULT_CONFIG,
-            app_metadata=AppMetadata(
-                query_params={}, filename=filename, cli_args={}
-            ),
-            enqueue_control_request=lambda _: None,
-        )
-        assert str(tmp_path) in sys.path
-        assert str(tmp_path) == sys.path[0]
-    finally:
-        if str(tmp_path) in sys.path:
-            sys.path.remove(str(tmp_path))
-        if main is not None:
-            sys.modules["__main__"] = main
-
-
-async def test_running_in_notebook(
-    k: Kernel, exec_req: ExecReqProvider
-) -> None:
-    await k.run(
-        [exec_req.get("import marimo as mo; in_nb = mo.running_in_notebook()")]
-    )
-    assert k.globals["in_nb"]
-
-
-def test_not_running_in_notebook() -> None:
-    from marimo._runtime.context.utils import running_in_notebook
-
-    assert not running_in_notebook()
-
-
-class TestAsyncIO:
-    @staticmethod
-    async def test_toplevel_await_allowed(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    await asyncio.sleep(0)
-                    ran = True
-                    """
-                ),
-            ]
-        )
-        assert k.globals["ran"]
-
-    @staticmethod
-    async def test_toplevel_gather(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    l = []
-                    async def f():
-                        l.append(1)
-                        await asyncio.sleep(0.1)
-                        l.append(2)
-
-                    import asyncio
-                    await asyncio.gather(f(), f())
-                    """
-                ),
-            ]
-        )
-        assert k.globals["l"] == [1, 1, 2, 2]
-
-    @staticmethod
-    async def test_wait_for(k: Kernel, exec_req: ExecReqProvider) -> None:
-        import asyncio
-
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    async def eternity():
-                        await asyncio.sleep(3600)
-
-                    e = None
-                    try:
-                        await asyncio.wait_for(eternity(), timeout=0)
-                    except asyncio.exceptions.TimeoutError as exc:
-                        e = exc
-                    """
-                ),
-            ]
-        )
-        assert not k.errors
-        assert isinstance(k.globals["e"], asyncio.exceptions.TimeoutError)
-
-    @staticmethod
-    async def test_await_future(k: Kernel, exec_req: ExecReqProvider) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    future = asyncio.Future()
-                    future.set_result(1)
-                    """
-                ),
-                exec_req.get(
-                    """
-                    result = await future
-                    """
-                ),
-            ]
-        )
-        assert k.globals["result"] == 1
-        assert k.globals["future"].done()
-
-    @staticmethod
-    async def test_await_future_complex(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    """
-                ),
-                exec_req.get(
-                    """
-                    async def set_after(fut, delay, value):
-                        await asyncio.sleep(delay)
-                        fut.set_result(value)
-                    """
-                ),
-                exec_req.get(
-                    """
-                    fut = asyncio.Future()
-                    asyncio.create_task(set_after(fut, 0.01, "done"))
-                    result = await fut
-                    """
-                ),
-            ]
-        )
-        assert k.globals["result"] == "done"
-
-    @staticmethod
-    async def test_run_in_default_executor(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    """
-                ),
-                exec_req.get(
-                    """
-                    def blocking():
-                        return "done"
-                    """
-                ),
-                exec_req.get(
-                    """
-                    res = await asyncio.get_running_loop().run_in_executor(
-                        None, blocking)
-                    """
-                ),
-            ]
-        )
-        assert k.globals["res"] == "done"
-
-    @staticmethod
-    async def test_run_in_threadpool_executor(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    import concurrent.futures
-                    """
-                ),
-                exec_req.get(
-                    """
-                    def blocking():
-                        return "done"
-                    """
-                ),
-                exec_req.get(
-                    """
-                    loop = asyncio.get_running_loop()
-                    with concurrent.futures.ThreadPoolExecutor() as pool:
-                        res = await loop.run_in_executor(pool, blocking)
-                    """
-                ),
-            ]
-        )
-        assert k.globals["res"] == "done"
-
-    @staticmethod
-    @pytest.mark.xfail(
-        condition=sys.platform == "win32" or sys.platform == "darwin",
-        reason=(
-            "Bug in interaction with multiprocessing on Windows, macOS; "
-            "doesn't work in Jupyter either."
-        ),
-    )
-    async def test_run_in_processpool_executor(
-        k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    import asyncio
-                    import concurrent.futures
-                    """
-                ),
-                exec_req.get(
-                    """
-                    def blocking():
-                        return "done"
-                    """
-                ),
-                exec_req.get(
-                    """
-                    loop = asyncio.get_running_loop()
-                    with concurrent.futures.ProcessPoolExecutor() as pool:
-                        res = await loop.run_in_executor(pool, blocking)
-                    """
-                ),
-            ]
-        )
-        assert not k.errors
-        assert k.globals["res"] == "done"

@@ -94,13 +94,6 @@ async def test_set_ui_element_value(k: Kernel) -> None:
     assert k.globals["x"] == 6
 
 
-async def test_set_ui_element_value_not_found_doesnt_fail(k: Kernel) -> None:
-    # smoke test -- this shouldn't raise an exception
-    await k.set_ui_element_value(
-        SetUIElementValueRequest([("does not exist", None)])
-    )
-
-
 async def test_set_ui_element_value_lensed(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
@@ -791,17 +784,6 @@ async def test_interrupt(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert k.globals["tries"] == 0
 
 
-async def test_file_path(k: Kernel, exec_req: ExecReqProvider) -> None:
-    await k.run(
-        [
-            exec_req.get("import marimo as mo"),
-            exec_req.get("x = __file__"),
-        ]
-    )
-
-    assert "pytest" in k.globals["x"]
-
-
 async def test_cell_state_invalidated(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
@@ -817,24 +799,6 @@ async def test_cell_state_invalidated(
     # invalidated
     await k.run([ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")])
     assert "y" not in k.globals
-
-
-async def test_pickle(k: Kernel, exec_req: ExecReqProvider) -> None:
-    await k.run(
-        [
-            exec_req.get("import pickle"),
-            exec_req.get(
-                """
-                def foo():
-                    ...
-
-                pickle_output = None
-                pickle_output = pickle.dumps(foo)
-                """
-            ),
-        ]
-    )
-    assert k.globals["pickle_output"] is not None
 
 
 async def test_set_ui_element_value_with_cell_run(
@@ -866,47 +830,91 @@ async def test_set_ui_element_value_with_cell_run(
     assert k.globals["counter"][0] == 1
 
 
-def test_sys_path_updated(tmp_path: pathlib.Path) -> None:
-    main: ModuleType | None = None
-    try:
-        filename = str(tmp_path / "notebook.py")
-        if "__main__" in sys.modules:
-            # kernel patches __main__; need to reset it after test
-            main = sys.modules["__main__"]
-        Kernel(
-            stream=NoopStream(),
-            stdout=None,
-            stderr=None,
-            stdin=None,
-            cell_configs={},
-            user_config=DEFAULT_CONFIG,
-            app_metadata=AppMetadata(
-                query_params={}, filename=filename, cli_args={}
-            ),
-            enqueue_control_request=lambda _: None,
+class TestAnyKernel:
+    """Tests that run on both autorun and lazy kernels."""
+
+    async def test_set_ui_element_value_not_found_doesnt_fail(
+        self,
+        any_kernel: Kernel,
+    ) -> None:
+        # smoke test -- this shouldn't raise an exception
+        k = any_kernel
+        await k.set_ui_element_value(
+            SetUIElementValueRequest([("does not exist", None)])
         )
-        assert str(tmp_path) in sys.path
-        assert str(tmp_path) == sys.path[0]
-    finally:
-        if str(tmp_path) in sys.path:
-            sys.path.remove(str(tmp_path))
-        if main is not None:
-            sys.modules["__main__"] = main
 
+    async def test_running_in_notebook(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get(
+                    "import marimo as mo; in_nb = mo.running_in_notebook()"
+                )
+            ]
+        )
+        assert k.globals["in_nb"]
 
-async def test_running_in_notebook(
-    k: Kernel, exec_req: ExecReqProvider
-) -> None:
-    await k.run(
-        [exec_req.get("import marimo as mo; in_nb = mo.running_in_notebook()")]
-    )
-    assert k.globals["in_nb"]
+    async def test_file_path(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get("import marimo as mo"),
+                exec_req.get("x = __file__"),
+            ]
+        )
 
+        assert "pytest" in k.globals["x"]
 
-def test_not_running_in_notebook() -> None:
-    from marimo._runtime.context.utils import running_in_notebook
+    async def test_pickle(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        await k.run(
+            [
+                exec_req.get("import pickle"),
+                exec_req.get(
+                    """
+                    def foo():
+                        ...
 
-    assert not running_in_notebook()
+                    pickle_output = None
+                    pickle_output = pickle.dumps(foo)
+                    """
+                ),
+            ]
+        )
+        assert k.globals["pickle_output"] is not None
+
+    def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
+        main: ModuleType | None = None
+        try:
+            filename = str(tmp_path / "notebook.py")
+            if "__main__" in sys.modules:
+                # kernel patches __main__; need to reset it after test
+                main = sys.modules["__main__"]
+            Kernel(
+                stream=NoopStream(),
+                stdout=None,
+                stderr=None,
+                stdin=None,
+                cell_configs={},
+                user_config=DEFAULT_CONFIG,
+                app_metadata=AppMetadata(
+                    query_params={}, filename=filename, cli_args={}
+                ),
+                enqueue_control_request=lambda _: None,
+            )
+            assert str(tmp_path) in sys.path
+            assert str(tmp_path) == sys.path[0]
+        finally:
+            if str(tmp_path) in sys.path:
+                sys.path.remove(str(tmp_path))
+            if main is not None:
+                sys.modules["__main__"] = main
 
 
 class TestAsyncIO:

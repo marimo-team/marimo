@@ -9,7 +9,7 @@ def _set_staleness(
 ) -> None:
     graph = runner.graph
 
-    if runner.execution_mode == "detect" and not graph._is_any_ancestor_stale(
+    if runner.execution_mode == "detect" and not graph.is_any_ancestor_stale(
         cell.cell_id
     ):
         # TODO: The above check could be omitted as an optimization as long as

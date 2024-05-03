@@ -134,6 +134,11 @@ def detect_kernel(k: Kernel) -> Kernel:
     return k
 
 
+@pytest.fixture(params=["k", "detect_kernel"])
+def any_kernel(request: Any) -> Kernel:
+    return request.getfixturevalue(request.param)
+
+
 # fixture that wraps a kernel and other mocked objects
 @pytest.fixture
 def mocked_kernel() -> Generator[MockedKernel, None, None]:
