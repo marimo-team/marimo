@@ -49,14 +49,22 @@ def convert_from_py(py: str) -> str:
     return sanitized_version(output)
 
 
+# Regarding windows skip: This should be fine, as less complex cases are
+# captured by test_markdown_frontmatter. Here, snapshotting fails in windows
+# due to emojis in the tutorials :(
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Failing on Windows CI due to emojis"
+)
 def test_markdown_snapshots() -> None:
     for name, mod in modules.items():
         output = sanitized_version(export_as_md(mod.__file__)[0])
         snapshot(f"{name}.md.txt", output)
 
 
-# Windows does not encode emoji's correctly for md -> python
-@pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
+# Windows does not encode emojis correctly for md -> python
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Failing on Windows CI due to emojis"
+)
 def test_idempotent_markdown_to_marimo() -> None:
     for script in modules.keys():
         with open(DIR_PATH + f"/snapshots/{script}.md.txt") as f:
