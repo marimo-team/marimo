@@ -83,8 +83,12 @@ def test_two_node_cycle() -> None:
     graph.register_cell("1", parse_cell("y = x"))
     errors = check_for_errors(graph)
     assert set(errors.keys()) == set(["0", "1"])
-    assert errors["0"] == (CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),)
-    assert errors["1"] == (CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),)
+    assert errors["0"] == (
+        CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),
+    )
+    assert errors["1"] == (
+        CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),
+    )
 
 
 def test_three_node_cycle() -> None:
