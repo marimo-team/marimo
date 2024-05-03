@@ -298,7 +298,7 @@ class progress_bar:
     The `update` method accepts the optional keyword
     arguments `increment` (defaults to `1`), `title`,
     and `subtitle`.
-    
+
     For performance reasons, the progress bar is only updated in the UI
     every 150ms.
 
