@@ -30,8 +30,8 @@ def _check_edges(error: Error, expected_edges: Sequence[Edge]) -> None:
         assert edge in error.edges or (edge[1], edge[0]) in error.edges
 
 
-async def test_triangle_top_down(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_triangle_top_down(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     # x
     # x --> y
     # x, y --> z
@@ -75,8 +75,8 @@ async def test_triangle_top_down(detect_kernel: Kernel) -> None:
     assert k.globals["z"] == 5
 
 
-async def test_set_ui_element_value(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_set_ui_element_value(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run([ExecutionRequest(cell_id="0", code="import marimo as mo")])
     await k.run(
         [
@@ -101,13 +101,13 @@ async def test_set_ui_element_value(detect_kernel: Kernel) -> None:
     assert k.globals["x"] == 6
 
 
-# TODO: migrate the below tests to use detect_kernel
+# TODO: migrate the below tests to use lazy_kernel
 
 # TODO(akshayka): share code with runtime auto
 async def test_set_ui_element_value_not_found_doesnt_fail(
-    detect_kernel: Kernel,
+    lazy_kernel: Kernel,
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     # smoke test -- this shouldn't raise an exception
     await k.set_ui_element_value(
         SetUIElementValueRequest([("does not exist", None)])
@@ -115,14 +115,14 @@ async def test_set_ui_element_value_not_found_doesnt_fail(
 
 
 async def test_set_ui_element_value_lensed(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element.
 
     Make sure reactivity flows through its parent, and that its on_change
     handler is called exactly once.
     """
-    k = detect_kernel
+    k = lazy_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     # Create an array and output it ...
@@ -157,14 +157,14 @@ async def test_set_ui_element_value_lensed(
 
 
 async def test_set_ui_element_value_lensed_bound_child(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element.
 
     Make sure reactivity flows through its parent and also to names bound
     to children.
     """
-    k = detect_kernel
+    k = lazy_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     cell_one_code = """
@@ -183,10 +183,10 @@ async def test_set_ui_element_value_lensed_bound_child(
 
 
 async def test_set_ui_element_value_lensed_with_state(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     """Test setting the value of a lensed element with on_change set_state"""
-    k = detect_kernel
+    k = lazy_kernel
     await k.run([exec_req.get(code="import marimo as mo")])
 
     # Create an array and output it ...
@@ -209,8 +209,8 @@ async def test_set_ui_element_value_lensed_with_state(
     assert k.globals["state"] == 5
 
 
-async def test_set_local_var_ui_element_value(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_set_local_var_ui_element_value(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run([ExecutionRequest("0", "import marimo as mo")])
     await k.run(
         [ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
@@ -225,8 +225,8 @@ async def test_set_local_var_ui_element_value(detect_kernel: Kernel) -> None:
 
 
 # TODO(akshayka): share with runtime auto
-async def test_creation_with_ui_element_value(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_creation_with_ui_element_value(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     id_provider = IDProvider(prefix="1")
     await k.instantiate(
         CreationRequest(
@@ -247,9 +247,9 @@ async def test_creation_with_ui_element_value(detect_kernel: Kernel) -> None:
 # Test errors in marimo semantics
 # TODO(akshayka): share with runtime auto
 async def test_kernel_simultaneous_multiple_definition_error(
-    detect_kernel: Kernel,
+    lazy_kernel: Kernel,
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -265,9 +265,9 @@ async def test_kernel_simultaneous_multiple_definition_error(
 
 # TODO(akshayka): share with runtime auto
 async def test_kernel_new_multiple_definition_does_not_invalidate(
-    detect_kernel: Kernel,
+    lazy_kernel: Kernel,
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run([ExecutionRequest(cell_id="0", code="x=0")])
     assert k.globals["x"] == 0
     assert not k.errors
@@ -286,8 +286,8 @@ async def test_kernel_new_multiple_definition_does_not_invalidate(
     assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
 
-async def test_clear_multiple_definition_error(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_clear_multiple_definition_error(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -308,9 +308,9 @@ async def test_clear_multiple_definition_error(detect_kernel: Kernel) -> None:
 
 
 async def test_clear_multiple_definition_error_with_delete(
-    detect_kernel: Kernel,
+    lazy_kernel: Kernel,
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -328,8 +328,8 @@ async def test_clear_multiple_definition_error_with_delete(
     assert not k.errors
 
 
-async def test_new_errors_update_old_ones(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_new_errors_update_old_ones(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run([ExecutionRequest(cell_id="0", code="x=0")])
     await k.run([ExecutionRequest(cell_id="1", code="x, y =1, 2")])
     assert set(k.errors.keys()) == {"1"}
@@ -350,8 +350,8 @@ async def test_new_errors_update_old_ones(detect_kernel: Kernel) -> None:
     assert k.globals["x"] == 0
 
 
-async def test_cycle_error(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_cycle_error(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=y"),
@@ -375,8 +375,8 @@ async def test_cycle_error(detect_kernel: Kernel) -> None:
     assert not k.errors
 
 
-async def test_break_cycle_error_with_delete(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_break_cycle_error_with_delete(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=y"),
@@ -395,8 +395,8 @@ async def test_break_cycle_error_with_delete(detect_kernel: Kernel) -> None:
     assert not k.errors
 
 
-async def test_delete_nonlocal_error(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_delete_nonlocal_error(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -417,9 +417,9 @@ async def test_delete_nonlocal_error(detect_kernel: Kernel) -> None:
 
 
 async def test_defs_with_no_definers_are_removed_from_cell(
-    detect_kernel: Kernel,
+    lazy_kernel: Kernel,
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -450,8 +450,8 @@ async def test_defs_with_no_definers_are_removed_from_cell(
     assert k.globals["y"] == 2
 
 
-async def test_syntax_error(detect_kernel: Kernel) -> None:
-    k = detect_kernel
+async def test_syntax_error(lazy_kernel: Kernel) -> None:
+    k = lazy_kernel
     await k.run(
         [
             ExecutionRequest(cell_id="0", code="x=0"),
@@ -478,9 +478,9 @@ async def test_syntax_error(detect_kernel: Kernel) -> None:
 
 
 async def test_disable_and_reenable_not_stale(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (
@@ -521,9 +521,9 @@ async def test_disable_and_reenable_not_stale(
 
 
 async def test_disable_and_reenable_stale(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (
@@ -577,7 +577,7 @@ async def test_disable_and_reenable_stale(
 
 
 async def test_disable_and_reenable_tree(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
     # x
     # x --> y
@@ -648,9 +648,9 @@ async def test_disable_and_reenable_tree(
 
 
 async def test_disable_consecutive(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),
@@ -696,9 +696,9 @@ async def test_disable_consecutive(
 
 
 async def test_disable_syntax_error(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 1")),
@@ -729,9 +729,9 @@ async def test_disable_syntax_error(
 
 
 async def test_disable_cycle(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (er_1 := exec_req.get("a = b")),
@@ -767,9 +767,9 @@ async def test_disable_cycle(
 
 
 async def test_disable_cycle_incremental(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run([er_1 := exec_req.get("a = b")])
     await k.set_cell_config(
         SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
@@ -781,9 +781,9 @@ async def test_disable_cycle_incremental(
 
 
 async def test_enable_cycle_incremental(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (er_1 := exec_req.get("a = b")),
@@ -804,9 +804,9 @@ async def test_enable_cycle_incremental(
 
 
 async def test_set_config_before_registering_cell(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     er_1 = exec_req.get("x = 0")
     await k.set_cell_config(
         SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
@@ -817,9 +817,9 @@ async def test_set_config_before_registering_cell(
 
 
 async def test_interrupt(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     er = exec_req.get(
         """
         from marimo._runtime.control_flow import MarimoInterrupt
@@ -840,9 +840,9 @@ async def test_interrupt(
 
 
 async def test_file_path(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             exec_req.get("import marimo as mo"),
@@ -854,9 +854,9 @@ async def test_file_path(
 
 
 async def test_cell_state_invalidated(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     await k.run(
         [
             (er_1 := exec_req.get("x = 0")),
@@ -871,8 +871,8 @@ async def test_cell_state_invalidated(
     assert "y" not in k.globals
 
 
-async def test_pickle(detect_kernel: Kernel, exec_req: ExecReqProvider) -> None:
-    k = detect_kernel
+async def test_pickle(lazy_kernel: Kernel, exec_req: ExecReqProvider) -> None:
+    k = lazy_kernel
     await k.run(
         [
             exec_req.get("import pickle"),
@@ -891,9 +891,9 @@ async def test_pickle(detect_kernel: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_set_ui_element_value_with_cell_run(
-    detect_kernel: Kernel, exec_req: ExecReqProvider
+    lazy_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    k = detect_kernel
+    k = lazy_kernel
     # This test imports a cell from another notebook that defines a UI element
     # It then sets a value on the UI element, and makes sure that reactivity
     # flows through the defs mapping that is returned

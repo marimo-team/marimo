@@ -127,14 +127,14 @@ def k() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
-# kernel configured with runtime=detect
+# kernel configured with runtime=lazy
 @pytest.fixture
-def detect_kernel(k: Kernel) -> Kernel:
-    k.reactive_execution_mode = "detect"
+def lazy_kernel(k: Kernel) -> Kernel:
+    k.reactive_execution_mode = "lazy"
     return k
 
 
-@pytest.fixture(params=["k", "detect_kernel"])
+@pytest.fixture(params=["k", "lazy_kernel"])
 def any_kernel(request: Any) -> Kernel:
     return request.getfixturevalue(request.param)
 
