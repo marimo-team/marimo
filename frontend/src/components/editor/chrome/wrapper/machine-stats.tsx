@@ -1,15 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { Tooltip } from "@/components/ui/tooltip";
+import { connectionAtom } from "@/core/network/connection";
 import { getUsageStats } from "@/core/network/requests";
 import { UsageResponse } from "@/core/network/types";
 import { isPyodide } from "@/core/pyodide/utils";
+import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
+import { useAtomValue } from "jotai";
 import { CpuIcon, MemoryStickIcon } from "lucide-react";
 import React, { useState } from "react";
 
 export const MachineStats: React.FC = (props) => {
   const [nonce, setNonce] = useState(0);
+  const connection = useAtomValue(connectionAtom);
   useInterval(
     () => setNonce((nonce) => nonce + 1),
     // Refresh every 10 seconds, or when the document becomes visible
@@ -20,8 +24,11 @@ export const MachineStats: React.FC = (props) => {
     if (isPyodide()) {
       return null;
     }
+    if (connection.state !== WebSocketState.OPEN) {
+      return null;
+    }
     return getUsageStats();
-  }, [nonce]);
+  }, [nonce, connection.state]);
 
   if (!data) {
     return;
