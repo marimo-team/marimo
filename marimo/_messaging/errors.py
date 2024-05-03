@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from typing import Optional, Union
 
 from marimo._ast.cell import CellId_t
-from marimo._runtime.dataflow import Edge
+from marimo._runtime.dataflow import EdgeWithVar
 
 
 @dataclass
 class CycleError:
-    edges: tuple[Edge, ...]
+    edges_with_vars: tuple[EdgeWithVar, ...]
     type: str = "cycle"
 
 

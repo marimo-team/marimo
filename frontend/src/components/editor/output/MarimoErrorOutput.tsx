@@ -63,11 +63,15 @@ export const MarimoErrorOutput = ({
           <Fragment key={idx}>
             <p className="mt-4">{"This cell is in a cycle:"}</p>
             <ul className="list-disc">
-              {error.edges.map((edge) => (
+              {error.edges_with_vars.map((edge) => (
                 <li className={liStyle} key={`${edge[0]}-${edge[1]}`}>
                   <CellLinkError cellId={edge[0]} />
-                  {" -> "}
-                  <CellLinkError cellId={edge[1]} />
+                  <span className="text-muted-foreground">
+                    {" -> "}
+                    {edge[1].length == 1 ? edge[1] : edge[1].join(", ")}
+                    {" -> "}
+                  </span>
+                  <CellLinkError cellId={edge[2]} />
                 </li>
               ))}
             </ul>

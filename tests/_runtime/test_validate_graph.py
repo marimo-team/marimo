@@ -83,8 +83,8 @@ def test_two_node_cycle() -> None:
     graph.register_cell("1", parse_cell("y = x"))
     errors = check_for_errors(graph)
     assert set(errors.keys()) == set(["0", "1"])
-    assert errors["0"] == (CycleError(edges=(("0", "1"), ("1", "0"))),)
-    assert errors["1"] == (CycleError(edges=(("0", "1"), ("1", "0"))),)
+    assert errors["0"] == (CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),)
+    assert errors["1"] == (CycleError(edges_with_vars=(("0", ["x"], "1"), ("1", ["y"], "0"))),)
 
 
 def test_three_node_cycle() -> None:
@@ -97,11 +97,11 @@ def test_three_node_cycle() -> None:
     for _, t in errors.items():
         assert len(t) == 1
         assert isinstance(t[0], CycleError)
-        edges = t[0].edges
-        assert len(edges) == 3
-        assert ("0", "1") in edges or ("1", "0") in edges
-        assert ("1", "2") in edges or ("2", "1") in edges
-        assert ("0", "2") in edges or ("2", "0") in edges
+        edges_with_vars = t[0].edges_with_vars
+        assert len(edges_with_vars) == 3
+        assert ("0", ["x"], "2") in edges_with_vars
+        assert ("1", ["y"], "0") in edges_with_vars
+        assert ("2", ["z"], "1") in edges_with_vars
 
 
 def test_cycle_and_multiple_def() -> None:
@@ -119,10 +119,10 @@ def test_cycle_and_multiple_def() -> None:
         cycle_error = cast(
             CycleError, t[0] if isinstance(t[0], CycleError) else t[1]
         )
-        edges = cycle_error.edges
-        assert len(edges) == 2
-        assert ("0", "1") in edges
-        assert ("1", "0") in edges
+        edges_with_vars = cycle_error.edges_with_vars
+        assert len(edges_with_vars) == 2
+        assert ("0", ["x"], "1") in edges_with_vars
+        assert ("1", ["y"], "0") in edges_with_vars
 
         multiple_definition_error = cast(
             MultipleDefinitionError,
