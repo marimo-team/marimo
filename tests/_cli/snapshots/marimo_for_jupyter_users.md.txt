@@ -12,11 +12,12 @@ familiar with Jupyter and are trying out marimo for the first time, read on!
 The biggest difference between marimo and Jupyter is *reactive execution*.
 
 Try updating the value of x in the next cell, then run it.
-```{marimo}
+
+```{.python.marimo}
 x = 0; x
 ```
 
-```{marimo}
+```{.python.marimo}
 y = x + 1; y
 ```
 
@@ -43,16 +44,17 @@ This makes marimo notebooks as reproducible as regular Python scripts.
 
 marimo comes with a [large library of UI elements](https://docs.marimo.io/guides/interactivity.html) that are automatically
 synchronized with Python.
-```{marimo}
+
+```{.python.marimo}
 import marimo as mo
 ```
 
-```{marimo}
+```{.python.marimo}
 slider = mo.ui.slider(start=1, stop=10, label="$x$")
 slider
 ```
 
-```{marimo}
+```{.python.marimo}
 slider.value
 ```
 
@@ -78,11 +80,12 @@ for both Jupyter and Streamlit.
 ## Cell order
 
 In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
-```{marimo}
+
+```{.python.marimo}
 z.value
 ```
 
-```{marimo}
+```{.python.marimo}
 z = mo.ui.slider(1, 10, label="$z$"); z
 ```
 
@@ -92,15 +95,16 @@ In contrast, Jupyter notebooks implicitly assume a top-to-bottom execution order
 ## Re-assigning variables
 
 marimo disallows variable re-assignment. Here is something commonly done in Jupyter notebooks that cannot be done in marimo:
-```{marimo}
+
+```{.python.marimo}
 df = 0
 ```
 
-```{marimo}
+```{.python.marimo}
 df = 1
 ```
 
-```{marimo}
+```{.python.marimo}
 results = df.groupby(["my_column"]).sum()
 ```
 
@@ -114,7 +118,8 @@ If you run into this error, here are your options:
 ## Markdown
 
 marimo only has Python cells, but you can still write Markdown: `import marimo as mo` and use `mo.md` to write Markdown.
-```{marimo}
+
+```{.python.marimo}
 mo.md(
     f"""
     The value of {slider} is {slider.value}.

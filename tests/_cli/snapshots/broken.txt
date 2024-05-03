@@ -3,6 +3,6 @@ title: Notebook
 marimo-version: 0.0.0
 ---
 
-```{marimo}
+```{.python.marimo}
 valid_statement = 1
 ```

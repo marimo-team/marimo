@@ -29,7 +29,8 @@ a cell is run, its descendants are run automatically.
 
 The next four cells plot a sine wave with a given period and amplitude.
 Each cell is labeled with its refs and defs.
-```{marimo}
+
+```{.python.marimo}
 mo.accordion(
     {
         "Tip: inspecting refs and defs": f"""
@@ -44,7 +45,7 @@ mo.accordion(
 )
 ```
 
-```{marimo}
+```{.python.marimo}
 mo.md(
     f"""
     {mo.as_html(plot_wave(amplitude, period))}
@@ -55,7 +56,7 @@ mo.md(
 )
 ```
 
-```{marimo}
+```{.python.marimo}
 period = 2 * 3.14159
 
 mo.md(
@@ -66,7 +67,7 @@ mo.md(
 )
 ```
 
-```{marimo}
+```{.python.marimo}
 amplitude = 1
 
 mo.md(
@@ -77,7 +78,7 @@ mo.md(
 )
 ```
 
-```{marimo}
+```{.python.marimo}
 def plot_wave(amplitude, period):
     if not numpy_installed:
         return mo.md(
@@ -150,12 +151,13 @@ execute cells in.
 
 If you violate this constraint, marimo provides a helpful
 error message, like below:
-```{marimo}
+
+```{.python.marimo}
 planet = "Mars"
 planet
 ```
 
-```{marimo}
+```{.python.marimo}
 planet = "Earth"
 planet
 ```
@@ -168,11 +170,12 @@ them; these operators count as redefinitions of a name.
 
 **🌊 Try it!** Get rid of the following errors by merging the next two
 cells into a single cell.
-```{marimo}
+
+```{.python.marimo}
 count = 0
 ```
 
-```{marimo}
+```{.python.marimo}
 count += 1
 ```
 
@@ -184,17 +187,18 @@ underscore-prefixed name, and one cell's private variables won't be
 made available to other cells.
 
 **Example**.
-```{marimo}
+
+```{.python.marimo}
 _private_variable, _ = 1, 2
 _private_variable, _
 ```
 
-```{marimo}
+```{.python.marimo}
 _private_variable, _ = 3, 4
 _private_variable, _
 ```
 
-```{marimo}
+```{.python.marimo}
 # `_private_variable` and `_` are not defined in this cell
 _private_variable, _
 ```
@@ -205,7 +209,8 @@ Deleting a cell deletes its global variables and
 then runs all cells that reference them. This prevents severe bugs that
 can arise when state has been deleted from the editor but not from the
 program memory.
-```{marimo}
+
+```{.python.marimo}
 to_be_deleted = "variable still exists"
 
 mo.md(
@@ -217,18 +222,19 @@ mo.md(
 )
 ```
 
-```{marimo}
+```{.python.marimo}
 to_be_deleted
 ```
 
 ### Cycles are not allowed
 
 Cycles among cells are not allowed. For example:
-```{marimo}
+
+```{.python.marimo}
 one = two - 1
 ```
 
-```{marimo}
+```{.python.marimo}
 two = one + 1
 ```
 
@@ -239,15 +245,16 @@ trigger reactive execution.
 
 **🌊 Example**. Change the value of `state.number` in the next cell, then
 run the cell. Notice how the subsequent cell isn't updated.
-```{marimo}
+
+```{.python.marimo}
 state.number = 1
 ```
 
-```{marimo}
+```{.python.marimo}
 state.number
 ```
 
-```{marimo}
+```{.python.marimo}
 class namespace:
     pass
 
@@ -255,7 +262,7 @@ state = namespace()
 state.number = 0
 ```
 
-```{marimo}
+```{.python.marimo}
 mo.accordion(
     {
         "Why not track attributes?": """
@@ -272,7 +279,8 @@ mo.accordion(
 In Python, it's impossible to know whether code will
 mutate an object without running it. So: mutations (such as
 appending to a list) will not trigger reactive execution.
-```{marimo}
+
+```{.python.marimo}
 mo.accordion(
     {
         "Tip (advanced): mutable state": (
@@ -297,7 +305,8 @@ Ultimately, these constraints will enable you to create powerful notebooks
 and apps, and they'll encourage you to write clean, reproducible code.
 
 Follow these tips to stay on the marimo way:
-```{marimo}
+
+```{.python.marimo}
 mo.accordion(tips)
 ```
 
@@ -308,7 +317,8 @@ Check out the tutorial on interactivity for a tour of UI elements:
 ```
 marimo tutorial ui
 ```
-```{marimo}
+
+```{.python.marimo}
 matplotlib_installed = False
 numpy_installed = False
 
@@ -327,7 +337,7 @@ except ModuleNotFoundError:
     pass
 ```
 
-````{marimo}
+````{.python.marimo}
 tips = {
     "Use global variables sparingly": (
         """
@@ -423,7 +433,6 @@ tips = {
 }
 ````
 
-```{marimo}
+```{.python.marimo}
 import marimo as mo
 ```
-
