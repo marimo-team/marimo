@@ -14,7 +14,7 @@ from marimo._cli.convert.utils import load_external_file
 def convert(
     filename: str,
 ) -> None:
-    """Convert a Jupyter notebook or Markdown file to a marimo notebook.
+    r"""Convert a Jupyter notebook or Markdown file to a marimo notebook.
 
     The argument may be either a path to a local .ipynb/.md file,
     or an .ipynb/.md file hosted on GitHub.
