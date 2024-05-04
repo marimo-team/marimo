@@ -206,14 +206,11 @@ def test_python_to_md_code_injection() -> None:
         """[1:]
     )
     maybe_unsafe_md = convert_from_py(unsafe_app).strip()
-    print("-----------------------------------------------")
     maybe_unsafe_py = sanitized_version(
         convert_from_md(maybe_unsafe_md).strip()
     )
     snapshot("unsafe-app.py.txt", maybe_unsafe_py)
-    # print(maybe_unsafe_py)
     snapshot("unsafe-app.md.txt", maybe_unsafe_md)
-    # print(maybe_unsafe_md)
 
     # Idempotent even under strange conditions.
     assert convert_from_py(maybe_unsafe_py).strip() == maybe_unsafe_md
@@ -242,18 +239,30 @@ def test_md_to_python_code_injection() -> None:
     ```{.python.marimo}
     print("Hello, World!")
     ```
+    -->
+
+    ```marimo run convert document.md```
+
+    <!-- Actually markdown -->
+    ```{python} `
+      print("Hello, World!")
+
+    <!-- Normal code block -->
+    ```{python}
+    1 + 1
+    ```
 
     -->
     """[1:]
     )
 
     maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
-    print(maybe_unsafe_py)
     maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
-    print(maybe_unsafe_md)
 
     # Idempotent even under strange conditions.
     assert maybe_unsafe_py == sanitized_version(
         convert_from_md(maybe_unsafe_md).strip()
     )
-    # raise NotImplementedError("This test is not yet implemented.")
+
+    snapshot("unsafe-doc.py.txt", maybe_unsafe_py)
+    snapshot("unsafe-doc.md.txt", maybe_unsafe_md)

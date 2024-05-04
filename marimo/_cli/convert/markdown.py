@@ -19,7 +19,10 @@ from markdown.preprocessors import Preprocessor
 from markdown.util import HTML_PLACEHOLDER_RE, Registry
 
 # As are extensions
-from pymdownx.superfences import SuperFencesCodeExtension  # type: ignore
+from pymdownx.superfences import (  # type: ignore
+    RE_NESTED_FENCE_START,
+    SuperFencesCodeExtension,
+)
 
 from marimo._ast.app import _AppConfig
 from marimo._cli.convert.utils import generate_from_sources, markdown_to_marimo
@@ -238,7 +241,7 @@ class SanitizeProcessor(Preprocessor):
                 is_code = is_code or _is_code_tag(code)
             # We also need to check for code block delimiters that superfences
             # did not catch, as this will break other code blocks.
-            is_code = is_code or line.startswith("```")
+            is_code = is_code or RE_NESTED_FENCE_START.match(line)
 
         if not is_code:
             return lines
