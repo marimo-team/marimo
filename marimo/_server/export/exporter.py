@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import mimetypes
 import os
+from textwrap import dedent
 from typing import cast
 
 from marimo import __version__
@@ -15,6 +16,12 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.utils import build_data_url
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
+from marimo._server.export.utils import (
+    get_app_title,
+    get_download_filename,
+    get_filename,
+    get_markdown_from_cell,
+)
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.session_view import SessionView
@@ -45,9 +52,7 @@ class Exporter:
         index_html_file = os.path.join(root, "index.html")
 
         cell_ids = list(file_manager.app.cell_manager.cell_ids())
-        filename = file_manager.filename
-        if not filename:
-            filename = "notebook.py"
+        filename = get_filename(file_manager)
 
         with open(index_html_file, "r") as f:  # noqa: ASYNC101
             index_html = f.read()
@@ -95,9 +100,7 @@ class Exporter:
             asset_url=request.asset_url,
         )
 
-        basename = os.path.basename(filename)
-        download_filename = f"{os.path.splitext(basename)[0]}.html"
-
+        download_filename = get_download_filename(file_manager, "html")
         return html, download_filename
 
     def export_as_script(
@@ -118,16 +121,47 @@ class Exporter:
             graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
-        filename = file_manager.filename
-        if not filename:
-            filename = "notebook.script.py"
-
-        basename = os.path.basename(filename)
-        download_filename = f"{os.path.splitext(basename)[0]}.script.py"
-
         code = (
             f'\n__generated_with = "{__version__}"\n\n'
             + "\n\n# ---\n\n".join(codes)
         )
 
+        download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename
+
+    def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
+        # TODO: Provide filter or kernel in header such that markdown documents
+        # are executable.
+        document = [
+            dedent(
+                f"""
+          ---
+          title: {get_app_title(file_manager)}
+          marimo-version: {__version__}
+          ---"""
+            ).strip(),
+            "",
+        ]
+        previous_was_markdown = False
+        for cell_data in file_manager.app.cell_manager.cell_data():
+            cell = cell_data.cell
+            code = cell_data.code
+            if cell:
+                markdown = get_markdown_from_cell(cell, code)
+                if markdown:
+                    previous_was_markdown = True
+                    document.append(markdown)
+                else:
+                    # Add a blank line between markdown and code
+                    if previous_was_markdown:
+                        document.append("")
+                    previous_was_markdown = False
+                    guard = "```"
+                    while guard in code:
+                        guard += "`"
+                    document.extend(
+                        [f"""{guard}{{.python.marimo}}""", code, guard, ""]
+                    )
+
+        download_filename = get_download_filename(file_manager, ".md")
+        return "\n".join(document).strip(), download_filename

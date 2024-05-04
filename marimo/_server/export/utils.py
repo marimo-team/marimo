@@ -1,122 +1,102 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
-from typing import Callable
+import ast
+import os
+import re
+from textwrap import dedent
+from typing import Optional
 
-from marimo._config.manager import UserConfigManager
-from marimo._messaging.ops import MessageOperation
-from marimo._messaging.types import KernelMessage
-from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
-from marimo._server.export.exporter import Exporter
+from marimo._ast.cell import Cell
 from marimo._server.file_manager import AppFileManager
-from marimo._server.file_router import AppFileRouter
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.models.models import InstantiateRequest
-from marimo._server.sessions import Session
 
 
-def export_as_script(
-    filename: str,
-) -> tuple[str, str]:
-    file_router = AppFileRouter.from_filename(filename)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
-
-    return Exporter().export_as_script(file_manager)
+def format_filename_title(filename: str) -> str:
+    basename = os.path.basename(filename)
+    name, ext = os.path.splitext(basename)
+    title = re.sub("[-_]", " ", name)
+    return title.title()
 
 
-async def run_app_then_export_as_html(
-    filename: str,
-    include_code: bool,
-    cli_args: SerializedCLIArgs,
-) -> tuple[str, str]:
-    # Create a file router and file manager
-    file_router = AppFileRouter.from_filename(filename)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
-
-    config = UserConfigManager()
-    session = await run_app_until_completion(file_manager, cli_args)
-    # Export the session as HTML
-    html, filename = Exporter().export_as_html(
-        file_manager=session.app_file_manager,
-        session_view=session.session_view,
-        display_config=config.get_config()["display"],
-        request=ExportAsHTMLRequest(
-            include_code=include_code,
-            download=False,
-            files=[],
-        ),
-    )
-    return html, filename
+def get_filename(
+    file_manager: AppFileManager, default: str = "notebook.py"
+) -> str:
+    filename = file_manager.filename
+    if not filename:
+        filename = default
+    return filename
 
 
-async def run_app_until_completion(
-    file_manager: AppFileManager,
-    cli_args: SerializedCLIArgs,
-) -> Session:
-    instantiated_event = asyncio.Event()
+def get_app_title(file_manager: AppFileManager) -> str:
+    if file_manager.app.config.app_title:
+        return f"{file_manager.app.config.app_title}"
+    filename = get_filename(file_manager)
+    return format_filename_title(filename)
 
-    # Create a no-op session consumer
-    class NoopSessionConsumer(SessionConsumer):
-        def on_start(
-            self,
-            check_alive: Callable[[], None],
-        ) -> Callable[[KernelMessage], None]:
-            del check_alive
 
-            def listener(message: KernelMessage) -> None:
-                if message[0] == "completed-run":
-                    instantiated_event.set()
+def get_download_filename(file_manager: AppFileManager, extension: str) -> str:
+    filename = get_filename(file_manager, f"notebook.{extension}")
+    basename = os.path.basename(filename)
+    return f"{os.path.splitext(basename)[0]}.{extension}"
 
-            return listener
 
-        def on_stop(self) -> None:
-            pass
+def _const_string(args: list[ast.stmt]) -> str:
+    (inner,) = args
+    if hasattr(inner, "values"):
+        (inner,) = inner.values
+    return f"{inner.value}"  # type: ignore[attr-defined]
 
-        async def write_operation(self, op: MessageOperation) -> None:
-            pass
 
-        def connection_state(self) -> ConnectionState:
-            return ConnectionState.OPEN
+def get_markdown_from_cell(
+    cell: Cell, code: str, native_callout: bool = False
+) -> Optional[str]:
+    """Attempt to extract markdown from a cell, or return None"""
 
-    config = UserConfigManager()
+    if not (cell.refs == {"mo"} and not cell.defs):
+        return None
+    markdown_lines = [
+        line for line in code.strip().split("\n") if line.startswith("mo.md(")
+    ]
+    if len(markdown_lines) > 1:
+        return None
 
-    # Create a session
-    session = Session.create(
-        # Any initialization ID will do
-        initialization_id="_any_",
-        session_consumer=NoopSessionConsumer(),
-        # Run in EDIT mode so that console outputs are captured
-        mode=SessionMode.EDIT,
-        app_metadata=AppMetadata(
-            query_params={},
-            filename=file_manager.path,
-            cli_args=cli_args,
-        ),
-        app_file_manager=file_manager,
-        user_config_manager=config,
-        virtual_files_supported=False,
-    )
+    code = code.strip()
+    # Attribute Error handled by the outer try/except block.
+    # Wish there was a more compact to ignore ignore[attr-defined] for all.
+    try:
+        (body,) = ast.parse(code).body
+        callout = None
+        if body.value.func.attr == "md":  # type: ignore[attr-defined]
+            value = body.value  # type: ignore[attr-defined]
+        elif body.value.func.attr == "callout":  # type: ignore[attr-defined]
+            if not native_callout:
+                return None
+            if body.value.args:  # type: ignore[attr-defined]
+                callout = _const_string(body.value.args)  # type: ignore[attr-defined]
+            else:
+                (keyword,) = body.value.keywords  # type: ignore[attr-defined]
+                assert keyword.arg == "kind"
+                callout = _const_string([keyword.value])  # type: ignore
+            value = body.value.func.value  # type: ignore[attr-defined]
+        else:
+            return None
+        assert value.func.value.id == "mo"
+    except (AssertionError, AttributeError, ValueError):
+        # No reason to explicitly catch exceptions if we can't parse out
+        # markdown. Just handle it as a code block.
+        return None
 
-    # Run the notebook to completion once
-    session.instantiate(InstantiateRequest(object_ids=[], values=[]))
-    await instantiated_event.wait()
-    # Process console messages
-    #
-    # TODO(akshayka): A timing issue with the console output worker
-    # might still exist; the better thing to do would be to flush
-    # the worker, then ask it to quit and join on it. If we have an
-    # issue with some outputs being missed, that's what we should do.
-    session.message_distributor.flush()
-    # Hack: yield to give the session view a chance to process the incoming
-    # console operations.
-    await asyncio.sleep(0.1)
-    # Stop distributor, terminate kernel process, etc -- all information is
-    # captured by the session view.
-    session.close()
-    return session
+    # Dedent behavior is a little different that in marimo js, so handle
+    # accordingly.
+    md_lines = _const_string(value.args).split("\n")
+    md_lines = [line.rstrip() for line in md_lines]
+    md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
+    md = md.strip()
+    if callout:
+        md = dedent(
+            f"""
+          ::: {{.callout-{callout}}}
+          {md}
+          :::"""
+        )
+    return md

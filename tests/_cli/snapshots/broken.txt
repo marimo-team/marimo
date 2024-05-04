@@ -1,0 +1,8 @@
+---
+title: Notebook
+marimo-version: 0.0.0
+---
+
+```{.python.marimo}
+valid_statement = 1
+```

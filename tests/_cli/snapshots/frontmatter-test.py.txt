@@ -1,0 +1,24 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App(app_title="My Title")
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        # Notebook
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    print("Hello, World!")
+    return
+
+
+if __name__ == "__main__":
+    app.run()

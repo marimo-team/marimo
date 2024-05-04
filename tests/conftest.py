@@ -208,6 +208,48 @@ def temp_async_marimo_file() -> Generator[str, None, None]:
         tmp_dir.cleanup()
 
 
+@pytest.fixture
+def temp_unparsable_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        app._unparsable_cell(
+            r\"""
+            return
+            \""",
+            name="__"
+        )
+
+        app._unparsable_cell(
+            r\"""
+            partial_statement =
+            \""",
+            name="__"
+        )
+
+        @app.cell
+        def __():
+            valid_statement = 1
+            return valid_statement,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+            f.flush()
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
