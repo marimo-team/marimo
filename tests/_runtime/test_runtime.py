@@ -147,7 +147,8 @@ class TestExecution:
         def on_change(v):
             data.append(v)
 
-        array = mo.ui.array([mo.ui.slider(0, 10, value=1, on_change=on_change)]);
+        array = mo.ui.array(
+            [mo.ui.slider(0, 10, value=1, on_change=on_change)]);
         array
         """
         await k.run([exec_req.get(code=cell_one_code)])
@@ -171,8 +172,8 @@ class TestExecution:
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
 
-        # Make sure setting array's child triggered execution of the second cell,
-        # which references `array`
+        # Make sure setting array's child triggered execution of the second
+        # cell, which references `array`
         assert k.globals["x"] == 6
 
     async def test_set_ui_element_value_lensed_bound_child(
@@ -206,7 +207,7 @@ class TestExecution:
     async def test_set_ui_element_value_lensed_with_state(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test setting the value of a lensed element with on_change set_state"""
+        """Test setting value of a lensed element with on_change set_state"""
         k = any_kernel
         await k.run([exec_req.get(code="import marimo as mo")])
 
@@ -222,7 +223,8 @@ class TestExecution:
         await k.run([exec_req.get(code=cell_one_code)])
         await k.run([er := exec_req.get(code="state = get_state()")])
 
-        # Set a child of the array and make sure its on_change handler is called
+        # Set a child of the array and make sure its on_change handler is
+        # called
         child_id = k.globals["array"][0]._id
         await k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
         if k.lazy():
@@ -244,7 +246,8 @@ class TestExecution:
         assert k.globals["_cell_1_s"].value == 1
 
         element_id = k.globals["_cell_1_s"]._id
-        # This shouldn't crash the kernel, and s's value should still be updated
+        # This shouldn't crash the kernel, and s's value should still be
+        # updated
         await k.set_ui_element_value(
             SetUIElementValueRequest([(element_id, 5)])
         )
@@ -565,9 +568,9 @@ class TestExecution:
     ) -> None:
         k = any_kernel
         graph = k.graph
-        # This test imports a cell from another notebook that defines a UI element
-        # It then sets a value on the UI element, and makes sure that reactivity
-        # flows through the defs mapping that is returned
+        # This test imports a cell from another notebook that defines a UI
+        # element It then sets a value on the UI element, and makes sure that
+        # reactivity flows through the defs mapping that is returned
         await k.run(
             [
                 exec_req.get(
@@ -723,15 +726,13 @@ class TestDisable:
         graph = k.graph
         await k.run(
             [
-                (
-                    er_1 := exec_req.get(
-                        """
+                exec_req.get(
+                    """
                         class namespace:
                             ...
                         ns = namespace()
                         ns.count = 0
                         """
-                    )
                 ),
                 (er_2 := exec_req.get("ns.count += 1")),
             ]
@@ -1014,7 +1015,6 @@ class TestDisable:
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
         k = any_kernel
-        graph = k.graph
         await k.run(
             [
                 (er_1 := exec_req.get("a = b")),
