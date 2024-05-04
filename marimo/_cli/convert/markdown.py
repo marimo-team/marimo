@@ -220,7 +220,7 @@ class SanitizeProcessor(Preprocessor):
     stash: dict[str, Any]
 
     def run(self, lines: list[str]) -> list[str]:
-        # Note, an empty stash is not sufficent since partially open code
+        # Note, an empty stash is not sufficient since partially open code
         # blocks could be in the text.
         if not lines:
             return lines
