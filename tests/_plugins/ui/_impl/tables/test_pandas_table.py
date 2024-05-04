@@ -157,3 +157,54 @@ class TestPandasTableManager(unittest.TestCase):
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
         )
+
+    def test_get_fields_types_duplicate_columns(self) -> None:
+        import pandas as pd
+
+        # Different types
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": ["a", "b", "c"],
+            }
+        )
+        data = data.rename(columns={"A": "B"})
+        expected_field_types = {
+            "B": "unknown",
+        }
+        assert (
+            self.factory.create()(data).get_field_types()
+            == expected_field_types
+        )
+
+        # Both strings
+        data = pd.DataFrame(
+            {
+                "A": ["a", "b", "c"],
+                "B": ["d", "e", "f"],
+            }
+        )
+        data = data.rename(columns={"A": "B"})
+        expected_field_types = {
+            "B": "unknown",
+        }
+        assert (
+            self.factory.create()(data).get_field_types()
+            == expected_field_types
+        )
+
+        # Both integers
+        data = pd.DataFrame(
+            {
+                "A": [1, 2, 3],
+                "B": [4, 5, 6],
+            }
+        )
+        data = data.rename(columns={"A": "B"})
+        expected_field_types = {
+            "B": "unknown",
+        }
+        assert (
+            self.factory.create()(data).get_field_types()
+            == expected_field_types
+        )
