@@ -11,6 +11,7 @@ import pytest
 from marimo import __version__
 from marimo._cli.convert.markdown import convert_from_md
 from marimo._server.export import export_as_md
+from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, marimo_for_jupyter_users
@@ -33,6 +34,7 @@ def sanitized_version(output: str) -> str:
 def convert_from_py(py: str) -> str:
     # Needs to be a .py for export to be invoked.
     tempfile_name = ""
+    output = ""
     try:
         # in windows, can't re-open an open named temporary file, hence
         # delete=False and manual clean up
@@ -46,6 +48,8 @@ def convert_from_py(py: str) -> str:
     finally:
         os.remove(tempfile_name)
 
+    title = format_filename_title(tempfile_name)
+    output = output.replace(title, "Test Notebook")
     return sanitized_version(output)
 
 
@@ -92,7 +96,6 @@ def test_markdown_frontmatter() -> None:
     ```
     """[1:]
     )
-    print(script)
     output = sanitized_version(convert_from_md(script))
     assert 'app_title="My Title"' in output
     snapshot("frontmatter-test.py.txt", output)
@@ -116,6 +119,141 @@ def test_markdown_just_frontmatter() -> None:
 
 
 def test_markdown_empty() -> None:
-    script = ""
-    with pytest.raises(ValueError):
-        convert_from_md(script)
+    assert convert_from_md("") == ""
+
+
+def test_python_to_md_code_injection() -> None:
+    unsafe_app = dedent(
+        """
+        import marimo
+        __generated_with = "0.0.0"
+        app = marimo.App()
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+        @app.cell
+        def __(mo):
+            mo.md(\"""
+                # Code blocks in code blocks
+                Output code for Hello World!
+                ```python
+                print("Hello World")
+                ```
+                Execute print
+                ```{python}
+                print("Hello World")
+                ```
+            \""")
+            return
+        @app.cell
+        def __(mo):
+            mo.md(f\"""
+                with f-string too!
+                ```{{python}}
+                print("Hello World")
+                ```
+            \""")
+            return
+        @app.cell
+        def __(mo):
+            mo.md(f\"""
+                Not markdown
+                ```{{python}}
+                print("1 + 1 = {1 + 1}")
+                ```
+            \""")
+            return
+        @app.cell
+        def __(mo):
+            mo.md(\"""
+                Nested fence
+                ````text
+                The guards are
+                ```{python}
+                ````
+            \""")
+            return
+        @app.cell
+        def __(mo):
+            \"""
+            ```
+            \"""
+            return
+        @app.cell
+        def __(mo):
+            mo.md(\"""
+                Cross cell injection
+                ```python
+            \""")
+            return
+        @app.cell
+        def __(mo):
+            1 + 1
+            return
+        def __(mo):
+            mo.md(\"""
+                ```
+            \""")
+            return
+        @app.cell
+        def __():
+            # Actual print
+            print("Hello World")
+            return
+        if __name__ == "__main__":
+            app.run()
+        """[1:]
+    )
+    maybe_unsafe_md = convert_from_py(unsafe_app).strip()
+    print("-----------------------------------------------")
+    maybe_unsafe_py = sanitized_version(
+        convert_from_md(maybe_unsafe_md).strip()
+    )
+    snapshot("unsafe-app.py.txt", maybe_unsafe_py)
+    # print(maybe_unsafe_py)
+    snapshot("unsafe-app.md.txt", maybe_unsafe_md)
+    # print(maybe_unsafe_md)
+
+    # Idempotent even under strange conditions.
+    assert convert_from_py(maybe_unsafe_py).strip() == maybe_unsafe_md
+
+    original_count = len(unsafe_app.split("@app.cell"))
+    count = len(maybe_unsafe_py.split("@app.cell"))
+    assert original_count == count, (
+        "Differing number of cells found,"
+        f"injection detected. Expected {original_count} found {count}"
+    )
+
+
+def test_md_to_python_code_injection() -> None:
+    script = dedent(
+        """
+    ---
+    title: "Casually malicious md"
+    ---
+
+    What happens if I just leave a \"""
+    " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \\ /
+
+    # Notebook
+    <!--
+    \\
+    ```{.python.marimo}
+    print("Hello, World!")
+    ```
+
+    -->
+    """[1:]
+    )
+
+    maybe_unsafe_py = sanitized_version(convert_from_md(script).strip())
+    print(maybe_unsafe_py)
+    maybe_unsafe_md = convert_from_py(maybe_unsafe_py)
+    print(maybe_unsafe_md)
+
+    # Idempotent even under strange conditions.
+    assert maybe_unsafe_py == sanitized_version(
+        convert_from_md(maybe_unsafe_md).strip()
+    )
+    # raise NotImplementedError("This test is not yet implemented.")
