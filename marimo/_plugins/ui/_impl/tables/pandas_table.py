@@ -119,11 +119,12 @@ class PandasTableManagerFactory(TableManagerFactory):
                 series: pd.Series[Any] | pd.DataFrame,
             ) -> FieldType:
                 # If a df has duplicate columns, it won't be a series, but
-                # a dataframe. In this case, we just return 'unknown'.
+                # a dataframe. In this case, we take the dtype of the columns
                 if isinstance(series, pd.DataFrame):
-                    return "unknown"
+                    dtype = str(series.columns.dtype)
+                else:
+                    dtype = str(series.dtype)
 
-                dtype = str(series.dtype)
                 if dtype.startswith("interval"):
                     return "string"
                 if dtype.startswith("int") or dtype.startswith("uint"):

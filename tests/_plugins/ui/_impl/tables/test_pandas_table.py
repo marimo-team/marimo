@@ -170,7 +170,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "unknown",
+            "B": "string",
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -186,7 +186,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "unknown",
+            "B": "string",
         }
         assert (
             self.factory.create()(data).get_field_types()
@@ -202,7 +202,7 @@ class TestPandasTableManager(unittest.TestCase):
         )
         data = data.rename(columns={"A": "B"})
         expected_field_types = {
-            "B": "unknown",
+            "B": "string",
         }
         assert (
             self.factory.create()(data).get_field_types()
