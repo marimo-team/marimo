@@ -106,28 +106,24 @@ class Runner:
         # run request repairs the graph
         self.cells_to_run: list[CellId_t]
 
+        # Runner always runs stale ancestors, if any.
+        cells_to_run = roots.union(
+            dataflow.transitive_closure(
+                graph,
+                roots,
+                children=False,
+                inclusive=False,
+                predicate=lambda cell: cell.stale,
+            )
+        )
         if self.execution_mode == "autorun":
-            self.cells_to_run = dataflow.topological_sort(
-                graph,
-                dataflow.transitive_closure(graph, roots)
-                - self.excluded_cells,
-            )
-        else:
-            self.cells_to_run = dataflow.topological_sort(
-                graph,
-                # TODO: get stale ancestors for autorun as well
-                # also run stale ancestors
-                roots.union(
-                    dataflow.transitive_closure(
-                        graph,
-                        roots,
-                        children=False,
-                        inclusive=False,
-                        predicate=lambda cell: cell.stale,
-                    )
-                )
-                - self.excluded_cells,
-            )
+            # in autorun/eager mode, descendants are also run
+            cells_to_run = dataflow.transitive_closure(graph, cells_to_run)
+        self.cells_to_run = dataflow.topological_sort(
+            graph,
+            cells_to_run - self.excluded_cells,
+        )
+
         # map from a cell that was cancelled to its descendants that have
         # not yet run:
         self.cells_cancelled: dict[CellId_t, set[CellId_t]] = {}
