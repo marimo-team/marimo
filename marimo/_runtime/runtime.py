@@ -331,6 +331,9 @@ class Kernel:
         exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
+    def lazy(self) -> bool:
+        return self.reactive_execution_mode == "lazy"
+
     def _execute_stale_cells_callback(self) -> None:
         return self.enqueue_control_request(ExecuteStaleRequest())
 
@@ -821,7 +824,7 @@ class Kernel:
         patches.patch_sys_module(self._module)
         while cell_ids := await self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
-            if self.reactive_execution_mode == "lazy" and cell_ids:
+            if self.lazy() and cell_ids:
                 self.graph.set_stale(cell_ids)
                 break
         LOGGER.debug("Finished run.")
@@ -834,6 +837,11 @@ class Kernel:
 
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
+        #
+        # NB: lazy kernels don't invaldiate state of cancelled cells
+        # descendants (cancelled == cells that raise exceptions), whereas
+        # eager kernels do (since we clear all state ahead of time, and
+        # have the closure of the roots in cells to run)
         def invalidate_state(runner: cell_runner.Runner) -> None:
             for cid in runner.cells_to_run:
                 self._invalidate_cell_state(cid)
@@ -883,7 +891,7 @@ class Kernel:
         #                 which is incorrect
         await runner.run_all()
         cells_with_stale_state = runner.resolve_state_updates(
-            self.state_updates, self.errors
+            self.state_updates
         )
         self.state_updates.clear()
         return cells_with_stale_state
@@ -1080,10 +1088,14 @@ class Kernel:
 
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
+
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
         else:
             self.graph.set_stale(referring_cells)
+            # process any state updates that may have been queued by the
+            # on_change handlers
+            await self._run_cells(set())
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any

@@ -27,7 +27,7 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 LOGGER = marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Sequence
+    from collections.abc import Sequence
 
     from marimo._runtime.context.types import ExecutionContext
     from marimo._runtime.state import State
@@ -115,6 +115,7 @@ class Runner:
         else:
             self.cells_to_run = dataflow.topological_sort(
                 graph,
+                # TODO: get stale ancestors for autorun as well
                 # also run stale ancestors
                 roots.union(
                     dataflow.transitive_closure(
@@ -230,7 +231,6 @@ class Runner:
     def resolve_state_updates(
         self,
         state_updates: dict[State[Any], CellId_t],
-        errored_cells: Container[CellId_t],
     ) -> set[CellId_t]:
         """
         Get cells that need to be run as a consequence of state updates
@@ -271,7 +271,7 @@ class Runner:
                 if cid == setter_cell_id and not state.allow_self_loops:
                     continue
                 # No errorred/cancelled cells (4)
-                if cid in errored_cells or self.cancelled(cid):
+                if cid in self.excluded_cells or self.cancelled(cid):
                     continue
                 # State object in refs (5)
                 for ref in cell.refs:

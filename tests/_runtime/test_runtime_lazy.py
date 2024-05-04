@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Sequence
 
-
 from marimo._messaging.errors import (
     CycleError,
     DeleteNonlocalError,
@@ -102,6 +101,7 @@ async def test_set_ui_element_value(lazy_kernel: Kernel) -> None:
 
 
 # TODO: migrate the below tests to use lazy_kernel
+
 
 # TODO(akshayka): share code with runtime auto
 async def test_set_ui_element_value_not_found_doesnt_fail(
