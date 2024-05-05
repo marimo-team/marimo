@@ -81,6 +81,7 @@ def get_markdown_from_cell(
         else:
             return None
         assert value.func.value.id == "mo"
+        md_lines = _const_string(value.args).split("\n")
     except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
@@ -88,10 +89,10 @@ def get_markdown_from_cell(
 
     # Dedent behavior is a little different that in marimo js, so handle
     # accordingly.
-    md_lines = _const_string(value.args).split("\n")
     md_lines = [line.rstrip() for line in md_lines]
     md = dedent(md_lines[0]) + "\n" + dedent("\n".join(md_lines[1:]))
     md = md.strip()
+
     if callout:
         md = dedent(
             f"""

@@ -1,0 +1,31 @@
+---
+title: Casually malicious md
+marimo-version: 0.0.0
+---
+
+What happens if I just leave a \"\"\"
+" ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
+
+# Notebook
+<!--
+\
+
+```{.python.marimo}
+print("Hello, World!")
+```
+
+-->
+
+```marimo run convert document.md```
+
+<!-- Actually markdown -->
+```{python} `
+  print("Hello, World!")
+
+<!-- Normal code block -->
+
+```{.python.marimo}
+1 + 1
+```
+
+-->

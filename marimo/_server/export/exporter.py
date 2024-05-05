@@ -7,6 +7,10 @@ from textwrap import dedent
 from typing import cast
 
 from marimo import __version__
+from marimo._cli.convert.markdown import (
+    formatted_code_block,
+    is_sanitized_markdown,
+)
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -148,20 +152,16 @@ class Exporter:
             code = cell_data.code
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
-                if markdown:
+                # Unsanitized markdown is forced to code.
+                if markdown and is_sanitized_markdown(markdown):
                     previous_was_markdown = True
                     document.append(markdown)
-                else:
-                    # Add a blank line between markdown and code
-                    if previous_was_markdown:
-                        document.append("")
-                    previous_was_markdown = False
-                    guard = "```"
-                    while guard in code:
-                        guard += "`"
-                    document.extend(
-                        [f"""{guard}{{.python.marimo}}""", code, guard, ""]
-                    )
+                    continue
+                # Add a blank line between markdown and code
+                if previous_was_markdown:
+                    document.append("")
+                previous_was_markdown = False
+                document.append(formatted_code_block(code))
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename
