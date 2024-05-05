@@ -1,11 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import ReactCodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import ReactCodeMirror, {
+  Extension,
+  ReactCodeMirrorProps,
+} from "@uiw/react-codemirror";
 import {
   loadLanguage,
   langs,
   LanguageName,
 } from "@uiw/codemirror-extensions-langs";
-import React from "react";
+import React, { useMemo } from "react";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 
@@ -25,6 +28,12 @@ const AnyLanguageCodeMirror: React.FC<
     Logger.warn(`Language ${language} not found in CodeMirror.`);
   }
 
+  const finalExtensions = useMemo((): Extension[] => {
+    return [loadLanguage(language as LanguageName), ...extensions].filter(
+      Boolean,
+    );
+  }, [language, extensions]);
+
   return (
     <>
       {isNotSupported && (
@@ -35,13 +44,7 @@ const AnyLanguageCodeMirror: React.FC<
           ).join(", ")}`}
         />
       )}
-      <ReactCodeMirror
-        {...props}
-        extensions={[
-          loadLanguage(language as LanguageName),
-          ...extensions,
-        ].filter(Boolean)}
-      />
+      <ReactCodeMirror {...props} extensions={finalExtensions} />
     </>
   );
 };

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.3.8"
+__generated_with = "0.4.10"
 app = marimo.App(width="full")
 
 
@@ -43,6 +43,24 @@ def __(generate_number, mo):
 def __(generate_number, mo):
     mo.accordion({"Open me": generate_number}, lazy=True)
     return
+
+
+@app.cell
+def __(generate_number_async, mo):
+    mo.accordion({"Lazy async function": mo.lazy(generate_number_async, show_loading_indicator=True)})
+    return
+
+
+@app.cell
+def __(random):
+    import asyncio
+    async def generate_number_async():
+        print("Loading...")
+        await asyncio.sleep(1)
+        print("Loaded!")
+        num = random.randint(0, 100)
+        return num
+    return asyncio, generate_number_async
 
 
 @app.cell

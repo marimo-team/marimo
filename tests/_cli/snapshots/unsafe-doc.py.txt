@@ -1,0 +1,63 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App(app_title="Casually malicious md")
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        What happens if I just leave a \"\"\"
+        " ' ! @ # $ % ^ & * ( ) + = - _ [ ] { } | \ /
+
+        # Notebook
+        <!--
+        \
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    print("Hello, World!")
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        -->
+
+        ```marimo run convert document.md```
+
+        <!-- Actually markdown -->
+        ```{python} `
+          print("Hello, World!")
+
+        <!-- Normal code block -->
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    1 + 1
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        -->
+        """
+    )
+    return
+
+
+if __name__ == "__main__":
+    app.run()

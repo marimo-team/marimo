@@ -272,17 +272,7 @@ class spinner:
         return self.spinner._mime_()
 
 
-def progress_bar(
-    collection: Collection[S | int],
-    *,
-    title: Optional[str] = None,
-    subtitle: Optional[str] = None,
-    completion_title: Optional[str] = None,
-    completion_subtitle: Optional[str] = None,
-    total: Optional[int] = None,
-    show_rate: bool = True,
-    show_eta: bool = True,
-) -> Iterable[S | int]:
+class progress_bar:
     """Iterate over a collection and show a progress bar
 
     **Example.**
@@ -295,12 +285,26 @@ def progress_bar(
     You can optionally provide a title and subtitle to show
     during iteration, and a title/subtitle to show upon completion.
 
+    You can also use progress_bar with a context manager and manually update
+    the bar:
+
+    ```python
+    with mo.status.progress_bar(total=10) as bar:
+        for i in range(10):
+            ...
+            bar.update()
+    ```
+
+    The `update` method accepts the optional keyword
+    arguments `increment` (defaults to `1`), `title`,
+    and `subtitle`.
+
     For performance reasons, the progress bar is only updated in the UI
     every 150ms.
 
     **Args.**
 
-    - `collection`: a collection to iterate over
+    - `collection`: optional collection to iterate over
     - `title`: optional title
     - `subtitle`: optional subtitle
     - `completion_title`: optional title to show during completion
@@ -308,30 +312,67 @@ def progress_bar(
     - `total`: optional total number of items to iterate over
     - `show_rate`: if True, show the rate of progress (items per second)
     - `show_eta`: if True, show the estimated time of completion
-
-    **Returns.**
-
-    An iterable object that wraps `collection`
     """
-    try:
-        total = total or len(collection)
-        step = collection.step if isinstance(collection, range) else 1
-    except TypeError:  # if collection is a generator
-        raise TypeError(
-            "fail to determine length of collection, use `total` to specify"
-        ) from None
-    progress = ProgressBar(
-        title=title,
-        subtitle=subtitle,
-        total=total,
-        show_rate=show_rate,
-        show_eta=show_eta,
-    )
-    output.append(progress)
-    for item in collection:
-        yield item
-        progress.update(increment=step)
-    progress.update(
-        increment=0, title=completion_title, subtitle=completion_subtitle
-    )
-    progress.close()
+
+    def __init__(
+        self,
+        collection: Optional[Collection[S | int]] = None,
+        *,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        completion_title: Optional[str] = None,
+        completion_subtitle: Optional[str] = None,
+        total: Optional[int] = None,
+        show_rate: bool = True,
+        show_eta: bool = True,
+    ):
+        self.completion_title = completion_title
+        self.completion_subtitle = completion_subtitle
+
+        if collection is not None:
+            self.collection = collection
+
+            try:
+                total = total or len(collection)
+                self.step = (
+                    collection.step if isinstance(collection, range) else 1
+                )
+            except TypeError:  # if collection is a generator
+                raise TypeError(
+                    "fail to determine length of collection, use `total`"
+                    + "to specify"
+                ) from None
+
+        elif total is None:
+            raise ValueError(
+                "`total` is required when using as a context manager"
+            )
+
+        self.progress = ProgressBar(
+            title=title,
+            subtitle=subtitle,
+            total=total,
+            show_rate=show_rate,
+            show_eta=show_eta,
+        )
+        output.append(self.progress)
+
+    def __iter__(self) -> Iterable[S | int]:
+        for item in self.collection:
+            yield item
+            self.progress.update(increment=self.step)
+        self._finish()
+
+    def __enter__(self) -> ProgressBar:
+        return self.progress
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        self._finish()
+
+    def _finish(self) -> None:
+        self.progress.update(
+            increment=0,
+            title=self.completion_title,
+            subtitle=self.completion_subtitle,
+        )
+        self.progress.close()

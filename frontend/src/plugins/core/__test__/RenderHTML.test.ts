@@ -101,3 +101,25 @@ describe("RenderHTML", () => {
     `);
   });
 });
+
+describe("RenderHTML with < nad >", () => {
+  const html =
+    'thread <unnamed> panicked at "assertion failed: `(left == right)`"';
+  test("<unnamed>", () => {
+    expect(renderHTML({ html })).toMatchInlineSnapshot(`
+      [
+        "thread ",
+        <unnamed>
+           panicked at "assertion failed: \`(left == right)\`"
+        </unnamed>,
+      ]
+    `);
+  });
+
+  test("<unnamed> sanitized", () => {
+    const sanitized = html.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    expect(renderHTML({ html: sanitized })).toMatchInlineSnapshot(
+      `"thread <unnamed> panicked at "assertion failed: \`(left == right)\`""`,
+    );
+  });
+});

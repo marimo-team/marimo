@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Callable
 
 import click
 
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import green
-from marimo._server.export.utils import (
+from marimo._server.export import (
+    export_as_md,
     export_as_script,
     run_app_then_export_as_html,
 )
@@ -20,6 +22,57 @@ from marimo._utils.paths import maybe_make_dirs
 @click.group(help="""Export a notebook to various formats.""")
 def export() -> None:
     pass
+
+
+def watch_and_export(
+    name: str,
+    output: str,
+    watch: bool,
+    export_callback: Callable[[str], str],
+) -> None:
+    if watch and not output:
+        raise click.UsageError(
+            "Cannot use --watch without providing "
+            + "an output file with --output."
+        )
+
+    def write_data(data: str) -> None:
+        if output:
+            # Make dirs if needed
+            maybe_make_dirs(output)
+            with open(output, "w") as f:
+                f.write(data)
+                f.close()
+        else:
+            click.echo(data)
+        return
+
+    # No watch, just run once
+    if not watch:
+        data = export_callback(name)
+        write_data(data)
+        return
+
+    async def on_file_changed(file_path: Path) -> None:
+        click.echo(
+            f"File {str(file_path)} changed. Re-exporting to {green(output)}"
+        )
+        data = export_callback(str(file_path))
+        write_data(data)
+
+    async def start() -> None:
+        # Watch the file for changes
+        watcher = FileWatcher.create(Path(name), on_file_changed)
+        click.echo(f"Watching {green(name)} for changes...")
+        watcher.start()
+        try:
+            # Run forever
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            watcher.stop()
+
+    asyncio_run(start())
 
 
 @click.command(
@@ -76,55 +129,18 @@ def html(
     """
     Run a notebook and export it as an HTML file.
     """
-    if watch and not output:
-        raise click.UsageError(
-            "Cannot use --watch without providing "
-            + "an output file with --output."
-        )
-
-    def write_html(html: str) -> None:
-        if output:
-            # Make dirs if needed
-            maybe_make_dirs(output)
-            with open(output, "w") as f:
-                f.write(html)
-                f.close()
-        else:
-            click.echo(html)
 
     cli_args = parse_args(args)
-    # No watch, just run once
-    if not watch:
+
+    def export_callback(file_path: str) -> str:
         (html, _filename) = asyncio_run(
             run_app_then_export_as_html(
-                name, include_code=include_code, cli_args=cli_args
+                file_path, include_code=include_code, cli_args=cli_args
             )
         )
-        write_html(html)
-        return
+        return html
 
-    async def on_file_changed(file_path: Path) -> None:
-        click.echo(
-            f"File {str(file_path)} changed. Re-exporting to {green(output)}"
-        )
-        (html, _filename) = await run_app_then_export_as_html(
-            str(file_path), include_code=include_code, cli_args=cli_args
-        )
-        write_html(html)
-
-    async def start() -> None:
-        # Watch the file for changes
-        watcher = FileWatcher.create(Path(name), on_file_changed)
-        click.echo(f"Watching {green(name)} for changes...")
-        watcher.start()
-        try:
-            # Run forever
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            watcher.stop()
-
-    asyncio_run(start())
+    return watch_and_export(name, output, watch, export_callback)
 
 
 @click.command(
@@ -172,49 +188,65 @@ def script(
     """
     Export a marimo notebook as a flat script, in topological order.
     """
-    if watch and not output:
-        raise click.UsageError(
-            "Cannot use --watch without providing "
-            + "an output file with --output."
-        )
 
-    def write_script(script: str) -> None:
-        if output:
-            # Make dirs if needed
-            maybe_make_dirs(output)
-            with open(output, "w") as f:
-                f.write(script)
-                f.close()
-        else:
-            click.echo(script)
+    def export_callback(file_path: str) -> str:
+        return export_as_script(file_path)[0]
 
-    # No watch, just run once
-    if not watch:
-        (html, _filename) = export_as_script(name)
-        write_script(html)
-        return
+    return watch_and_export(name, output, watch, export_callback)
 
-    async def on_file_changed(file_path: Path) -> None:
-        click.echo(
-            f"File {str(file_path)} changed. Re-exporting to {green(output)}"
-        )
-        (script, _filename) = export_as_script(str(file_path))
-        write_script(script)
 
-    async def start() -> None:
-        # Watch the file for changes
-        watcher = FileWatcher.create(Path(name), on_file_changed)
-        click.echo(f"Watching {green(name)} for changes...")
-        watcher.start()
-        try:
-            # Run forever
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            watcher.stop()
+@click.command(
+    help="""
+Export a marimo notebook as a code fenced Markdown file.
 
-    asyncio_run(start())
+Example:
+
+    \b
+    * marimo export md notebook.py -o notebook.md
+
+Watch for changes and regenerate the script on modification:
+
+    \b
+    * marimo export md notebook.py -o notebook.md --watch
+"""
+)
+@click.option(
+    "--watch/--no-watch",
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Watch notebook for changes and regenerate the script on modification.
+    If watchdog is installed, it will be used to watch the file.
+    Otherwise, file watcher will poll the file every 1s.
+    """,
+)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    default=None,
+    help="""
+    Output file to save the script to.
+    If not provided, markdown will be printed to stdout.
+    """,
+)
+@click.argument("name", required=True)
+def md(
+    name: str,
+    output: str,
+    watch: bool,
+) -> None:
+    """
+    Export a marimo notebook as a code fenced markdown document.
+    """
+
+    def export_callback(file_path: str) -> str:
+        return export_as_md(file_path)[0]
+
+    return watch_and_export(name, output, watch, export_callback)
 
 
 export.add_command(html)
 export.add_command(script)
+export.add_command(md)

@@ -1,0 +1,68 @@
+---
+title: Test Notebook
+marimo-version: 0.0.0
+---
+
+```{.python.marimo}
+import marimo as mo
+```
+
+````{.python.marimo}
+mo.md("""
+    # Code blocks in code blocks
+    Output code for Hello World!
+    ```python
+    print("Hello World")
+    ```
+    Execute print
+    ```{python}
+    print("Hello World")
+    ```
+""")
+````
+
+````{.python.marimo}
+mo.md(f"""
+    with f-string too!
+    ```{{python}}
+    print("Hello World")
+    ```
+""")
+````
+
+````{.python.marimo}
+mo.md(f"""
+    Not markdown
+    ```{{python}}
+    print("1 + 1 = {1 + 1}")
+    ```
+""")
+````
+
+Nested fence
+````text
+The guards are
+```{python}
+````
+
+````{.python.marimo}
+"""
+```
+"""
+````
+
+````{.python.marimo}
+mo.md("""
+    Cross cell injection
+    ```python
+""")
+````
+
+```{.python.marimo}
+1 + 1
+```
+
+```{.python.marimo}
+# Actual print
+print("Hello World")
+```

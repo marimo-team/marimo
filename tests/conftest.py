@@ -13,6 +13,7 @@ import pytest
 from marimo._ast.app import CellManager
 from marimo._ast.cell import CellId_t
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -45,7 +46,8 @@ class MockStdout(ThreadSafeStdout):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        del mimetype
         self.messages.append(data)
         return len(data)
 
@@ -59,7 +61,8 @@ class MockStderr(ThreadSafeStderr):
         super().__init__(stream)
         self.messages: list[str] = []
 
-    def write(self, data: str) -> int:
+    def _write_with_mimetype(self, data: str, mimetype: KnownMimeType) -> int:
+        del mimetype
         self.messages.append(data)
         return len(data)
 
@@ -190,6 +193,48 @@ def temp_async_marimo_file() -> Generator[str, None, None]:
             import asyncio
             await asyncio.sleep(0.1)
             return asyncio,
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+            f.flush()
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_unparsable_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        app._unparsable_cell(
+            r\"""
+            return
+            \""",
+            name="__"
+        )
+
+        app._unparsable_cell(
+            r\"""
+            partial_statement =
+            \""",
+            name="__"
+        )
+
+        @app.cell
+        def __():
+            valid_statement = 1
+            return valid_statement,
 
         if __name__ == "__main__":
             app.run()

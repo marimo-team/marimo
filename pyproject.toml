@@ -37,6 +37,8 @@ dependencies = [
     "typing_extensions>=4.4.0; python_version < \"3.11\"",
     # for rst parsing
     "docutils>=0.17.0",
+    # to show RAM, CPU usage, other system utilities
+    "psutil>=5.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "black",
@@ -69,6 +71,7 @@ dev = [
     "black~=23.3.0",
     "build~=0.10.0",
     "types-Pygments~=2.17.0.20240310",
+    "types-psutil~=5.9.5.20240423",
     # for server testing
     "httpx~=0.26.0",
     # For testing mo.ui.chart, dataframes, tables
@@ -85,6 +88,8 @@ dev = [
     "pytest~=7.4.0",
     "pytest-codecov~=0.5.1",
     "pytest-asyncio~=0.23.4",
+    "types-Markdown~=3.6.0.20240316",
+    "types-PyYAML~=6.0.12.20240311",
     "mypy~=1.7.0",
     "ruff~=0.3.6",
     "typos~=1.17.1",

@@ -33,6 +33,8 @@ export const ContributeSnippetButton: React.FC<PropsWithChildren> = ({
   );
 };
 
+const extensions = [EditorView.lineWrapping];
+
 const ContributeSnippetModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
@@ -109,9 +111,9 @@ const ContributeSnippetModal: React.FC<{
             theme={theme === "dark" ? "dark" : "light"}
             language="python"
             className="cm border rounded overflow-hidden"
-            extensions={[EditorView.lineWrapping]}
+            extensions={extensions}
             value={code}
-            onChange={(value) => setCode(value)}
+            onChange={setCode}
           />
         </div>
         <DialogFooter>

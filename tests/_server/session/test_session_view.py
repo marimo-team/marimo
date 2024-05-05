@@ -21,6 +21,7 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.session.session_view import SessionView
+from marimo._utils.parse_dataclass import parse_raw
 
 cell_id: CellId_t = "cell_1"
 
@@ -187,6 +188,14 @@ def test_last_run_code() -> None:
     assert session_view.last_executed_code[cell_id] == "print('hello')"
 
 
+def test_serialize_parse_variable_value() -> None:
+    original = VariableValue(name="var1", value=1)
+    serialized = serialize(original)
+    assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
+    parsed = parse_raw(serialized, VariableValue)
+    assert parsed == original
+
+
 def test_add_variables() -> None:
     session_view = SessionView()
 
@@ -218,7 +227,9 @@ def test_add_variables() -> None:
     assert session_view.variable_operations.variables[0].name == "var1"
     assert session_view.variable_operations.variables[1].name == "var2"
     assert session_view.variable_values["var1"].value == "1"
+    assert session_view.variable_values["var1"].datatype == "int"
     assert session_view.variable_values["var2"].value == "hello"
+    assert session_view.variable_values["var2"].datatype == "str"
 
 
 def test_add_cell_op() -> None:

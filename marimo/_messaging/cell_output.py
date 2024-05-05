@@ -40,13 +40,17 @@ class CellOutput:
     @staticmethod
     def stdout(data: str) -> CellOutput:
         return CellOutput(
-            channel=CellChannel.STDOUT, mimetype="text/plain", data=data
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data=data,
         )
 
     @staticmethod
     def stderr(data: str) -> CellOutput:
         return CellOutput(
-            channel=CellChannel.STDERR, mimetype="text/plain", data=data
+            channel=CellChannel.STDERR,
+            mimetype="text/plain",
+            data=data,
         )
 
     @staticmethod

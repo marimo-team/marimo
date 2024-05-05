@@ -58,7 +58,7 @@ def _md(text: str, apply_markdown_class: bool = True) -> Html:
             # Links
             ExternalLinksExtension(),
         ],
-        extension_configs=extension_configs,
+        extension_configs=extension_configs,  # type: ignore[arg-type]
     ).strip()
     # replace <p> tags with <span> as HTML doesn't allow nested <div>s in <p>s
     html_text = html_text.replace("<p>", '<span class="paragraph">').replace(

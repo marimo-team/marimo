@@ -26,7 +26,7 @@ export type MarimoError =
       raising_cell?: CellId;
     }
   | { type: "ancestor-stopped"; msg: string; raising_cell: CellId }
-  | { type: "cycle"; edges: Array<[CellId, CellId]> }
+  | { type: "cycle"; edges_with_vars: Array<[CellId, string[], CellId]> }
   | { type: "multiple-defs"; name: string; cells: CellId[] }
   | { type: "delete-nonlocal"; name: string; cells: CellId[] }
   | { type: "unknown"; msg?: string };

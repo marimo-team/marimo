@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal
 
 from marimo._ast.cell import CellId_t
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.mimetypes import KnownMimeType
 
 if TYPE_CHECKING:
     from collections import deque
@@ -26,6 +27,7 @@ class ConsoleMsg:
     stream: StreamT
     cell_id: CellId_t
     data: str
+    mimetype: KnownMimeType
 
 
 def _write_console_output(
@@ -33,6 +35,7 @@ def _write_console_output(
     stream_type: StreamT,
     cell_id: CellId_t,
     data: str,
+    mimetype: KnownMimeType,
 ) -> None:
     from marimo._messaging.ops import CellOp
 
@@ -40,7 +43,7 @@ def _write_console_output(
         cell_id=cell_id,
         console=CellOutput(
             channel=stream_type,
-            mimetype="text/plain",
+            mimetype=mimetype,
             data=data,
         ),
     ).broadcast(stream)
@@ -109,7 +112,11 @@ def buffered_writer(
         for cell_id, buffer in outputs_buffered_per_cell.items():
             for output in buffer:
                 _write_console_output(
-                    stream, output.stream, cell_id, output.data
+                    stream,
+                    output.stream,
+                    cell_id,
+                    output.data,
+                    output.mimetype,
                 )
         outputs_buffered_per_cell = {}
         timer = None

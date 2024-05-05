@@ -13,8 +13,6 @@ import { CellId } from "@/core/cells/ids";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { cn } from "@/utils/cn";
 import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
-import { Badge } from "../ui/badge";
-import { toast } from "../ui/use-toast";
 import {
   useReactTable,
   getCoreRowModel,
@@ -30,6 +28,8 @@ import { sortBy } from "lodash-es";
 import { getCellEditorView } from "@/core/cells/cells";
 import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
 import { SearchInput } from "../ui/input";
+import { CellLinkList } from "../editor/links/cell-link-list";
+import { VariableName } from "./common";
 
 interface Props {
   className?: string;
@@ -63,21 +63,7 @@ const COLUMNS = [
     ),
     cell: ({ getValue }) => {
       const [name, declaredBy] = getValue();
-      return (
-        <div className="max-w-[130px]">
-          <Badge
-            title={name}
-            variant={declaredBy.length > 1 ? "destructive" : "outline"}
-            className="rounded-sm text-ellipsis block overflow-hidden max-w-fit cursor-pointer font-medium"
-            onClick={() => {
-              navigator.clipboard.writeText(name);
-              toast({ title: "Copied to clipboard" });
-            }}
-          >
-            {name}
-          </Badge>
-        </div>
-      );
+      return <VariableName name={name} declaredBy={declaredBy} />;
     },
   }),
   columnDefOf({
@@ -175,23 +161,11 @@ const COLUMNS = [
               <WorkflowIcon className="w-3.5 h-3.5 text-muted-foreground" />
             </span>
 
-            {usedBy.slice(0, 3).map((cellId, idx) => (
-              <span className="flex" key={cellId}>
-                <CellLink
-                  variant="focus"
-                  key={cellId}
-                  cellId={cellId}
-                  className="whitespace-nowrap"
-                  onClick={() => highlightInCell(cellId)}
-                />
-                {idx < usedBy.length - 1 && ", "}
-              </span>
-            ))}
-            {usedBy.length > 3 && (
-              <div className="whitespace-nowrap text-muted-foreground text-xs">
-                +{usedBy.length - 3} more
-              </div>
-            )}
+            <CellLinkList
+              maxCount={3}
+              cellIds={usedBy}
+              onClick={highlightInCell}
+            />
           </div>
         </div>
       );

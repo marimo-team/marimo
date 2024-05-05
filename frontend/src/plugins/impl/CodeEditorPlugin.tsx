@@ -61,7 +61,7 @@ const CodeEditorComponent = (props: CodeEditorComponentProps) => {
         editable={!props.disabled}
         value={props.value}
         language={props.language}
-        onChange={(value) => props.setValue(value)}
+        onChange={props.setValue}
       />
     </Labeled>
   );
