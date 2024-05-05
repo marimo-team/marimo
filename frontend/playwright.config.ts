@@ -4,35 +4,45 @@ import { devices } from "@playwright/test";
 import path from "node:path";
 import { exec } from "node:child_process";
 
-export interface ServerOptions {
-  command: "edit" | "run";
-  port: number;
-  baseUrl?: string | undefined;
-}
-
-// Read environment variables from file. See https://github.com/motdotla/dotenv
-// require('dotenv').config();
+export type ServerOptions =
+  | {
+      readonly command: "run";
+      readonly port: number;
+      readonly baseUrl?: string | undefined;
+    }
+  | {
+      readonly command: "edit";
+      /**
+       * @default EDIT_PORT (2718)
+       */
+      readonly port?: number;
+    };
 
 // Location of python files needed for testing
 const pydir = path.join("e2e-tests", "py");
 
-// Mapping from Python app name to { browserName => port } object.
-//
 // Each app is served by a different server.
-let _port = 2718;
+const EDIT_PORT = 2718;
+let _port = 2719;
 function port(): number {
   return _port++;
 }
 
+// Configuration for each app
 const appToOptions = {
-  "title.py": { port: port(), command: "edit" },
-  "streams.py": { port: port(), command: "edit" },
-  "bad_button.py": { port: port(), command: "edit" },
-  "shutdown.py": { port: port(), command: "edit" },
+  // Edit
+  "title.py": { command: "edit" },
+  "streams.py": { command: "edit" },
+  "bad_button.py": { command: "edit" },
+  "cells.py": { command: "edit" },
+  "bugs.py": { command: "edit" },
+  "kitchen_sink.py": { command: "edit" },
+  "layout_grid.py": { command: "edit" },
+  "stdin.py": { command: "edit" },
+  // Custom server for shutdown
+  "shutdown.py": { command: "edit", port: port() },
+  // Run
   "components.py": { port: port(), command: "run" },
-  "cells.py": { port: port(), command: "edit" },
-  "bugs.py": { port: port(), command: "edit" },
-  "layout_grid.py//edit": { port: port(), command: "edit" },
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "output.py//run": {
@@ -40,19 +50,21 @@ const appToOptions = {
     command: "run",
     baseUrl: "/foo",
   },
-  "kitchen_sink.py//edit": { port: port(), command: "edit" },
-  "stdin.py//edit": { port: port(), command: "edit" },
 } satisfies Record<string, ServerOptions>;
 
 export type ApplicationNames = keyof typeof appToOptions;
 
-function getUrl(port: number, baseUrl = ""): string {
-  return `http://127.0.0.1:${port}${baseUrl}`;
+function getUrl(port: number, baseUrl = "", queryParams = ""): string {
+  return `http://127.0.0.1:${port}${baseUrl}${queryParams}`;
 }
 
 // For tests to lookup their url/server
 export function getAppUrl(app: ApplicationNames): string {
   const options: ServerOptions = appToOptions[app];
+  if (options.command === "edit") {
+    const pathToApp = path.join(pydir, app);
+    return getUrl(EDIT_PORT, "", `?file=${pathToApp}`);
+  }
   return getUrl(options.port, options.baseUrl);
 }
 
@@ -66,9 +78,10 @@ export async function resetFile(app: ApplicationNames): Promise<void> {
 
 // Start marimo server for the given app
 export function startServer(app: ApplicationNames): void {
-  const { command, port } = appToOptions[app];
+  const options: ServerOptions = appToOptions[app];
+  const port = options.port ?? EDIT_PORT;
   const pathToApp = path.join(pydir, app);
-  const marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+  const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
   exec(marimoCmd);
 }
 
@@ -130,22 +143,36 @@ const config: PlaywrightTestConfig = {
   ],
 
   // Run marimo servers before starting the tests, one for each app/test
-  webServer: Object.entries(appToOptions).map(([app, options]) => {
-    app = app.replace("//edit", "").replace("//run", "");
+  webServer: [
+    ...Object.entries(appToOptions).flatMap(([app, opts]) => {
+      const options = opts as ServerOptions;
+      app = app.replace("//edit", "").replace("//run", "");
 
-    const { command, port, baseUrl } = options as ServerOptions;
-    const pathToApp = path.join(pydir, app);
-    let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
-    if (baseUrl) {
-      marimoCmd += ` --base-url=${baseUrl}`;
-    }
+      const { command, port } = options;
+      if (!port) {
+        return [];
+      }
 
-    return {
-      command: marimoCmd,
-      url: getUrl(port, baseUrl),
+      const baseUrl = options.command === "run" ? options.baseUrl : undefined;
+
+      const pathToApp = path.join(pydir, app);
+      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+      if (baseUrl) {
+        marimoCmd += ` --base-url=${baseUrl}`;
+      }
+
+      return {
+        command: marimoCmd,
+        url: getUrl(port, baseUrl),
+        reuseExistingServer: false,
+      };
+    }),
+    {
+      command: `marimo -q edit -p ${EDIT_PORT} --headless`,
+      url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
-    };
-  }),
+    },
+  ],
 };
 
 export default config;
