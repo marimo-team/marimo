@@ -115,8 +115,16 @@ class PandasTableManagerFactory(TableManagerFactory):
                 }
 
             @staticmethod
-            def _get_field_type(series: pd.Series[Any]) -> FieldType:
-                dtype = str(series.dtype)
+            def _get_field_type(
+                series: pd.Series[Any] | pd.DataFrame,
+            ) -> FieldType:
+                # If a df has duplicate columns, it won't be a series, but
+                # a dataframe. In this case, we take the dtype of the columns
+                if isinstance(series, pd.DataFrame):
+                    dtype = str(series.columns.dtype)
+                else:
+                    dtype = str(series.dtype)
+
                 if dtype.startswith("interval"):
                     return "string"
                 if dtype.startswith("int") or dtype.startswith("uint"):
