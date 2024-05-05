@@ -170,7 +170,7 @@ export function uniformSample<T>(items: T[], n: number): T[] {
     const idx = Math.floor(i * step);
     sample.push(items[idx]);
   }
-  const last = items.at(-1);
-  sample.push(last!);
+  const last = items.at(-1) as T;
+  sample.push(last);
   return sample;
 }
