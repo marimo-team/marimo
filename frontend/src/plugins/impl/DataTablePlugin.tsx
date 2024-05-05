@@ -14,6 +14,9 @@ import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
 import { VegaType } from "./vega/vega-loader";
 import { getVegaFieldTypes } from "./vega/utils";
+import { Arrays } from "@/utils/arrays";
+import { Banner } from "./common/error-banner";
+import { prettyNumber } from "@/utils/numbers";
 
 /**
  * Arguments for a data table
@@ -24,6 +27,8 @@ import { getVegaFieldTypes } from "./vega/utils";
 interface Data<T> {
   label: string | null;
   data: T[] | string;
+  hasMore: boolean;
+  totalRows: number;
   pagination: boolean;
   pageSize: number;
   selection: "single" | "multi" | null;
@@ -45,6 +50,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       initialValue: z.array(z.number()),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      hasMore: z.boolean().default(false),
+      totalRows: z.number(),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
@@ -120,12 +127,14 @@ export const LoadingDataTableComponent = (
     );
   }
 
-  return <DataTableComponent {...props} data={data || []} />;
+  return <DataTableComponent {...props} data={data || Arrays.EMPTY} />;
 };
 
 const DataTableComponent = ({
   label,
   data,
+  hasMore,
+  totalRows,
   pagination,
   pageSize,
   selection,
@@ -146,29 +155,36 @@ const DataTableComponent = ({
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
   return (
-    <Labeled label={label} align="top" fullWidth={true}>
-      <DataTable
-        data={data}
-        columns={columns}
-        className={className}
-        pagination={pagination}
-        pageSize={pageSize}
-        rowSelection={rowSelection}
-        downloadAs={showDownload ? downloadAs : undefined}
-        onRowSelectionChange={(updater) => {
-          if (selection === "single") {
-            const nextValue =
-              typeof updater === "function" ? updater({}) : updater;
-            setValue(Object.keys(nextValue).slice(0, 1));
-          }
+    <>
+      {hasMore && totalRows && (
+        <Banner className="mb-2 rounded">
+          Result clipped. Total rows {prettyNumber(totalRows)}.
+        </Banner>
+      )}
+      <Labeled label={label} align="top" fullWidth={true}>
+        <DataTable
+          data={data}
+          columns={columns}
+          className={className}
+          pagination={pagination}
+          pageSize={pageSize}
+          rowSelection={rowSelection}
+          downloadAs={showDownload ? downloadAs : undefined}
+          onRowSelectionChange={(updater) => {
+            if (selection === "single") {
+              const nextValue =
+                typeof updater === "function" ? updater({}) : updater;
+              setValue(Object.keys(nextValue).slice(0, 1));
+            }
 
-          if (selection === "multi") {
-            const nextValue =
-              typeof updater === "function" ? updater(rowSelection) : updater;
-            setValue(Object.keys(nextValue));
-          }
-        }}
-      />
-    </Labeled>
+            if (selection === "multi") {
+              const nextValue =
+                typeof updater === "function" ? updater(rowSelection) : updater;
+              setValue(Object.keys(nextValue));
+            }
+          }}
+        />
+      </Labeled>
+    </>
   );
 };

@@ -9,7 +9,7 @@ interface ColumnInfo {
   type: "primitive" | "mime";
 }
 
-export function getColumnInfo<T>(items: T[]): ColumnInfo[] {
+function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   // No items
   if (items.length === 0) {
     return [];
@@ -21,7 +21,10 @@ export function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   }
 
   const keys = new Map<string, ColumnInfo>();
-  items.forEach((item) => {
+
+  // This can be slow for large datasets,
+  // so only sample 10 evenly distributed rows
+  uniformSample(items, 10).forEach((item) => {
     if (typeof item !== "object") {
       return;
     }
@@ -152,4 +155,22 @@ function isPrimitiveOrNullish(value: unknown): boolean {
   }
   const isObject = typeof value === "object";
   return !isObject;
+}
+
+/**
+ * Uniformly sample n items from an array
+ */
+export function uniformSample<T>(items: T[], n: number): T[] {
+  if (items.length <= n) {
+    return items;
+  }
+  const sample: T[] = [];
+  const step = items.length / n;
+  for (let i = 0; i < n - 1; i++) {
+    const idx = Math.floor(i * step);
+    sample.push(items[idx]);
+  }
+  const last = items.at(-1);
+  sample.push(last!);
+  return sample;
 }

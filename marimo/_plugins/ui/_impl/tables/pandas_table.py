@@ -114,6 +114,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                     for column in self.data.columns
                 }
 
+            def limit(self, num: int) -> PandasTableManager:
+                if num < 0:
+                    raise ValueError("Limit must be a positive integer")
+                return PandasTableManager(self.data.head(num))
+
             @staticmethod
             def _get_field_type(
                 series: pd.Series[Any] | pd.DataFrame,
