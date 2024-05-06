@@ -56,7 +56,6 @@ class TestExecution:
         assert k.globals["y"] == 2
         assert k.globals["z"] == 3
 
-        # TODO migrate
         await k.run([ExecutionRequest(cell_id="0", code="x = 2")])
         assert not k.graph.cells["0"].stale
         assert k.globals["x"] == 2
@@ -99,6 +98,27 @@ class TestExecution:
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
+
+    async def test_run_referrers_not_stale(self, any_kernel: Kernel) -> None:
+        k = any_kernel
+        graph = k.graph
+
+        # Tests that running cells doesn't spuriously mark other cells
+        # as stale
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="x = 1"),
+                er1 := ExecutionRequest(cell_id="1", code="x"),
+                er2 := ExecutionRequest(cell_id="2", code="x"),
+            ]
+        )
+        assert not graph.get_stale()
+
+        await k.run([er1])
+        assert not graph.get_stale()
+
+        await k.run([er2])
+        assert not graph.get_stale()
 
     async def test_set_ui_element_value(self, any_kernel: Kernel) -> None:
         k = any_kernel
