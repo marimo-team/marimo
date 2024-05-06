@@ -51,12 +51,15 @@ def formatted_code_block(code: str) -> str:
 
 def _tree_to_app(root: Element) -> str:
     # Extract meta data from root attributes.
-    config_keys = {"title": "app_title"}
+    config_keys = {"title": "app_title", "marimo-layout": "layout_file"}
     config = {
         config_keys[key]: value
         for key, value in root.items()
         if key in config_keys
     }
+    # Try to pass on other attributes as is
+    config |= {k: v for k, v in root.items() if k not in config_keys}
+
     app_config = _AppConfig.from_untrusted_dict(config)
 
     sources: list[str] = []
