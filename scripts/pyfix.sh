@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "[fix: typos]"
+cd marimo && typos -w && cd -
 echo "[fix: copyright]"
 ./scripts/pycopyright.sh
 echo "[fix: ruff]"
