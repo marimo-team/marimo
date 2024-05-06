@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
 
-const appUrl = getAppUrl("stdin.py//edit");
+const appUrl = getAppUrl("stdin.py");
 
 test("stdin works", async ({ page }) => {
   await page.goto(appUrl);
