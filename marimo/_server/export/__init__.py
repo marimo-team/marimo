@@ -14,7 +14,7 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
-from marimo._server.sessions import Session
+from marimo._server.session.session_view import SessionView
 
 
 def export_as_script(
@@ -51,11 +51,11 @@ async def run_app_then_export_as_html(
     file_manager = file_router.get_file_manager(file_key)
 
     config = UserConfigManager()
-    session = await run_app_until_completion(file_manager, cli_args)
+    session_view = await run_app_until_completion(file_manager, cli_args)
     # Export the session as HTML
     html, filename = Exporter().export_as_html(
-        file_manager=session.app_file_manager,
-        session_view=session.session_view,
+        file_manager=file_manager,
+        session_view=session_view,
         display_config=config.get_config()["display"],
         request=ExportAsHTMLRequest(
             include_code=include_code,
@@ -69,7 +69,9 @@ async def run_app_then_export_as_html(
 async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
-) -> Session:
+) -> SessionView:
+    from marimo._server.sessions import Session
+
     instantiated_event = asyncio.Event()
 
     # Create a no-op session consumer
@@ -130,4 +132,4 @@ async def run_app_until_completion(
     # Stop distributor, terminate kernel process, etc -- all information is
     # captured by the session view.
     session.close()
-    return session
+    return session.session_view

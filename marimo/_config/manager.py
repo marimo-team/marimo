@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
-import os
+from __future__ import annotations
 
-import tomlkit
+import os
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -21,12 +21,15 @@ class UserConfigManager:
         self.config = load_config()
 
     def save_config(self, config: MarimoConfig) -> MarimoConfig:
+        import tomlkit
+
         config_path = self._get_config_path()
         LOGGER.debug("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
         # Merge the current config with the new config
         merged = merge_config(self.config, config)
+
         with open(config_path, "w", encoding="utf-8") as f:
             tomlkit.dump(merged, f)
 

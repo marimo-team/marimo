@@ -1,8 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import os
 from typing import Optional, cast
-
-import tomlkit
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -98,6 +98,8 @@ def load_config() -> MarimoConfig:
     if path is not None:
         LOGGER.debug("Using config at %s", path)
         try:
+            import tomlkit
+
             with open(path, "rb") as f:
                 user_config = tomlkit.parse(f.read())
         except Exception as e:
