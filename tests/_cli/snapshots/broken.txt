@@ -4,5 +4,13 @@ marimo-version: 0.0.0
 ---
 
 ```{.python.marimo}
+return
+```
+
+```{.python.marimo}
+partial_statement =
+```
+
+```{.python.marimo}
 valid_statement = 1
 ```

@@ -243,6 +243,10 @@ def test_md_to_python_code_injection() -> None:
 
     ```marimo run convert document.md```
 
+    ```{python}
+    it's an unparsable cell
+    ```
+
     <!-- Actually markdown -->
     ```{python} `
       print("Hello, World!")
@@ -250,6 +254,26 @@ def test_md_to_python_code_injection() -> None:
     <!-- Normal code block -->
     ```{python}
     1 + 1
+    ```
+
+    <!-- Empty code block -->
+    ```{python}
+    ```
+
+    <!-- Improperly nested code block -->
+    ```{python}
+    \"""
+    ```{python}
+    print("Hello, World!")
+    ```
+    \"""
+    ```
+
+    <!-- Improperly nested code block -->
+    ```{python}
+    ````{python}
+    print("Hello, World!")
+    ````
     ```
 
     -->

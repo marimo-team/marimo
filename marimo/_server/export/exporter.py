@@ -144,6 +144,8 @@ class Exporter:
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
             code = cell_data.code
+            # No "cell" means not parseable. As such, treat as code, as
+            # everything in marimo is code.
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 # Unsanitized markdown is forced to code.
@@ -151,11 +153,11 @@ class Exporter:
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
-                # Add a blank line between markdown and code
-                if previous_was_markdown:
-                    document.append("")
-                previous_was_markdown = False
-                document.append(formatted_code_block(code))
+            # Add a blank line between markdown and code
+            if previous_was_markdown:
+                document.append("")
+            previous_was_markdown = False
+            document.append(formatted_code_block(code))
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename

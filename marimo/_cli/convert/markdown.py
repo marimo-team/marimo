@@ -59,12 +59,13 @@ def _tree_to_app(root: Element) -> str:
     }
     app_config = _AppConfig.from_untrusted_dict(config)
 
-    sources = []
+    sources: list[str] = []
     for child in root:
-        source = child.text
-        if not (source and source.strip()):
-            continue
+        source = child.text if child.text else ""
         if child.tag == MARIMO_MD:
+            # Only check here to allow for empty code blocks.
+            if not (source and source.strip()):
+                continue
             source = markdown_to_marimo(source)
         else:
             assert child.tag == MARIMO_CODE, f"Unknown tag: {child.tag}"

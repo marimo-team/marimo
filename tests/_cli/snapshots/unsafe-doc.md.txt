@@ -18,6 +18,10 @@ print("Hello, World!")
 
 ```marimo run convert document.md```
 
+```{.python.marimo}
+it's an unparsable cell
+```
+
 <!-- Actually markdown -->
 ```{python} `
   print("Hello, World!")
@@ -26,6 +30,30 @@ print("Hello, World!")
 
 ```{.python.marimo}
 1 + 1
+```
+
+<!-- Empty code block -->
+
+```{.python.marimo}
+
+```
+
+<!-- Improperly nested code block -->
+
+````{.python.marimo}
+"""
+```{python}
+print("Hello, World!")
+````
+
+\"\"\"
+```
+
+<!-- Improperly nested code block -->
+```{python}
+````{python}
+print("Hello, World!")
+````
 ```
 
 -->
