@@ -140,7 +140,7 @@ def _check_modules(
 
 def watch_modules(
     graph: dataflow.DirectedGraph,
-    mode: Literal["detect", "autorun"],
+    mode: Literal["lazy", "autorun"],
     enqueue_run_stale_cells: Callable[[], None],
     should_exit: threading.Event,
     run_is_processed: threading.Event,
@@ -205,7 +205,7 @@ class ModuleWatcher:
     def __init__(
         self,
         graph: dataflow.DirectedGraph,
-        mode: Literal["detect", "autorun"],
+        mode: Literal["lazy", "autorun"],
         enqueue_run_stale_cells: Callable[[], None],
         stream: Stream,
     ) -> None:

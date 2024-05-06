@@ -157,15 +157,25 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
     );
   }
 
-  // outdated
+  // outdated: cell needs to be re-run
   if (edited || interrupted || staleInputs) {
     const elapsedTimeStr = formatElapsedTime(elapsedTime);
-    const title = interrupted
-      ? "This cell was interrupted when it was last run"
-      : "This cell has been modified since it was last run";
-    const timerTitle = interrupted
-      ? `This cell ran for ${elapsedTimeStr} before being interrupted`
-      : `This cell took ${elapsedTimeStr} to run`;
+
+    // Customize tooltips based on why the cell needs to be re-run
+    let title = "";
+    let timerTitle = "";
+    if (interrupted) {
+      title = "This cell was interrupted when it was last run";
+      timerTitle = `This cell ran for ${elapsedTimeStr} before being interrupted`;
+    } else if (edited) {
+      title = "This cell has been modified since it was last run";
+      timerTitle = `This cell took ${elapsedTimeStr} to run`;
+    } else {
+      // staleInputs
+      title = "This cell has not been run with the latest inputs.";
+      timerTitle = `This cell took ${elapsedTimeStr} to run`;
+    }
+
     return (
       <div className="cell-status-icon flex items-center gap-2">
         <Tooltip content={title} usePortal={false}>

@@ -51,6 +51,7 @@ test("default UserConfig - empty", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "on_cell_change": "autorun",
       },
       "save": {
         "autosave": "after_delay",
@@ -96,6 +97,7 @@ test("default UserConfig - one level", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "on_cell_change": "autorun",
       },
       "save": {
         "autosave": "after_delay",

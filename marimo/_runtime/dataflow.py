@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -164,6 +164,20 @@ class DirectedGraph:
                         self.cycles.add(tuple([(other_id, cell_id)] + path))
                     self.children[other_id].add(cell_id)
 
+        if self.is_any_ancestor_stale(cell_id):
+            self.set_stale(set([cell_id]))
+
+        if self.is_any_ancestor_disabled(cell_id):
+            cell.set_status(status="disabled-transitively")
+
+    def is_any_ancestor_stale(self, cell_id: CellId_t) -> bool:
+        return any(self.cells[cid].stale for cid in self.ancestors(cell_id))
+
+    def is_any_ancestor_disabled(self, cell_id: CellId_t) -> bool:
+        return any(
+            self.cells[cid].config.disabled for cid in self.ancestors(cell_id)
+        )
+
     def disable_cell(self, cell_id: CellId_t) -> None:
         """
         Disables a cell in the graph.
@@ -199,7 +213,7 @@ class DirectedGraph:
                     # cell was previously disabled, is no longer
                     # disabled, and is stale: needs to run.
                     cells_to_run.add(cid)
-                elif child.disabled_transitively:
+                if child.disabled_transitively:
                     # cell is no longer disabled: status -> idle
                     child.set_status("idle")
         return cells_to_run
@@ -291,25 +305,55 @@ class DirectedGraph:
                     return ref
         return None
 
+    def descendants(self, cell_id: CellId_t) -> set[CellId_t]:
+        return transitive_closure(self, set([cell_id]), inclusive=False)
+
+    def ancestors(self, cell_id: CellId_t) -> set[CellId_t]:
+        return transitive_closure(
+            self, set([cell_id]), children=False, inclusive=False
+        )
+
+    def set_stale(self, cell_ids: set[CellId_t]) -> None:
+        for cid in transitive_closure(self, cell_ids):
+            self.cells[cid].set_stale(stale=True)
+
+    def get_stale(self) -> set[CellId_t]:
+        return set([cid for cid, cell in self.cells.items() if cell.stale])
+
 
 def transitive_closure(
-    graph: DirectedGraph, cell_ids: set[CellId_t], children: bool = True
+    graph: DirectedGraph,
+    cell_ids: set[CellId_t],
+    children: bool = True,
+    inclusive: bool = True,
+    predicate: Callable[[CellImpl], bool] | None = None,
 ) -> set[CellId_t]:
     """Return a set of the passed-in cells and their descendants or ancestors
 
     If children is True, returns descendants; otherwise, returns ancestors
+
+    If inclusive, includes passed-in cells in the set.
+
+    If predicate, only cells satisfying predicate(cell) are included
     """
+    seen = set()
     cells = set()
     queue = list(cell_ids)
+    predicate = predicate or (lambda _: True)
 
     def relatives(cid: CellId_t) -> set[CellId_t]:
         return graph.children[cid] if children else graph.parents[cid]
 
     while queue:
         cid = queue.pop(0)
-        cells.add(cid)
+        seen.add(cid)
+        cell = graph.cells[cid]
+        if inclusive and predicate(cell):
+            cells.add(cid)
+        elif cid not in cell_ids and predicate(cell):
+            cells.add(cid)
         for relative in relatives(cid):
-            if relative not in cells:
+            if relative not in seen:
                 queue.append(relative)
     return cells
 

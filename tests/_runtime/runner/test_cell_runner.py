@@ -1,6 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from marimo._runtime.capture import capture_stderr
-from marimo._runtime.cell_runner import Runner
+from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -10,7 +10,7 @@ async def test_cell_output(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run([er := exec_req.get("'hello'; 123")])
 
     runner = Runner(
-        cell_ids=set(k.graph.cells.keys()),
+        roots=set(k.graph.cells.keys()),
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
@@ -39,7 +39,7 @@ async def test_traceback_includes_lineno(
     )
 
     runner = Runner(
-        cell_ids=set(k.graph.cells.keys()),
+        roots=set(k.graph.cells.keys()),
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
@@ -70,7 +70,7 @@ async def test_base_exception_caught(
     )
 
     runner = Runner(
-        cell_ids=set(k.graph.cells.keys()),
+        roots=set(k.graph.cells.keys()),
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,

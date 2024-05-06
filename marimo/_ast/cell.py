@@ -104,7 +104,7 @@ class CellImpl:
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
-        """Update the cel config.
+        """Update the cell config.
 
         `update` can be a partial config.
         """

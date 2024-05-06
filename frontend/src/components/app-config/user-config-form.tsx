@@ -345,6 +345,38 @@ export const UserConfigForm: React.FC = () => {
           />
           <FormField
             control={form.control}
+            name="runtime.on_cell_change"
+            render={({ field }) => (
+              <div className="flex flex-col gap-y-1">
+                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="on-cell-change-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      className="inline-flex mr-2"
+                    >
+                      {["lazy", "autorun"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormLabel className="font-normal">On cell change</FormLabel>
+                </FormItem>
+                <FormDescription>
+                  Whether marimo should automatically run cells or just mark
+                  them as stale. If "autorun", marimo will automatically run
+                  affected cells when a cell is run or a UI element is
+                  interacted with; if "lazy", marimo will mark affected cells as
+                  stale but won't re-run them.
+                </FormDescription>
+              </div>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="runtime.auto_reload"
             render={({ field }) => (
               <div className="flex flex-col gap-y-1">
@@ -357,7 +389,7 @@ export const UserConfigForm: React.FC = () => {
                       disabled={isWasm}
                       className="inline-flex mr-2"
                     >
-                      {["off", "detect", "autorun"].map((option) => (
+                      {["off", "lazy", "autorun"].map((option) => (
                         <option value={option} key={option}>
                           {option}
                         </option>
@@ -365,14 +397,14 @@ export const UserConfigForm: React.FC = () => {
                     </NativeSelect>
                   </FormControl>
                   <FormLabel className="font-normal">
-                    Autoreload modules
+                    On module change
                   </FormLabel>
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically reload modules before
-                  executing cells. If "detect", marimo will mark cells affected
-                  by module modifications as stale; if "automatic", affected
-                  cells will be automatically re-run.
+                  executing cells. If "lazy", marimo will mark cells affected by
+                  module modifications as stale; if "autorun", affected cells
+                  will be automatically re-run.
                 </FormDescription>
               </div>
             )}

@@ -50,7 +50,8 @@ export const UserConfigSchema = z
     runtime: z
       .object({
         auto_instantiate: z.boolean().default(true),
-        auto_reload: z.enum(["off", "detect", "autorun"]).default("off"),
+        on_cell_change: z.enum(["lazy", "autorun"]).default("autorun"),
+        auto_reload: z.enum(["off", "lazy", "autorun"]).default("off"),
       })
       .default({}),
     display: z

@@ -51,7 +51,17 @@ class Op:
 
     # TODO(akshayka): fix typing once mypy has stricter typing for asdict
     def broadcast(self, stream: Optional[Stream] = None) -> None:
-        stream = stream if stream is not None else get_context().stream
+        from marimo._runtime.context.types import ContextNotInitializedError
+
+        if stream is None:
+            try:
+                ctx = get_context()
+            except ContextNotInitializedError:
+                LOGGER.debug("No context initialized.")
+                return
+            else:
+                stream = ctx.stream
+
         LOGGER.debug("Broadcasting op: %s", self)
         stream.write(op=self.name, data=serialize(self))
 

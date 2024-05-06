@@ -1,10 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._runtime import cell_runner, control_flow
-from marimo._runtime.requests import (
-    ExecutionRequest,
-)
+from marimo._runtime import control_flow
+from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.runner import cell_runner
 from marimo._runtime.runtime import Kernel
 
 

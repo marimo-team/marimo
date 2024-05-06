@@ -21,16 +21,9 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
-from marimo._config.config import MarimoConfig
+from marimo._config.config import MarimoConfig, OnCellChangeType
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.errors import (
-    Error,
-    MarimoAncestorStoppedError,
-    MarimoExceptionRaisedError,
-    MarimoInterruptionError,
-    MarimoSyntaxError,
-    UnknownError,
-)
+from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
 from marimo._messaging.ops import (
     Alert,
     CellOp,
@@ -60,26 +53,18 @@ from marimo._messaging.types import (
     Stdout,
     Stream,
 )
-from marimo._output import formatting
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
-from marimo._runtime import (
-    cell_runner,
-    dataflow,
-    handlers,
-    marimo_pdb,
-    patches,
-)
+from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.complete import complete, completion_worker
 from marimo._runtime.context import (
     ContextNotInitializedError,
     ExecutionContext,
     get_context,
-    get_global_context,
 )
 from marimo._runtime.context.kernel_context import initialize_kernel_context
-from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import PackageManager
@@ -104,6 +89,13 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SetUserConfigRequest,
     StopRequest,
+)
+from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner.hooks import (
+    ON_FINISH_HOOKS,
+    POST_EXECUTION_HOOKS,
+    PRE_EXECUTION_HOOKS,
+    PREPARATION_HOOKS,
 )
 from marimo._runtime.state import State
 from marimo._runtime.validate_graph import check_for_errors
@@ -318,6 +310,9 @@ class Kernel:
         self.module_reloader: ModuleReloader | None = None
         self.module_watcher: ModuleWatcher | None = None
         # Load runtime settings from user config
+        self.reactive_execution_mode: OnCellChangeType = user_config[
+            "runtime"
+        ]["on_cell_change"]
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context
@@ -336,6 +331,9 @@ class Kernel:
         exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
+    def lazy(self) -> bool:
+        return self.reactive_execution_mode == "lazy"
+
     def _execute_stale_cells_callback(self) -> None:
         return self.enqueue_control_request(ExecuteStaleRequest())
 
@@ -349,13 +347,15 @@ class Kernel:
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
         autoreload_mode = config["runtime"]["auto_reload"]
+        self.reactive_execution_mode = config["runtime"]["on_cell_change"]
+
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(package_manager)
 
-        if autoreload_mode == "detect" or autoreload_mode == "autorun":
+        if autoreload_mode == "lazy" or autoreload_mode == "autorun":
             if self.module_reloader is None:
                 self.module_reloader = ModuleReloader()
 
@@ -433,7 +433,9 @@ class Kernel:
                     )
 
     def _try_registering_cell(
-        self, cell_id: CellId_t, code: str
+        self,
+        cell_id: CellId_t,
+        code: str,
     ) -> Optional[Error]:
         """Attempt to register a cell with given id and code.
 
@@ -724,15 +726,16 @@ class Kernel:
             cells_with_errors_before_mutation
             - cells_with_errors_after_mutation
         ) & cells_in_graph
-        for cid in cells_that_no_longer_have_errors:
-            # clear error outputs before running
-            CellOp.broadcast_output(
-                channel=CellChannel.OUTPUT,
-                mimetype="text/plain",
-                data="",
-                cell_id=cid,
-                status=None,
-            )
+        if self.reactive_execution_mode == "autorun":
+            for cid in cells_that_no_longer_have_errors:
+                # clear error outputs before running
+                CellOp.broadcast_output(
+                    channel=CellChannel.OUTPUT,
+                    mimetype="text/plain",
+                    data="",
+                    cell_id=cid,
+                    status=None,
+                )
 
         # Cells that were successfully registered need to be run
         cells_registered_without_error = (
@@ -757,25 +760,6 @@ class Kernel:
                 # error is a registration error
                 continue
             self._invalidate_cell_state(cid, exclude_defs=keep_alive_defs)
-
-        roots = (
-            set(
-                itertools.chain(
-                    cells_registered_without_error,
-                    cells_that_were_children_of_mutated_cells,
-                    cells_transitioned_to_error,
-                    cells_that_no_longer_have_errors,
-                )
-            )
-            & cells_in_graph
-        )
-        descendants = (
-            dataflow.transitive_closure(self.graph, roots)
-            # cells with errors can't be run, but are still in the graph
-            # so that they can be transitioned out of error if a future
-            # run request repairs the graph
-            - cells_with_errors_after_mutation
-        )
 
         self.errors = all_errors
         for cid in self.errors:
@@ -805,7 +789,29 @@ class Kernel:
                 for variable, declared_by in self.graph.definitions.items()
             ]
         ).broadcast()
-        return descendants
+
+        stale_cells = (
+            set(
+                itertools.chain(
+                    cells_that_were_children_of_mutated_cells,
+                    set().union(
+                        *[
+                            self.graph.children[cid]
+                            for cid in cells_transitioned_to_error
+                            if cid in self.graph.children
+                        ]
+                    ),
+                    cells_that_no_longer_have_errors,
+                )
+            )
+            - cells_registered_without_error
+        ) & cells_in_graph
+
+        if self.reactive_execution_mode == "lazy":
+            self.graph.set_stale(stale_cells)
+            return cells_registered_without_error
+        else:
+            return cells_registered_without_error.union(stale_cells)
 
     async def _run_cells(self, cell_ids: set[CellId_t]) -> None:
         """Run cells and any state updates they trigger"""
@@ -816,231 +822,76 @@ class Kernel:
         # common cases. We could also be more aggressive and run this before
         # every cell, or even before pickle.dump/pickle.dumps()
         patches.patch_sys_module(self._module)
-        while cells_with_stale_state := await self._run_cells_internal(
-            cell_ids
-        ):
+        while cell_ids := await self._run_cells_internal(cell_ids):
             LOGGER.debug("Running state updates ...")
-            cell_ids = dataflow.transitive_closure(
-                self.graph, cells_with_stale_state
-            )
+            if self.lazy() and cell_ids:
+                self.graph.set_stale(cell_ids)
+                break
         LOGGER.debug("Finished run.")
 
-    async def _run_cells_internal(
-        self, cell_ids: set[CellId_t]
-    ) -> set[CellId_t]:
+    async def _run_cells_internal(self, roots: set[CellId_t]) -> set[CellId_t]:
         """Run cells, send outputs to frontends
 
         Returns set of cells that need to be re-run due to state updates.
         """
-        LOGGER.debug("preparing to evaluate cells %s", cell_ids)
 
-        # Status updates: cells transition to queued, except for
-        # cells that are disabled (explicitly or implicitly).
-        for cid in cell_ids:
-            if self.graph.is_disabled(cid):
-                self.graph.cells[cid].set_stale(stale=True)
-            else:
-                self.graph.cells[cid].set_status(status="queued")
-                if self.graph.cells[cid].stale:
-                    self.graph.cells[cid].set_stale(stale=False)
-            # State clean-up: don't leak names, UI elements, ...
-            #
-            # Clean-up state for all cells upfront, before running
-            # cells, to relieve memory pressure
-            self._invalidate_cell_state(cid)
+        # Some hooks that are leaky and require the kernel
+        # Free cell state ahead of running to relieve memory pressure
+        #
+        # NB: lazy kernels don't invalidate state of cancelled cells
+        # descendants (cancelled == cells that raise exceptions), whereas
+        # eager kernels do (since we clear all state ahead of time, and
+        # have the closure of the roots in cells to run)
+        def invalidate_state(runner: cell_runner.Runner) -> None:
+            for cid in runner.cells_to_run:
+                self._invalidate_cell_state(cid)
+
+        def broadcast_missing_packages(runner: cell_runner.Runner) -> None:
+            if (
+                any(
+                    isinstance(e, ModuleNotFoundError)
+                    for e in runner.exceptions.values()
+                )
+                and self.package_manager is not None
+            ):
+                missing_packages = [
+                    self.package_manager.module_to_package(mod)
+                    for mod in self.module_registry.missing_modules()
+                ]
+
+                if missing_packages:
+                    if self.package_manager.should_auto_install():
+                        self._execute_install_missing_packages_callback(
+                            self.package_manager.name
+                        )
+                    else:
+                        MissingPackageAlert(
+                            packages=list(sorted(missing_packages)),
+                            isolated=is_python_isolated(),
+                        ).broadcast()
 
         runner = cell_runner.Runner(
-            cell_ids=cell_ids,
+            roots=roots,
             graph=self.graph,
             glbls=self.globals,
+            excluded_cells=set(self.errors.keys()),
             debugger=self.debugger,
+            execution_mode=self.reactive_execution_mode,
+            execution_context=self._install_execution_context,
+            preparation_hooks=PREPARATION_HOOKS + [invalidate_state],
+            pre_execution_hooks=PRE_EXECUTION_HOOKS,
+            post_execution_hooks=POST_EXECUTION_HOOKS,
+            on_finish_hooks=ON_FINISH_HOOKS + [broadcast_missing_packages],
         )
 
         # I/O
         #
-        # TODO(akshayka): ignore stdin (always read empty string)
-        # TODO(akshayka): redirect input to frontend (override builtins.input)
-        #                 or ignore/disallow input, since most users will use a
-        #                 marimo UI component anyway
         # TODO(akshayka): when no logger is configured, log output is not
         #                 redirected to frontend (it's printed to console),
         #                 which is incorrect
-        # TODO(akshayka): pdb support
-        LOGGER.debug("final set of cells to run %s", runner.cells_to_run)
-
-        while runner.pending():
-            cell_id = runner.pop_cell()
-            if runner.cancelled(cell_id):
-                continue
-            cell = self.graph.cells[cell_id]
-            if cell.stale:
-                continue
-
-            LOGGER.debug("running cell %s", cell_id)
-            cell.set_status(status="running")
-
-            with self._install_execution_context(cell_id) as exc_ctx:
-                run_result = await runner.run(cell_id)
-                # Don't rebroadcast an output that was already sent
-                #
-                # 1. if run_result.output is not None, need to send it
-                # 2. otherwise if exc_ctx.output is None, then need to send
-                #    the (empty) output (to clear it)
-                new_output = (
-                    run_result.output is not None or exc_ctx.output is None
-                )
-
-            values = [
-                VariableValue(
-                    name=variable,
-                    value=(
-                        self.globals[variable]
-                        if variable in self.globals
-                        else None
-                    ),
-                )
-                for variable in self.graph.cells[cell_id].defs
-            ]
-
-            if values:
-                VariableValues(variables=values).broadcast()
-
-            cell.set_status(status="idle")
-            if (
-                run_result.success()
-                or isinstance(run_result.exception, MarimoStopError)
-            ) and new_output:
-                with self._install_execution_context(cell_id) as exc_ctx:
-                    formatted_output = formatting.try_format(run_result.output)
-                if formatted_output.traceback is not None:
-                    with self._install_execution_context(cell_id):
-                        write_traceback(formatted_output.traceback)
-                CellOp.broadcast_output(
-                    channel=CellChannel.OUTPUT,
-                    mimetype=formatted_output.mimetype,
-                    data=formatted_output.data,
-                    cell_id=cell_id,
-                    status=cell.status,
-                )
-            elif isinstance(run_result.exception, MarimoInterrupt):
-                LOGGER.debug("Cell %s was interrupted", cell_id)
-                # don't clear console because this cell was running and
-                # its console outputs are not stale
-                CellOp.broadcast_error(
-                    data=[MarimoInterruptionError()],
-                    clear_console=False,
-                    cell_id=cell_id,
-                    status=cell.status,
-                )
-            elif run_result.exception is not None:
-                LOGGER.debug(
-                    "Cell %s raised %s",
-                    cell_id,
-                    type(run_result.exception).__name__,
-                )
-                # don't clear console because this cell was running and
-                # its console outputs are not stale
-                exception_type = type(run_result.exception).__name__
-                CellOp.broadcast_error(
-                    data=[
-                        MarimoExceptionRaisedError(
-                            msg="This cell raised an exception: %s%s"
-                            % (
-                                exception_type,
-                                (
-                                    f"('{str(run_result.exception)}')"
-                                    if str(run_result.exception)
-                                    else ""
-                                ),
-                            ),
-                            exception_type=exception_type,
-                            raising_cell=None,
-                        )
-                    ],
-                    clear_console=False,
-                    cell_id=cell_id,
-                    status=cell.status,
-                )
-
-            if get_global_context().mpl_installed:
-                # ensures that every cell gets a fresh axis.
-                exec("__marimo__._output.mpl.close_figures()", self.globals)
-
-        if runner.cells_to_run:
-            assert runner.interrupted
-            for cid in runner.cells_to_run:
-                # `cid` was not run
-                self.graph.cells[cid].set_status("idle")
-                CellOp.broadcast_error(
-                    data=[MarimoInterruptionError()],
-                    # these cells are transitioning from queued to stopped
-                    # (interrupted); they didn't get to run, so their consoles
-                    # reflect a previous run and should be cleared
-                    clear_console=True,
-                    cell_id=cid,
-                    status="idle",
-                )
-
-        for raising_cell in runner.cells_cancelled:
-            for cid in runner.cells_cancelled[raising_cell]:
-                # `cid` was not run
-                self.graph.cells[cid].set_status("idle")
-                exception = runner.exceptions[raising_cell]
-                data: Error
-                if isinstance(exception, MarimoStopError):
-                    data = MarimoAncestorStoppedError(
-                        msg=(
-                            "This cell wasn't run because an "
-                            "ancestor was stopped with `mo.stop`: "
-                        ),
-                        raising_cell=raising_cell,
-                    )
-                else:
-                    exception_type = type(
-                        runner.exceptions[raising_cell]
-                    ).__name__
-                    data = MarimoExceptionRaisedError(
-                        msg=(
-                            "An ancestor raised an exception "
-                            f"({exception_type}): "
-                        ),
-                        exception_type=exception_type,
-                        raising_cell=raising_cell,
-                    )
-                CellOp.broadcast_error(
-                    data=[data],
-                    # these cells are transitioning from queued to stopped
-                    # (interrupted); they didn't get to run, so their consoles
-                    # reflect a previous run and should be cleared
-                    clear_console=True,
-                    cell_id=cid,
-                    status="idle",
-                )
-
-        if (
-            any(
-                isinstance(e, ModuleNotFoundError)
-                for e in runner.exceptions.values()
-            )
-            and self.package_manager is not None
-        ):
-            missing_packages = [
-                self.package_manager.module_to_package(mod)
-                for mod in self.module_registry.missing_modules()
-            ]
-            if missing_packages:
-                if self.package_manager.should_auto_install():
-                    self._execute_install_missing_packages_callback(
-                        self.package_manager.name
-                    )
-                else:
-                    MissingPackageAlert(
-                        packages=list(sorted(missing_packages)),
-                        isolated=is_python_isolated(),
-                    ).broadcast()
-
+        await runner.run_all()
         cells_with_stale_state = runner.resolve_state_updates(
-            self.state_updates, self.errors
+            self.state_updates
         )
         self.state_updates.clear()
         return cells_with_stale_state
@@ -1088,6 +939,8 @@ class Kernel:
         for cid, cell_impl in self.graph.cells.items():
             if cell_impl.stale and not self.graph.is_disabled(cid):
                 cells_to_run.add(cid)
+        # TODO: should there just be one reactive exec mode, and one
+        # reload mode? ie no mix and match? otherwise what do we do here?
         await self._run_cells(
             dataflow.transitive_closure(self.graph, cells_to_run)
         )
@@ -1099,10 +952,8 @@ class Kernel:
 
         Cells that are enabled (via config) but stale are run as a side-effect.
         """
-        # TODO: state transitions to disabled-transitively, stale, idle should
-        # be handled by the graph, not by kernel ...
         # Stale cells that are enabled will need to be run.
-        cells_to_run: set[CellId_t] = set()
+        stale_cells: set[CellId_t] = set()
         for cell_id, config in request.configs.items():
             # store the config, regardless of whether we've seen the cell yet
             self.cell_metadata[cell_id] = CellMetadata(
@@ -1113,14 +964,12 @@ class Kernel:
                 continue
             cell.configure(config)
             if not cell.config.disabled:
-                cells_to_run = self.graph.enable_cell(cell_id)
+                stale_cells = self.graph.enable_cell(cell_id)
             elif cell.config.disabled:
                 self.graph.disable_cell(cell_id)
 
-        if cells_to_run:
-            await self._run_cells(
-                dataflow.transitive_closure(self.graph, cells_to_run)
-            )
+        if stale_cells and self.reactive_execution_mode == "autorun":
+            await self._run_cells(stale_cells)
 
     def set_user_config(self, request: SetUserConfigRequest) -> None:
         self._update_runtime_from_user_config(request.config)
@@ -1239,9 +1088,14 @@ class Kernel:
 
             if variable_values:
                 VariableValues(variables=variable_values).broadcast()
-        await self._run_cells(
-            dataflow.transitive_closure(self.graph, referring_cells)
-        )
+
+        if self.reactive_execution_mode == "autorun":
+            await self._run_cells(referring_cells)
+        else:
+            self.graph.set_stale(referring_cells)
+            # process any state updates that may have been queued by the
+            # on_change handlers
+            await self._run_cells(set())
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any
@@ -1394,9 +1248,12 @@ class Kernel:
             if (cid := self.module_registry.defining_cell(module)) is not None
         )
         if cells_to_run:
-            await self._run_cells(
-                dataflow.transitive_closure(self.graph, cells_to_run)
-            )
+            if self.reactive_execution_mode == "autorun":
+                await self._run_cells(
+                    dataflow.transitive_closure(self.graph, cells_to_run)
+                )
+            else:
+                self.graph.set_stale(cells_to_run)
 
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
