@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Literal, Optional, Union
 
-ColumnId = str
+ColumnId = Union[str, int]
 ColumnIds = List[ColumnId]
 NumpyDataType = str
 Operator = Literal[

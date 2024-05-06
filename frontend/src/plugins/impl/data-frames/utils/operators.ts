@@ -65,7 +65,9 @@ export const ALL_OPERATORS = {
 
 export type OperatorType = keyof typeof ALL_OPERATORS;
 
-export function getOperatorForDtype(dtype: string): readonly string[] {
+export function getOperatorForDtype(
+  dtype: string | undefined,
+): readonly string[] {
   if (!dtype) {
     return [];
   }
@@ -84,7 +86,7 @@ export function getOperatorForDtype(dtype: string): readonly string[] {
 }
 
 export function getSchemaForOperator(
-  dtype: string,
+  dtype: string | undefined,
   operator: string,
 ): [z.ZodType] | [] {
   if (!dtype || !operator) {

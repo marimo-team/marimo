@@ -203,6 +203,7 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._value_frontend = initial_value
         self._value = self._initial_value = self._convert_value(initial_value)
         self._on_change = on_change
+        self._component_args = args
 
         self._inner_text = build_ui_plugin(
             component_name,

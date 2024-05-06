@@ -101,10 +101,6 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
   const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
 
   const handleInsertSnippet = () => {
-    if (!snippet) {
-      return;
-    }
-
     // Add below last focused cell in reverse order
     for (const section of [...snippet.sections].reverse()) {
       if (section.code) {

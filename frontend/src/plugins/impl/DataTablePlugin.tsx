@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -98,37 +98,38 @@ interface DataTableProps extends Data<unknown>, Functions {
   setValue: (value: S) => void;
 }
 
-export const LoadingDataTableComponent = (
-  props: DataTableProps & { data: string },
-) => {
-  const { data, loading, error } = useAsyncData<unknown[]>(() => {
-    if (!props.data) {
-      return Promise.resolve([]);
+export const LoadingDataTableComponent = memo(
+  (props: DataTableProps & { data: string }) => {
+    const { data, loading, error } = useAsyncData<unknown[]>(() => {
+      if (!props.data) {
+        return Promise.resolve([]);
+      }
+      return vegaLoadData(
+        props.data,
+        { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
+        true,
+      );
+    }, [props.data, props.fieldTypes]);
+
+    if (loading && !data) {
+      return null;
     }
-    return vegaLoadData(
-      props.data,
-      { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
-      true,
-    );
-  }, [props.data, props.fieldTypes]);
 
-  if (loading && !data) {
-    return null;
-  }
+    if (error) {
+      return (
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <div className="text-md">
+            {error.message || "An unknown error occurred"}
+          </div>
+        </Alert>
+      );
+    }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Error</AlertTitle>
-        <div className="text-md">
-          {error.message || "An unknown error occurred"}
-        </div>
-      </Alert>
-    );
-  }
-
-  return <DataTableComponent {...props} data={data || Arrays.EMPTY} />;
-};
+    return <DataTableComponent {...props} data={data || Arrays.EMPTY} />;
+  },
+);
+LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 
 const DataTableComponent = ({
   label,

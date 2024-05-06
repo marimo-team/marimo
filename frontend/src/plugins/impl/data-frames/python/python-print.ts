@@ -2,6 +2,7 @@
 import { TransformType } from "@/plugins/impl/data-frames/schema";
 import { logNever } from "@/utils/assertNever";
 import { OperatorType } from "../utils/operators";
+import { ColumnId } from "../types";
 
 export function pythonPrintTransforms(
   dfName: string,
@@ -19,16 +20,16 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
   switch (transform.type) {
     case "column_conversion": {
       const { column_id, data_type, errors } = transform;
-      return `${dfName}["${column_id}"].astype("${data_type}", errors="${errors}")`;
+      return `${dfName}[${asLiteral(column_id)}].astype("${data_type}", errors="${errors}")`;
     }
     case "rename_column": {
       const { column_id, new_column_id } = transform;
-      return `${dfName}.rename(columns={"${column_id}": "${new_column_id}"})`;
+      return `${dfName}.rename(columns={${asLiteral(column_id)}: ${asLiteral(new_column_id)}})`;
     }
     case "sort_column": {
       const { column_id, ascending, na_position } = transform;
       const args = argsList(
-        `by="${column_id}"`,
+        `by=${asLiteral(column_id)}`,
         ascending ? "" : "ascending=False",
         na_position === "last" ? "" : `na_position="${na_position}"`,
       );
@@ -61,7 +62,10 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
         return `${dfName}.agg(${listOfStrings(aggregations)})`;
       }
       return `${dfName}.agg({${column_ids
-        .map((column_id) => `"${column_id}": ${listOfStrings(aggregations)}`)
+        .map(
+          (column_id) =>
+            `${asLiteral(column_id)}: ${listOfStrings(aggregations)}`,
+        )
         .join(", ")}})`;
     }
     case "group_by": {
@@ -78,7 +82,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
         return dfName;
       }
       if (column_ids.length === 1) {
-        return `${dfName}["${column_ids[0]}"]`;
+        return `${dfName}[${asLiteral(column_ids[0])}]`;
       }
       return `${dfName}[${listOfStrings(column_ids)}]`;
     }
@@ -98,7 +102,7 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
 function generateWhereClause(
   dfName: string,
   where: {
-    column_id: string;
+    column_id: ColumnId;
     operator: OperatorType;
     value?: unknown;
   },
@@ -106,48 +110,48 @@ function generateWhereClause(
   const { column_id, operator, value } = where;
   switch (operator) {
     case "==":
-      return `${dfName}["${column_id}"] == ${asString(value)}`;
+      return `${dfName}[${asLiteral(column_id)}] == ${asLiteral(value)}`;
     case "equals":
-      return `${dfName}["${column_id}"].eq(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].eq(${asLiteral(value)})`;
     case "does_not_equal":
-      return `${dfName}["${column_id}"].ne(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].ne(${asLiteral(value)})`;
     case "contains":
-      return `${dfName}["${column_id}"].str.contains(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.contains(${asLiteral(value)})`;
     case "regex":
-      return `${dfName}["${column_id}"].str.contains(${asString(
+      return `${dfName}[${asLiteral(column_id)}].str.contains(${asLiteral(
         value,
       )}, regex=True)`;
     case "starts_with":
-      return `${dfName}["${column_id}"].str.startswith(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.startswith(${asLiteral(value)})`;
     case "ends_with":
-      return `${dfName}["${column_id}"].str.endswith(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.endswith(${asLiteral(value)})`;
     case "in":
-      return `${dfName}["${column_id}"].isin(${listOfStrings(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].isin(${listOfStrings(value)})`;
     case "!=":
-      return `${dfName}["${column_id}"].ne(${asString(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].ne(${asLiteral(value)})`;
     case ">":
-      return `${dfName}["${column_id}"] > ${asString(value)}`;
+      return `${dfName}[${asLiteral(column_id)}] > ${asLiteral(value)}`;
     case ">=":
-      return `${dfName}["${column_id}"] >= ${asString(value)}`;
+      return `${dfName}[${asLiteral(column_id)}] >= ${asLiteral(value)}`;
     case "<":
-      return `${dfName}["${column_id}"] < ${asString(value)}`;
+      return `${dfName}[${asLiteral(column_id)}] < ${asLiteral(value)}`;
     case "<=":
-      return `${dfName}["${column_id}"] <= ${asString(value)}`;
+      return `${dfName}[${asLiteral(column_id)}] <= ${asLiteral(value)}`;
     case "is_nan":
-      return `${dfName}["${column_id}"].isna()`;
+      return `${dfName}[${asLiteral(column_id)}].isna()`;
     case "is_not_nan":
-      return `${dfName}["${column_id}"].notna()`;
+      return `${dfName}[${asLiteral(column_id)}].notna()`;
     case "is_true":
-      return `${dfName}["${column_id}"].eq(True)`;
+      return `${dfName}[${asLiteral(column_id)}].eq(True)`;
     case "is_false":
-      return `${dfName}["${column_id}"].eq(False)`;
+      return `${dfName}[${asLiteral(column_id)}].eq(False)`;
     default:
       logNever(operator);
       return "df";
   }
 }
 
-function asString(value: unknown): string {
+function asLiteral(value: unknown): string {
   if (typeof value === "string") {
     return `"${value}"`;
   }
@@ -156,9 +160,9 @@ function asString(value: unknown): string {
 
 function listOfStrings(value: unknown): string {
   if (Array.isArray(value)) {
-    return `[${value.map(asString).join(", ")}]`;
+    return `[${value.map(asLiteral).join(", ")}]`;
   }
-  return asString(value);
+  return asLiteral(value);
 }
 
 function argsList(...args: string[]): string {
