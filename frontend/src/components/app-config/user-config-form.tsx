@@ -404,7 +404,7 @@ export const UserConfigForm: React.FC = () => {
                 <FormDescription>
                   Whether marimo should automatically reload modules before
                   executing cells. If "lazy", marimo will mark cells affected by
-                  module modifications as stale; if "automatic", affected cells
+                  module modifications as stale; if "autorun", affected cells
                   will be automatically re-run.
                 </FormDescription>
               </div>
