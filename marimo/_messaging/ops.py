@@ -53,13 +53,15 @@ class Op:
     def broadcast(self, stream: Optional[Stream] = None) -> None:
         from marimo._runtime.context.types import ContextNotInitializedError
 
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            LOGGER.debug("No context initialized.")
-            return
+        if stream is None:
+            try:
+                ctx = get_context()
+            except ContextNotInitializedError:
+                LOGGER.debug("No context initialized.")
+                return
+            else:
+                stream = ctx.stream
 
-        stream = stream if stream is not None else ctx.stream
         LOGGER.debug("Broadcasting op: %s", self)
         stream.write(op=self.name, data=serialize(self))
 
