@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from textwrap import dedent
-from typing import TYPE_CHECKING, List, Optional, Union, cast
+from typing import List, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.app import App, InternalApp
@@ -14,9 +14,7 @@ from marimo._output.formatting import as_html
 from marimo._output.utils import uri_encode_component
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui import code_editor
-
-if TYPE_CHECKING:
-    from marimo._server.sessions import Session
+from marimo._server.session.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
 
@@ -40,7 +38,7 @@ class MarimoIslandStub:
         self._is_reactive = is_reactive
 
         self._internal_app: Optional[InternalApp] = None
-        self._session: Optional[Session] = None
+        self._session_view: Optional[SessionView] = None
         self._output: Optional[CellOutput] = None
 
     @property
@@ -49,14 +47,12 @@ class MarimoIslandStub:
         # pdf.
         if self._output is None:
             assert (
-                self._session is not None
+                self._session_view is not None
             ), "You must call build() before rendering"
             assert (
                 self._internal_app is not None
             ), "You must call build() accessing output"
-            outputs = self._session.session_view.get_cell_outputs(
-                [self._cell_id]
-            )
+            outputs = self._session_view.get_cell_outputs([self._cell_id])
             self._output = outputs.get(self._cell_id, None)
         return self._output
 
@@ -245,7 +241,7 @@ class MarimoIslandGenerator:
 
         for stub in self._stubs:
             stub._internal_app = self._app
-            stub._session = session
+            stub._session_view = session
 
         return cast(App, self._app)
 
