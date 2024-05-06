@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import {
   AGGREGATION_FNS,
+  ColumnId,
   NUMPY_DTYPES,
 } from "@/plugins/impl/data-frames/types";
 import {
@@ -17,6 +18,8 @@ import {
 const column_id = z
   .string()
   .min(1, "Required")
+  .or(z.number())
+  .transform((v) => v as ColumnId)
   .describe(FieldOptions.of({ label: "Column", special: "column_id" }));
 
 const column_id_array = z
@@ -48,6 +51,7 @@ const RenameColumnTransformSchema = z.object({
   new_column_id: z
     .string()
     .min(1, "Required")
+    .transform((v) => v as ColumnId)
     .describe(FieldOptions.of({ label: "New column name" })),
 });
 

@@ -23,8 +23,8 @@ export const layoutElements = (
   nodes.forEach((node) =>
     g.setNode(node.id, {
       ...node,
-      width: node.width || 0,
-      height: node.height || 0,
+      width: node.width ?? 0,
+      height: node.height ?? 0,
     }),
   );
 

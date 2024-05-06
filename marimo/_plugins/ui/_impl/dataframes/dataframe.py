@@ -3,7 +3,16 @@ from __future__ import annotations
 
 import inspect
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Dict, Final, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Final,
+    List,
+    Optional,
+    Union,
+)
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.dataframes.handlers import TransformsContainer
@@ -129,7 +138,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             on_change=on_change,
             label="",
             args={
-                "columns": df.dtypes.to_dict(),
+                "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
                 "total": len(df),
                 "page-size": page_size,
@@ -147,6 +156,9 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
                 ),
             ),
         )
+
+    def _get_column_types(self) -> List[List[Union[str, int]]]:
+        return [[name, dtype] for name, dtype in self._data.dtypes.items()]  # type: ignore
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
         # Only get the first 100 (for performance reasons)
@@ -173,7 +185,7 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         LIMIT = 500
 
         if args.column not in self._data.columns:
-            ColumnNotFound(args.column)
+            raise ColumnNotFound(args.column)
 
         # We get the unique values from the original dataframe, not the
         # transformed one

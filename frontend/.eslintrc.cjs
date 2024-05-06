@@ -115,6 +115,18 @@ module.exports = {
     "@typescript-eslint/no-unsafe-call": "off",
     "@typescript-eslint/no-unsafe-member-access": "off",
     "@typescript-eslint/no-unsafe-return": "off",
+    // "@typescript-eslint/strict-boolean-expressions": [
+    //   "error",
+    //   {
+    //     // Defaults
+    //     allowString: true,
+    //     allowNumber: true,
+    //     allowNullableObject: true,
+    //     // Custom
+    //     allowNullableBoolean: true,
+    //     allowNullableString: true,
+    //   },
+    // ],
 
     // These rules aim to reduce bikeshedding during code reviews
     // Often there are multiple ways to do something and this forces consistency

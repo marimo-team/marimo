@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -224,6 +226,29 @@ class TestHandlers:
         )
         result = TestHandlers.apply(df, transform)
         assert result["A"].tolist() == [True, True]
+
+    @staticmethod
+    def test_handle_filter_rows_unknown_column() -> None:
+        df = pd.DataFrame({"A": [1, 2, 3]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="B", operator=">=", value=2)],
+        )
+        with pytest.raises(KeyError):
+            TestHandlers.apply(df, transform)
+
+    @staticmethod
+    def test_handle_filter_rows_number_columns() -> None:
+        df = pd.DataFrame({1: [1, 2, 3], 2: [4, 5, 6]})
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id=1, operator=">=", value=2)],
+        )
+        result = TestHandlers.apply(df, transform)
+        assert result[1].tolist() == [2, 3]
+        assert result[2].tolist() == [5, 6]
 
     @staticmethod
     def test_handle_group_by() -> None:

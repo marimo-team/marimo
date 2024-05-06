@@ -1,0 +1,1085 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderZodSchema > should render a form 1`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <div
+          aria-describedby=":r0:-form-item-description"
+          aria-invalid="false"
+          aria-required="false"
+          class="flex flex-row gap-2 pt-1 items-center"
+          dir="ltr"
+          id=":r0:-form-item"
+          role="radiogroup"
+          style="outline: none;"
+          tabindex="0"
+        >
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".operation-keep_rows"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="keep_rows"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".operation-keep_rows"
+            >
+              Keep Rows
+            </label>
+          </div>
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".operation-remove_rows"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="remove_rows"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".operation-remove_rows"
+            >
+              Remove Rows
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        />
+        <div
+          class="flex flex-col gap-2 min-w-[220px]"
+        >
+          <div
+            class="text-destructive text-xs font-semibold"
+          >
+            <div>
+              At least 1 required.
+            </div>
+          </div>
+          <div>
+            <button
+              class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background opacity-80 hover:opacity-100 active:opacity-100 h-7 px-2 rounded-md text-xs hover:text-accent-foreground"
+              data-testid="marimo-plugin-data-frames-add-array-item"
+            >
+              <svg
+                class="lucide lucide-plus w-3.5 h-3.5 mr-1"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M5 12h14"
+                />
+                <path
+                  d="M12 5v14"
+                />
+              </svg>
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 2`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r3:-form-item"
+        >
+          Columns
+        </label>
+        <div
+          class="relative"
+        >
+          <div
+            aria-controls="radix-:r4:"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            Select columns 
+            <svg
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 3`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r5:-form-item"
+        >
+          Column
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:r6:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <div
+          class="relative"
+        >
+          <input
+            aria-describedby=":r7:-form-item-description"
+            aria-invalid="false"
+            class="shadow-xsSolid hover:shadow-smSolid disabled:shadow-xsSolid focus-visible:shadow-mdSolid flex h-6 w-full rounded-sm border border-input bg-background px-1.5 py-1 text-sm font-code ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 my-0"
+            id=":r7:-form-item"
+            name=".new_column_id"
+            value=""
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 4`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":rd:-form-item"
+        >
+          Column
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:re:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+          for=":rf:-form-item"
+        >
+          Data type (numpy)
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:rg:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":rh:-form-item"
+        >
+          Handle errors
+        </label>
+        <div
+          aria-describedby=":rh:-form-item-description"
+          aria-invalid="false"
+          aria-required="false"
+          class="flex flex-row gap-2 pt-1 items-center"
+          dir="ltr"
+          id=":rh:-form-item"
+          role="radiogroup"
+          style="outline: none;"
+          tabindex="0"
+        >
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".errors-ignore"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="ignore"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".errors-ignore"
+            >
+              Ignore
+            </label>
+          </div>
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".errors-raise"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="raise"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".errors-raise"
+            >
+              Raise
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 5`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r1f:-form-item"
+        >
+          Column
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:r1g:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <div
+          class="flex flex-row items-start space-x-2"
+        >
+          <label
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for=":r1h:-form-item"
+          >
+            Ascending
+          </label>
+          <button
+            aria-checked="false"
+            aria-describedby=":r1h:-form-item-description"
+            aria-invalid="false"
+            class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            data-state="unchecked"
+            data-testid="marimo-plugin-data-frames-boolean-checkbox"
+            id=":r1h:-form-item"
+            role="checkbox"
+            type="button"
+            value="on"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r1i:-form-item"
+        >
+          N/A position
+        </label>
+        <div
+          aria-describedby=":r1i:-form-item-description"
+          aria-invalid="false"
+          aria-required="false"
+          class="flex flex-row gap-2 pt-1 items-center"
+          dir="ltr"
+          id=":r1i:-form-item"
+          role="radiogroup"
+          style="outline: none;"
+          tabindex="0"
+        >
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".na_position-first"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="first"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".na_position-first"
+            >
+              First
+            </label>
+          </div>
+          <div
+            class="flex items-center gap-1"
+          >
+            <button
+              aria-checked="false"
+              class="h-[16px] w-[16px] transition-shadow data-[state=unchecked]:shadow-xsSolid rounded-full border border-input text-primary ring-offset-background focus:outline-none focus:shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:shadow-none"
+              data-radix-collection-item=""
+              data-state="unchecked"
+              id=".na_position-last"
+              role="radio"
+              tabindex="-1"
+              type="button"
+              value="last"
+            />
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+              for=".na_position-last"
+            >
+              Last
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 6`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r1q:-form-item"
+        >
+          Columns
+        </label>
+        <div
+          class="relative"
+        >
+          <div
+            aria-controls="radix-:r1r:"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            Select columns 
+            <svg
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+          for=":r1s:-form-item"
+        >
+          Aggregation
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-:r1t:"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xsSolid border border-input hover:shadow-smSolid focus:border-primary focus:shadow-mdSolid disabled:hover:shadow-xsSolid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <div
+          class="flex flex-row items-start space-x-2"
+        >
+          <label
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for=":r1u:-form-item"
+          >
+            Drop N/A
+          </label>
+          <button
+            aria-checked="false"
+            aria-describedby=":r1u:-form-item-description"
+            aria-invalid="false"
+            class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            data-state="unchecked"
+            data-testid="marimo-plugin-data-frames-boolean-checkbox"
+            id=":r1u:-form-item"
+            role="checkbox"
+            type="button"
+            value="on"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 7`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-row gap-6 items-start"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r26:-form-item"
+        >
+          Columns
+        </label>
+        <div
+          class="relative"
+        >
+          <div
+            aria-controls="radix-:r27:"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            Select columns 
+            <svg
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+          for=":r28:-form-item"
+        >
+          Aggregations
+        </label>
+        <div
+          class="relative"
+        >
+          <div
+            aria-controls="radix-:r29:"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xsSolid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-smSolid focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-mdSolid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            Select aggregations 
+            <svg
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 8`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for=":r2a:-form-item"
+        >
+          Number of rows
+        </label>
+        <div
+          class="my-0"
+          data-rac=""
+        >
+          <div
+            class="shadow-xsSolid hover:shadow-smSolid hover:focus-within:shadow-mdSolid flex h-6 w-full overflow-hidden rounded-sm border border-input bg-background text-sm font-code ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-xsSolid focus-within:shadow-mdSolid focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:border-primary my-0"
+          >
+            <input
+              aria-describedby=":r2a:-form-item-description"
+              aria-roledescription="Number field"
+              autocomplete="off"
+              autocorrect="off"
+              class="flex-1 w-full placeholder:text-muted-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50 px-1.5"
+              data-rac=""
+              id=":r2a:-form-item"
+              inputmode="numeric"
+              spellcheck="false"
+              title=""
+              type="text"
+              value=""
+            />
+            <div
+              class="flex flex-col border-s-2"
+            >
+              <button
+                aria-controls=":r2a:-form-item"
+                aria-label="Increase"
+                class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
+                data-rac=""
+                slot="increment"
+                tabindex="-1"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-chevron-up w-3 h-3 -mb-[1px]"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="m18 15-6-6-6 6"
+                  />
+                </svg>
+              </button>
+              <div
+                class="h-[1px] flex-shrink-0 divider bg-border z-10"
+              />
+              <button
+                aria-controls=":r2a:-form-item"
+                aria-label="Decrease"
+                class="px-0.5 cursor-default text-muted-foreground pressed:bg-muted-foreground group-disabled:text-disabled-foreground outline-none focus-visible:text-primary disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:bg-muted"
+                data-rac=""
+                slot="decrement"
+                tabindex="-1"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-chevron-down w-3 h-3 -mt-[1px]"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="m6 9 6 6 6-6"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <input
+          name=".n"
+          type="hidden"
+          value=""
+        />
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <button
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        data-testid="marimo-plugin-data-frames-random-number-button"
+      >
+        <svg
+          class="lucide lucide-refresh-ccw w-3.5 h-3.5 mr-1"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+          />
+          <path
+            d="M3 3v5h5"
+          />
+          <path
+            d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
+          />
+          <path
+            d="M16 16h5v5"
+          />
+        </svg>
+        Re-sample
+      </button>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <div
+          class="flex flex-row items-start space-x-2"
+        >
+          <label
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for=":r2j:-form-item"
+          >
+            Sample with replacement
+          </label>
+          <button
+            aria-checked="false"
+            aria-describedby=":r2j:-form-item-description"
+            aria-invalid="false"
+            class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            data-state="unchecked"
+            data-testid="marimo-plugin-data-frames-boolean-checkbox"
+            id=":r2j:-form-item"
+            role="checkbox"
+            type="button"
+            value="on"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`renderZodSchema > should render a form 9`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name=".type"
+      type="hidden"
+      value=""
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <button
+        class="disabled:opacity-50 disabled:pointer-events-none inline-flex mb-1 items-center justify-center font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-input shadow-smSolid active:shadow-xsSolid h-7 px-2 rounded-md text-xs"
+        data-testid="marimo-plugin-data-frames-random-number-button"
+      >
+        <svg
+          class="lucide lucide-refresh-ccw w-3.5 h-3.5 mr-1"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+          />
+          <path
+            d="M3 3v5h5"
+          />
+          <path
+            d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
+          />
+          <path
+            d="M16 16h5v5"
+          />
+        </svg>
+        Re-shuffle
+      </button>
+    </div>
+  </div>
+</DocumentFragment>
+`;

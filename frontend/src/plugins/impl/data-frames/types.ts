@@ -1,11 +1,21 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 /**
- * Map of column id to data type
+ * Strongly typed string/number
  */
-export interface ColumnDataTypes {
-  [column_id: string]: string;
-}
+export type ColumnId = (string | number) & { __columnId: "columnId" };
+
+/**
+ * List of column Id and their data types
+ *
+ * We cannot use a js map, since maps don't preserve keys as ints (e.g. "1" and 1 are the same key)
+ */
+export type RawColumnDataTypes = Array<[ColumnId, string]>;
+/**
+ * Map of column Id and their data types
+ * ES6 maps preserve keys as ints (e.g. "1" and 1 are different keys)
+ */
+export type ColumnDataTypes = Map<ColumnId, string>;
 
 export const NUMPY_DTYPES = [
   "int8",

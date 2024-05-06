@@ -4,6 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { DataFrameComponent } from "@/plugins/impl/data-frames/DataFramePlugin";
 import { Transformations } from "@/plugins/impl/data-frames/schema";
+import { ColumnId } from "@/plugins/impl/data-frames/types";
 
 const meta: Meta = {
   title: "DataFrame",
@@ -21,12 +22,14 @@ export const DataFrame: StoryObj = {
           values: Array.from({ length: 100 }).map((_, i) => `value ${i}`),
           too_many_values: false,
         })}
-        columns={{
-          name: "object",
-          age: "int",
-          height: "float",
-          picture: "bytes",
-        }}
+        columns={
+          new Map<ColumnId, string>([
+            ["name" as ColumnId, "object"],
+            ["age" as ColumnId, "int"],
+            ["height" as ColumnId, "float"],
+            ["picture" as ColumnId, "bytes"],
+          ])
+        }
         dataframeName={"df"}
         pageSize={5}
         value={value}

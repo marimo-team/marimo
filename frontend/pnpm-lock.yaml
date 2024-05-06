@@ -379,6 +379,9 @@ devDependencies:
   '@swc-jotai/react-refresh':
     specifier: ^0.1.0
     version: 0.1.0
+  '@testing-library/react':
+    specifier: ^15.0.6
+    version: 15.0.6(@types/react@18.3.1)(react-dom@18.3.1)(react@18.3.1)
   '@types/emscripten':
     specifier: ^1.39.10
     version: 1.39.10
@@ -458,6 +461,9 @@ devDependencies:
     specifier: ^18.3.1
     version: 18.3.1
   react-dom:
+    specifier: ^18.3.1
+    version: 18.3.1(react@18.3.1)
+  react-test-renderer:
     specifier: ^18.3.1
     version: 18.3.1(react@18.3.1)
   storybook:
@@ -3247,7 +3253,7 @@ packages:
       prop-types: 15.8.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      react-is: 18.2.0
+      react-is: 18.3.1
       react-transition-group: 4.4.5(react-dom@18.3.1)(react@18.3.1)
     dev: false
 
@@ -3346,7 +3352,7 @@ packages:
       '@types/react': 18.3.1
       prop-types: 15.8.1
       react: 18.3.1
-      react-is: 18.2.0
+      react-is: 18.3.1
     dev: false
 
   /@ndelangen/get-tarball@3.0.7:
@@ -7719,6 +7725,20 @@ packages:
     engines: {node: '>=12'}
     dev: false
 
+  /@testing-library/dom@10.1.0:
+    resolution: {integrity: sha512-wdsYKy5zupPyLCW2Je5DLHSxSfbIp6h80WoHOQc+RPtmPGA52O9x5MJEkv92Sjonpq+poOAtUKhh1kBGAXBrNA==}
+    engines: {node: '>=18'}
+    dependencies:
+      '@babel/code-frame': 7.24.2
+      '@babel/runtime': 7.24.4
+      '@types/aria-query': 5.0.1
+      aria-query: 5.3.0
+      chalk: 4.1.2
+      dom-accessibility-api: 0.5.12
+      lz-string: 1.5.0
+      pretty-format: 27.5.1
+    dev: true
+
   /@testing-library/dom@9.3.4:
     resolution: {integrity: sha512-FlS4ZWlp97iiNWig0Muq8p+3rVDjRiYE+YKGbAqXOu9nwJFFOdL00kFpz42M+4huzYi86vAK1sOOfyOG45muIQ==}
     engines: {node: '>=14'}
@@ -7763,6 +7783,25 @@ packages:
       lodash: 4.17.21
       redent: 3.0.0
       vitest: 1.5.2(jsdom@24.0.0)(less@4.2.0)
+    dev: true
+
+  /@testing-library/react@15.0.6(@types/react@18.3.1)(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-UlbazRtEpQClFOiYp+1BapMT+xyqWMnE+hh9tn5DQ6gmlE7AIZWcGpzZukmDZuFk3By01oiqOf8lRedLS4k6xQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/react': ^18.0.0
+      react: ^18.0.0
+      react-dom: ^18.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.24.4
+      '@testing-library/dom': 10.1.0
+      '@types/react': 18.3.1
+      '@types/react-dom': 18.3.0
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
     dev: true
 
   /@testing-library/user-event@14.5.2(@testing-library/dom@9.3.4):
@@ -16127,6 +16166,10 @@ packages:
 
   /react-is@18.2.0:
     resolution: {integrity: sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==}
+    dev: true
+
+  /react-is@18.3.1:
+    resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
   /react-plotly.js@2.6.0(plotly.js@2.32.0)(react@18.3.1):
     resolution: {integrity: sha512-g93xcyhAVCSt9kV1svqG1clAEdL6k3U+jjuSzfTV7owaSU9Go6Ph8bl25J+jKfKvIGAEYpe4qj++WHJuc9IaeA==}
@@ -16219,6 +16262,16 @@ packages:
       - react-dom
     dev: false
 
+  /react-shallow-renderer@16.15.0(react@18.3.1):
+    resolution: {integrity: sha512-oScf2FqQ9LFVQgA73vr86xl2NaOIX73rh+YFqcOp68CWj56tSfgtGKrEbyhCj0rSijyG9M1CYprTh39fBi5hzA==}
+    peerDependencies:
+      react: ^16.0.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      object-assign: 4.1.1
+      react: 18.3.1
+      react-is: 18.3.1
+    dev: true
+
   /react-stately@3.30.1(react@18.3.1):
     resolution: {integrity: sha512-IEhKHMT7wijtczA5vtw/kdq9CZuOIF+ReoSimydTFiABRQxWO9ESAl/fToXOUM9qmCdhdqjGJgMAhqTnmheh8g==}
     peerDependencies:
@@ -16266,6 +16319,17 @@ packages:
       react: 18.3.1
       tslib: 2.6.2
     dev: false
+
+  /react-test-renderer@18.3.1(react@18.3.1):
+    resolution: {integrity: sha512-KkAgygexHUkQqtvvx/otwxtuFu5cVjfzTCtjXLH9boS19/Nbtg84zS7wIQn39G8IlrhThBpQsMKkq5ZHZIYFXA==}
+    peerDependencies:
+      react: ^18.3.1
+    dependencies:
+      react: 18.3.1
+      react-is: 18.3.1
+      react-shallow-renderer: 16.15.0(react@18.3.1)
+      scheduler: 0.23.2
+    dev: true
 
   /react-transition-group@4.4.5(react-dom@18.3.1)(react@18.3.1):
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}

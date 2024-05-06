@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, List, NoReturn, cast
 
 from marimo._plugins.ui._impl.dataframes.transforms import (
@@ -88,7 +90,7 @@ class TransformHandlers:
         df: "pd.DataFrame", transform: SortColumnTransform
     ) -> "pd.DataFrame":
         return df.sort_values(
-            by=transform.column_id,
+            by=cast(str, transform.column_id),
             ascending=transform.ascending,
             na_position=transform.na_position,
         )
