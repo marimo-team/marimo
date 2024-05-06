@@ -11,6 +11,7 @@ automatically.
 
 To provide reactive execution, marimo creates a dataflow graph out of your
 cells.
+<!---->
 ## References and definitions
 
 A marimo notebook is a directed acyclic graph in which nodes represent
@@ -25,6 +26,7 @@ global variables defined by the former cell.
 
 The rule for reactive execution can be restated in terms of the graph: when
 a cell is run, its descendants are run automatically.
+<!---->
 ### Example
 
 The next four cells plot a sine wave with a given period and amplitude.
@@ -111,6 +113,7 @@ mo.md(
 🌊 **Try it!** In the above cells, try changing the value `period` or
 `ampltitude`, then click the run button ( ▷ ) to register your changes.
 See what happens to the sine wave.
+<!---->
 Here is the dataflow graph for the cells that make the sine wave plot, plus
 the cells that import libraries. Each cell is labeled with its defs.
 
@@ -132,17 +135,20 @@ the cells that import libraries. Each cell is labeled with its defs.
 ```
 
 The last cell, which doesn't define anything, produces the plot.
+<!---->
 ## Dataflow programming
 
 marimo's runtime rule has some important consequences that may seem
 surprising if you are not used to dataflow programming. We list these
 below.
+<!---->
 ### Execution order is not cell order
 
 The order in which cells are executed is determined entirely by the
 dataflow graph. This makes marimo notebooks more reproducible than
 traditional notebooks. It also lets you place boilerplate, like
 imports or long markdown strings, at the bottom of the editor.
+<!---->
 ### Global variable names must be unique
 
 Every global variable can be defined by only one cell. Without this
@@ -164,6 +170,7 @@ planet
 
 **🌊 Try it!** In the previous cell, change the name `planet` to `home`,
 then run the cell.
+<!---->
 Because defs must be unique, global variables cannot be modified with
 operators like `+=` or `-=` in cells other than the one that created
 them; these operators count as redefinitions of a name.

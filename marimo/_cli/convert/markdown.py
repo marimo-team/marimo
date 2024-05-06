@@ -7,7 +7,6 @@ from typing import Any, Callable, Literal, Optional
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
-# Note: yaml is also a python builtin
 import yaml
 
 # Markdown is a dependency of marimo, as such we utilize it as much as possible
@@ -325,6 +324,10 @@ class ExpandAndClassifyProcessor(BlockProcessor):
             # Check for the placeholder, and ensure it is a marimo code block,
             # otherwise consider it as markdown.
             if not HTML_PLACEHOLDER_RE.match(line.strip()):
+                # Use <!----> to indicate a separation between cells.
+                if line.strip() == "<!---->":
+                    add_paragraph()
+                    continue
                 text.append(line)
                 continue
 

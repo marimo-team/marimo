@@ -168,6 +168,9 @@ class Exporter:
                 markdown = get_markdown_from_cell(cell, code)
                 # Unsanitized markdown is forced to code.
                 if markdown and is_sanitized_markdown(markdown):
+                    # Use blank HTML comment to separate markdown codeblocks
+                    if previous_was_markdown:
+                        document.append("<!---->")
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
