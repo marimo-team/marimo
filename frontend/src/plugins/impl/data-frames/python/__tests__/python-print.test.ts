@@ -9,13 +9,14 @@ import {
   STRING_OPERATORS,
 } from "../../utils/operators";
 import { Objects } from "@/utils/objects";
+import { ColumnId } from "../../types";
 
 describe("pythonPrint", () => {
   // Test for column_conversion
   it("generates correct Python code for column_conversion", () => {
     const transform: TransformType = {
       type: "column_conversion",
-      column_id: "my_column",
+      column_id: "my_column" as ColumnId,
       data_type: "int8",
       errors: "ignore",
     };
@@ -25,12 +26,25 @@ describe("pythonPrint", () => {
     );
   });
 
+  it("generates correct Python code for column_conversion, for numeric columns", () => {
+    const transform: TransformType = {
+      type: "column_conversion",
+      column_id: 1 as ColumnId,
+      data_type: "int8",
+      errors: "ignore",
+    };
+    const result = pythonPrint("df", transform);
+    expect(result).toMatchInlineSnapshot(
+      `"df[1].astype("int8", errors="ignore")"`,
+    );
+  });
+
   // Test for rename_column
   it("generates correct Python code for rename_column", () => {
     const transform: TransformType = {
       type: "rename_column",
-      column_id: "old_name",
-      new_column_id: "new_name",
+      column_id: "old_name" as ColumnId,
+      new_column_id: "new_name" as ColumnId,
     };
     const result = pythonPrint("df", transform);
     expect(result).toMatchInlineSnapshot(
@@ -38,11 +52,21 @@ describe("pythonPrint", () => {
     );
   });
 
+  it("generates correct Python code for rename_column, for numeric columns", () => {
+    const transform: TransformType = {
+      type: "rename_column",
+      column_id: 1 as ColumnId,
+      new_column_id: 2 as ColumnId,
+    };
+    const result = pythonPrint("df", transform);
+    expect(result).toMatchInlineSnapshot(`"df.rename(columns={1: 2})"`);
+  });
+
   // Test for sort_column
   it("generates correct Python code for sort_column", () => {
     const transform: TransformType = {
       type: "sort_column",
-      column_id: "my_column",
+      column_id: "my_column" as ColumnId,
       ascending: false,
       na_position: "first",
     };
@@ -56,7 +80,7 @@ describe("pythonPrint", () => {
   it("generates correct Python code for aggregate", () => {
     const transform: TransformType = {
       type: "aggregate",
-      column_ids: ["my_column"],
+      column_ids: ["my_column"] as ColumnId[],
       aggregations: ["mean"],
     };
     const result = pythonPrint("df", transform);
@@ -64,7 +88,7 @@ describe("pythonPrint", () => {
 
     const transform2: TransformType = {
       type: "aggregate",
-      column_ids: [],
+      column_ids: [] as ColumnId[],
       aggregations: ["mean"],
     };
     const result2 = pythonPrint("df", transform2);
@@ -72,20 +96,18 @@ describe("pythonPrint", () => {
 
     const transform3: TransformType = {
       type: "aggregate",
-      column_ids: ["my_column"],
+      column_ids: [2] as ColumnId[],
       aggregations: ["mean", "sum"],
     };
     const result3 = pythonPrint("df", transform3);
-    expect(result3).toMatchInlineSnapshot(
-      `"df.agg({"my_column": ["mean", "sum"]})"`,
-    );
+    expect(result3).toMatchInlineSnapshot(`"df.agg({2: ["mean", "sum"]})"`);
   });
 
   // Test for group_by
   it("generates correct Python code for group_by", () => {
     const transform: TransformType = {
       type: "group_by",
-      column_ids: ["my_column"],
+      column_ids: ["my_column"] as ColumnId[],
       aggregation: "sum",
       drop_na: true,
     };
@@ -96,13 +118,13 @@ describe("pythonPrint", () => {
 
     const transform2: TransformType = {
       type: "group_by",
-      column_ids: ["my_column", "my_column2"],
+      column_ids: ["my_column", "my_column2", 3] as ColumnId[],
       aggregation: "sum",
       drop_na: false,
     };
     const result2 = pythonPrint("df", transform2);
     expect(result2).toMatchInlineSnapshot(
-      `"df.groupby(["my_column", "my_column2"]).sum()"`,
+      `"df.groupby(["my_column", "my_column2", 3]).sum()"`,
     );
   });
 });
@@ -111,17 +133,17 @@ describe("pythonPrint", () => {
 it("generates correct Python code for select_columns", () => {
   const transform: TransformType = {
     type: "select_columns",
-    column_ids: ["my_column"],
+    column_ids: ["my_column"] as ColumnId[],
   };
   const result = pythonPrint("df", transform);
   expect(result).toMatchInlineSnapshot(`"df["my_column"]"`);
 
   const transform2: TransformType = {
     type: "select_columns",
-    column_ids: ["my_column", "my_column2"],
+    column_ids: ["my_column", "my_column2", 3] as ColumnId[],
   };
   const result2 = pythonPrint("df", transform2);
-  expect(result2).toMatchInlineSnapshot(`"df[["my_column", "my_column2"]]"`);
+  expect(result2).toMatchInlineSnapshot(`"df[["my_column", "my_column2", 3]]"`);
 });
 
 // Test for sample_rows
@@ -153,7 +175,7 @@ describe("pythonPrint: filter", () => {
       operation: "keep_rows",
       where: [
         {
-          column_id: "my_column",
+          column_id: "my_column" as ColumnId,
           operator: "==",
           value: 42,
         },
@@ -166,7 +188,7 @@ describe("pythonPrint: filter", () => {
       operation: "remove_rows",
       where: [
         {
-          column_id: "my_column",
+          column_id: "my_column" as ColumnId,
           operator: "==",
           value: 42,
         },
@@ -175,25 +197,40 @@ describe("pythonPrint: filter", () => {
     expect(result2).toMatchInlineSnapshot(`"df[~((df["my_column"] == 42))]"`);
   });
 
+  it("handle where clauses with numeric columns", () => {
+    const result = pythonPrint("df", {
+      type: "filter_rows",
+      operation: "keep_rows",
+      where: [
+        {
+          column_id: 2 as ColumnId,
+          operator: "==",
+          value: 43,
+        },
+      ],
+    });
+    expect(result).toMatchInlineSnapshot(`"df[df[2] == 43]"`);
+  });
+
   it("handle multiple where clauses", () => {
     const result = pythonPrint("df", {
       type: "filter_rows",
       operation: "keep_rows",
       where: [
         {
-          column_id: "my_column",
+          column_id: "my_column" as ColumnId,
           operator: "==",
           value: 42,
         },
         {
-          column_id: "my_column2",
+          column_id: 2 as ColumnId,
           operator: "==",
           value: 43,
         },
       ],
     });
     expect(result).toMatchInlineSnapshot(
-      `"df[(df["my_column"] == 42) & (df["my_column2"] == 43)]"`,
+      `"df[(df["my_column"] == 42) & (df[2] == 43)]"`,
     );
   });
 
@@ -206,7 +243,7 @@ describe("pythonPrint: filter", () => {
         operation: "keep_rows",
         where: [
           {
-            column_id: "my_column",
+            column_id: "my_column" as ColumnId,
             operator: operator,
             value: "val",
           },
@@ -226,7 +263,7 @@ describe("pythonPrint: filter", () => {
         operation: "keep_rows",
         where: [
           {
-            column_id: "my_column",
+            column_id: "my_column" as ColumnId,
             operator: operator,
             value: true,
           },
@@ -246,7 +283,7 @@ describe("pythonPrint: filter", () => {
         operation: "keep_rows",
         where: [
           {
-            column_id: "my_column",
+            column_id: "my_column" as ColumnId,
             operator: operator,
             value: 1000,
           },
@@ -266,7 +303,7 @@ describe("pythonPrint: filter", () => {
         operation: "keep_rows",
         where: [
           {
-            column_id: "my_column",
+            column_id: "my_column" as ColumnId,
             operator: operator,
             value: 42,
           },

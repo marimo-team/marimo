@@ -33,6 +33,7 @@ import {
   RunningNotebooksResponse,
   ShutdownSessionRequest,
   ExportHTMLRequest,
+  UsageResponse,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -158,6 +159,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await sendRestart();
       window.location.reload();
       return null;
+    },
+    getUsageStats: () => {
+      return API.get<UsageResponse>("/usage", {});
     },
     sendListFiles: (request) => {
       return API.post<{ path: string | undefined }, FileListResponse>(

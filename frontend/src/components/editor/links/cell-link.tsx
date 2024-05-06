@@ -17,7 +17,6 @@ export const CellLink = (props: Props): JSX.Element => {
   const { className, cellId, variant, onClick } = props;
   const cellName = useCellNames()[cellId] ?? "";
   const cellIndex = useCellIds().indexOf(cellId);
-  const cellHtmlId = HTMLCellId.create(cellId);
 
   return (
     <div
@@ -28,27 +27,8 @@ export const CellLink = (props: Props): JSX.Element => {
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
-
-        const cell: HTMLElement | null = document.getElementById(cellHtmlId);
-
-        if (cell === null) {
-          Logger.error(`Cell ${cellHtmlId} not found on page.`);
-        } else {
-          cell.scrollIntoView({ behavior: "smooth", block: "center" });
-
-          if (variant === "destructive") {
-            cell.classList.add("error-outline");
-            setTimeout(() => {
-              cell.classList.remove("error-outline");
-            }, 1500);
-          }
-          if (variant === "focus") {
-            cell.classList.add("focus-outline");
-            setTimeout(() => {
-              cell.classList.remove("focus-outline");
-            }, 1500);
-          }
-
+        const succeeded = scrollToCell(cellId, variant);
+        if (succeeded) {
           onClick?.();
         }
       }}
@@ -64,3 +44,33 @@ export const CellLinkError = (
 ): JSX.Element => {
   return <CellLink {...props} variant={"destructive"} />;
 };
+
+export function scrollToCell(
+  cellId: CellId,
+  variant?: "destructive" | "focus",
+): boolean {
+  const cellHtmlId = HTMLCellId.create(cellId);
+  const cell: HTMLElement | null = document.getElementById(cellHtmlId);
+
+  if (cell === null) {
+    Logger.error(`Cell ${cellHtmlId} not found on page.`);
+    return false;
+  } else {
+    cell.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (variant === "destructive") {
+      cell.classList.add("error-outline");
+      setTimeout(() => {
+        cell.classList.remove("error-outline");
+      }, 1500);
+    }
+    if (variant === "focus") {
+      cell.classList.add("focus-outline");
+      setTimeout(() => {
+        cell.classList.remove("focus-outline");
+      }, 1500);
+    }
+
+    return true;
+  }
+}

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -14,6 +14,9 @@ import { createPlugin } from "../core/builder";
 import { vegaLoadData } from "./vega/loader";
 import { VegaType } from "./vega/vega-loader";
 import { getVegaFieldTypes } from "./vega/utils";
+import { Arrays } from "@/utils/arrays";
+import { Banner } from "./common/error-banner";
+import { prettyNumber } from "@/utils/numbers";
 
 /**
  * Arguments for a data table
@@ -24,6 +27,8 @@ import { getVegaFieldTypes } from "./vega/utils";
 interface Data<T> {
   label: string | null;
   data: T[] | string;
+  hasMore: boolean;
+  totalRows: number;
   pagination: boolean;
   pageSize: number;
   selection: "single" | "multi" | null;
@@ -45,6 +50,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       initialValue: z.array(z.number()),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
+      hasMore: z.boolean().default(false),
+      totalRows: z.number(),
       pagination: z.boolean().default(false),
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
@@ -91,41 +98,44 @@ interface DataTableProps extends Data<unknown>, Functions {
   setValue: (value: S) => void;
 }
 
-export const LoadingDataTableComponent = (
-  props: DataTableProps & { data: string },
-) => {
-  const { data, loading, error } = useAsyncData<unknown[]>(() => {
-    if (!props.data) {
-      return Promise.resolve([]);
+export const LoadingDataTableComponent = memo(
+  (props: DataTableProps & { data: string }) => {
+    const { data, loading, error } = useAsyncData<unknown[]>(() => {
+      if (!props.data) {
+        return Promise.resolve([]);
+      }
+      return vegaLoadData(
+        props.data,
+        { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
+        true,
+      );
+    }, [props.data, props.fieldTypes]);
+
+    if (loading && !data) {
+      return null;
     }
-    return vegaLoadData(
-      props.data,
-      { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
-      true,
-    );
-  }, [props.data, props.fieldTypes]);
 
-  if (loading && !data) {
-    return null;
-  }
+    if (error) {
+      return (
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <div className="text-md">
+            {error.message || "An unknown error occurred"}
+          </div>
+        </Alert>
+      );
+    }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Error</AlertTitle>
-        <div className="text-md">
-          {error.message || "An unknown error occurred"}
-        </div>
-      </Alert>
-    );
-  }
-
-  return <DataTableComponent {...props} data={data || []} />;
-};
+    return <DataTableComponent {...props} data={data || Arrays.EMPTY} />;
+  },
+);
+LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 
 const DataTableComponent = ({
   label,
   data,
+  hasMore,
+  totalRows,
   pagination,
   pageSize,
   selection,
@@ -146,29 +156,36 @@ const DataTableComponent = ({
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
   return (
-    <Labeled label={label} align="top" fullWidth={true}>
-      <DataTable
-        data={data}
-        columns={columns}
-        className={className}
-        pagination={pagination}
-        pageSize={pageSize}
-        rowSelection={rowSelection}
-        downloadAs={showDownload ? downloadAs : undefined}
-        onRowSelectionChange={(updater) => {
-          if (selection === "single") {
-            const nextValue =
-              typeof updater === "function" ? updater({}) : updater;
-            setValue(Object.keys(nextValue).slice(0, 1));
-          }
+    <>
+      {hasMore && totalRows && (
+        <Banner className="mb-2 rounded">
+          Result clipped. Total rows {prettyNumber(totalRows)}.
+        </Banner>
+      )}
+      <Labeled label={label} align="top" fullWidth={true}>
+        <DataTable
+          data={data}
+          columns={columns}
+          className={className}
+          pagination={pagination}
+          pageSize={pageSize}
+          rowSelection={rowSelection}
+          downloadAs={showDownload ? downloadAs : undefined}
+          onRowSelectionChange={(updater) => {
+            if (selection === "single") {
+              const nextValue =
+                typeof updater === "function" ? updater({}) : updater;
+              setValue(Object.keys(nextValue).slice(0, 1));
+            }
 
-          if (selection === "multi") {
-            const nextValue =
-              typeof updater === "function" ? updater(rowSelection) : updater;
-            setValue(Object.keys(nextValue));
-          }
-        }}
-      />
-    </Labeled>
+            if (selection === "multi") {
+              const nextValue =
+                typeof updater === "function" ? updater(rowSelection) : updater;
+              setValue(Object.keys(nextValue));
+            }
+          }}
+        />
+      </Labeled>
+    </>
   );
 };

@@ -67,6 +67,11 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     for idx, column in enumerate(self.data.schema.names)
                 }
 
+            def limit(self, num: int) -> PyArrowTableManager:
+                if num < 0:
+                    raise ValueError("Limit must be a positive integer")
+                return PyArrowTableManager(self.data.take(list(range(num))))
+
             @staticmethod
             def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:
                 if isinstance(column, pa.NullArray):

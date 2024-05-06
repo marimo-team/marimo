@@ -51,7 +51,7 @@ e2e:
 
 .PHONY: fe-lint
 fe-lint:
-	cd frontend; pnpm lint:fix
+	cd frontend/src && typos && cd - && cd frontend && pnpm lint:fix
 
 .PHONY: fe-typecheck
 fe-typecheck:
@@ -65,7 +65,7 @@ py-check:
 .PHONY: py-test
 # test python
 py-test:
-	pytest
+	cd marimo && typos && cd - && pytest;
 
 .PHONY: py-snapshots
 # update html snapshots

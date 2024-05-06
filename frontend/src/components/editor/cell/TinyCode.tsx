@@ -12,6 +12,19 @@ interface Props {
   className?: string;
 }
 
+const ext = [
+  python(),
+  minimalSetup({
+    syntaxHighlighting: true,
+    // Other options are false
+    highlightSpecialChars: false,
+    history: false,
+    drawSelection: false,
+    defaultKeymap: false,
+    historyKeymap: false,
+  }),
+];
+
 export const TinyCode: React.FC<Props> = memo(({ code, className }) => {
   const { theme } = useTheme();
 
@@ -29,18 +42,7 @@ export const TinyCode: React.FC<Props> = memo(({ code, className }) => {
         className="tiny-code"
         editable={false}
         basicSetup={false}
-        extensions={[
-          python(),
-          minimalSetup({
-            syntaxHighlighting: true,
-            // Other options are false
-            highlightSpecialChars: false,
-            history: false,
-            drawSelection: false,
-            defaultKeymap: false,
-            historyKeymap: false,
-          }),
-        ]}
+        extensions={ext}
         value={code}
       />
     </div>

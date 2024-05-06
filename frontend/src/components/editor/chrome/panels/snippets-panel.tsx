@@ -29,6 +29,8 @@ import { cn } from "@/utils/cn";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
 import { Spinner } from "@/components/icons/spinner";
 
+const extensions = [EditorView.lineWrapping];
+
 export const SnippetsPanel: React.FC = () => {
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
   const {
@@ -99,10 +101,6 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
   const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
 
   const handleInsertSnippet = () => {
-    if (!snippet) {
-      return;
-    }
-
     // Add below last focused cell in reverse order
     for (const section of [...snippet.sections].reverse()) {
       if (section.code) {
@@ -176,7 +174,7 @@ const SnippetViewer: React.FC<{ snippet: Snippet }> = ({ snippet }) => {
                 theme={theme === "dark" ? "dark" : "light"}
                 language="python"
                 className="cm border rounded overflow-hidden"
-                extensions={[EditorView.lineWrapping]}
+                extensions={extensions}
                 value={code}
                 readOnly={true}
               />

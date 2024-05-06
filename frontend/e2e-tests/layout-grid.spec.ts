@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 
 const runUrl = getAppUrl("layout_grid.py//run");
 const runMaxWidthUrl = getAppUrl("layout_grid_max_width.py//run");
-const editUrl = getAppUrl("layout_grid.py//edit");
+const editUrl = getAppUrl("layout_grid.py");
 
 test("can run Grid layout", async ({ page }) => {
   await page.goto(runUrl);

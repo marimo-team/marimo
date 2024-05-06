@@ -9,3 +9,7 @@
 .react-flow__handle.react-flow__handle {
   @apply border-background;
 }
+
+.react-flow__controls.react-flow__controls {
+  bottom: 8px;
+}

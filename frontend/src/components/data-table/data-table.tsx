@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
+import React, { memo } from "react";
 import {
   ColumnDef,
   OnChangeFn,
@@ -25,10 +25,10 @@ import { DataTablePagination } from "./pagination";
 import { DownloadActionProps, DownloadAs } from "./download-actions";
 import { cn } from "@/utils/cn";
 
-interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
+interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   wrapperClassName?: string;
   className?: string;
-  columns: Array<ColumnDef<TData, TValue>>;
+  columns: Array<ColumnDef<TData>>;
   data: TData[];
   pagination?: boolean;
   pageSize?: number;
@@ -37,7 +37,7 @@ interface DataTableProps<TData, TValue> extends Partial<DownloadActionProps> {
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
 
-export const DataTable = <TData, TValue>({
+const DataTableInternal = <TData,>({
   wrapperClassName,
   className,
   columns,
@@ -47,7 +47,7 @@ export const DataTable = <TData, TValue>({
   downloadAs,
   pagination = false,
   onRowSelectionChange,
-}: DataTableProps<TData, TValue>) => {
+}: DataTableProps<TData>) => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
     { pageSize: pageSize, pageIndex: 0 },
@@ -133,3 +133,5 @@ export const DataTable = <TData, TValue>({
     </div>
   );
 };
+
+export const DataTable = memo(DataTableInternal) as typeof DataTableInternal;

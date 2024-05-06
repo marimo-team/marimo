@@ -8,6 +8,7 @@ import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { FeedbackButton } from "../components/feedback-button";
 import { PANEL_ICONS, PanelType } from "../types";
+import { MachineStats } from "./machine-stats";
 
 export const Footer: React.FC = () => {
   const { selectedPanel } = useChromeState();
@@ -86,6 +87,8 @@ export const Footer: React.FC = () => {
       </FeedbackButton>
 
       <div className="mx-auto" />
+
+      <MachineStats />
     </footer>
   );
 };

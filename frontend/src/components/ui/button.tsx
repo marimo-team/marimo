@@ -49,6 +49,7 @@ const buttonVariants = cva(
           "border border-slate-300 shadow-smSolid",
           "hover:bg-accent hover:text-accent-foreground",
           "hover:border-primary",
+          "aria-selected:text-accent-foreground aria-selected:border-primary",
           activeCommon,
         ),
         secondary: cn(

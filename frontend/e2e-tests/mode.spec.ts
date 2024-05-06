@@ -19,6 +19,23 @@ test("page renders edit feature in edit mode", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
+test.skip("can bring up the find/replace dialog", async ({ page }) => {
+  const appUrl = getAppUrl("title.py");
+  await page.goto(appUrl);
+
+  // Wait for the cells to load
+  await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
+
+  // Click mod+f to bring up the find/replace dialog
+  // TODO: This is not working
+  await page.keyboard.press("Meta+f", { delay: 200 });
+
+  // Has placeholder text "Find"
+  await expect(page.locator("[placeholder='Find']")).toBeVisible();
+
+  await takeScreenshot(page, __filename);
+});
+
 test("can toggle to presenter mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");
   await page.goto(appUrl);

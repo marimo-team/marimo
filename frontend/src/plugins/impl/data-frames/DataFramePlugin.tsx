@@ -6,14 +6,14 @@ import { TransformPanel } from "./panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Code2Icon, FunctionSquareIcon } from "lucide-react";
 import { CodePanel } from "./python/code-panel";
-import { ColumnDataTypes } from "./types";
+import { ColumnDataTypes, RawColumnDataTypes } from "./types";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { LoadingDataTableComponent } from "../DataTablePlugin";
 import { Functions } from "@/utils/functions";
 import { Arrays } from "@/utils/arrays";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Banner, ErrorBanner } from "../common/error-banner";
 
@@ -54,9 +54,8 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
       dataframeName: z.string(),
       pageSize: z.number().default(5),
       columns: z
-        .object({})
-        .passthrough()
-        .transform((value) => value as ColumnDataTypes),
+        .array(z.tuple([z.string().or(z.number()), z.string()]))
+        .transform((value) => new Map(value as RawColumnDataTypes)),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -96,81 +95,89 @@ const EMPTY: Transformations = {
   transforms: [],
 };
 
-export const DataFrameComponent = ({
-  columns,
-  dataframeName,
-  pageSize,
-  value,
-  setValue,
-  get_dataframe,
-  get_column_values,
-}: DataTableProps): JSX.Element => {
-  const { data, error } = useAsyncData(
-    () => get_dataframe({}),
-    [value?.transforms],
-  );
-  const { url, has_more, total_rows, row_headers } = data || {};
+export const DataFrameComponent = memo(
+  ({
+    columns,
+    dataframeName,
+    pageSize,
+    value,
+    setValue,
+    get_dataframe,
+    get_column_values,
+  }: DataTableProps): JSX.Element => {
+    const { data, error } = useAsyncData(
+      () => get_dataframe({}),
+      [value?.transforms],
+    );
+    console.log("columns", columns);
+    const { url, has_more, total_rows, row_headers } = data || {};
 
-  const [internalValue, setInternalValue] = useState<Transformations>(
-    value || EMPTY,
-  );
+    const [internalValue, setInternalValue] = useState<Transformations>(
+      value || EMPTY,
+    );
 
-  return (
-    <div>
-      <Tabs defaultValue="transform">
-        <TabsList className="h-8">
-          <TabsTrigger value="transform" className="text-xs py-1">
-            <FunctionSquareIcon className="w-3 h-3 mr-2" />
-            Transform
-          </TabsTrigger>
-          <TabsTrigger value="code" className="text-xs py-1">
-            <Code2Icon className="w-3 h-3 mr-2" />
-            Code
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent
-          value="transform"
-          className="mt-1 border rounded-t overflow-hidden"
-        >
-          <TransformPanel
-            initialValue={internalValue}
-            columns={columns}
-            onChange={(v) => {
-              // Update the value valid changes
-              setValue(v);
-              setInternalValue(v);
-            }}
-            onInvalidChange={setInternalValue}
-            getColumnValues={get_column_values}
-          />
-        </TabsContent>
-        <TabsContent
-          value="code"
-          className="mt-1 border rounded-t overflow-hidden"
-        >
-          <CodePanel dataframeName={dataframeName} transforms={value} />
-        </TabsContent>
-      </Tabs>
-      {error && <ErrorBanner error={error} />}
-      {has_more && total_rows && (
-        <Banner>Result clipped. Total rows {prettyNumber(total_rows)}.</Banner>
-      )}
-      <LoadingDataTableComponent
-        label={null}
-        className="rounded-b border-x border-b"
-        data={url || ""}
-        pageSize={pageSize}
-        pagination={true}
-        rowHeaders={row_headers || Arrays.EMPTY}
-        showDownload={false}
-        download_as={Functions.THROW}
-        value={Arrays.EMPTY}
-        setValue={Functions.NOOP}
-        selection={null}
-      />
-    </div>
-  );
-};
+    return (
+      <div>
+        <Tabs defaultValue="transform">
+          <TabsList className="h-8">
+            <TabsTrigger value="transform" className="text-xs py-1">
+              <FunctionSquareIcon className="w-3 h-3 mr-2" />
+              Transform
+            </TabsTrigger>
+            <TabsTrigger value="code" className="text-xs py-1">
+              <Code2Icon className="w-3 h-3 mr-2" />
+              Code
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="transform"
+            className="mt-1 border rounded-t overflow-hidden"
+          >
+            <TransformPanel
+              initialValue={internalValue}
+              columns={columns}
+              onChange={(v) => {
+                // Update the value valid changes
+                setValue(v);
+                setInternalValue(v);
+              }}
+              onInvalidChange={setInternalValue}
+              getColumnValues={get_column_values}
+            />
+          </TabsContent>
+          <TabsContent
+            value="code"
+            className="mt-1 border rounded-t overflow-hidden"
+          >
+            <CodePanel dataframeName={dataframeName} transforms={value} />
+          </TabsContent>
+        </Tabs>
+        {error && <ErrorBanner error={error} />}
+        {has_more && total_rows != null && (
+          <Banner>
+            Result clipped. Total rows {prettyNumber(total_rows)}.
+          </Banner>
+        )}
+        <LoadingDataTableComponent
+          label={null}
+          className="rounded-b border-x border-b"
+          data={url || ""}
+          hasMore={false} // Handled above
+          totalRows={total_rows ?? 0}
+          pageSize={pageSize}
+          pagination={true}
+          rowHeaders={row_headers || Arrays.EMPTY}
+          showDownload={false}
+          download_as={Functions.THROW}
+          value={Arrays.EMPTY}
+          setValue={Functions.NOOP}
+          selection={null}
+        />
+      </div>
+    );
+  },
+);
+DataFrameComponent.displayName = "DataFrameComponent";
 
 function prettyNumber(value: number): string {
   return new Intl.NumberFormat().format(value);

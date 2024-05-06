@@ -34,6 +34,12 @@ def __(mo, time):
         time.sleep(0.5)
     return
 
+@app.cell
+def __(mo, time):
+    with mo.status.progress_bar(title='Loading', subtitle='Please wait') as bar:
+        for _ in range(10):
+            time.sleep(0.5)
+            bar.update()
 
 @app.cell
 def __(mo, time):

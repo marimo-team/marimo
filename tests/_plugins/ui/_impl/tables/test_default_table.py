@@ -36,6 +36,13 @@ class TestDefaultTable(unittest.TestCase):
         assert self.manager.is_type(self.data)
         assert not self.manager.is_type("not a dataframe")
 
+    def test_limit(self) -> None:
+        limited_manager = self.manager.limit(1)
+        expected_data = [
+            {"A": 1, "B": "a"},
+        ]
+        assert limited_manager.data == expected_data
+
 
 class TestColumnarDefaultTable(unittest.TestCase):
     def setUp(self) -> None:
@@ -68,3 +75,11 @@ class TestColumnarDefaultTable(unittest.TestCase):
 
     def test_get_field_types(self) -> None:
         assert self.manager.get_field_types() == {}
+
+    def test_limit(self) -> None:
+        limited_manager = self.manager.limit(1)
+        expected_data = {
+            "A": [1],
+            "B": ["a"],
+        }
+        assert limited_manager.data == expected_data

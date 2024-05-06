@@ -25,14 +25,14 @@ export const DataTablePagination = <TData,>({
     if (isAllPageSelected && !isAllSelected) {
       return (
         <span>
-          {selected} selected
+          {prettyNumber(selected)} selected
           <Button
             size="xs"
             data-testid="select-all-button"
             variant="link"
             onClick={() => table.toggleAllRowsSelected(true)}
           >
-            Select all {count}
+            Select all {prettyNumber(count)}
           </Button>
         </span>
       );
@@ -41,7 +41,7 @@ export const DataTablePagination = <TData,>({
     if (selected) {
       return (
         <span>
-          {selected} selected
+          {prettyNumber(selected)} selected
           <Button
             size="xs"
             data-testid="clear-selection-button"
@@ -54,7 +54,7 @@ export const DataTablePagination = <TData,>({
       );
     }
 
-    return `${count} items`;
+    return `${prettyNumber(count)} items`;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,

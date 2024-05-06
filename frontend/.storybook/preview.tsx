@@ -7,7 +7,7 @@ import React, { useEffect } from "react";
 import { cn } from "../src/utils/cn";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import { Toaster } from "../src/components/ui/toaster";
-import { TailwindIndicator } from "../src/components/ui/tailwind-indicator";
+import { TailwindIndicator } from "../src/components/indicator";
 
 const withTheme: Decorator = (Story, context) => {
   const theme = context.globals.theme || "light";

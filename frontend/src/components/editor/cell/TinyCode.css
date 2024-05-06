@@ -6,4 +6,5 @@
 
 .tiny-code .cm-editor .cm-scroller {
   line-height: 11px;
+  overflow-x: hidden;
 }

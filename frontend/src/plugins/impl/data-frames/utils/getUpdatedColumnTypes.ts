@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { TransformType } from "../schema";
-import { Objects } from "@/utils/objects";
 import { ColumnDataTypes } from "../types";
+import { Maps } from "@/utils/maps";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -15,7 +15,7 @@ export function getUpdatedColumnTypes(
     return columnTypes;
   }
 
-  let next: ColumnDataTypes = { ...columnTypes };
+  let next: ColumnDataTypes = new Map(columnTypes);
   for (const transform of transforms) {
     next = handleTransform(transform, next);
   }
@@ -33,33 +33,25 @@ function handleTransform(
         return next;
       }
 
-      next[transform.column_id] = transform.data_type;
+      next.set(transform.column_id, transform.data_type);
       return next;
-    case "rename_column":
+    case "rename_column": {
       if (!transform.new_column_id) {
         return next;
       }
-      return Objects.fromEntries(
-        Objects.entries(next).map(([k, v]) => {
-          if (k === transform.column_id) {
-            return [transform.new_column_id, v];
-          }
-          return [k, v];
-        }),
-      );
+      const type = next.get(transform.column_id);
+      if (type) {
+        next.set(transform.new_column_id, type);
+        next.delete(transform.column_id);
+      }
+      return next;
+    }
     case "group_by":
-      return Objects.filter(
-        next,
-        (_v, k) => !transform.column_ids.includes(k as string),
-      );
+      return Maps.filterMap(next, (_v, k) => !transform.column_ids.includes(k));
     case "aggregate":
-      return Objects.filter(next, (_v, k) =>
-        transform.column_ids.includes(k as string),
-      );
+      return Maps.filterMap(next, (_v, k) => transform.column_ids.includes(k));
     case "select_columns":
-      return Objects.filter(next, (_v, k) =>
-        transform.column_ids.includes(k as string),
-      );
+      return Maps.filterMap(next, (_v, k) => transform.column_ids.includes(k));
     case "filter_rows":
     case "shuffle_rows":
     case "sample_rows":

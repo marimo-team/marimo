@@ -838,7 +838,7 @@ class Kernel:
         # Some hooks that are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #
-        # NB: lazy kernels don't invaldiate state of cancelled cells
+        # NB: lazy kernels don't invalidate state of cancelled cells
         # descendants (cancelled == cells that raise exceptions), whereas
         # eager kernels do (since we clear all state ahead of time, and
         # have the closure of the roots in cells to run)

@@ -231,7 +231,7 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
-        from marimo._server.export.utils import run_app_until_completion
+        from marimo._server.export import run_app_until_completion
         from marimo._server.file_manager import AppFileManager
 
         if self.has_run:

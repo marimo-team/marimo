@@ -325,3 +325,112 @@ class TestExportScript:
                     in line
                 )
                 break
+
+
+class TestExportMarkdown:
+    @staticmethod
+    def test_export_markdown(temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "md", temp_marimo_file],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("markdown.txt", output)
+
+    @staticmethod
+    def test_export_script_async(temp_async_marimo_file: str) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "md", temp_async_marimo_file],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("async.txt", output)
+
+    @staticmethod
+    def test_export_broken(temp_unparsable_marimo_file: str) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "md", temp_unparsable_marimo_file],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        output = output.replace(__version__, "0.0.0")
+        snapshot("broken.txt", output)
+
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    async def test_export_watch_script(self, temp_marimo_file: str) -> None:
+        temp_out_file = temp_marimo_file.replace(".md", ".script.md")
+        p = subprocess.Popen(  # noqa: ASYNC101
+            [
+                "marimo",
+                "export",
+                "md",
+                temp_marimo_file,
+                "--watch",
+                "--output",
+                temp_out_file,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # Wait for the message
+        while True:
+            line = p.stdout.readline().decode()
+            if line:
+                assert f"Watching {temp_marimo_file}" in line
+                break
+
+        assert not path.exists(temp_out_file)
+
+        # Modify file
+        with open(temp_marimo_file, "a") as f:  # noqa: ASYNC101
+            f.write("\n# comment\n")
+
+        assert p.poll() is None
+        # Wait for rebuild
+        while True:
+            line = p.stdout.readline().decode()
+            if line:
+                assert "Re-exporting" in line
+                break
+
+        await asyncio.sleep(0.1)
+        assert path.exists(temp_out_file)
+
+    @pytest.mark.skipif(
+        condition=DependencyManager.has_watchdog(),
+        reason="hangs when watchdog is installed",
+    )
+    def test_export_watch_script_no_out_dir(
+        self, temp_marimo_file: str
+    ) -> None:
+        p = subprocess.Popen(
+            [
+                "marimo",
+                "export",
+                "md",
+                temp_marimo_file,
+                "--watch",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        # Should return an error
+        while True:
+            line = p.stderr.readline().decode()
+            if line:
+                assert (
+                    "Cannot use --watch without providing "
+                    + "an output file with --output."
+                    in line
+                )
+                break

@@ -77,3 +77,8 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
         )
+
+    def test_limit(self) -> None:
+        limited_manager = self.manager.limit(1)
+        expected_data = self.data.take([0])
+        assert limited_manager.data == expected_data

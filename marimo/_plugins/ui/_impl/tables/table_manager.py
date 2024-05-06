@@ -18,6 +18,8 @@ FieldTypes = Dict[str, FieldType]
 
 
 class TableManager(abc.ABC, Generic[T]):
+    DEFAULT_LIMIT = 10_000
+
     def __init__(self, data: T) -> None:
         self.data = data
 
@@ -50,6 +52,10 @@ class TableManager(abc.ABC, Generic[T]):
         # By default, don't provide any field types
         # so the frontend can infer them
         return {}
+
+    @abc.abstractmethod
+    def limit(self, num: int) -> TableManager[T]:
+        raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod

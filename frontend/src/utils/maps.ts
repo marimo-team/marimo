@@ -28,4 +28,26 @@ export const Maps = {
 
     return map;
   },
+  filterMap<K, V>(
+    map: Map<K, V>,
+    predicate: (value: V, key: K) => boolean,
+  ): Map<K, V> {
+    const result = new Map<K, V>();
+    for (const [key, value] of map) {
+      if (predicate(value, key)) {
+        result.set(key, value);
+      }
+    }
+    return result;
+  },
+  mapValues<K, V, V2>(
+    map: Map<K, V>,
+    mapper: (value: V, key: K) => V2,
+  ): Map<K, V2> {
+    const result = new Map<K, V2>();
+    for (const [key, value] of map) {
+      result.set(key, mapper(value, key));
+    }
+    return result;
+  },
 };
