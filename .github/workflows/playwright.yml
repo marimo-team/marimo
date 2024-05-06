@@ -68,6 +68,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
+          echo "MARIMO_VERSION=$(marimo --version)" >> $GITHUB_ENV
 
       - name: 🎭 Get installed Playwright version
         id: playwright-version
@@ -93,6 +94,8 @@ jobs:
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend
         run: npx playwright test
+        env:
+          VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
 
       - name: ☁️ Google Auth
         uses: google-github-actions/auth@v1

@@ -21,14 +21,23 @@ const htmlDevPlugin = (): Plugin => {
       }
 
       if (isPyodide) {
+        const modeFromUrl = ctx.originalUrl?.includes("mode=read")
+          ? "read"
+          : "edit";
         html = html.replace("{{ base_url }}", "");
         html = html.replace("{{ title }}", "marimo");
         html = html.replace("{{ user_config }}", JSON.stringify({}));
         html = html.replace("{{ app_config }}", JSON.stringify({}));
         html = html.replace("{{ server_token }}", "");
-        html = html.replace("{{ version }}", "local");
+        if (process.env.VITE_MARIMO_VERSION) {
+          // If VITE_MARIMO_VERSION is defined, pull the local version of marimo
+          html = html.replace("{{ version }}", "local");
+        } else {
+          // Otherwise, pull the latest version of marimo from PyPI
+          html = html.replace("{{ version }}", "latest");
+        }
         html = html.replace("{{ filename }}", "notebook.py");
-        html = html.replace("{{ mode }}", "edit");
+        html = html.replace("{{ mode }}", modeFromUrl);
         html = html.replace(/<\/head>/, `<marimo-wasm></marimo-wasm></head>`);
         return html;
       }
@@ -104,6 +113,11 @@ export default defineConfig({
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "require-corp",
     },
+  },
+  define: {
+    "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
+      ? JSON.stringify(process.env.VITE_MARIMO_VERSION)
+      : JSON.stringify("latest"),
   },
   build: {
     minify: isDev ? false : "terser",

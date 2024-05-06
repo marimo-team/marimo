@@ -85,6 +85,12 @@ export function startServer(app: ApplicationNames): void {
   exec(marimoCmd);
 }
 
+const WASM_SERVER = {
+  command: `PYODIDE=true vite --port 3000`,
+  url: "http://localhost:3000",
+  reuseExistingServer: !!process.env.CI,
+};
+
 // See https://playwright.dev/docs/test-configuration.
 const config: PlaywrightTestConfig = {
   testDir: "./e2e-tests",
@@ -172,6 +178,7 @@ const config: PlaywrightTestConfig = {
       url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
     },
+    WASM_SERVER,
   ],
 };
 

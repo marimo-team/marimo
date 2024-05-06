@@ -7,10 +7,6 @@ from textwrap import dedent
 from typing import cast
 
 from marimo import __version__
-from marimo._cli.convert.markdown import (
-    formatted_code_block,
-    is_sanitized_markdown,
-)
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -31,15 +27,6 @@ from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import static_notebook_template
 from marimo._utils.paths import import_files
-
-# Click not bound to be installed (e.g. pyodide).
-try:
-    from click import UsageError
-except ImportError:
-
-    class UsageError(Exception):  # type: ignore[no-redef]
-        pass
-
 
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
@@ -116,6 +103,8 @@ class Exporter:
             if not cell:
                 continue
             if cell._is_coroutine():
+                from click import UsageError
+
                 raise UsageError(
                     "Cannot export a notebook with async code to a flat script"
                 )
@@ -134,6 +123,11 @@ class Exporter:
         return code, download_filename
 
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
+        from marimo._cli.convert.markdown import (
+            formatted_code_block,
+            is_sanitized_markdown,
+        )
+
         # TODO: Provide filter or kernel in header such that markdown documents
         # are executable.
         document = [
