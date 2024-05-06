@@ -14,6 +14,7 @@ export class ReadonlyWasmController extends DefaultWasmController {
 
   override async bootstrap(opts: {
     version: string;
+    pyodideVersion: string;
   }): Promise<PyodideInterface> {
     const pyodide = await super.bootstrap(opts);
 

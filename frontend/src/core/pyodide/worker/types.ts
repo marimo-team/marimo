@@ -27,7 +27,10 @@ export interface WasmController {
    * Prepare the wasm environment
    * @param opts.version - The marimo version
    */
-  bootstrap(opts: { version: string }): Promise<PyodideInterface>;
+  bootstrap(opts: {
+    version: string;
+    pyodideVersion: string;
+  }): Promise<PyodideInterface>;
   /**
    * Start the session
    * @param opts.code - The code to start with

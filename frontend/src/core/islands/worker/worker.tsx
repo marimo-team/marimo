@@ -18,6 +18,10 @@ import { ReadonlyWasmController } from "./controller";
 import { OperationMessage } from "@/core/kernel/messages";
 import { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
+import {
+  getPyodideVersion,
+  importPyodide,
+} from "@/core/pyodide/worker/getPyodideVersion";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -26,12 +30,14 @@ declare const self: Window & {
 
 // Initialize pyodide
 async function loadPyodideAndPackages() {
-  // @ts-expect-error ehh TypeScript
-  await import("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
+  const marimoVersion = getMarimoVersion();
+  const pyodideVersion = getPyodideVersion(marimoVersion);
+  await importPyodide(marimoVersion);
   try {
     self.controller = new ReadonlyWasmController();
     self.pyodide = await self.controller.bootstrap({
-      version: getMarimoVersion(),
+      version: marimoVersion,
+      pyodideVersion: pyodideVersion,
     });
   } catch (error) {
     console.error("Error bootstrapping", error);
