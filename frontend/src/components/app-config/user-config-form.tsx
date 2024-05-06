@@ -354,7 +354,6 @@ export const UserConfigForm: React.FC = () => {
                       data-testid="on-cell-change-select"
                       onChange={(e) => field.onChange(e.target.value)}
                       value={field.value}
-                      disabled={isWasm}
                       className="inline-flex mr-2"
                     >
                       {["lazy", "autorun"].map((option) => (
