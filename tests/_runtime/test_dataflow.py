@@ -73,6 +73,34 @@ def test_graph_closure() -> None:
     assert graph.cells == {"0": first_cell, "1": second_cell}
     assert graph.parents == {"0": set(), "1": set(["0"])}
     assert graph.children == {"0": set(["1"]), "1": set()}
+    assert dataflow.transitive_closure(graph, cell_ids=set(["0"])) == set(
+        ["0", "1"]
+    )
+
+
+def test_graph_closure_predicate() -> None:
+    graph = dataflow.DirectedGraph()
+    code = "x = 0"
+    first_cell = parse_cell(code)
+    graph.register_cell("0", first_cell)
+
+    code = "def foo():\n  return x"
+    second_cell = parse_cell(code)
+    graph.register_cell("1", second_cell)
+    graph.set_stale(set(["1"]))
+
+    code = "x"
+    third_cell = parse_cell(code)
+    graph.register_cell("2", third_cell)
+
+    # 0 --> 1
+    assert graph.cells == {"0": first_cell, "1": second_cell, "2": third_cell}
+    assert graph.parents == {"0": set(), "1": set(["0"]), "2": set(["0"])}
+    assert graph.children == {"0": set(["1", "2"]), "1": set(), "2": set()}
+
+    assert dataflow.transitive_closure(
+        graph, cell_ids=set(["0"]), predicate=lambda cell: not cell.stale
+    ) == set(["0", "2"])
 
 
 def test_graph_redefine() -> None:
