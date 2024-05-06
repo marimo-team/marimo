@@ -53,6 +53,15 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Row major data
         return DefaultTableManager([self.data[i] for i in indices])
 
+    def limit(self, num: int) -> DefaultTableManager:
+        if num < 0:
+            raise ValueError("Limit must be a positive integer")
+        if isinstance(self.data, dict):
+            return DefaultTableManager(
+                {key: value[:num] for key, value in self.data.items()}
+            )
+        return DefaultTableManager(self.data[:num])
+
     def get_row_headers(self) -> list[tuple[str, list[str | int | float]]]:
         return []
 

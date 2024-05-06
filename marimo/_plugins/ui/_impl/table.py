@@ -159,6 +159,11 @@ class table(
         self._manager = get_table_manager(data)
         self._filtered_manager: Optional[TableManager[Any]] = None
 
+        totalRows = len(self._manager.data)
+        hasMore = totalRows > TableManager.DEFAULT_LIMIT
+        if hasMore:
+            self._manager = self._manager.limit(TableManager.DEFAULT_LIMIT)
+
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
             pagination = len(self._data) > 10
@@ -174,6 +179,8 @@ class table(
             initial_value=[],
             args={
                 "data": self._manager.to_data(),
+                "has-more": hasMore,
+                "total-rows": totalRows,
                 "pagination": pagination,
                 "page-size": page_size,
                 "field-types": field_types if field_types else None,

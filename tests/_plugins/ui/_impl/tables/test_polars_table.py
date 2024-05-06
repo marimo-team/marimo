@@ -100,3 +100,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             self.factory.create()(complex_data).get_field_types()
             == expected_field_types
         )
+
+    def test_limit(self) -> None:
+        limited_manager = self.manager.limit(1)
+        expected_data = self.data.head(1)
+        assert limited_manager.data.frame_equal(expected_data)

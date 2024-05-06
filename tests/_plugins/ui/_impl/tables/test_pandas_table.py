@@ -208,3 +208,11 @@ class TestPandasTableManager(unittest.TestCase):
             self.factory.create()(data).get_field_types()
             == expected_field_types
         )
+
+    def test_limit(self) -> None:
+        import pandas as pd
+
+        limit = 2
+        limited_manager = self.manager.limit(limit)
+        expected_data = self.data.head(limit)
+        pd.testing.assert_frame_equal(limited_manager.data, expected_data)

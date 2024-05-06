@@ -49,6 +49,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     for column in self.data.columns
                 }
 
+            def limit(self, num: int) -> PolarsTableManager:
+                if num < 0:
+                    raise ValueError("Limit must be a positive integer")
+                return PolarsTableManager(self.data.head(num))
+
             @staticmethod
             def _get_field_type(column: pl.Series) -> FieldType:
                 if column.is_utf8():
