@@ -37,7 +37,7 @@ async def test_reload_function(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "detect"
+    config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
         [
@@ -97,7 +97,7 @@ async def test_reload_nested_module_function(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "detect"
+    config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
         [
@@ -151,7 +151,7 @@ async def test_reload_nested_module_import_module(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "detect"
+    config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
         [
@@ -254,7 +254,7 @@ async def test_reload_package(
     nested_module.write_text("func = lambda: 1")
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "detect"
+    config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
         [
@@ -305,7 +305,7 @@ async def test_reload_third_party(
     )
 
     config = copy.deepcopy(DEFAULT_CONFIG)
-    config["runtime"]["auto_reload"] = "detect"
+    config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(SetUserConfigRequest(config=config))
     await k.run(
         [
