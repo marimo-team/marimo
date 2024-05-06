@@ -20,6 +20,7 @@ import { invariant } from "../../../utils/invariant";
 import { OperationMessage } from "@/core/kernel/messages";
 import { JsonString } from "@/utils/json/base64";
 import { UserConfig } from "@/core/config/config-schema";
+import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -28,14 +29,15 @@ declare const self: Window & {
 
 // Initialize pyodide
 async function loadPyodideAndPackages() {
-  // @ts-expect-error ehh TypeScript
-  await import("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
   try {
-    const version = getMarimoVersion();
-    const controller = await getController(version);
+    const marimoVersion = getMarimoVersion();
+    const pyodideVersion = getPyodideVersion(marimoVersion);
+    await importPyodide(marimoVersion);
+    const controller = await getController(marimoVersion);
     self.controller = controller;
     self.pyodide = await controller.bootstrap({
-      version,
+      version: marimoVersion,
+      pyodideVersion: pyodideVersion,
     });
   } catch (error) {
     console.error("Error bootstrapping", error);

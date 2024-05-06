@@ -22,8 +22,11 @@ export class DefaultWasmController implements WasmController {
     return this.pyodide;
   }
 
-  async bootstrap(opts: { version: string }): Promise<PyodideInterface> {
-    const pyodide = await this.loadPyoideAndPackages();
+  async bootstrap(opts: {
+    version: string;
+    pyodideVersion: string;
+  }): Promise<PyodideInterface> {
+    const pyodide = await this.loadPyoideAndPackages(opts.pyodideVersion);
 
     const { version } = opts;
 
@@ -37,7 +40,9 @@ export class DefaultWasmController implements WasmController {
     return pyodide;
   }
 
-  private async loadPyoideAndPackages(): Promise<PyodideInterface> {
+  private async loadPyoideAndPackages(
+    pyodideVersion: string,
+  ): Promise<PyodideInterface> {
     if (!loadPyodide) {
       throw new Error("loadPyodide is not defined");
     }
@@ -49,7 +54,7 @@ export class DefaultWasmController implements WasmController {
       // Without this, this fails in Firefox with
       // `Could not extract indexURL path from pyodide module`
       // This fixes for Firefox and does not break Chrome/others
-      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/",
+      indexURL: `https://cdn.jsdelivr.net/pyodide/${pyodideVersion}/full/`,
     });
     this.pyodide = pyodide;
     return pyodide;
