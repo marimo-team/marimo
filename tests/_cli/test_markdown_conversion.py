@@ -251,8 +251,13 @@ def test_md_to_python_code_injection() -> None:
     ```{python} `
       print("Hello, World!")
 
-    <!-- Normal code block -->
-    ```{python}
+    <!-- Disabled code block -->
+    ```{python disabled="true"}
+    1 + 1
+    ```
+
+    <!-- Hidden code block -->
+    ```{python hide_code="true"}
     1 + 1
     ```
 

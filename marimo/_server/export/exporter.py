@@ -157,6 +157,11 @@ class Exporter:
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
             code = cell_data.code
+            # Config values are opt in, so only include if they are set.
+            attributes = cell_data.config.asdict()
+            attributes = {k: "true" for k, v in attributes.items() if v}
+            if cell_data.name != "__":
+                attributes["name"] = cell_data.name
             # No "cell" means not parseable. As such, treat as code, as
             # everything in marimo is code.
             if cell:
@@ -166,11 +171,13 @@ class Exporter:
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
+            else:
+                attributes["unparsable"] = "true"
             # Add a blank line between markdown and code
             if previous_was_markdown:
                 document.append("")
             previous_was_markdown = False
-            document.append(formatted_code_block(code))
+            document.append(formatted_code_block(code, attributes))
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename

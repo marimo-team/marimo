@@ -18,7 +18,7 @@ print("Hello, World!")
 
 ```marimo run convert document.md```
 
-```{.python.marimo}
+```{.python.marimo unparsable="true"}
 it's an unparsable cell
 ```
 
@@ -26,9 +26,15 @@ it's an unparsable cell
 ```{python} `
   print("Hello, World!")
 
-<!-- Normal code block -->
+<!-- Disabled code block -->
 
-```{.python.marimo}
+```{.python.marimo disabled="true"}
+1 + 1
+```
+
+<!-- Hidden code block -->
+
+```{.python.marimo hide_code="true"}
 1 + 1
 ```
 
@@ -40,7 +46,7 @@ it's an unparsable cell
 
 <!-- Improperly nested code block -->
 
-````{.python.marimo}
+````{.python.marimo unparsable="true"}
 """
 ```{python}
 print("Hello, World!")

@@ -30,7 +30,7 @@ a cell is run, its descendants are run automatically.
 The next four cells plot a sine wave with a given period and amplitude.
 Each cell is labeled with its refs and defs.
 
-```{.python.marimo}
+```{.python.marimo hide_code="true"}
 mo.accordion(
     {
         "Tip: inspecting refs and defs": f"""
@@ -262,7 +262,7 @@ state = namespace()
 state.number = 0
 ```
 
-```{.python.marimo}
+```{.python.marimo hide_code="true"}
 mo.accordion(
     {
         "Why not track attributes?": """
@@ -280,7 +280,7 @@ In Python, it's impossible to know whether code will
 mutate an object without running it. So: mutations (such as
 appending to a list) will not trigger reactive execution.
 
-```{.python.marimo}
+```{.python.marimo hide_code="true"}
 mo.accordion(
     {
         "Tip (advanced): mutable state": (
@@ -318,7 +318,7 @@ Check out the tutorial on interactivity for a tour of UI elements:
 marimo tutorial ui
 ```
 
-```{.python.marimo}
+```{.python.marimo hide_code="true"}
 matplotlib_installed = False
 numpy_installed = False
 
@@ -337,7 +337,7 @@ except ModuleNotFoundError:
     pass
 ```
 
-````{.python.marimo}
+````{.python.marimo hide_code="true"}
 tips = {
     "Use global variables sparingly": (
         """

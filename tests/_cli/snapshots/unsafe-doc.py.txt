@@ -53,13 +53,29 @@ def __(mo):
         ```{python} `
           print("Hello, World!")
 
-        <!-- Normal code block -->
+        <!-- Disabled code block -->
         """
     )
     return
 
 
+@app.cell(disabled=True)
+def __():
+    1 + 1
+    return
+
+
 @app.cell
+def __(mo):
+    mo.md(
+        r"""
+        <!-- Hidden code block -->
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __():
     1 + 1
     return
