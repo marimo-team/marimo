@@ -8,6 +8,7 @@
   overview
   reactivity
   interactivity
+  runtime_configuration
   coming_from_jupyter
   outputs
   editor_features
@@ -33,6 +34,7 @@ These guides cover marimo's core concepts.
 | {doc}`reactivity`                    | How reactive execution works                            |
 | {doc}`interactivity`                 | Using interactive UI elements                           |
 | {doc}`coming_from_jupyter`           | marimo for Jupyter users                                |
+| {doc}`runtime_configuration`         | Configure how and when cells are run                    |
 | {doc}`outputs`                       | Markdown, plots, and other visual outputs               |
 | {doc}`editor_features`               | View variables, cell dependencies, errors, and more     |
 | {doc}`dataframes`                    | Working with dataframes                                 |

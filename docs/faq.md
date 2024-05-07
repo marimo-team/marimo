@@ -8,7 +8,9 @@
   - [Is marimo a notebook or a library?](#faq-notebook-or-library)
   - [What's the difference between a marimo notebook and a marimo app?](#faq-notebook-app)
   - [How does marimo know what cells to run?](#faq-reactivity)
+  - [Does marimo slow my code down](#faq-overhead)
   - [How do I prevent automatic execution from running expensive cells?](#faq-expensive)
+  - [How do I disable automatic execution?](#faq-lazy)
   - [How do I use sliders and other interactive elements?](#faq-interactivity)
   - [How do I add a submit button to UI elements?](#faq-form)
   - [How do I write markdown?](#faq-markdown)
@@ -167,6 +169,14 @@ your cells. Each cell is a node in the graph across which global
 variables "flow". Whenever a cell is run, either because you changed its
 code or interacted with a UI element it reads, all its descendants run in turn.
 
+<a name="faq-overhead"></a>
+
+### Does marimo slow my code down?
+
+No, marimo doesn't slow your code down. marimo determines the dependencies
+among cells by reading your code, not running or tracing it, so there's
+zero runtime overhead.
+
 <a name="faq-expensive"></a>
 
 ### How do I prevent automatic execution from running expensive cells?
@@ -187,6 +197,14 @@ intermediate computations (see our [best practices guide](guides/best_practices.
 - Wrap UI elements in a [form](api/inputs/form.md#marimo.ui.form).
 - Use [`mo.stop`](api/control_flow.md#marimo.stop) to conditionally stop
   execution of a cell and its descendants.
+- Disable automatic execution in the [runtime configuration](/guides/runtime_configuration.md).
+
+<a name="faq-lazy"></a>
+
+### How do I disable automatic execution?
+
+You can disable automatic execution through the notebook runtime settings;
+see the [guide on runtime configuration](/guides/runtime_configuration.md).
 
 <a name="faq-interactivity"></a>
 
