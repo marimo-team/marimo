@@ -142,11 +142,13 @@ class Exporter:
         }
         # Get values defined in _AppConfig without explicitly extracting keys,
         # as long as it isn't the default.
-        metadata |= {
-            k: v
-            for k, v in file_manager.app.config.asdict().items()
-            if k not in ignored_keys and v != _AppConfig.__dict__[k]
-        }
+        metadata.update(
+            {
+                k: v
+                for k, v in file_manager.app.config.asdict().items()
+                if k not in ignored_keys and v != _AppConfig.__dict__[k]
+            }
+        )
 
         header = yaml.dump(
             {k: v for k, v in metadata.items() if v is not None},

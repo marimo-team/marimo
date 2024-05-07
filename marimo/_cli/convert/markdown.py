@@ -69,7 +69,7 @@ def _tree_to_app(root: Element) -> str:
         if key in config_keys
     }
     # Try to pass on other attributes as is
-    config |= {k: v for k, v in root.items() if k not in config_keys}
+    config.update({k: v for k, v in root.items() if k not in config_keys})
 
     app_config = _AppConfig.from_untrusted_dict(config)
 
