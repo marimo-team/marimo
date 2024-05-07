@@ -93,7 +93,7 @@ export const Autocompleter = {
       return;
     }
 
-    if (excludeTypes && excludeTypes.includes(firstOption.type)) {
+    if (excludeTypes?.includes(firstOption.type)) {
       return;
     }
 
