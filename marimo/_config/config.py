@@ -121,9 +121,12 @@ class ServerConfig(TypedDict):
 
     - `browser`: the web browser to use. `"default"` or a browser registered
         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
+    - `follow_symlink`: if true, the server will follow symlinks it finds
+        inside its static assets directory.
     """
 
     browser: Union[Literal["default"], str]
+    follow_symlink: bool
 
 
 class PackageManagementConfig(TypedDict):
@@ -199,7 +202,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "format_on_save": False,
     },
     "package_management": {"manager": "pip"},
-    "server": {"browser": "default"},
+    "server": {
+        "browser": "default",
+        "follow_symlink": False,
+    },
 }
 
 

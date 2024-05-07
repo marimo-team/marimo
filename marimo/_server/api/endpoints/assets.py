@@ -11,6 +11,7 @@ from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
+from marimo._config.manager import UserConfigManager
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
@@ -31,9 +32,14 @@ router = APIRouter()
 # Root directory for static assets
 root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 
+config = UserConfigManager().get_config().get("server", {})
+
 router.mount(
     "/assets",
-    app=StaticFiles(directory=os.path.join(root, "assets")),
+    app=StaticFiles(
+        directory=os.path.join(root, "assets"),
+        follow_symlink=config.get("follow_symlink", False),
+    ),
     name="assets",
 )
 
