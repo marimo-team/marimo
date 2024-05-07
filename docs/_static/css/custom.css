@@ -50,6 +50,10 @@ iframe.demo.large {
   height: 600px;
 }
 
+iframe.demo.xlarge {
+  height: 1200px;
+}
+
 .highlight {
   border-radius: 0.4rem;
 }
