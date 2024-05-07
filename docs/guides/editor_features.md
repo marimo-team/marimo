@@ -83,21 +83,8 @@ _Missing a command? File a
 
 ## Module autoreloading
 
-Enable module autoreloading via the settings icon (top right). When enabled,
-when Python modules that your notebook imports are modified, marimo reloads
-those modifications so you can use the latest version of your code. This works
-recursively, meaning that marimo tracks modifications for modules imported
-by your notebook's imported modules too.
-
-Autoreloading comes in two types:
-
-- "lazy": automatically marks cells affected by module
-  modifications as stale, letting you know which cells need to be re-run.
-- "autorun": automatically re-runs cells affected by module modification.
-
-**Why autoreload?** Autoreloading enables a workflow that many developers find
-productive: develop complex logic in Python modules, and use the marimo
-notebook as a DAG or main script that orchestrates your logic.
+Enable module autoreloading via the settings icon (top right). Learn more
+in the [runtime configuration guide](/guides/runtime_configuration.md#on-module-change).
 
 ## Export to static HTML
 

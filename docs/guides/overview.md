@@ -27,6 +27,14 @@ variables defined by that cell._ This is reactive execution.
 </figure>
 </div>
 
+```{admonition} Lazy evaluation
+:class: tip
+
+If you don't want cells to run automatically, the runtime can be
+configured to be lazy, only running cells when you ask for them to be run and
+marking affected cells as stale. Learn more in the
+[runtime configuration guide](/guides/runtime_configuration.md)
+```
 
 **Execution order.**
 The order of cells on the page has no bearing on the order cells are
