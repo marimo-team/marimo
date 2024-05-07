@@ -59,7 +59,8 @@ const buttonVariants = cva(
         ),
         text: cn("opacity-80 hover:opacity-100", "active:opacity-100"),
         ghost: cn(
-          "hover:bg-accent hover:text-accent-foreground hover:shadow-smSolid border border-transparent",
+          "border border-transparent",
+          "hover:bg-accent hover:text-accent-foreground hover:shadow-xsSolid",
           activeCommon,
           "active:text-accent-foreground",
         ),

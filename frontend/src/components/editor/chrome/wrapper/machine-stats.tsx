@@ -49,6 +49,7 @@ const MemoryUsageBar: React.FC<{ memory: UsageResponse["memory"] }> = ({
   const roundedPercent = Math.round(percent);
   return (
     <Tooltip
+      delayDuration={200}
       content={
         <span>
           <b>Memory:</b> {asGB(used)} / {asGB(total)} GB ({roundedPercent}%)
@@ -68,6 +69,7 @@ const CPUBar: React.FC<{ cpu: UsageResponse["cpu"] }> = ({ cpu }) => {
   const roundedPercent = Math.round(percent);
   return (
     <Tooltip
+      delayDuration={200}
       content={
         <span>
           <b>CPU:</b> {roundedPercent}%

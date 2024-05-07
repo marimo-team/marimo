@@ -32,7 +32,7 @@ export const CellLinkList: React.FC<Props> = ({
   return (
     <>
       {sortedCellIds.slice(0, maxCount).map((cellId, idx) => (
-        <span className="flex" key={cellId}>
+        <span className="truncate" key={cellId}>
           <CellLink
             variant="focus"
             key={cellId}
@@ -46,9 +46,9 @@ export const CellLinkList: React.FC<Props> = ({
       {cellIds.length > maxCount && (
         <Popover>
           <PopoverTrigger asChild={true}>
-            <div className="whitespace-nowrap text-muted-foreground text-xs hover:underline cursor-pointer">
+            <span className="whitespace-nowrap text-muted-foreground text-xs hover:underline cursor-pointer">
               +{cellIds.length - maxCount} more
-            </div>
+            </span>
           </PopoverTrigger>
           <PopoverContent className="w-auto">
             <div className="flex flex-col gap-1 py-1">
