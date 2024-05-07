@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import { CellId } from "./ids";
-import { notebookAtom } from "./cells";
+import { NotebookState, notebookAtom } from "./cells";
 import { EditorView } from "@codemirror/view";
 import { CellConfig, CellStatus } from "./types";
 
@@ -19,14 +19,25 @@ export const lastFocusedCellAtom = atom<{
   hasOutput: boolean;
 } | null>((get) => {
   const cellId = get(lastFocusedCellIdAtom);
-  const { cellData, cellHandles, cellRuntime } = get(notebookAtom);
   if (!cellId) {
     return null;
   }
+
+  return cellFocusDetails(cellId, get(notebookAtom));
+});
+
+export function cellFocusDetailsAtom(cellId: CellId) {
+  return atom((get) => {
+    return cellFocusDetails(cellId, get(notebookAtom));
+  });
+}
+
+function cellFocusDetails(cellId: CellId, notebookState: NotebookState) {
+  const { cellData, cellHandles, cellRuntime } = notebookState;
   const data = cellData[cellId];
   const runtime = cellRuntime[cellId];
   const handle = cellHandles[cellId].current;
-  if (!data || !runtime || !handle) {
+  if (!data || !handle) {
     return null;
   }
   const getEditorView = () => handle.editorView;
@@ -35,8 +46,8 @@ export const lastFocusedCellAtom = atom<{
     cellId,
     name: data.name,
     config: data.config,
-    status: runtime.status,
+    status: runtime ? runtime.status : "idle",
     getEditorView: getEditorView,
-    hasOutput: runtime.output !== null,
+    hasOutput: runtime?.output != null,
   };
-});
+}

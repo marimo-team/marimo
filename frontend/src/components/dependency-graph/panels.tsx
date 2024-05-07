@@ -11,16 +11,17 @@ import {
   WorkflowIcon,
   SquareFunction,
   SettingsIcon,
+  MoreVerticalIcon,
 } from "lucide-react";
 import { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
-import { CellId } from "@/core/cells/ids";
 import { CellLink } from "../editor/links/cell-link";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "../variables/common";
-import { Variables } from "@/core/variables/types";
+import { Variable, Variables } from "@/core/variables/types";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
+import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
 
 interface Props {
   view: GraphLayoutView;
@@ -114,30 +115,67 @@ export const GraphSelectionPanel: React.FC<{
 
   const renderSelection = () => {
     if (selection.type === "node") {
-      const inputs = edges.flatMap((edge) =>
-        edge.target === selection.id ? [edge.source as CellId] : [],
+      const variablesUsed = Object.values(variables).filter((variable) =>
+        variable.usedBy.includes(selection.id),
       );
-      const outputs = edges.flatMap((edge) =>
-        edge.source === selection.id ? [edge.target as CellId] : [],
+      const variablesDeclared = Object.values(variables).filter((variable) =>
+        variable.declaredBy.includes(selection.id),
       );
+
+      const renderVariables = (variables: Variable[]) => (
+        <>
+          {variables.length === 0 && (
+            <div className="text-muted-foreground text-sm text-center">--</div>
+          )}
+          <div className="grid grid-cols-5 gap-3 items-center text-sm py-1 flex-1 empty:hidden">
+            {variables.map((variable) => (
+              <React.Fragment key={variable.name}>
+                <VariableName
+                  declaredBy={variable.declaredBy}
+                  name={variable.name}
+                />
+                <div className="truncate col-span-2" title={variable.value}>
+                  {variable.value}
+                  <span className="ml-1 truncate text-foreground/60 font-mono">
+                    ({variable.dataType})
+                  </span>
+                </div>
+                <div className="truncate col-span-2 gap-1 items-center">
+                  <CellLinkList maxCount={3} cellIds={variable.usedBy} />
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </>
+      );
+
       return (
         <>
           <div className="font-bold py-2 flex items-center gap-2 border-b px-3">
             <SquareFunction className="w-5 h-5" />
             <CellLink cellId={selection.id} />
+            <div className="flex-1" />
+            <ConnectionCellActionsDropdown cellId={selection.id}>
+              <Button variant="ghost" size="icon">
+                <MoreVerticalIcon className="w-4 h-4" />
+              </Button>
+            </ConnectionCellActionsDropdown>
           </div>
-          <div className="text-sm flex flex-col p-3 flex-1 justify-center">
-            <div className="flex items-center gap-2">
-              <span title="Inputs">
-                <ArrowRightToLineIcon className="w-4 h-4 mr-2" />
+          <div className="text-sm flex flex-col py-3 pl-2 pr-4 flex-1 justify-center">
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-2 font-semibold">
+                <ArrowRightFromLineIcon className="w-4 h-4" />
+                Outputs
               </span>
-              <CellLinkList maxCount={3} cellIds={inputs} />
+              {renderVariables(variablesDeclared)}
             </div>
-            <div className="flex items-center gap-2">
-              <span title="Outputs">
-                <ArrowRightFromLineIcon className="w-4 h-4 mr-2" />
+            <hr className="border-divider my-3" />
+            <div className="flex flex-col gap-2">
+              <span className="flex items-center gap-2 font-semibold">
+                <ArrowRightToLineIcon className="w-4 h-4" />
+                Inputs
               </span>
-              <CellLinkList maxCount={3} cellIds={outputs} />
+              {renderVariables(variablesUsed)}
             </div>
           </div>
         </>
@@ -145,7 +183,7 @@ export const GraphSelectionPanel: React.FC<{
     }
 
     if (selection.type === "edge") {
-      const variableUsed = Object.values(variables).filter(
+      const edgeVariables = Object.values(variables).filter(
         (variable) =>
           variable.declaredBy.includes(selection.source) &&
           variable.usedBy.includes(selection.target),
@@ -159,19 +197,16 @@ export const GraphSelectionPanel: React.FC<{
             <CellLink cellId={selection.target} />
           </div>
           <div className="grid grid-cols-4 gap-3 max-w-[350px] items-center text-sm p-3 flex-1">
-            {variableUsed.map((variable) => (
+            {edgeVariables.map((variable) => (
               <React.Fragment key={variable.name}>
                 <VariableName
                   declaredBy={variable.declaredBy}
                   name={variable.name}
                 />
-                <div className="text-ellipsis overflow-hidden whitespace-nowrap text-foreground/60 font-mono">
+                <div className="truncate text-foreground/60 font-mono">
                   {variable.dataType}
                 </div>
-                <div
-                  className="text-ellipsis overflow-hidden whitespace-nowrap col-span-2"
-                  title={variable.value}
-                >
+                <div className="truncate col-span-2" title={variable.value}>
                   {variable.value}
                 </div>
               </React.Fragment>
@@ -184,7 +219,7 @@ export const GraphSelectionPanel: React.FC<{
 
   return (
     <Panel position="bottom-left">
-      <div className="min-h-[100px] shadow-md rounded-md border border-primary/40 my-4 min-w-[200px] bg-[var(--slate-1)] text-muted-foreground/80 flex flex-col">
+      <div className="min-h-[100px] shadow-md rounded-md border max-w-[550px] border-primary/40 my-4 min-w-[240px] bg-[var(--slate-1)] text-muted-foreground/80 flex flex-col">
         {renderSelection()}
       </div>
     </Panel>

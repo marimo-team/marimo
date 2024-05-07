@@ -102,7 +102,7 @@ const FooterItem: React.FC<
   >
 > = ({ children, tooltip, selected, className, ...rest }) => {
   return (
-    <Tooltip content={tooltip} side="top">
+    <Tooltip content={tooltip} side="top" delayDuration={200}>
       <div
         className={cn(
           "h-full flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
