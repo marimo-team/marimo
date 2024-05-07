@@ -78,7 +78,7 @@
     "blob-polyfill": "^7.0.20220408",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "cmdk": "^1.0.0",
+    "cmdk": "^0.2.1",
     "codemirror-extension-inline-suggestion": "^0.0.3",
     "codemirror-languageserver": "^1.11.0",
     "compassql": "^0.21.2",
