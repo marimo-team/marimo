@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
+import "./carousel.css";
+
 import React, { PropsWithChildren, useEffect } from "react";
-import { z } from "zod";
-import { IStatelessPlugin, IStatelessPluginProps } from "../stateless-plugin";
 import { Swiper, SwiperSlide, SwiperRef } from "swiper/react";
 import {
   Virtual,
@@ -14,45 +15,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
 import { useEventListener } from "@/hooks/useEventListener";
 
-import "./carousel.css";
-import swiperCss from "swiper/css?inline";
-import swiperCssVirtual from "swiper/css/virtual?inline";
-import swiperCssKeyboard from "swiper/css/keyboard?inline";
-import swiperCssNavigation from "swiper/css/navigation?inline";
-import swiperCssPagination from "swiper/css/pagination?inline";
-import swiperCssScrollbar from "swiper/css/scrollbar?inline";
-
-interface Data {
+interface CarouselComponentProps {
   index?: string | null;
   height?: string | number | null;
 }
-
-export class CarouselPlugin implements IStatelessPlugin<Data> {
-  tagName = "marimo-carousel";
-
-  validator = z.object({
-    index: z.string().nullish(),
-    height: z.union([z.string(), z.number()]).nullish(),
-  });
-
-  cssStyles = [
-    swiperCss,
-    swiperCssVirtual,
-    swiperCssKeyboard,
-    swiperCssNavigation,
-    swiperCssPagination,
-    swiperCssScrollbar,
-  ];
-
-  render(props: IStatelessPluginProps<Data>): JSX.Element {
-    return (
-      <CarouselComponent {...props.data}>{props.children}</CarouselComponent>
-    );
-  }
-}
-
-type CarouselComponentProps = Data;
-
 const CarouselComponent = ({
   children,
   height,
@@ -148,3 +114,5 @@ const CarouselComponent = ({
     </Swiper>
   );
 };
+
+export default CarouselComponent;

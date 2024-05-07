@@ -3,11 +3,8 @@ import { EditorView } from "@codemirror/view";
 import { CellId } from "../cells/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
-import {
-  CellActions,
-  getNotebook,
-  notebookCellEditorViews,
-} from "../cells/cells";
+import { CellActions, getNotebook } from "../cells/cells";
+import { notebookCellEditorViews } from "../cells/utils";
 import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,

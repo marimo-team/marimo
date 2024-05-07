@@ -25,7 +25,7 @@ import { AccordionPlugin } from "./layout/AccordionPlugin";
 import { CalloutPlugin } from "./layout/CalloutPlugin";
 import { JsonOutputPlugin } from "./layout/JsonOutputPlugin";
 import { TabsPlugin } from "./impl/TabsPlugin";
-import { CarouselPlugin } from "./layout/CarouselPlugin";
+import { CarouselPlugin } from "./layout/carousel/CarouselPlugin";
 import { TexPlugin } from "./layout/TexPlugin";
 import { RefreshPlugin } from "./impl/RefreshPlugin";
 import { MicrophonePlugin } from "./impl/MicrophonePlugin";

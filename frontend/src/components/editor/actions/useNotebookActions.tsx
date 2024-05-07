@@ -22,13 +22,12 @@ import {
   Undo2Icon,
 } from "lucide-react";
 import { commandPaletteAtom } from "../controls/command-palette";
+import { useCellActions, useNotebook } from "@/core/cells/cells";
 import {
   canUndoDeletes,
   disabledCellIds,
   enabledCellIds,
-  useCellActions,
-  useNotebook,
-} from "@/core/cells/cells";
+} from "@/core/cells/utils";
 import { readCode, saveCellConfig } from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
