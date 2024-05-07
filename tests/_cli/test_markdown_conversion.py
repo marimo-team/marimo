@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from textwrap import dedent
@@ -49,7 +50,7 @@ def convert_from_py(py: str) -> str:
         os.remove(tempfile_name)
 
     title = format_filename_title(tempfile_name)
-    output = output.replace(title, "Test Notebook")
+    output = re.sub(rf"'?{title}'?", "Test Notebook", output)
     return sanitized_version(output)
 
 
