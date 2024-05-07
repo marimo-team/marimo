@@ -383,7 +383,11 @@ const CellCodeMirrorEditor = React.forwardRef(
     }, [editorView, internalRef]);
 
     return (
-      <div className={cn("cm", className)} ref={mergeRefs(ref, internalRef)} />
+      <div
+        className={cn("cm", className)}
+        ref={mergeRefs(ref, internalRef)}
+        data-testid="cell-editor"
+      />
     );
   },
 );

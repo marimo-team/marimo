@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
-import { CellId } from "../cells/ids";
-import {
+import type { CellId } from "../cells/ids";
+import type {
   CodeCompletionRequest,
   EditRequests,
   ExportHTMLRequest,
@@ -28,7 +28,7 @@ import {
   SnippetsResponse,
   ValueUpdate,
 } from "../network/types";
-import { IReconnectingWebSocket } from "../websocket/types";
+import type { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isPyodide } from "./utils";
 import { Deferred } from "@/utils/Deferred";
@@ -37,7 +37,7 @@ import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
+import type { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";

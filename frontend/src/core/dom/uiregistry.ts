@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { repl } from "../../utils/repl";
-import { CellId, UIElementId } from "../cells/ids";
+import type { CellId, UIElementId } from "../cells/ids";
 import {
   ValueType,
   marimoValueUpdateEvent,
@@ -64,7 +64,7 @@ export class UIElementRegistry {
     if (entry === undefined) {
       this.entries.set(objectId, {
         objectId: objectId,
-        value: parseInitialValue(instance),
+        value: parseInitialValue(instance, this),
         elements: new Set([instance]),
       });
     } else {

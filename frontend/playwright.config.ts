@@ -34,8 +34,9 @@ const appToOptions = {
   "title.py": { command: "edit" },
   "streams.py": { command: "edit" },
   "bad_button.py": { command: "edit" },
-  "cells.py": { command: "edit" },
   "bugs.py": { command: "edit" },
+  "cells.py": { command: "edit" },
+  "disabled_cells.py": { command: "edit" },
   "kitchen_sink.py": { command: "edit" },
   "layout_grid.py": { command: "edit" },
   "stdin.py": { command: "edit" },
@@ -61,6 +62,9 @@ function getUrl(port: number, baseUrl = "", queryParams = ""): string {
 // For tests to lookup their url/server
 export function getAppUrl(app: ApplicationNames): string {
   const options: ServerOptions = appToOptions[app];
+  if (!options) {
+    throw new Error(`No server options for app: ${app}`);
+  }
   if (options.command === "edit") {
     const pathToApp = path.join(pydir, app);
     return getUrl(EDIT_PORT, "", `?file=${pathToApp}`);
@@ -72,13 +76,24 @@ export function getAppUrl(app: ApplicationNames): string {
 export async function resetFile(app: ApplicationNames): Promise<void> {
   const pathToApp = path.join(pydir, app);
   const cmd = `git checkout -- ${pathToApp}`;
-  await exec(cmd);
+  await new Promise((resolve, reject) => {
+    exec(cmd, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(undefined);
+      }
+    });
+  });
   return;
 }
 
 // Start marimo server for the given app
 export function startServer(app: ApplicationNames): void {
   const options: ServerOptions = appToOptions[app];
+  if (!options) {
+    throw new Error(`No server options for app: ${app}`);
+  }
   const port = options.port ?? EDIT_PORT;
   const pathToApp = path.join(pydir, app);
   const marimoCmd = `marimo -q ${options.command} ${pathToApp} -p ${port} --headless`;
@@ -107,9 +122,8 @@ const config: PlaywrightTestConfig = {
   forbidOnly: !!process.env.CI,
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
-  // Opt out of parallel tests until marimo server can support multiple edit
-  // connections.
-  workers: 1,
+  // Number of workers to use. Defaults to 1.
+  workers: 3,
   // Reporter to use. See https://playwright.dev/docs/test-reporters
   reporter: "html",
   // Suppress tests stdout/stderr.

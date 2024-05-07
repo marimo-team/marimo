@@ -12,7 +12,7 @@ import {
 } from "./functions/function";
 import { invariant } from "@/utils/invariant";
 import { FieldFunction } from "./functions/types";
-import { removeUndefined } from "./queries/utils";
+import { removeUndefined } from "./queries/removeUndefined";
 
 // This code is adapted and simplified from https://github.com/vega/voyager
 
