@@ -14,6 +14,9 @@ test.beforeEach(async ({ page }, info) => {
   }
 });
 
+// This can run fully parallel since its in run mode
+test.describe.configure({ mode: "parallel" });
+
 const pageHelper = (page: Page) => {
   return {
     cell(index: number) {

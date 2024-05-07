@@ -10,12 +10,8 @@ import {
   relatedViewResult,
   toQuery,
 } from "../queries/queries";
-import {
-  isQueryEmpty,
-  isQueryFull,
-  isQuerySpecific,
-  removeUndefined,
-} from "../queries/utils";
+import { isQueryEmpty, isQueryFull, isQuerySpecific } from "../queries/utils";
+import { removeUndefined } from "../queries/removeUndefined";
 import { histograms } from "../queries/histograms";
 import { Schema } from "compassql/build/src/schema";
 import { SpecMark } from "../marks";

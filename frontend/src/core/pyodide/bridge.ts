@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
-import { CellId } from "../cells/ids";
-import {
+import type { CellId } from "../cells/ids";
+import type {
   CodeCompletionRequest,
   EditRequests,
   ExportHTMLRequest,
@@ -28,7 +28,7 @@ import {
   SnippetsResponse,
   ValueUpdate,
 } from "../network/types";
-import { IReconnectingWebSocket } from "../websocket/types";
+import type { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isPyodide } from "./utils";
 import { Deferred } from "@/utils/Deferred";

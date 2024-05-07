@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { LayoutType } from "@/components/editor/renderers/types";
-import { CellConfig, CellStatus } from "../cells/types";
+import type { CellConfig, CellStatus } from "../cells/types";
 import { CellId, UIElementId } from "../cells/ids";
 import { VariableName } from "../variables/types";
 import { RequestId } from "../network/DeferredRequestRegistry";

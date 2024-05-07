@@ -10,8 +10,11 @@ test("page renders edit feature in edit mode", async ({ page }) => {
   const appUrl = getAppUrl("title.py");
   await page.goto(appUrl);
 
+  // 'title.py' to be in the document.
+  expect(await page.getByText("title.py").count()).toBeGreaterThan(0);
+
   // Has elements with class name 'controls'
-  expect(await page.locator("#save-button").count()).toBeGreaterThan(0);
+  expect(page.locator("#save-button")).toBeVisible();
 
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();

@@ -44,6 +44,7 @@ import { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";
 import { Functions } from "@/utils/functions";
 import { StyleNamespace } from "@/theme/namespace";
+import { UIElementRegistry } from "@/core/dom/uiregistry";
 
 export interface PluginSlotHandle {
   /**
@@ -328,7 +329,7 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
           plugin={plugin}
           ref={this.pluginRef}
           getInitialValue={() => {
-            return parseInitialValue(this);
+            return parseInitialValue(this, UIElementRegistry.INSTANCE);
           }}
         >
           {this.getChildren()}

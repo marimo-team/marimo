@@ -289,34 +289,35 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   );
 
   return (
-    <AppContainer
-      connectionState={connection.state}
-      isRunning={isRunning}
-      width={appConfig.width}
-    >
-      <AppHeader
-        connection={connection}
-        className={cn("pt-4 sm:pt-12 pb-2 mb-4")}
+    <>
+      <AppContainer
+        connectionState={connection.state}
+        isRunning={isRunning}
+        width={appConfig.width}
       >
-        {isEditing && (
-          <div className="flex items-center justify-center container">
-            <FilenameForm
-              filename={filename}
-              setFilename={handleFilenameChange}
-            />
-          </div>
+        <AppHeader
+          connection={connection}
+          className={cn("pt-4 sm:pt-12 pb-2 mb-4")}
+        >
+          {isEditing && (
+            <div className="flex items-center justify-center container">
+              <FilenameForm
+                filename={filename}
+                setFilename={handleFilenameChange}
+              />
+            </div>
+          )}
+        </AppHeader>
+
+        {/* Don't render until we have a single cell */}
+        {cells.length > 0 && (
+          <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
+            <SortableCellsProvider disabled={!isEditing}>
+              {editableCellsArray}
+            </SortableCellsProvider>
+          </CellsRenderer>
         )}
-      </AppHeader>
-
-      {/* Don't render until we have a single cell */}
-      {cells.length > 0 && (
-        <CellsRenderer appConfig={appConfig} mode={viewState.mode}>
-          <SortableCellsProvider disabled={!isEditing}>
-            {editableCellsArray}
-          </SortableCellsProvider>
-        </CellsRenderer>
-      )}
-
+      </AppContainer>
       <Controls
         filename={filename}
         needsSave={needsSave}
@@ -332,7 +333,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
         undoAvailable={canUndoDeletes(notebook)}
         appWidth={appConfig.width}
       />
-    </AppContainer>
+    </>
   );
 };
 

@@ -4,7 +4,7 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "node",
-    "types": ["node"],
+    "types": ["@types/node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,

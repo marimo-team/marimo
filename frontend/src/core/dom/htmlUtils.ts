@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { assertExists } from "@/utils/assertExists";
-import { UI_ELEMENT_REGISTRY } from "./uiregistry";
+import type { UIElementRegistry } from "./uiregistry";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { Objects } from "@/utils/objects";
 import { UIElementId } from "../cells/ids";
@@ -26,13 +26,16 @@ export function parseDataset(element: HTMLElement): Record<string, unknown> {
  * exist in the UI registry.
  * And otherwise fallback to the data-initial-value attribute.
  */
-export function parseInitialValue<T>(element: HTMLElement): T {
+export function parseInitialValue<T>(
+  element: HTMLElement,
+  registry: UIElementRegistry,
+): T {
   // If parent is a <marimo-ui-element/> and has object-id, use that as the initialize the value
   const objectId = element.parentElement
     ? UIElementId.parse(element.parentElement)
     : undefined;
-  if (objectId && UI_ELEMENT_REGISTRY.has(objectId)) {
-    return UI_ELEMENT_REGISTRY.lookupValue(objectId) as T;
+  if (objectId && registry.has(objectId)) {
+    return registry.lookupValue(objectId) as T;
   }
 
   // Otherwise use the data-initial-value attribute

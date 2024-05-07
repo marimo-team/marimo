@@ -1,8 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { CellId } from "../cells/ids";
+import type { CellId } from "../cells/ids";
 import { API } from "./api";
-import { sendRestart } from "./requests";
-import {
+import type {
   CodeCompletionRequest,
   DeleteRequest,
   FormatResponse,
@@ -156,7 +155,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     openFile: async (request) => {
       await API.post<{ path: string }>("/kernel/open", request);
-      await sendRestart();
+      await API.post("/kernel/restart_session", {});
       window.location.reload();
       return null;
     },

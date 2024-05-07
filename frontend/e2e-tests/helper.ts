@@ -114,7 +114,6 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
 
   // Open a new page and take a screenshot
   const exportPage = await page.context().newPage();
-  // @ts-expect-error process not defined
   const fullPath = `${process.cwd()}/${path}`;
   await exportPage.goto(`file://${fullPath}`, {
     waitUntil: "networkidle",
@@ -152,4 +151,32 @@ export async function exportAsPNG(page: Page) {
   // Wait for the download process to complete and save the downloaded file somewhere.
   const path = `e2e-tests/screenshots/${download.suggestedFilename()}`;
   await download.saveAs(path);
+}
+
+/**
+ * Waits for the page to load. If we have resumed a session, we restart the kernel.
+ */
+export async function maybeRestartKernel(page: Page) {
+  // Wait for cells to appear
+  await waitForCellsToRender(page);
+
+  // If it says, "You have connected to an existing session", then restart
+  const hasText = await page
+    .getByText("You have reconnected to an existing session", { exact: false })
+    .isVisible();
+  if (!hasText) {
+    return;
+  }
+
+  await page.getByTestId("notebook-menu-dropdown").click();
+  await page.getByText("Restart kernel", { exact: true }).click();
+  await page.getByText("Restart", { exact: true }).click();
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * Waits for cells to render in edit mode.
+ */
+export async function waitForCellsToRender(page: Page) {
+  await page.waitForSelector("[data-testid=cell-editor]");
 }
