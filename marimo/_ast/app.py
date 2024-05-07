@@ -575,11 +575,17 @@ class InternalApp:
         for cell_id, code, name, config in zip(
             cell_ids, codes, names, configs
         ):
+            cell = None
+            # If the cell exists, the cell data should be set.
+            cell_data = self._app._cell_manager._cell_data.get(cell_id)
+            if cell_data is not None:
+                cell = cell_data.cell
             new_cell_manager.register_cell(
                 cell_id=cell_id,
                 code=code,
                 name=name,
                 config=config,
+                cell=cell,
             )
         self._app._cell_manager = new_cell_manager
         return self

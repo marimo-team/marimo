@@ -26,7 +26,8 @@ def print_tabbed(string: str, n_tabs: int = 1) -> None:
 
 def canonicalize_filename(filename: str) -> str:
     if pathlib.Path(filename).suffix != ".py":
-        filename += ".py"
+        if pathlib.Path(filename).suffix != ".md":
+            filename += ".py"
     return os.path.expanduser(filename)
 
 

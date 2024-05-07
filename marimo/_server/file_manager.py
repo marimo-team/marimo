@@ -188,15 +188,26 @@ class AppFileManager:
             # We don't remove the layout file from the disk to avoid
             # deleting state that the user might want to keep
             self.app.update_config({"layout_file": None})
-        # try to save the app under the name `filename`
-        contents = codegen.generate_filecontents(
-            codes,
-            names,
-            cell_configs=configs,
-            config=self.app.config,
-        )
+
         LOGGER.debug("Saving app to %s", filename)
-        header_comments = codegen.get_header_comments(filename)
+        header_comments: Optional[str]
+        if filename.endswith(".md"):
+            # TODO: !! Remember just proof of concept. Need restructuring
+            from marimo._server.export.exporter import Exporter
+
+            contents, _ = Exporter().export_as_md(self)
+            # Not sure how to handle these. Could put it in a front matter
+            # description.
+            header_comments = None
+        else:
+            # try to save the app under the name `filename`
+            contents = codegen.generate_filecontents(
+                codes,
+                names,
+                cell_configs=configs,
+                config=self.app.config,
+            )
+            header_comments = codegen.get_header_comments(filename)
         self._create_file(filename, contents, header_comments)
 
         if self.filename is None:
