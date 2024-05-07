@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import mimetypes
 import os
-from textwrap import dedent
 from typing import cast
 
 from marimo import __version__
@@ -123,39 +122,67 @@ class Exporter:
         return code, download_filename
 
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
+        import yaml
+
+        from marimo._ast.app import _AppConfig
         from marimo._cli.convert.markdown import (
             formatted_code_block,
             is_sanitized_markdown,
         )
 
-        # TODO: Provide filter or kernel in header such that markdown documents
-        # are executable.
-        document = [
-            dedent(
-                f"""
-          ---
-          title: {get_app_title(file_manager)}
-          marimo-version: {__version__}
-          ---"""
-            ).strip(),
-            "",
-        ]
+        # TODO: Provide filter or kernel in yaml header such that markdown
+        # documents are executable.
+
+        #  Put data from AppFileManager into the yaml header.
+        ignored_keys = {"app_title", "layout_file"}
+        metadata = {
+            "title": get_app_title(file_manager),
+            "marimo-version": __version__,
+            "marimo-layout": file_manager.app.config.layout_file,
+        }
+        # Get values defined in _AppConfig without explicitly extracting keys,
+        # as long as it isn't the default.
+        metadata.update(
+            {
+                k: v
+                for k, v in file_manager.app.config.asdict().items()
+                if k not in ignored_keys and v != _AppConfig.__dict__[k]
+            }
+        )
+
+        header = yaml.dump(
+            {k: v for k, v in metadata.items() if v is not None},
+            sort_keys=False,
+        )
+        document = ["---", header.strip(), "---", ""]
         previous_was_markdown = False
         for cell_data in file_manager.app.cell_manager.cell_data():
             cell = cell_data.cell
             code = cell_data.code
+            # Config values are opt in, so only include if they are set.
+            attributes = cell_data.config.asdict()
+            attributes = {k: "true" for k, v in attributes.items() if v}
+            if cell_data.name != "__":
+                attributes["name"] = cell_data.name
+            # No "cell" means not parseable. As such, treat as code, as
+            # everything in marimo is code.
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 # Unsanitized markdown is forced to code.
                 if markdown and is_sanitized_markdown(markdown):
+                    # Use blank HTML comment to separate markdown codeblocks
+                    if previous_was_markdown:
+                        document.append("<!---->")
                     previous_was_markdown = True
                     document.append(markdown)
                     continue
-                # Add a blank line between markdown and code
-                if previous_was_markdown:
-                    document.append("")
-                previous_was_markdown = False
-                document.append(formatted_code_block(code))
+            else:
+                attributes["unparsable"] = "true"
+            # Add a blank line between markdown and code
+            if previous_was_markdown:
+                document.append("")
+            previous_was_markdown = False
+            document.append(formatted_code_block(code, attributes))
 
         download_filename = get_download_filename(file_manager, ".md")
         return "\n".join(document).strip(), download_filename

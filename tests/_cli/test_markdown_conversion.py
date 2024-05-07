@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 from textwrap import dedent
@@ -49,7 +50,7 @@ def convert_from_py(py: str) -> str:
         os.remove(tempfile_name)
 
     title = format_filename_title(tempfile_name)
-    output = output.replace(title, "Test Notebook")
+    output = re.sub(rf"'?{title}'?", "Test Notebook", output)
     return sanitized_version(output)
 
 
@@ -243,13 +244,42 @@ def test_md_to_python_code_injection() -> None:
 
     ```marimo run convert document.md```
 
+    ```{python}
+    it's an unparsable cell
+    ```
+
     <!-- Actually markdown -->
     ```{python} `
       print("Hello, World!")
 
-    <!-- Normal code block -->
-    ```{python}
+    <!-- Disabled code block -->
+    ```{python disabled="true"}
     1 + 1
+    ```
+
+    <!-- Hidden code block -->
+    ```{python hide_code="true"}
+    1 + 1
+    ```
+
+    <!-- Empty code block -->
+    ```{python}
+    ```
+
+    <!-- Improperly nested code block -->
+    ```{python}
+    \"""
+    ```{python}
+    print("Hello, World!")
+    ```
+    \"""
+    ```
+
+    <!-- Improperly nested code block -->
+    ```{python}
+    ````{python}
+    print("Hello, World!")
+    ````
     ```
 
     -->

@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, Optional
 
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
-# Note: yaml is also a python builtin
 import yaml
 
 # Markdown is a dependency of marimo, as such we utilize it as much as possible
@@ -24,8 +23,10 @@ from pymdownx.superfences import (  # type: ignore
     SuperFencesCodeExtension,
 )
 
+from marimo._ast import codegen
 from marimo._ast.app import _AppConfig
-from marimo._cli.convert.utils import generate_from_sources, markdown_to_marimo
+from marimo._ast.cell import CellConfig
+from marimo._cli.convert.utils import markdown_to_marimo
 
 # CSafeLoader is faster than SafeLoader.
 try:
@@ -42,35 +43,60 @@ def _is_code_tag(text: str) -> bool:
     return bool(re.search(r"\{.*python.*\}", head))
 
 
-def formatted_code_block(code: str) -> str:
+def formatted_code_block(
+    code: str, attributes: Optional[dict[str, str]] = None
+) -> str:
+    """Wraps code in a fenced code block with marimo attributes."""
+    if attributes is None:
+        attributes = {}
+    attribute_str = " ".join(
+        [""] + [f'{key}="{value}"' for key, value in attributes.items()]
+    )
     guard = "```"
     while guard in code:
         guard += "`"
-    return "\n".join([f"""{guard}{{.python.marimo}}""", code, guard, ""])
+    return "\n".join(
+        [f"""{guard}{{.python.marimo{attribute_str}}}""", code, guard, ""]
+    )
 
 
 def _tree_to_app(root: Element) -> str:
     # Extract meta data from root attributes.
-    config_keys = {"title": "app_title"}
+    config_keys = {"title": "app_title", "marimo-layout": "layout_file"}
     config = {
         config_keys[key]: value
         for key, value in root.items()
         if key in config_keys
     }
+    # Try to pass on other attributes as is
+    config.update({k: v for k, v in root.items() if k not in config_keys})
+
     app_config = _AppConfig.from_untrusted_dict(config)
 
-    sources = []
+    sources: list[str] = []
+    names: list[str] = []
+    cell_config: list[CellConfig] = []
     for child in root:
-        source = child.text
-        if not (source and source.strip()):
-            continue
+        names.append(child.get("name", "__"))
+        boolean_attrs = {k: v == "true" for k, v in child.attrib.items()}
+        cell_config.append(CellConfig.from_dict(boolean_attrs))
+
+        source = child.text if child.text else ""
         if child.tag == MARIMO_MD:
+            # Only check here to allow for empty code blocks.
+            if not (source and source.strip()):
+                continue
             source = markdown_to_marimo(source)
         else:
             assert child.tag == MARIMO_CODE, f"Unknown tag: {child.tag}"
         sources.append(source)
 
-    return generate_from_sources(sources, app_config)
+    return codegen.generate_filecontents(
+        sources,
+        names,
+        cell_config,
+        config=app_config,
+    )
 
 
 class IdentityParser(Markdown):
@@ -297,17 +323,38 @@ class ExpandAndClassifyProcessor(BlockProcessor):
             # Superfences replaces code blocks with a placeholder,
             # Check for the placeholder, and ensure it is a marimo code block,
             # otherwise consider it as markdown.
-            if HTML_PLACEHOLDER_RE.match(line.strip()):
-                lookup = line.strip()[1:-1]
-                code = self.stash[lookup][0]
-                if _is_code_tag(code):
+            if not HTML_PLACEHOLDER_RE.match(line.strip()):
+                # Use <!----> to indicate a separation between cells.
+                if line.strip() == "<!---->":
                     add_paragraph()
-                    code_block = SubElement(parent, MARIMO_CODE)
-                    code_block.text = "\n".join(code.split("\n")[1:-1])
-                else:
-                    text.extend(code.split("\n"))
-            else:
+                    continue
                 text.append(line)
+                continue
+
+            lookup = line.strip()[1:-1]
+            code = self.stash[lookup][0]
+            if not _is_code_tag(code):
+                text.extend(code.split("\n"))
+                continue
+
+            # Definitively a code block, so add the previous markdown.
+            add_paragraph()
+
+            code_block = SubElement(parent, MARIMO_CODE)
+            block_lines = code.split("\n")
+            code_block.text = "\n".join(block_lines[1:-1])
+            # Extract attributes from the code block.
+            # Blocks are expected to be like this:
+            # {.python.marimo disabled="true"}
+            fence_start = RE_NESTED_FENCE_START.match(block_lines[0])
+            if fence_start:
+                # attrs is a bit of a misnomer, matches
+                # .python.marimo disabled="true"
+                inner = fence_start.group("attrs")
+                if inner:
+                    code_block.attrib = dict(
+                        re.findall(r'(\w+)="([^"]*)"', inner)
+                    )
         add_paragraph()
         # Flush to indicate all blocks have been processed.
         blocks.clear()

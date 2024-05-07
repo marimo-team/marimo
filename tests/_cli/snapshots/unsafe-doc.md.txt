@@ -18,14 +18,48 @@ print("Hello, World!")
 
 ```marimo run convert document.md```
 
+```{.python.marimo unparsable="true"}
+it's an unparsable cell
+```
+
 <!-- Actually markdown -->
 ```{python} `
   print("Hello, World!")
 
-<!-- Normal code block -->
+<!-- Disabled code block -->
+
+```{.python.marimo disabled="true"}
+1 + 1
+```
+
+<!-- Hidden code block -->
+
+```{.python.marimo hide_code="true"}
+1 + 1
+```
+
+<!-- Empty code block -->
 
 ```{.python.marimo}
-1 + 1
+
+```
+
+<!-- Improperly nested code block -->
+
+````{.python.marimo unparsable="true"}
+"""
+```{python}
+print("Hello, World!")
+````
+
+\"\"\"
+```
+
+<!-- Improperly nested code block -->
+```{python}
+````{python}
+print("Hello, World!")
+````
 ```
 
 -->

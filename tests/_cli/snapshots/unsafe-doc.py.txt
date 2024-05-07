@@ -32,18 +32,34 @@ def __(mo):
         -->
 
         ```marimo run convert document.md```
-
-        <!-- Actually markdown -->
-        ```{python} `
-          print("Hello, World!")
-
-        <!-- Normal code block -->
         """
     )
     return
 
 
+app._unparsable_cell(
+    r"""
+    it's an unparsable cell
+    """,
+    name="__"
+)
+
+
 @app.cell
+def __(mo):
+    mo.md(
+        r"""
+        <!-- Actually markdown -->
+        ```{python} `
+          print("Hello, World!")
+
+        <!-- Disabled code block -->
+        """
+    )
+    return
+
+
+@app.cell(disabled=True)
 def __():
     1 + 1
     return
@@ -53,6 +69,67 @@ def __():
 def __(mo):
     mo.md(
         r"""
+        <!-- Hidden code block -->
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __():
+    1 + 1
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        <!-- Empty code block -->
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        <!-- Improperly nested code block -->
+        """
+    )
+    return
+
+
+app._unparsable_cell(
+    r"""
+    \"\"\"
+    ```{python}
+    print(\"Hello, World!\")
+    """,
+    name="__"
+)
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        r"""
+        \"\"\"
+        ```
+
+        <!-- Improperly nested code block -->
+        ```{python}
+        ````{python}
+        print("Hello, World!")
+        ````
+        ```
+
         -->
         """
     )
