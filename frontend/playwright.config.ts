@@ -123,7 +123,7 @@ const config: PlaywrightTestConfig = {
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
   // Number of workers to use. Defaults to 1.
-  workers: 3,
+  workers: 1,
   // Reporter to use. See https://playwright.dev/docs/test-reporters
   reporter: "html",
   // Suppress tests stdout/stderr.
