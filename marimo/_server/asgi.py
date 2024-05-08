@@ -1,8 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import abc
 from typing import TYPE_CHECKING, List, Tuple
 
 from marimo._server.file_router import AppFileRouter
+from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
@@ -114,7 +117,7 @@ def create_asgi_app(
 
         def _build_app(self, path: str, root: str) -> "ASGIAppBuilder":
             session_manager = SessionManager(
-                file_router=AppFileRouter.from_filename(root),
+                file_router=AppFileRouter.from_filename(MarimoPath(root)),
                 mode=SessionMode.RUN,
                 development_mode=False,
                 quiet=quiet,

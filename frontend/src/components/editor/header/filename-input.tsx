@@ -20,6 +20,7 @@ import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FileInfo } from "@/core/network/types";
 
 import "./filename-input.css";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -205,13 +206,17 @@ function getSuggestion(
     return;
   }
 
-  if (search.endsWith(".")) {
+  // Matches allowed files in marimo/_utils/marimo_path.py
+  const extensionsToLeave = getFeatureFlag("markdown")
+    ? new Set(["py", "md", "markdown", "qmd"])
+    : new Set(["py"]);
+
+  if (extensionsToLeave.has(Paths.extension(search))) {
+    // If ends with an allowed extension, leave as is
+  } else if (search.endsWith(".")) {
     search = `${search}py`;
   } else if (search.endsWith(".p")) {
     search = `${search}y`;
-  } else if (search.endsWith(".py")) {
-    // If ends with .py, leave as is
-    // noop
   } else {
     search = `${search}.py`;
   }

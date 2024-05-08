@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-import pathlib
 import sys
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
+from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -25,7 +25,8 @@ def print_tabbed(string: str, n_tabs: int = 1) -> None:
 
 
 def canonicalize_filename(filename: str) -> str:
-    if pathlib.Path(filename).suffix != ".py":
+    # If its not a valid Python or Markdown file, then add .py
+    if MarimoPath.is_valid_path(filename):
         filename += ".py"
     return os.path.expanduser(filename)
 

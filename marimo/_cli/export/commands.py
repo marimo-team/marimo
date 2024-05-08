@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import click
 
@@ -16,7 +15,11 @@ from marimo._server.export import (
 )
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
+from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @click.group(help="""Export a notebook to various formats.""")
@@ -25,10 +28,10 @@ def export() -> None:
 
 
 def watch_and_export(
-    name: str,
+    marimo_path: MarimoPath,
     output: str,
     watch: bool,
-    export_callback: Callable[[str], str],
+    export_callback: Callable[[MarimoPath], str],
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -49,7 +52,7 @@ def watch_and_export(
 
     # No watch, just run once
     if not watch:
-        data = export_callback(name)
+        data = export_callback(marimo_path)
         write_data(data)
         return
 
@@ -57,13 +60,15 @@ def watch_and_export(
         click.echo(
             f"File {str(file_path)} changed. Re-exporting to {green(output)}"
         )
-        data = export_callback(str(file_path))
+        data = export_callback(MarimoPath(file_path))
         write_data(data)
 
     async def start() -> None:
         # Watch the file for changes
-        watcher = FileWatcher.create(Path(name), on_file_changed)
-        click.echo(f"Watching {green(name)} for changes...")
+        watcher = FileWatcher.create(marimo_path.path, on_file_changed)
+        click.echo(
+            f"Watching {green(marimo_path.relative_name)} for changes..."
+        )
         watcher.start()
         try:
             # Run forever
@@ -132,7 +137,7 @@ def html(
 
     cli_args = parse_args(args)
 
-    def export_callback(file_path: str) -> str:
+    def export_callback(file_path: MarimoPath) -> str:
         (html, _filename) = asyncio_run(
             run_app_then_export_as_html(
                 file_path, include_code=include_code, cli_args=cli_args
@@ -140,7 +145,7 @@ def html(
         )
         return html
 
-    return watch_and_export(name, output, watch, export_callback)
+    return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
 @click.command(
@@ -189,10 +194,10 @@ def script(
     Export a marimo notebook as a flat script, in topological order.
     """
 
-    def export_callback(file_path: str) -> str:
+    def export_callback(file_path: MarimoPath) -> str:
         return export_as_script(file_path)[0]
 
-    return watch_and_export(name, output, watch, export_callback)
+    return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
 @click.command(
@@ -241,10 +246,10 @@ def md(
     Export a marimo notebook as a code fenced markdown document.
     """
 
-    def export_callback(file_path: str) -> str:
+    def export_callback(file_path: MarimoPath) -> str:
         return export_as_md(file_path)[0]
 
-    return watch_and_export(name, output, watch, export_callback)
+    return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
 export.add_command(html)

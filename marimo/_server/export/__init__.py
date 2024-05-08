@@ -15,12 +15,13 @@ from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.session.session_view import SessionView
+from marimo._utils.marimo_path import MarimoPath
 
 
 def export_as_script(
-    filename: str,
+    path: MarimoPath,
 ) -> tuple[str, str]:
-    file_router = AppFileRouter.from_filename(filename)
+    file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
@@ -29,9 +30,9 @@ def export_as_script(
 
 
 def export_as_md(
-    filename: str,
+    path: MarimoPath,
 ) -> tuple[str, str]:
-    file_router = AppFileRouter.from_filename(filename)
+    file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
@@ -40,12 +41,12 @@ def export_as_md(
 
 
 async def run_app_then_export_as_html(
-    filename: str,
+    path: MarimoPath,
     include_code: bool,
     cli_args: SerializedCLIArgs,
 ) -> tuple[str, str]:
     # Create a file router and file manager
-    file_router = AppFileRouter.from_filename(filename)
+    file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
     assert file_key is not None
     file_manager = file_router.get_file_manager(file_key)
