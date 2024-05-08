@@ -102,6 +102,9 @@ reproducibility, maintainability, composability, and shareability.
 
    GitHub <https://github.com/marimo-team/marimo>
    Discord <https://discord.gg/JE7nhX6mD8>
+   Newsletter <https://marimo.io/newsletter>
+   Twitter <https://twitter.com/marimo_io>
+   Blog <https://marimo.io/blog>
 ```
 
 <h3>Index</h3>
