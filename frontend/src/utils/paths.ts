@@ -11,6 +11,13 @@ export const Paths = {
   basename: (path: string) => {
     return PathBuilder.guessDeliminator(path).basename(path as FilePath);
   },
+  extension: (filename: string): string => {
+    const parts = filename.split(".");
+    if (parts.length === 1) {
+      return "";
+    }
+    return parts.at(-1) ?? "";
+  },
 };
 
 export class PathBuilder {

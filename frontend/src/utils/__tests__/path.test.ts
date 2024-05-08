@@ -120,4 +120,12 @@ describe("PathBuilder", () => {
       expect(pathBuilder.dirname("file" as FilePath)).toBe("");
     });
   });
+
+  describe("extension", () => {
+    it("should return the extension of a file", () => {
+      expect(Paths.extension("file.txt")).toBe("txt");
+      expect(Paths.extension("file")).toBe("");
+      expect(Paths.extension("file.tar.gz")).toBe("gz");
+    });
+  });
 });

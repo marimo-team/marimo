@@ -9,6 +9,7 @@ from marimo import _loggers
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.home import MarimoFile
+from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
@@ -27,7 +28,7 @@ class AppFileRouter(abc.ABC):
     def infer(path: str) -> AppFileRouter:
         if os.path.isfile(path):
             LOGGER.debug("Routing to file %s", path)
-            return AppFileRouter.from_filename(path)
+            return AppFileRouter.from_filename(MarimoPath(path))
         if os.path.isdir(path):
             LOGGER.debug("Routing to directory %s", path)
             return AppFileRouter.from_directory(path)
@@ -37,12 +38,12 @@ class AppFileRouter(abc.ABC):
         )
 
     @staticmethod
-    def from_filename(filename: str) -> AppFileRouter:
+    def from_filename(file: MarimoPath) -> AppFileRouter:
         files = [
             MarimoFile(
-                name=filename,
-                path=os.path.abspath(filename),
-                last_modified=os.path.getmtime(filename),
+                name=file.relative_name,
+                path=file.absolute_name,
+                last_modified=file.last_modified,
             )
         ]
         return ListOfFilesAppFileRouter(files)
@@ -197,9 +198,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                 full_path = os.path.join(root, filename)
                 relative_path = os.path.relpath(full_path, directory)
                 # Python files must contain "marimo.App", or markdown files
-                if not filename.endswith(".py") or self._is_marimo_app(
-                    full_path
-                ):
+                if self._is_marimo_app(full_path):
                     files.append(
                         MarimoFile(
                             name=filename,
@@ -212,8 +211,13 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
     def _is_marimo_app(self, full_path: str) -> bool:
         try:
-            with open(full_path, "r", encoding="utf-8") as f:
-                return "marimo.App" in f.read()
+            path = MarimoPath(full_path)
+            contents = path.read_text()
+            if path.is_markdown():
+                return "marimo-version:" in contents
+            if path.is_python():
+                return "marimo.App" in contents
+            return False
         except Exception as e:
             LOGGER.debug("Error reading file %s: %s", full_path, e)
             return False

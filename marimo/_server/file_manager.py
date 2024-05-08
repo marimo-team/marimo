@@ -108,7 +108,7 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_filename)
 
-        if self.filename is not None:
+        if self._is_named():
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
@@ -169,7 +169,7 @@ class AppFileManager:
             configs=configs,
         )
 
-        if self.filename is not None and not self._is_same_path(filename):
+        if self._is_named() and not self._is_same_path(filename):
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail="Save handler cannot rename files.",
@@ -199,7 +199,7 @@ class AppFileManager:
         header_comments = codegen.get_header_comments(filename)
         self._create_file(filename, contents, header_comments)
 
-        if self.filename is None:
+        if self._is_unnamed():
             self.rename(filename)
 
     def to_code(self) -> str:
@@ -211,6 +211,12 @@ class AppFileManager:
             config=self.app.config,
         )
         return contents
+
+    def _is_unnamed(self) -> bool:
+        return self.filename is None
+
+    def _is_named(self) -> bool:
+        return self.filename is not None
 
     def read_file(self) -> str:
         """Read the contents of the file."""
