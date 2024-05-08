@@ -18,7 +18,7 @@ _When you run a cell, marimo automatically runs all cells that read any global
 variables defined by that cell._ This is reactive execution.
 
 > **Reactive execution guarantees that your code and program state are
-> consistent.**  It also gives notebooks a deterministic execution order,
+> consistent.** It also gives notebooks a deterministic execution order,
 > letting them double as both reproducible scripts and interactive apps.
 
 <div align="center">
@@ -151,11 +151,10 @@ collections of elements.
 </figure>
 </div>
 
-
 ## Layout
 
 The marimo library also comes with elements for laying out outputs, including
 [`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
 [`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
-[`mo.ui.table`](#marimo.ui.table), and [many
-more](https://docs.marimo.io/api/layouts/index.html).
+[`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
+and [many more](https://docs.marimo.io/api/layouts/index.html).

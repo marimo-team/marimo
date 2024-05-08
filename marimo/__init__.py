@@ -39,6 +39,7 @@ __all__ = [
     "md",
     "mermaid",
     "mpl",
+    "nav_menu",
     "output",
     "plain_text",
     "pdf",
@@ -81,6 +82,7 @@ from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
+from marimo._plugins.stateless.nav_menu import nav_menu
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.stat import stat
