@@ -206,10 +206,10 @@ You can optionally render embedded notebooks in read-only mode by appending
 
 ## 🏝️ Islands
 
-```{admonition} Experimental 🧪
+```{admonition} Preview
 :class: note
 
-Islands are an experimental feature. While the API likely won't change, there are some improvements we'd like to make before we consider them stable.
+Islands are an early feature. While the API likely won't change, there are some improvements we'd like to make before we consider them stable.
 Please let us know on [GitHub](https://github.com/marimo-team/marimo/issues) if you run into any issues or have any feedback!
 ```
 
