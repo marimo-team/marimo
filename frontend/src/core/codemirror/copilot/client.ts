@@ -85,7 +85,7 @@ export function createWsUrl(): string {
   const LSP_PORT =
     process.env.NODE_ENV === "development"
       ? DEVELOPMENT_WS_PORT
-      : window.location.port + 0;
+      : `${window.location.port}0`;
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   return `${protocol}://${window.location.hostname}:${LSP_PORT}/copilot`;
 }
