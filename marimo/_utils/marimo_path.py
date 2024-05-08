@@ -21,7 +21,9 @@ class MarimoPath:
 
     def validate(self) -> None:
         if not self.is_valid():
-            raise ValueError(f"File {self.path} is not a Python or Markdown file.")
+            raise ValueError(
+                f"File {self.path} is not a Python or Markdown file."
+            )
 
     @staticmethod
     def is_valid_path(path: str | Path) -> bool:
@@ -45,13 +47,15 @@ class MarimoPath:
         if self.strict:
             if not MarimoPath(new_path).is_relative_to(self.cwd):
                 raise ValueError(
-                    "Cannot rename files outside of " "the current working directory"
+                    "Cannot rename files outside of "
+                    "the current working directory"
                 )
 
         # Cannot rename if already exists
         if new_path.exists():
             raise ValueError(
-                f"Cannot rename {self.path} to {new_path}" " because it already exists"
+                f"Cannot rename {self.path} to {new_path}"
+                " because it already exists"
             )
 
         self.path.rename(new_path)
