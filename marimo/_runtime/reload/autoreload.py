@@ -13,6 +13,7 @@ import gc
 import io
 import os
 import sys
+import threading
 import traceback
 import types
 import weakref
@@ -22,6 +23,7 @@ from importlib.util import source_from_cache
 from typing import Any, Callable, Dict, Generic, List, Tuple, Type, TypeVar
 
 from marimo import _loggers
+from marimo._ast.cell import CellImpl
 from marimo._messaging.tracebacks import write_traceback
 
 LOGGER = _loggers.marimo_logger()
@@ -48,7 +50,28 @@ OldObjectsMapping = Dict[
 ]
 
 
+def modules_imported_by_cell(
+    cell: CellImpl, sys_modules: dict[str, types.ModuleType]
+) -> set[str]:
+    """Get the modules imported by a cell"""
+    modules = set()
+    for import_data in cell.imports:
+        if import_data.module in sys_modules:
+            modules.add(import_data.module)
+        if import_data.imported_symbol in sys_modules:
+            # The imported symbol may or may not be a module, which
+            # is why we check if it's in sys.modules
+            #
+            # e.g., from a import b
+            #
+            # a.b could be a module, but it could also be a function, ...
+            modules.add(import_data.imported_symbol)
+    return modules
+
+
 class ModuleReloader:
+    """Thread-safe module reloader."""
+
     def __init__(self) -> None:
         # Modules that failed to reload: {module: mtime-on-failed-reload, ...}
         self.failed: dict[str, float] = {}
@@ -56,6 +79,10 @@ class ModuleReloader:
         self.old_objects: OldObjectsMapping = {}
         # module-name -> mtime (module modification timestamps)
         self.modules_mtimes: dict[str, float] = {}
+        # set of modules names known to be stale but haven't been reloaded
+        self.stale_modules: set[str] = set()
+        # for thread-safety
+        self.lock = threading.Lock()
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
@@ -94,41 +121,71 @@ class ModuleReloader:
             return None
         return ModuleMTime(py_filename, pymtime)
 
+    def cell_uses_stale_modules(self, cell: CellImpl) -> bool:
+        with self.lock:
+            return bool(
+                self.stale_modules
+                & modules_imported_by_cell(cell, sys.modules)
+            )
+
     def check(
         self, modules: dict[str, types.ModuleType], reload: bool
     ) -> set[types.ModuleType]:
         """Check timestamps of modules, optionally reload them.
 
         Also patches existing objects with hot-reloaded ones.
+
+        Returns a set of modules that were found to have been modified.
         """
 
-        # materialize the module keys, since we'll be reloading while iterating
-        modified_modules: set[types.ModuleType] = set()
-        for modname in list(modules.keys()):
-            m = modules.get(modname, None)
-            if m is None:
-                continue
-
-            module_mtime = self.filename_and_mtime(m)
-            if module_mtime is None:
-                continue
-            py_filename, pymtime = module_mtime.name, module_mtime.mtime
-
-            try:
-                if pymtime <= self.modules_mtimes[modname]:
+        # module watcher thread and kernel thread might try to use the
+        # reloader at the same time, but reloader mutates state
+        #
+        # Holds a lock because this method modifies stale_modules
+        # and also iterates over it
+        with self.lock:
+            modified_modules: set[types.ModuleType] = set()
+            # materialize the module keys, since we'll be reloading while
+            # iterating
+            for modname in list(modules.keys()):
+                m = modules.get(modname, None)
+                if m is None:
                     continue
-            except KeyError:
+
+                module_mtime = self.filename_and_mtime(m)
+                if module_mtime is None:
+                    continue
+                py_filename, pymtime = module_mtime.name, module_mtime.mtime
+
+                try:
+                    if pymtime <= self.modules_mtimes[modname]:
+                        continue
+                except KeyError:
+                    self.modules_mtimes[modname] = pymtime
+                    continue
+                else:
+                    if self.failed.get(py_filename, None) == pymtime:
+                        continue
+
                 self.modules_mtimes[modname] = pymtime
-                continue
-            else:
-                if self.failed.get(py_filename, None) == pymtime:
+                modified_modules.add(m)
+                self.stale_modules.add(modname)
+
+            if not reload:
+                return modified_modules
+
+            for modname in self.stale_modules:
+                # Reload after the check loop: if there are any
+                # previously discovered stale modules, reload those as well
+                m = modules.get(modname, None)
+                if m is None:
                     continue
 
-            self.modules_mtimes[modname] = pymtime
-            modified_modules.add(m)
+                module_mtime = self.filename_and_mtime(m)
+                if module_mtime is None:
+                    continue
+                py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
-            # If we've reached this point, we should try to reload the module
-            if reload:
                 LOGGER.debug(f"Reloading '{modname}'.")
                 try:
                     superreload(m, self.old_objects)
@@ -140,6 +197,7 @@ class ModuleReloader:
                         msg.format(modname, traceback.format_exc(10)),
                     )
                     self.failed[py_filename] = pymtime
+            self.stale_modules.clear()
         return modified_modules
 
 

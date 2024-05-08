@@ -73,7 +73,9 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.module_watcher import ModuleWatcher
+from marimo._runtime.reload.module_watcher import (
+    ModuleWatcher,
+)
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -369,6 +371,7 @@ class Kernel:
             if self.module_watcher is None:
                 self.module_watcher = ModuleWatcher(
                     self.graph,
+                    reloader=self.module_reloader,
                     enqueue_run_stale_cells=self._execute_stale_cells_callback,
                     mode=autoreload_mode,
                     stream=self.stream,
@@ -476,6 +479,14 @@ class Kernel:
 
         if cell is not None:
             self.graph.register_cell(cell_id, cell)
+            # leaky abstraction: the graph doesn't know about stale modules, so
+            # we have to check for them here.
+            module_reloader = self.module_reloader
+            if (
+                module_reloader is not None
+                and module_reloader.cell_uses_stale_modules(cell)
+            ):
+                self.graph.set_stale(set([cell.cell_id]))
             LOGGER.debug("registered cell %s", cell_id)
             LOGGER.debug("parents: %s", self.graph.parents[cell_id])
             LOGGER.debug("children: %s", self.graph.children[cell_id])
