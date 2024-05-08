@@ -377,23 +377,6 @@ async def test_reload_with_modified_cell(
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
 
-    # modify the first cell and make sure it is still marked as stale!
-    # disable it first so we can check its staleness
-    # TODO: test doesn't seem to exercise the right thing ...
-    await k.set_cell_config(
-        SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
-    )
-    await k.run(
-        [
-            er_1 := exec_req.get_with_id(
-                er_1.cell_id, f"from {py_modname} import foo; 1"
-            ),
-        ]
-    )
-    assert k.graph.cells[er_1.cell_id].stale
-
-    await k.set_cell_config(
-        SetCellConfigRequest(configs={er_1.cell_id: {"disabled": False}})
-    )
-    assert not k.graph.get_stale()
-    assert k.globals["x"] == 2
+    # modify the first cell and make sure it is still marked as stale;
+    k._maybe_register_cell(er_1.cell_id, f"from {py_modname} import foo; 1")
+    assert er_1.cell_id in k.graph.get_stale()
