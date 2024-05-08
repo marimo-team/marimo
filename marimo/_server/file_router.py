@@ -49,7 +49,7 @@ class AppFileRouter(abc.ABC):
 
     @staticmethod
     def from_directory(directory: str) -> AppFileRouter:
-        return LazyListOfFilesAppFileRouter(directory)
+        return LazyListOfFilesAppFileRouter(directory, include_markdown=False)
 
     @staticmethod
     def from_files(files: List[MarimoFile]) -> AppFileRouter:
@@ -143,9 +143,20 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):
-    def __init__(self, directory: str) -> None:
+    def __init__(self, directory: str, include_markdown: bool) -> None:
         self.directory = directory
+        self.include_markdown = include_markdown
         self._lazy_files: Optional[List[MarimoFile]] = None
+
+    def toggle_markdown(
+        self, include_markdown: bool
+    ) -> LazyListOfFilesAppFileRouter:
+        # Only create a new instance if the include_markdown flag is different
+        if include_markdown != self.include_markdown:
+            return LazyListOfFilesAppFileRouter(
+                self.directory, include_markdown
+            )
+        return self
 
     @property
     def files(self) -> List[MarimoFile]:
@@ -160,6 +171,10 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         MAX_DEPTH = 5
         files: List[MarimoFile] = []
         skip_dirs = {".git", ".venv", "__pycache__", "node_modules"}
+        allowed_extensions = (
+            {".py", ".md"} if self.include_markdown else {".py"}
+        )
+
         LOGGER.debug("Searching directory %s", directory)
         for root, dirnames, filenames in os.walk(directory, topdown=True):
             # Skip directories that are too deep
@@ -175,24 +190,33 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                 continue
             # Iterate over all files in the directory
             for filename in filenames:
-                if not filename.endswith(".py"):
+                if not any(
+                    filename.endswith(ext) for ext in allowed_extensions
+                ):
                     continue
                 full_path = os.path.join(root, filename)
                 relative_path = os.path.relpath(full_path, directory)
-                try:
-                    with open(full_path, "r", encoding="utf-8") as f:
-                        if "marimo.App" in f.read():
-                            files.append(
-                                MarimoFile(
-                                    name=filename,
-                                    path=relative_path,
-                                    last_modified=os.path.getmtime(full_path),
-                                )
-                            )
-                except Exception as e:
-                    LOGGER.debug("Error reading file %s: %s", full_path, e)
+                # Python files must contain "marimo.App", or markdown files
+                if not filename.endswith(".py") or self._is_marimo_app(
+                    full_path
+                ):
+                    files.append(
+                        MarimoFile(
+                            name=filename,
+                            path=relative_path,
+                            last_modified=os.path.getmtime(full_path),
+                        )
+                    )
         LOGGER.debug("Found %d files in directory %s", len(files), directory)
         return files
+
+    def _is_marimo_app(self, full_path: str) -> bool:
+        try:
+            with open(full_path, "r", encoding="utf-8") as f:
+                return "marimo.App" in f.read()
+        except Exception as e:
+            LOGGER.debug("Error reading file %s: %s", full_path, e)
+            return False
 
     def get_unique_file_key(self) -> str | None:
         return None

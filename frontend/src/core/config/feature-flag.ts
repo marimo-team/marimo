@@ -8,9 +8,12 @@ import { getUserConfig } from "./config";
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ExperimentalFeatures {
   // Add new feature flags here
+  markdown: boolean;
 }
 
-const defaultValues: ExperimentalFeatures = {};
+const defaultValues: ExperimentalFeatures = {
+  markdown: import.meta.env.DEV,
+};
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,

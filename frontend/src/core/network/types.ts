@@ -184,6 +184,10 @@ export interface RecentFilesResponse {
   files: MarimoNotebook[];
 }
 
+export interface WorkspaceFilesRequest {
+  includeMarkdown: boolean;
+}
+
 export interface WorkspaceFilesResponse {
   files: MarimoNotebook[];
 }
@@ -270,7 +274,9 @@ export interface EditRequests {
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
   // Homepage requests
   getRecentFiles: () => Promise<RecentFilesResponse>;
-  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
+  getWorkspaceFiles: (
+    request: WorkspaceFilesRequest,
+  ) => Promise<WorkspaceFilesResponse>;
   getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
   shutdownSession: (
     request: ShutdownSessionRequest,

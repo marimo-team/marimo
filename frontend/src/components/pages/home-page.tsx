@@ -26,6 +26,10 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { RunningNotebooksResponse } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -33,13 +37,15 @@ function tabTarget(path: string) {
 }
 
 const HomePage: React.FC = () => {
+  const [includeMarkdown, setIncludeMarkdown] = useState(false);
+
   const fileResponse = useAsyncData(async () => {
     const [workspace, recents] = await Promise.all([
-      getWorkspaceFiles(),
+      getWorkspaceFiles({ includeMarkdown }),
       getRecentFiles(),
     ]);
     return { workspace, recents };
-  }, []);
+  }, [includeMarkdown]);
 
   const [nonce, setNonce] = useState(0);
   useInterval(
@@ -60,7 +66,7 @@ const HomePage: React.FC = () => {
   }
 
   const data = combineAsyncData(fileResponse, runningResponse).data;
-  if (fileResponse.loading || !data) {
+  if (!data) {
     return <Spinner centered={true} size="xlarge" />;
   }
 
@@ -108,6 +114,22 @@ const HomePage: React.FC = () => {
         />
         <NotebookList
           header="All notebooks"
+          control={
+            getFeatureFlag("markdown") && (
+              <div className="flex items-center gap-2">
+                {fileResponse.loading && <Spinner size="small" />}
+                <Checkbox
+                  data-testid="include-markdown-checkbox"
+                  id="include-markdown"
+                  checked={includeMarkdown}
+                  onCheckedChange={(checked) =>
+                    setIncludeMarkdown(Boolean(checked))
+                  }
+                />
+                <Label htmlFor="include-markdown">Include markdown</Label>
+              </div>
+            )
+          }
           files={workspace.files}
           runningNotebooks={runningNotebooks}
           setRunningNotebooks={runningResponse.setData}
@@ -120,6 +142,7 @@ const HomePage: React.FC = () => {
 
 const NotebookList: React.FC<{
   header: string;
+  control?: React.ReactNode;
   files: Array<{
     name: string;
     path: string;
@@ -134,7 +157,7 @@ const NotebookList: React.FC<{
     }
   >;
   setRunningNotebooks: (data: RunningNotebooksResponse) => void;
-}> = ({ header, files, runningNotebooks, setRunningNotebooks }) => {
+}> = ({ control, header, files, runningNotebooks, setRunningNotebooks }) => {
   const { openConfirm, closeModal } = useImperativeModal();
 
   if (files.length === 0) {
@@ -143,7 +166,10 @@ const NotebookList: React.FC<{
 
   return (
     <div className="flex flex-col gap-4">
-      <Header>{header}</Header>
+      <div className="flex items-center justify-between gap-2">
+        <Header>{header}</Header>
+        {control}
+      </div>
       <div
         className="flex flex-col divide-y divide-[var(--slate-3)] border rounded overflow-hidden
         max-h-[48rem] overflow-y-auto shadow-sm bg-background
@@ -157,6 +183,8 @@ const NotebookList: React.FC<{
             ? `/?file=${file.initializationId}&session_id=${file.path}`
             : `/?file=${file.path}`;
 
+          const isMarkdown = file.path.endsWith(".md");
+
           return (
             <a
               className="py-2 px-4 hover:bg-[var(--blue-2)] hover:text-primary transition-all duration-300 cursor-pointer group relative"
@@ -165,7 +193,14 @@ const NotebookList: React.FC<{
               target={tabTarget(file.initializationId || file.path)}
             >
               <div className="flex flex-col justify-between">
-                <span>{file.name}</span>
+                <span className="flex items-center gap-2">
+                  {file.name}
+                  {isMarkdown && (
+                    <span className="opacity-80">
+                      <MarkdownIcon />
+                    </span>
+                  )}
+                </span>
                 <p
                   title={file.path}
                   className="text-sm text-muted-foreground

@@ -78,7 +78,10 @@ export const UserConfigSchema = z
       })
       .default({}),
     experimental: z
-      .object({})
+      .object({
+        markdown: z.boolean().optional(),
+        // Add new experimental features here
+      })
       // Pass through so that we don't remove any extra keys that the user has added.
       .passthrough()
       .default({}),

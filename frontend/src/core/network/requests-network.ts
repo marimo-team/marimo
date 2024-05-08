@@ -34,6 +34,7 @@ import type {
   ExportAsHTMLRequest,
   UsageResponse,
   ExportAsMarkdownRequest,
+  WorkspaceFilesRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -202,8 +203,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getRecentFiles: () => {
       return API.post<{}, RecentFilesResponse>("/home/recent_files", {});
     },
-    getWorkspaceFiles: () => {
-      return API.post<{}, WorkspaceFilesResponse>("/home/workspace_files", {});
+    getWorkspaceFiles: (request) => {
+      return API.post<WorkspaceFilesRequest, WorkspaceFilesResponse>(
+        "/home/workspace_files",
+        request,
+      );
     },
     getRunningNotebooks: () => {
       return API.post<{}, RunningNotebooksResponse>(
