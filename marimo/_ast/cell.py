@@ -125,7 +125,7 @@ class CellImpl:
 
     @property
     def imports(self) -> Iterable[ImportData]:
-        """Return a set of the namespaces imported by this cell."""
+        """Return a set of import data for this cell."""
         return [
             data.import_data
             for _, data in self.variable_data.items()
