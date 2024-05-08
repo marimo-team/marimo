@@ -6,6 +6,7 @@ import pathlib
 import sys
 import threading
 import time
+import warnings
 from modulefinder import ModuleFinder
 from typing import TYPE_CHECKING, Callable, Literal
 
@@ -63,7 +64,11 @@ def _depends_on(
         return False
 
     try:
-        finder.run_script(src_module.__file__)
+        with warnings.catch_warnings():
+            # We temporarily ignore warnings to avoid spamming the console,
+            # since the watcher runs in a loop
+            warnings.simplefilter("ignore")
+            finder.run_script(src_module.__file__)
     except SyntaxError:
         # user introduced a syntax error, maybe; still check if the
         # module itself has been modified
