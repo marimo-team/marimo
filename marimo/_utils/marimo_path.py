@@ -45,7 +45,7 @@ class MarimoPath:
 
     def rename(self, new_path: Path) -> None:
         if self.strict:
-            if not new_path.is_relative_to(self.cwd):
+            if not MarimoPath(new_path).is_relative_to(self.cwd):
                 raise ValueError(
                     "Cannot rename files outside of "
                     "the current working directory"
@@ -74,15 +74,21 @@ class MarimoPath:
     @property
     def relative_name(self) -> str:
         if self.strict:
-            if not self.path.is_relative_to(self.cwd):
+            if not self.is_relative_to(self.cwd):
                 raise ValueError(
                     "Cannot get relative name for files outside"
                     " of the current working directory"
                 )
         # If can't return relative path, return absolute path
-        if not self.path.is_relative_to(self.cwd):
+        if not self.is_relative_to(self.cwd):
             return self.path.absolute().as_posix()
         return self.path.relative_to(self.cwd).as_posix()
+
+    def is_relative_to(self, other: Path) -> bool:
+        # In python 3.8, is_relative_to is not available
+        if not hasattr(self.path, "is_relative_to"):
+            return self.path.relative_to(other) == self.path
+        return self.path.is_relative_to(other)  # type: ignore
 
     @property
     def absolute_name(self) -> str:
