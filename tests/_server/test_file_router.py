@@ -30,16 +30,22 @@ class TestAppFileRouter(unittest.TestCase):
         self.test_file2 = tempfile.NamedTemporaryFile(
             delete=False, dir=self.test_dir, suffix=".py"
         )
+        self.test_file_3 = tempfile.NamedTemporaryFile(
+            delete=False, dir=self.test_dir, suffix=".md"
+        )
         # Write to the temporary files
         self.test_file1.write(file_contents.encode())
         self.test_file1.close()
         self.test_file2.write(file_contents.encode())
         self.test_file2.close()
+        self.test_file_3.write("marimo-version: 0.0.0".encode())
+        self.test_file_3.close()
 
     def tearDown(self):
         # Clean up temporary files and directory
         os.unlink(self.test_file1.name)
         os.unlink(self.test_file2.name)
+        os.unlink(self.test_file_3.name)
         os.rmdir(self.test_dir)
 
     def test_infer_file(self):
@@ -100,9 +106,6 @@ class TestAppFileRouter(unittest.TestCase):
             self.test_dir, include_markdown=True
         )
         # Create markdown files
-        _markdown_file1 = tempfile.NamedTemporaryFile(
-            dir=self.test_dir, suffix=".md"
-        )
         files = router.files
         assert len(files) == 3
 

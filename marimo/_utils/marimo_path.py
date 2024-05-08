@@ -64,6 +64,9 @@ class MarimoPath:
         # By default, write as utf-8
         self.path.write_text(data, encoding)
 
+    def read_text(self, encoding: str = "utf-8") -> str:
+        return self.path.read_text(encoding)
+
     @property
     def short_name(self) -> str:
         return self.path.name
