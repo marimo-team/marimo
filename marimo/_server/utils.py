@@ -26,7 +26,7 @@ def print_tabbed(string: str, n_tabs: int = 1) -> None:
 
 def canonicalize_filename(filename: str) -> str:
     # If its not a valid Python or Markdown file, then add .py
-    if MarimoPath.is_valid_path(filename):
+    if not MarimoPath.is_valid_path(filename):
         filename += ".py"
     return os.path.expanduser(filename)
 

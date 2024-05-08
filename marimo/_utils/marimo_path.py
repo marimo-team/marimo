@@ -87,7 +87,11 @@ class MarimoPath:
     def is_relative_to(self, other: Path) -> bool:
         # In python 3.8, is_relative_to is not available
         if not hasattr(self.path, "is_relative_to"):
-            return self.path.relative_to(other) == self.path
+            try:
+                self.path.relative_to(other)
+                return True
+            except ValueError:
+                return False
         return self.path.is_relative_to(other)  # type: ignore
 
     @property
