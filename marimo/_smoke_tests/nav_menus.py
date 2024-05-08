@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.5.0"
@@ -20,6 +21,12 @@ def __(mo):
             "#products": f"{mo.icon('lucide:package')} Products",
         }
     )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("-----")
     return
 
 
@@ -65,6 +72,12 @@ def __(mo):
         },
         orientation="vertical",
     )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("-----")
     return
 
 
