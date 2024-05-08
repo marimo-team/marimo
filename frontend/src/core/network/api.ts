@@ -32,12 +32,16 @@ export const API = {
       },
       body: JSON.stringify(body),
     })
-      .then((response) => {
+      .then(async (response) => {
+        const isJson = response.headers
+          .get("Content-Type")
+          ?.startsWith("application/json");
         if (!response.ok) {
-          throw new Error(response.statusText);
-        } else if (
-          response.headers.get("Content-Type")?.startsWith("application/json")
-        ) {
+          const errorBody = isJson
+            ? await response.json()
+            : await response.text();
+          throw new Error(response.statusText, { cause: errorBody });
+        } else if (isJson) {
           return response.json() as RESP;
         } else {
           return response.text() as unknown as RESP;

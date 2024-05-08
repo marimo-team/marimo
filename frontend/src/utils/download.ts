@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
+import { Filenames } from "@/utils/filenames";
 
 export async function downloadHTMLAsImage(
   element: HTMLElement,
@@ -14,10 +15,7 @@ export async function downloadHTMLAsImage(
   try {
     // Get screenshot
     const dataUrl = await toPng(element);
-    downloadByURL(
-      dataUrl,
-      filename.endsWith(".png") ? filename : `${filename}.png`,
-    );
+    downloadByURL(dataUrl, Filenames.toPNG(filename));
   } catch {
     toast({
       title: "Error",

@@ -14,7 +14,7 @@ import { CopyIcon } from "lucide-react";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../ui/tooltip";
 import { Constants } from "@/core/constants";
-import { exportHTML } from "@/core/network/requests";
+import { exportAsHTML } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 
 const BASE_URL = "https://static.marimo.app";
@@ -37,7 +37,7 @@ export const ShareStaticNotebookModal: React.FC<{
           e.preventDefault();
 
           onClose();
-          const html = await exportHTML({
+          const html = await exportAsHTML({
             download: false,
             includeCode: true,
             files: VirtualFileTracker.INSTANCE.filenames(),

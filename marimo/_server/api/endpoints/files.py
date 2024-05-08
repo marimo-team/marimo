@@ -41,6 +41,13 @@ async def read_code(
     app_state = AppState(request)
     """Handler for reading code from the server."""
     session = app_state.require_current_session()
+
+    if not session.app_file_manager.path:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must be saved before downloading",
+        )
+
     contents = session.app_file_manager.read_file()
 
     return ReadCodeResponse(contents=contents)

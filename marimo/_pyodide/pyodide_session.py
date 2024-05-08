@@ -344,6 +344,13 @@ class PyodideBridge:
         )
         return json.dumps(html)
 
+    def export_markdown(self, request: str) -> str:
+        del request
+        md, _filename = Exporter().export_as_md(
+            file_manager=self.session.app_manager,
+        )
+        return json.dumps(md)
+
 
 def launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],

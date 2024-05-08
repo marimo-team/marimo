@@ -196,10 +196,14 @@ export interface ShutdownSessionRequest {
   sessionId: SessionId;
 }
 
-export interface ExportHTMLRequest {
+export interface ExportAsHTMLRequest {
   assetUrl?: string;
   includeCode: boolean;
   files: string[];
+  download: boolean;
+}
+
+export interface ExportAsMarkdownRequest {
   download: boolean;
 }
 
@@ -271,7 +275,8 @@ export interface EditRequests {
   shutdownSession: (
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
-  exportHTML: (request: ExportHTMLRequest) => Promise<string>;
+  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
+  exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

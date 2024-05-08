@@ -31,8 +31,9 @@ import type {
   WorkspaceFilesResponse,
   RunningNotebooksResponse,
   ShutdownSessionRequest,
-  ExportHTMLRequest,
+  ExportAsHTMLRequest,
   UsageResponse,
+  ExportAsMarkdownRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -213,7 +214,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     shutdownSession: (request: ShutdownSessionRequest) => {
       return API.post("/home/shutdown_session", request);
     },
-    exportHTML: async (request: ExportHTMLRequest) => {
+    exportAsHTML: async (request: ExportAsHTMLRequest) => {
       if (
         process.env.NODE_ENV === "development" ||
         process.env.NODE_ENV === "test"
@@ -221,6 +222,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         request.assetUrl = window.location.origin;
       }
       return API.post("/export/html", request);
+    },
+    exportAsMarkdown: async (request: ExportAsMarkdownRequest) => {
+      return API.post("/export/markdown", request);
     },
   };
 }
