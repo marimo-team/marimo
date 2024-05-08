@@ -40,6 +40,7 @@ import { DataExplorerPlugin } from "./impl/data-explorer/DataExplorerPlugin";
 import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
 import { AnyWidgetPlugin } from "./impl/anywidget/AnyWidgetPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
+import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -83,6 +84,7 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new StatPlugin(),
   new TexPlugin(),
   new MermaidPlugin(),
+  new NavigationMenuPlugin(),
 ];
 
 export function initializePlugins() {
