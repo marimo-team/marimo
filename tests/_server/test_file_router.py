@@ -72,7 +72,9 @@ class TestAppFileRouter(unittest.TestCase):
 
     def test_lazy_list_of_files(self):
         # Test the lazy loading of files in a directory
-        router = LazyListOfFilesAppFileRouter(self.test_dir)
+        router = LazyListOfFilesAppFileRouter(
+            self.test_dir, include_markdown=False
+        )
         files = router.files
         assert (
             len(files) == 2
@@ -83,9 +85,33 @@ class TestAppFileRouter(unittest.TestCase):
         # Create a broken symlink
         broken_symlink = os.path.join(self.test_dir, "broken_symlink.py")
         os.symlink("non_existent_file", broken_symlink)
-        router = LazyListOfFilesAppFileRouter(self.test_dir)
+        router = LazyListOfFilesAppFileRouter(
+            self.test_dir, include_markdown=False
+        )
         files = router.files
         assert len(files) == 2
 
         # Remove the broken symlink
         os.unlink(broken_symlink)
+
+    def test_lazy_list_with_markdown(self):
+        # Test the lazy loading of files in a directory with markdown
+        router = LazyListOfFilesAppFileRouter(
+            self.test_dir, include_markdown=True
+        )
+        # Create markdown files
+        _markdown_file1 = tempfile.NamedTemporaryFile(
+            dir=self.test_dir, suffix=".md"
+        )
+        files = router.files
+        assert len(files) == 3
+
+        # Toggling markdown
+        router = router.toggle_markdown(False)
+        files = router.files
+        assert len(files) == 2
+
+        # Toggle markdown back
+        router = router.toggle_markdown(True)
+        files = router.files
+        assert len(files) == 3

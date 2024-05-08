@@ -9,11 +9,13 @@ from starlette.authentication import requires
 from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
+from marimo._server.file_router import LazyListOfFilesAppFileRouter
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
     RecentFilesResponse,
     ShutdownSessionRequest,
+    WorkspaceFilesRequest,
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
@@ -47,8 +49,16 @@ async def workspace_files(
     request: Request,
 ) -> WorkspaceFilesResponse:
     """Get the files in the workspace."""
-    app_state = AppState(request)
-    files = app_state.session_manager.file_router.files
+    body = await parse_request(request, cls=WorkspaceFilesRequest)
+    session_manager = AppState(request).session_manager
+
+    # Maybe enable markdown
+    if isinstance(session_manager.file_router, LazyListOfFilesAppFileRouter):
+        session_manager.file_router = (
+            session_manager.file_router.toggle_markdown(body.include_markdown)
+        )
+
+    files = session_manager.file_router.files
     return WorkspaceFilesResponse(files=files)
 
 

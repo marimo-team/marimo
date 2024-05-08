@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import sys
 
 import pytest
@@ -24,6 +25,7 @@ def test_workspace_files(client: TestClient) -> None:
     response = client.post(
         "/api/home/workspace_files",
         headers=HEADERS,
+        json={"include_markdown": False},
     )
     body = response.json()
     files = body["files"]

@@ -5,9 +5,6 @@ import os
 import random
 from typing import TYPE_CHECKING
 
-import pytest
-
-from marimo._server.api.status import HTTPException
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
 
@@ -188,26 +185,26 @@ def test_save_with_invalid_file(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_save_file_cannot_rename(client: TestClient) -> None:
-    with pytest.raises(HTTPException) as response:
-        client.post(
-            "/api/kernel/save",
-            headers=HEADERS,
-            json={
-                "cell_ids": ["1"],
-                "filename": "random_filename.py",
-                "codes": ["import marimo as mo"],
-                "names": ["my_cell"],
-                "configs": [
-                    {
-                        "hideCode": True,
-                        "disabled": False,
-                    }
-                ],
-            },
-        )
-    assert response.value.status_code == 400
-    assert response.value.detail
-    assert "cannot rename" in response.value.detail
+    response = client.post(
+        "/api/kernel/save",
+        headers=HEADERS,
+        json={
+            "cell_ids": ["1"],
+            "filename": "random_filename.py",
+            "codes": ["import marimo as mo"],
+            "names": ["my_cell"],
+            "configs": [
+                {
+                    "hideCode": True,
+                    "disabled": False,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 400
+    body = response.json()
+    assert body["detail"]
+    assert "cannot rename" in body["detail"]
 
 
 @with_session(SESSION_ID)

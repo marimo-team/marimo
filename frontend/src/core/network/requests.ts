@@ -57,5 +57,6 @@ export const {
   getWorkspaceFiles,
   getRunningNotebooks,
   shutdownSession,
-  exportHTML,
+  exportAsHTML,
+  exportAsMarkdown,
 } = getRequest();

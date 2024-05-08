@@ -31,8 +31,10 @@ import type {
   WorkspaceFilesResponse,
   RunningNotebooksResponse,
   ShutdownSessionRequest,
-  ExportHTMLRequest,
+  ExportAsHTMLRequest,
   UsageResponse,
+  ExportAsMarkdownRequest,
+  WorkspaceFilesRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -201,8 +203,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getRecentFiles: () => {
       return API.post<{}, RecentFilesResponse>("/home/recent_files", {});
     },
-    getWorkspaceFiles: () => {
-      return API.post<{}, WorkspaceFilesResponse>("/home/workspace_files", {});
+    getWorkspaceFiles: (request) => {
+      return API.post<WorkspaceFilesRequest, WorkspaceFilesResponse>(
+        "/home/workspace_files",
+        request,
+      );
     },
     getRunningNotebooks: () => {
       return API.post<{}, RunningNotebooksResponse>(
@@ -213,7 +218,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     shutdownSession: (request: ShutdownSessionRequest) => {
       return API.post("/home/shutdown_session", request);
     },
-    exportHTML: async (request: ExportHTMLRequest) => {
+    exportAsHTML: async (request: ExportAsHTMLRequest) => {
       if (
         process.env.NODE_ENV === "development" ||
         process.env.NODE_ENV === "test"
@@ -221,6 +226,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         request.assetUrl = window.location.origin;
       }
       return API.post("/export/html", request);
+    },
+    exportAsMarkdown: async (request: ExportAsMarkdownRequest) => {
+      return API.post("/export/markdown", request);
     },
   };
 }

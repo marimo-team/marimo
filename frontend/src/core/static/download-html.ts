@@ -1,26 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { exportHTML } from "../network/requests";
+import { exportAsHTML } from "../network/requests";
 import { downloadBlob } from "@/utils/download";
 import { Paths } from "@/utils/paths";
 import { VirtualFileTracker } from "./virtual-file-tracker";
+import { Filenames } from "@/utils/filenames";
 
 /**
  * Downloads the current notebook as an HTML file.
  */
 export async function downloadAsHTML(opts: { filename: string }) {
   const { filename } = opts;
-  const html = await exportHTML({
+  const html = await exportAsHTML({
     download: true,
     includeCode: true,
     files: VirtualFileTracker.INSTANCE.filenames(),
   });
   const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
-  const filenameWithoutExtension =
-    filenameWithoutPath.split(".").shift() ?? "app";
 
   downloadBlob(
     new Blob([html], { type: "text/html" }),
-    `${filenameWithoutExtension}.html`,
+    Filenames.toHTML(filenameWithoutPath),
   );
 }
 

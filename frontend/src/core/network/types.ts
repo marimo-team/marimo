@@ -184,6 +184,10 @@ export interface RecentFilesResponse {
   files: MarimoNotebook[];
 }
 
+export interface WorkspaceFilesRequest {
+  includeMarkdown: boolean;
+}
+
 export interface WorkspaceFilesResponse {
   files: MarimoNotebook[];
 }
@@ -196,10 +200,14 @@ export interface ShutdownSessionRequest {
   sessionId: SessionId;
 }
 
-export interface ExportHTMLRequest {
+export interface ExportAsHTMLRequest {
   assetUrl?: string;
   includeCode: boolean;
   files: string[];
+  download: boolean;
+}
+
+export interface ExportAsMarkdownRequest {
   download: boolean;
 }
 
@@ -266,12 +274,15 @@ export interface EditRequests {
   sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
   // Homepage requests
   getRecentFiles: () => Promise<RecentFilesResponse>;
-  getWorkspaceFiles: () => Promise<WorkspaceFilesResponse>;
+  getWorkspaceFiles: (
+    request: WorkspaceFilesRequest,
+  ) => Promise<WorkspaceFilesResponse>;
   getRunningNotebooks: () => Promise<RunningNotebooksResponse>;
   shutdownSession: (
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
-  exportHTML: (request: ExportHTMLRequest) => Promise<string>;
+  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
+  exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

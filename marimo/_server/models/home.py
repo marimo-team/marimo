@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -23,6 +25,11 @@ class MarimoFile:
 @dataclass
 class RecentFilesResponse:
     files: List[MarimoFile]
+
+
+@dataclass
+class WorkspaceFilesRequest:
+    include_markdown: bool = False
 
 
 @dataclass

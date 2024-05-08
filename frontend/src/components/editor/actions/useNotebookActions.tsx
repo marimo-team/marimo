@@ -28,7 +28,11 @@ import {
   disabledCellIds,
   enabledCellIds,
 } from "@/core/cells/utils";
-import { readCode, saveCellConfig } from "@/core/network/requests";
+import {
+  exportAsMarkdown,
+  readCode,
+  saveCellConfig,
+} from "@/core/network/requests";
 import { Objects } from "@/utils/objects";
 import { ActionButton } from "./types";
 import { downloadAsHTML } from "@/core/static/download-html";
@@ -43,6 +47,8 @@ import { useChromeActions, useChromeState } from "../chrome/state";
 import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
 import { startCase } from "lodash-es";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
+import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { Filenames } from "@/utils/filenames";
 
 const NOOP_HANDLER = (event?: Event) => {
   event?.preventDefault();
@@ -134,6 +140,19 @@ export function useNotebookActions() {
             });
 
             toasted.dismiss();
+          },
+        },
+        {
+          icon: (
+            <MarkdownIcon strokeWidth={1.5} style={{ width: 14, height: 14 }} />
+          ),
+          label: "Download as Markdown",
+          handle: async () => {
+            const md = await exportAsMarkdown({ download: false });
+            downloadBlob(
+              new Blob([md], { type: "text/plain" }),
+              Filenames.toMarkdown(Paths.basename(filename || "notebook.py")),
+            );
           },
         },
         {
