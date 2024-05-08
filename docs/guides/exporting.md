@@ -39,3 +39,20 @@ marimo export script notebook.py -o notebook.script.py
 Exporting to a flat Python script does not support top-level await.
 If you have top-level await in your notebook, you can still execute the notebook as a script with `python notebook.py`.
 ```
+
+## Export to markdown
+
+Export the notebook to markdown at the command-line.
+This exports the notebook in top to bottom order, so the cells are in the order as they appear in the notebook.
+
+```bash
+marimo export md notebook.py -o notebook.md
+```
+
+This can be useful to plug into other tools that read markdown, such as [Quarto](https://quarto.org/) or [MyST](https://myst-parser.readthedocs.io/).
+
+You can also convert the markdown back to a marimo notebook:
+
+```bash
+marimo convert notebook.md > notebook.py
+```
