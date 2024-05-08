@@ -17,7 +17,7 @@ __all__ = [
     "Cell",
     "MarimoStopError",
     "create_asgi_app",
-    "experimental_MarimoIslandGenerator",
+    "MarimoIslandGenerator",
     "accordion",
     "carousel",
     "as_html",
@@ -63,9 +63,7 @@ __version__ = "0.5.0"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
-from marimo._islands.island_generator import (
-    MarimoIslandGenerator as experimental_MarimoIslandGenerator,
-)
+from marimo._islands.island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html

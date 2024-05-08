@@ -178,3 +178,8 @@ details.sd-dropdown .sd-summary-up {
   padding-top: 1rem;
   padding-bottom: 1rem;
 }
+
+/* Hide Furo warning about unrelated duplicate table of contents error */
+.marimo .contents::before {
+  display: none !important;
+}
