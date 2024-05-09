@@ -9,8 +9,8 @@ export const SheetMenu = () => {
   return (
     <Sheet>
       <SheetTrigger className="lg:hidden" asChild={true}>
-        <Button variant="outline" className="bg-background">
-          <MenuIcon className="w-6 h-6" />
+        <Button variant="ghost" className="bg-background">
+          <MenuIcon className="w-5 h-5" />
         </Button>
       </SheetTrigger>
       <SheetContent

@@ -23,7 +23,7 @@ def __(mo):
             ),
             mo.md(
                 """
-        
+
         ### Footer
 
         - [Twitter](https://twitter.com/marimo_io)

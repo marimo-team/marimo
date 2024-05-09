@@ -1,8 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional
-
 from marimo._output import md
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -13,9 +11,7 @@ from marimo._plugins.stateless.flex import vstack
 
 @mddoc
 def sidebar(
-    element: object,
-    *,
-    size: Optional[int] = None,
+    item: object,
 ) -> Html:
     """
     Displays content in a sidebar. This is a special layout component that
@@ -53,7 +49,6 @@ def sidebar(
     **Args.**
 
     - `item`: the content to display in the sidebar
-    - `size`: XXX (what are the units?)
 
     **Returns.**
 
@@ -61,16 +56,16 @@ def sidebar(
     """
 
     # If its a string, wrap in md
-    if isinstance(element, str):
-        element = md.md(element)
+    if isinstance(item, str):
+        item = md.md(item)
     # If its an array, wrap in vstack
-    if isinstance(element, list):
-        element = vstack(element)
+    if isinstance(item, list):
+        item = vstack(item)
 
     return Html(
         build_stateless_plugin(
             "marimo-sidebar",
-            {"size": size},
-            as_html(element).text,
+            {},
+            as_html(item).text,
         )
     )
