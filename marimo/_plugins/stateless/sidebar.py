@@ -19,7 +19,7 @@ def sidebar(
 ) -> Html:
     """
     Displays content in a sidebar. This is a special layout component that
-    will portray the content in a sidebar layout, rather than below/above
+    will display the content in a sidebar layout, rather than below/above
     the cell.
 
     This component still needs to be the last expression in the cell,
