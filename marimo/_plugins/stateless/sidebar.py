@@ -52,7 +52,8 @@ def sidebar(
 
     **Args.**
 
-    - `element`: the content to display in the sidebar
+    - `item`: the content to display in the sidebar
+    - `size`: XXX (what are the units?)
 
     **Returns.**
 
