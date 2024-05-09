@@ -3,6 +3,6 @@ __generated_with = "0.0.0"
 
 import marimo as mo
 
-# ---
+# %%
 
 slider = mo.ui.slider(0, 10)

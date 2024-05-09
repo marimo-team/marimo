@@ -115,7 +115,7 @@ class Exporter:
         ]
         code = (
             f'\n__generated_with = "{__version__}"\n\n'
-            + "\n\n# ---\n\n".join(codes)
+            + "\n\n# %%\n\n".join(codes)
         )
 
         download_filename = get_download_filename(file_manager, ".script.py")
