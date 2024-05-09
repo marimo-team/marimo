@@ -83,7 +83,9 @@ class Exporter:
             cell_codes=list(codes),
             cell_configs=list(file_manager.app.cell_manager.configs()),
             cell_outputs=session_view.get_cell_outputs(cell_ids),
-            cell_console_outputs=session_view.get_cell_console_outputs(cell_ids),
+            cell_console_outputs=session_view.get_cell_console_outputs(
+                cell_ids
+            ),
             files=files,
             asset_url=request.asset_url,
         )
