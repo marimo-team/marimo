@@ -126,7 +126,7 @@ const NavMenuComponent = ({
         <NavigationMenuItem key={item.label}>
           <div
             className={
-              "inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-base font-medium text-muted-foreground/80 tracking-wide font-semibold"
+              "inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-base font-medium text-muted-foreground/80 tracking-wide font-semibold"
             }
           >
             {renderHTML({ html: item.label })}

@@ -11,10 +11,10 @@ interface SidebarToggleProps {
 
 export const SidebarToggle = ({ isOpen, toggle }: SidebarToggleProps) => {
   return (
-    <div className="invisible lg:visible absolute top-[12px] -right-[16px] z-20 bg-white dark:bg-primary-foreground">
+    <div className="invisible lg:visible absolute top-[12px] -right-[16px] z-20">
       <Button
         onClick={toggle}
-        className="rounded-md w-8 h-8"
+        className="w-8 h-8 bg-background"
         variant="outline"
         size="icon"
       >

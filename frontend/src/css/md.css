@@ -153,6 +153,8 @@
   margin: 0;
 }
 
+/* stylelint-disable unit-allowed-list */
+
 /* pad iconify-icon when next to text */
 a .markdown .paragraph:has(iconify-icon),
 .mo-button .markdown .paragraph:has(iconify-icon) {
@@ -169,3 +171,5 @@ a .markdown iconify-icon:first-child {
   display: inline-flex;
   align-items: center;
 }
+
+/* stylelint-enable unit-allowed-list */
