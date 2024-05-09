@@ -83,9 +83,7 @@ class Exporter:
             cell_codes=list(codes),
             cell_configs=list(file_manager.app.cell_manager.configs()),
             cell_outputs=session_view.get_cell_outputs(cell_ids),
-            cell_console_outputs=session_view.get_cell_console_outputs(
-                cell_ids
-            ),
+            cell_console_outputs=session_view.get_cell_console_outputs(cell_ids),
             files=files,
             asset_url=request.asset_url,
         )
@@ -110,13 +108,10 @@ class Exporter:
 
         graph = file_manager.app.graph
         codes: list[str] = [
-            graph.cells[cid].code
+            "# %%\n" + graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
-        code = (
-            f'\n__generated_with = "{__version__}"\n\n'
-            + "\n\n# %%\n\n".join(codes)
-        )
+        code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n".join(codes)
 
         download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename
