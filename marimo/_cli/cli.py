@@ -23,6 +23,7 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
+from marimo._utils.marimo_path import MarimoPath
 
 DEVELOPMENT_MODE = False
 QUIET = False
@@ -357,7 +358,7 @@ def run(
     codegen.get_app(name)
 
     start(
-        file_router=AppFileRouter.from_filename(name),
+        file_router=AppFileRouter.from_filename(MarimoPath(name)),
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,
@@ -485,11 +486,11 @@ def tutorial(
     source = inspect.getsource(tutorials[name])
     d = tempfile.TemporaryDirectory()
     fname = os.path.join(d.name, name + ".py")
-    with open(fname, "w", encoding="utf-8") as f:
-        f.write(source)
+    path = MarimoPath(fname)
+    path.write_text(source)
 
     start(
-        file_router=AppFileRouter.from_filename(fname),
+        file_router=AppFileRouter.from_filename(path),
         development_mode=DEVELOPMENT_MODE,
         quiet=QUIET,
         host=host,

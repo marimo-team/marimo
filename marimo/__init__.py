@@ -17,7 +17,7 @@ __all__ = [
     "Cell",
     "MarimoStopError",
     "create_asgi_app",
-    "experimental_MarimoIslandGenerator",
+    "MarimoIslandGenerator",
     "accordion",
     "carousel",
     "as_html",
@@ -39,6 +39,7 @@ __all__ = [
     "md",
     "mermaid",
     "mpl",
+    "nav_menu",
     "output",
     "plain_text",
     "pdf",
@@ -59,13 +60,11 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.4.11"
+__version__ = "0.5.1"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
-from marimo._islands.island_generator import (
-    MarimoIslandGenerator as experimental_MarimoIslandGenerator,
-)
+from marimo._islands.island_generator import MarimoIslandGenerator
 from marimo._output.doc import doc
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -83,6 +82,7 @@ from marimo._plugins.stateless.icon import icon
 from marimo._plugins.stateless.image import image
 from marimo._plugins.stateless.lazy import lazy
 from marimo._plugins.stateless.mermaid import mermaid
+from marimo._plugins.stateless.nav_menu import nav_menu
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.stateless.stat import stat

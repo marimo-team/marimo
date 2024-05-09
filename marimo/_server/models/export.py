@@ -16,3 +16,8 @@ class ExportAsHTMLRequest:
 @dataclass
 class ExportAsScriptRequest:
     download: bool
+
+
+@dataclass
+class ExportAsMarkdownRequest:
+    download: bool

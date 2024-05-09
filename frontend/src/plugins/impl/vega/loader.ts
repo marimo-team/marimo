@@ -117,7 +117,7 @@ export function parseCsvData(csvData: string, handleBigInt = true): object[] {
 }
 
 export function uniquifyColumnNames(csvData: string): string {
-  if (!csvData || !csvData.includes(",")) {
+  if (!csvData?.includes(",")) {
     return csvData;
   }
 

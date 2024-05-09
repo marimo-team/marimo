@@ -6,7 +6,8 @@
   "rangeStrategy": "bump",
   "postUpdateOptions": ["pnpmDedupe"],
   "python": {
-    "enabled": false
+    "enabled": true,
+    "packagePatterns": [".*sphinx.*"]
   },
   "pep621": {
     "enabled": false

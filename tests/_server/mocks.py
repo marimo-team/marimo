@@ -8,6 +8,7 @@ from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import NoopLspServer, SessionManager
+from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     lsp_server = NoopLspServer()
 
     sm = SessionManager(
-        file_router=AppFileRouter.from_filename(temp_file.name),
+        file_router=AppFileRouter.from_filename(MarimoPath(temp_file.name)),
         mode=SessionMode.EDIT,
         development_mode=False,
         quiet=False,

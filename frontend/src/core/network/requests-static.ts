@@ -64,6 +64,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     getWorkspaceFiles: throwNotInEditMode,
     getRunningNotebooks: throwNotInEditMode,
     shutdownSession: throwNotInEditMode,
-    exportHTML: throwNotInEditMode,
+    exportAsHTML: throwNotInEditMode,
+    exportAsMarkdown: throwNotInEditMode,
   };
 }

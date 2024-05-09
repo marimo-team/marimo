@@ -50,6 +50,10 @@ iframe.demo.large {
   height: 600px;
 }
 
+iframe.demo.xlarge {
+  height: 1200px;
+}
+
 .highlight {
   border-radius: 0.4rem;
 }
@@ -173,4 +177,9 @@ details.sd-dropdown .sd-summary-up {
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+
+/* Hide Furo warning about unrelated duplicate table of contents error */
+.marimo .contents::before {
+  display: none !important;
 }

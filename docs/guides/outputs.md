@@ -5,7 +5,6 @@ Outputs are included in the "app" or read-only view of the notebook. marimo
 comes out of the box a number of elements to help you make rich outputs,
 documented in the [API reference](/api/index/).
 
-
 <div align="center">
 <figure>
 <img src="/_static/outputs.gif"/>
@@ -62,14 +61,13 @@ mo.md(
 )
 ```
 
-
 ## Layout
 
 The marimo library also comes with elements for laying out outputs, including
 [`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
 [`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
-[`mo.ui.table`](#marimo.ui.table), and [many
-more](https://docs.marimo.io/api/layouts/index.html).
+[`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
+and [many more](https://docs.marimo.io/api/layouts/index.html).
 
 ## Media
 

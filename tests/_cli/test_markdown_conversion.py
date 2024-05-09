@@ -16,6 +16,7 @@ from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, marimo_for_jupyter_users
+from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
 modules = {
@@ -45,7 +46,7 @@ def convert_from_py(py: str) -> str:
             tempfile_name = f.name
             f.write(py)
             f.seek(0)
-            output = export_as_md(tempfile_name)[0]
+            output = export_as_md(MarimoPath(tempfile_name))[0]
     finally:
         os.remove(tempfile_name)
 
@@ -62,7 +63,7 @@ def convert_from_py(py: str) -> str:
 )
 def test_markdown_snapshots() -> None:
     for name, mod in modules.items():
-        output = sanitized_version(export_as_md(mod.__file__)[0])
+        output = sanitized_version(export_as_md(MarimoPath(mod.__file__))[0])
         snapshot(f"{name}.md.txt", output)
 
 

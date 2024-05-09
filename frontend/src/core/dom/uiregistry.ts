@@ -89,7 +89,7 @@ export class UIElementRegistry {
     // when the tied Python object goes out of scope, but instance
     // removal is triggered when the instance is removed from the DOM
     // (which can happen after Python deconstruction)
-    if (entry !== undefined && entry.elements.has(instance)) {
+    if (entry?.elements.has(instance)) {
       entry.elements.delete(instance);
     }
   }

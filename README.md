@@ -63,7 +63,8 @@ automatically re-run with their latest values.
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code. You can optionally disable expensive cells to
-prevent them from automatically running.
+prevent them from automatically running, or configure the runtime to be
+lazy and mark affected stales as stale instead of automatically running them.
 
 **Batteries-included.** marimo comes with GitHub Copilot, Black code
 formatting, HTML export, fast code completion, a [VS Code

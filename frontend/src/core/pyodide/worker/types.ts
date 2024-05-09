@@ -2,7 +2,7 @@
 import type { PyodideInterface } from "pyodide";
 import type {
   CodeCompletionRequest,
-  ExportHTMLRequest,
+  ExportAsHTMLRequest,
   FileCreateRequest,
   FileDeleteRequest,
   FileDetailsResponse,
@@ -72,7 +72,8 @@ export interface RawBridge {
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
   set_interrupt_buffer(request: Uint8Array): Promise<string>;
-  export_html(request: ExportHTMLRequest): Promise<string>;
+  export_html(request: ExportAsHTMLRequest): Promise<string>;
+  export_markdown(request: ExportAsHTMLRequest): Promise<string>;
 }
 
 export type SerializedBridge = {

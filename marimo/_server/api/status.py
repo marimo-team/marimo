@@ -23,3 +23,7 @@ class HTTPException(Exception):
     ) -> None:
         self.status_code = status_code
         self.detail = detail
+
+
+def is_client_error(status_code: int) -> bool:
+    return 400 <= status_code < 500

@@ -16,6 +16,15 @@ When a cell is run, marimo automatically runs all other cells that
 **reference** any of the global variables it **defines**.
 ```
 
+```{admonition} Lazy evaluation
+:class: note
+
+The runtime can be configured to be lazy, only running cells when you ask for
+them to be run and marking affected cells as stale, instead of automatically
+running them. Learn more in the
+[runtime configuration guide](/guides/runtime_configuration.md)
+```
+
 ## References and definitions
 A marimo notebook is a DAG where nodes are cells and edges are data
 dependencies. marimo creates this graph by statically analyzing each cell
@@ -156,3 +165,13 @@ disabled, marimo will automatically run it.
 automatically.</figcaption>
 </figure>
 </div>
+
+```{admonition} Lazy evaluation
+:class: note
+
+If you prefer, you can configure the runtime to be lazy, only running cells
+when you ask for them to be run and marking affected cells as stale. When
+your notebook has expensive cells, choosing lazy execution can be more
+convenient than manually disabling and enabling cell. Learn more
+in the [runtime configuration guide](/guides/runtime_configuration.md)
+```

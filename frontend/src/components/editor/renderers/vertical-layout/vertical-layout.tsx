@@ -14,6 +14,7 @@ import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { outputIsStale } from "@/core/cells/cell";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -50,6 +51,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           key={cell.id}
           cellId={cell.id}
           output={cell.output}
+          consoleOutputs={cell.consoleOutputs}
           status={cell.status}
           code={cell.code}
           config={cell.config}
@@ -60,6 +62,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           runStartTimestamp={cell.runStartTimestamp}
           interrupted={cell.interrupted}
           staleInputs={cell.staleInputs}
+          name={cell.name}
         />
       ))}
       {canShowCode && (
@@ -91,6 +94,7 @@ interface VerticalCellProps
   extends Pick<
     CellRuntimeState,
     | "output"
+    | "consoleOutputs"
     | "status"
     | "stopped"
     | "errored"
@@ -103,11 +107,13 @@ interface VerticalCellProps
   code: string;
   mode: AppMode;
   showCode: boolean;
+  name: string;
 }
 
 const VerticalCell = memo(
   ({
     output,
+    consoleOutputs,
     cellId,
     status,
     stopped,
@@ -119,6 +125,7 @@ const VerticalCell = memo(
     code,
     showCode,
     mode,
+    name,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
 
@@ -160,6 +167,14 @@ const VerticalCell = memo(
               code={code}
             />
           </div>
+          <ConsoleOutput
+            consoleOutputs={consoleOutputs}
+            stale={outputStale}
+            cellName={name}
+            onSubmitDebugger={() => null}
+            cellId={cellId}
+            debuggerActive={false}
+          />
         </div>
       );
     }

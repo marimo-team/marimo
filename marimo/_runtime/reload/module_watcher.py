@@ -6,35 +6,21 @@ import pathlib
 import sys
 import threading
 import time
+import warnings
 from modulefinder import ModuleFinder
 from typing import TYPE_CHECKING, Callable, Literal
 
-from marimo._ast.cell import CellId_t, CellImpl
 from marimo._messaging.types import Stream
 from marimo._runtime import dataflow
-from marimo._runtime.reload.autoreload import ModuleReloader
+from marimo._runtime.reload.autoreload import (
+    ModuleReloader,
+    modules_imported_by_cell,
+)
 
 if TYPE_CHECKING:
     import types
 
-
-def _modules_imported_by_cell(
-    cell: CellImpl, sys_modules: dict[str, types.ModuleType]
-) -> set[str]:
-    """Get the modules imported by a cell"""
-    modules = set()
-    for import_data in cell.imports:
-        if import_data.module in sys_modules:
-            modules.add(import_data.module)
-        if import_data.imported_symbol in sys_modules:
-            # The imported symbol may or may not be a module, which
-            # is why we check if it's in sys.modules
-            #
-            # e.g., from a import b
-            #
-            # a.b could be a module, but it could also be a function, ...
-            modules.add(import_data.imported_symbol)
-    return modules
+    from marimo._ast.cell import CellId_t
 
 
 def is_submodule(src_name: str, target_name: str) -> bool:
@@ -63,7 +49,11 @@ def _depends_on(
         return False
 
     try:
-        finder.run_script(src_module.__file__)
+        with warnings.catch_warnings():
+            # We temporarily ignore warnings to avoid spamming the console,
+            # since the watcher runs in a loop
+            warnings.simplefilter("ignore")
+            finder.run_script(src_module.__file__)
     except SyntaxError:
         # user introduced a syntax error, maybe; still check if the
         # module itself has been modified
@@ -140,6 +130,7 @@ def _check_modules(
 
 def watch_modules(
     graph: dataflow.DirectedGraph,
+    reloader: ModuleReloader,
     mode: Literal["lazy", "autorun"],
     enqueue_run_stale_cells: Callable[[], None],
     should_exit: threading.Event,
@@ -152,7 +143,6 @@ def watch_modules(
     modules imported by the notebook as well as the modules imported by those
     modules, recursively.
     """
-    reloader = ModuleReloader()
     # modules that failed to be analyzed
     failed_filenames: set[str] = set()
     # work with a copy to avoid race conditions
@@ -165,7 +155,7 @@ def watch_modules(
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
             for cell_id, cell in graph.cells.items():
-                for modname in _modules_imported_by_cell(cell, sys_modules):
+                for modname in modules_imported_by_cell(cell, sys_modules):
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
@@ -205,6 +195,7 @@ class ModuleWatcher:
     def __init__(
         self,
         graph: dataflow.DirectedGraph,
+        reloader: ModuleReloader,
         mode: Literal["lazy", "autorun"],
         enqueue_run_stale_cells: Callable[[], None],
         stream: Stream,
@@ -212,6 +203,8 @@ class ModuleWatcher:
         # ModuleWatcher uses the graph to determine the modules used by the
         # notebook
         self.graph = graph
+        # Reloader is used to keep track of stale modules
+        self.reloader = reloader
         # When set, signals the watcher thread to exit
         self.should_exit = threading.Event()
         # When False, an ExecuteStaleRequest is inflight to the kernel
@@ -227,6 +220,7 @@ class ModuleWatcher:
             target=watch_modules,
             args=(
                 self.graph,
+                self.reloader,
                 self.mode,
                 self.enqueue_run_stale_cells,
                 self.should_exit,

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from marimo import __version__
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import with_session
 from tests.mocks import snapshotter
@@ -66,3 +67,17 @@ def test_export_script(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert "__generated_with = " in response.text
+
+
+@with_session(SESSION_ID)
+def test_export_markdown(client: TestClient) -> None:
+    response = client.post(
+        "/api/export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert f"marimo-version: {__version__}" in response.text
+    assert "```{.python.marimo}" in response.text

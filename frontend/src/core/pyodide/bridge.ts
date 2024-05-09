@@ -5,7 +5,8 @@ import type { CellId } from "../cells/ids";
 import type {
   CodeCompletionRequest,
   EditRequests,
-  ExportHTMLRequest,
+  ExportAsHTMLRequest,
+  ExportAsMarkdownRequest,
   FileCreateRequest,
   FileDeleteRequest,
   FileDetailsResponse,
@@ -364,7 +365,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileDetailsResponse;
   };
 
-  exportHTML = async (request: ExportHTMLRequest): Promise<string> => {
+  exportAsHTML = async (request: ExportAsHTMLRequest): Promise<string> => {
     if (
       process.env.NODE_ENV === "development" ||
       process.env.NODE_ENV === "test"
@@ -373,6 +374,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",
+      payload: request,
+    });
+    return response as string;
+  };
+
+  exportAsMarkdown = async (
+    request: ExportAsMarkdownRequest,
+  ): Promise<string> => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "export_markdown",
       payload: request,
     });
     return response as string;

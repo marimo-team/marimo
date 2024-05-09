@@ -10,6 +10,7 @@
   callout
   justify
   lazy
+  nav_menu
   stacks
   tree
 ```
@@ -33,6 +34,7 @@ them but just render their children in a certain way.
   marimo.hstack
   marimo.lazy
   marimo.left
+  marimo.nav_menu
   marimo.right
   marimo.tree
   marimo.vstack

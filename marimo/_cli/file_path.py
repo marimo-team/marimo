@@ -13,6 +13,7 @@ from typing import Optional
 import click
 
 from marimo._cli.print import green
+from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
 
 STATIC_HTML_CODE_PREFIX = '<marimo-code hidden="">'
@@ -89,8 +90,10 @@ def validate_name(
             f"    marimo convert {name} > {prefix}.py\n\n"
             f"  then open with marimo edit {prefix}.py"
         )
-    elif path.suffix not in (".py", ".md"):
-        raise click.UsageError("Invalid NAME - %s is not a Python file" % name)
+    elif not MarimoPath.is_valid_path(path):
+        raise click.UsageError(
+            "Invalid NAME - %s is not a Python or Markdown file" % name
+        )
 
     for ext in (".py", ".md"):
         if is_github_src(name, ext=ext):
