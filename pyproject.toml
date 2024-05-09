@@ -284,6 +284,7 @@ omit = ["marimo/_tutorials/*"]
 [tool.typos.default.extend-words]
 wheres = "wheres"
 Ue = "Ue" # Used in one of the cell IDs
+Nd = "Nd" # Confused with And
 
 [tool.typos.files]
 extend-exclude = [
