@@ -152,3 +152,20 @@
   padding: 0;
   margin: 0;
 }
+
+/* pad iconify-icon when next to text */
+a .markdown .paragraph:has(iconify-icon),
+.mo-button .markdown .paragraph:has(iconify-icon) {
+  gap: 0.4em;
+}
+
+/* pad iconify-icon when in navigation items */
+a .markdown iconify-icon:first-child {
+  margin-inline-end: 0.4em;
+}
+
+/* align icons with buttons better */
+.mo-button .markdown .paragraph {
+  display: inline-flex;
+  align-items: center;
+}

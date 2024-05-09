@@ -5,6 +5,7 @@ import { cn } from "@/utils/cn";
 import React, { PropsWithChildren } from "react";
 import { StatusOverlay } from "./header/status";
 import { AppConfig } from "@/core/config/config-schema";
+import { WrappedWithSidebar } from "./renderers/vertical-layout/sidebar/wrapped-with-sidebar";
 
 interface Props {
   connectionState: WebSocketState;
@@ -21,17 +22,19 @@ export const AppContainer: React.FC<PropsWithChildren<Props>> = ({
   return (
     <>
       <StatusOverlay state={connectionState} isRunning={isRunning} />
-      <div
-        id="App"
-        className={cn(
-          connectionState === WebSocketState.CLOSED && "disconnected",
-          "bg-background w-full h-full text-textColor",
-          "flex flex-col overflow-y-auto overflow-x-hidden",
-          width === "full" && "config-width-full",
-        )}
-      >
-        {children}
-      </div>
+      <WrappedWithSidebar>
+        <div
+          id="App"
+          className={cn(
+            connectionState === WebSocketState.CLOSED && "disconnected",
+            "bg-background w-full h-full text-textColor",
+            "flex flex-col overflow-y-auto overflow-x-hidden",
+            width === "full" && "config-width-full",
+          )}
+        >
+          {children}
+        </div>
+      </WrappedWithSidebar>
     </>
   );
 };

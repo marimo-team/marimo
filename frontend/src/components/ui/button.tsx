@@ -9,7 +9,7 @@ const activeCommon = "active:shadow-xsSolid";
 
 const buttonVariants = cva(
   cn(
-    "disabled:opacity-50 disabled:pointer-events-none",
+    "mo-button disabled:opacity-50 disabled:pointer-events-none",
     "inline-flex mb-1 items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
   ),
   {

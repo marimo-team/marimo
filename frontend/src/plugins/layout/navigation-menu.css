@@ -1,0 +1,35 @@
+/* This will hide text and only show icons when the sidebar is collapsed */
+.auto-collapse-nav[data-orientation="vertical"] {
+  container-type: inline-size;
+}
+
+@container (max-width: 200px) {
+  .auto-collapse-nav .paragraph {
+    visibility: hidden;
+    font-size: 0;
+    line-height: 0 !important;
+  }
+
+  .auto-collapse-nav .paragraph iconify-icon {
+    visibility: visible;
+    @apply text-xl;
+    line-height: 1;
+    margin: 0;
+    margin-inline-end: 0 !important;
+    margin-inline-start: 0 !important;
+  }
+
+  .auto-collapse-nav li > * {
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .auto-collapse-nav li:not(:has(iconify-icon)) {
+    display: none;
+  }
+
+  .auto-collapse-nav :is(h1, h2, h3, h4, h5, h6) {
+    display: none;
+  }
+}

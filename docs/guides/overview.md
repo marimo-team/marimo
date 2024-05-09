@@ -155,6 +155,6 @@ collections of elements.
 
 The marimo library also comes with elements for laying out outputs, including
 [`mo.hstack`](#marimo.hstack), [`mo.vstack`](#marimo.vstack),
-[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs),
+[`mo.accordion`](#marimo.accordion), [`mo.ui.tabs`](#marimo.ui.tabs), [`mo.sidebar`](#marimo.sidebar),
 [`mo.nav_menu`](#marimo.nav_menu), [`mo.ui.table`](#marimo.ui.table),
 and [many more](https://docs.marimo.io/api/layouts/index.html).

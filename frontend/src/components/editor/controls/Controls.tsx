@@ -221,4 +221,4 @@ const bottomRightControls =
   "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-30";
 
 const bottomLeftControls =
-  "absolute bottom-5 left-4 m-0 flex flex-col-reverse gap-2 items-center no-print pointer-events-auto z-30";
+  "absolute bottom-5 left-3 m-0 flex flex-col-reverse gap-2 items-center no-print pointer-events-auto z-30";

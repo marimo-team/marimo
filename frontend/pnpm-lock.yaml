@@ -71,6 +71,9 @@ dependencies:
   '@lezer/lr':
     specifier: ^1.4.0
     version: 1.4.0
+  '@marimo-team/react-slotz':
+    specifier: ^0.1.8
+    version: 0.1.8(react@18.3.1)
   '@open-rpc/client-js':
     specifier: ^1.8.1
     version: 1.8.1
@@ -3187,6 +3190,15 @@ packages:
   /@mapbox/whoots-js@3.1.0:
     resolution: {integrity: sha512-Es6WcD0nO5l+2BOQS4uLfNPYQaNDfbot3X1XUoloz+x0mPDS3eeORZJl06HXjwBG1fOGwCRnzK88LMdxKRrd6Q==}
     engines: {node: '>=6.0.0'}
+    dev: false
+
+  /@marimo-team/react-slotz@0.1.8(react@18.3.1):
+    resolution: {integrity: sha512-Lp3EobxEXKoYBv7jpyv6FwnplYxOQTPAFnAjiAOw4PgwL5DvULLCVpxa5C57AQ06e05Ykz57dUVbBE6iYo5+QA==}
+    peerDependencies:
+      react: ^18
+    dependencies:
+      mitt: 3.0.1
+      react: 18.3.1
     dev: false
 
   /@mdx-js/react@3.0.1(@types/react@18.3.1)(react@18.3.1):
@@ -14502,6 +14514,10 @@ packages:
       minipass: 3.3.6
       yallist: 4.0.0
     dev: true
+
+  /mitt@3.0.1:
+    resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
+    dev: false
 
   /mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
