@@ -151,6 +151,7 @@ def generate_filecontents(
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
+    header_comments: Optional[str] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
     cell_data: list[Union[CellImpl, tuple[str, CellConfig]]] = []
@@ -194,6 +195,8 @@ def generate_filecontents(
         + indent_text("app.run()")
     )
 
+    if header_comments:
+        filecontents = header_comments.rstrip() + "\n\n" + filecontents
     return filecontents + "\n"
 
 
