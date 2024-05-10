@@ -177,6 +177,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         )
 
         LOGGER.debug("Searching directory %s", directory)
+        cwd = os.getcwd()
         for root, dirnames, filenames in os.walk(directory, topdown=True):
             # Skip directories that are too deep
             depth = root[len(directory) :].count(os.sep)
@@ -196,7 +197,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                 ):
                     continue
                 full_path = os.path.join(root, filename)
-                relative_path = os.path.relpath(full_path, directory)
+                relative_path = os.path.relpath(full_path, cwd)
                 # Python files must contain "marimo.App", or markdown files
                 if self._is_marimo_app(full_path):
                     files.append(

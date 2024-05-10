@@ -157,7 +157,7 @@
 
 /* pad iconify-icon when next to text */
 a .markdown .paragraph:has(iconify-icon),
-.mo-button .markdown .paragraph:has(iconify-icon) {
+button .markdown .paragraph:has(iconify-icon) {
   gap: 0.4em;
 }
 
@@ -167,7 +167,7 @@ a .markdown iconify-icon:first-child {
 }
 
 /* align icons with buttons better */
-.mo-button .markdown .paragraph {
+button .markdown .paragraph {
   display: inline-flex;
   align-items: center;
 }
