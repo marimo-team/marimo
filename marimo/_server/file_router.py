@@ -197,13 +197,17 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                 ):
                     continue
                 full_path = os.path.join(root, filename)
-                relative_path = os.path.relpath(full_path, cwd)
+                shortest_path = (
+                    os.path.relpath(full_path, cwd)
+                    if full_path.startswith(cwd)
+                    else full_path
+                )
                 # Python files must contain "marimo.App", or markdown files
                 if self._is_marimo_app(full_path):
                     files.append(
                         MarimoFile(
                             name=filename,
-                            path=relative_path,
+                            path=shortest_path,
                             last_modified=os.path.getmtime(full_path),
                         )
                     )
