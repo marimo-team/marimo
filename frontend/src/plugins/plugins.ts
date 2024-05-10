@@ -42,6 +42,7 @@ import { AnyWidgetPlugin } from "./impl/anywidget/AnyWidgetPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
 import { initializeSidebarElement } from "./core/sidebar-element";
+import { RoutesPlugin } from "./layout/RoutesPlugin";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -81,11 +82,12 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
   new CarouselPlugin(),
   new DownloadPlugin(),
   new JsonOutputPlugin(),
-  new ProgressPlugin(),
-  new StatPlugin(),
-  new TexPlugin(),
   new MermaidPlugin(),
   new NavigationMenuPlugin(),
+  new ProgressPlugin(),
+  new RoutesPlugin(),
+  new StatPlugin(),
+  new TexPlugin(),
 ];
 
 export function initializePlugins() {

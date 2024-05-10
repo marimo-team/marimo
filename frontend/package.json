@@ -101,6 +101,7 @@
     "lz-string": "^1.5.0",
     "mermaid": "^10.9.0",
     "partysocket": "1.0.1",
+    "path-to-regexp": "^6.2.2",
     "plotly.js": "^2.32.0",
     "pyodide": "^0.25.1",
     "react-arborist": "^3.4.0",

@@ -1,4 +1,4 @@
-# Sidebar
+# Routes
 
 ```{eval-rst}
 .. marimo-embed::
@@ -24,8 +24,17 @@
             ]
         )
         return
+
+    @app.cell
+    def __():
+        mo.routes({
+            "#/home": mo.md("# Home"),
+            "#/about": mo.md("# About"),
+            "#/contact": mo.md("# Contact"),
+        })
+        return
 ```
 
 ```{eval-rst}
-.. autofunction:: marimo.sidebar
+.. autofunction:: marimo.routes
 ```
