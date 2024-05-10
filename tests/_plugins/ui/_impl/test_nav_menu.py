@@ -21,6 +21,11 @@ def test_build_and_validate_menu():
     assert isinstance(result, NavMenu)
     assert all(isinstance(item, NavMenuItemLink) for item in result.items)
 
+    # Test with absolute href
+    menu = {"https://marimo.io": "marimo"}
+    result = _build_and_validate_menu(menu)
+    assert isinstance(result, NavMenu)
+
     # Test with a nested menu dictionary
     menu: dict[str, dict[str, str]] = {
         "Overview": {"/overview": "Overview", "/overview/summary": "Summary"},

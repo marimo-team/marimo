@@ -38,7 +38,7 @@ import { invariant } from "../../utils/invariant";
 import { Logger } from "../../utils/Logger";
 import { useTheme } from "@/theme/useTheme";
 import { FUNCTIONS_REGISTRY } from "@/core/functions/FunctionRegistry";
-import { getUIElementObjectId } from "@/core/dom/UIElement";
+import { getUIElementObjectId } from "@/core/dom/ui-element";
 import { PluginFunctions } from "./rpc";
 import { ZodSchema } from "zod";
 import useEvent from "react-use-event-hook";

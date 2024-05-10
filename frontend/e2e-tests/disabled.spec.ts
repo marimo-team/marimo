@@ -11,8 +11,8 @@ test.beforeEach(async ({ page }, info) => {
   await page.goto(appUrl);
   if (info.retry) {
     await page.reload();
+    await maybeRestartKernel(page);
   }
-  await maybeRestartKernel(page);
 });
 
 test.afterEach(async () => {

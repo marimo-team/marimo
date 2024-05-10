@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
-import { getUIElementObjectId, isUIElement } from "../../core/dom/UIElement";
+import { getUIElementObjectId, isUIElement } from "../../core/dom/ui-element";
 import {
   marimoValueInputEvent,
   MarimoValueInputEventType,

@@ -1,0 +1,18 @@
+/* Improve markdown when in the sidebar */
+.app-sidebar .markdown {
+  display: block;
+  @apply px-5;
+}
+
+/* Add a container media query */
+.app-sidebar {
+  container-type: inline-size;
+  container-name: app-sidebar;
+}
+
+/* When not expanded, hide all markdown */
+@container app-sidebar (max-width: 230px) {
+  .app-sidebar[data-expanded="false"] .markdown {
+    display: none;
+  }
+}

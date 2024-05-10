@@ -17,6 +17,8 @@ import { isPyodide } from "./pyodide/utils";
 import { PyodideBridge } from "./pyodide/bridge";
 import { LargeSpinner } from "@/components/icons/large-spinner";
 import { TailwindIndicator } from "@/components/debug/indicator";
+import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
+import { slotsController } from "./slots/slots";
 
 // Lazy imports
 const LazyHomePage = React.lazy(() => import("@/components/pages/home-page"));
@@ -63,11 +65,13 @@ const Providers = memo(({ children }: PropsWithChildren) => {
         <TooltipProvider>
           <DayPickerProvider initialProps={{}}>
             <PyodideLoader>
-              <ModalProvider>
-                {children}
-                <Toaster />
-                <TailwindIndicator />
-              </ModalProvider>
+              <SlotzProvider controller={slotsController}>
+                <ModalProvider>
+                  {children}
+                  <Toaster />
+                  <TailwindIndicator />
+                </ModalProvider>
+              </SlotzProvider>
             </PyodideLoader>
           </DayPickerProvider>
         </TooltipProvider>

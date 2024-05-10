@@ -152,3 +152,24 @@
   padding: 0;
   margin: 0;
 }
+
+/* stylelint-disable unit-allowed-list */
+
+/* pad iconify-icon when next to text */
+a .markdown .paragraph:has(iconify-icon),
+button .markdown .paragraph:has(iconify-icon) {
+  gap: 0.4em;
+}
+
+/* pad iconify-icon when in navigation items */
+a .markdown iconify-icon:first-child {
+  margin-inline-end: 0.4em;
+}
+
+/* align icons with buttons better */
+button .markdown .paragraph {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* stylelint-enable unit-allowed-list */

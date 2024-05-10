@@ -16,6 +16,7 @@ import { cn } from "@/utils/cn";
 import React from "react";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import "./navigation-menu.css";
 
 interface MenuItem {
   label: string;
@@ -89,6 +90,13 @@ const NavMenuComponent = ({
     );
   };
 
+  const target = (href: string) => {
+    if (href.startsWith("http")) {
+      return "_blank";
+    }
+    return "_self";
+  };
+
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
@@ -104,6 +112,7 @@ const NavMenuComponent = ({
                     key={subItem.label}
                     label={subItem.label}
                     href={subItem.href}
+                    target={target(subItem.href)}
                   >
                     {subItem.description &&
                       renderHTML({ html: subItem.description })}
@@ -117,19 +126,25 @@ const NavMenuComponent = ({
         <NavigationMenuItem key={item.label}>
           <div
             className={
-              "inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-muted-foreground/80 tracking-wide font-semibold"
+              "inline-flex h-9 w-max items-center justify-center rounded-md px-4 py-2 text-base font-medium text-muted-foreground/80 tracking-wide font-semibold"
             }
           >
             {renderHTML({ html: item.label })}
           </div>
-          <NavigationMenuList className="ml-4" orientation={orientation}>
+          <NavigationMenuList
+            className="ml-4 auto-collapse-nav"
+            orientation={orientation}
+          >
             {item.items.map((subItem) => (
               <React.Fragment key={subItem.label}>
                 {maybeWithTooltip(
                   <NavigationMenuLink
                     key={subItem.label}
                     href={subItem.href}
-                    className={navigationMenuTriggerStyle()}
+                    target={target(subItem.href)}
+                    className={navigationMenuTriggerStyle({
+                      orientation: orientation,
+                    })}
                   >
                     {renderHTML({ html: subItem.label })}
                   </NavigationMenuLink>,
@@ -146,7 +161,10 @@ const NavMenuComponent = ({
       <NavigationMenuItem key={item.label}>
         <NavigationMenuLink
           href={item.href}
-          className={navigationMenuTriggerStyle()}
+          target={target(item.href)}
+          className={navigationMenuTriggerStyle({
+            orientation: orientation,
+          })}
         >
           {renderHTML({ html: item.label })}
         </NavigationMenuLink>
@@ -156,7 +174,10 @@ const NavMenuComponent = ({
 
   return (
     <NavigationMenu orientation={orientation}>
-      <NavigationMenuList orientation={orientation}>
+      <NavigationMenuList
+        className="auto-collapse-nav"
+        orientation={orientation}
+      >
         {items.map((item) => renderMenuItem(item))}
       </NavigationMenuList>
     </NavigationMenu>
@@ -180,7 +201,7 @@ const ListItem = React.forwardRef<
           )}
           {...props}
         >
-          <div className="text-sm font-medium leading-none">
+          <div className="text-base font-medium leading-none">
             {renderHTML({ html: label })}
           </div>
           {children && (
