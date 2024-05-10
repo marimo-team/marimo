@@ -17,7 +17,7 @@ class LoadResponse:
 
 
 @mddoc
-class lazy(UIElement[None, None]):
+class lazy(UIElement[bool, bool]):
     """Lazy load a component until it is visible.
 
     Use `mo.lazy` to defer rendering of an item until it's visible. This is
@@ -79,12 +79,12 @@ class lazy(UIElement[None, None]):
 
         super().__init__(
             component_name=self._name,
-            initial_value=None,
+            initial_value=False,
             label="",
             args={
                 "show-loading-indicator": show_loading_indicator,
             },
-            on_change=lambda _: None,
+            on_change=None,
             functions=(
                 Function(
                     name=self.load.__name__,
@@ -94,7 +94,7 @@ class lazy(UIElement[None, None]):
             ),
         )
 
-    def _convert_value(self, value: None) -> None:
+    def _convert_value(self, value: bool) -> bool:
         return value
 
     async def load(self, _args: EmptyArgs) -> LoadResponse:

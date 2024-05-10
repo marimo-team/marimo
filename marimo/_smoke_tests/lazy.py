@@ -2,15 +2,21 @@
 
 import marimo
 
-__generated_with = "0.4.10"
+__generated_with = "0.5.2"
 app = marimo.App(width="full")
 
 
 @app.cell
-def __(generate_number, mo, table):
+def __(mo):
+    slider = mo.ui.slider(0, 10)
+    return slider,
+
+
+@app.cell
+def __(generate_number, mo, slider, table):
     tabs = mo.ui.tabs(
         {
-            "First": "",
+            "First": [slider, slider.value],
             "Second": mo.lazy(table),
             "Third": mo.lazy(generate_number, show_loading_indicator=True),
         }
@@ -20,10 +26,10 @@ def __(generate_number, mo, table):
 
 
 @app.cell
-def __(generate_number, mo, table):
+def __(generate_number, mo, slider, table):
     auto_lazy_tabs = mo.ui.tabs(
         {
-            "First": "",
+            "First": [slider, slider.value],
             "Second": table,
             "Third": generate_number,
         },
