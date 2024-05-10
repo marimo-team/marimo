@@ -7,7 +7,6 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "../impl/common/error-banner";
 import { renderHTML } from "../core/RenderHTML";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
-import { useRef } from "react";
 import { Loader2Icon } from "lucide-react";
 
 interface Data {
@@ -21,7 +20,8 @@ type PluginFunctions = {
   }>;
 };
 
-type S = undefined;
+// Whether it has been loaded
+type S = boolean;
 
 export const LazyPlugin = createPlugin<S>("marimo-lazy")
   .withData(
@@ -36,28 +36,50 @@ export const LazyPlugin = createPlugin<S>("marimo-lazy")
       }),
     ),
   })
-  .renderer((props) => <LazyComponent {...props.data} {...props.functions} />);
+  .renderer((props) => (
+    <LazyComponent
+      value={props.value}
+      setValue={props.setValue}
+      {...props.data}
+      {...props.functions}
+    />
+  ));
 
-type Props = PluginFunctions & Data;
+interface Props extends PluginFunctions, Data {
+  value: boolean;
+  setValue: (value: S) => void;
+}
 
-const LazyComponent = ({ load, showLoadingIndicator }: Props): JSX.Element => {
+const LazyComponent = ({
+  load,
+  showLoadingIndicator,
+  value,
+  setValue,
+}: Props): JSX.Element => {
   const [ref, entry] = useIntersectionObserver({
     threshold: 0,
     root: null,
     rootMargin: "0px",
   });
 
-  const hasIntersected = useRef<boolean>(false);
-  if (entry?.isIntersecting) {
-    hasIntersected.current = true;
+  if (entry?.isIntersecting && !value) {
+    setValue(true);
   }
 
-  const { data, loading, error } = useAsyncData(() => {
-    if (!hasIntersected.current) {
-      return Promise.resolve({ html: "" });
-    }
-    return load({});
-  }, [hasIntersected.current]);
+  // For each re-render, we have to make a waterfall request
+  // We could improve performance if the BE was able to know if the same
+  // mo.lazy has already been loaded, and when re-rendering it would
+  // include the 'lazy' content by default (unlazily)
+  const { data, loading, error } = useAsyncData(
+    (ctx) => {
+      if (!value) {
+        ctx.previous();
+        return Promise.resolve(undefined);
+      }
+      return load({});
+    },
+    [value],
+  );
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -65,7 +87,7 @@ const LazyComponent = ({ load, showLoadingIndicator }: Props): JSX.Element => {
 
   return (
     <div ref={ref} className="min-h-4">
-      {loading && showLoadingIndicator ? (
+      {loading && !data && showLoadingIndicator ? (
         <Loader2Icon className="w-12 h-12 animate-spin text-primary my-4 mx-4" />
       ) : (
         data && renderHTML({ html: data.html })
