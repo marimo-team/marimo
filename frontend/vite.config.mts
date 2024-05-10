@@ -132,10 +132,12 @@ export default defineConfig({
         },
       },
     },
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
-    },
+    headers: isPyodide
+      ? {
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp",
+        }
+      : {},
   },
   define: {
     "import.meta.env.VITE_MARIMO_VERSION": process.env.VITE_MARIMO_VERSION
