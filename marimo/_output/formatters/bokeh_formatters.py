@@ -24,8 +24,14 @@ class BokehFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            from bokeh.io import (
+                curdoc,  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            )
 
-            html_content = bokeh.embed.file_html(plot, bokeh.resources.CDN)
+            current_theme = curdoc().theme
+            html_content = bokeh.embed.file_html(
+                plot, bokeh.resources.CDN, theme=current_theme
+            )
             return (
                 "text/html",
                 flatten_string(
