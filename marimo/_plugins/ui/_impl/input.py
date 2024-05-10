@@ -1531,6 +1531,3 @@ class form(UIElement[Optional[JSONTypeBound], Optional[T]]):
             return None
         self.element._update(value)
         return self.element.value
-
-    def _clone(self) -> form[JSONTypeBound, T]:
-        return form(element=self.element)

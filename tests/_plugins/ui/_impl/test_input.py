@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from marimo._plugins import ui
@@ -317,6 +319,15 @@ def test_on_change() -> None:
     assert state == [False]
     button._update(True)
     assert state == [False, True]
+
+
+def test_form_in_array_retains_on_change() -> None:
+    def on_change(*args: Any) -> None:
+        del args
+        ...
+
+    array = ui.array([ui.form(ui.checkbox(), on_change=on_change)])
+    assert array[0]._on_change == on_change
 
 
 # TODO(akshayka): test file
