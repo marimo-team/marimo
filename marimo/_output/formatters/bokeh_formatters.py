@@ -24,8 +24,8 @@ class BokehFormatter(FormatterFactory):
         ) -> tuple[KnownMimeType, str]:
             import bokeh.embed  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
             import bokeh.resources  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
-            from bokeh.io import (
-                curdoc,  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+            from bokeh.io import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+                curdoc,
             )
 
             current_theme = curdoc().theme
