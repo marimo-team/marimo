@@ -125,7 +125,11 @@ class array(UIElement[Dict[str, JSONType], Sequence[object]]):
         return [e._value for e in self._elements]
 
     def _clone(self) -> array:
-        return array(elements=self.elements, label=self._label)
+        return array(
+            elements=self.elements,
+            label=self._label,
+            on_change=self._on_change,
+        )
 
     def __len__(self) -> int:
         return len(self.elements)
