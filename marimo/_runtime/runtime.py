@@ -589,6 +589,7 @@ class Kernel:
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )
+        get_context().ui_element_registry.delete_elements_for_cell(cell_id)
         RemoveUIElements(cell_id=cell_id).broadcast()
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
@@ -1022,11 +1023,8 @@ class Kernel:
                     object_id,
                     value,
                 )
-            except (KeyError, NameError):
-                # KeyError: A UI element may go out of scope if it was not
-                # assigned to a global variable
-                # NameError: UI element might not have bindings
-                LOGGER.debug("Could not find UIElement with id %s", object_id)
+            except KeyError:
+                LOGGER.error("Could not find UIElement with id %s", object_id)
                 continue
 
             with self._install_execution_context(

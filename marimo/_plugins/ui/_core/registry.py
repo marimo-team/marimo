@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import sys
-import weakref
-from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
@@ -11,9 +10,11 @@ else:
     from typing import TypeAlias
 
 from marimo._ast.app import _Namespace
-from marimo._ast.cell import CellId_t
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
+
+if TYPE_CHECKING:
+    from marimo._ast.cell import CellId_t
 
 UIElementId = str
 
@@ -26,11 +27,15 @@ LensValue: TypeAlias = Union[T, Dict[str, "LensValue[T]"]]
 class UIElementRegistry:
     def __init__(self) -> None:
         # mapping from object id to UIElement object that has that id
-        self._objects: dict[UIElementId, weakref.ref[UIElement[Any, Any]]] = {}
+        self._objects: dict[UIElementId, UIElement[Any, Any]] = {}
         # mapping from object id to set of names that are bound to it
         self._bindings: dict[UIElementId, set[str]] = {}
         # mapping from object id to cell that created it
         self._constructing_cells: dict[UIElementId, CellId_t] = {}
+        # store of UI elements belonging to each cell
+        self._ui_elements_for_cell: dict[
+            CellId_t, list[UIElement[Any, Any]]
+        ] = {}
 
     def register(
         self,
@@ -43,9 +48,12 @@ class UIElementRegistry:
             # its destructor was called, so manually delete the old element
             # here
             self.delete(object_id, id(self._objects[object_id]))
-        self._objects[object_id] = weakref.ref(ui_element)
+        self._objects[object_id] = ui_element
         assert execution_context is not None
         self._constructing_cells[object_id] = execution_context.cell_id
+        self._ui_elements_for_cell.setdefault(
+            execution_context.cell_id, []
+        ).append(ui_element)
         # bindings must be lazily registered, since there aren't any
         # bindings at UIElement object creation time
         if object_id in self._bindings:
@@ -66,8 +74,7 @@ class UIElementRegistry:
         if child._id == parent_id:
             return True
         elif child._lens is not None:
-            element_ref = self._objects.get(child._lens.parent_id)
-            element = element_ref() if element_ref is not None else None
+            element = self._objects.get(child._lens.parent_id)
             if element is not None:
                 return self._has_parent_id(element, parent_id)
         return False
@@ -105,14 +112,7 @@ class UIElementRegistry:
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
-        # UI elements are only updated if a global is bound to it. This ensures
-        # that the UI element update triggers reactivity, but also means that
-        # elements stored as, say, attributes on an object won't be updated.
-        if not self.bound_names(object_id):
-            raise NameError(f"UIElement with id {object_id} has no bindings")
-        obj = self._objects[object_id]()
-        assert obj is not None
-        return obj
+        return self._objects[object_id]
 
     def get_cell(self, object_id: UIElementId) -> CellId_t:
         return self._constructing_cells[object_id]
@@ -129,10 +129,7 @@ class UIElementRegistry:
         """
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
-        obj = self._objects[object_id]()
-        if obj is None:
-            raise RuntimeError(f"UIElement with id {object_id} was deleted")
-
+        obj = self._objects[object_id]
         lens = obj._lens
         if lens is None:
             # Base case: the element has no lens, so the resolved
@@ -153,7 +150,7 @@ class UIElementRegistry:
         if object_id not in self._objects:
             return
 
-        ui_element = self._objects[object_id]()
+        ui_element = self._objects[object_id]
         registered_python_id = (
             id(ui_element) if ui_element is not None else None
         )
@@ -172,3 +169,11 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
+
+    def delete_elements_for_cell(self, cell_id: CellId_t) -> None:
+        if cell_id not in self._ui_elements_for_cell:
+            return
+
+        for element in self._ui_elements_for_cell[cell_id]:
+            self.delete(element._id, id(element))
+        del self._ui_elements_for_cell[cell_id]
