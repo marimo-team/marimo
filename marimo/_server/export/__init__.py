@@ -67,6 +67,58 @@ async def run_app_then_export_as_html(
     return html, filename
 
 
+async def run_app_then_export_as_reactive_html(
+    path: MarimoPath,
+    include_code: bool,
+) -> tuple[str, str]:
+    from marimo._islands.island_generator import MarimoIslandGenerator
+    from marimo._server.export.utils import get_download_filename
+
+    # Create a file router and file manager
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    # Create Marimo islands
+    stubs = []
+    generator = MarimoIslandGenerator()
+    for cell_data in file_manager.app.cell_manager.cell_data():
+        stubs.append(
+            generator.add_code(
+                cell_data.code,
+                display_code=include_code,
+            )
+        )
+
+    island_file_manager = AppFileManager.from_app(generator._app)
+    session_view = await run_app_until_completion(
+        island_file_manager, cli_args={}
+    )
+
+    rendered_stubs = []
+    for stub in stubs:
+        stub._internal_app = generator._app
+        stub._session_view = session_view
+        rendered_stubs.append(stub.render())
+
+    head = generator.render_head()
+    body = "\n".join(rendered_stubs)
+    html = f"""
+    <html>
+        <head>
+            {head}
+        </head>
+        <body>
+            {body}
+        </body>
+    </html>
+    """
+
+    filename = get_download_filename(file_manager, ".html")
+    return html, filename
+
+
 async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
