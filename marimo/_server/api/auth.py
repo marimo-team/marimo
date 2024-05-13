@@ -175,9 +175,6 @@ class CustomSessionMiddleware(SessionMiddleware):
             return
 
         state = AppState.from_app(scope["app"])
-        # disabled = state.session_manager.mode != SessionMode.EDIT
-        # if disabled:
-        #     return await self.app(scope, receive, send)
 
         # We key the token cookie by port to avoid conflicts
         # with multiple marimo instances running on the same host
