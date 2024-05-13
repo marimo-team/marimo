@@ -1,13 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
-
+from __future__ import annotations
 
 import os
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
-from starlette.testclient import TestClient
+from tests._server.mocks import token_header
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 HEADERS = {
-    "Marimo-Server-Token": "fake-token",
+    **token_header("fake-token"),
 }
 
 temp_dir = TemporaryDirectory()

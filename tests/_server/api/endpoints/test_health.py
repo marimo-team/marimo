@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import __version__
+from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -19,7 +20,11 @@ def test_health(client: TestClient) -> None:
 
 
 def test_status(client: TestClient) -> None:
+    # Unauthorized
     response = client.get("/api/status")
+    assert response.status_code == 401, response.text
+
+    response = client.get("/api/status", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.json()
     assert content["status"] == "healthy"
@@ -37,7 +42,11 @@ def test_version(client: TestClient) -> None:
 
 
 def test_memory(client: TestClient) -> None:
-    response = client.get("/api/usage")
+    # Unauthorized
+    response = client.get("/api/status")
+    assert response.status_code == 401, response.text
+
+    response = client.get("/api/usage", headers=token_header())
     assert response.status_code == 200, response.text
     memory = response.json()["memory"]
     assert memory["total"] > 0

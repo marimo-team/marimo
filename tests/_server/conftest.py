@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 import sys
 from typing import Generator, Iterator
 
@@ -12,7 +14,7 @@ from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
 from tests._server.mocks import get_mock_session_manager
 
-app = create_starlette_app(base_url="")
+app = create_starlette_app(base_url="", enable_auth=True)
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -11,9 +11,11 @@ import { patchFetch, patchVegaLoader } from "./core/static/files";
 import { isStaticNotebook } from "./core/static/static-state";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
+import { cleanupAuthQueryParams } from "./core/network/auth";
 
 maybeRegisterVSCodeBindings();
 initializePlugins();
+cleanupAuthQueryParams();
 
 /**
  * Main entry point for the Marimo app.

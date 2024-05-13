@@ -1,14 +1,17 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-from starlette.testclient import TestClient
+from tests._server.mocks import token_header, with_session
 
-from tests._server.mocks import with_session
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 SESSION_ID = "session-123"
 HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
-    "Marimo-Server-Token": "fake-token",
+    **token_header("fake-token"),
 }
 
 

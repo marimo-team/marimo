@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, cast
 
@@ -8,6 +9,7 @@ from marimo._config.manager import UserConfigManager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.sessions import NoopLspServer, SessionManager
+from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
@@ -53,8 +55,9 @@ if __name__ == "__main__":
         lsp_server=lsp_server,
         user_config_manager=UserConfigManager(),
         cli_args={},
+        auth_token=AuthToken("fake-token"),
     )
-    sm.server_token = "fake-token"
+    sm.skew_protection_token = SkewProtectionToken("skew-id-1")
     return sm
 
 
@@ -88,19 +91,21 @@ def with_session(
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient) -> None:
+            auth_token = get_session_manager(client).auth_token
+            headers = token_header(auth_token)
+
             with client.websocket_connect(
-                f"/ws?session_id={session_id}"
+                f"/ws?session_id={session_id}", headers=headers
             ) as websocket:
                 data = websocket.receive_text()
                 assert data
                 func(client)
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            server_token: str = get_session_manager(client).server_token
             if auto_shutdown:
                 client.post(
                     "/api/kernel/shutdown",
-                    headers={"Marimo-Server-Token": server_token},
+                    headers=headers,
                 )
 
         return wrapper
@@ -116,9 +121,10 @@ def with_read_session(
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient) -> None:
             session_manager = get_session_manager(client)
+            headers = token_header(session_manager.auth_token)
 
             with client.websocket_connect(
-                f"/ws?session_id={session_id}"
+                f"/ws?session_id={session_id}", headers=headers
             ) as websocket:
                 data = websocket.receive_text()
                 assert data
@@ -129,12 +135,21 @@ def with_read_session(
                 session_manager.mode = SessionMode.EDIT
             # shutdown after websocket exits, otherwise
             # test fails on Windows (loop closed twice)
-            server_token: str = session_manager.server_token
             client.post(
                 "/api/kernel/shutdown",
-                headers={"Marimo-Server-Token": server_token},
+                headers=headers,
             )
 
         return wrapper
 
     return decorator
+
+
+def token_header(
+    token: str | AuthToken = "fake-token", skew_id: str = "skew-id-1"
+) -> dict[str, str]:
+    encoded = base64.b64encode(f"marimo:{str(token)}".encode()).decode()
+    return {
+        "Authorization": f"Basic {encoded}",
+        "Marimo-Server-Token": skew_id,
+    }

@@ -13,6 +13,7 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import LspServer, SessionManager
+from marimo._server.tokens import AuthToken
 from marimo._server.utils import find_free_port, initialize_asyncio
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._utils.paths import import_files
@@ -33,6 +34,7 @@ def start(
     watch: bool,
     cli_args: SerializedCLIArgs,
     base_url: str = "",
+    auth_token: Optional[AuthToken],
 ) -> None:
     """
     Start the server.
@@ -52,6 +54,7 @@ def start(
         lsp_server=LspServer(port * 10),
         user_config_manager=user_config_mgr,
         cli_args=cli_args,
+        auth_token=auth_token,
     )
 
     log_level = "info" if development_mode else "error"
@@ -68,6 +71,7 @@ def start(
                 lifespans.open_browser,
             ]
         ),
+        enable_auth=not AuthToken.is_empty(session_manager.auth_token),
     )
 
     app.state.headless = headless

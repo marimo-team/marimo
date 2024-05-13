@@ -10,6 +10,7 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._server.model import SessionMode
 from marimo._server.templates import templates
+from marimo._server.tokens import SkewProtectionToken
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
 
@@ -121,7 +122,7 @@ class TestStaticNotebookTemplate(unittest.TestCase):
             self.html = f.read()
 
         self.user_config = DEFAULT_CONFIG
-        self.server_token = "token"
+        self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
         self.filename = "notebook.py"
         self.code = "print('Hello, World!')"
