@@ -14,17 +14,21 @@ marimo run my_notebook.py --token --token-password="sup3rs3cr3t"
 
 In order to authenticate, you must either pass the token as a password in the `Authorization` header, or as a query parameter under `access_token` in the URL.
 
-1. Basic Authorization header:
+1. Enter the token in the login page:
 
-To authenticate using the `Authorization` header, you must pass the token as a password in the `Authorization` header using the [Basic authentication scheme](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). For example, to authenticate with the token `sup3rs3cr3t`, you would pass the header `Authorization Basic base64("any_username:sup3rs3cr3t")`.
-
-This is not necessary when using a browser, as the browser will automatically prompt you for a username and password. Note: any username can be used.
+If you try to access marimo from a browser, you will be redirected to a login page where you can enter the token.
 
 2. Query parameter:
 
 To authenticate using a query parameter, you must pass the token as a query parameter under `access_token` in the URL. For example, to authenticate with the token `sup3rs3cr3t`, you would pass the query parameter `http://localhost:2718?access_token=sup3rs3cr3t`.
 
 For convenience, when running locally, marimo will automatically open the URL with the query parameter in your default browser.
+
+3. Basic Authorization header:
+
+To authenticate using the `Authorization` header, you must pass the token as a password in the `Authorization` header using the [Basic authentication scheme](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). For example, to authenticate with the token `sup3rs3cr3t`, you would pass the header `Authorization Basic base64("any_username:sup3rs3cr3t")`.
+
+This is not necessary when using a browser, as the marimo server will redirect you to a minimal login page where you can enter the token.
 
 ## Custom Authentication
 
