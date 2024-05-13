@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
+import starlette.status as status
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
@@ -12,27 +13,47 @@ from starlette.authentication import (
 from starlette.requests import HTTPConnection, Request
 from starlette.responses import JSONResponse
 
+from marimo._server.api.auth import validate_auth
+from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.model import SessionMode
 
 if TYPE_CHECKING:
+    from starlette.requests import HTTPConnection
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 class AuthBackend(AuthenticationBackend):
+    def __init__(self, should_authenticate: bool = True) -> None:
+        self.should_authenticate = should_authenticate
+
     async def authenticate(
         self, conn: HTTPConnection
     ) -> Optional[tuple["AuthCredentials", "BaseUser"]]:
-        mode = conn.app.state.session_manager.mode
-        if mode is None:
-            return None
+        mode = AppStateBase(conn.app.state).session_manager.mode
+
+        # We may not need to authenticate. This can be disabled
+        # because the user is running in a trusted environment
+        # or authentication is handled by a layer above us
+        if self.should_authenticate:
+            # Valid auth header
+            # This validates we have a valid Cookie (already authenticated)
+            # or validates our auth (and sets the cookie)
+            valid = validate_auth(conn)
+            if not valid:
+                return None
+
+        # User's get Read access in Run mode
         if mode == SessionMode.RUN:
             return AuthCredentials(["read"]), SimpleUser("user")
-        elif mode == SessionMode.EDIT:
+
+        # User's get Read and Edit access in Edit mode
+        if mode == SessionMode.EDIT:
             return AuthCredentials(["read", "edit"]), SimpleUser("user")
-        return None
+
+        raise ValueError(f"Invalid session mode: {mode}")
 
 
-class ValidateServerTokensMiddleware:
+class SkewProtectionMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
@@ -43,6 +64,7 @@ class ValidateServerTokensMiddleware:
             return await self.app(scope, receive, send)
 
         request = Request(scope)
+        state = AppState.from_app(request.app)
 
         # If not POST request, then skip
         if request.method != "POST":
@@ -53,14 +75,12 @@ class ValidateServerTokensMiddleware:
         ):
             return await self.app(scope, receive, send)
 
-        expected_server_token = request.app.state.session_manager.server_token
-        if expected_server_token is None:
-            return await self.app(scope, receive, send)
-
+        expected = state.session_manager.skew_protection_token
         server_token = request.headers.get("Marimo-Server-Token")
-        if server_token != expected_server_token:
+        if server_token != str(expected):
             response = JSONResponse(
-                {"error": "Invalid server token"}, status_code=401
+                {"error": "Invalid server token"},
+                status_code=status.HTTP_401_UNAUTHORIZED,
             )
             return await response(scope, receive, send)
 

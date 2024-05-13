@@ -176,7 +176,7 @@ const config: PlaywrightTestConfig = {
       const baseUrl = options.command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
-      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
       if (baseUrl) {
         marimoCmd += ` --base-url=${baseUrl}`;
       }
@@ -188,7 +188,7 @@ const config: PlaywrightTestConfig = {
       };
     }),
     {
-      command: `marimo -q edit -p ${EDIT_PORT} --headless`,
+      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
     },

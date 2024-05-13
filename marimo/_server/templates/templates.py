@@ -13,17 +13,18 @@ from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
 from marimo._server.api.utils import parse_title
 from marimo._server.model import SessionMode
+from marimo._server.tokens import SkewProtectionToken
 
 
 def home_page_template(
     html: str,
     base_url: str,
     user_config: MarimoConfig,
-    server_token: str,
+    server_token: SkewProtectionToken,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ server_token }}", server_token)
+    html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 
     html = html.replace("{{ title }}", "marimo")
@@ -38,14 +39,14 @@ def notebook_page_template(
     html: str,
     base_url: str,
     user_config: MarimoConfig,
-    server_token: str,
+    server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
     mode: SessionMode,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
     html = html.replace("{{ user_config }}", json.dumps(user_config))
-    html = html.replace("{{ server_token }}", server_token)
+    html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 
     html = html.replace(
@@ -67,7 +68,7 @@ def notebook_page_template(
 def static_notebook_template(
     html: str,
     user_config: MarimoConfig,
-    server_token: str,
+    server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
     code: str,
@@ -87,7 +88,7 @@ def static_notebook_template(
     html = html.replace(
         "{{ user_config }}", json.dumps(user_config, sort_keys=True)
     )
-    html = html.replace("{{ server_token }}", server_token)
+    html = html.replace("{{ server_token }}", str(server_token))
     html = html.replace("{{ version }}", __version__)
 
     html = html.replace(

@@ -1,20 +1,26 @@
 # Copyright 2024 Marimo. All rights reserved.
-from tempfile import TemporaryDirectory
-from typing import Any, cast
+from __future__ import annotations
 
-from starlette.testclient import TestClient
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
 from marimo._server.sessions import SessionManager
-from tests._server.mocks import with_file_router
+from tests._server.mocks import token_header, with_file_router
+
+if TYPE_CHECKING:
+    from starlette.testclient import TestClient
 
 
 def test_index(client: TestClient) -> None:
     session_manager: SessionManager = cast(
         Any, client.app
     ).state.session_manager
-    response = client.get("/")
+    response = client.get("/")  # no header
+    assert response.status_code == 401, response.text
+
+    response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
     filename = session_manager.file_router.get_unique_file_key()
@@ -24,35 +30,32 @@ def test_index(client: TestClient) -> None:
     assert filename in content
     assert "<marimo-mode data-mode='edit'" in content
     assert f"<title>{title}</title>" in content
-    assert session_manager.server_token in content
 
 
 @with_file_router(AppFileRouter.from_files([]))
 def test_index_when_empty(client: TestClient) -> None:
-    session_manager: SessionManager = cast(
-        Any, client.app
-    ).state.session_manager
-    response = client.get("/")
+    response = client.get("/")  # no header
+    assert response.status_code == 401, response.text
+
+    response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename hidden></marimo-filename>" in content
     assert "<marimo-mode data-mode='home'" in content
     assert "<title>marimo</title>" in content
-    assert session_manager.server_token in content
 
 
 @with_file_router(AppFileRouter.new_file())
 def test_index_when_new_file(client: TestClient) -> None:
-    session_manager: SessionManager = cast(
-        Any, client.app
-    ).state.session_manager
-    response = client.get("/")
+    response = client.get("/")  # no header
+    assert response.status_code == 401, response.text
+
+    response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename hidden></marimo-filename>" in content
     assert "<marimo-mode data-mode='edit'" in content
     assert "<title>marimo</title>" in content
-    assert session_manager.server_token in content
 
 
 TEMP_DIR = TemporaryDirectory()
@@ -60,16 +63,12 @@ TEMP_DIR = TemporaryDirectory()
 
 @with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
 def test_index_with_directory(client: TestClient) -> None:
-    session_manager: SessionManager = cast(
-        Any, client.app
-    ).state.session_manager
-    response = client.get("/")
+    response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
     content = response.text
     assert "<marimo-filename" in content
     assert "<marimo-mode data-mode='home'" in content
     assert "<title>marimo</title>" in content
-    assert session_manager.server_token in content
 
 
 def test_favicon(client: TestClient) -> None:
@@ -90,12 +89,15 @@ def test_unknown_file(client: TestClient) -> None:
 
 
 def test_vfile(client: TestClient) -> None:
-    response = client.get("/@file/empty.txt")
+    response = client.get("/@file/example.txt")
+    assert response.status_code == 401, response.text
+
+    response = client.get("/@file/empty.txt", headers=token_header())
     assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/octet-stream"
     assert response.content == b""
 
-    response = client.get("/@file/bad.txt")
+    response = client.get("/@file/bad.txt", headers=token_header())
     assert response.status_code == 404, response.text
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Invalid virtual file request"}

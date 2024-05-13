@@ -11,9 +11,14 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._server.api.auth import (
+    RANDOM_SECRET,
+    CustomSessionMiddleware,
+    on_auth_error,
+)
 from marimo._server.api.middleware import (
     AuthBackend,
-    ValidateServerTokensMiddleware,
+    SkewProtectionMiddleware,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.api.status import (
@@ -32,15 +37,25 @@ LOGGER = _loggers.marimo_logger()
 async def handle_error(request: Request, response: Any) -> Any:
     del request
     if isinstance(response, HTTPException):
+        # Turn 403s into 401s to collect auth
+        if response.status_code == 403:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Authorization header required"},
+                headers={"WWW-Authenticate": "Basic"},
+            )
         return JSONResponse(
-            {"detail": response.detail}, status_code=response.status_code
+            {"detail": response.detail},
+            status_code=response.status_code,
+            headers=response.headers,
         )
     if isinstance(response, MarimoHTTPException):
         # Log server errors
         if not is_client_error(response.status_code):
             LOGGER.exception(response)
         return JSONResponse(
-            {"detail": response.detail}, status_code=response.status_code
+            {"detail": response.detail},
+            status_code=response.status_code,
         )
     if isinstance(response, TypeError):
         return JSONResponse({"detail": str(response)}, status_code=500)
@@ -51,21 +66,41 @@ async def handle_error(request: Request, response: Any) -> Any:
 
 # Create app
 def create_starlette_app(
+    *,
     base_url: str,
     middleware: Optional[List[Middleware]] = None,
     lifespan: Optional[Lifespan[Starlette]] = None,
+    enable_auth: bool = True,
 ) -> Starlette:
-    final_middlewares: List[Middleware] = [
-        Middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        ),
-        Middleware(AuthenticationMiddleware, backend=AuthBackend()),
-        Middleware(ValidateServerTokensMiddleware),
-    ]
+    final_middlewares: List[Middleware] = []
+
+    if enable_auth:
+        final_middlewares.extend(
+            [
+                Middleware(
+                    CustomSessionMiddleware,
+                    secret_key=RANDOM_SECRET,
+                ),
+            ]
+        )
+
+    final_middlewares.extend(
+        [
+            Middleware(
+                AuthenticationMiddleware,
+                backend=AuthBackend(should_authenticate=enable_auth),
+                on_error=on_auth_error,
+            ),
+            Middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            ),
+            Middleware(SkewProtectionMiddleware),
+        ]
+    )
 
     if middleware:
         final_middlewares.extend(middleware)

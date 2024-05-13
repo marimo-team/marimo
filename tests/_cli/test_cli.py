@@ -57,7 +57,7 @@ def _confirm_shutdown(process: subprocess.Popen) -> None:
 
 
 def _check_shutdown(
-    process, check_fn: Optional[Callable[[int], bool]] = None
+    process: subprocess.Popen, check_fn: Optional[Callable[[int], bool]] = None
 ) -> None:
     max_tries = 3
     tries = 0
@@ -70,11 +70,16 @@ def _check_shutdown(
         assert check_fn(process.poll())
 
 
-def _try_fetch(port: int, host: str = "localhost") -> Optional[bytes]:
+def _try_fetch(
+    port: int, host: str = "localhost", token: Optional[str] = None
+) -> Optional[bytes]:
     contents = None
     for _ in range(10):
         try:
-            contents = urllib.request.urlopen(f"http://{host}:{port}").read()
+            url = f"http://{host}:{port}"
+            if token is not None:
+                url = f"{url}?access_token={token}"
+            contents = urllib.request.urlopen(url).read()
             break
         except Exception:
             time.sleep(0.5)
@@ -135,8 +140,35 @@ def test_cli_edit_none() -> None:
     # Python 3.8 compatibility, such as forgetting `from __future__` import
     # annotations
     port = _get_port()
-    p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
+    p = subprocess.Popen(
+        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"]
+    )
     contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='home'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+    _check_contents(p, b"marimo-server-token", contents)
+
+
+def test_cli_edit_token() -> None:
+    # smoke test: makes sure CLI starts and has basic things we expect
+    # helpful for catching issues related to
+    # Python 3.8 compatibility, such as forgetting `from __future__` import
+    # annotations
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "-p",
+            str(port),
+            "--headless",
+            "--token-password",
+            "secret",
+        ]
+    )
+    contents = _try_fetch(port, "localhost", "secret")
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
     _check_contents(
         p, f"marimo-version data-version='{__version__}'".encode(), contents
@@ -148,7 +180,7 @@ def test_cli_edit_directory() -> None:
     d = tempfile.TemporaryDirectory()
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", d.name, "-p", str(port), "--headless"]
+        ["marimo", "edit", d.name, "-p", str(port), "--headless", "--no-token"]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='home'", contents)
@@ -163,7 +195,7 @@ def test_cli_edit_new_file() -> None:
     path = os.path.join(d.name, "new.py")
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", path, "-p", str(port), "--headless"]
+        ["marimo", "edit", path, "-p", str(port), "--headless", "--no-token"]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
@@ -183,6 +215,7 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
             "-p",
             str(port),
             "--headless",
+            "--no-token",
             "--",
             "-a=foo",
             "--b=bar",
@@ -197,7 +230,9 @@ def test_cli_edit_with_additional_args(temp_marimo_file: str) -> None:
 
 def test_cli_new() -> None:
     port = _get_port()
-    p = subprocess.Popen(["marimo", "new", "-p", str(port), "--headless"])
+    p = subprocess.Popen(
+        ["marimo", "new", "-p", str(port), "--headless", "--no-token"]
+    )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
     _check_contents(
@@ -263,7 +298,15 @@ def test_cli_run_with_additional_args(temp_marimo_file: str) -> None:
 def test_cli_tutorial() -> None:
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "tutorial", "intro", "-p", str(port), "--headless"]
+        [
+            "marimo",
+            "tutorial",
+            "intro",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ]
     )
     contents = _try_fetch(port)
     _check_contents(p, b"marimo-mode data-mode='edit'", contents)
@@ -284,6 +327,7 @@ def test_cli_custom_host() -> None:
             "-p",
             str(port),
             "--headless",
+            "--no-token",
             "--host",
             host,
         ]
@@ -296,7 +340,9 @@ def test_cli_custom_host() -> None:
 def test_cli_edit_interrupt_twice() -> None:
     # two SIGINTs should kill the CLI
     port = _get_port()
-    p = subprocess.Popen(["marimo", "edit", "-p", str(port), "--headless"])
+    p = subprocess.Popen(
+        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"]
+    )
     _check_started(port)
     with _patch_signals_win32():
         _interrupt(p)
@@ -328,7 +374,7 @@ def test_cli_run_interrupt_twice() -> None:
 def test_cli_edit_shutdown() -> None:
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "edit", "-p", str(port), "--headless"],
+        ["marimo", "edit", "-p", str(port), "--headless", "--no-token"],
         stdin=subprocess.PIPE,
     )
     _check_started(port)
@@ -346,7 +392,7 @@ def test_cli_run_shutdown() -> None:
     path = _temp_run_file(d)
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "run", path, "-p", str(port), "--headless"],
+        ["marimo", "run", path, "-p", str(port), "--headless", "--no-token"],
         stdin=subprocess.PIPE,
     )
     _check_started(port)
