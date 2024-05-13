@@ -48,7 +48,7 @@ FILE_QUERY_PARAM_KEY = "file"
 
 
 @router.get("/")
-@requires("read")
+@requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     user_config = app_state.config_manager.get_config()

@@ -29,7 +29,9 @@ TOKEN_QUERY_PARAM = "access_token"
 # - Checking for existing session cookie (already authenticated)
 # - Or authenticates by access_token in query params
 # - Or authenticates by basic auth
-def validate_auth(conn: HTTPConnection) -> bool:
+def validate_auth(
+    conn: HTTPConnection, form_dict: Optional[dict[str, str]] = None
+) -> bool:
     state = AppState.from_app(conn.app)
     auth_token = str(state.session_manager.auth_token)
 
@@ -47,6 +49,18 @@ def validate_auth(conn: HTTPConnection) -> bool:
             # Set the cookie
             cookie_session.set_access_token(auth_token)
             return True  # Success
+
+    # Check for form data
+    if form_dict is not None:
+        # Validate the access_token
+        password = form_dict.get("password")
+        if password == auth_token:
+            LOGGER.debug("Validated access_token")
+            # Set the cookie
+            cookie_session.set_access_token(auth_token)
+            return True
+        else:
+            return False
 
     # Check for basic auth
     auth = conn.headers.get("Authorization")

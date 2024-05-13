@@ -69,6 +69,11 @@ class SkewProtectionMiddleware:
         # If not POST request, then skip
         if request.method != "POST":
             return await self.app(scope, receive, send)
+        # If is a form, then skip
+        if request.headers.get("Content-Type", "").startswith(
+            "application/x-www-form-urlencoded"
+        ):
+            return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(
             "/ws"

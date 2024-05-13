@@ -66,12 +66,12 @@ def test_base_url() -> None:
 def test_skew_protection(edit_app: Starlette) -> None:
     client = TestClient(edit_app)
     # Unauthorized access
-    response = client.get("/")
+    response = client.get("/api/status")
     assert response.status_code == 401, response.text
     assert response.headers.get("Set-Cookie") is None
 
     # Authorized access
-    response = client.get("/", headers=token_header("fake-token"))
+    response = client.get("/api/status", headers=token_header("fake-token"))
     assert response.status_code == 200, response.text
     assert response.headers.get("Set-Cookie") is not None
 
@@ -167,10 +167,18 @@ def no_auth_app(request: Any) -> Starlette:
 
 
 class TestAuth:
-    def test_no_auth(self, app: Starlette) -> None:
+    def test_no_auth_index_page(self, app: Starlette) -> None:
         # Test unauthorized access
         client = TestClient(app)
         response = client.get("/")
+        assert response.status_code == 200, response.text
+        assert response.headers.get("Set-Cookie") is None
+        assert "Login" in response.text
+
+    def test_no_auth_api_route(self, app: Starlette) -> None:
+        # Test unauthorized access
+        client = TestClient(app)
+        response = client.get("/api/status")
         assert response.status_code == 401, response.text
         assert response.headers.get("Set-Cookie") is None
 
@@ -206,7 +214,7 @@ class TestAuth:
     def test_bad_auth_header(self, app: Starlette) -> None:
         # Test unauthorized access with bad auth token
         client = TestClient(app)
-        response = client.get("/", headers=token_header("bad-token"))
+        response = client.get("/api/status", headers=token_header("bad-token"))
         assert response.status_code == 401, response.text
         assert response.headers.get("Set-Cookie") is None
 

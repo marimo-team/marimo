@@ -4,9 +4,9 @@ from __future__ import annotations
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
 
+from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
-from marimo._server.sessions import SessionManager
 from tests._server.mocks import token_header, with_file_router
 
 if TYPE_CHECKING:
@@ -14,11 +14,13 @@ if TYPE_CHECKING:
 
 
 def test_index(client: TestClient) -> None:
-    session_manager: SessionManager = cast(
-        Any, client.app
-    ).state.session_manager
+    session_manager = AppState.from_app(cast(Any, client.app)).session_manager
+
+    # Login page
     response = client.get("/")  # no header
-    assert response.status_code == 401, response.text
+    assert response.status_code == 200, response.text
+    assert "Login" in response.text
+    assert "marimo-filename" not in response.text
 
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
@@ -34,8 +36,11 @@ def test_index(client: TestClient) -> None:
 
 @with_file_router(AppFileRouter.from_files([]))
 def test_index_when_empty(client: TestClient) -> None:
+    # Login page
     response = client.get("/")  # no header
-    assert response.status_code == 401, response.text
+    assert response.status_code == 200, response.text
+    assert "Login" in response.text
+    assert "marimo-filename" not in response.text
 
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
@@ -47,8 +52,11 @@ def test_index_when_empty(client: TestClient) -> None:
 
 @with_file_router(AppFileRouter.new_file())
 def test_index_when_new_file(client: TestClient) -> None:
+    # Login page
     response = client.get("/")  # no header
-    assert response.status_code == 401, response.text
+    assert response.status_code == 200, response.text
+    assert "Login" in response.text
+    assert "marimo-filename" not in response.text
 
     response = client.get("/", headers=token_header())
     assert response.status_code == 200, response.text
