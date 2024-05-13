@@ -25,6 +25,8 @@ from marimo._runtime.state import State
 class QueryParams(State[SerializedQueryParams]):
     """Query parameters for a marimo app."""
 
+    IGNORED_KEYS = {"access_token", "refresh_token", "session_id"}
+
     def __init__(
         self,
         params: Dict[str, Union[str, List[str]]],

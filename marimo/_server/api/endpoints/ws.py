@@ -287,7 +287,7 @@ class WebsocketHandler(SessionConsumer):
             # session was created.
             query_params = QueryParams({}, NoopStream())
             for key, value in self.websocket.query_params.multi_items():
-                if SESSION_QUERY_PARAM_KEY == key:
+                if key in QueryParams.IGNORED_KEYS:
                     continue
                 query_params.append(key, value)
 
