@@ -43,7 +43,7 @@ def routes(
     ```python
     mo.routes(
         {
-            "#/home": render_home(), # not lazily evaluated
+            "#/home": render_home(),  # not lazily evaluated
             "#/about": render_about,
             "#/contact": render_contact,
         }
