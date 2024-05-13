@@ -39,6 +39,8 @@ dependencies = [
     "docutils>=0.17.0",
     # to show RAM, CPU usage, other system utilities
     "psutil>=5.0",
+    # required dependency in Starlette for SessionMiddleware support
+    "itsdangerous>=2.0.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "black",
