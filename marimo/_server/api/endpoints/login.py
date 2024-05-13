@@ -44,7 +44,7 @@ LOGIN_PAGE = """
         display: block;
         margin-bottom: 5px;
         font-size: 16px;
-        color: #333;">Password</label>
+        color: #333;">Access Token / Password</label>
       <input id="password" name="password" type="password" style="
         width: 100%;
         box-sizing: border-box;
