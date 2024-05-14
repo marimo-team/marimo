@@ -88,7 +88,7 @@ class QueueManager:
         # requests.
         self.set_ui_element_queue: QueueType[
             requests.SetUIElementValueRequest
-        ] = (context.Queue() if context is not None else queue.Queue())
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CompletionRequest] = (
@@ -552,7 +552,8 @@ class SessionManager:
             maybe_session = self.get_session(new_session_id)
             if (
                 maybe_session
-                and maybe_session.connection_state() == ConnectionState.ORPHANED
+                and maybe_session.connection_state()
+                == ConnectionState.ORPHANED
             ):
                 LOGGER.debug(
                     "Found a resumable RUN session: prev_id=%s",

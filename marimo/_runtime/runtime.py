@@ -1425,12 +1425,10 @@ def launch_kernel(
             elif isinstance(request, SetUIElementValueRequest):
                 set_ui_element_requests: list[SetUIElementValueRequest] = []
 
-                try:
-                    while r := set_ui_element_queue.get_nowait():
-                        set_ui_element_requests.append(r)
-                except Exception:
-                    # empty queue
-                    pass
+                while set_ui_element_queue.empty():
+                    set_ui_element_requests.append(
+                        set_ui_element_queue.get_nowait()
+                    )
 
                 if not set_ui_element_requests:
                     # We already processed the request in the control queue.
