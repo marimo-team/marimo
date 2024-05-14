@@ -17,8 +17,6 @@ import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
   handleKernelReady,
-  handleCompletedRun,
-  handleInterrupted,
   handleRemoveUIElements,
   handleCellOperation,
 } from "../kernel/handlers";
@@ -77,10 +75,8 @@ export async function initialize() {
         defineCustomElement(MarimoIslandElement.tagName, MarimoIslandElement);
         return;
       case "completed-run":
-        handleCompletedRun();
         return;
       case "interrupted":
-        handleInterrupted();
         return;
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);

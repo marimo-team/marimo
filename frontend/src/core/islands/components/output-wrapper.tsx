@@ -6,7 +6,6 @@ import { NotebookState, notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { CellRuntimeState } from "@/core/cells/types";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendRun } from "@/core/network/requests";
 import { useEventListener } from "@/hooks/useEventListener";
 import { Logger } from "@/utils/Logger";
@@ -111,10 +110,8 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
           tooltip="Re-run cell"
           icon={<PlayIcon className="size-3" />}
           action={async () => {
-            RuntimeState.INSTANCE.registerRunStart();
             await sendRun([cellId], [codeCallback()]).catch((error) => {
               Logger.error(error);
-              RuntimeState.INSTANCE.registerRunEnd();
             });
           }}
         />

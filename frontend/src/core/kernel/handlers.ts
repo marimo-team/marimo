@@ -4,7 +4,6 @@ import { Objects } from "@/utils/objects";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { LayoutData, LayoutState, initialLayoutState } from "../layout/layout";
 import { sendInstantiate } from "../network/requests";
-import { RuntimeState } from "./RuntimeState";
 import { CellMessage, OperationMessage } from "./messages";
 import { LayoutType } from "@/components/editor/renderers/types";
 import { AppConfig } from "../config/config-schema";
@@ -103,9 +102,7 @@ export function handleKernelReady(
   // Send the instantiate message
   if (autoInstantiate) {
     // Start the run
-    RuntimeState.INSTANCE.registerRunStart();
     sendInstantiate({ objectIds, values }).catch((error) => {
-      RuntimeState.INSTANCE.registerRunEnd();
       onError(new Error("Failed to instantiate", { cause: error }));
     });
   }
@@ -120,19 +117,6 @@ export function handleRemoveUIElements(
   const { cell_id } = data;
   UI_ELEMENT_REGISTRY.removeElementsByCell(cell_id);
   VirtualFileTracker.INSTANCE.removeForCellId(cell_id);
-}
-
-export function handleInterrupted() {
-  if (!RuntimeState.INSTANCE.running()) {
-    RuntimeState.INSTANCE.flushUpdates();
-  }
-}
-
-export function handleCompletedRun() {
-  RuntimeState.INSTANCE.registerRunEnd();
-  if (!RuntimeState.INSTANCE.running()) {
-    RuntimeState.INSTANCE.flushUpdates();
-  }
 }
 
 export function handleCellOperation(

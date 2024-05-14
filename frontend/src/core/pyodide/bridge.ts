@@ -38,7 +38,6 @@ import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
@@ -221,15 +220,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCodeCompletionRequest = async (
     request: CodeCompletionRequest,
   ): Promise<null> => {
-    // Because the Pyodide worker is single-threaded, sending
-    // code completion requests while the kernel is running is useless
-    // and runs the risk of choking the kernel
-    if (!RuntimeState.INSTANCE.running()) {
-      await this.rpc.proxy.request.bridge({
-        functionName: "code_complete",
-        payload: request,
-      });
-    }
+    // TODO: Can we check if the kernel is running by looking at cell
+    // statuses here (notebookIsRunningAtom)?
+    await this.rpc.proxy.request.bridge({
+      functionName: "code_complete",
+      payload: request,
+    });
     return null;
   };
 

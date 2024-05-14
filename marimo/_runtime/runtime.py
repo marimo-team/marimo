@@ -1425,7 +1425,7 @@ def launch_kernel(
             elif isinstance(request, SetUIElementValueRequest):
                 set_ui_element_requests: list[SetUIElementValueRequest] = []
 
-                while set_ui_element_queue.empty():
+                while not set_ui_element_queue.empty():
                     set_ui_element_requests.append(
                         set_ui_element_queue.get_nowait()
                     )
