@@ -3,10 +3,27 @@ from __future__ import annotations
 
 import secrets
 
-from starlette.datastructures import Secret
 
+# Adapted from starlette, to avoid a dependency when running without starlette.
+class AuthToken:
+    """
+    Holds a string value that should not be revealed in tracebacks etc.
+    You should cast the value to `str` at the point it is required.
+    """
 
-class AuthToken(Secret):
+    def __init__(self, value: str):
+        self._value = value
+
+    def __repr__(self) -> str:
+        class_name = self.__class__.__name__
+        return f"{class_name}('**********')"
+
+    def __str__(self) -> str:
+        return self._value
+
+    def __bool__(self) -> bool:
+        return bool(self._value)
+
     @staticmethod
     def random() -> AuthToken:
         return AuthToken(secrets.token_urlsafe(16))

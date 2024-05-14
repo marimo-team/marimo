@@ -28,6 +28,7 @@ import { Functions } from "@/utils/functions";
 import { defineCustomElement } from "../dom/defineCustomElement";
 import { MarimoIslandElement } from "./components/web-components";
 import { RuntimeState } from "../kernel/RuntimeState";
+import { sendComponentValues } from "../network/requests";
 
 /**
  * Main entry point for the js bundle for embedded marimo apps.
@@ -121,7 +122,7 @@ export async function initialize() {
   });
 
   // Start the runtime
-  RuntimeState.INSTANCE.start();
+  RuntimeState.INSTANCE.start(sendComponentValues);
 }
 
 initialize();

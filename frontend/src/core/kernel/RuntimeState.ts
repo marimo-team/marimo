@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { sendComponentValues } from "@/core/network/requests";
 import {
   marimoValueReadyEvent,
   MarimoValueReadyEventType,
@@ -16,9 +15,7 @@ export class RuntimeState {
   /**
    * Shared instance of RuntimeState since this must be a singleton.
    */
-  static readonly INSTANCE = new RuntimeState(UI_ELEMENT_REGISTRY, {
-    sendComponentValues,
-  });
+  static readonly INSTANCE = new RuntimeState(UI_ELEMENT_REGISTRY);
 
   // TODO(akshayka): move the running-count state machine to the Python kernel;
   // keeping track of it in the frontend is very brittle. the kernel can simply
@@ -32,22 +29,26 @@ export class RuntimeState {
    * ObjectIds of UIElements whose values need to be updated in the kernel
    */
   private componentsToUpdate: Set<string>;
+  private _sendComponentValues: RunRequests["sendComponentValues"] | undefined;
 
-  constructor(
-    private uiElementRegistry: UIElementRegistry,
-    private opts: {
-      sendComponentValues: RunRequests["sendComponentValues"];
-    },
-  ) {
+  constructor(private uiElementRegistry: UIElementRegistry) {
     this.runningCount = 0;
     this.componentsToUpdate = new Set();
     repl(RuntimeState.INSTANCE, "RuntimeState");
   }
 
+  private get sendComponentValues(): RunRequests["sendComponentValues"] {
+    if (!this._sendComponentValues) {
+      throw new Error("sendComponentValues is not set");
+    }
+    return this._sendComponentValues;
+  }
+
   /**
    * Start listening for events from UIElements
    */
-  start() {
+  start(sendComponentValues: RunRequests["sendComponentValues"]) {
+    this._sendComponentValues = sendComponentValues;
     document.addEventListener(marimoValueReadyEvent, this.handleReadyEvent);
   }
 
@@ -80,24 +81,22 @@ export class RuntimeState {
       // Store the components to update, in case the run fails to be sent
       const previousComponentsToUpdate = new Set(this.componentsToUpdate);
 
-      this.opts
-        .sendComponentValues(
-          Array.from(this.componentsToUpdate.values(), (objectId) => ({
-            objectId: objectId,
-            value: this.uiElementRegistry.lookupValue(objectId),
-          })).filter((update) => update.value !== undefined),
-        )
-        .catch(() => {
-          // This happens if the run was failed to register (401, 403, network error, etc.)
-          // If the run fails, restore the components to update and finish the run
-          // A run may fail if the kernel is restarted or the notebook is closed,
-          // but if we don't restore registerRunEnd() will never be able to flush updates.
-          this.registerRunEnd();
-          // Merge the previous components to update with the current ones
-          previousComponentsToUpdate.forEach((objectId) =>
-            this.componentsToUpdate.add(objectId),
-          );
-        });
+      this.sendComponentValues(
+        Array.from(this.componentsToUpdate.values(), (objectId) => ({
+          objectId: objectId,
+          value: this.uiElementRegistry.lookupValue(objectId),
+        })).filter((update) => update.value !== undefined),
+      ).catch(() => {
+        // This happens if the run was failed to register (401, 403, network error, etc.)
+        // If the run fails, restore the components to update and finish the run
+        // A run may fail if the kernel is restarted or the notebook is closed,
+        // but if we don't restore registerRunEnd() will never be able to flush updates.
+        this.registerRunEnd();
+        // Merge the previous components to update with the current ones
+        previousComponentsToUpdate.forEach((objectId) =>
+          this.componentsToUpdate.add(objectId),
+        );
+      });
       this.componentsToUpdate.clear();
     }
   }

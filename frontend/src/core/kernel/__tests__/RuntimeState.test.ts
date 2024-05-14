@@ -27,13 +27,11 @@ describe("RuntimeState", () => {
     uiElementRegistry = UIElementRegistry.INSTANCE;
     uiElementRegistry.entries.clear();
 
-    runtimeState = new RuntimeState(uiElementRegistry, {
-      sendComponentValues: mockSendComponentValues,
-    });
+    runtimeState = new RuntimeState(uiElementRegistry);
   });
 
   test("start should register event listener", () => {
-    runtimeState.start();
+    runtimeState.start(mockSendComponentValues);
     expect(addEventListenerSpy).toHaveBeenCalledWith(
       marimoValueReadyEvent,
       expect.any(Function),
@@ -68,7 +66,7 @@ describe("RuntimeState", () => {
   });
 
   test("flushUpdates should call sendComponentValues with updates", async () => {
-    runtimeState.start();
+    runtimeState.start(mockSendComponentValues);
     uiElementRegistry.registerInstance(uiElementOneId, elementOne);
     expect(uiElementRegistry.entries).toHaveLength(1);
     expect(mockSendComponentValues).not.toHaveBeenCalled();
@@ -87,7 +85,7 @@ describe("RuntimeState", () => {
   });
 
   test("will only send one broadcast at a time and hold future events", () => {
-    runtimeState.start();
+    runtimeState.start(mockSendComponentValues);
     uiElementRegistry.registerInstance(uiElementOneId, elementOne);
     uiElementRegistry.registerInstance(uiElementTwoId, elementTwo);
     uiElementRegistry.broadcastValueUpdate(elementOne, uiElementOneId, "10");
@@ -130,7 +128,7 @@ describe("RuntimeState", () => {
   });
 
   test("handle when sendComponentValues fails", async () => {
-    runtimeState.start();
+    runtimeState.start(mockSendComponentValues);
     uiElementRegistry.registerInstance(uiElementOneId, elementOne);
     uiElementRegistry.registerInstance(uiElementTwoId, elementTwo);
     expect(uiElementRegistry.entries).toHaveLength(2);
