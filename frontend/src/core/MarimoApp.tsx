@@ -12,10 +12,6 @@ import { DayPickerProvider } from "react-day-picker";
 import { useAppConfig, useUserConfig } from "@/core/config/config";
 import { initialMode } from "./mode";
 import { CssVariables } from "@/theme/ThemeProvider";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import { isPyodide } from "./pyodide/utils";
-import { PyodideBridge } from "./pyodide/bridge";
-import { LargeSpinner } from "@/components/icons/large-spinner";
 import { TailwindIndicator } from "@/components/debug/indicator";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
@@ -84,15 +80,13 @@ const Providers = memo(({ children }: PropsWithChildren) => {
       <Suspense>
         <TooltipProvider>
           <DayPickerProvider initialProps={{}}>
-            <PyodideLoader>
-              <SlotzProvider controller={slotsController}>
-                <ModalProvider>
-                  {children}
-                  <Toaster />
-                  <TailwindIndicator />
-                </ModalProvider>
-              </SlotzProvider>
-            </PyodideLoader>
+            <SlotzProvider controller={slotsController}>
+              <ModalProvider>
+                {children}
+                <Toaster />
+                <TailwindIndicator />
+              </ModalProvider>
+            </SlotzProvider>
           </DayPickerProvider>
         </TooltipProvider>
       </Suspense>
@@ -104,30 +98,3 @@ Providers.displayName = "Providers";
 function toRem(px: number) {
   return `${px / 16}rem`;
 }
-
-/**
- * HOC to load Pyodide before rendering children, if necessary.
- */
-const PyodideLoader: React.FC<PropsWithChildren> = ({ children }) => {
-  if (!isPyodide()) {
-    return children;
-  }
-
-  // isPyodide() is constant, so this is safe
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { loading, error } = useAsyncData(async () => {
-    await PyodideBridge.INSTANCE.initialized.promise;
-    return true;
-  }, []);
-
-  if (loading) {
-    return <LargeSpinner />;
-  }
-
-  // Propagate back up to our error boundary
-  if (error) {
-    throw error;
-  }
-
-  return children;
-};

@@ -109,7 +109,6 @@ export const DataFrameComponent = memo(
       () => get_dataframe({}),
       [value?.transforms],
     );
-    console.log("columns", columns);
     const { url, has_more, total_rows, row_headers } = data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(

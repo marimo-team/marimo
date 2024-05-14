@@ -40,7 +40,7 @@ async function loadPyodideAndPackages() {
       pyodideVersion: pyodideVersion,
     });
   } catch (error) {
-    console.error("Error bootstrapping", error);
+    Logger.error("Error bootstrapping", error);
     rpc.send.initializedError({
       error: prettyError(error),
     });
