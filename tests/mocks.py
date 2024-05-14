@@ -18,7 +18,9 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
     but the snapshot will be updated with the new result.
     """
 
-    def snapshot(filename: str, result: str, assert_equal: bool = True) -> None:
+    def snapshot(
+        filename: str, result: str, assert_equal: bool = True
+    ) -> None:
         filepath = os.path.join(
             os.path.dirname(current_file), "snapshots", filename
         )
