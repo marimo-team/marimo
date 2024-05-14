@@ -31,12 +31,7 @@ export class RuntimeState {
   private componentsToUpdate: Set<string>;
   private _sendComponentValues: RunRequests["sendComponentValues"] | undefined;
 
-  constructor(
-    private uiElementRegistry: UIElementRegistry,
-    private opts: {
-      sendComponentValues: RunRequests["sendComponentValues"];
-    }
-  ) {
+  constructor(private uiElementRegistry: UIElementRegistry) {
     this.runningCount = 0;
     this.componentsToUpdate = new Set();
     repl(RuntimeState.INSTANCE, "RuntimeState");
@@ -86,24 +81,22 @@ export class RuntimeState {
       // Store the components to update, in case the run fails to be sent
       const previousComponentsToUpdate = new Set(this.componentsToUpdate);
 
-      this.opts
-        .sendComponentValues(
-          Array.from(this.componentsToUpdate.values(), (objectId) => ({
-            objectId: objectId,
-            value: this.uiElementRegistry.lookupValue(objectId),
-          })).filter((update) => update.value !== undefined)
-        )
-        .catch(() => {
-          // This happens if the run was failed to register (401, 403, network error, etc.)
-          // If the run fails, restore the components to update and finish the run
-          // A run may fail if the kernel is restarted or the notebook is closed,
-          // but if we don't restore registerRunEnd() will never be able to flush updates.
-          this.registerRunEnd();
-          // Merge the previous components to update with the current ones
-          previousComponentsToUpdate.forEach((objectId) =>
-            this.componentsToUpdate.add(objectId)
-          );
-        });
+      this.sendComponentValues(
+        Array.from(this.componentsToUpdate.values(), (objectId) => ({
+          objectId: objectId,
+          value: this.uiElementRegistry.lookupValue(objectId),
+        })).filter((update) => update.value !== undefined)
+      ).catch(() => {
+        // This happens if the run was failed to register (401, 403, network error, etc.)
+        // If the run fails, restore the components to update and finish the run
+        // A run may fail if the kernel is restarted or the notebook is closed,
+        // but if we don't restore registerRunEnd() will never be able to flush updates.
+        this.registerRunEnd();
+        // Merge the previous components to update with the current ones
+        previousComponentsToUpdate.forEach((objectId) =>
+          this.componentsToUpdate.add(objectId)
+        );
+      });
       this.componentsToUpdate.clear();
     }
   }
