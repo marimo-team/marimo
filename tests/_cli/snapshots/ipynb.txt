@@ -1,12 +1,28 @@
----
-title: Notebook
-marimo-version: 0.5.2
----
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cee3eba2",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bbb9a3bf",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "slider = mo.ui.slider(0, 10)"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
 
-```{.python.marimo}
-import marimo as mo
-```
-
-```{.python.marimo}
-slider = mo.ui.slider(0, 10)
-```

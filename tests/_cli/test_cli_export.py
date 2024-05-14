@@ -443,7 +443,7 @@ class TestExportIpynb:
     )
     def test_export_ipynb(self, temp_marimo_file: str) -> None:
         p = subprocess.run(
-            ["marimo", "export", "md", temp_marimo_file],
+            ["marimo", "export", "ipynb", temp_marimo_file],
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
