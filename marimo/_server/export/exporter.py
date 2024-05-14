@@ -125,7 +125,7 @@ class Exporter:
         self,
         file_manager: AppFileManager,
     ) -> tuple[str, str]:
-        import nbformat
+        import nbformat  # type: ignore
 
         def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:
             markdown_string = get_markdown_from_cell(
