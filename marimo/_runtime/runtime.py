@@ -100,6 +100,9 @@ from marimo._runtime.runner.hooks import (
     PREPARATION_HOOKS,
 )
 from marimo._runtime.state import State
+from marimo._runtime.utils.control_requests import (
+    merge_set_ui_element_requests,
+)
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
@@ -1307,6 +1310,7 @@ class Kernel:
 
 def launch_kernel(
     control_queue: QueueType[ControlRequest],
+    set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
@@ -1418,6 +1422,29 @@ def launch_kernel(
             LOGGER.debug("received request %s", request)
             if isinstance(request, StopRequest):
                 break
+            elif isinstance(request, SetUIElementValueRequest):
+                set_ui_element_requests: list[SetUIElementValueRequest] = []
+
+                try:
+                    while r := set_ui_element_queue.get_nowait():
+                        set_ui_element_requests.append(r)
+                except Exception:
+                    # empty queue
+                    pass
+
+                if not set_ui_element_requests:
+                    # We already processed the request in the control queue.
+                    # each set_ui_element_request is both in the main control
+                    # queue and the set_ui_element_queue. It would be
+                    # cleaner to separate requests out into their own
+                    # queues, but then we'd need additional logic
+                    # for preserving the order of requests and for determining
+                    # when a request is available.
+                    continue
+                request = merge_set_ui_element_requests(
+                    set_ui_element_requests
+                )
+
             await kernel.handle_message(request)
 
     # The control loop is asynchronous only because we allow user code to use

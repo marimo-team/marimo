@@ -83,6 +83,13 @@ class QueueManager:
             context.Queue() if context is not None else queue.Queue()
         )
 
+        # Set UI element queues are stored in both the control queue and
+        # this queue, so that the backend can merge/batch set-ui-element
+        # requests.
+        self.set_ui_element_queue: QueueType[
+            requests.SetUIElementValueRequest
+        ] = (context.Queue() if context is not None else queue.Queue())
+
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CompletionRequest] = (
             context.Queue() if context is not None else queue.Queue()
@@ -115,6 +122,10 @@ class QueueManager:
             # kernel thread cleans up read/write conn and IOloop handler on
             # exit; we don't join the thread because we don't want to block
             self.control_queue.put(requests.StopRequest())
+
+        if isinstance(self.set_ui_element_queue, MPQueue):
+            self.set_ui_element_queue.cancel_join_thread()
+            self.set_ui_element_queue.close()
 
         if isinstance(self.input_queue, MPQueue):
             # again, don't make the child process wait for the queues to empty
@@ -162,6 +173,7 @@ class KernelManager:
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
@@ -200,6 +212,7 @@ class KernelManager:
                 target=launch_kernel_with_cleanup,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
@@ -343,6 +356,8 @@ class Session:
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put(request)
+        if isinstance(request, SetUIElementValueRequest):
+            self._queue_manager.set_ui_element_queue.put(request)
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -537,8 +552,7 @@ class SessionManager:
             maybe_session = self.get_session(new_session_id)
             if (
                 maybe_session
-                and maybe_session.connection_state()
-                == ConnectionState.ORPHANED
+                and maybe_session.connection_state() == ConnectionState.ORPHANED
             ):
                 LOGGER.debug(
                     "Found a resumable RUN session: prev_id=%s",

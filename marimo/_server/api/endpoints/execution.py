@@ -44,6 +44,7 @@ async def set_ui_element_values(
     app_state.require_current_session().put_control_request(
         SetUIElementValueRequest(body.zip())
     )
+
     return SuccessResponse()
 
 
