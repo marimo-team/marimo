@@ -17,15 +17,15 @@ class TestRunTutorialsAsScripts:
     def assert_not_errored(
         self, p: subprocess.CompletedProcess[bytes]
     ) -> None:
-        assert p.returncode == 0, "|".join(p.stderr.decode().splitlines())
+        assert p.returncode == 0
         assert not any(
             line.startswith("Traceback")
             for line in p.stderr.decode().splitlines()
-        ), p.stderr.decode()
+        )
         assert not any(
             line.startswith("Traceback")
             for line in p.stdout.decode().splitlines()
-        ), p.stdout.decode()
+        )
 
     def assert_errored(
         self, p: subprocess.CompletedProcess[bytes], reason: str
@@ -146,7 +146,6 @@ if __name__ == "__main__":
             ["python", str(file)],
             capture_output=True,
         )
-        print(p.stdout.decode())
         self.assert_not_errored(p)
         assert "enabled cell" in p.stdout.decode()
         assert "disabled cell" not in p.stdout.decode()
