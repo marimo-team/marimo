@@ -241,7 +241,7 @@ class App:
         #   graph
         # - dict of defs -> values
         return (
-            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids()),
+            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids() if not self._graph.is_disabled(cid)),
             # omit defs that were never defined at runtime, eg due to
             # conditional definitions like
             #
@@ -263,7 +263,7 @@ class App:
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is not None:
+                if cell is not None and not self._graph.is_disabled(cid):
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
@@ -285,7 +285,7 @@ class App:
             outputs: dict[CellId_t, Any] = {}
             for cid in self._execution_order:
                 cell = self._cell_manager.cell_data_at(cid).cell
-                if cell is not None:
+                if cell is not None and not self._graph.is_disabled(cid):
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
