@@ -241,7 +241,11 @@ class App:
         #   graph
         # - dict of defs -> values
         return (
-            tuple(outputs[cid] for cid in self._cell_manager.valid_cell_ids() if not self._graph.is_disabled(cid)),
+            tuple(
+                outputs[cid]
+                for cid in self._cell_manager.valid_cell_ids()
+                if not self._graph.is_disabled(cid)
+            ),
             # omit defs that were never defined at runtime, eg due to
             # conditional definitions like
             #
