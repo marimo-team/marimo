@@ -3,7 +3,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "cd2168d6",
+   "id": "b78825b5",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -11,8 +11,18 @@
    ]
   },
   {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "cc36e50f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "slider = mo.ui.slider(0, 10)"
+   ]
+  },
+  {
    "cell_type": "markdown",
-   "id": "096c0c88",
+   "id": "71098525",
    "metadata": {},
    "source": [
     "a markdown cell"
@@ -21,17 +31,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "158c3bbb",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "slider = mo.ui.slider(0, 10)"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "b52b1b4a",
+   "id": "a9ca0f4a",
    "metadata": {},
    "outputs": [],
    "source": [
