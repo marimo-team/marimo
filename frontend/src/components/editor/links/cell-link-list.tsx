@@ -12,6 +12,7 @@ import { useCellIds } from "@/core/cells/cells";
 interface Props {
   maxCount: number;
   cellIds: CellId[];
+  skipScroll?: boolean;
   onClick?: (cellId: CellId) => void;
 }
 
@@ -19,6 +20,7 @@ export const CellLinkList: React.FC<Props> = ({
   maxCount,
   cellIds,
   onClick,
+  skipScroll,
 }) => {
   const cellIndex = useCellIds();
   const sortedCellIds = [...cellIds].sort((a, b) => {
@@ -37,6 +39,7 @@ export const CellLinkList: React.FC<Props> = ({
             variant="focus"
             key={cellId}
             cellId={cellId}
+            skipScroll={skipScroll}
             className="whitespace-nowrap"
             onClick={onClick ? () => onClick(cellId) : undefined}
           />
