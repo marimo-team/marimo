@@ -107,7 +107,10 @@ Optionally pass CLI args to the notebook:
     default=False,
     show_default=True,
     type=bool,
-    help="Whether to export react HTML file, using marimo islands.",
+    help="""
+    Whether to export a reactive HTML file.
+    If enabled, the exported HTML will run Python code using a Pyodide kernel.
+    """,
 )
 @click.option(
     "--watch/--no-watch",
