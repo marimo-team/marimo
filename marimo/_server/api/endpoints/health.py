@@ -31,6 +31,7 @@ router.add_route("/healthz", health_check, methods=["GET"])
 
 
 @router.get("/api/status")
+@requires("edit")
 async def status(request: Request) -> JSONResponse:
     app_state = AppState(request)
     files = [

@@ -12,6 +12,7 @@ from starlette.responses import (
     HTMLResponse,
     JSONResponse,
     PlainTextResponse,
+    RedirectResponse,
     Response,
     StreamingResponse,
 )
@@ -59,6 +60,8 @@ class APIRouter(Router):
                     return response
                 if isinstance(response, PlainTextResponse):
                     return response
+                if isinstance(response, RedirectResponse):
+                    return response
 
                 if dataclasses.is_dataclass(response):
                     return JSONResponse(
@@ -80,7 +83,10 @@ class APIRouter(Router):
         return decorator
 
     def get(
-        self, path: str, include_in_schema: bool = True
+        self,
+        path: str,
+        include_in_schema: bool = True,
+        name: Optional[str] = None,
     ) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Get method."""
 
@@ -94,6 +100,10 @@ class APIRouter(Router):
                 if isinstance(response, StreamingResponse):
                     return response
                 if isinstance(response, PlainTextResponse):
+                    return response
+                if isinstance(response, RedirectResponse):
+                    return response
+                if isinstance(response, HTMLResponse):
                     return response
 
                 if dataclasses.is_dataclass(response):
@@ -110,6 +120,7 @@ class APIRouter(Router):
                 endpoint=wrapper_func,
                 methods=["GET"],
                 include_in_schema=include_in_schema,
+                name=name,
             )
             return func
 

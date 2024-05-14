@@ -20,8 +20,21 @@ class HoloViewsFormatter(FormatterFactory):
 
         @formatting.formatter(hv.core.ViewableElement)
         @formatting.formatter(hv.core.Layout)
+        @formatting.formatter(hv.HoloMap)
+        @formatting.formatter(hv.DynamicMap)
+        @formatting.formatter(hv.core.spaces.HoloMap)
+        @formatting.formatter(hv.core.ndmapping.UniformNdMapping)
+        @formatting.formatter(hv.core.ndmapping.NdMapping)
         def _show_chart(
-            plot: hv.core.ViewableElement | hv.core.Layout,
+            plot: (
+                hv.core.ViewableElement
+                | hv.core.Layout
+                | hv.HoloMap
+                | hv.DynamicMap
+                | hv.core.spaces.HoloMap
+                | hv.core.ndmapping.UniformNdMapping
+                | hv.core.ndmapping.NdMapping
+            ),
         ) -> tuple[KnownMimeType, str]:
             backend_output = hv.render(plot)
 

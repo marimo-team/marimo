@@ -25,6 +25,7 @@ from marimo._server.file_manager import AppFileManager
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import static_notebook_template
+from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.paths import import_files
 
 # Root directory for static assets
@@ -74,7 +75,7 @@ class Exporter:
         html = static_notebook_template(
             html=index_html,
             user_config=config,
-            server_token="static",
+            server_token=SkewProtectionToken("static"),
             app_config=file_manager.app.config,
             filename=file_manager.filename,
             code=code,
@@ -110,13 +111,10 @@ class Exporter:
 
         graph = file_manager.app.graph
         codes: list[str] = [
-            graph.cells[cid].code
+            "# %%\n" + graph.cells[cid].code
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
-        code = (
-            f'\n__generated_with = "{__version__}"\n\n'
-            + "\n\n# ---\n\n".join(codes)
-        )
+        code = f'\n__generated_with = "{__version__}"\n\n' + "\n\n".join(codes)
 
         download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename

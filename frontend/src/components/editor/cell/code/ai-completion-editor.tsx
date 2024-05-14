@@ -57,6 +57,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   } = useCompletion({
     api: "/api/ai/completion",
     headers: API.headers(),
+    streamMode: "text",
     body: {
       includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
       code: currentCode,

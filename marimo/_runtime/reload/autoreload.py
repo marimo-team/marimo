@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import gc
 import io
+import modulefinder
 import os
 import sys
 import threading
 import traceback
 import types
+import warnings
 import weakref
 from dataclasses import dataclass
 from importlib import reload
@@ -69,6 +71,59 @@ def modules_imported_by_cell(
     return modules
 
 
+class ModuleDependencyFinder:
+    def __init__(self) -> None:
+        # __file__ ->
+        self._module_dependencies: dict[str, dict[str, types.ModuleType]] = {}
+        self._failed_module_filenames: set[str] = set()
+
+    def find_dependencies(
+        self, module: types.ModuleType, excludes: list[str]
+    ) -> dict[str, types.ModuleType]:
+        if not hasattr(module, "__file__") or module.__file__ is None:
+            return {}
+
+        file = module.__file__
+        if module.__file__ in self._failed_module_filenames:
+            return {}
+
+        if file in self._module_dependencies:
+            return self._module_dependencies[file]
+
+        finder = modulefinder.ModuleFinder(excludes=excludes)
+        try:
+            with warnings.catch_warnings():
+                # We temporarily ignore warnings to avoid spamming the console,
+                # since the watcher runs in a loop
+                warnings.simplefilter("ignore")
+                finder.run_script(module.__file__)
+        except SyntaxError:
+            # user introduced a syntax error, maybe; still check if the
+            # module itself has been modified
+            return {}
+        except Exception:
+            # some modules like numpy fail when called with run_script;
+            # run_script takes a long time before failing on them, so
+            # don't try to analyze them again
+            self._failed_module_filenames.add(file)
+            return {}
+        else:
+            # False positives
+            self._module_dependencies[file] = finder.modules  # type: ignore[assignment]
+            return finder.modules  # type: ignore[return-value]
+
+    def cached(self, module: types.ModuleType) -> bool:
+        if not hasattr(module, "__file__") or module.__file__ is None:
+            return False
+
+        return module.__file__ in self._module_dependencies
+
+    def evict_from_cache(self, module: types.ModuleType) -> None:
+        file = module.__file__
+        if file in self._module_dependencies:
+            del self._module_dependencies[file]
+
+
 class ModuleReloader:
     """Thread-safe module reloader."""
 
@@ -83,6 +138,7 @@ class ModuleReloader:
         self.stale_modules: set[str] = set()
         # for thread-safety
         self.lock = threading.Lock()
+        self._module_dependency_finder = ModuleDependencyFinder()
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
@@ -170,6 +226,7 @@ class ModuleReloader:
                 self.modules_mtimes[modname] = pymtime
                 modified_modules.add(m)
                 self.stale_modules.add(modname)
+                self._module_dependency_finder.evict_from_cache(m)
 
             if not reload:
                 return modified_modules
@@ -197,8 +254,19 @@ class ModuleReloader:
                         msg.format(modname, traceback.format_exc(10)),
                     )
                     self.failed[py_filename] = pymtime
+                else:
+                    # TODO or always evict?
+                    self._module_dependency_finder.evict_from_cache(m)
+
             self.stale_modules.clear()
         return modified_modules
+
+    def get_module_dependencies(
+        self, module: types.ModuleType, excludes: list[str]
+    ) -> dict[str, types.ModuleType]:
+        return self._module_dependency_finder.find_dependencies(
+            module, excludes
+        )
 
 
 def update_function(old: object, new: object) -> None:

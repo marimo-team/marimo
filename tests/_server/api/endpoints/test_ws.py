@@ -12,6 +12,7 @@ from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
+from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -36,7 +37,7 @@ def create_response(
 
 
 HEADERS = {
-    "Marimo-Server-Token": "fake-token",
+    **token_header("fake-token"),
 }
 
 

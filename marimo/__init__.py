@@ -49,6 +49,7 @@ __all__ = [
     "refs",
     "right",
     "running_in_notebook",
+    "sidebar",
     "stat",
     "state",
     "status",
@@ -60,7 +61,7 @@ __all__ = [
     "video",
     "vstack",
 ]
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 from marimo._ast.app import App
 from marimo._ast.cell import Cell
@@ -85,6 +86,7 @@ from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.nav_menu import nav_menu
 from marimo._plugins.stateless.pdf import pdf
 from marimo._plugins.stateless.plain_text import plain_text
+from marimo._plugins.stateless.sidebar import sidebar
 from marimo._plugins.stateless.stat import stat
 from marimo._plugins.stateless.style import style
 from marimo._plugins.stateless.tabs import tabs

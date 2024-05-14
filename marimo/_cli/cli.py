@@ -23,6 +23,7 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
+from marimo._server.tokens import AuthToken
 from marimo._utils.marimo_path import MarimoPath
 
 DEVELOPMENT_MODE = False
@@ -66,6 +67,18 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def _resolve_token(
+    token: bool, token_password: Optional[str]
+) -> Optional[AuthToken]:
+    if token_password:
+        return AuthToken(token_password)
+    elif token is False:
+        # Empty means no auth
+        return AuthToken("")
+    # None means use the default (generated) token
+    return None
+
+
 main_help_msg = "\n".join(
     [
         "\b",
@@ -101,6 +114,20 @@ main_help_msg = "\n".join(
         ),
     ]
 )
+
+token_message = """
+    Use a token for authentication.
+    This enables session-based authentication.
+    A random token will be generated if --token-password is not set.
+
+    If --no-token is set, session-based authentication will not be used.
+    """
+
+token_password_message = """
+    Use a specific token for authentication.
+    This enables session-based authentication.
+    A random token will be generated if not set.
+    """
 
 
 @click.group(help=main_help_msg)
@@ -182,12 +209,28 @@ edit_help_msg = "\n".join(
     type=bool,
     help="Don't launch a browser.",
 )
+@click.option(
+    "--token/--no-token",
+    default=True,
+    show_default=True,
+    type=bool,
+    help=token_message,
+)
+@click.option(
+    "--token-password",
+    default=None,
+    show_default=True,
+    type=str,
+    help=token_password_message,
+)
 @click.argument("name", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def edit(
     port: Optional[int],
     host: str,
     headless: bool,
+    token: bool,
+    token_password: Optional[str],
     name: Optional[str],
     args: tuple[str],
 ) -> None:
@@ -228,6 +271,7 @@ def edit(
         include_code=True,
         watch=False,
         cli_args=parse_args(args),
+        auth_token=_resolve_token(token, token_password),
     )
 
 
@@ -255,10 +299,26 @@ def edit(
     type=bool,
     help="Don't launch a browser.",
 )
+@click.option(
+    "--token/--no-token",
+    default=True,
+    show_default=True,
+    type=bool,
+    help=token_message,
+)
+@click.option(
+    "--token-password",
+    default=None,
+    show_default=True,
+    type=str,
+    help=token_password_message,
+)
 def new(
     port: Optional[int],
     host: str,
     headless: bool,
+    token: bool,
+    token_password: Optional[str],
 ) -> None:
     start(
         file_router=AppFileRouter.new_file(),
@@ -271,6 +331,7 @@ def new(
         include_code=True,
         watch=False,
         cli_args={},
+        auth_token=_resolve_token(token, token_password),
     )
 
 
@@ -309,6 +370,20 @@ Example:
     help="Don't launch a browser.",
 )
 @click.option(
+    "--token/--no-token",
+    default=False,
+    show_default=True,
+    type=bool,
+    help=token_message,
+)
+@click.option(
+    "--token-password",
+    default=None,
+    show_default=True,
+    type=str,
+    help=token_password_message,
+)
+@click.option(
     "--include-code",
     is_flag=True,
     default=False,
@@ -342,6 +417,8 @@ def run(
     port: Optional[int],
     host: str,
     headless: bool,
+    token: bool,
+    token_password: Optional[str],
     include_code: bool,
     watch: bool,
     base_url: str,
@@ -369,6 +446,7 @@ def run(
         watch=watch,
         base_url=base_url,
         cli_args=parse_args(args),
+        auth_token=_resolve_token(token, token_password),
     )
 
 
@@ -431,6 +509,20 @@ Recommended sequence:
     type=bool,
     help="Don't launch a browser.",
 )
+@click.option(
+    "--token/--no-token",
+    default=True,
+    show_default=True,
+    type=bool,
+    help=token_message,
+)
+@click.option(
+    "--token-password",
+    default=None,
+    show_default=True,
+    type=str,
+    help=token_password_message,
+)
 @click.argument(
     "name",
     required=True,
@@ -451,6 +543,8 @@ def tutorial(
     port: Optional[int],
     host: str,
     headless: bool,
+    token: bool,
+    token_password: Optional[str],
     name: Literal[
         "intro",
         "dataflow",
@@ -500,6 +594,7 @@ def tutorial(
         headless=headless,
         watch=False,
         cli_args={},
+        auth_token=_resolve_token(token, token_password),
     )
 
 

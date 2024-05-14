@@ -35,6 +35,7 @@
     "@lezer/common": "^1.2.1",
     "@lezer/highlight": "^1.2.0",
     "@lezer/lr": "^1.4.0",
+    "@marimo-team/react-slotz": "^0.1.8",
     "@open-rpc/client-js": "^1.8.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "@radix-ui/colors": "^3.0.0",

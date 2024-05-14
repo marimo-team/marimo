@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { initializeUIElement } from "../core/dom/UIElement";
+import { initializeUIElement } from "../core/dom/ui-element";
 import { registerReactComponent } from "./core/registerReactComponent";
 import { ButtonPlugin } from "./impl/ButtonPlugin";
 import { CheckboxPlugin } from "./impl/CheckboxPlugin";
@@ -41,6 +41,7 @@ import { MermaidPlugin } from "./layout/mermaid/MermaidPlugin";
 import { AnyWidgetPlugin } from "./impl/anywidget/AnyWidgetPlugin";
 import { LazyPlugin } from "./layout/LazyPlugin";
 import { NavigationMenuPlugin } from "@/plugins/layout/NavigationMenuPlugin";
+import { initializeSidebarElement } from "./core/sidebar-element";
 
 // List of UI plugins
 export const UI_PLUGINS: Array<IPlugin<any, unknown>> = [
@@ -88,8 +89,9 @@ const LAYOUT_PLUGINS: Array<IStatelessPlugin<unknown>> = [
 ];
 
 export function initializePlugins() {
-  // Initialize UIElement
+  // Initialize custom DOM elements
   initializeUIElement();
+  initializeSidebarElement();
 
   // Initialize all the plugins.
   UI_PLUGINS.forEach(registerReactComponent);

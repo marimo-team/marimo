@@ -22,6 +22,7 @@
   ai_completion
   best_practices
   performance
+  authentication
   exporting
   deploying/index
 ```
@@ -48,6 +49,7 @@ These guides cover marimo's core concepts.
 | {doc}`wasm`                          | Running notebooks in the browser (no backend required!) |
 | {doc}`ai_completion`                 | Using AI to speed up your coding                        |
 | {doc}`exporting`                     | Exporting notebooks to HTML and flat scripts            |
+| {doc}`authentication`                | Authentication and security                             |
 | {doc}`deploying/index`               | Deploying marimo notebooks and apps                     |
 
 ```{admonition} Learn by doing!

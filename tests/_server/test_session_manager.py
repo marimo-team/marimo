@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from unittest.mock import MagicMock, Mock
 
@@ -33,6 +35,7 @@ def session_manager():
         lsp_server=MagicMock(spec=LspServer),
         user_config_manager=UserConfigManager(),
         cli_args={},
+        auth_token=None,
     )
 
 
