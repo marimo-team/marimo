@@ -140,9 +140,7 @@ class TestExportHTML:
 
 
 class TestExportHtmlSmokeTests:
-    def assert_not_errored(
-        self, p: subprocess.CompletedProcess[bytes]
-    ) -> None:
+    def assert_not_errored(self, p: subprocess.CompletedProcess[bytes]) -> None:
         assert p.returncode == 0
         assert not any(
             line.startswith("Traceback")
@@ -448,4 +446,5 @@ class TestExportIpynb:
         )
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
-        snapshot("ipynb.txt", output)
+        # ipynb has non-deterministic ids
+        snapshot("ipynb.txt", output, assert_equal=False)
