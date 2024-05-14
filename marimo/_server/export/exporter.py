@@ -7,6 +7,7 @@ import os
 from typing import cast
 
 from marimo import __version__
+from marimo._ast.cell import Cell, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -126,10 +127,19 @@ class Exporter:
     ) -> tuple[str, str]:
         import nbformat
 
+        def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:
+            markdown_string = get_markdown_from_cell(
+                Cell(_name="__", _cell=cell), cell.code
+            )
+            if markdown_string is not None:
+                return nbformat.v4.new_markdown_cell(markdown_string)  # type: ignore
+            else:
+                return nbformat.v4.new_code_cell(cell.code)  # type: ignore
+
         notebook = nbformat.v4.new_notebook()  # type: ignore
         graph = file_manager.app.graph
         notebook["cells"] = [
-            nbformat.v4.new_code_cell(graph.cells[cid].code)  # type: ignore
+            create_notebook_cell(graph.cells[cid])  # type: ignore
             for cid in dataflow.topological_sort(graph, graph.cells.keys())
         ]
 

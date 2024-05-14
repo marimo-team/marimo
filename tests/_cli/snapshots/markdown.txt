@@ -10,3 +10,9 @@ import marimo as mo
 ```{.python.marimo}
 slider = mo.ui.slider(0, 10)
 ```
+
+a markdown cell
+
+```{.python.marimo}
+mo.md(f"parametrized markdown: {slider}")
+```

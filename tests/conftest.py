@@ -178,6 +178,16 @@ def temp_marimo_file() -> Generator[str, None, None]:
             slider = mo.ui.slider(0, 10)
             return slider,
 
+        @app.cell
+        def __(mo):
+            mo.md("a markdown cell")
+            return
+
+        @app.cell
+        def __(mo, slider):
+            mo.md(f"parametrized markdown: {slider}")
+            return
+
         if __name__ == "__main__":
             app.run()
         """

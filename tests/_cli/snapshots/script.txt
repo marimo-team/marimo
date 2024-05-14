@@ -6,3 +6,9 @@ import marimo as mo
 
 # %%
 slider = mo.ui.slider(0, 10)
+
+# %%
+mo.md("a markdown cell")
+
+# %%
+mo.md(f"parametrized markdown: {slider}")
