@@ -8,13 +8,15 @@ import { useCellIds, useCellNames } from "@/core/cells/cells";
 interface Props {
   cellId: CellId;
   className?: string;
+  shouldScroll?: boolean;
+  skipScroll?: boolean;
   onClick?: () => void;
   variant?: "destructive" | "focus";
 }
 
 /* Component that adds a link to a cell, with styling. */
 export const CellLink = (props: Props): JSX.Element => {
-  const { className, cellId, variant, onClick } = props;
+  const { className, cellId, variant, onClick, skipScroll } = props;
   const cellName = useCellNames()[cellId] ?? "";
   const cellIndex = useCellIds().indexOf(cellId);
 
@@ -27,7 +29,7 @@ export const CellLink = (props: Props): JSX.Element => {
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
-        const succeeded = scrollToCell(cellId, variant);
+        const succeeded = scrollAndHighlightCell(cellId, variant, skipScroll);
         if (succeeded) {
           onClick?.();
         }
@@ -45,9 +47,10 @@ export const CellLinkError = (
   return <CellLink {...props} variant={"destructive"} />;
 };
 
-export function scrollToCell(
+export function scrollAndHighlightCell(
   cellId: CellId,
   variant?: "destructive" | "focus",
+  skipScroll?: boolean,
 ): boolean {
   const cellHtmlId = HTMLCellId.create(cellId);
   const cell: HTMLElement | null = document.getElementById(cellHtmlId);
@@ -56,7 +59,9 @@ export function scrollToCell(
     Logger.error(`Cell ${cellHtmlId} not found on page.`);
     return false;
   } else {
-    cell.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!skipScroll) {
+      cell.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 
     if (variant === "destructive") {
       cell.classList.add("error-outline");

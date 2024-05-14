@@ -23,7 +23,7 @@ import { NodeData, TreeElementsBuilder } from "./elements";
 import { layoutElements } from "./utils/layout";
 import { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 import useEvent from "react-use-event-hook";
-import { scrollToCell } from "../editor/links/cell-link";
+import { scrollAndHighlightCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";
 import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
@@ -113,7 +113,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
           });
         }}
         onNodeDoubleClick={(_event, node) => {
-          scrollToCell(node.id as CellId, "focus");
+          scrollAndHighlightCell(node.id as CellId, "focus");
         }}
         fitView={true}
         onNodesChange={onNodesChange}

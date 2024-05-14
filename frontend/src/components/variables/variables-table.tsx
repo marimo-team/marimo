@@ -137,6 +137,7 @@ const COLUMNS = [
               <CellLink
                 variant="focus"
                 cellId={declaredBy[0]}
+                skipScroll={true}
                 onClick={() => highlightInCell(declaredBy[0])}
               />
             ) : (
@@ -147,6 +148,7 @@ const COLUMNS = [
                       variant="focus"
                       key={cellId}
                       cellId={cellId}
+                      skipScroll={true}
                       className="whitespace-nowrap text-destructive"
                       onClick={() => highlightInCell(cellId)}
                     />
@@ -164,6 +166,7 @@ const COLUMNS = [
             <CellLinkList
               maxCount={3}
               cellIds={usedBy}
+              skipScroll={true}
               onClick={highlightInCell}
             />
           </div>

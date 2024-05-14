@@ -12,6 +12,7 @@ import { QueryType, asQueryCreator } from "./query";
 import { store } from "@/core/state/jotai";
 import { findReplaceAtom } from "./state";
 import { getAllEditorViews } from "@/core/cells/cells";
+import { syntaxTree } from "@codemirror/language";
 
 const setSearchQuery = StateEffect.define<SearchQuery>();
 
@@ -148,28 +149,55 @@ export const highlightTheme = EditorView.baseTheme({
 });
 
 /**
- * Poor-man's go to definition.
- *
  * This function will select the first occurrence of the given variable name.
  */
-export function goToDefinition(view: EditorView, variableName: string) {
+export function goToDefinition(
+  view: EditorView,
+  variableName: string,
+): boolean {
   const state = view.state;
-  const search = new SearchQuery({
-    search: variableName,
-    caseSensitive: true,
-    regexp: false,
-    replace: "",
-    wholeWord: true,
+  const tree = syntaxTree(state);
+
+  let found = false;
+  let from = 0;
+
+  tree.iterate({
+    enter: (node) => {
+      if (found) {
+        return false;
+      } // Stop traversal if found
+
+      // Check if the node is an identifier and matches the variable name
+      if (
+        node.name === "VariableName" &&
+        state.doc.sliceString(node.from, node.to) === variableName
+      ) {
+        from = node.from;
+        found = true;
+        return false; // Stop traversal
+      }
+
+      // Skip comments and strings
+      if (node.name === "Comment" || node.name === "String") {
+        return false;
+      }
+    },
   });
-  const query = asQueryCreator(search).create();
-  const result = query.nextMatch(state, 0, 0);
-  if (result) {
+
+  if (found) {
     view.focus();
     view.dispatch({
       selection: {
-        anchor: result.from,
-        head: result.from,
+        anchor: from,
+        head: from,
       },
+      // Unfortunately, EditorView.scrollIntoView does
+      // not support smooth scrolling.
+      effects: EditorView.scrollIntoView(from, {
+        y: "center",
+      }),
     });
+    return true;
   }
+  return false;
 }
