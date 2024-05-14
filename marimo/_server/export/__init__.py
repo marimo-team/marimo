@@ -105,12 +105,16 @@ async def run_app_then_export_as_reactive_html(
         rendered_stubs.append(stub.render())
 
     head = generator.render_head()
+    body = "\n".join(rendered_stubs)
+
     title = (
         parse_title(str(path.path))
         if app.config.app_title is None
         else app.config.app_title
     )
-    body = "\n".join(rendered_stubs)
+
+    max_width_dict = {"normal": "740px;", "medium": "1110px;", "full": "none;"}
+    max_width = max_width_dict[file_manager.app.config.width]
 
     html = f"""<!doctype html>
     <html lang="en">
@@ -120,7 +124,9 @@ async def run_app_then_export_as_reactive_html(
             {head}
         </head>
         <body>
+          <div style="margin: 0 auto; max-width: {max_width}">
             {body}
+          </div>
         </body>
     </html>
     """
