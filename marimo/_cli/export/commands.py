@@ -266,7 +266,7 @@ Example:
 Watch for changes and regenerate the script on modification:
 
     \b
-    * marimo export script notebook.py -o notebook.ipynb --watch
+    * marimo export ipynb notebook.py -o notebook.ipynb --watch
 
 Requires nbformat to be installed.
 """
@@ -288,8 +288,8 @@ Requires nbformat to be installed.
     type=str,
     default=None,
     help="""
-    Output file to save the script to.
-    If not provided, the script will be printed to stdout.
+    Output file to save the ipynb file to. If not provided, the ipynb contents
+    will be printed to stdout.
     """,
 )
 @click.argument("name", required=True)
