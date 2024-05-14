@@ -178,16 +178,6 @@ def temp_marimo_file() -> Generator[str, None, None]:
             slider = mo.ui.slider(0, 10)
             return slider,
 
-        @app.cell
-        def __(mo):
-            mo.md("a markdown cell")
-            return
-
-        @app.cell
-        def __(mo, slider):
-            mo.md(f"parametrized markdown: {slider}")
-            return
-
         if __name__ == "__main__":
             app.run()
         """
@@ -267,6 +257,44 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
         with open(tmp_file, "w") as f:
             f.write(content)
             f.flush()
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_marimo_file_with_md() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            mo.md("markdown")
+            return
+
+        @app.cell
+        def __(mo):
+            mo.md(f"parametrized markdown {123}")
+            return
+
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
         yield tmp_file
     finally:
         tmp_dir.cleanup()

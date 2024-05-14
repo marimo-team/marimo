@@ -5,10 +5,4 @@ __generated_with = "0.0.0"
 import marimo as mo
 
 # %%
-mo.md("a markdown cell")
-
-# %%
 slider = mo.ui.slider(0, 10)
-
-# %%
-mo.md(f"parametrized markdown: {slider}")

@@ -439,9 +439,9 @@ class TestExportIpynb:
         not DependencyManager.has_nbformat(),
         reason="This test requires nbformat.",
     )
-    def test_export_ipynb(self, temp_marimo_file: str) -> None:
+    def test_export_ipynb(self, temp_marimo_file_with_md: str) -> None:
         p = subprocess.run(
-            ["marimo", "export", "ipynb", temp_marimo_file],
+            ["marimo", "export", "ipynb", temp_marimo_file_with_md],
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
