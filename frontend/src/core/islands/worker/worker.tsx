@@ -65,9 +65,12 @@ const requestHandler = createRPCRequestHandler({
 
     try {
       invariant(self.controller, "Controller not loaded");
-      const bridge = await self.controller.startSession({
+      const notebook = await self.controller.mountFilesystem({
         code: opts.code,
         filename: `app-${opts.appId}.py`,
+      });
+      const bridge = await self.controller.startSession({
+        ...notebook,
         onMessage: messageBuffer.push,
       });
       bridgeReady.resolve(bridge);
