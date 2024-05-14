@@ -72,6 +72,7 @@ async def run_app_then_export_as_reactive_html(
     include_code: bool,
 ) -> tuple[str, str]:
     from marimo._islands.island_generator import MarimoIslandGenerator
+    from marimo._server.api.utils import parse_title
     from marimo._server.export.utils import get_download_filename
 
     # Create a file router and file manager
@@ -91,22 +92,31 @@ async def run_app_then_export_as_reactive_html(
             )
         )
 
-    island_file_manager = AppFileManager.from_app(generator._app)
+    app = generator._app
+    island_file_manager = AppFileManager.from_app(app)
     session_view = await run_app_until_completion(
         island_file_manager, cli_args={}
     )
 
     rendered_stubs = []
     for stub in stubs:
-        stub._internal_app = generator._app
+        stub._internal_app = app
         stub._session_view = session_view
         rendered_stubs.append(stub.render())
 
     head = generator.render_head()
+    title = (
+        parse_title(str(path.path))
+        if app.config.app_title is None
+        else app.config.app_title
+    )
     body = "\n".join(rendered_stubs)
-    html = f"""
-    <html>
+
+    html = f"""<!doctype html>
+    <html lang="en">
         <head>
+          <meta charset="UTF-8" />
+          <title> {title} </title>
             {head}
         </head>
         <body>
