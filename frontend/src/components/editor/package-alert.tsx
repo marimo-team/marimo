@@ -40,6 +40,7 @@ import {
   PackageManagerName,
   PackageManagerNames,
 } from "../../core/config/config-schema";
+import { Logger } from "@/utils/Logger";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -246,7 +247,10 @@ async function installPackages(
 ) {
   clearPackageAlert();
   RuntimeState.INSTANCE.registerRunStart();
-  await sendInstallMissingPackages({ manager: manager });
+  await sendInstallMissingPackages({ manager: manager }).catch((error) => {
+    RuntimeState.INSTANCE.registerRunEnd();
+    Logger.error(error);
+  });
 }
 
 const InstallPackagesButton = ({

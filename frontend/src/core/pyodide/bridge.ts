@@ -42,6 +42,7 @@ import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
+import { toast } from "@/components/ui/use-toast";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -78,6 +79,15 @@ export class PyodideBridge implements RunRequests, EditRequests {
         this.initialized.resolve();
       });
       this.rpc.addMessageListener("initializedError", ({ error }) => {
+        // If already resolved, show a toast
+        if (this.initialized.status === "resolved") {
+          Logger.error(error);
+          toast({
+            title: "Error initializing",
+            description: error,
+            variant: "danger",
+          });
+        }
         this.initialized.reject(new Error(error));
       });
       this.rpc.addMessageListener("kernelMessage", ({ message }) => {

@@ -10,8 +10,7 @@ from typing import Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._config.config import MarimoConfig, merge_default_config
-from marimo._messaging.ops import KernelReady, serialize
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
     PyodideStderr,
@@ -27,10 +26,6 @@ from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
     ControlRequest,
-    CreationRequest,
-    ExecutionRequest,
-    SerializedQueryParams,
-    SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._server.export.exporter import Exporter
@@ -65,68 +60,6 @@ from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
-
-
-def instantiate(session: PyodideSession) -> None:
-    app = session.app_manager.app
-    execution_requests = tuple(
-        ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
-        for cell_data in app.cell_manager.cell_data()
-    )
-
-    session.put_control_request(
-        CreationRequest(
-            execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(list()),
-        )
-    )
-
-
-def create_session(
-    filename: str,
-    query_params: SerializedQueryParams,
-    message_callback: Callable[[str], None],
-    user_config: MarimoConfig,
-) -> tuple[PyodideSession, PyodideBridge]:
-    def write_kernel_message(op: KernelMessage) -> None:
-        message_callback(json.dumps({"op": op[0], "data": op[1]}))
-
-    app_file_manager = AppFileManager(filename=filename)
-    app = app_file_manager.app
-    app_metadata = AppMetadata(
-        query_params=query_params, filename=filename, cli_args={}
-    )
-
-    session = PyodideSession(
-        app_file_manager,
-        SessionMode.EDIT,
-        write_kernel_message,
-        app_metadata,
-        merge_default_config(user_config),
-    )
-
-    write_kernel_message(
-        (
-            KernelReady.name,
-            serialize(
-                KernelReady(
-                    codes=tuple(app.cell_manager.codes()),
-                    names=tuple(app.cell_manager.names()),
-                    configs=tuple(app.cell_manager.configs()),
-                    cell_ids=tuple(app.cell_manager.cell_ids()),
-                    layout=None,
-                    resumed=False,
-                    ui_values={},
-                    last_executed_code={},
-                    app_config=app.config,
-                )
-            ),
-        )
-    )
-
-    bridge = PyodideBridge(session)
-
-    return session, bridge
 
 
 class AsyncQueueManager:

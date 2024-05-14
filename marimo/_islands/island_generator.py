@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from textwrap import dedent
-from typing import List, Optional, Union, cast
+from typing import TYPE_CHECKING, List, Optional, Union, cast
 
 from marimo import __version__, _loggers
 from marimo._ast.app import App, InternalApp
@@ -14,7 +14,9 @@ from marimo._output.formatting import as_html
 from marimo._output.utils import uri_encode_component
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui import code_editor
-from marimo._server.session.session_view import SessionView
+
+if TYPE_CHECKING:
+    from marimo._server.session.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
 
@@ -80,6 +82,7 @@ class MarimoIslandStub:
 
         - str: The HTML code.
         """
+
         is_reactive = (
             is_reactive if is_reactive is not None else self._is_reactive
         )

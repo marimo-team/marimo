@@ -13,6 +13,7 @@ import {
 import { invariant } from "@/utils/invariant";
 import { FieldFunction } from "./functions/types";
 import { removeUndefined } from "./queries/removeUndefined";
+import { Logger } from "@/utils/Logger";
 
 // This code is adapted and simplified from https://github.com/vega/voyager
 
@@ -85,7 +86,7 @@ export function fromFieldQuery(fieldQ: FieldQuery): FieldDefinition {
   if (isWildcard(type)) {
     throw new Error("Wildcard not support");
   } else if (type === "ordinal") {
-    console.warn("Ordinal type is not supported. Using nominal type instead.");
+    Logger.warn("Ordinal type is not supported. Using nominal type instead.");
     type = "nominal";
   }
 

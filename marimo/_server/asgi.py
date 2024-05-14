@@ -4,10 +4,6 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
-from marimo._server.file_router import AppFileRouter
-from marimo._server.tokens import AuthToken
-from marimo._utils.marimo_path import MarimoPath
-
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
 
@@ -101,10 +97,13 @@ def create_asgi_app(
 
     import marimo._server.api.lifespans as lifespans
     from marimo._config.manager import UserConfigManager
+    from marimo._server.file_router import AppFileRouter
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
     from marimo._server.sessions import NoopLspServer, SessionManager
+    from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._utils.marimo_path import MarimoPath
 
     user_config_mgr = UserConfigManager()
     base_app = Starlette()
