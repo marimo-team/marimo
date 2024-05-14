@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 import mimetypes
 import os
 from typing import cast
@@ -118,6 +119,25 @@ class Exporter:
 
         download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename
+
+    def export_as_ipynb(
+        self,
+        file_manager: AppFileManager,
+    ) -> tuple[str, str]:
+        import nbformat
+
+        notebook = nbformat.v4.new_notebook()  # type: ignore
+        graph = file_manager.app.graph
+        notebook["cells"] = [
+            nbformat.v4.new_code_cell(graph.cells[cid].code)  # type: ignore
+            for cid in dataflow.topological_sort(graph, graph.cells.keys())
+        ]
+
+        stream = io.StringIO()
+        nbformat.write(notebook, stream)  # type: ignore
+        stream.seek(0)
+        download_filename = get_download_filename(file_manager, ".ipynb")
+        return stream.read(), download_filename
 
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
         import yaml

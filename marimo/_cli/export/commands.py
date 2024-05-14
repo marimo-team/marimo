@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 from typing import TYPE_CHECKING, Callable
 
 import click
@@ -9,6 +10,7 @@ import click
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import green
 from marimo._server.export import (
+    export_as_ipynb,
     export_as_md,
     export_as_script,
     run_app_then_export_as_html,
@@ -252,6 +254,65 @@ def md(
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
 
 
+@click.command(
+    help="""
+Export a marimo notebook as a Jupyter notebook in topological order.
+
+Example:
+
+    \b
+    * marimo export ipynb notebook.py -o notebook.ipynb
+
+Watch for changes and regenerate the script on modification:
+
+    \b
+    * marimo export script notebook.py -o notebook.ipynb --watch
+
+Requires nbformat to be installed.
+"""
+)
+@click.option(
+    "--watch/--no-watch",
+    default=False,
+    show_default=True,
+    type=bool,
+    help="""
+    Watch notebook for changes and regenerate the ipynb on modification.
+    If watchdog is installed, it will be used to watch the file.
+    Otherwise, file watcher will poll the file every 1s.
+    """,
+)
+@click.option(
+    "-o",
+    "--output",
+    type=str,
+    default=None,
+    help="""
+    Output file to save the script to.
+    If not provided, the script will be printed to stdout.
+    """,
+)
+@click.argument("name", required=True)
+def ipynb(
+    name: str,
+    output: str,
+    watch: bool,
+) -> None:
+    """
+    Export a marimo notebook as a Jupyter notebook in topological order.
+    """
+
+    def export_callback(file_path: MarimoPath) -> str:
+        return export_as_ipynb(file_path)[0]
+
+    if importlib.util.find_spec("nbformat") is None:
+        raise ModuleNotFoundError(
+            "Install `nbformat` from PyPI to use marimo export ipynb"
+        )
+    return watch_and_export(MarimoPath(name), output, watch, export_callback)
+
+
 export.add_command(html)
 export.add_command(script)
 export.add_command(md)
+export.add_command(ipynb)

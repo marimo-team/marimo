@@ -434,3 +434,18 @@ class TestExportMarkdown:
                     in line
                 )
                 break
+
+
+class TestExportIpynb:
+    @pytest.mark.skipif(
+        not DependencyManager.has_nbformat(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb(self, temp_marimo_file: str) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "md", temp_marimo_file],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        snapshot("ipynb.txt", output)

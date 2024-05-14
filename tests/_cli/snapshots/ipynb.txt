@@ -1,0 +1,12 @@
+---
+title: Notebook
+marimo-version: 0.5.2
+---
+
+```{.python.marimo}
+import marimo as mo
+```
+
+```{.python.marimo}
+slider = mo.ui.slider(0, 10)
+```
