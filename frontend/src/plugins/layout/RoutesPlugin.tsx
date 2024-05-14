@@ -35,15 +35,16 @@ const RoutesComponent = ({
       `Expected ${routes.length} children, but got ${childCount}`,
     );
   }
-  const handleFindMatch = useEvent((location: Location) => {
-    const match = router.match(location);
-    setMatched(match ? match[1] : null);
-  });
 
   const router = useMemo(() => new TinyRouter(routes), [routes]);
   const [matched, setMatched] = useState<string | null>(() => {
     const match = router.match(window.location);
     return match ? match[1] : null;
+  });
+
+  const handleFindMatch = useEvent((location: Location) => {
+    const match = router.match(location);
+    setMatched(match ? match[1] : null);
   });
 
   useEffect(() => {

@@ -11,7 +11,7 @@
                 mo.md("# marimo"),
                 mo.nav_menu(
                     {
-                        "#/home": f"{mo.icon('lucide:home')} Home",
+                        "#/": f"{mo.icon('lucide:home')} Home",
                         "#/about": f"{mo.icon('lucide:user')} About",
                         "#/contact": f"{mo.icon('lucide:phone')} Contact",
                         "Links": {
@@ -28,9 +28,10 @@
     @app.cell
     def __():
         mo.routes({
-            "#/home": mo.md("# Home"),
+            "#/": mo.md("# Home"),
             "#/about": mo.md("# About"),
             "#/contact": mo.md("# Contact"),
+            mo.routes.CATCH_ALL: mo.md("# Home"),
         })
         return
 ```
