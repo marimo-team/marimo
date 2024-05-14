@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Callable, Coroutine, Union
 
+from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -11,16 +12,7 @@ from marimo._plugins.stateless import lazy
 
 
 @mddoc
-def routes(
-    routes: dict[
-        str,
-        Union[
-            Callable[[], object],
-            Callable[[], Coroutine[None, None, object]],
-            object,
-        ],
-    ],
-) -> Html:
+class routes(Html):
     """
     Renders a list of routes that are switched based on the
     URL path.
@@ -43,9 +35,10 @@ def routes(
     ```python
     mo.routes(
         {
-            "#/home": render_home(),  # not lazily evaluated
+            "#/": render_home,
             "#/about": render_about,
             "#/contact": render_contact,
+            mo.routes.CATCH_ALL: render_home,
         }
     )
     ```
@@ -60,20 +53,34 @@ def routes(
     - An `Html` object.
     """
 
-    # For functions, wrap in lazy
-    children: list[str] = []
-    for _, content in routes.items():
-        if callable(content):
-            children.append(lazy.lazy(content).text)
-        else:
-            children.append(as_html(content).text)
+    CATCH_ALL = "/(.*)"
+    DEFAULT = "/"
 
-    return Html(
-        build_stateless_plugin(
-            "marimo-routes",
-            {
-                "routes": list(routes.keys()),
-            },
-            "".join(children),
+    def __init__(
+        self,
+        routes: dict[
+            str,
+            Union[
+                Callable[[], object],
+                Callable[[], Coroutine[None, None, object]],
+                object,
+            ],
+        ],
+    ) -> None:
+        # For functions, wrap in lazy
+        children: list[str] = []
+        for _, content in routes.items():
+            if callable(content):
+                children.append(lazy.lazy(content).text)
+            else:
+                children.append(h.div(as_html(content).text))
+
+        super().__init__(
+            build_stateless_plugin(
+                "marimo-routes",
+                {
+                    "routes": list(routes.keys()),
+                },
+                "".join(children),
+            )
         )
-    )
