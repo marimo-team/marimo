@@ -19,11 +19,29 @@ import { LargeSpinner } from "@/components/icons/large-spinner";
 import { TailwindIndicator } from "@/components/debug/indicator";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
+import { reactLazyWithPreload } from "@/utils/lazy";
 
 // Lazy imports
-const LazyHomePage = React.lazy(() => import("@/components/pages/home-page"));
-const LazyRunPage = React.lazy(() => import("@/components/pages/run-page"));
-const LazyEditPage = React.lazy(() => import("@/components/pages/edit-page"));
+const LazyHomePage = reactLazyWithPreload(
+  () => import("@/components/pages/home-page"),
+);
+const LazyRunPage = reactLazyWithPreload(
+  () => import("@/components/pages/run-page"),
+);
+const LazyEditPage = reactLazyWithPreload(
+  () => import("@/components/pages/edit-page"),
+);
+
+function preload(mode: string) {
+  if (mode === "home") {
+    LazyHomePage.preload();
+  } else if (mode === "read") {
+    LazyRunPage.preload();
+  } else {
+    LazyEditPage.preload();
+  }
+}
+preload(initialMode);
 
 /**
  * The root component of the Marimo app.
@@ -35,11 +53,13 @@ export const MarimoApp: React.FC = memo(() => {
 
   const renderBody = () => {
     if (initialMode === "home") {
-      return <LazyHomePage />;
+      return <LazyHomePage.Component />;
     } else if (initialMode === "read") {
-      return <LazyRunPage appConfig={appConfig} />;
+      return <LazyRunPage.Component appConfig={appConfig} />;
     } else {
-      return <LazyEditPage userConfig={userConfig} appConfig={appConfig} />;
+      return (
+        <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
+      );
     }
   };
 
