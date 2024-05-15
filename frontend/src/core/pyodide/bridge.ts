@@ -43,6 +43,8 @@ import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import { toast } from "@/components/ui/use-toast";
 import { generateUUID } from "@/utils/uuid";
+import { store } from "../state/jotai";
+import { notebookIsRunningAtom } from "../cells/cells";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -221,12 +223,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendCodeCompletionRequest = async (
     request: CodeCompletionRequest,
   ): Promise<null> => {
-    // TODO: Can we check if the kernel is running by looking at cell
-    // statuses here (notebookIsRunningAtom)?
-    await this.rpc.proxy.request.bridge({
-      functionName: "code_complete",
-      payload: request,
-    });
+    // Because the Pyodide worker is single-threaded, sending
+    // code completion requests while the kernel is running is useless
+    // and runs the risk of choking the kernel
+    const isRunning = store.get(notebookIsRunningAtom);
+    if (!isRunning) {
+      await this.rpc.proxy.request.bridge({
+        functionName: "code_complete",
+        payload: request,
+      });
+    }
     return null;
   };
 
