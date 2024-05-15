@@ -1,11 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 import mimetypes
 import os
 from typing import cast
 
 from marimo import __version__
+from marimo._ast.cell import Cell, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -118,6 +120,36 @@ class Exporter:
 
         download_filename = get_download_filename(file_manager, ".script.py")
         return code, download_filename
+
+    def export_as_ipynb(
+        self,
+        file_manager: AppFileManager,
+    ) -> tuple[str, str]:
+        import nbformat  # type: ignore
+
+        def create_notebook_cell(cell: CellImpl) -> nbformat.NotebookNode:
+            markdown_string = get_markdown_from_cell(
+                Cell(_name="__", _cell=cell), cell.code
+            )
+            if markdown_string is not None:
+                return nbformat.v4.new_markdown_cell(  # type: ignore
+                    markdown_string, id=cell.cell_id
+                )
+            else:
+                return nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)  # type: ignore
+
+        notebook = nbformat.v4.new_notebook()  # type: ignore
+        graph = file_manager.app.graph
+        notebook["cells"] = [
+            create_notebook_cell(graph.cells[cid])  # type: ignore
+            for cid in dataflow.topological_sort(graph, graph.cells.keys())
+        ]
+
+        stream = io.StringIO()
+        nbformat.write(notebook, stream)  # type: ignore
+        stream.seek(0)
+        download_filename = get_download_filename(file_manager, ".ipynb")
+        return stream.read(), download_filename
 
     def export_as_md(self, file_manager: AppFileManager) -> tuple[str, str]:
         import yaml
