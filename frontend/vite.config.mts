@@ -57,6 +57,17 @@ const htmlDevPlugin = (): Plugin => {
       const serverDoc = new JSDOM(serverHtml).window.document;
       const devDoc = new JSDOM(html).window.document;
 
+      // Login page
+      if (!serverHtml.includes("marimo-mode") && serverHtml.includes("login")) {
+        return `
+        <html>
+          <body>
+          In development mode, please run the server without authentication: <code style="color: red;">marimo run --no-auth</code>
+          </body>
+        </html>
+        `;
+      }
+
       // copies these elements from server to dev
       const copyElements = [
         "base",
@@ -101,6 +112,10 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
+        target: TARGET,
+        changeOrigin: true,
+      },
+      "/auth": {
         target: TARGET,
         changeOrigin: true,
       },

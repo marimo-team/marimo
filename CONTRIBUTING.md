@@ -182,10 +182,12 @@ _OR_
 pnpm build:watch
 ```
 
-For the backend, you can start marimo in development mode with
+For the backend, we recommend running without auth (`--no-token`):
 
 ```bash
-marimo -d edit
+marimo edit --no-token
+# or in debug mode
+marimo -d edit --no-token
 ```
 
 - **When to run with hot-reloading?**: When you are developing on the frontend
