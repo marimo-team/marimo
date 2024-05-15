@@ -23,7 +23,6 @@ class SetUIElementRequestManager:
     def process_request(
         self, request: SetUIElementValueRequest
     ) -> SetUIElementValueRequest | None:
-        ...
         request_batch: list[SetUIElementValueRequest] = []
         if request.token not in self._processed_request_tokens:
             request_batch.append(request)

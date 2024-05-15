@@ -64,7 +64,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
           // Pass the version to the worker
           /* @vite-ignore */
           name: getMarimoVersion(),
-        }
+        },
       );
 
       // Create the RPC
@@ -129,7 +129,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       this.rpc.proxy.request.setInterruptBuffer(this.interruptBuffer);
     } else {
       Logger.warn(
-        "Not running in a secure context; interrupts are not available."
+        "Not running in a secure context; interrupts are not available.",
       );
     }
   }
@@ -198,7 +198,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendFormat = async (
-    request: FormatRequest
+    request: FormatRequest,
   ): Promise<Record<CellId, string>> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "format",
@@ -213,13 +213,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
   sendInstallMissingPackages = async (
-    request: SendInstallMissingPackages
+    request: SendInstallMissingPackages,
   ): Promise<null> => {
     this.putControlRequest(request);
     return null;
   };
   sendCodeCompletionRequest = async (
-    request: CodeCompletionRequest
+    request: CodeCompletionRequest,
   ): Promise<null> => {
     // TODO: Can we check if the kernel is running by looking at cell
     // statuses here (notebookIsRunningAtom)?
@@ -239,7 +239,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return API.post<SaveUserConfigRequest>(
       "/kernel/save_user_config",
       request,
-      { baseUrl: "/" }
+      { baseUrl: "/" },
     );
   };
 
@@ -295,7 +295,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendListFiles = async (
-    request: FileListRequest
+    request: FileListRequest,
   ): Promise<FileListResponse> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "list_files",
@@ -324,7 +324,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendCreateFileOrFolder = async (
-    request: FileCreateRequest
+    request: FileCreateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "create_file_or_directory",
@@ -334,7 +334,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendDeleteFileOrFolder = async (
-    request: FileDeleteRequest
+    request: FileDeleteRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "delete_file_or_directory",
@@ -344,7 +344,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendRenameFileOrFolder = async (
-    request: FileMoveRequest
+    request: FileMoveRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "move_file_or_directory",
@@ -354,7 +354,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendUpdateFile = async (
-    request: FileUpdateRequest
+    request: FileUpdateRequest,
   ): Promise<FileOperationResponse> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "update_file",
@@ -388,7 +388,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   exportAsMarkdown = async (
-    request: ExportAsMarkdownRequest
+    request: ExportAsMarkdownRequest,
   ): Promise<string> => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
