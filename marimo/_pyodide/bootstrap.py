@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING, Callable
+from uuid import uuid4
 
 from marimo._messaging.ops import KernelReady, serialize
 from marimo._runtime.requests import (
@@ -31,7 +32,9 @@ def instantiate(session: PyodideSession) -> None:
     session.put_control_request(
         CreationRequest(
             execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(list()),
+            set_ui_element_value_request=SetUIElementValueRequest(
+                list(), token=str(uuid4)
+            ),
         )
     )
 

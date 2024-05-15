@@ -37,6 +37,8 @@ class ExecuteMultipleRequest:
 class SetUIElementValueRequest:
     # (object id, value) tuples
     ids_and_values: List[Tuple[UIElementId, Any]]
+    # uniquely identifies the request
+    token: str
 
 
 @dataclass

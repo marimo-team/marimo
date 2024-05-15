@@ -29,8 +29,8 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
-from marimo._runtime.utils.control_requests import (
-    merge_set_ui_element_requests,
+from marimo._runtime.utils.set_ui_element_request_manager import (
+    SetUIElementRequestManager,
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
@@ -353,35 +353,17 @@ def launch_pyodide_kernel(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)
         )
 
+    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
+
     async def listen_messages() -> None:
         while True:
-            request = await control_queue.get()
-            if isinstance(request, requests.SetUIElementValueRequest):
-                # batch set UI element requests
-                set_ui_element_requests: list[
-                    requests.SetUIElementValueRequest
-                ] = []
-
-                while not set_ui_element_queue.empty():
-                    set_ui_element_requests.append(
-                        set_ui_element_queue.get_nowait()
-                    )
-
-                if not set_ui_element_requests:
-                    # We already processed the request in the control queue.
-                    # each set_ui_element_request is both in the main control
-                    # queue and the set_ui_element_queue. It would be
-                    # cleaner to separate requests out into their own
-                    # queues, but then we'd need additional logic
-                    # for preserving the order of requests and for determining
-                    # when a request is available.
-                    continue
-                request = merge_set_ui_element_requests(
-                    set_ui_element_requests
-                )
-
+            request: ControlRequest | None = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            await kernel.handle_message(request)
+            if isinstance(request, requests.SetUIElementValueRequest):
+                request = ui_element_request_mgr.process_request(request)
+
+            if request is not None:
+                await kernel.handle_message(request)
 
     async def listen_completion() -> None:
         while True:

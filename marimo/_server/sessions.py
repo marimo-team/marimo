@@ -26,6 +26,7 @@ from multiprocessing import connection
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
 from typing import Any, Optional
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
@@ -429,7 +430,7 @@ class Session:
             CreationRequest(
                 execution_requests=execution_requests,
                 set_ui_element_value_request=SetUIElementValueRequest(
-                    request.zip(),
+                    request.zip(), token=str(uuid4())
                 ),
             )
         )
