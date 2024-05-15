@@ -38,12 +38,14 @@ import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import { toast } from "@/components/ui/use-toast";
+import { generateUUID } from "@/utils/uuid";
+import { store } from "../state/jotai";
+import { notebookIsRunningAtom } from "../cells/cells";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -236,7 +238,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Because the Pyodide worker is single-threaded, sending
     // code completion requests while the kernel is running is useless
     // and runs the risk of choking the kernel
-    if (!RuntimeState.INSTANCE.running()) {
+    const isRunning = store.get(notebookIsRunningAtom);
+    if (!isRunning) {
       await this.rpc.proxy.request.bridge({
         functionName: "code_complete",
         payload: request,
@@ -321,6 +324,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         update.objectId,
         update.value,
       ]),
+      token: generateUUID(),
     });
     return null;
   };

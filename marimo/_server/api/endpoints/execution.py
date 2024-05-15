@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from starlette.authentication import requires
 
@@ -42,8 +43,9 @@ async def set_ui_element_values(
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
     app_state.require_current_session().put_control_request(
-        SetUIElementValueRequest(body.zip())
+        SetUIElementValueRequest(body.zip(), token=str(uuid4()))
     )
+
     return SuccessResponse()
 
 
