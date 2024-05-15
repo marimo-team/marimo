@@ -90,8 +90,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
   }, []);
 
   const { connection } = useMarimoWebSocket({
-    autoInstantiate:
-      userConfig.runtime.auto_instantiate || viewState.mode === "read",
+    autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);
       const names = cells.map((cell) => cell.name);

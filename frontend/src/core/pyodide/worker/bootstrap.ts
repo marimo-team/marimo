@@ -151,8 +151,9 @@ export class DefaultWasmController implements WasmController {
         user_config=js.user_config.to_py(),
       )
 
-      def init():
-        instantiate(session)
+      def init(auto_instantiate=True):
+        if auto_instantiate:
+          instantiate(session)
         asyncio.create_task(session.start())
 
       bridge, init`,
@@ -170,7 +171,7 @@ export class DefaultWasmController implements WasmController {
       })
       .then(() => {
         loadSpan.end();
-        init();
+        init(userConfig.runtime.auto_instantiate);
       });
 
     return bridge;

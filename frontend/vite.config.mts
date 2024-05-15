@@ -26,7 +26,15 @@ const htmlDevPlugin = (): Plugin => {
           : "edit";
         html = html.replace("{{ base_url }}", "");
         html = html.replace("{{ title }}", "marimo");
-        html = html.replace("{{ user_config }}", JSON.stringify({}));
+        html = html.replace(
+          "{{ user_config }}",
+          JSON.stringify({
+            // Add/remove user config here while developing
+            // runtime: {
+            //   auto_instantiate: false,
+            // },
+          }),
+        );
         html = html.replace("{{ app_config }}", JSON.stringify({}));
         html = html.replace("{{ server_token }}", "");
         if (process.env.VITE_MARIMO_VERSION) {
