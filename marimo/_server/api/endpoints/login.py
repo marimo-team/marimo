@@ -24,7 +24,7 @@ LOGIN_PAGE = """
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Login Page</title>
+<title>marimo</title>
 </head>
 <body style="
     background-color: #f4f4f9;
