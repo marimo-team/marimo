@@ -26,7 +26,15 @@ const htmlDevPlugin = (): Plugin => {
           : "edit";
         html = html.replace("{{ base_url }}", "");
         html = html.replace("{{ title }}", "marimo");
-        html = html.replace("{{ user_config }}", JSON.stringify({}));
+        html = html.replace(
+          "{{ user_config }}",
+          JSON.stringify({
+            // Add/remove user config here while developing
+            // runtime: {
+            //   auto_instantiate: false,
+            // },
+          }),
+        );
         html = html.replace("{{ app_config }}", JSON.stringify({}));
         html = html.replace("{{ server_token }}", "");
         if (process.env.VITE_MARIMO_VERSION) {
@@ -48,6 +56,17 @@ const htmlDevPlugin = (): Plugin => {
 
       const serverDoc = new JSDOM(serverHtml).window.document;
       const devDoc = new JSDOM(html).window.document;
+
+      // Login page
+      if (!serverHtml.includes("marimo-mode") && serverHtml.includes("login")) {
+        return `
+        <html>
+          <body>
+          In development mode, please run the server without authentication: <code style="color: red;">marimo run --no-auth</code>
+          </body>
+        </html>
+        `;
+      }
 
       // copies these elements from server to dev
       const copyElements = [
@@ -93,6 +112,10 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
+        target: TARGET,
+        changeOrigin: true,
+      },
+      "/auth": {
         target: TARGET,
         changeOrigin: true,
       },

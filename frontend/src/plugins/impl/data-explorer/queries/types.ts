@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Query } from "compassql/build/src/query";
-import { VisualizationSpec } from "react-vega";
-import { FieldDefinition, EncodingChannel } from "../encoding";
-import { NamedData } from "vega-lite/build/src/data";
-import { TopLevel, FacetedUnitSpec } from "vega-lite/build/src/spec";
+import type { Query } from "compassql/build/src/query";
+import type { VisualizationSpec } from "react-vega";
+import type { FieldDefinition, EncodingChannel } from "../encoding";
+import type { NamedData } from "vega-lite/build/src/data";
+import type { TopLevel, FacetedUnitSpec } from "vega-lite/build/src/spec";
 
 export interface PlotFieldInfo {
   fieldDef: FieldDefinition;

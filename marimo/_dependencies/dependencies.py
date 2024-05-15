@@ -144,7 +144,7 @@ class DependencyManager:
 
     @staticmethod
     def has_matplotlib() -> bool:
-        """Return True if plotly is installed."""
+        """Return True if matplotlib is installed."""
         return importlib.util.find_spec("matplotlib") is not None
 
     @staticmethod
@@ -161,3 +161,8 @@ class DependencyManager:
     def has_ipython() -> bool:
         """Return True if IPython is installed."""
         return importlib.util.find_spec("IPython") is not None
+
+    @staticmethod
+    def has_nbformat() -> bool:
+        """Return True if nbformat is installed."""
+        return importlib.util.find_spec("nbformat") is not None

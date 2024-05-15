@@ -192,7 +192,7 @@ const config: PlaywrightTestConfig = {
       url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
     },
-    WASM_SERVER,
+    // WASM_SERVER,
   ],
 };
 

@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
-import { mountFilesystem } from "./fs";
+import { WasmFileSystem } from "./fs";
 import { Logger } from "../../../utils/Logger";
 import { SerializedBridge, WasmController } from "./types";
 import { invariant } from "../../../utils/invariant";
@@ -99,10 +99,17 @@ export class DefaultWasmController implements WasmController {
     span.end("ok");
   }
 
-  protected mountFilesystem(opts: { code: string; filename: string | null }) {
-    return t.wrapAsync(mountFilesystem)({
+  async mountFilesystem(opts: { code: string; filename: string | null }) {
+    const span = t.startSpan("mountFilesystem");
+    // Set up the filesystem
+    WasmFileSystem.createHomeDir(this.requirePyodide);
+    WasmFileSystem.mountFS(this.requirePyodide);
+    await WasmFileSystem.populateFilesToMemory(this.requirePyodide);
+    span.end("ok");
+    return WasmFileSystem.initNotebookCode({
       pyodide: this.requirePyodide,
-      ...opts,
+      code: opts.code,
+      filename: opts.filename,
     });
   }
 
@@ -113,12 +120,7 @@ export class DefaultWasmController implements WasmController {
     onMessage: (message: JsonString<OperationMessage>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
-    // Set up the filesystem
-    const { filename, content } = await this.mountFilesystem({
-      code: opts.code,
-      filename: opts.filename,
-    });
-
+    const { code, filename, onMessage, queryParameters, userConfig } = opts;
     // We pass down a messenger object to the code
     // This is used to have synchronous communication between the JS and Python code
     // Previously, we used a queue, but this would not properly flush the queue
@@ -126,13 +128,13 @@ export class DefaultWasmController implements WasmController {
     //
     // This adds a messenger object to the global scope (import js; js.messenger.callback)
     self.messenger = {
-      callback: opts.onMessage,
+      callback: onMessage,
     };
-    self.query_params = opts.queryParameters;
-    self.user_config = opts.userConfig;
+    self.query_params = queryParameters;
+    self.user_config = userConfig;
 
-    const span = t.startSpan("startSession.runPythonAsync");
-    const [bridge, init] = await this.requirePyodide.runPythonAsync(
+    const span = t.startSpan("startSession.runPython");
+    const [bridge, init] = this.requirePyodide.runPython(
       `
       print("[py] Starting marimo...")
       import asyncio
@@ -143,14 +145,15 @@ export class DefaultWasmController implements WasmController {
       assert js.query_params, "query_params is not defined"
 
       session, bridge = create_session(
-        filename="${filename}",
+        filename="${filename || WasmFileSystem.NOTEBOOK_FILENAME}",
         query_params=js.query_params.to_py(),
         message_callback=js.messenger.callback,
         user_config=js.user_config.to_py(),
       )
 
-      def init():
-        instantiate(session)
+      def init(auto_instantiate=True):
+        if auto_instantiate:
+          instantiate(session)
         asyncio.create_task(session.start())
 
       bridge, init`,
@@ -162,13 +165,13 @@ export class DefaultWasmController implements WasmController {
     // as it blocks the initial code from being shown.
     const loadSpan = t.startSpan("loadPackagesFromImports");
     void this.requirePyodide
-      .loadPackagesFromImports(content, {
+      .loadPackagesFromImports(code, {
         messageCallback: Logger.log,
         errorCallback: Logger.error,
       })
       .then(() => {
         loadSpan.end();
-        init();
+        init(userConfig.runtime.auto_instantiate);
       });
 
     return bridge;

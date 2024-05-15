@@ -26,8 +26,12 @@ from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
     ControlRequest,
+    SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.utils.set_ui_element_request_manager import (
+    SetUIElementRequestManager,
+)
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
@@ -69,6 +73,11 @@ class AsyncQueueManager:
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
         self.control_queue = asyncio.Queue[requests.ControlRequest]()
+
+        # set UI elements duplicated in another queue so they can be batched
+        self.set_ui_element_queue = asyncio.Queue[
+            requests.SetUIElementValueRequest
+        ]()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue = asyncio.Queue[requests.CompletionRequest]()
@@ -115,6 +124,7 @@ class PyodideSession:
     async def start(self) -> None:
         self.kernel_task = launch_pyodide_kernel(
             control_queue=self._queue_manager.control_queue,
+            set_ui_element_queue=self._queue_manager.set_ui_element_queue,
             completion_queue=self._queue_manager.completion_queue,
             input_queue=self._queue_manager.input_queue,
             on_message=self._on_message,
@@ -127,6 +137,8 @@ class PyodideSession:
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put_nowait(request)
+        if isinstance(request, requests.SetUIElementValueRequest):
+            self._queue_manager.set_ui_element_queue.put_nowait(request)
 
     def put_completion_request(
         self, request: requests.CompletionRequest
@@ -287,6 +299,7 @@ class PyodideBridge:
 
 def launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
+    set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
     completion_queue: asyncio.Queue[CompletionRequest],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
@@ -340,11 +353,17 @@ def launch_pyodide_kernel(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)
         )
 
+    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
+
     async def listen_messages() -> None:
         while True:
-            request = await control_queue.get()
+            request: ControlRequest | None = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            await kernel.handle_message(request)
+            if isinstance(request, requests.SetUIElementValueRequest):
+                request = ui_element_request_mgr.process_request(request)
+
+            if request is not None:
+                await kernel.handle_message(request)
 
     async def listen_completion() -> None:
         while True:

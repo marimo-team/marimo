@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
-import { DataExplorerComponent } from "@/plugins/impl/data-explorer/DataExplorerPlugin";
+import { DataExplorerComponent } from "@/plugins/impl/data-explorer/ConnectedDataExplorerComponent";
 import { ChartSpec } from "@/plugins/impl/data-explorer/state/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";

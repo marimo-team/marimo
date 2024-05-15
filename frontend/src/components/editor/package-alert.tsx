@@ -13,7 +13,6 @@ import { saveUserConfig } from "@/core/network/requests";
 import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
 import { NativeSelect } from "../ui/native-select";
 import { cn } from "@/utils/cn";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
@@ -246,9 +245,7 @@ async function installPackages(
   clearPackageAlert: () => void,
 ) {
   clearPackageAlert();
-  RuntimeState.INSTANCE.registerRunStart();
   await sendInstallMissingPackages({ manager: manager }).catch((error) => {
-    RuntimeState.INSTANCE.registerRunEnd();
     Logger.error(error);
   });
 }

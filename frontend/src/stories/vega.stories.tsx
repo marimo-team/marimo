@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { VegaComponent } from "@/plugins/impl/vega/VegaPlugin";
+import VegaComponent from "@/plugins/impl/vega/vega-component";
 import { Meta } from "@storybook/react";
 import {
   AREA_CHART,

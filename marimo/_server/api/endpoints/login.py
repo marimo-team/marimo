@@ -1,3 +1,4 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -23,7 +24,7 @@ LOGIN_PAGE = """
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Login Page</title>
+<title>marimo</title>
 </head>
 <body style="
     background-color: #f4f4f9;

@@ -38,16 +38,20 @@ import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
 import { API } from "../network/api";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
+import type { SaveWorkerSchema } from "./worker/save-worker";
 import { toast } from "@/components/ui/use-toast";
+import { generateUUID } from "@/utils/uuid";
+import { store } from "../state/jotai";
+import { notebookIsRunningAtom } from "../cells/cells";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
+  private saveRpc!: ReturnType<typeof getWorkerRPC<SaveWorkerSchema>>;
   private interruptBuffer?: Uint8Array;
   private messageConsumer: ((message: string) => void) | undefined;
 
@@ -67,8 +71,21 @@ export class PyodideBridge implements RunRequests, EditRequests {
         },
       );
 
+      // Create save worker
+      const saveWorker = new Worker(
+        // eslint-disable-next-line unicorn/relative-url-style
+        new URL("./worker/save-worker.ts", import.meta.url),
+        {
+          type: "module",
+          // Pass the version
+          /* @vite-ignore */
+          name: getMarimoVersion(),
+        },
+      );
+
       // Create the RPC
       this.rpc = getWorkerRPC<WorkerSchema>(worker);
+      this.saveRpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
 
       // Listeners
       this.rpc.addMessageListener("ready", () => {
@@ -155,10 +172,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendSave = async (request: SaveKernelRequest): Promise<null> => {
-    await this.rpc.proxy.request.bridge({
-      functionName: "save",
-      payload: request,
-    });
+    await this.saveRpc.proxy.request.saveNotebook(request);
     const code = await this.readCode();
     if (code.contents) {
       notebookFileStore.saveFile(code.contents);
@@ -224,7 +238,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     // Because the Pyodide worker is single-threaded, sending
     // code completion requests while the kernel is running is useless
     // and runs the risk of choking the kernel
-    if (!RuntimeState.INSTANCE.running()) {
+    const isRunning = store.get(notebookIsRunningAtom);
+    if (!isRunning) {
       await this.rpc.proxy.request.bridge({
         functionName: "code_complete",
         payload: request,
@@ -273,11 +288,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   readCode = async (): Promise<{ contents: string }> => {
-    const response = await this.rpc.proxy.request.bridge({
-      functionName: "read_code",
-      payload: undefined,
-    });
-    return response as { contents: string };
+    const contents = await this.saveRpc.proxy.request.readNotebook();
+    return { contents };
   };
 
   readSnippets = async (): Promise<SnippetsResponse> => {
@@ -312,6 +324,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         update.objectId,
         update.value,
       ]),
+      token: generateUUID(),
     });
     return null;
   };
