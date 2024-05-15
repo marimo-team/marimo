@@ -3,7 +3,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "985326b3",
+   "id": "Hbol",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -11,21 +11,21 @@
    ]
   },
   {
+   "cell_type": "markdown",
+   "id": "MJUe",
+   "metadata": {},
+   "source": [
+    "markdown"
+   ]
+  },
+  {
    "cell_type": "code",
    "execution_count": null,
-   "id": "aba12f0d",
+   "id": "vblA",
    "metadata": {},
    "outputs": [],
    "source": [
     "mo.md(f\"parametrized markdown {123}\")"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "id": "bd665075",
-   "metadata": {},
-   "source": [
-    "markdown"
    ]
   }
  ],

@@ -449,4 +449,4 @@ class TestExportIpynb:
         assert p.returncode == 0, p.stderr.decode()
         output = p.stdout.decode()
         # ipynb has non-deterministic ids
-        snapshot("ipynb.txt", output, assert_equal=False)
+        snapshot("ipynb.txt", output)

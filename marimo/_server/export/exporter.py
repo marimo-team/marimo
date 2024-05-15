@@ -132,9 +132,11 @@ class Exporter:
                 Cell(_name="__", _cell=cell), cell.code
             )
             if markdown_string is not None:
-                return nbformat.v4.new_markdown_cell(markdown_string)  # type: ignore
+                return nbformat.v4.new_markdown_cell(  # type: ignore
+                    markdown_string, id=cell.cell_id
+                )
             else:
-                return nbformat.v4.new_code_cell(cell.code)  # type: ignore
+                return nbformat.v4.new_code_cell(cell.code, id=cell.cell_id)  # type: ignore
 
         notebook = nbformat.v4.new_notebook()  # type: ignore
         graph = file_manager.app.graph
