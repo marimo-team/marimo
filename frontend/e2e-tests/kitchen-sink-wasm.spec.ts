@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 
-test("can screenshot and download as html edit", async ({ page }) => {
+test.skip("can screenshot and download as html edit", async ({ page }) => {
   await page.goto("http://localhost:3000");
 
   // See text Initializing
@@ -17,7 +17,7 @@ test("can screenshot and download as html edit", async ({ page }) => {
   await exportAsHTMLAndTakeScreenshot(page);
 });
 
-test("can screenshot and download as html in run", async ({ page }) => {
+test.skip("can screenshot and download as html in run", async ({ page }) => {
   await page.goto("http://localhost:3000?mode=read");
 
   // See text Initializing

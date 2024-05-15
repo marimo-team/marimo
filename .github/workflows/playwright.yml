@@ -15,7 +15,7 @@ env:
 jobs:
   test:
     timeout-minutes: 16
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
