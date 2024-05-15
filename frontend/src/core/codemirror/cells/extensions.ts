@@ -246,11 +246,11 @@ export function cellMovementBundle(
       stopPropagation: true,
       run: (ev) => {
         const cursorPos = ev.state.selection.main.head;
-        splitCell({ cellId, cursorPos }),
-          requestAnimationFrame(() => {
-            ev.contentDOM.blur();
-            moveToNextCell({ cellId, before: false }); // focus new cell
-          });
+        splitCell({ cellId, cursorPos });
+        requestAnimationFrame(() => {
+          ev.contentDOM.blur();
+          moveToNextCell({ cellId, before: false }); // focus new cell
+        });
 
         return true;
       },
