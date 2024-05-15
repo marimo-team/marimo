@@ -32,6 +32,15 @@ export interface WasmController {
     pyodideVersion: string;
   }): Promise<PyodideInterface>;
   /**
+   * Mount the filesystem
+   * @param opts.code - The code to mount
+   * @param opts.filename - The filename to mount, if any
+   */
+  mountFilesystem(opts: {
+    code: string;
+    filename: string | null;
+  }): Promise<{ code: string; filename: string }>;
+  /**
    * Start the session
    * @param opts.code - The code to start with
    * @param opts.fallbackCode - The code to fallback to

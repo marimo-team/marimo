@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { DefaultWasmController } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
 import { RawBridge, SerializedBridge, WasmController } from "./types";
 import { Deferred } from "../../../utils/Deferred";
-import { syncFileSystem } from "./fs";
+import { WasmFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
 import { prettyError } from "../../../utils/errors";
 import {
@@ -23,6 +22,11 @@ import { UserConfig } from "@/core/config/config-schema";
 import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
 import { t } from "./tracer";
 import { once } from "@/utils/once";
+import { getController } from "./getController";
+
+/**
+ * Web worker responsible for running the notebook.
+ */
 
 declare const self: Window & {
   pyodide: PyodideInterface;
@@ -48,19 +52,6 @@ async function loadPyodideAndPackages() {
     rpc.send.initializedError({
       error: prettyError(error),
     });
-  }
-}
-
-// Load the controller
-// Falls back to the default controller
-async function getController(version: string): Promise<WasmController> {
-  try {
-    const controller = await import(
-      /* @vite-ignore */ `/wasm/controller.js?version=${version}`
-    );
-    return controller;
-  } catch {
-    return new DefaultWasmController();
   }
 }
 
@@ -94,6 +85,10 @@ const requestHandler = createRPCRequestHandler({
     started = true;
     try {
       invariant(self.controller, "Controller not loaded");
+      await self.controller.mountFilesystem?.({
+        code: opts.code,
+        filename: opts.filename,
+      });
       const startSession = t.wrapAsync(
         self.controller.startSession.bind(self.controller),
       );
@@ -205,7 +200,7 @@ const requestHandler = createRPCRequestHandler({
 
     // Sync the filesystem if we're saving, creating, deleting, or renaming a file
     if (namesThatRequireSync.has(functionName)) {
-      void syncFileSystem(self.pyodide, false);
+      void WasmFileSystem.persistFilesToRemote(self.pyodide);
     }
 
     span.end();

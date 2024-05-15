@@ -2,46 +2,36 @@
 import type { PyodideInterface } from "pyodide";
 import { Logger } from "../../../utils/Logger";
 import { defaultUserConfig } from "@/core/config/config-schema";
-import { getFS } from "@/core/pyodide/worker/getFS";
 import { SerializedBridge } from "@/core/pyodide/worker/types";
 import { OperationMessage } from "@/core/kernel/messages";
 import { JsonString } from "@/utils/json/base64";
 import { DefaultWasmController } from "@/core/pyodide/worker/bootstrap";
-import { invariant } from "@/utils/invariant";
+import { WasmFileSystem } from "@/core/pyodide/worker/fs";
 
 export class ReadonlyWasmController extends DefaultWasmController {
-  private MOUNT_POINT = "/marimo";
-
   override async bootstrap(opts: {
     version: string;
     pyodideVersion: string;
   }): Promise<PyodideInterface> {
     const pyodide = await super.bootstrap(opts);
-
-    // Make dir and change to it
-    const fs = getFS(pyodide);
-    fs.mkdir(this.MOUNT_POINT);
-    fs.chdir(this.MOUNT_POINT);
-
     return pyodide;
   }
 
-  protected override mountFilesystem(opts: {
-    code: string;
-    filename: string | null;
-  }) {
+  override async mountFilesystem(opts: { code: string; filename: string }) {
     const { code, filename } = opts;
-    invariant(filename, "Filename is required");
-
     // Write file
     try {
-      const fs = getFS(this.requirePyodide);
-      fs.writeFile(`${this.MOUNT_POINT}/${filename}`, code);
+      WasmFileSystem.createHomeDir(this.requirePyodide);
+      return WasmFileSystem.initNotebookCode({
+        pyodide: this.requirePyodide,
+        code,
+        filename,
+      });
     } catch (error) {
       Logger.error(error);
     }
 
-    return Promise.resolve({ content: code, filename });
+    return { code, filename };
   }
 
   override async startSession(opts: {

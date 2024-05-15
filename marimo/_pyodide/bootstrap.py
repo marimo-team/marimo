@@ -13,6 +13,8 @@ from marimo._runtime.requests import (
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.model import SessionMode
+from marimo._server.models.models import SaveRequest
+from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
     from marimo._config.config import MarimoConfig
@@ -83,3 +85,12 @@ def create_session(
     bridge = PyodideBridge(session)
 
     return session, bridge
+
+
+def save_file(
+    request: str,
+    filename: str,
+) -> None:
+    parsed = parse_raw(json.loads(request), SaveRequest)
+    app_file_manager = AppFileManager(filename=filename)
+    app_file_manager.save(parsed)
