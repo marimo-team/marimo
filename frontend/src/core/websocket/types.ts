@@ -3,10 +3,10 @@
 import ReconnectingWebSocket from "partysocket/ws";
 
 export enum WebSocketState {
-  CONNECTING = 0,
-  OPEN = 1,
-  CLOSING = 2,
-  CLOSED = 3,
+  CONNECTING = "CONNECTING",
+  OPEN = "CONNECTED",
+  CLOSING = "CLOSING",
+  CLOSED = "CLOSED",
 }
 
 export enum WebSocketClosedReason {
