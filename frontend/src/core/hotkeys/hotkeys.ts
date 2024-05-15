@@ -183,6 +183,11 @@ const DEFAULT_HOT_KEY = {
     group: "Editing",
     key: "Mod-p",
   },
+  "cell.splitCell": {
+    name: "Split cell",
+    group: "Editing",
+    key: "Mod-Shift-'",
+  },
 
   // Global Actions
   "global.hideCode": {
