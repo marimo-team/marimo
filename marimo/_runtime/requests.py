@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
+from uuid import uuid4
 
 from marimo._ast.cell import CellId_t
 from marimo._config.config import MarimoConfig
@@ -38,7 +39,7 @@ class SetUIElementValueRequest:
     # (object id, value) tuples
     ids_and_values: List[Tuple[UIElementId, Any]]
     # uniquely identifies the request
-    token: str
+    token: str = field(default_factory=lambda: str(uuid4()))
 
 
 @dataclass
