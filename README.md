@@ -14,6 +14,7 @@
 <p align="center">
 <a href="https://pypi.org/project/marimo/"><img src="https://img.shields.io/pypi/v/marimo?color=%2334D058&label=pypi" /></a>
 <a href="https://anaconda.org/conda-forge/marimo"><img src="https://img.shields.io/conda/vn/conda-forge/marimo.svg"/></a>
+<a href="https://discord.gg/JE7nhX6mD8"><img src="https://img.shields.io/badge/Chat%20on-Discord-blue?logo=discord&logoColor=white" /></a>
 <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo" /></a>
 </p>
 
