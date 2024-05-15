@@ -9,7 +9,6 @@ import {
   VegaLiteUnitSpec,
 } from "./types";
 import { LayerSpec, UnitSpec } from "vega-lite/build/src/spec";
-import { uniq } from "lodash-es";
 
 const ParamNames = {
   point(layerNum: number | undefined) {
@@ -124,7 +123,7 @@ export function getSelectionParamNames(
     );
   }
   if ("layer" in spec) {
-    return uniq(spec.layer.flatMap(getSelectionParamNames));
+    return [...new Set(spec.layer.flatMap(getSelectionParamNames))];
   }
   return [];
 }
