@@ -62,11 +62,12 @@ class KernelRuntimeContext(RuntimeContext):
 
     @contextmanager
     def provide_ui_ids(self, prefix: str) -> Iterator[None]:
+        old_id_provider = self._id_provider
         try:
             self._id_provider = IDProvider(prefix)
             yield
         finally:
-            self._id_provider = None
+            self._id_provider = old_id_provider
 
     def take_id(self) -> str:
         if self._id_provider is None:

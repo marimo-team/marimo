@@ -16,6 +16,7 @@ import time
 import traceback
 from multiprocessing import connection
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, cast
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
@@ -1137,7 +1138,8 @@ class Kernel:
     async def function_call_request(
         self, request: FunctionCallRequest
     ) -> tuple[HumanReadableStatus, JSONType]:
-        function = get_context().function_registry.get_function(
+        ctx = get_context()
+        function = ctx.function_registry.get_function(
             request.namespace, request.function_name
         )
         error_title, error_message = "", ""
@@ -1158,7 +1160,18 @@ class Kernel:
             )
             debug(error_title, error_message)
         else:
-            with self._install_execution_context(cell_id=function.cell_id):
+            with self._install_execution_context(
+                cell_id=function.cell_id
+            ), ctx.provide_ui_ids(str(uuid4())):
+                # Usually UI element IDs are deterministic, based on
+                # cell id, so that element values can be matched up
+                # with objects on notebook/app re-connection.
+                #
+                # We're using a non-deterministic ID prefix so that
+                # UI elements created in an RPC shouldn't evict UI
+                # elements associated with its owning cell. But that
+                # means we won't be able to restore their values
+                # on reconnection.
                 try:
                     response = function(request.args)
                     if asyncio.iscoroutine(response):
@@ -1181,6 +1194,7 @@ class Kernel:
                         % (request.function_name, request.args, str(e))
                     )
                     debug(error_title, error_message)
+
         # Couldn't call function, or function call failed
         return (
             HumanReadableStatus(
