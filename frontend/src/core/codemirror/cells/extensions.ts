@@ -11,7 +11,10 @@ import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 
 export interface MovementCallbacks
-  extends Pick<CellActions, "sendToTop" | "sendToBottom" | "moveToNextCell"> {
+  extends Pick<
+    CellActions,
+    "splitCell" | "sendToTop" | "sendToBottom" | "moveToNextCell"
+  > {
   onRun: () => void;
   deleteCell: () => void;
   createAbove: () => void;
@@ -42,6 +45,7 @@ export function cellMovementBundle(
     focusDown,
     sendToTop,
     sendToBottom,
+    splitCell,
     moveToNextCell,
     toggleHideCode,
     aiCellCompletion,
@@ -233,6 +237,21 @@ export function cellMovementBundle(
         if (closed) {
           ev.contentDOM.focus();
         }
+        return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.splitCell").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        const cursorPos = ev.state.selection.main.head;
+        splitCell({ cellId, cursorPos });
+        requestAnimationFrame(() => {
+          ev.contentDOM.blur();
+          moveToNextCell({ cellId, before: false }); // focus new cell
+        });
+
         return true;
       },
     },

@@ -91,7 +91,7 @@ const CellEditorInternal = ({
   const editorViewParentRef = useRef<HTMLDivElement>(null);
 
   const loading = status === "running" || status === "queued";
-  const { sendToTop, sendToBottom } = useCellActions();
+  const { splitCell, sendToTop, sendToBottom } = useCellActions();
 
   const handleDelete = useEvent(() => {
     // Cannot delete running cells, since we're waiting for their output.
@@ -154,6 +154,7 @@ const CellEditorInternal = ({
         focusDown,
         sendToTop,
         sendToBottom,
+        splitCell,
         moveToNextCell,
         toggleHideCode,
         aiCellCompletion: () => {
@@ -214,6 +215,7 @@ const CellEditorInternal = ({
     moveToNextCell,
     sendToTop,
     sendToBottom,
+    splitCell,
     toggleHideCode,
     updateCellCode,
     handleDelete,
