@@ -23,8 +23,6 @@ You can check if Python is running in a marimo notebook with
 when developing library code that integrates with marimo.
 ```
 
-
-
 |                           |                                                                           |
 | :------------------------ | :------------------------------------------------------------------------ |
 | {doc}`displaying_objects` | Richly display objects by hooking into marimo's media viewer              |

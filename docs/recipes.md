@@ -119,8 +119,8 @@ mo.stop(form.value is None, mo.md("Submit the form to continue"))
 mo.md(f"Hello, {form.value}!")
 ```
 
-
 ## Grouping UI elements together
+
 ### Create an array of UI elements
 
 **Use cases.** In order to synchronize UI elements between the frontend and
@@ -206,8 +206,6 @@ dictionary.value
 in other outputs (like tables or markdown).
 
 **Recipe.**
-
-
 
 1. Import packages
 
@@ -353,8 +351,6 @@ table
 get_state()
 ```
 
-
-
 ### Create a form with multiple UI elements
 
 **Use cases.** Combine multiple UI elements into a form so that submission
@@ -389,7 +385,6 @@ form
 ```python
 form.value
 ```
-
 
 ## Working with buttons
 
@@ -456,7 +451,6 @@ mo.md("True!") if button.value else mo.md("False!")
 **Use cases.** For example, you have a cell showing a random sample of data,
 and you want to resample on button press.
 
-
 **Recipe.**
 
 1. Import packages
@@ -488,7 +482,6 @@ random.randint(0, 100)
 **Use cases.** Wait for confirmation before executing downstream cells
 (similar to a form).
 
-
 **Recipe.**
 
 1. Import packages
@@ -513,7 +506,6 @@ mo.stop(button.value == 0)
 
 mo.md(f"The button was clicked {button.value} times")
 ```
-
 
 ### Reveal an output when a button is pressed
 
@@ -560,7 +552,7 @@ import functools
 @functools.cache
 def compute_predictions(problem_parameters):
    # replace with your own function/parameters
-	...
+ ...
 ```
 
 Whenever `compute_predictions` is called with a value of `problem_parameters`

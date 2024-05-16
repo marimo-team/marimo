@@ -83,5 +83,3 @@ value on form submission.
 <figcaption>Use an array to group together elements or create a collection of elements that is determined at runtime</figcaption>
 </figure>
 </div>
-
-
