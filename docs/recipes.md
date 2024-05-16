@@ -552,7 +552,7 @@ import functools
 @functools.cache
 def compute_predictions(problem_parameters):
    # replace with your own function/parameters
- ...
+   ...
 ```
 
 Whenever `compute_predictions` is called with a value of `problem_parameters`
