@@ -102,7 +102,12 @@ def vstack(
 
     - `items`: A list of items.
     - `align`: Align items horizontally: start, end, center, or stretch.
+    - `justify`: Justify items vertically: start, center, end,
     - `gap`: Gap between items as a float in rem. 1rem is 16px by default.
+    - `heights`: "equal" to give items equal height;
+        or a list of relative heights with same length as `items`,
+        eg, [1, 2] means the second item is twice as tall
+        as the first; or `None` for a sensible default
 
     **Returns.**
 

@@ -49,6 +49,7 @@ class sidebar(Html):
     **Args.**
 
     - `item`: the content to display in the sidebar
+    - `footer`: the content to display at the bottom of the sidebar
 
     **Returns.**
 
