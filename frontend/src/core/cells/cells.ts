@@ -224,6 +224,22 @@ const {
       scrollKey: null,
     };
   },
+  focusCellAtDefinition: (state, action: { cellId: CellId; variableName: string }) => {
+    if (state.cellIds.length === 0) {
+      return state;
+    }
+
+    const { cellId, variableName } = action;
+    // can scroll immediately, without setting scrollKey in state, because
+    // CellArray won't need to re-render
+    focusAndScrollCellIntoView({
+      cellId: cellId,
+      cell: state.cellHandles[cellId],
+      config: state.cellData[cellId].config,
+      codeFocus: variableName
+    });
+    return state;
+  },
   focusCell: (state, action: { cellId: CellId; before?: boolean }) => {
     if (state.cellIds.length === 0) {
       return state;

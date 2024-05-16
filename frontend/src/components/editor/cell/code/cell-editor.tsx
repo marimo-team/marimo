@@ -47,6 +47,7 @@ export interface CellEditorProps
       | "createNewCell"
       | "deleteCell"
       | "focusCell"
+      | "focusCellAtDefinition"
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
@@ -78,6 +79,7 @@ const CellEditorInternal = ({
   createNewCell,
   deleteCell,
   focusCell,
+  focusCellAtDefinition,
   moveCell,
   moveToNextCell,
   updateCellConfig,
@@ -153,7 +155,7 @@ const CellEditorInternal = ({
             }
 
             const focusCellId = variable.declaredBy[0];
-            focusCell({cellId: focusCellId})
+            focusCellAtDefinition({cellId: focusCellId, variableName: variableName})
           }
           return true;
         }

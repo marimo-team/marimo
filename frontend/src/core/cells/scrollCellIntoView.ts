@@ -4,6 +4,7 @@ import { Logger } from "../../utils/Logger";
 import { CellId, HTMLCellId } from "./ids";
 import { CellHandle } from "@/components/editor/Cell";
 import { CellConfig } from "./types";
+import {goToDefinition} from "../codemirror/find-replace/search-highlight";
 
 export function focusAndScrollCellIntoView({
   cellId,
@@ -14,7 +15,7 @@ export function focusAndScrollCellIntoView({
   cellId: CellId;
   cell: RefObject<CellHandle>;
   config: CellConfig;
-  codeFocus: "top" | "bottom" | { from: number, to?: number } | undefined;
+  codeFocus: string | undefined;
 }) {
   if (!cell) {
     return;
@@ -35,14 +36,7 @@ export function focusAndScrollCellIntoView({
       return;
     }
     editor.focus();
-    if (codeFocus && typeof codeFocus != "string") {
-      editor.dispatch({
-        selection: {
-          anchor: codeFocus.from,
-          head: codeFocus.to ?? codeFocus.from,
-        },
-      });
-    } else if (codeFocus === "top") {
+    if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.
       editor.dispatch({
         selection: {
@@ -60,6 +54,8 @@ export function focusAndScrollCellIntoView({
           head: lastLine.from,
         },
       });
+    } else if (codeFocus) {
+      goToDefinition(editor, codeFocus)
     }
   }
 
