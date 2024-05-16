@@ -2,7 +2,7 @@
 
 import inspect
 import os
-from typing import get_args, Literal, Union, Final
+from typing import get_args, Literal, Union
 
 
 PythonTutorial = Literal[
@@ -18,7 +18,7 @@ PythonTutorial = Literal[
 
 MarkdownTutorial = Literal["markdown-format",]
 Tutorial = Union[PythonTutorial, MarkdownTutorial]
-tutorial_order: Final[list[Tutorial]] = [
+tutorial_order: list[Tutorial] = [
     "intro",
     "dataflow",
     "ui",
