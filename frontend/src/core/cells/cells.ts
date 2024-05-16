@@ -224,14 +224,14 @@ const {
       scrollKey: null,
     };
   },
-  focusCell: (state, action: { cellId: CellId; before: boolean }) => {
+  focusCell: (state, action: { cellId: CellId; before?: boolean }) => {
     if (state.cellIds.length === 0) {
       return state;
     }
 
     const { cellId, before } = action;
     const index = state.cellIds.indexOf(cellId);
-    let focusIndex = before ? index - 1 : index + 1;
+    let focusIndex = before === undefined ? index : before ? index - 1 : index + 1;
     // clamp
     focusIndex = clamp(focusIndex, 0, state.cellIds.length - 1);
     const focusCellId = state.cellIds[focusIndex];

@@ -18,6 +18,7 @@ export interface MovementCallbacks
   createBelow: () => void;
   moveUp: () => void;
   moveDown: () => void;
+  focusByVariableName: () => void
   focusUp: () => void;
   focusDown: () => void;
   toggleHideCode: () => boolean;
@@ -38,6 +39,7 @@ export function cellMovementBundle(
     createBelow,
     moveUp,
     moveDown,
+    focusByVariableName,
     focusUp,
     focusDown,
     sendToTop,
@@ -234,6 +236,15 @@ export function cellMovementBundle(
           ev.contentDOM.focus();
         }
         return true;
+      },
+    },
+    {
+      key: HOTKEYS.getHotkey("cell.goToDefinition").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        focusByVariableName()
+        return true
       },
     },
   ];

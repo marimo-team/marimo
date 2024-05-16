@@ -33,6 +33,10 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
+import {getPositionAtWordBounds} from "@/core/codemirror/completion/hints";
+import {useVariables} from "@/core/variables/state";
+import {VariableName} from "@/core/variables/types";
+import {goToDefinition} from "@/core/codemirror/find-replace/search-highlight";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -89,6 +93,7 @@ const CellEditorInternal = ({
   const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
+  const variables = useVariables();
 
   const loading = status === "running" || status === "queued";
   const { sendToTop, sendToBottom } = useCellActions();
@@ -127,6 +132,33 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell],
   );
+  const focusByVariableName = useCallback(
+    () => {
+        if (editorViewRef.current) {
+          const { state } = editorViewRef.current
+          const { from, to } = state.selection.main;
+          let variableName: string;
+
+          if (from !== to) {
+            variableName = state.doc.sliceString(from, to);
+          } else {
+            const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
+            variableName = state.doc.sliceString(startToken, endToken);
+          }
+
+          if (variableName) {
+            const variable = variables[variableName as VariableName];
+            if (!variable || variable.declaredBy.length === 0) {
+              return null;
+            }
+
+            const focusCellId = variable.declaredBy[0];
+            focusCell({cellId: focusCellId})
+          }
+          return true;
+        }
+    }, [editorViewRef, focusCell, goToDefinition, useVariables]
+  )
   const toggleHideCode = useEvent(() => {
     const newConfig: CellConfig = { hide_code: !hidden };
     // Fire-and-forget save
@@ -150,6 +182,7 @@ const CellEditorInternal = ({
         createBelow,
         moveUp,
         moveDown,
+        focusByVariableName,
         focusUp,
         focusDown,
         sendToTop,

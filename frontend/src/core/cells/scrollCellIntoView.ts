@@ -14,7 +14,7 @@ export function focusAndScrollCellIntoView({
   cellId: CellId;
   cell: RefObject<CellHandle>;
   config: CellConfig;
-  codeFocus: "top" | "bottom" | undefined;
+  codeFocus: "top" | "bottom" | { from: number, to?: number } | undefined;
 }) {
   if (!cell) {
     return;
@@ -35,7 +35,14 @@ export function focusAndScrollCellIntoView({
       return;
     }
     editor.focus();
-    if (codeFocus === "top") {
+    if (codeFocus && typeof codeFocus != "string") {
+      editor.dispatch({
+        selection: {
+          anchor: codeFocus.from,
+          head: codeFocus.to ?? codeFocus.from,
+        },
+      });
+    } else if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.
       editor.dispatch({
         selection: {
