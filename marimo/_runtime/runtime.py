@@ -557,10 +557,11 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
+        cell = self.graph.cells[cell_id]
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
-        defs_to_delete = self.graph.cells[cell_id].defs
+        defs_to_delete = cell.defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
@@ -589,6 +590,7 @@ class Kernel:
                     isolated=is_python_isolated(),
                 ).broadcast()
 
+        cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )

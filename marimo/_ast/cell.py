@@ -80,6 +80,11 @@ class CellStaleState:
     state: bool = False
 
 
+@dataclasses.dataclass
+class CellOutput:
+    output: Any = None
+
+
 @dataclasses.dataclass(frozen=True)
 class CellImpl:
     # hash of code
@@ -99,9 +104,12 @@ class CellImpl:
     # Mutable fields
     # config: explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
-    # status: status, inferred at runtime
+    # status: execution status, inferred at runtime
     _status: CellStatus = dataclasses.field(default_factory=CellStatus)
+    # whether the cell is stale, inferred at runtime
     _stale: CellStaleState = dataclasses.field(default_factory=CellStaleState)
+    # cells can optionally hold a reference to their output
+    _output: CellOutput = dataclasses.field(default_factory=CellOutput)
 
     def configure(self, update: dict[str, Any] | CellConfig) -> CellImpl:
         """Update the cell config.
@@ -188,6 +196,9 @@ class CellImpl:
         CellOp.broadcast_stale(
             cell_id=self.cell_id, stale=stale, stream=stream
         )
+
+    def set_output(self, output: Any) -> None:
+        self._output.output = output
 
 
 @dataclasses.dataclass
