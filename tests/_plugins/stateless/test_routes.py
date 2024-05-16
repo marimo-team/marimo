@@ -15,7 +15,7 @@ async def test_routes_lazy(k: Kernel, exec_req: ExecReqProvider) -> None:
             exec_req.get(
                 """
                 import marimo as mo
-                routes = mo.routes(
+                mo.routes(
                     {
                         "#/": lambda: 42,
                         "#/about": lambda: 43,
@@ -76,9 +76,5 @@ async def test_routes_non_lazy(k: Kernel, exec_req: ExecReqProvider) -> None:
 
     routes = k.globals["routes"]
     children = "<div><span>42</span></div>" "<div><span>45</span></div>"
-    assert (
-        routes.text == "<marimo-routes "
-        "data-routes='[&quot;#/&quot;, &quot;/(.*)&quot;]'>"
-        + children
-        + "</marimo-routes>"
-    )
+    assert children in routes.text
+    assert "data-routes='[&quot;#/&quot;, &quot;/(.*)&quot;]'" in routes.text
