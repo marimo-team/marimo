@@ -1,4 +1,5 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
 __generated_with = "0.5.2"
@@ -141,6 +142,7 @@ def __(mo, render_about, render_home, render_sales):
             "#/home": render_home,
             "#/about": render_about,
             "#/sales": render_sales,
+            mo.routes.CATCH_ALL: render_home,
         }
     )
     return

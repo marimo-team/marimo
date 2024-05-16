@@ -114,18 +114,18 @@ const HomePage: React.FC = () => {
         <NotebookList
           header="All notebooks"
           control={
-              <div className="flex items-center gap-2">
-                {fileResponse.loading && <Spinner size="small" />}
-                <Checkbox
-                  data-testid="include-markdown-checkbox"
-                  id="include-markdown"
-                  checked={includeMarkdown}
-                  onCheckedChange={(checked) =>
-                    setIncludeMarkdown(Boolean(checked))
-                  }
-                />
-                <Label htmlFor="include-markdown">Include markdown</Label>
-              </div>
+            <div className="flex items-center gap-2">
+              {fileResponse.loading && <Spinner size="small" />}
+              <Checkbox
+                data-testid="include-markdown-checkbox"
+                id="include-markdown"
+                checked={includeMarkdown}
+                onCheckedChange={(checked) =>
+                  setIncludeMarkdown(Boolean(checked))
+                }
+              />
+              <Label htmlFor="include-markdown">Include markdown</Label>
+            </div>
           }
           files={workspace.files}
           runningNotebooks={runningNotebooks}
