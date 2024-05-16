@@ -92,7 +92,8 @@ class AppFileManager:
     ) -> None:
         LOGGER.debug("Saving app to %s", filename)
         if filename.endswith(".md"):
-            # TODO: !! Remember just proof of concept. Need restructuring
+            # TODO: Remember just proof of concept, potentially needs
+            # restructuring.
             from marimo._server.export.exporter import Exporter
 
             contents, _ = Exporter().export_as_md(self)
