@@ -619,11 +619,17 @@ const {
     }
 
     // Figure out if we're at the start or end of a line to adjust the cursor positions
-    const isCursorAtLineStart = cell.code.length > 0 && cell.code[cursorPos-1] === "\n";
-    const isCursorAtLineEnd = cell.code.length > 0 && cell.code[cursorPos] === "\n";
+    const isCursorAtLineStart =
+      cell.code.length > 0 && cell.code[cursorPos - 1] === "\n";
+    const isCursorAtLineEnd =
+      cell.code.length > 0 && cell.code[cursorPos] === "\n";
 
-    const beforeAdjustedCursorPos = isCursorAtLineStart ? cursorPos - 1 : cursorPos
-    const afterAdjustedCursorPos = isCursorAtLineEnd ? cursorPos + 1 : cursorPos;
+    const beforeAdjustedCursorPos = isCursorAtLineStart
+      ? cursorPos - 1
+      : cursorPos;
+    const afterAdjustedCursorPos = isCursorAtLineEnd
+      ? cursorPos + 1
+      : cursorPos;
 
     const beforeCursorCode = getEditorCodeAsPython(
       cellHandle.editorView,
@@ -652,7 +658,7 @@ const {
         [newCellId]: createCell({
           id: newCellId,
           code: afterCursorCode,
-          edited: Boolean(afterCursorCode)
+          edited: Boolean(afterCursorCode),
         }),
       },
       cellRuntime: {
