@@ -278,11 +278,13 @@ def temp_marimo_file_with_md() -> Generator[str, None, None]:
 
         @app.cell
         def __(mo):
+            control_dep = None
             mo.md("markdown")
-            return
+            return control_dep
 
         @app.cell
-        def __(mo):
+        def __(mo, control_dep):
+            control_dep
             mo.md(f"parametrized markdown {123}")
             return
 

@@ -300,3 +300,6 @@ extend-exclude = [
     "**/__demo__/*",
     "base64.test.ts",
 ]
+
+[tool.black]
+line-length = 79

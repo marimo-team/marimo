@@ -11,11 +11,14 @@
    ]
   },
   {
-   "cell_type": "markdown",
+   "cell_type": "code",
+   "execution_count": null,
    "id": "MJUe",
    "metadata": {},
+   "outputs": [],
    "source": [
-    "markdown"
+    "control_dep = None\n",
+    "mo.md(\"markdown\")"
    ]
   },
   {
@@ -25,6 +28,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
+    "control_dep\n",
     "mo.md(f\"parametrized markdown {123}\")"
    ]
   }

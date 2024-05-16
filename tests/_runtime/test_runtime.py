@@ -15,6 +15,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.requests import (
     AppMetadata,
@@ -736,6 +737,99 @@ class TestExecution:
         await k.run([er_1])
         assert k.graph.cells[er_1.cell_id].config.disabled
         assert "x" not in k.globals
+
+
+class TestStoredOutput:
+    async def test_ui_element_in_output_stored(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    import marimo as mo
+
+                    mo.ui.checkbox()
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert isinstance(cell.output, UIElement)
+
+    async def test_ui_element_in_nested_output_stored(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    import marimo as mo
+
+                    [mo.ui.checkbox()]
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert isinstance(cell.output[0], UIElement)
+
+    async def test_non_ui_elements_not_stored(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    import marimo as mo
+
+                    'an output'
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.output is None
+
+    async def test_cell_output_cleared_on_rerun(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    import marimo as mo
+
+                    mo.ui.checkbox()
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert isinstance(cell.output, UIElement)
+
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    er.cell_id,
+                    """
+                    import marimo as mo
+
+                    raise ValueError
+                    """,
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.output is None
 
 
 class TestDisable:
