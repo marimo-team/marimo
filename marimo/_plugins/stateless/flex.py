@@ -22,7 +22,7 @@ def _flex(
     align: Optional[Literal["start", "end", "center", "stretch"]],
     wrap: bool,
     gap: float,
-    widths: Optional[Sequence[float]],
+    child_flexes: Optional[Sequence[Optional[float]]],
 ) -> Html:
     justify_content_map = {
         "start": "flex-start",
@@ -42,6 +42,7 @@ def _flex(
     style = create_style(
         {
             "display": "flex",
+            "flex": "1",
             "flex-direction": direction,
             "justify-content": justify_content_map[justify],
             "align-items": align_items_map[align],
@@ -51,12 +52,12 @@ def _flex(
     )
 
     def create_style_for_item(idx: int) -> Optional[str]:
-        if widths is None:
+        if child_flexes is None:
             return ""
-        width = widths[idx]
-        if width is None:
+        child_flex = child_flexes[idx]
+        if child_flex is None:
             return ""
-        return create_style({"flex": f"{width}"})
+        return create_style({"flex": f"{child_flex}"})
 
     grid_items = [
         h.div(as_html(item).text, style=create_style_for_item(i))
@@ -68,8 +69,13 @@ def _flex(
 @mddoc
 def vstack(
     items: Sequence[object],
+    *,
     align: Optional[Literal["start", "end", "center", "stretch"]] = None,
+    justify: Literal[
+        "start", "center", "end", "space-between", "space-around"
+    ] = "start",
     gap: float = 0.5,
+    heights: Optional[Literal["equal"] | Sequence[float]] = None,
 ) -> Html:
     """Stack items vertically, in a column.
 
@@ -105,17 +111,20 @@ def vstack(
     return _flex(
         items,
         direction="column",
-        justify="start",
+        justify=justify,
         align=align,
         wrap=False,
         gap=gap,
-        widths=None,
+        child_flexes=[1 for _ in range(len(items))]
+        if heights == "equal"
+        else heights,
     )
 
 
 @mddoc
 def hstack(
     items: Sequence[object],
+    *,
     justify: Literal[
         "start", "center", "end", "space-between", "space-around"
     ] = "space-between",
@@ -168,7 +177,9 @@ def hstack(
         align=align,
         wrap=wrap,
         gap=gap,
-        widths=[1 for _ in range(len(items))] if widths == "equal" else widths,
+        child_flexes=[1 for _ in range(len(items))]
+        if widths == "equal"
+        else widths,
     )
 
 
