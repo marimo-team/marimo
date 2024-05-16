@@ -93,7 +93,10 @@ def get_source_from_tag(tag: Element) -> str:
 
 
 def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
-    boolean_attrs = defaults | {k: v == "true" for k, v in tag.attrib.items()}
+    boolean_attrs = {
+        **defaults,
+        **{k: v == "true" for k, v in tag.attrib.items()},
+    }
     return CellConfig.from_dict(boolean_attrs)
 
 
