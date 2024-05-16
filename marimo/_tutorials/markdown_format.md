@@ -11,6 +11,7 @@ in markdown can be a little cumbersome.
 For example, here's the code that rendered the above title and
 paragraph:
 
+````md
 ```{python}
 mo.md(
     '''
@@ -21,6 +22,7 @@ mo.md(
     '''
 )
 ```
+````
 
 with markdown notebook support for marimo, you can write and save markdown
 directly, and marimo will execute the necessary Python code for you behind the

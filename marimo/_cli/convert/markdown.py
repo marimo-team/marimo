@@ -92,8 +92,8 @@ def get_source_from_tag(tag: Element) -> str:
     return source
 
 
-def get_cell_config_from_tag(tag: Element) -> CellConfig:
-    boolean_attrs = {k: v == "true" for k, v in tag.attrib.items()}
+def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
+    boolean_attrs = defaults | {k: v == "true" for k, v in tag.attrib.items()}
     return CellConfig.from_dict(boolean_attrs)
 
 
@@ -114,7 +114,10 @@ def _tree_to_app_obj(root: Element) -> SafeWrap:
 
     for child in root:
         name = child.get("name", "__")
-        cell_config = get_cell_config_from_tag(child)
+        # Default to hiding markdown cells.
+        cell_config = get_cell_config_from_tag(
+            child, hide_code=child.tag == MARIMO_MD
+        )
         source = get_source_from_tag(child)
 
         cell_id = app.cell_manager.create_cell_id()

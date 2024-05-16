@@ -316,6 +316,59 @@ def test_cli_tutorial() -> None:
     _check_contents(p, b"intro.py", contents)
 
 
+def test_cli_md_tutorial() -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "tutorial",
+            "markdown-format",
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+    _check_contents(p, b"markdown-format.md", contents)
+
+
+def test_cli_md_run(temp_md_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", temp_md_marimo_file, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='read'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+
+
+def test_cli_md_edit(temp_md_marimo_file: str) -> None:
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_md_marimo_file,
+            "-p",
+            str(port),
+            "--no-token",
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b"marimo-mode data-mode='edit'", contents)
+    _check_contents(
+        p, f"marimo-version data-version='{__version__}'".encode(), contents
+    )
+
+
 def test_cli_custom_host() -> None:
     port = _get_port()
     host = "localhost"
