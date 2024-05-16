@@ -365,7 +365,6 @@ See the
 [recipes for grouping UI elements together](/recipes.md#grouping-ui-elements-together)
 for example code.
 
-
 <a name="faq-on-change-last"></a>
 
 ### Why are my `on_change` handlers in an array all referencing the last element?
@@ -377,7 +376,6 @@ array = mo.ui.array(
   [mo.ui.button(on_change=lambda value: print(i)) for i in range(10)
 ])
 ```
-
 
 **Instead, do this**: Explicitly bind `i` to the current loop value:
 
@@ -415,7 +413,6 @@ x: "A" = ...
 `A` isn't made a reference.
 
 For Python 3.12+, marimo additionally implements annotation scoping.
-
 
 <a name="faq-dotenv"></a>
 

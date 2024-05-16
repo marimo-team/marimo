@@ -24,7 +24,6 @@ them in the last expression of the cell:
 </figure>
 </div>
 
-
 ```python
 import pandas as pd
 
@@ -45,7 +44,6 @@ elements.
 <figcaption>Rich, interactive displays</figcaption>
 </figure>
 </div>
-
 
 ```python
 import marimo as mo
@@ -81,7 +79,6 @@ and your selection is _automatically sent to Python as a Pandas dataframe_.
 </figure>
 </div>
 
-
 ```python
 # Cell 1 - display a dataframe
 import marimo as mo
@@ -99,7 +96,6 @@ table.value
 
 ## Transforming dataframes
 
-
 ### No-code transformations
 
 Use [`mo.ui.dataframe`](/api/inputs/dataframe/) to interactively
@@ -107,14 +103,12 @@ transform a dataframe with a GUI, no coding required!. When you're done, you
 can copy the code that the GUI generated for you and paste it into your
 notebook.
 
-
 <div align="center">
 <figure>
 <img src="/_static/docs-dataframe-transform.gif"/>
 <figcaption>Build transformations using a GUI</figcaption>
 </figure>
 </div>
-
 
 ```python
 # Cell 1
@@ -159,7 +153,6 @@ age_filter
 filtered_df = df[df["age"] < age_filter.value]
 mo.ui.table(filtered_df)
 ```
-
 
 ## Polars support
 

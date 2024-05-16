@@ -12,6 +12,7 @@ _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
 
 ## On cell change
+
 By default, when a cell is run or a UI element is interacted with, marimo
 automatically runs cells that reference any of its variables. **You can disable
 automatic execution of cell's descendants in the notebook settings menu by

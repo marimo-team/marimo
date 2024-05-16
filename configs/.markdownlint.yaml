@@ -1,0 +1,20 @@
+# See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md for all rules.
+default: true
+# line-length
+MD013: false
+# first-line-heading/first-line-h1
+MD041: false
+# no-inline-html
+MD033: false
+# no-alt-text
+MD045: false
+# link-fragments
+MD051: false
+# no-emphasis-as-heading
+MD036: false
+# heading-increment
+MD001: false
+# fenced-code-language
+MD040: false
+# ol-prefix
+MD029: false

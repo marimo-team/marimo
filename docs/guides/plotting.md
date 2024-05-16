@@ -223,7 +223,6 @@ selectable Plotly plots whose values are sent back to Python on selection.
 .. autofunction:: marimo.ui.plotly
 ```
 
-
 ## matplotlib
 
 To output a matplotlib plot in a cell's output area, include its `Axes` or

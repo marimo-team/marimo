@@ -10,7 +10,7 @@ from watchdog.observers import Observer
 
 
 class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
+    def end_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header(
@@ -18,7 +18,7 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         )
         super().end_headers()
 
-    def do_OPTIONS(self):
+    def do_OPTIONS(self) -> None:
         self.send_response(200, "ok")
         self.end_headers()
 
@@ -26,14 +26,14 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 class WheelBuilderHandler(PatternMatchingEventHandler):
     patterns = ["*.py"]  # Watch for changes in Python files
 
-    def on_any_event(self, event):
+    def on_any_event(self, event) -> None:
         print(f"Change detected: {event.src_path}")
         print("Building wheel...")
         subprocess.run(["python3", "-m", "build"])
         print("Wheel built successfully.")
 
 
-def serve():
+def serve() -> None:
     with socketserver.TCPServer(("", 8000), CORSHTTPRequestHandler) as httpd:
         httpd.allow_reuse_address = True
         print("Serving at http://localhost:8000")

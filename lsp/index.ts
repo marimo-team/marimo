@@ -27,7 +27,7 @@ const wss = new WebSocketServer(
   },
   () => {
     console.log(`Listening to http and ws requests on ${serverPort}`);
-  }
+  },
 );
 
 function toSocket(webSocket: ws): rpc.IWebSocket {
@@ -64,7 +64,7 @@ wss.on("connection", (client: ws, request: http.IncomingMessage) => {
   const localConnection = rpcServer.createServerProcess(
     "local",
     langServer[0],
-    langServer.slice(1)
+    langServer.slice(1),
   );
   const socket = toSocket(client);
   const connection = rpcServer.createWebSocketConnection(socket);

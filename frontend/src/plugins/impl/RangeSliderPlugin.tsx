@@ -130,7 +130,9 @@ const RangeSliderComponent = ({
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {`${prettyScientificNumber(valueMap(internalValue[0]))}, ${prettyScientificNumber(valueMap(internalValue[1]))}`}
+            {`${prettyScientificNumber(
+              valueMap(internalValue[0]),
+            )}, ${prettyScientificNumber(valueMap(internalValue[1]))}`}
           </div>
         )}
       </div>

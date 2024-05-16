@@ -26,7 +26,7 @@ module.exports = {
     "plugin:unicorn/all",
     // Testing
     "plugin:vitest/recommended",
-    // This removes rules that conflict with prettier.
+    // This removes rules that conflict with prettier/biomejs.
     "prettier",
   ],
   settings: {

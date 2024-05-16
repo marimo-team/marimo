@@ -7,7 +7,6 @@ any other Python script. For example,
 python my_marimo_notebook.py
 ```
 
-
 Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
@@ -18,4 +17,3 @@ up in your terminal.
 In the future, we may make UI element values configurable as command-line
 arguments, and optionally generate a PDF or HTML of the cell outputs.
 ```
-

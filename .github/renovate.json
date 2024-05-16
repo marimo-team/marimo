@@ -9,6 +9,9 @@
     "enabled": true,
     "packagePatterns": [".*sphinx.*"]
   },
+  "pre-commit": {
+    "enabled": true
+  },
   "pep621": {
     "enabled": false
   },
@@ -16,6 +19,11 @@
     {
       "depTypeList": ["peerDependencies"],
       "enabled": false
+    },
+    {
+      "groupName": "pre-commit dependencies",
+      "matchManagers": ["pre-commit"],
+      "description": "Weekly update of pre-commit dependencies"
     },
     {
       "packageNames": ["node"],
