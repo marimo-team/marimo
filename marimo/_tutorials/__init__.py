@@ -43,5 +43,5 @@ def get_tutorial_source(name: Tutorial) -> str:
     assert name in get_args(MarkdownTutorial)
     name = name.replace("-", "_")
     file = os.path.join(os.path.dirname(__file__), f"{name}.md")
-    with open(file, "r") as f:
+    with open(file, "r", encoding="utf8") as f:
         return f.read()
