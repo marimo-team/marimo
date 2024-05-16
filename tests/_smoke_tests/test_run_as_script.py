@@ -123,6 +123,9 @@ class TestRunTutorialsAsScripts:
         )
         self.assert_errored(p, reason="MultipleDefinitionError")
 
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
     def test_run_disabled_cells(self, tmp_path: pathlib.Path) -> None:
         code = """
 import marimo
