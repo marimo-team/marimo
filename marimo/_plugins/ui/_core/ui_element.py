@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import copy
 import uuid
+import weakref
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -22,7 +23,6 @@ from marimo._plugins.core.web_component import JSONType, build_ui_plugin
 from marimo._plugins.ui._core import ids
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.functions import Function
-from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.input import form as form_plugin
@@ -127,6 +127,19 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         self._initialize(*self._args)
         self._initialized = True
 
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            pass
+        else:
+            # When the UI element is destructed, it should be removed
+            # from the UIElementRegistry (which only holds a weakref to it).
+            finalizer = weakref.finalize(
+                self, ctx.ui_element_registry.delete, self._id, id(self)
+            )
+            # No need to clean up the registry at program teardown
+            finalizer.atexit = False
+
     def _initialize(
         self,
         component_name: str,
@@ -219,32 +232,6 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             + "</marimo-ui-element>"
         )
         super().__init__(text=text)
-
-    def _dispose(self) -> None:
-        """Handle used by the registry to clean-up this element on removal."""
-        try:
-            ctx = get_context()
-            ctx.function_registry.delete(namespace=self._id)
-        except ContextNotInitializedError:
-            pass
-
-    # bind the function python_exiting to ensure it still exists at Python
-    # destruction time; for graceful exits when running as a script
-    def __del__(
-        self, _python_exiting: Callable[..., bool] = python_exiting
-    ) -> None:
-        if _python_exiting():
-            # imports can fail when python is exiting; clean-up
-            # is not important when exiting anyway
-            return
-
-        try:
-            ctx = get_context()
-            ctx.ui_element_registry.delete(self._id, id(self))
-        except ContextNotInitializedError:
-            pass
-
-        super().__del__()
 
     @abc.abstractmethod
     def _convert_value(self, value: S) -> T:
