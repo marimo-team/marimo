@@ -5,6 +5,8 @@ import sys
 import weakref
 from typing import Any, Dict, Iterable, Mapping, TypeVar, Union
 
+from marimo._runtime.context.types import ContextNotInitializedError
+
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
 else:
@@ -154,6 +156,8 @@ class UIElementRegistry:
             return
 
         ui_element = self._objects[object_id]()
+        del self._objects[object_id]
+
         registered_python_id = (
             id(ui_element) if ui_element is not None else None
         )
@@ -165,9 +169,13 @@ class UIElementRegistry:
             # registration of another element when a cell re-runs
             return
 
-        if ui_element is not None:
-            del self._objects[object_id]
-            ui_element._dispose()
+        try:
+            ctx = get_context()
+        except ContextNotInitializedError:
+            pass
+        else:
+            ctx.function_registry.delete(namespace=object_id)
+
         if object_id in self._bindings:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
