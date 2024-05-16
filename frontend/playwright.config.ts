@@ -71,6 +71,13 @@ export function getAppUrl(app: ApplicationNames): string {
   }
   return getUrl(options.port, options.baseUrl);
 }
+export function getAppMode(app: ApplicationNames): "edit" | "run" {
+  const options: ServerOptions = appToOptions[app];
+  if (!options) {
+    throw new Error(`No server options for app: ${app}`);
+  }
+  return options.command;
+}
 
 // Reset file via git checkout
 export async function resetFile(app: ApplicationNames): Promise<void> {

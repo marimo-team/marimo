@@ -12,7 +12,7 @@ export interface ExperimentalFeatures {
 }
 
 const defaultValues: ExperimentalFeatures = {
-  markdown: import.meta.env.DEV,
+  markdown: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

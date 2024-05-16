@@ -1,14 +1,38 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { test, expect } from "@playwright/test";
-import { getAppUrl } from "../playwright.config";
-import { takeScreenshot } from "./helper";
+import { test, expect, Page, BrowserContext } from "@playwright/test";
+import { ApplicationNames, getAppMode, getAppUrl } from "../playwright.config";
+import { maybeRestartKernel, takeScreenshot } from "./helper";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 
-test("page renders edit feature in edit mode", async ({ page }) => {
-  const appUrl = getAppUrl("title.py");
-  await page.goto(appUrl);
+async function gotoPage(
+  app: ApplicationNames,
+  page: Page,
+  context: BrowserContext,
+) {
+  const url = getAppUrl(app);
+  const mode = getAppMode(app);
+
+  await page.goto(url);
+
+  // Verify is has loaded
+  if (mode === "edit") {
+    await maybeRestartKernel(page);
+  }
+}
+
+// Re-use page for all tests
+let page: Page;
+test.beforeAll(async ({ browser }) => {
+  page = await browser.newPage();
+});
+test.afterAll(async () => {
+  await page.close();
+});
+
+test("page renders edit feature in edit mode", async ({ context }) => {
+  await gotoPage("title.py", page, context);
 
   // 'title.py' to be in the document.
   expect(await page.getByText("title.py").count()).toBeGreaterThan(0);
@@ -22,9 +46,8 @@ test("page renders edit feature in edit mode", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
-test.skip("can bring up the find/replace dialog", async ({ page }) => {
-  const appUrl = getAppUrl("title.py");
-  await page.goto(appUrl);
+test.skip("can bring up the find/replace dialog", async ({ context }) => {
+  await gotoPage("title.py", page, context);
 
   // Wait for the cells to load
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -39,9 +62,8 @@ test.skip("can bring up the find/replace dialog", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
-test("can toggle to presenter mode", async ({ page }) => {
-  const appUrl = getAppUrl("title.py");
-  await page.goto(appUrl);
+test("can toggle to presenter mode", async ({ context }) => {
+  await gotoPage("title.py", page, context);
 
   // Can see output and code
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -65,9 +87,8 @@ test("can toggle to presenter mode", async ({ page }) => {
   await takeScreenshot(page, __filename);
 });
 
-test("page renders read only view in read mode", async ({ page }) => {
-  const appUrl = getAppUrl("components.py");
-  await page.goto(appUrl);
+test("page renders read only view in read mode", async ({ context }) => {
+  await gotoPage("components.py", page, context);
 
   // Filename is not visible
   await expect(page.getByText("components.py").last()).not.toBeVisible();
