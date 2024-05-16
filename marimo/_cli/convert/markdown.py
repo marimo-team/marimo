@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Literal, Optional
+from dataclasses import dataclass
+from typing import Any, Callable, Literal, Optional, Union
 
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
@@ -24,8 +25,9 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo._ast import codegen
-from marimo._ast.app import _AppConfig
-from marimo._ast.cell import CellConfig
+from marimo._ast.app import App, InternalApp, _AppConfig
+from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.compiler import compile_cell
 from marimo._cli.convert.utils import markdown_to_marimo
 
 # CSafeLoader is faster than SafeLoader.
@@ -34,8 +36,11 @@ try:
 except ImportError:
     from yaml import SafeLoader  # type: ignore[assignment]
 
+
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
+
+ConvertKeys = Union[Literal["marimo"], Literal["marimo-app"]]
 
 
 def _is_code_tag(text: str) -> bool:
@@ -60,7 +65,7 @@ def formatted_code_block(
     )
 
 
-def _tree_to_app(root: Element) -> str:
+def app_config_from_root(root: Element) -> _AppConfig:
     # Extract meta data from root attributes.
     config_keys = {"title": "app_title", "marimo-layout": "layout_file"}
     config = {
@@ -70,26 +75,88 @@ def _tree_to_app(root: Element) -> str:
     }
     # Try to pass on other attributes as is
     config.update({k: v for k, v in root.items() if k not in config_keys})
+    # Remove values particular to markdown saves.
+    config.pop("marimo-version", None)
+    return _AppConfig.from_untrusted_dict(config)
 
-    app_config = _AppConfig.from_untrusted_dict(config)
+
+def get_source_from_tag(tag: Element) -> str:
+    source = tag.text if tag.text else ""
+    if tag.tag == MARIMO_MD:
+        # Only check here to allow for empty code blocks.
+        if not (source and source.strip()):
+            return ""
+        source = markdown_to_marimo(source)
+    else:
+        assert tag.tag == MARIMO_CODE, f"Unknown tag: {tag.tag}"
+    return source
+
+
+def get_cell_config_from_tag(tag: Element, **defaults: bool) -> CellConfig:
+    boolean_attrs = {
+        **defaults,
+        **{k: v == "true" for k, v in tag.attrib.items()},
+    }
+    return CellConfig.from_dict(boolean_attrs)
+
+
+# TODO: Consider upstreaming some logic such that this isn't such a terrible
+# hack. At some point rewriting / overriding the markdown parser would be a
+# better idea than all these little work arounds.
+@dataclass
+class SafeWrap:
+    app: App
+
+    def strip(self) -> App:
+        return self.app
+
+
+def _tree_to_app_obj(root: Element) -> SafeWrap:
+    app_config = app_config_from_root(root)
+    app = InternalApp(App(**app_config.asdict()))
+
+    for child in root:
+        name = child.get("name", "__")
+        # Default to hiding markdown cells.
+        cell_config = get_cell_config_from_tag(
+            child, hide_code=child.tag == MARIMO_MD
+        )
+        source = get_source_from_tag(child)
+
+        cell_id = app.cell_manager.create_cell_id()
+        try:
+            cell_impl = compile_cell(source, cell_id)
+            cell_impl.configure(cell_config)
+            cell = Cell(_name=name, _cell=cell_impl)
+
+            app.cell_manager._register_cell(
+                cell,
+                app=app,
+            )
+        except SyntaxError:
+            # Cannot use register_unparsable_cell, since there is an
+            # expectation of a dedent and newlines.
+            app.cell_manager.register_cell(
+                cell_id=cell_id,
+                code=source,
+                config=cell_config,
+                name=name or "__",
+                cell=None,
+            )
+
+    return SafeWrap(app._app)
+
+
+def _tree_to_app(root: Element) -> str:
+    app_config = app_config_from_root(root)
 
     sources: list[str] = []
     names: list[str] = []
     cell_config: list[CellConfig] = []
     for child in root:
         names.append(child.get("name", "__"))
-        boolean_attrs = {k: v == "true" for k, v in child.attrib.items()}
-        cell_config.append(CellConfig.from_dict(boolean_attrs))
-
-        source = child.text if child.text else ""
-        if child.tag == MARIMO_MD:
-            # Only check here to allow for empty code blocks.
-            if not (source and source.strip()):
-                continue
-            source = markdown_to_marimo(source)
-        else:
-            assert child.tag == MARIMO_CODE, f"Unknown tag: {child.tag}"
-        sources.append(source)
+        cell_config.append(get_cell_config_from_tag(child))
+        sources.append(get_source_from_tag(child))
 
     return codegen.generate_filecontents(
         sources,
@@ -141,8 +208,9 @@ class MarimoParser(IdentityParser):
 
     meta: dict[str, Any]
 
-    output_formats: dict[Literal["marimo"], Callable[[Element], str]] = {  # type: ignore[assignment, misc]
+    output_formats: dict[ConvertKeys, Callable[[Element], Union[str, App]]] = {  # type: ignore[assignment, misc]
         "marimo": _tree_to_app,
+        "marimo-app": _tree_to_app_obj,
     }
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -358,6 +426,10 @@ class ExpandAndClassifyProcessor(BlockProcessor):
         add_paragraph()
         # Flush to indicate all blocks have been processed.
         blocks.clear()
+
+
+def convert_from_md_to_app(text: str) -> App:
+    return MarimoParser(output_format="marimo-app").convert(text)  # type: ignore[arg-type, return-value]
 
 
 def convert_from_md(text: str) -> str:

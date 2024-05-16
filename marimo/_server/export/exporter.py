@@ -155,6 +155,8 @@ class Exporter:
         import yaml
 
         from marimo._ast.app import _AppConfig
+        from marimo._ast.cell import Cell
+        from marimo._ast.compiler import compile_cell
         from marimo._cli.convert.markdown import (
             formatted_code_block,
             is_sanitized_markdown,
@@ -194,8 +196,26 @@ class Exporter:
             attributes = {k: "true" for k, v in attributes.items() if v}
             if cell_data.name != "__":
                 attributes["name"] = cell_data.name
-            # No "cell" means not parseable. As such, treat as code, as
-            # everything in marimo is code.
+            # No "cell" typically means not parseable. However newly added
+            # cells require compilation before cell is set.
+            # TODO: Refactor so it doesn't occur in export (codegen
+            # does this too)
+            if not cell:
+                try:
+                    cell_impl = compile_cell(
+                        code, cell_id=str(cell_data.cell_id)
+                    ).configure(cell_data.config)
+                    cell = Cell(
+                        _cell=cell_impl,
+                        _name=cell_data.name,
+                        _app=file_manager.app,
+                    )
+                    cell_data.cell = cell
+                except SyntaxError:
+                    pass
+
+            # Definitely no "cell"; as such, treat as code, as everything in
+            # marimo is code.
             if cell:
                 markdown = get_markdown_from_cell(cell, code)
                 # Unsanitized markdown is forced to code.

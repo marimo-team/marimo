@@ -1,12 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import inspect
 import json
 import os
 import pathlib
 import tempfile
-from typing import Any, Literal, Optional
+from typing import Any, Optional, get_args
 
 import click
 
@@ -24,6 +23,12 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.model import SessionMode
 from marimo._server.start import start
 from marimo._server.tokens import AuthToken
+from marimo._tutorials import (
+    PythonTutorial,
+    Tutorial,
+    get_tutorial_source,
+    tutorial_order,
+)
 from marimo._utils.marimo_path import MarimoPath
 
 DEVELOPMENT_MODE = False
@@ -476,15 +481,8 @@ tutorials, starting with the intro:
 Recommended sequence:
 
     \b
-    - intro
-    - dataflow
-    - ui
-    - markdown
-    - plots
-    - layout
-    - fileformat
-    - for-jupyter-users
 """
+    + "\n".join(f"    - {name}" for name in tutorial_order)
 )
 @click.option(
     "-p",
@@ -526,18 +524,7 @@ Recommended sequence:
 @click.argument(
     "name",
     required=True,
-    type=click.Choice(
-        [
-            "intro",
-            "dataflow",
-            "ui",
-            "markdown",
-            "plots",
-            "layout",
-            "fileformat",
-            "for-jupyter-users",
-        ]
-    ),
+    type=click.Choice(tutorial_order),
 )
 def tutorial(
     port: Optional[int],
@@ -545,41 +532,12 @@ def tutorial(
     headless: bool,
     token: bool,
     token_password: Optional[str],
-    name: Literal[
-        "intro",
-        "dataflow",
-        "ui",
-        "markdown",
-        "plots",
-        "layout",
-        "fileformat",
-        "for-jupyter-users",
-    ],
+    name: Tutorial,
 ) -> None:
-    from marimo._tutorials import (
-        dataflow,
-        fileformat,
-        intro,
-        layout,
-        marimo_for_jupyter_users,
-        markdown,
-        plots,
-        ui,
-    )
-
-    tutorials = {
-        "intro": intro,
-        "dataflow": dataflow,
-        "ui": ui,
-        "markdown": markdown,
-        "plots": plots,
-        "layout": layout,
-        "fileformat": fileformat,
-        "for-jupyter-users": marimo_for_jupyter_users,
-    }
-    source = inspect.getsource(tutorials[name])
+    source = get_tutorial_source(name)
     d = tempfile.TemporaryDirectory()
-    fname = os.path.join(d.name, name + ".py")
+    extension = "py" if name in get_args(PythonTutorial) else "md"
+    fname = os.path.join(d.name, f"{name}.{extension}")
     path = MarimoPath(fname)
     path.write_text(source)
 
