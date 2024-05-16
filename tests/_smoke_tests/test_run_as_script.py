@@ -122,3 +122,30 @@ class TestRunTutorialsAsScripts:
             capture_output=True,
         )
         self.assert_errored(p, reason="MultipleDefinitionError")
+
+    def test_run_disabled_cells(self, tmp_path: pathlib.Path) -> None:
+        code = """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def enabled_cell():
+    print("enabled cell")
+
+@app.cell(disabled=True)
+def disabled_cell():
+    print("disabled cell")
+
+if __name__ == "__main__":
+    app.run()
+        """
+        file = tmp_path / "mod.py"
+        file.write_text(code)
+        p = subprocess.run(
+            ["python", str(file)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+        assert "enabled cell" in p.stdout.decode()
+        assert "disabled cell" not in p.stdout.decode()
