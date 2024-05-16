@@ -37,20 +37,23 @@ def nav_menu(
 
     # You can also nest dictionaries to create submenus
     ```python
-    nav_menu = mo.nav_menu({
-        "/overview": "Overview",
-        "Sales": {
-            "/sales": "Overview",
-            "/sales/invoices": {
-                "label": "Invoices",
-                "description": "View invoices",
+    nav_menu = mo.nav_menu(
+        {
+            "/overview": "Overview",
+            "Sales": {
+                "/sales": "Overview",
+                "/sales/invoices": {
+                    "label": "Invoices",
+                    "description": "View invoices",
+                },
+                "/sales/customers": {
+                    "label": "Customers",
+                    "description": "View customers",
+                },
             },
-            "/sales/customers": {
-                "label": "Customers",
-                "description": "View customers",
-            },
-        },
-    })
+        }
+    )
+    ```
 
     **Args.**
 
