@@ -200,6 +200,10 @@ class CellImpl:
     def set_output(self, output: Any) -> None:
         self._output.output = output
 
+    @property
+    def output(self) -> Any:
+        return self._output.output
+
 
 @dataclasses.dataclass
 class Cell:
