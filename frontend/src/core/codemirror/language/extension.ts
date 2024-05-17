@@ -165,6 +165,20 @@ export function adaptiveLanguageConfiguration(
   ];
 }
 
+export function getInitialLanguageAdapter(state: EditorView["state"]) {
+  const doc = state.doc.toString();
+  // Empty doc defaults to Python
+  if (!doc.trim()) {
+    return LanguageAdapters.python();
+  }
+
+  if (LanguageAdapters.markdown().isSupported(doc)) {
+    return LanguageAdapters.markdown();
+  }
+
+  return LanguageAdapters.python();
+}
+
 /**
  * Switch the language of the editor.
  */
