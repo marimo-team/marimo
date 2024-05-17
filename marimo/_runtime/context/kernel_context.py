@@ -36,6 +36,10 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.graph
 
     @property
+    def globals(self) -> dict[str, Any]:
+        return self._kernel.globals
+
+    @property
     def execution_context(self) -> ExecutionContext | None:
         return self._kernel.execution_context
 
@@ -68,10 +72,6 @@ class KernelRuntimeContext(RuntimeContext):
         if self._id_provider is None:
             raise NoIDProviderException
         return self._id_provider.take_id()
-
-    @property
-    def globals(self) -> dict[str, Any]:
-        return self._kernel.globals
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         return self._kernel.get_ui_initial_value(object_id)

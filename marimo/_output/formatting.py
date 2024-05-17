@@ -128,31 +128,43 @@ def try_format(obj: Any) -> FormattedOutput:
                 data="",
                 traceback=traceback.format_exc(),
             )
+
+    from marimo._runtime.context import ContextNotInitializedError, get_context
+
+    glbls = {}
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        pass
     else:
-        tb = None
-        try:
-            data = str(obj)
-        except Exception:
-            tb = traceback.format_exc()
-            return FormattedOutput(
+        glbls = ctx.globals
+
+    tb = None
+    try:
+        # convert the object to a string using the kernel globals;
+        # some libraries like duckdb introspect globals() ...
+        data = eval("str(obj)", glbls, {"obj": obj})
+    except Exception:
+        tb = traceback.format_exc()
+        return FormattedOutput(
+            mimetype="text/plain",
+            data="",
+            traceback=tb,
+        )
+    else:
+        return (
+            FormattedOutput(
+                mimetype="text/html",
+                data=plain_text(escape(data)).text,
+                traceback=tb,
+            )
+            if data
+            else FormattedOutput(
                 mimetype="text/plain",
                 data="",
                 traceback=tb,
             )
-        else:
-            return (
-                FormattedOutput(
-                    mimetype="text/html",
-                    data=plain_text(escape(data)).text,
-                    traceback=tb,
-                )
-                if data
-                else FormattedOutput(
-                    mimetype="text/plain",
-                    data="",
-                    traceback=tb,
-                )
-            )
+        )
 
 
 @mddoc
