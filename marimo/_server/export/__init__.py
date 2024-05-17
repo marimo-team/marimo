@@ -71,67 +71,17 @@ async def run_app_then_export_as_reactive_html(
     path: MarimoPath,
     include_code: bool,
 ) -> tuple[str, str]:
+    import os
+
     from marimo._islands.island_generator import MarimoIslandGenerator
-    from marimo._server.api.utils import parse_title
-    from marimo._server.export.utils import get_download_filename
 
-    # Create a file router and file manager
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
-
-    # Create Marimo islands
-    stubs = []
-    generator = MarimoIslandGenerator()
-    for cell_data in file_manager.app.cell_manager.cell_data():
-        stubs.append(
-            generator.add_code(
-                cell_data.code,
-                display_code=include_code,
-            )
-        )
-
-    app = generator._app
-    island_file_manager = AppFileManager.from_app(app)
-    session_view = await run_app_until_completion(
-        island_file_manager, cli_args={}
+    generator = MarimoIslandGenerator.from_file(
+        path.absolute_name, display_code=include_code
     )
-
-    rendered_stubs = []
-    for stub in stubs:
-        stub._internal_app = app
-        stub._session_view = session_view
-        rendered_stubs.append(stub.render())
-
-    head = generator.render_head()
-    body = "\n".join(rendered_stubs)
-
-    title = (
-        parse_title(str(path.path))
-        if app.config.app_title is None
-        else app.config.app_title
-    )
-
-    max_width_dict = {"normal": "740px;", "medium": "1110px;", "full": "none;"}
-    max_width = max_width_dict[file_manager.app.config.width]
-
-    html = f"""<!doctype html>
-    <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <title> {title} </title>
-            {head}
-        </head>
-        <body>
-          <div style="margin: 0 auto; max-width: {max_width}">
-            {body}
-          </div>
-        </body>
-    </html>
-    """
-
-    filename = get_download_filename(file_manager, ".html")
+    await generator.build()
+    html = generator.render_html()
+    basename = os.path.basename(path.absolute_name)
+    filename = f"{os.path.splitext(basename)[0]}.html"
     return html, filename
 
 
