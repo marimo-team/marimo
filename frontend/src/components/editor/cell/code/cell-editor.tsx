@@ -19,10 +19,11 @@ import { UserConfig } from "@/core/config/config-schema";
 import { Theme } from "@/theme/useTheme";
 import {
   LanguageAdapters,
+  getInitialLanguageAdapter,
   languageAdapterState,
   reconfigureLanguageEffect,
+  switchLanguage,
 } from "@/core/codemirror/language/extension";
-import { derefNotNull } from "@/utils/dereference";
 import { LanguageToggle } from "./language-toggle";
 import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
@@ -82,7 +83,9 @@ const CellEditorInternal = ({
   editorViewRef,
   hidden,
 }: CellEditorProps) => {
-  const [canUseMarkdown, setCanUseMarkdown] = useState(false);
+  const [canUseMarkdown, setCanUseMarkdown] = useState(() => {
+    return LanguageAdapters.markdown().isSupported(code);
+  });
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const [languageAdapter, setLanguageAdapter] =
     useState<LanguageAdapter["type"]>();
@@ -238,6 +241,11 @@ const CellEditorInternal = ({
           }),
         });
         shouldFocus = true;
+        // Initialize the language adapter
+        switchLanguage(
+          editorViewRef.current,
+          getInitialLanguageAdapter(editorViewRef.current.state).type,
+        );
       } else {
         editorViewRef.current.dispatch({
           effects: [
@@ -261,6 +269,11 @@ const CellEditorInternal = ({
           { history: historyField },
         ),
       });
+      // Initialize the language adapter
+      switchLanguage(
+        editorViewRef.current,
+        getInitialLanguageAdapter(editorViewRef.current.state).type,
+      );
       shouldFocus = true;
       // Clear the serialized state so that we don't re-create the editor next time
       clearSerializedEditorState({ cellId });
@@ -286,6 +299,7 @@ const CellEditorInternal = ({
         });
       });
     }
+
     // We don't want to re-run this effect when `allowFocus` or `code` changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -339,10 +353,10 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {canUseMarkdown && (
+        {canUseMarkdown && !hidden && (
           <div className="absolute top-1 right-1">
             <LanguageToggle
-              editorView={derefNotNull(editorViewRef)}
+              editorView={editorViewRef.current}
               languageAdapter={languageAdapter}
               canUseMarkdown={canUseMarkdown}
             />

@@ -91,6 +91,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
+    if (pythonCode.trim() === "mo.md()") {
+      return true;
+    }
+
     const markdownLines = pythonCode
       .trim()
       .split("\n")

@@ -156,15 +156,18 @@ const {
 } = createReducerAndAtoms(initialNotebookState, {
   createNewCell: (
     state,
-    action: { cellId: CellId | "__end__"; before: boolean; code?: string },
+    action: { cellId: CellId | "__end__"; before: boolean; code?: string, newCellId?: CellId},
   ) => {
     const { cellId, before, code } = action;
+    let { newCellId } = action;
     const index =
       cellId === "__end__"
         ? state.cellIds.length - 1
         : state.cellIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
-    const newCellId = CellId.create();
+    if (!newCellId) {
+      newCellId = CellId.create();
+    }
 
     return {
       ...state,
