@@ -107,11 +107,6 @@ class UIElementRegistry:
     def get_object(self, object_id: UIElementId) -> UIElement[Any, Any]:
         if object_id not in self._objects:
             raise KeyError(f"UIElement with id {object_id} not found")
-        # UI elements are only updated if a global is bound to it. This ensures
-        # that the UI element update triggers reactivity, but also means that
-        # elements stored as, say, attributes on an object won't be updated.
-        if not self.bound_names(object_id):
-            raise NameError(f"UIElement with id {object_id} has no bindings")
         obj = self._objects[object_id]()
         assert obj is not None
         return obj
