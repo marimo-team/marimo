@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
+import { EditorState } from "@codemirror/state";
 
 /**
  * Get the editor code as Python
  * Handles when the editor has a different language adapter
  */
 export function getEditorCodeAsPython(
-  editor: EditorView,
+  editor: { state: EditorState},
   fromPos?: number,
   toPos?: number,
 ): string {

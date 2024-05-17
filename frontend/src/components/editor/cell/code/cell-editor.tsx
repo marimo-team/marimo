@@ -241,6 +241,11 @@ const CellEditorInternal = ({
           }),
         });
         shouldFocus = true;
+        // Initialize the language adapter
+        switchLanguage(
+          editorViewRef.current,
+          getInitialLanguageAdapter(editorViewRef.current.state).type,
+        );
       } else {
         editorViewRef.current.dispatch({
           effects: [
@@ -264,6 +269,11 @@ const CellEditorInternal = ({
           { history: historyField },
         ),
       });
+      // Initialize the language adapter
+      switchLanguage(
+        editorViewRef.current,
+        getInitialLanguageAdapter(editorViewRef.current.state).type,
+      );
       shouldFocus = true;
       // Clear the serialized state so that we don't re-create the editor next time
       clearSerializedEditorState({ cellId });
@@ -288,14 +298,6 @@ const CellEditorInternal = ({
           block: "center",
         });
       });
-    }
-
-    // Initialize the language adapter
-    if (editorViewRef.current !== null) {
-      switchLanguage(
-        editorViewRef.current,
-        getInitialLanguageAdapter(editorViewRef.current.state).type,
-      );
     }
 
     // We don't want to re-run this effect when `allowFocus` or `code` changes
