@@ -34,6 +34,7 @@ export type HotkeyGroup =
   | "Creation and Ordering"
   | "Navigation"
   | "Editing"
+  | "Markdown"
   | "Other";
 
 const DEFAULT_HOT_KEY = {
@@ -187,6 +188,43 @@ const DEFAULT_HOT_KEY = {
     name: "Split cell",
     group: "Editing",
     key: "Mod-Shift-'",
+  },
+
+  // Markdown
+  "markdown.bold": {
+    name: "Bold",
+    group: "Markdown",
+    key: "Mod-b",
+  },
+  "markdown.italic": {
+    name: "Italic",
+    group: "Markdown",
+    key: "Mod-i",
+  },
+  "markdown.link": {
+    name: "Convert to Link",
+    group: "Markdown",
+    key: "Mod-k",
+  },
+  "markdown.orderedList": {
+    name: "Convert to Ordered list",
+    group: "Markdown",
+    key: "Mod-Shift-7",
+  },
+  "markdown.unorderedList": {
+    name: "Convert to Unordered list",
+    group: "Markdown",
+    key: "Mod-Shift-8",
+  },
+  "markdown.blockquote": {
+    name: "Convert to Blockquote",
+    group: "Markdown",
+    key: "Mod-Shift-9",
+  },
+  "markdown.code": {
+    name: "Convert to Code",
+    group: "Markdown",
+    key: "Mod-Shift-0",
   },
 
   // Global Actions
