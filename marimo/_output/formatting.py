@@ -140,10 +140,18 @@ def try_format(obj: Any) -> FormattedOutput:
                 traceback=tb,
             )
         else:
-            return FormattedOutput(
-                mimetype="text/html",
-                data=plain_text(data).text,
-                traceback=tb,
+            return (
+                FormattedOutput(
+                    mimetype="text/html",
+                    data=plain_text(escape(data)).text,
+                    traceback=tb,
+                )
+                if data
+                else FormattedOutput(
+                    mimetype="text/plain",
+                    data="",
+                    traceback=tb,
+                )
             )
 
 
