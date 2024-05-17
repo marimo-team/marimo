@@ -174,6 +174,17 @@ describe("insertBoldMarker", () => {
 
     expect(view.state.doc.toString()).toBe("Hello, **world!**");
   });
+
+  test("undo bold marker at cursor position with selected text", () => {
+    view = createEditor("Hello, **world!**");
+    view.dispatch({
+      selection: { anchor: 9, head: 15 },
+    });
+
+    insertBoldMarker(view);
+
+    expect(view.state.doc.toString()).toBe("Hello, world!");
+  });
 });
 
 describe("insertItalicMarker", () => {
@@ -197,6 +208,17 @@ describe("insertItalicMarker", () => {
     insertItalicMarker(view);
 
     expect(view.state.doc.toString()).toBe("Hello, _world!_");
+  });
+
+  test("undo italic marker at cursor position with selected text", () => {
+    view = createEditor("Hello, _world!_");
+    view.dispatch({
+      selection: { anchor: 8, head: 14 },
+    });
+
+    insertItalicMarker(view);
+
+    expect(view.state.doc.toString()).toBe("Hello, world!");
   });
 });
 
@@ -225,6 +247,17 @@ describe("insertCodeMarker", () => {
     );
   });
 
+  test("undo code marker at cursor position with selected text", () => {
+    view = createEditor("Hello, `world!`");
+    view.dispatch({
+      selection: { anchor: 8, head: 14 },
+    });
+
+    insertCodeMarker(view);
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(`"Hello, world!"`);
+  });
+
   test("inserts code marker with multiline selection", () => {
     view = createEditor(
       "Here is the python code:\nprint('Hello, world!')\n(1 + 2) * 3",
@@ -237,8 +270,27 @@ describe("insertCodeMarker", () => {
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(`
       "Here is the python code:
-      \`\`\`print('Hello, world!')
-      (1 + 2) * 3\`\`\`"
+      \`\`\`
+      print('Hello, world!')
+      (1 + 2) * 3
+      \`\`\`"
+    `);
+  });
+
+  test("undo code marker with multiline selection", () => {
+    view = createEditor(
+      "Here is the python code:\n```\nprint('Hello, world!')\n(1 + 2) * 3\n```",
+    );
+    view.dispatch({
+      selection: { anchor: 29, head: view.state.doc.length - 4 },
+    });
+
+    insertCodeMarker(view);
+
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(`
+      "Here is the python code:
+      print('Hello, world!')
+      (1 + 2) * 3"
     `);
   });
 });

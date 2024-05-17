@@ -91,7 +91,7 @@ function wrapWithMarkup(
         }
       : {
           from: range.from,
-          insert: Text.of([markupBefore]),
+          insert: Text.of(markupBefore.split("\n")),
         },
     isMarkupAfter
       ? {
@@ -101,7 +101,7 @@ function wrapWithMarkup(
         }
       : {
           from: range.to,
-          insert: Text.of([markupAfter]),
+          insert: Text.of(markupAfter.split("\n")),
         },
   );
 
@@ -182,8 +182,8 @@ export function insertCodeMarker(view: EditorView) {
     const lineFrom = view.state.doc.lineAt(range.from).number;
     const lineTo = view.state.doc.lineAt(range.to).number;
     const isMultiline = lineFrom !== lineTo;
-    const fenceBefore = isMultiline ? "```" : "`";
-    const fenceAfter = isMultiline ? "```" : "`";
+    const fenceBefore = isMultiline ? "```\n" : "`";
+    const fenceAfter = isMultiline ? "\n```" : "`";
 
     return wrapWithMarkup(view, range, fenceBefore, fenceAfter);
   });

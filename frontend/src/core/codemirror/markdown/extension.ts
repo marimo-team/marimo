@@ -64,6 +64,11 @@ export function enhancedMarkdownExtension(): Extension[] {
     // Smart on paste of URLs
     EditorView.domEventHandlers({
       paste: (event, view) => {
+        // If no selection, do nothing
+        if (view.state.selection.main.empty) {
+          return;
+        }
+
         const url = event.clipboardData?.getData("text/plain");
         if (url?.startsWith("http")) {
           event.preventDefault();
