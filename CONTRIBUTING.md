@@ -263,6 +263,6 @@ If use use vscode, you might find the following `settings.json` useful:
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
-  },
+  }
 }
 ```

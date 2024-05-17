@@ -258,7 +258,7 @@ export function cellMovementBundle(
   ];
 
   // Highest priority so that we can override the default keymap
-  return [Prec.highest(keymap.of(hotkeys))];
+  return [Prec.high(keymap.of(hotkeys))];
 }
 
 export interface CodeCallbacks {

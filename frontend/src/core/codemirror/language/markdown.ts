@@ -13,6 +13,7 @@ import {
   autocompletion,
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
+import { enhancedMarkdownExtension } from "../markdown/extension";
 
 const prefixKinds = ["", "f", "r", "fr", "rf"] as const;
 type PrefixKind = (typeof prefixKinds)[number];
@@ -136,6 +137,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
           },
         ],
       }),
+      enhancedMarkdownExtension(),
       autocompletion({
         activateOnTyping: true,
         override: [emojiCompletionSource],
