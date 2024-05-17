@@ -18,9 +18,7 @@ taking precedence over the MIME protocol.
 from __future__ import annotations
 
 import inspect
-import io
 import json
-import pprint
 import traceback
 import types
 from dataclasses import dataclass
@@ -33,6 +31,7 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
 from marimo._plugins.stateless.json_output import json_output
+from marimo._plugins.stateless.plain_text import plain_text
 
 T = TypeVar("T")
 
@@ -130,22 +129,22 @@ def try_format(obj: Any) -> FormattedOutput:
                 traceback=traceback.format_exc(),
             )
     else:
-        tmpio = io.StringIO()
         tb = None
-        if isinstance(obj, str):
-            tmpio.write(obj)
+        try:
+            data = str(obj)
+        except Exception:
+            tb = traceback.format_exc()
+            return FormattedOutput(
+                mimetype="text/plain",
+                data="",
+                traceback=tb,
+            )
         else:
-            try:
-                pprint.pprint(obj, stream=tmpio)
-            except Exception:  # noqa: E722
-                tmpio.write("")
-                tb = traceback.format_exc()
-        tmpio.seek(0)
-        return FormattedOutput(
-            mimetype="text/plain",
-            data=tmpio.read(),
-            traceback=tb,
-        )
+            return FormattedOutput(
+                mimetype="text/html",
+                data=plain_text(data).text,
+                traceback=tb,
+            )
 
 
 @mddoc
