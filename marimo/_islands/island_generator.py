@@ -6,7 +6,7 @@ from textwrap import dedent
 from typing import List, Optional, Union, cast
 
 from marimo import __version__, _loggers
-from marimo._ast.app import App, InternalApp
+from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
@@ -14,7 +14,11 @@ from marimo._output.formatting import as_html
 from marimo._output.utils import uri_encode_component
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.ui import code_editor
+from marimo._server.export import run_app_until_completion
+from marimo._server.file_manager import AppFileManager
+from marimo._server.file_router import AppFileRouter
 from marimo._server.session.session_view import SessionView
+from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
@@ -175,6 +179,42 @@ class MarimoIslandGenerator:
         self._app_id = app_id
         self._app = InternalApp(App())
         self._stubs: List[MarimoIslandStub] = []
+        self._config = _AppConfig()
+
+    @staticmethod
+    def from_file(
+        filename: str,
+        display_code: bool = False,
+    ) -> MarimoIslandGenerator:
+        """
+        Create a MarimoIslandGenerator and populate MarimoIslandStubs
+        using code cells from a marimo *.py file.
+
+        *Args:*
+
+        - filename (str): Marimo .py filename to convert to reactive HTML.
+        - display_code (bool): Whether to display the code in HTML snippets.
+        """
+        path = MarimoPath(filename)
+        file_router = AppFileRouter.from_filename(path)
+        file_key = file_router.get_unique_file_key()
+        assert file_key is not None
+        file_manager = file_router.get_file_manager(file_key)
+
+        generator = MarimoIslandGenerator()
+        stubs = []
+        for cell_data in file_manager.app.cell_manager.cell_data():
+            stubs.append(
+                generator.add_code(
+                    cell_data.code,
+                    display_code=display_code,
+                )
+            )
+
+        generator._stubs = stubs
+        generator._config = file_manager.app.config
+
+        return generator
 
     def add_code(
         self,
@@ -227,9 +267,6 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
-        from marimo._server.export import run_app_until_completion
-        from marimo._server.file_manager import AppFileManager
-
         if self.has_run:
             raise ValueError("You can only call build() once")
 
@@ -254,6 +291,11 @@ class MarimoIslandGenerator:
         """
         Render the header for the app.
         This should be included in the <head> tag of the page.
+
+        *Args:*
+
+        - version_override (str): Marimo version to use for loaded js/css.
+        - _development_url (str): If True, uses local marimo islands js.
         """
 
         # This loads:
@@ -311,6 +353,100 @@ class MarimoIslandGenerator:
             />
             {fonts}
             """
+        ).strip()
+
+    def render_body(
+        self,
+        *,
+        max_width: Optional[str] = None,
+        margin: Optional[str] = None,
+        style: Optional[str] = None,
+    ) -> str:
+        """
+        Render the body for the app.
+        This should be included in the <body> tag of the page.
+
+        *Args:*
+
+        - max_width (str): CSS style max_width property.
+        - margin (str): CSS style margin property.
+        - style (str): CSS style. Overrides max_width and margin.
+        """
+
+        rendered_stubs = []
+        for stub in self._stubs:
+            rendered_stubs.append(stub.render())
+
+        body = "\n".join(rendered_stubs)
+
+        if margin is None:
+            margin = "auto;"
+        if max_width is None:
+            width = self._config.width
+            if width == "normal":
+                max_width = "740px;"
+            elif width == "medium":
+                max_width = "1110px;"
+            else:
+                max_width = "none;"
+
+        if style is None:
+            style = f"margin: {margin} max-width: {max_width}"
+
+        return dedent(
+            f"""
+                <div style="{style}">
+                  {body}
+                </div>
+                """
+        ).strip()
+
+    def render_html(
+        self,
+        *,
+        version_override: str = __version__,
+        _development_url: Union[str | bool] = False,
+        max_width: Optional[str] = None,
+        margin: Optional[str] = None,
+        style: Optional[str] = None,
+    ) -> str:
+        """
+        Render reactive html for the app.
+
+        *Args:*
+
+        - version_override (str): Marimo version to use for loaded js/css.
+        - _development_url (str): If True, uses local marimo islands js.
+        - max_width (str): CSS style max_width property.
+        - margin (str): CSS style margin property.
+        - style (str): CSS style. Overrides max_width and margin.
+        """
+        head = self.render_head(
+            version_override=version_override,
+            _development_url=_development_url,
+        )
+        body = self.render_body(
+            max_width=max_width, margin=margin, style=style
+        )
+        title = (
+            self._app_id
+            if self._config.app_title is None
+            else self._config.app_title
+        )
+
+        return dedent(
+            f"""<!doctype html>
+                <html lang="en">
+                    <head>
+                      <meta charset="UTF-8" />
+                      <title> {title} </title>
+                        {head}
+                    </head>
+                    <body>
+                      {body}
+                    </body>
+                </html>
+                """
         ).strip()
 
 
