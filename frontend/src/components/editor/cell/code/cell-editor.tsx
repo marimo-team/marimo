@@ -351,7 +351,7 @@ const CellEditorInternal = ({
         className="relative w-full"
         onFocus={() => setLastFocusedCellId(cellId)}
       >
-        {canUseMarkdown && (
+        {canUseMarkdown && !hidden && (
           <div className="absolute top-1 right-1">
             <LanguageToggle
               editorView={editorViewRef.current}
