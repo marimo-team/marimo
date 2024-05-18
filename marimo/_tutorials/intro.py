@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.3.12"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -11,13 +11,13 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo! 🌊🍃")
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -32,6 +32,28 @@ def __(mo, slider):
 
         {"##" + "🍃" * slider.value}
         """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.accordion(
+        {
+            "Tip: disabling automatic execution": mo.md(
+                rf"""
+            marimo lets you disable automatic execution: just go into the
+            notebook settings and set
+
+            "Runtime > On Cell Change" to "lazy".
+
+            When the runtime is lazy, after running a cell, marimo marks its
+            descendants as stale instead of automatically running them. The
+            lazy runtime puts you in control over when cells are run, while
+            still giving you guarantees about the your notebook state.
+            """
+            )
+        }
     )
     return
 
@@ -98,7 +120,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return changed,
+    return (changed,)
 
 
 @app.cell(hide_code=True)
@@ -164,15 +186,16 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """## 2. UI elements
+        """
+        ## 2. UI elements
 
-        Cells can output interactive UI elements. Interacting with a UI
-        element **automatically triggers notebook execution**: when
-        you interact with a UI element, its value is sent back to Python, and
-        every cell that references that element is re-run.
+            Cells can output interactive UI elements. Interacting with a UI
+            element **automatically triggers notebook execution**: when
+            you interact with a UI element, its value is sent back to Python, and
+            every cell that references that element is re-run.
 
-        marimo provides a library of UI elements to choose from under
-        `marimo.ui`.
+            marimo provides a library of UI elements to choose from under
+            `marimo.ui`.
         """
     )
     return
@@ -187,13 +210,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return icon,
+    return (icon,)
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return repetitions,
+    return (repetitions,)
 
 
 @app.cell
@@ -251,51 +274,52 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """## 5. The `marimo` command-line tool
+        """
+        ## 5. The `marimo` command-line tool
 
-        **Creating and editing notebooks.** Use
+            **Creating and editing notebooks.** Use
 
-        ```
-        marimo edit
-        ```
+            ```
+            marimo edit
+            ```
 
-        in a terminal to start the marimo notebook server. From here
-        you can create a new notebook or edit existing ones.
+            in a terminal to start the marimo notebook server. From here
+            you can create a new notebook or edit existing ones.
 
 
-        **Running as apps.** Use
+            **Running as apps.** Use
 
-        ```
-        marimo run notebook.py
-        ```
+            ```
+            marimo run notebook.py
+            ```
 
-        to start a webserver that serves your notebook as an app in read-only mode,
-        with code cells hidden.
+            to start a webserver that serves your notebook as an app in read-only mode,
+            with code cells hidden.
 
-        **Convert a Jupyter notebook.** Convert a Jupyter notebook to a marimo
-        notebook using `marimo convert`:
+            **Convert a Jupyter notebook.** Convert a Jupyter notebook to a marimo
+            notebook using `marimo convert`:
 
-        ```
-        marimo convert your_notebook.ipynb > your_app.py
-        ```
+            ```
+            marimo convert your_notebook.ipynb > your_app.py
+            ```
 
-        **Tutorials.** marimo comes packaged with tutorials:
+            **Tutorials.** marimo comes packaged with tutorials:
 
-        - `dataflow`: more on marimo's automatic execution
-        - `ui`: how to use UI elements
-        - `markdown`: how to write markdown, with interpolated values and
-           LaTeX
-        - `plots`: how plotting works in marimo
-        - `fileformat`: how marimo's file format works
+            - `dataflow`: more on marimo's automatic execution
+            - `ui`: how to use UI elements
+            - `markdown`: how to write markdown, with interpolated values and
+               LaTeX
+            - `plots`: how plotting works in marimo
+            - `fileformat`: how marimo's file format works
 
-        Start a tutorial with `marimo tutorial`; for example,
+            Start a tutorial with `marimo tutorial`; for example,
 
-        ```
-        marimo tutorial dataflow
-        ```
+            ```
+            marimo tutorial dataflow
+            ```
 
-        In addition to tutorials, we have examples in our
-        [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
+            In addition to tutorials, we have examples in our
+            [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
         """
     )
     return
@@ -425,13 +449,13 @@ def __():
             """
         ),
         "Configuration": (
-           """
+            """
            Configure the editor by clicking the gears icon near the top-right
            of the screen.
            """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 if __name__ == "__main__":

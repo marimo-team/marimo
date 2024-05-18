@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -17,7 +18,27 @@ def __(mo):
 
         To provide reactive execution, marimo creates a dataflow graph out of your
         cells.
-    """
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        rf"""
+        **Tip: disabling automatic execution.**
+
+        marimo lets you disable automatic execution: just go into the notebook settings
+        and set
+
+        "Runtime > On Cell Change" to "lazy".
+
+        When the runtime is lazy, afterr running a cell, marimo marks its
+        descendants as stale instead of automatically running them. The lazy
+        runtime puts you in control over when cells are run, while still giving
+        you guarantees about the your notebook state.
+        """
     )
     return
 
@@ -31,7 +52,7 @@ def __(mo):
         A marimo notebook is a directed acyclic graph in which nodes represent 
         cells and edges represent data dependencies. marimo creates this graph by
         analyzing each cell (without running it) to determine its
-        
+
         - references ("refs*), the global variables it reads but doesn't define;
         - definitions ("defs"), the global variables it defines.
 
@@ -50,10 +71,10 @@ def __(mo):
     mo.md(
         """
         ### Example
-        
+
         The next four cells plot a sine wave with a given period and amplitude.
-        Each cell is labeled with its refs and defs.    
-        """ 
+        Each cell is labeled with its refs and defs.
+        """
     )
     return
 
@@ -98,7 +119,7 @@ def __(mo):
         - `defs: {mo.defs()}`
         """
     )
-    return period,
+    return (period,)
 
 
 @app.cell
@@ -111,7 +132,7 @@ def __(mo):
         - `defs: {mo.defs()}`
         """
     )
-    return amplitude,
+    return (amplitude,)
 
 
 @app.cell
@@ -143,7 +164,7 @@ def __(matplotlib_installed, mo, np, numpy_installed, plt):
         - `defs: {mo.defs()}`
         """
     )
-    return plot_wave,
+    return (plot_wave,)
 
 
 @app.cell(hide_code=True)
@@ -181,7 +202,7 @@ def __(mo):
               +------------> | {} | <-------------+
                              +----+
         ```
-        
+
         The last cell, which doesn't define anything, produces the plot.
         """
     )
@@ -238,14 +259,14 @@ def __(mo):
 def __():
     planet = "Mars"
     planet
-    return planet,
+    return (planet,)
 
 
 @app.cell
 def __():
     planet = "Earth"
     planet
-    return planet,
+    return (planet,)
 
 
 @app.cell(hide_code=True)
@@ -277,13 +298,13 @@ def __(mo):
 @app.cell
 def __():
     count = 0
-    return count,
+    return (count,)
 
 
 @app.cell
 def __():
     count += 1
-    return count,
+    return (count,)
 
 
 @app.cell(hide_code=True)
@@ -350,7 +371,7 @@ def __(mo):
         Delete this cell by clicking the trash bin icon.
         """
     )
-    return to_be_deleted,
+    return (to_be_deleted,)
 
 
 @app.cell
@@ -374,13 +395,13 @@ def __(mo):
 @app.cell
 def __(two):
     one = two - 1
-    return one,
+    return (one,)
 
 
 @app.cell
 def __(one):
     two = one + 1
-    return two,
+    return (two,)
 
 
 @app.cell(hide_code=True)
@@ -491,10 +512,11 @@ def __(mo, tips):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
-        """## What's next?
+        """
+        ## What's next?
 
         Check out the tutorial on interactivity for a tour of UI elements:
 
@@ -622,13 +644,14 @@ def __():
             """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 @app.cell
 def __():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 if __name__ == "__main__":
