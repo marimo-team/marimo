@@ -12,7 +12,6 @@ from marimo._server.export import (
     export_as_md,
     export_as_script,
     run_app_then_export_as_html,
-    run_app_then_export_as_reactive_html,
 )
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
@@ -103,16 +102,6 @@ Optionally pass CLI args to the notebook:
     help="Include notebook code in the exported HTML file.",
 )
 @click.option(
-    "--reactive/--no-reactive",
-    default=False,
-    show_default=True,
-    type=bool,
-    help="""
-    Whether to export a reactive HTML file.
-    If enabled, the exported HTML will run Python code using a Pyodide kernel.
-    """,
-)
-@click.option(
     "--watch/--no-watch",
     default=False,
     show_default=True,
@@ -138,7 +127,6 @@ Optionally pass CLI args to the notebook:
 def html(
     name: str,
     include_code: bool,
-    reactive: bool,
     output: str,
     watch: bool,
     args: tuple[str],
@@ -150,18 +138,11 @@ def html(
     cli_args = parse_args(args)
 
     def export_callback(file_path: MarimoPath) -> str:
-        if reactive:
-            (html, _filename) = asyncio_run(
-                run_app_then_export_as_reactive_html(
-                    file_path, include_code=include_code
-                )
+        (html, _filename) = asyncio_run(
+            run_app_then_export_as_html(
+                file_path, include_code=include_code, cli_args=cli_args
             )
-        else:
-            (html, _filename) = asyncio_run(
-                run_app_then_export_as_html(
-                    file_path, include_code=include_code, cli_args=cli_args
-                )
-            )
+        )
         return html
 
     return watch_and_export(MarimoPath(name), output, watch, export_callback)
