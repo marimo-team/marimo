@@ -34,7 +34,7 @@ def __(mo):
 
         "Runtime > On Cell Change" to "lazy".
 
-        When the runtime is lazy, afterr running a cell, marimo marks its
+        When the runtime is lazy, after running a cell, marimo marks its
         descendants as stale instead of automatically running them. The lazy
         runtime puts you in control over when cells are run, while still giving
         you guarantees about the your notebook state.
