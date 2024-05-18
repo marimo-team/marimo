@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.69"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -11,9 +12,7 @@ def __(mo):
         """
         # Hello, Markdown!
 
-        Use marimo's "`md`" function to embed rich text into your marimo
-        apps. This function compiles Markdown into HTML that marimo
-        can display.
+        Use marimo's "`md`" function to write markdown. This function compiles Markdown into HTML that marimo can display.
 
         For example, here's the code that rendered the above title and 
         paragraph:
@@ -34,10 +33,25 @@ def __(mo):
     return
 
 
+@app.cell
+def __(mo):
+    mo.md(
+        rf"""
+        **Tip: toggling between Markdown and Python views**
+
+        Although markdown is written with `mo.md`, marimo provides a markdown view
+        that hides this boilerplate from you. You can toggle between Markdown and 
+        Python views by clicking the button in the top-right of this cell or entering 
+        `Ctrl/Cmd+Shift+M`.
+        """
+    )
+    return
+
+
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        r""" 
+        r"""
         ## LaTeX
         You can embed LaTeX in Markdown.
 
@@ -98,7 +112,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(
     matplotlib_installed,
     missing_matplotlib_msg,
@@ -136,7 +150,7 @@ def __(
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     leaves = mo.ui.slider(1, 32, label="🍃: ")
 
@@ -285,12 +299,11 @@ def __(
 def __(amplitude, mo, period):
     mo.md(
         f"""
+        **A sin curve.**
 
-          **A sin curve.**
-
-          - {amplitude}
-          - {period}
-          """
+        - {amplitude}
+        - {period}
+        """
     )
     return
 
@@ -299,7 +312,6 @@ def __(amplitude, mo, period):
 def __(amplitude, mo, period, plotsin):
     mo.md(
         rf"""
-
         You're viewing the graph of
 
         \[
