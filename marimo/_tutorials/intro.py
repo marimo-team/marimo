@@ -189,13 +189,13 @@ def __(mo):
         """
         ## 2. UI elements
 
-            Cells can output interactive UI elements. Interacting with a UI
-            element **automatically triggers notebook execution**: when
-            you interact with a UI element, its value is sent back to Python, and
-            every cell that references that element is re-run.
+        Cells can output interactive UI elements. Interacting with a UI
+        element **automatically triggers notebook execution**: when
+        you interact with a UI element, its value is sent back to Python, and
+        every cell that references that element is re-run.
 
-            marimo provides a library of UI elements to choose from under
-            `marimo.ui`.
+        marimo provides a library of UI elements to choose from under
+        `marimo.ui`.
         """
     )
     return
@@ -277,49 +277,49 @@ def __(mo):
         """
         ## 5. The `marimo` command-line tool
 
-            **Creating and editing notebooks.** Use
+        **Creating and editing notebooks.** Use
 
-            ```
-            marimo edit
-            ```
+        ```
+        marimo edit
+        ```
 
-            in a terminal to start the marimo notebook server. From here
-            you can create a new notebook or edit existing ones.
+        in a terminal to start the marimo notebook server. From here
+        you can create a new notebook or edit existing ones.
 
 
-            **Running as apps.** Use
+        **Running as apps.** Use
 
-            ```
-            marimo run notebook.py
-            ```
+        ```
+        marimo run notebook.py
+        ```
 
-            to start a webserver that serves your notebook as an app in read-only mode,
-            with code cells hidden.
+        to start a webserver that serves your notebook as an app in read-only mode,
+        with code cells hidden.
 
-            **Convert a Jupyter notebook.** Convert a Jupyter notebook to a marimo
-            notebook using `marimo convert`:
+        **Convert a Jupyter notebook.** Convert a Jupyter notebook to a marimo
+        notebook using `marimo convert`:
 
-            ```
-            marimo convert your_notebook.ipynb > your_app.py
-            ```
+        ```
+        marimo convert your_notebook.ipynb > your_app.py
+        ```
 
-            **Tutorials.** marimo comes packaged with tutorials:
+        **Tutorials.** marimo comes packaged with tutorials:
 
-            - `dataflow`: more on marimo's automatic execution
-            - `ui`: how to use UI elements
-            - `markdown`: how to write markdown, with interpolated values and
-               LaTeX
-            - `plots`: how plotting works in marimo
-            - `fileformat`: how marimo's file format works
+        - `dataflow`: more on marimo's automatic execution
+        - `ui`: how to use UI elements
+        - `markdown`: how to write markdown, with interpolated values and
+           LaTeX
+        - `plots`: how plotting works in marimo
+        - `fileformat`: how marimo's file format works
 
-            Start a tutorial with `marimo tutorial`; for example,
+        Start a tutorial with `marimo tutorial`; for example,
 
-            ```
-            marimo tutorial dataflow
-            ```
+        ```
+        marimo tutorial dataflow
+        ```
 
-            In addition to tutorials, we have examples in our
-            [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
+        In addition to tutorials, we have examples in our
+        [our GitHub repo](https://www.github.com/marimo-team/marimo/tree/main/examples).
         """
     )
     return
