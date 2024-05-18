@@ -380,18 +380,18 @@ class MarimoIslandGenerator:
         body = "\n".join(rendered_stubs)
 
         if margin is None:
-            margin = "auto;"
+            margin = "auto"
         if max_width is None:
             width = self._config.width
             if width == "normal":
-                max_width = "740px;"
+                max_width = "740px"
             elif width == "medium":
-                max_width = "1110px;"
+                max_width = "1110px"
             else:
-                max_width = "none;"
+                max_width = "none"
 
         if style is None:
-            style = f"margin: {margin} max-width: {max_width}"
+            style = f"margin: {margin}; max-width: {max_width};"
 
         return dedent(
             f"""
