@@ -1027,10 +1027,9 @@ class Kernel:
                     object_id,
                     value,
                 )
-            except (KeyError, NameError):
+            except KeyError:
                 # KeyError: A UI element may go out of scope if it was not
                 # assigned to a global variable
-                # NameError: UI element might not have bindings
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
