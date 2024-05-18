@@ -242,7 +242,7 @@ export function cellMovementBundle(
       key: HOTKEYS.getHotkey("cell.goToDefinition").key,
       preventDefault: true,
       stopPropagation: true,
-      run: (ev) => {
+      run: () => {
         focusByVariableName()
         return true
       },

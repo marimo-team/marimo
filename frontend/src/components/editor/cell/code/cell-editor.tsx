@@ -35,7 +35,7 @@ import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
 import {getPositionAtWordBounds} from "@/core/codemirror/completion/hints";
 import {useVariables} from "@/core/variables/state";
-import {VariableName} from "@/core/variables/types";
+import {VariableName, Variables} from "@/core/variables/types";
 import {goToDefinition} from "@/core/codemirror/find-replace/search-highlight";
 
 export interface CellEditorProps
@@ -138,23 +138,10 @@ const CellEditorInternal = ({
     () => {
         if (editorViewRef.current) {
           const { state } = editorViewRef.current
-          const { from, to } = state.selection.main;
-          let variableName: string;
+          const variableName = getWordUnderCursor(state)
+          const focusCellId = getCellIdOfDefinition(variables, variableName)
 
-          if (from !== to) {
-            variableName = state.doc.sliceString(from, to);
-          } else {
-            const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
-            variableName = state.doc.sliceString(startToken, endToken);
-          }
-
-          if (variableName) {
-            const variable = variables[variableName as VariableName];
-            if (!variable || variable.declaredBy.length === 0) {
-              return null;
-            }
-
-            const focusCellId = variable.declaredBy[0];
+          if (focusCellId) {
             focusCellAtDefinition({cellId: focusCellId, variableName: variableName})
           }
           return true;
@@ -429,3 +416,26 @@ const CellCodeMirrorEditor = React.forwardRef(
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
 export const CellEditor = memo(CellEditorInternal);
+
+export const getWordUnderCursor = (state: EditorState) => {
+  const { from, to } = state.selection.main;
+  let variableName: string;
+
+  if (from !== to) {
+    variableName = state.doc.sliceString(from, to);
+  } else {
+    const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
+    variableName = state.doc.sliceString(startToken, endToken);
+  }
+
+  return variableName
+}
+
+export const getCellIdOfDefinition = (variables: Variables, variableName: string) => {
+  const variable = variables[variableName as VariableName]
+  if (!variable || variable.declaredBy.length === 0) {
+    return null;
+  }
+  const focusCellId = variable.declaredBy[0];
+  return focusCellId
+}

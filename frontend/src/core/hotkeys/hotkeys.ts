@@ -261,7 +261,7 @@ const DEFAULT_HOT_KEY = {
   "cell.goToDefinition": {
     name: "Go to Definition",
     group: "Navigation",
-    key: "Mod-Shift-'",
+    key: "Mod-Shift-,",
   },
 } satisfies Record<string, Hotkey>;
 

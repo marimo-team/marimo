@@ -240,14 +240,14 @@ const {
     });
     return state;
   },
-  focusCell: (state, action: { cellId: CellId; before?: boolean }) => {
+  focusCell: (state, action: { cellId: CellId; before: boolean }) => {
     if (state.cellIds.length === 0) {
       return state;
     }
 
     const { cellId, before } = action;
     const index = state.cellIds.indexOf(cellId);
-    let focusIndex = before === undefined ? index : before ? index - 1 : index + 1;
+    let focusIndex = before ? index - 1 : index + 1;
     // clamp
     focusIndex = clamp(focusIndex, 0, state.cellIds.length - 1);
     const focusCellId = state.cellIds[focusIndex];
@@ -257,7 +257,7 @@ const {
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
       config: state.cellData[focusCellId].config,
-      codeFocus: before ? "bottom" : "top",
+      codeFocus: before ? "<<bottom>>" : "<<top>>",
     });
     return state;
   },
