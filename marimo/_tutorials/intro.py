@@ -50,7 +50,7 @@ def __(mo):
             When the runtime is lazy, after running a cell, marimo marks its
             descendants as stale instead of automatically running them. The
             lazy runtime puts you in control over when cells are run, while
-            still giving you guarantees about the your notebook state.
+            still giving guarantees about the notebook state.
             """
             )
         }
