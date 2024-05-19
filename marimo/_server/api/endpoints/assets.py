@@ -6,6 +6,7 @@ import os
 import re
 from typing import TYPE_CHECKING
 
+from starlette.authentication import requires
 from starlette.exceptions import HTTPException
 from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
@@ -47,6 +48,7 @@ FILE_QUERY_PARAM_KEY = "file"
 
 
 @router.get("/")
+@requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     user_config = app_state.config_manager.get_config()
@@ -67,7 +69,7 @@ async def index(request: Request) -> HTMLResponse:
             html=html,
             base_url=app_state.base_url,
             user_config=user_config,
-            server_token=app_state.server_token,
+            server_token=app_state.skew_protection_token,
         )
     else:
         # We have a file key, so we can render the app with the file
@@ -79,7 +81,7 @@ async def index(request: Request) -> HTMLResponse:
             html=html,
             base_url=app_state.base_url,
             user_config=user_config,
-            server_token=app_state.server_token,
+            server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=app_manager.filename,
             mode=app_state.mode,
@@ -98,6 +100,7 @@ STATIC_FILES = [
 
 
 @router.get("/@file/{filename_and_length:path}")
+@requires("read")
 def virtual_file(
     request: Request,
 ) -> Response:

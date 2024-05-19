@@ -41,7 +41,6 @@ import useEvent from "react-use-event-hook";
 import { CellEditor } from "./cell/code/cell-editor";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { outputIsStale } from "@/core/cells/cell";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useHotkeysOnElement, useKeydownOnElement } from "@/hooks/useHotkey";
 import { useSetAtom } from "jotai";
@@ -205,10 +204,8 @@ const CellComponent = (
 
     const code = prepareToRunEffects();
 
-    RuntimeState.INSTANCE.registerRunStart();
     await sendRun([cellId], [code]).catch((error) => {
       Logger.error("Error running cell", error);
-      RuntimeState.INSTANCE.registerRunEnd();
     });
   });
 

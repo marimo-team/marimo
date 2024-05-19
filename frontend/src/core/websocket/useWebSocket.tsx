@@ -35,15 +35,15 @@ export function useWebSocket(options: UseWebSocketOptions) {
             debug: false,
           });
 
+    onOpen && socket.addEventListener("open", onOpen);
+    onClose && socket.addEventListener("close", onClose);
+    onError && socket.addEventListener("error", onError);
+    onMessage && socket.addEventListener("message", onMessage);
+
     return socket;
   });
 
   useEffect(() => {
-    onOpen && ws.addEventListener("open", onOpen);
-    onClose && ws.addEventListener("close", onClose);
-    onError && ws.addEventListener("error", onError);
-    onMessage && ws.addEventListener("message", onMessage);
-
     return () => {
       onOpen && ws.removeEventListener("open", onOpen);
       onClose && ws.removeEventListener("close", onClose);

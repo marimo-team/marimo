@@ -171,7 +171,6 @@ export async function maybeRestartKernel(page: Page) {
   await page.getByTestId("notebook-menu-dropdown").click();
   await page.getByText("Restart kernel", { exact: true }).click();
   await page.getByText("Restart", { exact: true }).click();
-  await page.waitForTimeout(1000);
 }
 
 /**

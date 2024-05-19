@@ -34,9 +34,6 @@ already written. Wrap the last expression in `mo.output.append` if you want
 to add to an existing output instead of replacing it.
 ```
 
-
-
-
 ## Console outputs
 
 ```{admonition} Console outputs

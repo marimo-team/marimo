@@ -13,7 +13,6 @@ import { saveUserConfig } from "@/core/network/requests";
 import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
 import { NativeSelect } from "../ui/native-select";
 import { cn } from "@/utils/cn";
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { sendInstallMissingPackages } from "@/core/network/requests";
 import {
   useAlerts,
@@ -40,6 +39,7 @@ import {
   PackageManagerName,
   PackageManagerNames,
 } from "../../core/config/config-schema";
+import { Logger } from "@/utils/Logger";
 
 export const PackageAlert: React.FC = (props) => {
   const { packageAlert } = useAlerts();
@@ -245,8 +245,9 @@ async function installPackages(
   clearPackageAlert: () => void,
 ) {
   clearPackageAlert();
-  RuntimeState.INSTANCE.registerRunStart();
-  await sendInstallMissingPackages({ manager: manager });
+  await sendInstallMissingPackages({ manager: manager }).catch((error) => {
+    Logger.error(error);
+  });
 }
 
 const InstallPackagesButton = ({

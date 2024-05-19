@@ -1,14 +1,14 @@
 # Commands that will run on workspace start
 tasks:
-    - name: build from source
-      before: pnpm install vite # vite needs to be installed in gitpod
-      init: |
-          make fe && make py
-          gp sync-done bundle 
-    
-    - name: marimo app in dev mode
-      openMode: "split-left"
-      init: gp sync-await bundle  # wait for the above 'init' to finish
-      command: |
-          marimo -d edit
-          gp ports expose 2718
+  - name: build from source
+    before: pnpm install vite # vite needs to be installed in gitpod
+    init: |
+      make fe && make py
+      gp sync-done bundle
+
+  - name: marimo app in dev mode
+    openMode: "split-left"
+    init: gp sync-await bundle # wait for the above 'init' to finish
+    command: |
+      marimo -d edit
+      gp ports expose 2718

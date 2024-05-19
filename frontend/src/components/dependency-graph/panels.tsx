@@ -22,6 +22,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
+import { getCellEditorView } from "@/core/cells/cells";
+import { CellId } from "@/core/cells/ids";
+import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
 
 interface Props {
   view: GraphLayoutView;
@@ -113,6 +116,14 @@ export const GraphSelectionPanel: React.FC<{
     return null;
   }
 
+  // Highlight the variable in the cell editor
+  const highlightInCell = (cellId: CellId, variableName: string) => {
+    const editorView = getCellEditorView(cellId);
+    if (editorView) {
+      goToDefinition(editorView, variableName);
+    }
+  };
+
   const renderSelection = () => {
     if (selection.type === "node") {
       const variablesUsed = Object.values(variables).filter((variable) =>
@@ -122,7 +133,10 @@ export const GraphSelectionPanel: React.FC<{
         variable.declaredBy.includes(selection.id),
       );
 
-      const renderVariables = (variables: Variable[]) => (
+      const renderVariables = (
+        variables: Variable[],
+        direction: "in" | "out",
+      ) => (
         <>
           {variables.length === 0 && (
             <div className="text-muted-foreground text-sm text-center">--</div>
@@ -141,7 +155,19 @@ export const GraphSelectionPanel: React.FC<{
                   </span>
                 </div>
                 <div className="truncate col-span-2 gap-1 items-center">
-                  <CellLinkList maxCount={3} cellIds={variable.usedBy} />
+                  <CellLinkList
+                    skipScroll={true}
+                    onClick={() =>
+                      highlightInCell(
+                        direction === "in"
+                          ? variable.declaredBy[0]
+                          : variable.usedBy[0],
+                        variable.name,
+                      )
+                    }
+                    maxCount={3}
+                    cellIds={variable.usedBy}
+                  />
                 </div>
               </React.Fragment>
             ))}
@@ -167,7 +193,7 @@ export const GraphSelectionPanel: React.FC<{
                 <ArrowRightFromLineIcon className="w-4 h-4" />
                 Outputs
               </span>
-              {renderVariables(variablesDeclared)}
+              {renderVariables(variablesDeclared, "out")}
             </div>
             <hr className="border-divider my-3" />
             <div className="flex flex-col gap-2">
@@ -175,7 +201,7 @@ export const GraphSelectionPanel: React.FC<{
                 <ArrowRightToLineIcon className="w-4 h-4" />
                 Inputs
               </span>
-              {renderVariables(variablesUsed)}
+              {renderVariables(variablesUsed, "in")}
             </div>
           </div>
         </>
@@ -202,6 +228,9 @@ export const GraphSelectionPanel: React.FC<{
                 <VariableName
                   declaredBy={variable.declaredBy}
                   name={variable.name}
+                  onClick={() => {
+                    highlightInCell(variable.declaredBy[0], variable.name);
+                  }}
                 />
                 <div className="truncate text-foreground/60 font-mono">
                   {variable.dataType}

@@ -56,7 +56,9 @@ export class MarimoIslandElement extends HTMLElement {
     const code = this.code;
     const codeCallback: () => string = optionalEditor
       ? () =>
-          `${UI_ELEMENT_REGISTRY.lookupValue(optionalEditor.props["object-id"])}`
+          `${UI_ELEMENT_REGISTRY.lookupValue(
+            optionalEditor.props["object-id"],
+          )}`
       : () => code;
 
     this.root = ReactDOM.createRoot(this);

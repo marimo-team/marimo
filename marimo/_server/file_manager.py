@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from marimo import _loggers
 from marimo._ast import codegen
-from marimo._ast.app import App, InternalApp
+from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
 from marimo._runtime.layout.layout import (
     LayoutConfig,
@@ -60,12 +60,9 @@ class AppFileManager:
         self,
         filename: str,
         contents: str = "",
-        header_comments: Optional[str] = None,
     ) -> None:
         try:
             with open(filename, "w", encoding="utf-8") as f:
-                if header_comments:
-                    f.write(header_comments.rstrip() + "\n\n")
                 f.write(contents)
         except Exception as err:
             raise HTTPException(
@@ -84,6 +81,39 @@ class AppFileManager:
                     self.filename, new_filename
                 ),
             ) from err
+
+    def _save_file(
+        self,
+        filename: str,
+        codes: list[str],
+        names: list[str],
+        configs: list[CellConfig],
+        app_config: _AppConfig,
+    ) -> None:
+        LOGGER.debug("Saving app to %s", filename)
+        if filename.endswith(".md"):
+            # TODO: Remember just proof of concept, potentially needs
+            # restructuring.
+            from marimo._server.export.exporter import Exporter
+
+            contents, _ = Exporter().export_as_md(self)
+        else:
+            # Header might be better kept on the AppConfig side, opposed to
+            # reparsing it. Also would allow for md equivalent in a field like
+            # `description`.
+            header_comments = codegen.get_header_comments(filename)
+            # try to save the app under the name `filename`
+            contents = codegen.generate_filecontents(
+                codes,
+                names,
+                cell_configs=configs,
+                config=app_config,
+                header_comments=header_comments,
+            )
+        self._create_file(filename, contents)
+
+        if self._is_unnamed():
+            self.rename(filename)
 
     @staticmethod
     def _load_app(path: Optional[str]) -> InternalApp:
@@ -141,15 +171,13 @@ class AppFileManager:
         # of file), instead of overwriting the whole file.
         new_config = self.app.update_config(config)
         if self.filename is not None:
-            # Try to save the app under the name `self.filename`
-            contents = codegen.generate_filecontents(
-                codes=list(self.app.cell_manager.codes()),
-                names=list(self.app.cell_manager.names()),
-                cell_configs=list(self.app.cell_manager.configs()),
-                config=new_config,
+            self._save_file(
+                self.filename,
+                list(self.app.cell_manager.codes()),
+                list(self.app.cell_manager.names()),
+                list(self.app.cell_manager.configs()),
+                new_config,
             )
-            header_comments = codegen.get_header_comments(self.filename)
-            self._create_file(self.filename, contents, header_comments)
 
     def save(self, request: SaveRequest) -> None:
         """Save the current app."""
@@ -188,19 +216,9 @@ class AppFileManager:
             # We don't remove the layout file from the disk to avoid
             # deleting state that the user might want to keep
             self.app.update_config({"layout_file": None})
-        # try to save the app under the name `filename`
-        contents = codegen.generate_filecontents(
-            codes,
-            names,
-            cell_configs=configs,
-            config=self.app.config,
+        return self._save_file(
+            filename, codes, names, configs, self.app.config
         )
-        LOGGER.debug("Saving app to %s", filename)
-        header_comments = codegen.get_header_comments(filename)
-        self._create_file(filename, contents, header_comments)
-
-        if self._is_unnamed():
-            self.rename(filename)
 
     def to_code(self) -> str:
         """Read the contents of the unsaved file."""

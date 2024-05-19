@@ -39,6 +39,8 @@ dependencies = [
     "docutils>=0.17.0",
     # to show RAM, CPU usage, other system utilities
     "psutil>=5.0",
+    # required dependency in Starlette for SessionMiddleware support
+    "itsdangerous>=2.0.0",
     # for cell formatting; if user version is not compatible, no-op
     # so no lower bound needed
     "black",
@@ -130,6 +132,8 @@ testoptional = [
     "anywidget~=0.9.3",
     "ipython~=8.12.3",
     "openai~=1.12.0",
+    # exporting as ipynb
+    "nbformat >= 5.0.0",
 ]
 
 [project.urls]
@@ -145,6 +149,8 @@ include = ["marimo*"]
 [tool.ruff]
 line-length=79
 exclude = [
+    "examples",
+    "scripts/print_banned_cell_names.py",
     "marimo/_tutorials",
     "marimo/_snippets/data",
     "marimo/_smoke_tests",
@@ -223,11 +229,11 @@ extend-select = [
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"**/{tests}/*" = ["ANN201", "ANN202"]
-
 # Never try to fix `F401` (unused imports).
 unfixable = ["F401"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/{tests}/*" = ["ANN201", "ANN202"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
@@ -294,3 +300,6 @@ extend-exclude = [
     "**/__demo__/*",
     "base64.test.ts",
 ]
+
+[tool.black]
+line-length = 79

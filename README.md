@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/marimo-team/marimo/raw/main/docs/_static/marimo-logotype-thick.svg">
+  <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-thick.svg">
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@ reference its variables, eliminating the error-prone task of manually
 re-running cells. Delete a cell and marimo scrubs its variables from program
 memory, eliminating hidden state.
 
-<img src="docs/_static/reactive.gif" width="700px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
 **Deterministic execution order.** Notebooks are executed in a deterministic
 order, based on variable references instead of cells' positions on the page.
@@ -59,7 +59,7 @@ Organize your notebooks to best fit the stories you'd like to tell.
 dropdowns, and dataframe transformers, and the cells that use them are
 automatically re-run with their latest values.
 
-<img src="docs/_static/readme-ui.gif" width="700px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" width="700px" />
 
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code. You can optionally disable expensive cells to
@@ -80,12 +80,11 @@ pip install marimo  # or conda install -c conda-forge marimo
 marimo tutorial intro
 ```
 
-**Or run in Gitpod.** 
+**Or run in Gitpod.**
 
 Click this link to open the repo in a Gitpod Workspace:
 
 [https://gitpod.io/#https://github.com/marimo-team/marimo](https://gitpod.io/#https://github.com/marimo-team/marimo)
-
 
 **Create notebooks.**
 
@@ -102,7 +101,7 @@ code hidden and uneditable:
 marimo run your_notebook.py
 ```
 
-<img src="docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
 **Execute as scripts.** Execute a notebook as a script at the
 command line:
@@ -137,7 +136,7 @@ marimo is easy to get started with, with lots of room for power users.
 For example, here's an embedding visualizer made in marimo
 ([video](https://marimo.io/videos/landing/full.mp4)):
 
-<img src="docs/_static/embedding.gif" width="700px" />
+<img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/embedding.gif" width="700px" />
 
 Check out our [docs](https://docs.marimo.io),
 the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn more.
@@ -151,17 +150,17 @@ the `examples/` folder, and our [gallery](https://marimo.io/@public) to learn mo
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/inputs/index.html">
-        <img src="docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
+        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/readme-ui.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/guides/plotting.html">
-        <img src="docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
+        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-intro.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
     <td>
       <a target="_blank" href="https://docs.marimo.io/api/layouts/index.html">
-        <img src="docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
+        <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/outputs.gif" style="max-height: 150px; width: auto; display: block" />
       </a>
     </td>
   </tr>

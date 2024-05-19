@@ -27,8 +27,6 @@ import { createWsUrl } from "./createWsUrl";
 import { useSetAppConfig } from "../config/config";
 import {
   handleCellOperation,
-  handleCompletedRun,
-  handleInterrupted,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
@@ -73,10 +71,8 @@ export function useMarimoWebSocket(opts: {
         return;
 
       case "completed-run":
-        handleCompletedRun();
         return;
       case "interrupted":
-        handleInterrupted();
         return;
 
       case "remove-ui-elements":

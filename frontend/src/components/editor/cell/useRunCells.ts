@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { RuntimeState } from "@/core/kernel/RuntimeState";
 import { CellId } from "@/core/cells/ids";
 import { sendRun } from "@/core/network/requests";
 import { staleCellIds, useNotebook } from "@/core/cells/cells";
@@ -52,10 +51,8 @@ function useRunCells() {
       ref.registerRun();
     }
 
-    RuntimeState.INSTANCE.registerRunStart();
     await sendRun(cellIds, codes).catch((error) => {
       Logger.error(error);
-      RuntimeState.INSTANCE.registerRunEnd();
     });
   });
 

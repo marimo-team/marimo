@@ -1,0 +1,38 @@
+fail_fast: true
+
+repos:
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.17
+    hooks:
+      - id: validate-pyproject
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.40.0
+    hooks:
+      - id: markdownlint-fix
+        args: [-c, configs/.markdownlint.yaml, --fix]
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.21.0
+    hooks:
+      - id: typos
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  - repo: https://github.com/biomejs/pre-commit
+    rev: v0.1.0
+    hooks:
+      - id: biome-format
+        args: [--config-path, frontend/biome.json]
+        additional_dependencies: ["@biomejs/biome@1.7.3"]
+        exclude: |
+          (?x)^(
+            docs/_static/.*|
+          )$

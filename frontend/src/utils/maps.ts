@@ -1,6 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { Logger } from "./Logger";
+
 type NoInfer<T> = [T][T extends any ? 0 : never];
 
 export const Maps = {
@@ -23,7 +25,7 @@ export const Maps = {
     }
 
     if (duplicateIds.size > 0) {
-      console.trace(`Duplicate keys: ${[...duplicateIds].join(", ")}`);
+      Logger.trace(`Duplicate keys: ${[...duplicateIds].join(", ")}`);
     }
 
     return map;

@@ -34,6 +34,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
       focusDown: namedFunction("focusDown"),
       sendToTop: namedFunction("sendToTop"),
       sendToBottom: namedFunction("sendToBottom"),
+      splitCell: namedFunction("splitCell"),
       moveToNextCell: namedFunction("moveToNextCell"),
       toggleHideCode: namedFunction("toggleHideCode"),
     },

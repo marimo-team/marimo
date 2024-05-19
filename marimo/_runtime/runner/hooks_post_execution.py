@@ -9,9 +9,11 @@ from marimo._messaging.errors import (
 from marimo._messaging.ops import CellOp, VariableValue, VariableValues
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.types import get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
+from marimo._utils.flatten import flatten
 
 LOGGER = _loggers.marimo_logger()
 
@@ -43,6 +45,23 @@ def _broadcast_variables(
     ]
     if values:
         VariableValues(variables=values).broadcast()
+
+
+def _store_reference_to_output(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del runner
+
+    # Stores a reference to the output if it contains a UIElement;
+    # this is required to make RPCs work for unnamed UI elements.
+    if isinstance(run_result.output, UIElement):
+        cell.set_output(run_result.output)
+    elif run_result.output is not None:
+        flattened, _ = flatten(run_result.output)
+        if any(isinstance(v, UIElement) for v in flattened):
+            cell.set_output(run_result.output)
 
 
 def _broadcast_outputs(
@@ -140,6 +159,7 @@ def _reset_matplotlib_context(
 
 POST_EXECUTION_HOOKS = [
     _set_status_idle,
+    _store_reference_to_output,
     _broadcast_variables,
     _broadcast_outputs,
     _reset_matplotlib_context,

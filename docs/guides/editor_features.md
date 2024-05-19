@@ -2,7 +2,7 @@
 
 This guide introduces some of marimo editor's features, including
 a variables panel, dependency graph viewer, table of contents, HTML export,
-GitHub copilot, code formatting, HTML export, a feedback form, and more.
+GitHub copilot, code formatting, a feedback form, and more.
 
 This guide introduces some of these features.
 

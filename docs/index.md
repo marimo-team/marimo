@@ -36,7 +36,6 @@ conda install -c conda-forge marimo && marimo tutorial intro
 Developer experience is core to marimo, with an emphasis on
 reproducibility, maintainability, composability, and shareability.
 
-
 **Highlights.**
 
 - **reactive**: run a cell and marimo automatically runs affected cells and updates their outputs
@@ -44,8 +43,6 @@ reproducibility, maintainability, composability, and shareability.
 - **reproducible**: no hidden state, deterministic execution order — code with confidence in your notebook's correctness
 - **deployable**: executable as a script, deployable as an app
 - **developer-friendly**: git-friendly `.py` file format, GitHub Copilot, fast autocomplete, code formatting, and more
-
-
 
 > ⚡ marimo notebooks run automatically with interactions and code changes
 

@@ -24,7 +24,7 @@ import { Atom } from "jotai";
 
 import { NodeData, VerticalElementsBuilder } from "./elements";
 import useEvent from "react-use-event-hook";
-import { scrollToCell } from "../editor/links/cell-link";
+import { scrollAndHighlightCell } from "../editor/links/cell-link";
 import { GraphSelectionPanel } from "./panels";
 import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
@@ -132,7 +132,7 @@ export const DependencyGraphMinimap: React.FC<PropsWithChildren<Props>> = ({
         setEdges([]);
       }}
       onNodeDoubleClick={(_event, node) => {
-        scrollToCell(node.id as CellId, "focus");
+        scrollAndHighlightCell(node.id as CellId, "focus");
       }}
       onEdgeClick={(_event, edge) => {
         setSelectedEdge(edge);

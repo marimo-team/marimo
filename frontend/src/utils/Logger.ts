@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable no-console */
 
 declare global {
   interface Window {
@@ -11,6 +12,7 @@ interface ILogger {
   log: (typeof console)["log"];
   warn: (typeof console)["warn"];
   error: (typeof console)["error"];
+  trace: (typeof console)["trace"];
 }
 
 /**
@@ -30,6 +32,9 @@ const ConsoleLogger: ILogger = {
   },
   error: (...args) => {
     console.error(...args);
+  },
+  trace: (...args) => {
+    console.trace(...args);
   },
 };
 

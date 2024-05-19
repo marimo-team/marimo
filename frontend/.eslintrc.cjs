@@ -26,7 +26,7 @@ module.exports = {
     "plugin:unicorn/all",
     // Testing
     "plugin:vitest/recommended",
-    // This removes rules that conflict with prettier.
+    // This removes rules that conflict with prettier/biomejs.
     "prettier",
   ],
   settings: {
@@ -108,6 +108,8 @@ module.exports = {
     "unicorn/prefer-top-level-await": "off",
     "unicorn/prevent-abbreviations": "off",
 
+    "no-console": "error",
+
     // Would like to turn on, but too many existing errors
     "@typescript-eslint/no-floating-promises": "off",
     "@typescript-eslint/no-misused-promises": "off",
@@ -180,6 +182,12 @@ module.exports = {
         "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-unsafe-member-access": "off",
         "typescript-eslint/no-unsafe-return": "off",
+      },
+    },
+    {
+      files: ["**/stories/**"],
+      rules: {
+        "no-console": "off",
       },
     },
   ],

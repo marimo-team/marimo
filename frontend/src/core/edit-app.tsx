@@ -1,7 +1,12 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useCallback, useEffect, useState } from "react";
 
-import { sendInterrupt, sendRename, sendSave } from "@/core/network/requests";
+import {
+  sendComponentValues,
+  sendInterrupt,
+  sendRename,
+  sendSave,
+} from "@/core/network/requests";
 
 import { Controls } from "@/components/editor/controls/Controls";
 import { FilenameInput } from "@/components/editor/header/filename-input";
@@ -78,15 +83,14 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
 
   // Initialize RuntimeState event-listeners
   useEffect(() => {
-    RuntimeState.INSTANCE.start();
+    RuntimeState.INSTANCE.start(sendComponentValues);
     return () => {
       RuntimeState.INSTANCE.stop();
     };
   }, []);
 
   const { connection } = useMarimoWebSocket({
-    autoInstantiate:
-      userConfig.runtime.auto_instantiate || viewState.mode === "read",
+    autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);
       const names = cells.map((cell) => cell.name);

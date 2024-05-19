@@ -9,7 +9,7 @@ import { startCase } from "lodash-es";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
 
 interface Props {
-  editorView: EditorView;
+  editorView: EditorView | null;
   canUseMarkdown: boolean;
   languageAdapter: LanguageAdapter["type"] | undefined;
 }
@@ -40,6 +40,9 @@ export const LanguageToggle: React.FC<Props> = ({
             fill={"var(--sky-11)"}
             fontSize={20}
             onClick={() => {
+              if (!editorView) {
+                return;
+              }
               switchLanguage(editorView, otherLanguage);
             }}
           />

@@ -58,6 +58,7 @@ from marimo._server.model import (
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
+from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._server.types import QueueType
 from marimo._server.utils import print_tabbed
 from marimo._utils.disposable import Disposable
@@ -82,6 +83,13 @@ class QueueManager:
         self.control_queue: QueueType[requests.ControlRequest] = (
             context.Queue() if context is not None else queue.Queue()
         )
+
+        # Set UI element queues are stored in both the control queue and
+        # this queue, so that the backend can merge/batch set-ui-element
+        # requests.
+        self.set_ui_element_queue: QueueType[
+            requests.SetUIElementValueRequest
+        ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: QueueType[requests.CompletionRequest] = (
@@ -115,6 +123,10 @@ class QueueManager:
             # kernel thread cleans up read/write conn and IOloop handler on
             # exit; we don't join the thread because we don't want to block
             self.control_queue.put(requests.StopRequest())
+
+        if isinstance(self.set_ui_element_queue, MPQueue):
+            self.set_ui_element_queue.cancel_join_thread()
+            self.set_ui_element_queue.close()
 
         if isinstance(self.input_queue, MPQueue):
             # again, don't make the child process wait for the queues to empty
@@ -162,6 +174,7 @@ class KernelManager:
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
@@ -200,6 +213,7 @@ class KernelManager:
                 target=launch_kernel_with_cleanup,
                 args=(
                     self.queue_manager.control_queue,
+                    self.queue_manager.set_ui_element_queue,
                     self.queue_manager.completion_queue,
                     self.queue_manager.input_queue,
                     listener.address,
@@ -343,6 +357,8 @@ class Session:
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put(request)
+        if isinstance(request, SetUIElementValueRequest):
+            self._queue_manager.set_ui_element_queue.put(request)
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -414,7 +430,7 @@ class Session:
             CreationRequest(
                 execution_requests=execution_requests,
                 set_ui_element_value_request=SetUIElementValueRequest(
-                    request.zip(),
+                    request.zip(), token=str(uuid4())
                 ),
             )
         )
@@ -438,7 +454,8 @@ class SessionManager:
     The SessionManager also encapsulates state common to all sessions:
     - the app filename
     - the app mode (edit or run)
-    - the server token
+    - the auth token
+    - the skew-protection token
     """
 
     def __init__(
@@ -451,6 +468,7 @@ class SessionManager:
         lsp_server: LspServer,
         user_config_manager: UserConfigManager,
         cli_args: SerializedCLIArgs,
+        auth_token: Optional[AuthToken],
     ) -> None:
         self.file_router = file_router
         self.mode = mode
@@ -464,18 +482,23 @@ class SessionManager:
         self.user_config_manager = user_config_manager
         self.cli_args = cli_args
 
-        if mode == SessionMode.EDIT:
-            # In edit mode, the server gets a random token to prevent
-            # frontends that it didn't create from connecting to it and
-            # executing edit-only commands (such as overwriting the file).
-            self.server_token = str(uuid4())
+        # Auth token and Skew-protection token
+        if auth_token is not None:
+            self.auth_token = auth_token
+            self.skew_protection_token = SkewProtectionToken.random()
+        elif mode == SessionMode.EDIT:
+            # In edit mode, if no auth token is provided,
+            # generate a random token
+            self.auth_token = AuthToken.random()
+            self.skew_protection_token = SkewProtectionToken.random()
         else:
-            # Because run-mode is read-only, all that matters is that
-            # the frontend's app matches the server's app.
             app = file_router.get_single_app_file_manager().app
-            self.server_token = str(
-                hash("".join(code for code in app.cell_manager.codes()))
-            )
+            codes = "".join(code for code in app.cell_manager.codes())
+            # Because run-mode is read-only and we could have multiple
+            # servers for the same app (going to sleep or autoscaling),
+            # we default to a token based on the app's code
+            self.auth_token = AuthToken.from_code(codes)
+            self.skew_protection_token = SkewProtectionToken.from_code(codes)
 
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """

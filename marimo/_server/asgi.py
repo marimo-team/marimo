@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, List, Tuple
-
-from marimo._server.file_router import AppFileRouter
-from marimo._utils.marimo_path import MarimoPath
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp
@@ -25,6 +22,7 @@ def create_asgi_app(
     *,
     quiet: bool = False,
     include_code: bool = False,
+    token: Optional[str] = None,
 ) -> ASGIAppBuilder:
     """
     Public API to create an ASGI app that can serve multiple notebooks.
@@ -87,6 +85,8 @@ def create_asgi_app(
 
     - quiet (bool, optional): Suppress standard out
     - include_code (bool, optional): Include notebook code in the app
+    - token (str, optional): Auth token to use for the app.
+        If not provided, an empty token is used.
 
     **Returns.**
 
@@ -97,13 +97,24 @@ def create_asgi_app(
 
     import marimo._server.api.lifespans as lifespans
     from marimo._config.manager import UserConfigManager
+    from marimo._server.file_router import AppFileRouter
     from marimo._server.main import create_starlette_app
     from marimo._server.model import SessionMode
     from marimo._server.sessions import NoopLspServer, SessionManager
+    from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._utils.marimo_path import MarimoPath
 
     user_config_mgr = UserConfigManager()
     base_app = Starlette()
+
+    # Default to an empty token
+    # If a user is using the create_asgi_app API,
+    # they likely want to provide their own authN/authZ
+    if not token:
+        auth_token = AuthToken("")
+    else:
+        auth_token = AuthToken(token)
 
     # We call the entrypoint `root` instead of `filename` incase we want to
     # support directories or code in the future
@@ -130,6 +141,7 @@ def create_asgi_app(
                 # since we don't want to read arbitrary args and apply them
                 # to each application
                 cli_args={},
+                auth_token=auth_token,
             )
             app = create_starlette_app(
                 base_url="",
@@ -140,6 +152,7 @@ def create_asgi_app(
                         lifespans.signal_handler,
                     ]
                 ),
+                enable_auth=not AuthToken.is_empty(auth_token),
             )
             app.state.session_manager = session_manager
             app.state.base_url = path

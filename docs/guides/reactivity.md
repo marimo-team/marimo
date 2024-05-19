@@ -26,6 +26,7 @@ running them. Learn more in the
 ```
 
 ## References and definitions
+
 A marimo notebook is a DAG where nodes are cells and edges are data
 dependencies. marimo creates this graph by statically analyzing each cell
 (i.e., without running it) to determine its
@@ -95,6 +96,7 @@ If you must mutate a variable in a downstream cell, try creating a new variable
 instead.
 
 _Don't_ do this:
+
 ```python
 l = [1]
 ```

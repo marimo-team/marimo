@@ -7,6 +7,7 @@ from marimo._messaging.ops import KernelReady
 from marimo._server.sessions import Session
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager
+from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -33,12 +34,12 @@ def create_response(
 def headers(session_id: str) -> dict[str, str]:
     return {
         "Marimo-Session-Id": session_id,
-        "Marimo-Server-Token": "fake-token",
+        **token_header("fake-token"),
     }
 
 
 HEADERS = {
-    "Marimo-Server-Token": "fake-token",
+    **token_header("fake-token"),
 }
 
 
@@ -235,11 +236,13 @@ def test_restart_session(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({}))
 
-    # Send save request
-    client.post(
+    # Restart the session
+    response = client.post(
         "/api/kernel/restart_session",
         headers=headers("123"),
     )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"success": True}
 
     # Check the session still exists after closing the websocket
     assert not get_session(client, "123")

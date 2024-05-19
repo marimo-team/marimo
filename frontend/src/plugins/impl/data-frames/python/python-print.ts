@@ -20,11 +20,15 @@ export function pythonPrint(dfName: string, transform: TransformType): string {
   switch (transform.type) {
     case "column_conversion": {
       const { column_id, data_type, errors } = transform;
-      return `${dfName}[${asLiteral(column_id)}].astype("${data_type}", errors="${errors}")`;
+      return `${dfName}[${asLiteral(
+        column_id,
+      )}].astype("${data_type}", errors="${errors}")`;
     }
     case "rename_column": {
       const { column_id, new_column_id } = transform;
-      return `${dfName}.rename(columns={${asLiteral(column_id)}: ${asLiteral(new_column_id)}})`;
+      return `${dfName}.rename(columns={${asLiteral(column_id)}: ${asLiteral(
+        new_column_id,
+      )}})`;
     }
     case "sort_column": {
       const { column_id, ascending, na_position } = transform;
@@ -116,15 +120,21 @@ function generateWhereClause(
     case "does_not_equal":
       return `${dfName}[${asLiteral(column_id)}].ne(${asLiteral(value)})`;
     case "contains":
-      return `${dfName}[${asLiteral(column_id)}].str.contains(${asLiteral(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.contains(${asLiteral(
+        value,
+      )})`;
     case "regex":
       return `${dfName}[${asLiteral(column_id)}].str.contains(${asLiteral(
         value,
       )}, regex=True)`;
     case "starts_with":
-      return `${dfName}[${asLiteral(column_id)}].str.startswith(${asLiteral(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.startswith(${asLiteral(
+        value,
+      )})`;
     case "ends_with":
-      return `${dfName}[${asLiteral(column_id)}].str.endswith(${asLiteral(value)})`;
+      return `${dfName}[${asLiteral(column_id)}].str.endswith(${asLiteral(
+        value,
+      )})`;
     case "in":
       return `${dfName}[${asLiteral(column_id)}].isin(${listOfStrings(value)})`;
     case "!=":

@@ -15,6 +15,7 @@ import { completionConfigState } from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
+import { getEditorCodeAsPython } from "./utils";
 
 export const LanguageAdapters: Record<
   LanguageAdapter["type"],
@@ -163,6 +164,20 @@ export function adaptiveLanguageConfiguration(
     ),
     languageAdapterState,
   ];
+}
+
+export function getInitialLanguageAdapter(state: EditorView["state"]) {
+  const doc = getEditorCodeAsPython({ state });
+  // Empty doc defaults to Python
+  if (!doc.trim()) {
+    return LanguageAdapters.python();
+  }
+
+  if (LanguageAdapters.markdown().isSupported(doc)) {
+    return LanguageAdapters.markdown();
+  }
+
+  return LanguageAdapters.python();
 }
 
 /**

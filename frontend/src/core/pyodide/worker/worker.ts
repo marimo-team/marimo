@@ -1,10 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { DefaultWasmController } from "./bootstrap";
 import type { PyodideInterface } from "pyodide";
 import { RawBridge, SerializedBridge, WasmController } from "./types";
 import { Deferred } from "../../../utils/Deferred";
-import { syncFileSystem } from "./fs";
+import { WasmFileSystem } from "./fs";
 import { MessageBuffer } from "./message-buffer";
 import { prettyError } from "../../../utils/errors";
 import {
@@ -21,46 +20,42 @@ import { OperationMessage } from "@/core/kernel/messages";
 import { JsonString } from "@/utils/json/base64";
 import { UserConfig } from "@/core/config/config-schema";
 import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
+import { t } from "./tracer";
+import { once } from "@/utils/once";
+import { getController } from "./getController";
+
+/**
+ * Web worker responsible for running the notebook.
+ */
 
 declare const self: Window & {
   pyodide: PyodideInterface;
   controller: WasmController;
 };
 
+const workerInitSpan = t.startSpan("worker:init");
+
 // Initialize pyodide
 async function loadPyodideAndPackages() {
   try {
     const marimoVersion = getMarimoVersion();
     const pyodideVersion = getPyodideVersion(marimoVersion);
-    await importPyodide(marimoVersion);
-    const controller = await getController(marimoVersion);
+    await t.wrapAsync(importPyodide)(marimoVersion);
+    const controller = await t.wrapAsync(getController)(marimoVersion);
     self.controller = controller;
-    self.pyodide = await controller.bootstrap({
+    self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
     });
   } catch (error) {
-    console.error("Error bootstrapping", error);
+    Logger.error("Error bootstrapping", error);
     rpc.send.initializedError({
       error: prettyError(error),
     });
   }
 }
 
-// Load the controller
-// Falls back to the default controller
-async function getController(version: string) {
-  try {
-    const controller = await import(
-      /* @vite-ignore */ `/wasm/controller.js?version=${version}`
-    );
-    return controller;
-  } catch {
-    return new DefaultWasmController();
-  }
-}
-
-const pyodideReadyPromise = loadPyodideAndPackages();
+const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();
 const messageBuffer = new MessageBuffer(
   (message: JsonString<OperationMessage>) => {
     rpc.send.kernelMessage({ message });
@@ -90,19 +85,33 @@ const requestHandler = createRPCRequestHandler({
     started = true;
     try {
       invariant(self.controller, "Controller not loaded");
-      const bridge = await self.controller.startSession({
+      await self.controller.mountFilesystem?.({
+        code: opts.code,
+        filename: opts.filename,
+      });
+      const startSession = t.wrapAsync(
+        self.controller.startSession.bind(self.controller),
+      );
+      const initializeOnce = once(() => {
+        rpc.send.initialized({});
+      });
+      const bridge = await startSession({
         code: opts.code,
         filename: opts.filename,
         queryParameters: opts.queryParameters,
         userConfig: opts.userConfig,
-        onMessage: messageBuffer.push,
+        onMessage: (msg) => {
+          initializeOnce();
+          messageBuffer.push(msg);
+        },
       });
       bridgeReady.resolve(bridge);
-      rpc.send.initialized({});
+      workerInitSpan.end("ok");
     } catch (error) {
       rpc.send.initializedError({
         error: prettyError(error),
       });
+      workerInitSpan.end("error");
     }
     return;
   },
@@ -111,21 +120,25 @@ const requestHandler = createRPCRequestHandler({
    * Load packages
    */
   loadPackages: async (packages: string) => {
+    const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
 
     await self.pyodide.loadPackagesFromImports(packages, {
-      messageCallback: console.log,
-      errorCallback: console.error,
+      messageCallback: Logger.log,
+      errorCallback: Logger.error,
     });
+    span.end();
   },
 
   /**
    * Read a file
    */
   readFile: async (filename: string) => {
+    const span = t.startSpan("readFile");
     await pyodideReadyPromise; // Make sure loading is done
 
     const file = self.pyodide.FS.readFile(filename, { encoding: "utf8" });
+    span.end();
     return file;
   },
 
@@ -145,6 +158,9 @@ const requestHandler = createRPCRequestHandler({
     functionName: keyof RawBridge;
     payload: {} | undefined | null;
   }) => {
+    const span = t.startSpan("bridge", {
+      functionName: opts.functionName,
+    });
     await pyodideReadyPromise; // Make sure loading is done
 
     const { functionName, payload } = opts;
@@ -184,9 +200,10 @@ const requestHandler = createRPCRequestHandler({
 
     // Sync the filesystem if we're saving, creating, deleting, or renaming a file
     if (namesThatRequireSync.has(functionName)) {
-      void syncFileSystem(self.pyodide, false);
+      void WasmFileSystem.persistFilesToRemote(self.pyodide);
     }
 
+    span.end();
     // Post the response back to the main thread
     return typeof response === "string" ? JSON.parse(response) : response;
   },

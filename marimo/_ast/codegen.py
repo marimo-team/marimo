@@ -13,6 +13,7 @@ from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
+from marimo._cli.convert.markdown import convert_from_md_to_app
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -150,6 +151,7 @@ def generate_filecontents(
     names: list[str],
     cell_configs: list[CellConfig],
     config: Optional[_AppConfig] = None,
+    header_comments: Optional[str] = None,
 ) -> str:
     """Translates a sequences of codes (cells) to a Python file"""
     cell_data: list[Union[CellImpl, tuple[str, CellConfig]]] = []
@@ -193,6 +195,8 @@ def generate_filecontents(
         + indent_text("app.run()")
     )
 
+    if header_comments:
+        filecontents = header_comments.rstrip() + "\n\n" + filecontents
     return filecontents + "\n"
 
 
@@ -210,6 +214,9 @@ def get_app(filename: Optional[str]) -> Optional[App]:
 
     if not contents:
         return None
+
+    if filename.endswith(".md"):
+        return convert_from_md_to_app(contents)
 
     spec = importlib.util.spec_from_file_location("marimo_app", filename)
     if spec is None:

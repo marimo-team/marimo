@@ -262,6 +262,79 @@ def temp_unparsable_marimo_file() -> Generator[str, None, None]:
         tmp_dir.cleanup()
 
 
+@pytest.fixture
+def temp_marimo_file_with_md() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.py"
+    content = inspect.cleandoc(
+        """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            import marimo as mo
+            return mo,
+
+        @app.cell
+        def __(mo):
+            control_dep = None
+            mo.md("markdown")
+            return control_dep
+
+        @app.cell
+        def __(mo, control_dep):
+            control_dep
+            mo.md(f"parametrized markdown {123}")
+            return
+
+
+        if __name__ == "__main__":
+            app.run()
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
+@pytest.fixture
+def temp_md_marimo_file() -> Generator[str, None, None]:
+    tmp_dir = TemporaryDirectory()
+    tmp_file = tmp_dir.name + "/notebook.md"
+    content = inspect.cleandoc(
+        """
+        ---
+        title: Notebook
+        marimo-version: 0.0.0
+        ---
+
+        # This is a markdown document.
+        <!---->
+        This is a another cell.
+
+        ```{.python.marimo}
+        import marimo as mo
+        ```
+
+        ```{.python.marimo}
+        slider = mo.ui.slider(0, 10)
+        ```
+        """
+    )
+
+    try:
+        with open(tmp_file, "w") as f:
+            f.write(content)
+        yield tmp_file
+    finally:
+        tmp_dir.cleanup()
+
+
 # Factory to create ExecutionRequests and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:

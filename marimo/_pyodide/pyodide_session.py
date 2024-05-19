@@ -10,8 +10,7 @@ from typing import Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
-from marimo._config.config import MarimoConfig, merge_default_config
-from marimo._messaging.ops import KernelReady, serialize
+from marimo._config.config import MarimoConfig
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.streams import (
     PyodideStderr,
@@ -27,12 +26,12 @@ from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
     ControlRequest,
-    CreationRequest,
-    ExecutionRequest,
-    SerializedQueryParams,
     SetUIElementValueRequest,
 )
 from marimo._runtime.runtime import Kernel
+from marimo._runtime.utils.set_ui_element_request_manager import (
+    SetUIElementRequestManager,
+)
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_manager import AppFileManager
 from marimo._server.files.os_file_system import OSFileSystem
@@ -67,68 +66,6 @@ from marimo._utils.parse_dataclass import parse_raw
 LOGGER = _loggers.marimo_logger()
 
 
-def instantiate(session: PyodideSession) -> None:
-    app = session.app_manager.app
-    execution_requests = tuple(
-        ExecutionRequest(cell_id=cell_data.cell_id, code=cell_data.code)
-        for cell_data in app.cell_manager.cell_data()
-    )
-
-    session.put_control_request(
-        CreationRequest(
-            execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(list()),
-        )
-    )
-
-
-def create_session(
-    filename: str,
-    query_params: SerializedQueryParams,
-    message_callback: Callable[[str], None],
-    user_config: MarimoConfig,
-) -> tuple[PyodideSession, PyodideBridge]:
-    def write_kernel_message(op: KernelMessage) -> None:
-        message_callback(json.dumps({"op": op[0], "data": op[1]}))
-
-    app_file_manager = AppFileManager(filename=filename)
-    app = app_file_manager.app
-    app_metadata = AppMetadata(
-        query_params=query_params, filename=filename, cli_args={}
-    )
-
-    session = PyodideSession(
-        app_file_manager,
-        SessionMode.EDIT,
-        write_kernel_message,
-        app_metadata,
-        merge_default_config(user_config),
-    )
-
-    write_kernel_message(
-        (
-            KernelReady.name,
-            serialize(
-                KernelReady(
-                    codes=tuple(app.cell_manager.codes()),
-                    names=tuple(app.cell_manager.names()),
-                    configs=tuple(app.cell_manager.configs()),
-                    cell_ids=tuple(app.cell_manager.cell_ids()),
-                    layout=None,
-                    resumed=False,
-                    ui_values={},
-                    last_executed_code={},
-                    app_config=app.config,
-                )
-            ),
-        )
-    )
-
-    bridge = PyodideBridge(session)
-
-    return session, bridge
-
-
 class AsyncQueueManager:
     """Manages queues for a session."""
 
@@ -136,6 +73,11 @@ class AsyncQueueManager:
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
         self.control_queue = asyncio.Queue[requests.ControlRequest]()
+
+        # set UI elements duplicated in another queue so they can be batched
+        self.set_ui_element_queue = asyncio.Queue[
+            requests.SetUIElementValueRequest
+        ]()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue = asyncio.Queue[requests.CompletionRequest]()
@@ -182,6 +124,7 @@ class PyodideSession:
     async def start(self) -> None:
         self.kernel_task = launch_pyodide_kernel(
             control_queue=self._queue_manager.control_queue,
+            set_ui_element_queue=self._queue_manager.set_ui_element_queue,
             completion_queue=self._queue_manager.completion_queue,
             input_queue=self._queue_manager.input_queue,
             on_message=self._on_message,
@@ -194,6 +137,8 @@ class PyodideSession:
 
     def put_control_request(self, request: requests.ControlRequest) -> None:
         self._queue_manager.control_queue.put_nowait(request)
+        if isinstance(request, requests.SetUIElementValueRequest):
+            self._queue_manager.set_ui_element_queue.put_nowait(request)
 
     def put_completion_request(
         self, request: requests.CompletionRequest
@@ -354,6 +299,7 @@ class PyodideBridge:
 
 def launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
+    set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
     completion_queue: asyncio.Queue[CompletionRequest],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
@@ -407,11 +353,17 @@ def launch_pyodide_kernel(
             signal.SIGINT, handlers.construct_interrupt_handler(kernel)
         )
 
+    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
+
     async def listen_messages() -> None:
         while True:
-            request = await control_queue.get()
+            request: ControlRequest | None = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            await kernel.handle_message(request)
+            if isinstance(request, requests.SetUIElementValueRequest):
+                request = ui_element_request_mgr.process_request(request)
+
+            if request is not None:
+                await kernel.handle_message(request)
 
     async def listen_completion() -> None:
         while True:

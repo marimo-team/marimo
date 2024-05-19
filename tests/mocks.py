@@ -56,7 +56,6 @@ def snapshotter(current_file: str) -> Callable[[str, str], None]:
                 )
             )
         )
-
         assert result == expected, f"Snapshot differs:\n{text_diff}"
 
     return snapshot

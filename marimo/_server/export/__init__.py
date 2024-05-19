@@ -40,6 +40,17 @@ def export_as_md(
     return Exporter().export_as_md(file_manager)
 
 
+def export_as_ipynb(
+    path: MarimoPath,
+) -> tuple[str, str]:
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    return Exporter().export_as_ipynb(file_manager)
+
+
 async def run_app_then_export_as_html(
     path: MarimoPath,
     include_code: bool,

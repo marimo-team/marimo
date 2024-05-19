@@ -11,6 +11,7 @@ import { AppContainer } from "@/components/editor/app-container";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { getSessionId } from "./kernel/session";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
+import { sendComponentValues } from "./network/requests";
 
 interface AppProps {
   appConfig: AppConfig;
@@ -21,7 +22,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
 
   // Initialize RuntimeState event-listeners
   useEffect(() => {
-    RuntimeState.INSTANCE.start();
+    RuntimeState.INSTANCE.start(sendComponentValues);
     return () => {
       RuntimeState.INSTANCE.stop();
     };

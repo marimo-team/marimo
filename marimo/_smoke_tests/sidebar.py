@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.5.1"
+__generated_with = "0.5.2"
 app = marimo.App()
 
 
@@ -22,6 +23,8 @@ def __(mo):
                 },
                 orientation="vertical",
             ),
+        ],
+        footer=[
             mo.md(
                 """
 
@@ -30,8 +33,8 @@ def __(mo):
         - [Twitter](https://twitter.com/marimo_io)
         - [GitHub](https://github.com/marimo-team/marimo)    
         """
-            ),
-        ]
+            )
+        ],
     )
     return
 

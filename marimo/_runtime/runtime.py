@@ -100,6 +100,9 @@ from marimo._runtime.runner.hooks import (
     PREPARATION_HOOKS,
 )
 from marimo._runtime.state import State
+from marimo._runtime.utils.set_ui_element_request_manager import (
+    SetUIElementRequestManager,
+)
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
@@ -554,10 +557,11 @@ class Kernel:
         `exclude_defs`, and instructs the frontend to invalidate its UI
         elements.
         """
+        cell = self.graph.cells[cell_id]
         missing_modules_before_deletion = (
             self.module_registry.missing_modules()
         )
-        defs_to_delete = self.graph.cells[cell_id].defs
+        defs_to_delete = cell.defs
         self._delete_names(
             defs_to_delete, exclude_defs if exclude_defs is not None else set()
         )
@@ -586,6 +590,7 @@ class Kernel:
                     isolated=is_python_isolated(),
                 ).broadcast()
 
+        cell.set_output(None)
         get_context().cell_lifecycle_registry.dispose(
             cell_id, deletion=deletion
         )
@@ -1022,10 +1027,9 @@ class Kernel:
                     object_id,
                     value,
                 )
-            except (KeyError, NameError):
+            except KeyError:
                 # KeyError: A UI element may go out of scope if it was not
                 # assigned to a global variable
-                # NameError: UI element might not have bindings
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
@@ -1307,6 +1311,7 @@ class Kernel:
 
 def launch_kernel(
     control_queue: QueueType[ControlRequest],
+    set_ui_element_queue: QueueType[SetUIElementValueRequest],
     completion_queue: QueueType[CompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
@@ -1407,10 +1412,12 @@ def launch_kernel(
                 signal.SIGTERM, handlers.construct_sigterm_handler(kernel)
             )
 
+    ui_element_request_mgr = SetUIElementRequestManager(set_ui_element_queue)
+
     async def control_loop() -> None:
         while True:
             try:
-                request = control_queue.get()
+                request: ControlRequest | None = control_queue.get()
             except Exception as e:
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
@@ -1418,7 +1425,11 @@ def launch_kernel(
             LOGGER.debug("received request %s", request)
             if isinstance(request, StopRequest):
                 break
-            await kernel.handle_message(request)
+            elif isinstance(request, SetUIElementValueRequest):
+                request = ui_element_request_mgr.process_request(request)
+
+            if request is not None:
+                await kernel.handle_message(request)
 
     # The control loop is asynchronous only because we allow user code to use
     # top-level await; nothing else is awaited. Don't introduce async

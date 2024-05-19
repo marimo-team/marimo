@@ -15,12 +15,12 @@ from marimo._server.export import export_as_md
 from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
-from marimo._tutorials import dataflow, marimo_for_jupyter_users
+from marimo._tutorials import dataflow, for_jupyter_users
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
 modules = {
-    "marimo_for_jupyter_users": marimo_for_jupyter_users,
+    "marimo_for_jupyter_users": for_jupyter_users,
     "dataflow": dataflow,
 }
 

@@ -6,8 +6,6 @@ import pathlib
 import sys
 import threading
 import time
-import warnings
-from modulefinder import ModuleFinder
 from typing import TYPE_CHECKING, Callable, Literal
 
 from marimo._messaging.types import Stream
@@ -38,37 +36,23 @@ def is_submodule(src_name: str, target_name: str) -> bool:
 def _depends_on(
     src_module: types.ModuleType,
     target_modules: set[types.ModuleType],
-    failed_filenames: set[str],
-    finder: ModuleFinder,
+    excludes: list[str],
+    reloader: ModuleReloader,
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
-    if not hasattr(src_module, "__file__") or src_module.__file__ is None:
-        return False
+    if src_module in target_modules:
+        return True
 
-    if src_module.__file__ in failed_filenames:
-        return False
-
-    try:
-        with warnings.catch_warnings():
-            # We temporarily ignore warnings to avoid spamming the console,
-            # since the watcher runs in a loop
-            warnings.simplefilter("ignore")
-            finder.run_script(src_module.__file__)
-    except SyntaxError:
-        # user introduced a syntax error, maybe; still check if the
-        # module itself has been modified
-        pass
-    except Exception:
-        # some modules like numpy fail when called with run_script;
-        # run_script takes a long time before failing on them, so
-        # don't try to analyze them again
-        failed_filenames.add(src_module.__file__)
-        return False
+    module_dependencies = reloader.get_module_dependencies(
+        src_module, excludes=excludes
+    )
 
     target_filenames = set(
         t.__file__ for t in target_modules if hasattr(t, "__file__")
     )
-    for found_module in itertools.chain([src_module], finder.modules.values()):
+    for found_module in itertools.chain(
+        [src_module], module_dependencies.values()
+    ):
         file = getattr(found_module, "__file__", None)
         if file is None:
             continue
@@ -107,8 +91,6 @@ def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> list[str]:
 def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
-    failed_filenames: set[str],
-    finder: ModuleFinder,
     sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, types.ModuleType]:
     """Returns the set of modules used by the graph that have been modified"""
@@ -116,15 +98,15 @@ def _check_modules(
     modified_modules = reloader.check(modules=sys_modules, reload=False)
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
+    excludes = _get_excluded_modules(sys_modules)
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
             target_modules=set(m for m in modified_modules if m is not None),
-            failed_filenames=failed_filenames,
-            finder=finder,
+            excludes=excludes,
+            reloader=reloader,
         ):
             stale_modules[modname] = module
-
     return stale_modules
 
 
@@ -143,12 +125,9 @@ def watch_modules(
     modules imported by the notebook as well as the modules imported by those
     modules, recursively.
     """
-    # modules that failed to be analyzed
-    failed_filenames: set[str] = set()
     # work with a copy to avoid race conditions
     # in CPython, dict.copy() is atomic
     sys_modules = sys.modules.copy()
-    finder = ModuleFinder(excludes=_get_excluded_modules(sys_modules))
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
@@ -159,13 +138,13 @@ def watch_modules(
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
+
         stale_modules = _check_modules(
             modules=modules,
             reloader=reloader,
-            failed_filenames=failed_filenames,
-            finder=finder,
             sys_modules=sys_modules,
         )
+
         if stale_modules:
             with graph.lock:
                 # If any modules are stale, communicate that to the FE
@@ -181,14 +160,13 @@ def watch_modules(
             if mode == "autorun":
                 run_is_processed.clear()
                 enqueue_run_stale_cells()
+
         # Don't proceed until enqueue_run_stale_cells() has been processed,
         # ie until stale cells have been rerun
         run_is_processed.wait()
         time.sleep(1)
         # Update our snapshot of sys.modules
         sys_modules = sys.modules.copy()
-        # Update excluded modules in case the module set has changed.
-        finder.excludes = _get_excluded_modules(sys_modules)
 
 
 class ModuleWatcher:

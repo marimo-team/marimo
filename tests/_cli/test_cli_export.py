@@ -216,7 +216,7 @@ class TestExportHtmlSmokeTests:
     def test_export_marimo_for_jupyter_users(
         self, tmp_path: pathlib.Path
     ) -> None:
-        from marimo._tutorials import marimo_for_jupyter_users as mod
+        from marimo._tutorials import for_jupyter_users as mod
 
         file = tmp_path / "mod.py"
         file.write_text(inspect.getsource(mod), encoding="utf-8")
@@ -434,3 +434,19 @@ class TestExportMarkdown:
                     in line
                 )
                 break
+
+
+class TestExportIpynb:
+    @pytest.mark.skipif(
+        not DependencyManager.has_nbformat(),
+        reason="This test requires nbformat.",
+    )
+    def test_export_ipynb(self, temp_marimo_file_with_md: str) -> None:
+        p = subprocess.run(
+            ["marimo", "export", "ipynb", temp_marimo_file_with_md],
+            capture_output=True,
+        )
+        assert p.returncode == 0, p.stderr.decode()
+        output = p.stdout.decode()
+        # ipynb has non-deterministic ids
+        snapshot("ipynb.txt", output)

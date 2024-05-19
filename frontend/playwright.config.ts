@@ -71,6 +71,13 @@ export function getAppUrl(app: ApplicationNames): string {
   }
   return getUrl(options.port, options.baseUrl);
 }
+export function getAppMode(app: ApplicationNames): "edit" | "run" {
+  const options: ServerOptions = appToOptions[app];
+  if (!options) {
+    throw new Error(`No server options for app: ${app}`);
+  }
+  return options.command;
+}
 
 // Reset file via git checkout
 export async function resetFile(app: ApplicationNames): Promise<void> {
@@ -176,7 +183,7 @@ const config: PlaywrightTestConfig = {
       const baseUrl = options.command === "run" ? options.baseUrl : undefined;
 
       const pathToApp = path.join(pydir, app);
-      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless`;
+      let marimoCmd = `marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
       if (baseUrl) {
         marimoCmd += ` --base-url=${baseUrl}`;
       }
@@ -188,11 +195,11 @@ const config: PlaywrightTestConfig = {
       };
     }),
     {
-      command: `marimo -q edit -p ${EDIT_PORT} --headless`,
+      command: `marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
       url: getUrl(EDIT_PORT),
       reuseExistingServer: false,
     },
-    WASM_SERVER,
+    // WASM_SERVER,
   ],
 };
 
