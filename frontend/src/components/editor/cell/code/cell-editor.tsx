@@ -235,6 +235,7 @@ const CellEditorInternal = ({
     handleDelete,
     runCell,
     setAiCompletionCell,
+    afterToggleMarkdown,
   ]);
 
   useEffect(() => {
