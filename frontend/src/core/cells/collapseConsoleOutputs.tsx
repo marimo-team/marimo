@@ -26,7 +26,7 @@ export function collapseConsoleOutputs(
     newConsoleOutputs.pop();
   }
 
-  return handleCarriageReturns(newConsoleOutputs);
+  return truncateHead(handleCarriageReturns(newConsoleOutputs), 5000);
 }
 
 function shouldCollapse(
@@ -44,6 +44,7 @@ function shouldCollapse(
 
   return isTextPlain && isSameChannel && isNotStdin;
 }
+
 function handleCarriageReturns(
   consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
@@ -88,4 +89,42 @@ function handleCarriageReturns(
     data: text,
   };
   return newConsoleOutputs;
+}
+
+function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
+  let n_lines = 0;
+  let i;
+  for (i = consoleOutputs.length - 1; i >= 0 && n_lines < limit; i--) {
+    const output = consoleOutputs[i];
+    if (output.mimetype === "text/plain") {
+      n_lines += output.data.split("\n").length;
+    } else {
+      n_lines++;
+    }
+  }
+
+  if (n_lines < limit) {
+    return consoleOutputs;
+  }
+
+  const cutoff = i + 1;
+  const warningOutput: OutputMessage = {
+    channel: "stderr",
+    mimetype: "text/html",
+    data: `<pre>Streaming output truncated to last ${limit} lines.\n</pre>`,
+    timestamp: -1,
+  };
+  const output = consoleOutputs[cutoff];
+  if (output.mimetype == "text/plain") {
+    const output_lines = output.data.split("\n");
+    const n_lines_after_output = n_lines - output_lines.length;
+    const n_lines_to_keep = limit - n_lines_after_output;
+    return [
+      warningOutput,
+      { ...output, data: output_lines.slice(-n_lines_to_keep).join("\n") },
+      ...consoleOutputs.slice(cutoff + 1),
+    ];
+  } else {
+    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
+  }
 }
