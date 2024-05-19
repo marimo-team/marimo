@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { languageAdapterState } from "./extension";
-import { EditorState } from "@codemirror/state";
+import type { EditorState } from "@codemirror/state";
 
 /**
  * Get the editor code as Python
@@ -20,6 +20,10 @@ export function getEditorCodeAsPython(
   return languageAdapter.transformOut(editorText)[0];
 }
 
+/**
+ * Update the editor code from Python code
+ * Handles when the editor is showing a different language (e.g. markdown)
+ */
 export function updateEditorCodeFromPython(
   editor: EditorView,
   pythonCode: string,
@@ -34,4 +38,34 @@ export function updateEditorCodeFromPython(
     },
   });
   return code;
+}
+
+/**
+ * Split the editor code into two parts at the cursor position
+ */
+export function splitEditor(editor: EditorView) {
+  const cursorPos = editor.state.selection.main.head;
+  const editorCode = editor.state.doc.toString();
+
+  const isCursorAtLineStart =
+    editorCode.length > 0 && editorCode[cursorPos - 1] === "\n";
+  const isCursorAtLineEnd =
+    editorCode.length > 0 && editorCode[cursorPos] === "\n";
+
+  const beforeAdjustedCursorPos = isCursorAtLineStart
+    ? cursorPos - 1
+    : cursorPos;
+  const afterAdjustedCursorPos = isCursorAtLineEnd ? cursorPos + 1 : cursorPos;
+
+  const beforeCursorCode = getEditorCodeAsPython(
+    editor,
+    0,
+    beforeAdjustedCursorPos,
+  );
+  const afterCursorCode = getEditorCodeAsPython(editor, afterAdjustedCursorPos);
+
+  return {
+    beforeCursorCode,
+    afterCursorCode,
+  };
 }
