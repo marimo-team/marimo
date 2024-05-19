@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.0.5"
+__generated_with = "0.5.2"
 app = marimo.App()
 
 
@@ -188,7 +188,7 @@ def __(file_area, file_button, mo):
 def __(mo):
     def show_element(element):
         if element is not None:
-          return mo.hstack([element], "center")
+          return mo.hstack([element], justify="center")
     return show_element,
 
 

@@ -48,8 +48,8 @@ def validate_name(
     """
     Validate the name of the file to be edited/run.
 
-    If its an existing path, check that it is a valid Python file.
-    If its a URL, we download it to a temporary file and return
+    If it's an existing path, check that it is a valid notebook file.
+    If it's a URL, we download it to a temporary file and return
     the path to that file.
 
     Args:
@@ -95,9 +95,10 @@ def validate_name(
             "Invalid NAME - %s is not a Python or Markdown file" % name
         )
 
-    if is_github_src(name, ext=".py"):
-        temp_dir = TemporaryDirectory()
-        return _handle_github_src(name, temp_dir), temp_dir
+    for ext in (".py", ".md"):
+        if is_github_src(name, ext=ext):
+            temp_dir = TemporaryDirectory()
+            return _handle_github_src(name, temp_dir), temp_dir
 
     if is_url(name):
         temp_dir = TemporaryDirectory()

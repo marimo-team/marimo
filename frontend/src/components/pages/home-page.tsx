@@ -29,7 +29,6 @@ import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 function tabTarget(path: string) {
   // Consistent tab target so we open in the same tab when clicking on the same notebook
@@ -115,20 +114,18 @@ const HomePage: React.FC = () => {
         <NotebookList
           header="All notebooks"
           control={
-            getFeatureFlag("markdown") && (
-              <div className="flex items-center gap-2">
-                {fileResponse.loading && <Spinner size="small" />}
-                <Checkbox
-                  data-testid="include-markdown-checkbox"
-                  id="include-markdown"
-                  checked={includeMarkdown}
-                  onCheckedChange={(checked) =>
-                    setIncludeMarkdown(Boolean(checked))
-                  }
-                />
-                <Label htmlFor="include-markdown">Include markdown</Label>
-              </div>
-            )
+            <div className="flex items-center gap-2">
+              {fileResponse.loading && <Spinner size="small" />}
+              <Checkbox
+                data-testid="include-markdown-checkbox"
+                id="include-markdown"
+                checked={includeMarkdown}
+                onCheckedChange={(checked) =>
+                  setIncludeMarkdown(Boolean(checked))
+                }
+              />
+              <Label htmlFor="include-markdown">Include markdown</Label>
+            </div>
           }
           files={workspace.files}
           runningNotebooks={runningNotebooks}

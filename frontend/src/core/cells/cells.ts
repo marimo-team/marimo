@@ -33,6 +33,10 @@ import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
 import { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
+import {
+  getEditorCodeAsPython,
+  updateEditorCodeFromPython,
+} from "../codemirror/language/utils";
 
 /**
  * The state of the notebook.
@@ -152,15 +156,18 @@ const {
 } = createReducerAndAtoms(initialNotebookState, {
   createNewCell: (
     state,
-    action: { cellId: CellId | "__end__"; before: boolean; code?: string },
+    action: { cellId: CellId | "__end__"; before: boolean; code?: string, newCellId?: CellId},
   ) => {
     const { cellId, before, code } = action;
+    let { newCellId } = action;
     const index =
       cellId === "__end__"
         ? state.cellIds.length - 1
         : state.cellIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
-    const newCellId = CellId.create();
+    if (!newCellId) {
+      newCellId = CellId.create();
+    }
 
     return {
       ...state,
@@ -620,6 +627,76 @@ const {
     return {
       ...state,
       cellLogs: [],
+    };
+  },
+  splitCell: (state, action: { cellId: CellId; cursorPos: number }) => {
+    const { cellId, cursorPos } = action;
+    const index = state.cellIds.indexOf(cellId);
+    const cell = state.cellData[cellId];
+    const cellHandle = state.cellHandles[cellId].current;
+
+    if (cellHandle?.editorView == null) {
+      // TODO: Because of this we can't do  the reducer tests like for the other functions
+      return state;
+    }
+
+    // Figure out if we're at the start or end of a line to adjust the cursor positions
+    const isCursorAtLineStart =
+      cell.code.length > 0 && cell.code[cursorPos - 1] === "\n";
+    const isCursorAtLineEnd =
+      cell.code.length > 0 && cell.code[cursorPos] === "\n";
+
+    const beforeAdjustedCursorPos = isCursorAtLineStart
+      ? cursorPos - 1
+      : cursorPos;
+    const afterAdjustedCursorPos = isCursorAtLineEnd
+      ? cursorPos + 1
+      : cursorPos;
+
+    const beforeCursorCode = getEditorCodeAsPython(
+      cellHandle.editorView,
+      0,
+      beforeAdjustedCursorPos,
+    );
+    const afterCursorCode = getEditorCodeAsPython(
+      cellHandle.editorView,
+      afterAdjustedCursorPos,
+    );
+
+    updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
+
+    const newCellId = CellId.create();
+
+    return {
+      ...state,
+      cellIds: arrayInsert(state.cellIds, index + 1, newCellId),
+      cellData: {
+        ...state.cellData,
+        [cellId]: {
+          ...cell,
+          code: beforeCursorCode,
+          edited: beforeCursorCode.trim() !== cell.lastCodeRun,
+        },
+        [newCellId]: createCell({
+          id: newCellId,
+          code: afterCursorCode,
+          edited: Boolean(afterCursorCode),
+        }),
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [cellId]: {
+          ...state.cellRuntime[cellId],
+          output: null,
+          consoleOutputs: [],
+        },
+        [newCellId]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [newCellId]: createRef(),
+      },
+      scrollKey: newCellId,
     };
   },
 });

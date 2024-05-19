@@ -2,7 +2,7 @@
 import marimo
 
 __generated_with = "0.3.12"
-app = marimo.App()
+app = marimo.App(app_title="marimo for Jupyter users")
 
 
 @app.cell(hide_code=True)

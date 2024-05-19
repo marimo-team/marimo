@@ -217,6 +217,9 @@ describe("MarkdownLanguageAdapter", () => {
     it("should return true for supported markdown string formats", () => {
       const pythonCode = 'mo.md("""# Markdown Title\n\nSome content here.""")';
       expect(adapter.isSupported(pythonCode)).toBe(true);
+      expect(adapter.isSupported("mo.md()")).toBe(true);
+      expect(adapter.isSupported("mo.md('')")).toBe(true);
+      expect(adapter.isSupported('mo.md("")')).toBe(true);
     });
 
     it("should return false for unsupported string formats", () => {

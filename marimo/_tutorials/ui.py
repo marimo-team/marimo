@@ -663,7 +663,7 @@ def __(mo):
 def __(mo):
     def show_element(element):
         if element is not None:
-            return mo.hstack([element], "center")
+            return mo.hstack([element], justify="center")
     return show_element,
 
 

@@ -216,7 +216,7 @@ class TestExportHtmlSmokeTests:
     def test_export_marimo_for_jupyter_users(
         self, tmp_path: pathlib.Path
     ) -> None:
-        from marimo._tutorials import marimo_for_jupyter_users as mod
+        from marimo._tutorials import for_jupyter_users as mod
 
         file = tmp_path / "mod.py"
         file.write_text(inspect.getsource(mod), encoding="utf-8")

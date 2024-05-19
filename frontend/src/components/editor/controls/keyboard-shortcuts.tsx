@@ -60,10 +60,11 @@ export const KeyboardShortcuts: React.FC = () => {
           <div className="flex flex-row gap-3">
             <div className="w-1/2">
               {renderGroup("Editing")}
-              {renderGroup("Navigation")}
+              {renderGroup("Markdown")}
             </div>
 
             <div className="w-1/2">
+              {renderGroup("Navigation")}
               {renderGroup("Running Cells")}
               {renderGroup("Creation and Ordering")}
               {renderGroup("Other")}

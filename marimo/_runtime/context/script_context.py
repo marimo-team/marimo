@@ -40,6 +40,10 @@ class ScriptRuntimeContext(RuntimeContext):
         return self._app.graph
 
     @property
+    def globals(self) -> dict[str, Any]:
+        return {}
+
+    @property
     def execution_context(self) -> ExecutionContext | None:
         return self._app.execution_context
 

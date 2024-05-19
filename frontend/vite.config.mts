@@ -62,7 +62,7 @@ const htmlDevPlugin = (): Plugin => {
         return `
         <html>
           <body>
-          In development mode, please run the server without authentication: <code style="color: red;">marimo run --no-auth</code>
+          In development mode, please run the server without authentication: <code style="color: red;">marimo edit --no-token</code>
           </body>
         </html>
         `;

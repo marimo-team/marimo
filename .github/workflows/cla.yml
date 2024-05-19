@@ -3,7 +3,7 @@ on:
   issue_comment:
     types: [created]
   pull_request_target:
-    types: [opened,closed,synchronize]
+    types: [opened, closed, synchronize]
 
 # explicitly configure permissions, in case your GITHUB_TOKEN workflow permissions are set to read-only in repository settings
 permissions:
@@ -25,13 +25,13 @@ jobs:
           # This token is required only if you have configured to store the signatures in a remote repository/organization
           PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
-          path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://marimo.io/cla' # e.g. a CLA or a DCO document
+          path-to-signatures: "signatures/version1/cla.json"
+          path-to-document: "https://marimo.io/cla" # e.g. a CLA or a DCO document
           # branch should not be protected
-          branch: 'main'
+          branch: "main"
           allowlist: user1,bot*
 
-         # the followings are the optional inputs - If the optional inputs are not given, then default values will be taken
+          # the followings are the optional inputs - If the optional inputs are not given, then default values will be taken
           remote-organization-name: marimo-team
           remote-repository-name: cla-signers
           lock-pullrequest-aftermerge: false #- if you don't want this bot to automatically lock the pull request after merging (default - true)

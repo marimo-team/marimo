@@ -113,7 +113,7 @@ class TestRunTutorialsAsScripts:
     def test_run_marimo_for_jupyter_users_tutorial(
         self, tmp_path: pathlib.Path
     ) -> None:
-        from marimo._tutorials import marimo_for_jupyter_users as mod
+        from marimo._tutorials import for_jupyter_users as mod
 
         file = tmp_path / "mod.py"
         file.write_text(inspect.getsource(mod))
@@ -122,3 +122,33 @@ class TestRunTutorialsAsScripts:
             capture_output=True,
         )
         self.assert_errored(p, reason="MultipleDefinitionError")
+
+    @pytest.mark.skipif(
+        condition=sys.platform == "win32", reason="Encoding error"
+    )
+    def test_run_disabled_cells(self, tmp_path: pathlib.Path) -> None:
+        code = """
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def enabled_cell():
+    print("enabled cell")
+
+@app.cell(disabled=True)
+def disabled_cell():
+    print("disabled cell")
+
+if __name__ == "__main__":
+    app.run()
+        """
+        file = tmp_path / "mod.py"
+        file.write_text(code)
+        p = subprocess.run(
+            ["python", str(file)],
+            capture_output=True,
+        )
+        self.assert_not_errored(p)
+        assert "enabled cell" in p.stdout.decode()
+        assert "disabled cell" not in p.stdout.decode()

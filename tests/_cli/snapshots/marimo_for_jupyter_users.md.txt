@@ -1,5 +1,5 @@
 ---
-title: Marimo For Jupyter Users
+title: marimo for Jupyter users
 marimo-version: 0.0.0
 ---
 

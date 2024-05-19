@@ -50,7 +50,6 @@ But sometimes, you might want interactions to mutate state:
 <figcaption>A proof-of-concept TODO list made using state.</figcaption>
 </div>
 
-
 - You want to tie two different UI elements so that updating one updates
   the other.
 
@@ -61,13 +60,11 @@ But sometimes, you might want interactions to mutate state:
 </figure>
 </div>
 
-
 For cases like these, marimo provides the function [`mo.state()`](/api/state),
 which creates a state object and returns a getter and setter function. When you
 call the setter function in one cell, all other cells that reference the getter
 function **via a global variable** are automatically run (similar to UI
 elements).
-
 
 ```{admonition} State and UI elements are similar
 :class: note
@@ -163,17 +160,16 @@ also enables new use cases. The next few examples showcase good uses of state.
 ```
 
 ### Example: counter
+
 The next few cells implement a counter controlled by two buttons. This
 particular example could be implemented without state (try it!), but the
-implementation using state is simpler. 
-
+implementation using state is simpler.
 
 <div align="center">
 <figure>
 <img src="/_static/docs-state-counter.gif"/>
 </figure>
 </div>
-
 
 ```python
 import marimo as mo
@@ -216,7 +212,6 @@ value depends on the other. This is impossible to do without `mo.state`.
 <img src="/_static/docs-state-tied.gif"/>
 </figure>
 </div>
-
 
 ```python
 import marimo as mo
@@ -276,7 +271,6 @@ The next few cells use state to create a todo list.
 <img src="/_static/docs-state-task-list.gif"/>
 </figure>
 </div>
-
 
 ```python
 import marimo as mo

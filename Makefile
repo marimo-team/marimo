@@ -51,7 +51,7 @@ e2e:
 
 .PHONY: fe-lint
 fe-lint:
-	cd frontend/src && typos && cd - && cd frontend && pnpm lint:fix
+	cd frontend/src && typos && cd - && cd frontend && pnpm lint
 
 .PHONY: fe-typecheck
 fe-typecheck:
