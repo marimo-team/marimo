@@ -965,4 +965,19 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
+
+  it("should focus cell at definition", () => {
+    const variableName: string = "testVariable";
+    actions.updateCellCode({
+      cellId: firstCellId,
+      code: `let ${variableName} = 42;`,
+      formattingChange: false,
+    });
+    actions.focusCellAtDefinition({ cellId: firstCellId, variableName });
+
+    const cell = state.cellHandles[firstCellId].current;
+    expect(cell).toBeDefined();
+    expect(cell?.editorView.state.doc.toString()).toContain(variableName);
+    expect(document.activeElement).toBe(cell?.editorView.dom);
+  });
 });
