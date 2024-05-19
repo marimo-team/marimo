@@ -18,7 +18,7 @@ export interface MovementCallbacks
   createBelow: () => void;
   moveUp: () => void;
   moveDown: () => void;
-  focusByVariableName: () => void
+  focusByVariableName: () => void;
   focusUp: () => void;
   focusDown: () => void;
   toggleHideCode: () => boolean;
@@ -243,8 +243,8 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: () => {
-        focusByVariableName()
-        return true
+        focusByVariableName();
+        return true;
       },
     },
   ];

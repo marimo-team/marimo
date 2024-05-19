@@ -4,7 +4,7 @@ import { Logger } from "../../utils/Logger";
 import { CellId, HTMLCellId } from "./ids";
 import { CellHandle } from "@/components/editor/Cell";
 import { CellConfig } from "./types";
-import {goToDefinition} from "../codemirror/find-replace/search-highlight";
+import { goToDefinition } from "../codemirror/find-replace/search-highlight";
 
 export function focusAndScrollCellIntoView({
   cellId,
@@ -55,7 +55,7 @@ export function focusAndScrollCellIntoView({
         },
       });
     } else if (codeFocus) {
-      goToDefinition(editor, codeFocus)
+      goToDefinition(editor, codeFocus);
     }
   }
 

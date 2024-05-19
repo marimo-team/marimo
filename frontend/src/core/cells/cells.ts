@@ -224,7 +224,10 @@ const {
       scrollKey: null,
     };
   },
-  focusCellAtDefinition: (state, action: { cellId: CellId; variableName: string }) => {
+  focusCellAtDefinition: (
+    state,
+    action: { cellId: CellId; variableName: string },
+  ) => {
     if (state.cellIds.length === 0) {
       return state;
     }
@@ -236,7 +239,7 @@ const {
       cellId: cellId,
       cell: state.cellHandles[cellId],
       config: state.cellData[cellId].config,
-      codeFocus: variableName
+      codeFocus: variableName,
     });
     return state;
   },

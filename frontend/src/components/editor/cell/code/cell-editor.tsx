@@ -33,10 +33,10 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
-import {getPositionAtWordBounds} from "@/core/codemirror/completion/hints";
-import {useVariables} from "@/core/variables/state";
-import {VariableName, Variables} from "@/core/variables/types";
-import {goToDefinition} from "@/core/codemirror/find-replace/search-highlight";
+import { getPositionAtWordBounds } from "@/core/codemirror/completion/hints";
+import { useVariables } from "@/core/variables/state";
+import { VariableName, Variables } from "@/core/variables/types";
+import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -134,20 +134,21 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell],
   );
-  const focusByVariableName = useCallback(
-    () => {
-        if (editorViewRef.current) {
-          const { state } = editorViewRef.current
-          const variableName = getWordUnderCursor(state)
-          const focusCellId = getCellIdOfDefinition(variables, variableName)
+  const focusByVariableName = useCallback(() => {
+    if (editorViewRef.current) {
+      const { state } = editorViewRef.current;
+      const variableName = getWordUnderCursor(state);
+      const focusCellId = getCellIdOfDefinition(variables, variableName);
 
-          if (focusCellId) {
-            focusCellAtDefinition({cellId: focusCellId, variableName: variableName})
-          }
-          return true;
-        }
-    }, [editorViewRef, focusCell, goToDefinition, useVariables]
-  )
+      if (focusCellId) {
+        focusCellAtDefinition({
+          cellId: focusCellId,
+          variableName: variableName,
+        });
+      }
+      return true;
+    }
+  }, [editorViewRef, focusCellAtDefinition, variables]);
   const toggleHideCode = useEvent(() => {
     const newConfig: CellConfig = { hide_code: !hidden };
     // Fire-and-forget save
@@ -229,6 +230,7 @@ const CellEditorInternal = ({
     showPlaceholder,
     createAbove,
     createBelow,
+    focusByVariableName,
     focusUp,
     focusDown,
     moveUp,
@@ -421,21 +423,24 @@ export const getWordUnderCursor = (state: EditorState) => {
   const { from, to } = state.selection.main;
   let variableName: string;
 
-  if (from !== to) {
-    variableName = state.doc.sliceString(from, to);
-  } else {
+  if (from === to) {
     const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
     variableName = state.doc.sliceString(startToken, endToken);
+  } else {
+    variableName = state.doc.sliceString(from, to);
   }
 
-  return variableName
-}
+  return variableName;
+};
 
-export const getCellIdOfDefinition = (variables: Variables, variableName: string) => {
-  const variable = variables[variableName as VariableName]
+export const getCellIdOfDefinition = (
+  variables: Variables,
+  variableName: string,
+) => {
+  const variable = variables[variableName as VariableName];
   if (!variable || variable.declaredBy.length === 0) {
     return null;
   }
   const focusCellId = variable.declaredBy[0];
-  return focusCellId
-}
+  return focusCellId;
+};

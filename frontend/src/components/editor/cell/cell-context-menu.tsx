@@ -20,9 +20,9 @@ import {
   ScissorsIcon,
   SearchIcon,
 } from "lucide-react";
-import {getCellIdOfDefinition, getWordUnderCursor} from "./code/cell-editor";
-import {useCellActions} from "@/core/cells/cells";
-import {useVariables} from "@/core/variables/state";
+import { getCellIdOfDefinition, getWordUnderCursor } from "./code/cell-editor";
+import { useCellActions } from "@/core/cells/cells";
+import { useVariables } from "@/core/variables/state";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -30,8 +30,8 @@ interface Props extends CellActionButtonProps {
 
 export const CellActionsContextMenu = ({ children, ...props }: Props) => {
   const actions = useCellActionButtons({ cell: props });
-  const variables = useVariables()
-  const { focusCellAtDefinition } = useCellActions()
+  const variables = useVariables();
+  const { focusCellAtDefinition } = useCellActions();
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
 
@@ -94,10 +94,10 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         const { getEditorView } = props;
         const editorView = getEditorView();
         if (editorView) {
-          const variableName = getWordUnderCursor(editorView?.state)
-          const focusCellId = getCellIdOfDefinition(variables, variableName)
+          const variableName = getWordUnderCursor(editorView?.state);
+          const focusCellId = getCellIdOfDefinition(variables, variableName);
           if (focusCellId) {
-            focusCellAtDefinition({cellId: focusCellId, variableName})
+            focusCellAtDefinition({ cellId: focusCellId, variableName });
           }
         }
       },
