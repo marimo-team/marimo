@@ -6,7 +6,12 @@ import sys
 from typing import Union
 
 from marimo import __version__
-from marimo._utils.health import get_chrome_version, get_node_version, get_required_modules_list
+from marimo._utils.health import (
+    get_chrome_version,
+    get_node_version,
+    get_required_modules_list,
+)
+
 
 def is_win11() -> bool:
     """
@@ -16,6 +21,7 @@ def is_win11() -> bool:
         bool: True if the OS is Windows 11, False otherwise.
     """
     return sys.getwindowsversion().build >= 22000
+
 
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
     os_version = platform.release()

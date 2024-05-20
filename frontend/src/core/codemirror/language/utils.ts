@@ -8,7 +8,7 @@ import { EditorState } from "@codemirror/state";
  * Handles when the editor has a different language adapter
  */
 export function getEditorCodeAsPython(
-  editor: { state: EditorState},
+  editor: { state: EditorState },
   fromPos?: number,
   toPos?: number,
 ): string {
