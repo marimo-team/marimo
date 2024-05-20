@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { EditorView } from "@codemirror/view";
-import { CellId } from "../cells/ids";
+
+import type { EditorView } from "@codemirror/view";
+import type { CellId } from "../cells/ids";
 import { Objects } from "../../utils/objects";
 import { sendFormat } from "../network/requests";
-import { CellActions, getNotebook } from "../cells/cells";
+import { type CellActions, getNotebook } from "../cells/cells";
 import { notebookCellEditorViews } from "../cells/utils";
 import {
   getEditorCodeAsPython,
@@ -16,7 +17,7 @@ import {
   languageAdapterState,
   switchLanguage,
 } from "./language/extension";
-import { LanguageAdapter } from "./language/types";
+import type { LanguageAdapter } from "./language/types";
 
 export const formattingChangeEffect = StateEffect.define<boolean>();
 
@@ -86,16 +87,17 @@ export function toggleMarkdown(
   cellId: CellId,
   editorView: EditorView,
   updateCellCode: CellActions["updateCellCode"],
-) {
+): "python" | "markdown" | false {
   // If already in markdown mode, switch to python
   if (getEditorViewMode(editorView) === "markdown") {
     switchLanguage(editorView, "python");
-    return;
+    return "python";
   }
 
   if (!canToggleMarkdown(editorView)) {
-    return;
+    return false;
   }
+
   if (getEditorCodeAsPython(editorView).trim() === "") {
     const blankMd = 'mo.md(rf"")';
     updateCellCode({
@@ -105,5 +107,7 @@ export function toggleMarkdown(
     });
     updateEditorCodeFromPython(editorView, blankMd);
   }
+
   switchLanguage(editorView, "markdown");
+  return "markdown";
 }

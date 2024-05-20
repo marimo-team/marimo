@@ -25,12 +25,12 @@ import {
   EyeOffIcon,
   SparklesIcon,
 } from "lucide-react";
-import { ActionButton } from "./types";
+import type { ActionButton } from "./types";
 import { MultiIcon } from "@/components/icons/multi-icon";
-import { CellConfig, CellData, CellStatus } from "@/core/cells/types";
-import { CellId } from "@/core/cells/ids";
+import type { CellConfig, CellData, CellStatus } from "@/core/cells/types";
+import type { CellId } from "@/core/cells/ids";
 import { saveCellConfig } from "@/core/network/requests";
-import { EditorView } from "@codemirror/view";
+import type { EditorView } from "@codemirror/view";
 import { useRunCell } from "../cell/useRunCells";
 import { NameCellInput } from "./name-cell-input";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -43,8 +43,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
-import { aiEnabledAtom } from "@/core/config/config";
+import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 
 export interface CellActionButtonProps
   extends Pick<CellData, "name" | "config"> {
@@ -75,6 +76,7 @@ export function useCellActionButtons({ cell }: Props) {
   const { openModal } = useImperativeModal();
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   if (!cell) {
     return [];
   }
@@ -206,6 +208,7 @@ export function useCellActionButtons({ cell }: Props) {
           if (!editorView) {
             return;
           }
+          maybeAddMarimoImport(autoInstantiate, createCell);
           toggleMarkdown(cellId, editorView, updateCellCode);
         },
       },

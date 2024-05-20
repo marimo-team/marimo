@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, test, vi } from "vitest";
-import { CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
-import { EditorState, Extension } from "@codemirror/state";
+import { type CodeMirrorSetupOpts, setupCodeMirror } from "../cm";
+import { EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
-import { CellId } from "@/core/cells/ids";
+import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 
 vi.mock("@/core/config/config", () => ({
@@ -40,6 +40,7 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     cellCodeCallbacks: {
       updateCellCode: namedFunction("updateCellCode"),
+      afterToggleMarkdown: namedFunction("afterToggleMarkdown"),
     },
     completionConfig: {
       activate_on_typing: false,

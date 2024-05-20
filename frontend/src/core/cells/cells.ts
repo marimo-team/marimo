@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue } from "jotai";
-import { ReducerWithoutAction, createRef } from "react";
-import { CellMessage } from "../kernel/messages";
+import { type ReducerWithoutAction, createRef } from "react";
+import type { CellMessage } from "../kernel/messages";
 import {
-  CellConfig,
-  CellRuntimeState,
-  CellData,
+  type CellConfig,
+  type CellRuntimeState,
+  type CellData,
   createCell,
   createCellRuntimeState,
 } from "./types";
@@ -22,16 +22,16 @@ import { createReducerAndAtoms } from "../../utils/createReducer";
 import { arrayInsert, arrayDelete } from "@/utils/arrays";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
 import { mergeOutlines } from "../dom/outline";
-import { CellHandle } from "@/components/editor/Cell";
+import type { CellHandle } from "@/components/editor/Cell";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { splitAtom, selectAtom } from "jotai/utils";
 import { isStaticNotebook, parseStaticState } from "../static/static-state";
-import { CellLog, getCellLogsForMessage } from "./logs";
+import { type CellLog, getCellLogsForMessage } from "./logs";
 import { deserializeBase64, deserializeJson } from "@/utils/json/base64";
 import { historyField } from "@codemirror/commands";
 import { clamp } from "@/utils/math";
-import { LayoutState } from "../layout/layout";
+import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
 import {
   getEditorCodeAsPython,
@@ -156,18 +156,28 @@ const {
 } = createReducerAndAtoms(initialNotebookState, {
   createNewCell: (
     state,
-    action: { cellId: CellId | "__end__"; before: boolean; code?: string, newCellId?: CellId},
+    action: {
+      cellId: CellId | "__end__";
+      before: boolean;
+      code?: string;
+      lastCodeRun?: string;
+      newCellId?: CellId;
+      autoFocus?: boolean;
+    },
   ) => {
-    const { cellId, before, code } = action;
-    let { newCellId } = action;
+    const {
+      cellId,
+      before,
+      code,
+      lastCodeRun = null,
+      autoFocus = true,
+    } = action;
+    const newCellId = action.newCellId || CellId.create();
     const index =
       cellId === "__end__"
         ? state.cellIds.length - 1
         : state.cellIds.indexOf(cellId);
     const insertionIndex = before ? index : index + 1;
-    if (!newCellId) {
-      newCellId = CellId.create();
-    }
 
     return {
       ...state,
@@ -177,7 +187,8 @@ const {
         [newCellId]: createCell({
           id: newCellId,
           code,
-          edited: Boolean(code),
+          lastCodeRun,
+          edited: Boolean(code) && code !== lastCodeRun,
         }),
       },
       cellRuntime: {
@@ -188,7 +199,7 @@ const {
         ...state.cellHandles,
         [newCellId]: createRef(),
       },
-      scrollKey: newCellId,
+      scrollKey: autoFocus ? newCellId : null,
     };
   },
   moveCell: (state, action: { cellId: CellId; before: boolean }) => {
@@ -201,7 +212,8 @@ const {
         cellIds: [cell, ...state.cellIds.slice(1)],
         scrollKey: cellId,
       };
-    } else if (!before && index === state.cellIds.length - 1) {
+    }
+    if (!before && index === state.cellIds.length - 1) {
       return {
         ...state,
         cellIds: [...state.cellIds.slice(0, -1), cell],
@@ -329,40 +341,40 @@ const {
   undoDeleteCell: (state) => {
     if (state.history.length === 0) {
       return state;
-    } else {
-      const mostRecentlyDeleted = state.history[state.history.length - 1];
-
-      const {
-        name,
-        serializedEditorState = { doc: "" },
-        index,
-      } = mostRecentlyDeleted;
-      const cellId = CellId.create();
-      const undoCell = createCell({
-        id: cellId,
-        name,
-        code: serializedEditorState.doc,
-        edited: serializedEditorState.doc.trim().length > 0,
-        serializedEditorState,
-      });
-      return {
-        ...state,
-        cellIds: arrayInsert(state.cellIds, index, cellId),
-        cellData: {
-          ...state.cellData,
-          [cellId]: undoCell,
-        },
-        cellRuntime: {
-          ...state.cellRuntime,
-          [cellId]: createCellRuntimeState(),
-        },
-        cellHandles: {
-          ...state.cellHandles,
-          [cellId]: createRef(),
-        },
-        history: state.history.slice(0, -1),
-      };
     }
+
+    const mostRecentlyDeleted = state.history[state.history.length - 1];
+
+    const {
+      name,
+      serializedEditorState = { doc: "" },
+      index,
+    } = mostRecentlyDeleted;
+    const cellId = CellId.create();
+    const undoCell = createCell({
+      id: cellId,
+      name,
+      code: serializedEditorState.doc,
+      edited: serializedEditorState.doc.trim().length > 0,
+      serializedEditorState,
+    });
+    return {
+      ...state,
+      cellIds: arrayInsert(state.cellIds, index, cellId),
+      cellData: {
+        ...state.cellData,
+        [cellId]: undoCell,
+      },
+      cellRuntime: {
+        ...state.cellRuntime,
+        [cellId]: createCellRuntimeState(),
+      },
+      cellHandles: {
+        ...state.cellHandles,
+        [cellId]: createRef(),
+      },
+      history: state.history.slice(0, -1),
+    };
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {
     const { cellId } = action;
@@ -530,7 +542,9 @@ const {
       };
       // Create a new cell at the beginning; again, no need to update
       // scrollKey
-    } else if (nextCellIndex === -1 && !noCreate) {
+    }
+
+    if (nextCellIndex === -1 && !noCreate) {
       const newCellId = CellId.create();
       return {
         ...state,
@@ -548,47 +562,47 @@ const {
           [newCellId]: createRef(),
         },
       };
-    } else {
-      const nextCellId = state.cellIds[nextCellIndex];
-      // Just focus, no state change
-      focusAndScrollCellIntoView({
-        cellId: nextCellId,
-        cell: state.cellHandles[nextCellId],
-        config: state.cellData[nextCellId].config,
-        codeFocus: before ? "bottom" : "top",
-      });
-      return state;
     }
+
+    const nextCellId = state.cellIds[nextCellIndex];
+    // Just focus, no state change
+    focusAndScrollCellIntoView({
+      cellId: nextCellId,
+      cell: state.cellHandles[nextCellId],
+      config: state.cellData[nextCellId].config,
+      codeFocus: before ? "bottom" : "top",
+    });
+    return state;
   },
   scrollToTarget: (state) => {
     // Scroll to the specified cell and clear the scroll key.
     const scrollKey = state.scrollKey;
     if (scrollKey === null) {
       return state;
-    } else {
-      const index = state.cellIds.indexOf(scrollKey);
-
-      // Special-case scrolling to the end of the page: bug in Chrome where
-      // browser fails to scrollIntoView an element at the end of a long page
-      if (index === state.cellIds.length - 1) {
-        const cellId = state.cellIds[state.cellIds.length - 1];
-        state.cellHandles[cellId].current?.editorView.focus();
-        scrollToBottom();
-      } else {
-        const nextCellId = state.cellIds[index];
-        focusAndScrollCellIntoView({
-          cellId: nextCellId,
-          cell: state.cellHandles[nextCellId],
-          config: state.cellData[nextCellId].config,
-          codeFocus: undefined,
-        });
-      }
-
-      return {
-        ...state,
-        scrollKey: null,
-      };
     }
+
+    const index = state.cellIds.indexOf(scrollKey);
+
+    // Special-case scrolling to the end of the page: bug in Chrome where
+    // browser fails to scrollIntoView an element at the end of a long page
+    if (index === state.cellIds.length - 1) {
+      const cellId = state.cellIds[state.cellIds.length - 1];
+      state.cellHandles[cellId].current?.editorView.focus();
+      scrollToBottom();
+    } else {
+      const nextCellId = state.cellIds[index];
+      focusAndScrollCellIntoView({
+        cellId: nextCellId,
+        cell: state.cellHandles[nextCellId],
+        config: state.cellData[nextCellId].config,
+        codeFocus: undefined,
+      });
+    }
+
+    return {
+      ...state,
+      scrollKey: null,
+    };
   },
   foldAll: (state) => {
     const targets = Object.values(state.cellHandles).map(

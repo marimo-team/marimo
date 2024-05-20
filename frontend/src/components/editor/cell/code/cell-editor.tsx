@@ -13,10 +13,14 @@ import React, {
 
 import { setupCodeMirror } from "@/core/codemirror/cm";
 import useEvent from "react-use-event-hook";
-import { CellActions, useCellActions } from "@/core/cells/cells";
-import { CellRuntimeState, CellData, CellConfig } from "@/core/cells/types";
-import { UserConfig } from "@/core/config/config-schema";
-import { Theme } from "@/theme/useTheme";
+import { type CellActions, useCellActions } from "@/core/cells/cells";
+import type {
+  CellRuntimeState,
+  CellData,
+  CellConfig,
+} from "@/core/cells/types";
+import type { UserConfig } from "@/core/config/config-schema";
+import type { Theme } from "@/theme/useTheme";
 import {
   LanguageAdapters,
   getInitialLanguageAdapter,
@@ -29,11 +33,13 @@ import { cn } from "@/utils/cn";
 import { saveCellConfig } from "@/core/network/requests";
 import { HideCodeButton } from "../../code/readonly-python-code";
 import { AiCompletionEditor } from "./ai-completion-editor";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
-import { LanguageAdapter } from "@/core/codemirror/language/types";
+import type { LanguageAdapter } from "@/core/codemirror/language/types";
+import { autoInstantiateAtom } from "@/core/config/config";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -137,6 +143,10 @@ const CellEditorInternal = ({
     updateCellConfig({ cellId, config: newConfig });
     return newConfig.hide_code || false;
   });
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const afterToggleMarkdown = useEvent(() => {
+    maybeAddMarimoImport(autoInstantiate, createNewCell);
+  });
 
   const extensions = useMemo(() => {
     const extensions = setupCodeMirror({
@@ -145,6 +155,7 @@ const CellEditorInternal = ({
       enableAI: Boolean(userConfig.ai.open_ai?.api_key),
       cellCodeCallbacks: {
         updateCellCode,
+        afterToggleMarkdown,
       },
       cellMovementCallbacks: {
         onRun: runCell,
@@ -224,6 +235,7 @@ const CellEditorInternal = ({
     handleDelete,
     runCell,
     setAiCompletionCell,
+    afterToggleMarkdown,
   ]);
 
   useEffect(() => {
@@ -359,6 +371,7 @@ const CellEditorInternal = ({
               editorView={editorViewRef.current}
               languageAdapter={languageAdapter}
               canUseMarkdown={canUseMarkdown}
+              onAfterToggleMarkdown={afterToggleMarkdown}
             />
           </div>
         )}

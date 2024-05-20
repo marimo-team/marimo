@@ -1,23 +1,25 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { switchLanguage } from "@/core/codemirror/language/extension";
-import { EditorView } from "@codemirror/view";
-import React from "react";
+import type { EditorView } from "@codemirror/view";
+import type React from "react";
 import { MarkdownIcon, PythonIcon } from "./icons";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { startCase } from "lodash-es";
-import { LanguageAdapter } from "@/core/codemirror/language/types";
+import type { LanguageAdapter } from "@/core/codemirror/language/types";
 
 interface Props {
   editorView: EditorView | null;
   canUseMarkdown: boolean;
   languageAdapter: LanguageAdapter["type"] | undefined;
+  onAfterToggleMarkdown: () => void;
 }
 
 export const LanguageToggle: React.FC<Props> = ({
   editorView,
   languageAdapter,
   canUseMarkdown,
+  onAfterToggleMarkdown,
 }) => {
   if (!canUseMarkdown && languageAdapter !== "markdown") {
     return null;
@@ -44,6 +46,7 @@ export const LanguageToggle: React.FC<Props> = ({
                 return;
               }
               switchLanguage(editorView, otherLanguage);
+              onAfterToggleMarkdown();
             }}
           />
         </Button>
