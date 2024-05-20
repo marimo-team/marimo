@@ -1,0 +1,45 @@
+files:
+  ###################
+  # Inputs
+  ansi.py:
+    input: "y"
+  stdin.py:
+    input: "y"
+
+  ###################
+  # Errors
+  anywidget_compat.py:
+    failed_reason: "ModuleNotFoundError: No module named 'drawdata'"
+  bugs/924.py:
+    failed_reason: "ModuleNotFoundError: No module named 'micropip'"
+  third_party/ipython_display.py:
+    failed_reason: "ModuleNotFoundError: No module named 'tikz'"
+  bugs/1270.py:
+    failed_reason: "UDF failed: DataFrame constructor"
+  stop.py:
+    failed_reason: "MarimoStopError"
+  ws.py:
+    failed_reason: "MarimoStopError"
+  charts/1mil_flights.py:
+    failed_reason: "MarimoStopError"
+  errors.py:
+    failed_reason: "UnparsableError"
+
+  ###################
+  # Not a marimo app
+  custom_server/my_server.py:
+    skip: true
+  # This runs plt.show() which blocks the test
+  bugs/1086.py:
+    skip: true
+
+  ###################
+  # Should be fixed
+  refresh.py: # flaky
+    skip: true
+    failed_reason: "MarimoStopError"
+  iplot.py:
+    skip: true
+    failed_reason: "RuntimeError: cannot schedule new futures after interpreter shutdown"
+  pdb_test.py:
+    failed_reason: "AttributeError: module 'marimo' has no attribute 'pdb'"
