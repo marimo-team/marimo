@@ -2,21 +2,24 @@
 from __future__ import annotations
 
 import platform
+import sys
 from typing import Union
 
 from marimo import __version__
-from marimo._utils.health import (
-    get_chrome_version,
-    get_node_version,
-    get_required_modules_list,
-)
+from marimo._utils.health import get_chrome_version, get_node_version, get_required_modules_list
 
+def is_win11() -> bool:
+    return sys.getwindowsversion().build >= 22000
 
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
+    os_version = platform.release()
+    if platform.system() == "Windows" and is_win11():
+        os_version = "11"
+
     info = {
         "marimo": __version__,
         "OS": platform.system(),
-        "OS Version": platform.release(),
+        "OS Version": os_version,
         # e.g., x86 or arm
         "Processor": platform.processor(),
         "Python Version": platform.python_version(),
