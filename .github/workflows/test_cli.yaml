@@ -58,6 +58,7 @@ jobs:
 
       - name: 📦 Build marimo wheel
         run: |
+          uv activate marimo-venv
           uv pip install build
           uv pip install .
           python -m build
@@ -94,18 +95,16 @@ jobs:
         with:
           uv-venv: marimo-venv
 
-      - name: Install Python deps
-        run: |
-          uv pip install pytest
-
       - name: Download wheel
         uses: actions/download-artifact@v3
         with:
           name: testwheel
 
-      - name: Install marimo
-        shell: bash
-        run: uv pip install ./marimo*whl
+      - name: Install Python deps
+        run: |
+          uv activate marimo-venv
+          uv pip install pytest
+          uv pip install ./marimo*whl
 
       - name: Test CLI
         shell: bash
@@ -131,21 +130,18 @@ jobs:
         with:
           uv-venv: marimo-venv
 
-
-      - name: Install Python deps
-        run: |
-          uv pip install pytest pytest-asyncio
-          cd examples
-          uv pip install -r requirements.txt
-
       - name: Download wheel
         uses: actions/download-artifact@v3
         with:
           name: testwheel
 
-      - name: Install marimo
-        shell: bash
-        run: uv pip install ./marimo*whl
+      - name: Install Python deps
+        run: |
+          uv activate marimo-venv
+          uv pip install pytest pytest-asyncio
+          uv pip install ./marimo*whl
+          cd examples
+          uv pip install -r requirements.txt
 
       - name: Test examples
         shell: bash
