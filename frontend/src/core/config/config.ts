@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom, useAtom, useSetAtom } from "jotai";
 import {
-  AppConfig,
-  UserConfig,
+  type AppConfig,
+  type UserConfig,
   parseAppConfig,
   parseUserConfig,
 } from "./config-schema";
@@ -12,6 +12,10 @@ import { store } from "../state/jotai";
  * Atom for storing the user config.
  */
 export const userConfigAtom = atom<UserConfig>(parseUserConfig());
+
+export const autoInstantiateAtom = atom((get) => {
+  return get(userConfigAtom).runtime.auto_instantiate;
+});
 
 /**
  * Returns the user config.
