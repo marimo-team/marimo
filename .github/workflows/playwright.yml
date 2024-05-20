@@ -6,11 +6,8 @@ on:
   pull_request: {}
 
 env:
-  # Turbocache
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
-  TURBO_API: "https://cache.turbocache.build"
-  TURBO_RUN_SUMMARY: true
 
 jobs:
   test:
