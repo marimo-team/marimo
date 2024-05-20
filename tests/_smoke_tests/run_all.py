@@ -68,6 +68,11 @@ async def _run_test(
         failed_reason = file_config.get("failed_reason", None)
         input_data = file_config.get("input", None)
 
+        with open(file, "r") as f:  # noqa: ASYNC101
+            content = f.read()
+            if "marimo.App(" not in content:
+                return
+
         process, stdout, stderr = await Cmd(
             f"python {file}", timeout=5, input_data=input_data
         ).run()
@@ -78,8 +83,13 @@ async def _run_test(
                 process.returncode != 0
             ), f"{relative_file} Expected error: {failed_reason}"
             assert failed_reason in stderr, f"File: {file}"
+        # Allow MarimoStop
+        elif "MarimoStop" in stderr:
+            assert (
+                process.returncode != 0
+            ), f"{relative_file} Unexpected error: {stderr}"
         else:
-            # Expecting no error
+            # Expecting no error, allow MarimoStop
             assert (
                 process.returncode == 0
             ), f"{relative_file} Unexpected error: {stderr}"

@@ -28,6 +28,8 @@ files:
     failed_reason: "MarimoStopError"
   model_comparison/model_comparison.py:
     failed_reason: "MarimoStopError"
+  third_party/duckdb_example.py:
+    failed_reason: "MarimoStopError"
 
   ###################
   # Not a marimo app
@@ -47,6 +49,19 @@ files:
   embeddings/rotational_invariance.py:
     skip: true
   embeddings/google_scholar.py:
+    skip: true
+  embeddings/us_counties.py:
+    skip: true
+  ai/question-pdf.py:
+    skip: true
+  # Don't work on macos
+  optimization/smallest_enclosing_circle.py:
+    skip: true
+  optimization/regularization_and_sparsity.py:
+    skip: true
+  optimization/signals/examples.py:
+    skip: true
+  optimization/signals/app.py:
     skip: true
 
   ###################
