@@ -80,7 +80,9 @@ def register_formatters() -> None:
     # Because Python's import system caches modules, our formatters'
     # register methods will be called at most once.
     for finder in sys.meta_path:
-        original_find_spec = finder.find_spec
+        # Note: "Vendored" dependencies may not have a find_spec method.
+        # E.g. `six` bundled with a project.
+        original_find_spec = getattr(finder, "find_spec", lambda x: x)
 
         # We include `original_find_spec` as a kwarg to force it to be bound
         # to the new `find_spec` method; this is needed because closures are
