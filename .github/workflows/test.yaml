@@ -111,6 +111,8 @@ jobs:
             python-version: "3.12"
             dependencies: "core,optional"
     steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -196,5 +198,7 @@ jobs:
     name: Check for typos
     runs-on: ubuntu-latest
     steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
       - uses: crate-ci/typos@v1.20.10

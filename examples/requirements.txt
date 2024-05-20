@@ -3,6 +3,7 @@ langchain >= 0.0.245
 marimo >= 0.1.0
 matplotlib >= 3.2.0
 mortgage >= 1.0.5
+vega-datasets
 numpy >= 1.22.0
 openai >= 0.27.8
 pandas >= 2.0.0
