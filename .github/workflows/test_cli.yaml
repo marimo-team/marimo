@@ -99,14 +99,19 @@ jobs:
         with:
           name: testwheel
 
-      - name: Install Python deps
+      - name: Install Python deps (Windows)
+        shell: bash
+        if: matrix.os == 'windows-latest'
         run: |
           uv pip install pytest
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            uv pip install marimo*whl
-          else
-            uv pip install ./marimo*whl
-          fi
+          uv pip install marimo*whl
+
+      - name: Install Python deps (Linux, MacOS)
+        shell: bash
+        if: matrix.os != 'windows-latest'
+        run: |
+          uv pip install pytest
+          uv pip install ./marimo*whl
 
       - name: Test CLI
         shell: bash
