@@ -9,7 +9,7 @@ import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
-import {goToDefinition} from "../go-to-definition";
+import { goToDefinition } from "../go-to-definition";
 
 export interface MovementCallbacks
   extends Pick<

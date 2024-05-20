@@ -68,7 +68,7 @@ export function useVariablesActions() {
   return useActions();
 }
 
-export { variablesAtom }
+export { variablesAtom };
 
 export const exportedForTesting = {
   reducer,

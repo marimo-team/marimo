@@ -92,7 +92,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         const { getEditorView } = props;
         const editorView = getEditorView();
         if (editorView) {
-          goToDefinition(editorView)
+          goToDefinition(editorView);
         }
       },
     },

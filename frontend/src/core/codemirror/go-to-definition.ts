@@ -33,7 +33,7 @@ const getCellIdOfDefinition = (variables: Variables, variableName: string) => {
 
 export function goToDefinition(view: EditorView) {
   const state = view.state;
-  const variables = store.get(variablesAtom)
+  const variables = store.get(variablesAtom);
   const variableName = getWordUnderCursor(state);
   const focusCellId = getCellIdOfDefinition(variables, variableName);
 
