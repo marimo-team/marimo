@@ -12,6 +12,18 @@ automatically.
 To provide reactive execution, marimo creates a dataflow graph out of your
 cells.
 <!---->
+**Tip: disabling automatic execution.**
+
+marimo lets you disable automatic execution: just go into the notebook settings
+and set
+
+"Runtime > On Cell Change" to "lazy".
+
+When the runtime is lazy, after running a cell, marimo marks its
+descendants as stale instead of automatically running them. The lazy
+runtime puts you in control over when cells are run, while still giving
+guarantees about the notebook state.
+<!---->
 ## References and definitions
 
 A marimo notebook is a directed acyclic graph in which nodes represent
