@@ -8,6 +8,8 @@ import { type NotebookState, notebookAtom } from "../cells";
 import type { CellId } from "../ids";
 import type { CellData } from "../types";
 
+const CELL_IDS = ["1" as CellId];
+
 describe("maybeAddMissingImport", () => {
   it("should not add an import if the variable is already in the variables state", () => {
     const appStore = createStore();
@@ -33,6 +35,7 @@ describe("maybeAddMissingImport", () => {
             code: code,
           } as CellData,
         },
+        cellIds: CELL_IDS,
       } as NotebookState);
       const onAddImport = vi.fn();
       maybeAddMissingImport("marimo", "mo", onAddImport, appStore);
@@ -49,6 +52,7 @@ describe("maybeAddMissingImport", () => {
           code: "mo.md('hello')",
         } as CellData,
       },
+      cellIds: CELL_IDS,
     } as NotebookState);
     const onAddImport = vi.fn();
     maybeAddMissingImport("marimo", "mo", onAddImport, appStore);
