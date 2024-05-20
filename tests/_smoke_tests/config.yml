@@ -26,6 +26,8 @@ files:
     failed_reason: "UnparsableError"
   reactive_plots.py:
     failed_reason: "MarimoStopError"
+  model_comparison/model_comparison.py:
+    failed_reason: "MarimoStopError"
 
   ###################
   # Not a marimo app
