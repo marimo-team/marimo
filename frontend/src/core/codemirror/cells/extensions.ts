@@ -10,7 +10,6 @@ import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {goToDefinition} from "../go-to-definition";
-import {useVariables} from "@/core/variables/state";
 
 export interface MovementCallbacks
   extends Pick<
@@ -52,7 +51,6 @@ export function cellMovementBundle(
     toggleHideCode,
     aiCellCompletion,
   } = callbacks;
-  const variables = useVariables()
 
   const hotkeys: KeyBinding[] = [
     {
@@ -248,7 +246,7 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        goToDefinition(ev, variables);
+        goToDefinition(ev);
         return true;
       },
     },

@@ -2,10 +2,11 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getPositionAtWordBounds } from "../codemirror/completion/hints";
-import { Variables, VariableName } from "../variables/types";
+import { VariableName, Variables } from "../variables/types";
 import { focusAndScrollCellIntoView } from "../cells/scrollCellIntoView";
 import { store } from "../state/jotai";
 import { notebookAtom } from "../cells/cells";
+import { variablesAtom } from "../variables/state";
 
 const getWordUnderCursor = (state: EditorState) => {
   const { from, to } = state.selection.main;
@@ -30,8 +31,9 @@ const getCellIdOfDefinition = (variables: Variables, variableName: string) => {
   return focusCellId;
 };
 
-export function goToDefinition(view: EditorView, variables: Variables) {
+export function goToDefinition(view: EditorView) {
   const state = view.state;
+  const variables = store.get(variablesAtom)
   const variableName = getWordUnderCursor(state);
   const focusCellId = getCellIdOfDefinition(variables, variableName);
 
