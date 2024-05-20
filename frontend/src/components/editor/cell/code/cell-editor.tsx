@@ -37,7 +37,7 @@ import { LanguageAdapter } from "@/core/codemirror/language/types";
 import { getPositionAtWordBounds } from "@/core/codemirror/completion/hints";
 import { useVariables } from "@/core/variables/state";
 import { VariableName, Variables } from "@/core/variables/types";
-import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
+import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -48,7 +48,6 @@ export interface CellEditorProps
       | "createNewCell"
       | "deleteCell"
       | "focusCell"
-      | "focusCellAtDefinition"
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
@@ -80,7 +79,6 @@ const CellEditorInternal = ({
   createNewCell,
   deleteCell,
   focusCell,
-  focusCellAtDefinition,
   moveCell,
   moveToNextCell,
   updateCellConfig,
@@ -139,19 +137,10 @@ const CellEditorInternal = ({
   );
   const focusByVariableName = useCallback(() => {
     if (editorViewRef.current) {
-      const { state } = editorViewRef.current;
-      const variableName = getWordUnderCursor(state);
-      const focusCellId = getCellIdOfDefinition(variables, variableName);
-
-      if (focusCellId) {
-        focusCellAtDefinition({
-          cellId: focusCellId,
-          variableName: variableName,
-        });
-      }
+      goToDefinition(editorViewRef.current, variables);
       return true;
     }
-  }, [editorViewRef, focusCellAtDefinition, variables]);
+  }, [editorViewRef, variables]);
   const toggleHideCode = useEvent(() => {
     const newConfig: CellConfig = { hide_code: !hidden };
     // Fire-and-forget save

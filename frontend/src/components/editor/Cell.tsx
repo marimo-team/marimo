@@ -85,7 +85,6 @@ export interface CellProps
       | "createNewCell"
       | "deleteCell"
       | "focusCell"
-      | "focusCellAtDefinition"
       | "moveCell"
       | "moveToNextCell"
       | "updateCellConfig"
@@ -135,7 +134,6 @@ const CellComponent = (
     createNewCell,
     deleteCell,
     focusCell,
-    focusCellAtDefinition,
     moveCell,
     setStdinResponse,
     moveToNextCell,
@@ -435,7 +433,6 @@ const CellComponent = (
             createNewCell={createNewCell}
             deleteCell={deleteCell}
             focusCell={focusCell}
-            focusCellAtDefinition={focusCellAtDefinition}
             moveCell={moveCell}
             moveToNextCell={moveToNextCell}
             updateCellConfig={updateCellConfig}

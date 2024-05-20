@@ -46,7 +46,6 @@ export const CellArray: React.FC<CellArrayProps> = ({
     updateCellConfig,
     clearSerializedEditorState,
     focusCell,
-    focusCellAtDefinition,
     createNewCell,
     focusBottomCell,
     focusTopCell,
@@ -121,7 +120,6 @@ export const CellArray: React.FC<CellArrayProps> = ({
           createNewCell={createNewCell}
           deleteCell={onDeleteCell}
           focusCell={focusCell}
-          focusCellAtDefinition={focusCellAtDefinition}
           moveToNextCell={moveToNextCell}
           setStdinResponse={setStdinResponse}
           updateCellConfig={updateCellConfig}

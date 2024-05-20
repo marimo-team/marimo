@@ -11,11 +11,13 @@ export function focusAndScrollCellIntoView({
   cell,
   config,
   codeFocus,
+  variableName,
 }: {
   cellId: CellId;
   cell: RefObject<CellHandle>;
   config: CellConfig;
-  codeFocus: string | undefined;
+  codeFocus: "top" | "bottom" | undefined;
+  variableName: string | undefined;
 }) {
   if (!cell) {
     return;
@@ -36,7 +38,7 @@ export function focusAndScrollCellIntoView({
       return;
     }
     editor.focus();
-    if (codeFocus === "<<top>>") {
+    if (codeFocus === "top") {
       // If codeFocus is top, move the cursor to the top of the editor.
       editor.dispatch({
         selection: {
@@ -44,7 +46,7 @@ export function focusAndScrollCellIntoView({
           head: 0,
         },
       });
-    } else if (codeFocus === "<<bottom>>") {
+    } else if (codeFocus === "bottom") {
       // If codeFocus is bottom, move the cursor to the bottom of the editor,
       // but front of the last line.
       const lastLine = editor.state.doc.line(editor.state.doc.lines);
@@ -54,8 +56,8 @@ export function focusAndScrollCellIntoView({
           head: lastLine.from,
         },
       });
-    } else if (codeFocus) {
-      goToDefinition(editor, codeFocus);
+    } else if (variableName) {
+      goToDefinition(editor, variableName);
     }
   }
 
