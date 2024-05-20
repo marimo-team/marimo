@@ -102,7 +102,7 @@ jobs:
       - name: Install Python deps
         run: |
           uv pip install pytest
-          if [ ${{ matrix.os }} == "windows-latest" ]; then
+          if [ "$RUNNER_OS" == "Windows" ]; then
             uv pip install marimo*whl
           else
             uv pip install ./marimo*whl
