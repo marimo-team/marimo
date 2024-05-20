@@ -4,7 +4,7 @@ from __future__ import annotations
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
-from marimo._plugins.stateless import plain_text
+from marimo._plugins.stateless.plain_text import plain_text
 from marimo._plugins.ui import table
 
 
