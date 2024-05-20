@@ -74,6 +74,11 @@ class RuntimeContext(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def globals(self) -> dict[str, Any]:
+        pass
+
+    @property
+    @abc.abstractmethod
     def execution_context(self) -> ExecutionContext | None:
         pass
 

@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.3.12"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -11,13 +11,13 @@ def __():
     import marimo as mo
 
     mo.md("# Welcome to marimo! 🌊🍃")
-    return mo,
+    return (mo,)
 
 
 @app.cell
 def __(mo):
     slider = mo.ui.slider(1, 22)
-    return slider,
+    return (slider,)
 
 
 @app.cell
@@ -32,6 +32,28 @@ def __(mo, slider):
 
         {"##" + "🍃" * slider.value}
         """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.accordion(
+        {
+            "Tip: disabling automatic execution": mo.md(
+                rf"""
+            marimo lets you disable automatic execution: just go into the
+            notebook settings and set
+
+            "Runtime > On Cell Change" to "lazy".
+
+            When the runtime is lazy, after running a cell, marimo marks its
+            descendants as stale instead of automatically running them. The
+            lazy runtime puts you in control over when cells are run, while
+            still giving guarantees about the notebook state.
+            """
+            )
+        }
     )
     return
 
@@ -98,7 +120,7 @@ def __(changed, mo):
 @app.cell
 def __():
     changed = False
-    return changed,
+    return (changed,)
 
 
 @app.cell(hide_code=True)
@@ -164,7 +186,8 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """## 2. UI elements
+        """
+        ## 2. UI elements
 
         Cells can output interactive UI elements. Interacting with a UI
         element **automatically triggers notebook execution**: when
@@ -187,13 +210,13 @@ def __(mo):
 @app.cell
 def __(mo):
     icon = mo.ui.dropdown(["🍃", "🌊", "✨"], value="🍃")
-    return icon,
+    return (icon,)
 
 
 @app.cell
 def __(icon, mo):
     repetitions = mo.ui.slider(1, 16, label=f"number of {icon.value}: ")
-    return repetitions,
+    return (repetitions,)
 
 
 @app.cell
@@ -251,7 +274,8 @@ def __(mo):
 @app.cell(hide_code=True)
 def __(mo):
     mo.md(
-        """## 5. The `marimo` command-line tool
+        """
+        ## 5. The `marimo` command-line tool
 
         **Creating and editing notebooks.** Use
 
@@ -425,13 +449,13 @@ def __():
             """
         ),
         "Configuration": (
-           """
+            """
            Configure the editor by clicking the gears icon near the top-right
            of the screen.
            """
         ),
     }
-    return tips,
+    return (tips,)
 
 
 if __name__ == "__main__":
