@@ -18,7 +18,9 @@ import {
   CopyIcon,
   ImageIcon,
   ScissorsIcon,
+  SearchIcon,
 } from "lucide-react";
+import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -78,6 +80,17 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
           link.download = "image.png";
           link.href = imageRightClicked.src;
           link.click();
+        }
+      },
+    },
+    {
+      label: "Go to Definition",
+      icon: <SearchIcon size={13} strokeWidth={1.5} />,
+      handle: () => {
+        const { getEditorView } = props;
+        const editorView = getEditorView();
+        if (editorView) {
+          goToDefinition(editorView);
         }
       },
     },

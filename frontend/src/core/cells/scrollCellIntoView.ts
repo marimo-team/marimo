@@ -4,17 +4,20 @@ import { Logger } from "../../utils/Logger";
 import { CellId, HTMLCellId } from "./ids";
 import { CellHandle } from "@/components/editor/Cell";
 import { CellConfig } from "./types";
+import { goToDefinition } from "../codemirror/find-replace/search-highlight";
 
 export function focusAndScrollCellIntoView({
   cellId,
   cell,
   config,
   codeFocus,
+  variableName,
 }: {
   cellId: CellId;
   cell: RefObject<CellHandle>;
   config: CellConfig;
   codeFocus: "top" | "bottom" | undefined;
+  variableName: string | undefined;
 }) {
   if (!cell) {
     return;
@@ -53,6 +56,8 @@ export function focusAndScrollCellIntoView({
           head: lastLine.from,
         },
       });
+    } else if (variableName) {
+      goToDefinition(editor, variableName);
     }
   }
 

@@ -33,6 +33,12 @@ describe("parseShortcut", () => {
     expect(shortcut(event)).toBe(true);
   });
 
+  it("should recognize cell.goToDefinition hotkey", () => {
+    const shortcut = parseShortcut("F12");
+    const event = new KeyboardEvent("keydown", { key: "F12" });
+    expect(shortcut(event)).toBe(true);
+  });
+
   it("should not recognize incorrect single key shortcuts", () => {
     const shortcut = parseShortcut("a");
     const event = new KeyboardEvent("keydown", { key: "b" });

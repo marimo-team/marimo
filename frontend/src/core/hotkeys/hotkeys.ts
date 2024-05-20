@@ -301,6 +301,11 @@ const DEFAULT_HOT_KEY = {
     group: "Navigation",
     key: "Mod-Shift-s",
   },
+  "cell.goToDefinition": {
+    name: "Go to Definition",
+    group: "Navigation",
+    key: "F12",
+  },
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;

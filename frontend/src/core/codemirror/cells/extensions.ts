@@ -9,6 +9,7 @@ import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import { goToDefinition } from "../go-to-definition";
 
 export interface MovementCallbacks
   extends Pick<
@@ -241,6 +242,15 @@ export function cellMovementBundle(
       },
     },
     {
+      key: HOTKEYS.getHotkey("cell.goToDefinition").key,
+      preventDefault: true,
+      stopPropagation: true,
+      run: (ev) => {
+        goToDefinition(ev);
+        return true;
+      },
+    },
+    {
       key: HOTKEYS.getHotkey("cell.splitCell").key,
       preventDefault: true,
       stopPropagation: true,
@@ -251,7 +261,6 @@ export function cellMovementBundle(
           ev.contentDOM.blur();
           moveToNextCell({ cellId, before: false }); // focus new cell
         });
-
         return true;
       },
     },
