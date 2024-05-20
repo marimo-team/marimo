@@ -4,6 +4,7 @@ from __future__ import annotations
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import FormatterFactory
+from marimo._plugins.stateless import plain_text
 from marimo._plugins.ui import table
 
 
@@ -27,7 +28,4 @@ class DuckDBFormatter(FormatterFactory):
             if DependencyManager.has_pandas():
                 return table(con.df(), selection=None)._mime_()
 
-            return (
-                "text/html",
-                str(con),
-            )
+            return plain_text(str(con))._mime_()
