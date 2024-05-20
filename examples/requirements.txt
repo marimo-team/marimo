@@ -21,6 +21,7 @@ rich >= 11.0.0
 requests >= 2.26.0
 websocket >= 0.2.0
 seaborn >= 0.12.0
+scikit-image >= 0.23.2
 sig-decomp == 0.1.1
 tiktoken >= 0.4.0
 pillow>=10.0.0 # not directly required, pinned by Snyk to avoid a vulnerability
