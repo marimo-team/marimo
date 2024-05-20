@@ -156,7 +156,12 @@ const {
 } = createReducerAndAtoms(initialNotebookState, {
   createNewCell: (
     state,
-    action: { cellId: CellId | "__end__"; before: boolean; code?: string, newCellId?: CellId},
+    action: {
+      cellId: CellId | "__end__";
+      before: boolean;
+      code?: string;
+      newCellId?: CellId;
+    },
   ) => {
     const { cellId, before, code } = action;
     let { newCellId } = action;

@@ -21,7 +21,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { useVariables } from "@/core/variables/state";
-import {goToDefinition} from "@/core/codemirror/go-to-definition";
+import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -91,7 +91,9 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
       handle: () => {
         const { getEditorView } = props;
         const editorView = getEditorView();
-        goToDefinition(editorView, variables)
+        if (editorView) {
+          goToDefinition(editorView, variables);
+        }
       },
     },
   ];
