@@ -291,5 +291,5 @@ export function cellCodeEditingBundle(
     }
   });
 
-  return [onChangePlugin, formatKeymapExtension(cellId, updateCellCode)];
+  return [onChangePlugin, formatKeymapExtension(cellId, callbacks)];
 }
