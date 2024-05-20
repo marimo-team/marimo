@@ -9,6 +9,8 @@ import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import {goToDefinition} from "../go-to-definition";
+import {useVariables} from "@/core/variables/state";
 
 export interface MovementCallbacks
   extends Pick<
@@ -21,7 +23,6 @@ export interface MovementCallbacks
   createBelow: () => void;
   moveUp: () => void;
   moveDown: () => void;
-  focusByVariableName: () => void;
   focusUp: () => void;
   focusDown: () => void;
   toggleHideCode: () => boolean;
@@ -42,7 +43,6 @@ export function cellMovementBundle(
     createBelow,
     moveUp,
     moveDown,
-    focusByVariableName,
     focusUp,
     focusDown,
     sendToTop,
@@ -52,6 +52,7 @@ export function cellMovementBundle(
     toggleHideCode,
     aiCellCompletion,
   } = callbacks;
+  const variables = useVariables()
 
   const hotkeys: KeyBinding[] = [
     {
@@ -246,8 +247,8 @@ export function cellMovementBundle(
       key: HOTKEYS.getHotkey("cell.goToDefinition").key,
       preventDefault: true,
       stopPropagation: true,
-      run: () => {
-        focusByVariableName();
+      run: (ev) => {
+        goToDefinition(ev, variables);
         return true;
       },
     },

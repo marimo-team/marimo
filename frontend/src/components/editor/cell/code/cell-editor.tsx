@@ -34,8 +34,6 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
-import { useVariables } from "@/core/variables/state";
-import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -94,7 +92,6 @@ const CellEditorInternal = ({
   const setLastFocusedCellId = useSetAtom(lastFocusedCellIdAtom);
   // DOM node where the editorView will be mounted
   const editorViewParentRef = useRef<HTMLDivElement>(null);
-  const variables = useVariables();
 
   const loading = status === "running" || status === "queued";
   const { splitCell, sendToTop, sendToBottom } = useCellActions();
@@ -133,12 +130,6 @@ const CellEditorInternal = ({
     () => focusCell({ cellId, before: true }),
     [cellId, focusCell],
   );
-  const focusByVariableName = useCallback(() => {
-    if (editorViewRef.current) {
-      goToDefinition(editorViewRef.current, variables);
-      return true;
-    }
-  }, [editorViewRef, variables]);
   const toggleHideCode = useEvent(() => {
     const newConfig: CellConfig = { hide_code: !hidden };
     // Fire-and-forget save
@@ -162,7 +153,6 @@ const CellEditorInternal = ({
         createBelow,
         moveUp,
         moveDown,
-        focusByVariableName,
         focusUp,
         focusDown,
         sendToTop,
@@ -221,7 +211,6 @@ const CellEditorInternal = ({
     showPlaceholder,
     createAbove,
     createBelow,
-    focusByVariableName,
     focusUp,
     focusDown,
     moveUp,
