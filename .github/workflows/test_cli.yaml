@@ -133,7 +133,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
+          pip install pytest pytest-asyncio
           cd examples
           pip install -r requirements.txt
 
@@ -148,4 +148,4 @@ jobs:
 
       - name: Test examples
         shell: bash
-        run: pytest ./marimo/_smoke_tests/tests/run_all.py -s
+        run: pytest -v -s marimo/_smoke_tests/tests/run_all.py
