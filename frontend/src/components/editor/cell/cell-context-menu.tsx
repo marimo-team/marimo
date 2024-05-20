@@ -20,7 +20,6 @@ import {
   ScissorsIcon,
   SearchIcon,
 } from "lucide-react";
-import { useVariables } from "@/core/variables/state";
 import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 interface Props extends CellActionButtonProps {
@@ -29,7 +28,6 @@ interface Props extends CellActionButtonProps {
 
 export const CellActionsContextMenu = ({ children, ...props }: Props) => {
   const actions = useCellActionButtons({ cell: props });
-  const variables = useVariables();
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
 
