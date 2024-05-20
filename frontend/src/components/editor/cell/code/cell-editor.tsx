@@ -34,9 +34,7 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import { LanguageAdapter } from "@/core/codemirror/language/types";
-import { getPositionAtWordBounds } from "@/core/codemirror/completion/hints";
 import { useVariables } from "@/core/variables/state";
-import { VariableName, Variables } from "@/core/variables/types";
 import { goToDefinition } from "@/core/codemirror/go-to-definition";
 
 export interface CellEditorProps
