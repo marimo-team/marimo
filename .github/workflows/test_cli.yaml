@@ -58,7 +58,6 @@ jobs:
 
       - name: 📦 Build marimo wheel
         run: |
-          uv activate marimo-venv
           uv pip install build
           uv pip install .
           python -m build
@@ -102,7 +101,6 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv activate marimo-venv
           uv pip install pytest
           uv pip install ./marimo*whl
 
@@ -137,7 +135,6 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv activate marimo-venv
           uv pip install pytest pytest-asyncio
           uv pip install ./marimo*whl
           cd examples
