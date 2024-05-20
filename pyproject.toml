@@ -24,6 +24,8 @@ dependencies = [
     "pygments>=2.13,<3",
     # for reading, writing configs
     "tomlkit>= 0.12.0",
+    # for managing frontmatter headers in markdown
+    "pyyaml>=6.0",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
     "uvicorn >= 0.22.0",
