@@ -138,12 +138,26 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_filename)
 
-        if self._is_named():
+        need_save = False
+        # Check if filename is not None to satisfy mypy's type checking.
+        # This ensures that filename is treated as a non-optional str,
+        # preventing potential type errors in subsequent code.
+        if self._is_named() and self.filename is not None:
+            # Force a save after rename in case filetype changed.
+            need_save = self.filename[-3:] != new_filename[-3:]
             self._rename_file(new_filename)
         else:
             self._create_file(new_filename)
 
         self.filename = new_filename
+        if need_save:
+            self._save_file(
+                self.filename,
+                list(self.app.cell_manager.codes()),
+                list(self.app.cell_manager.names()),
+                list(self.app.cell_manager.configs()),
+                self.app.config,
+            )
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
         if self.app.config.layout_file is not None and isinstance(

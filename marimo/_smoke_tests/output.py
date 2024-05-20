@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.19"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -22,12 +23,12 @@ def __(mo, time):
     def loop_replace():
         for i in range(5):
             mo.output.replace(mo.md(f"Loading {i}/5"))
-            time.sleep(.1)
+            time.sleep(.01)
 
     def loop_append():
         for i in range(5):
             mo.output.append(mo.md(f"Loading {i}/5"))
-            time.sleep(.1)
+            time.sleep(.01)
     return loop_append, loop_replace
 
 

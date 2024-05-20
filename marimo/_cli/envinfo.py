@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import platform
-from typing import Union
+import sys
+from typing import Any, Union, cast
 
 from marimo import __version__
 from marimo._utils.health import (
@@ -12,11 +13,27 @@ from marimo._utils.health import (
 )
 
 
+def is_win11() -> bool:
+    """
+    Check if the operating system is Windows 11.
+
+    Returns:
+        bool: True if the OS is Windows 11, False otherwise.
+    """
+    if hasattr(sys, "getwindowsversion"):
+        return cast(Any, sys).getwindowsversion().build >= 22000  # type: ignore[no-any-return]
+    return False
+
+
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
+    os_version = platform.release()
+    if platform.system() == "Windows" and is_win11():
+        os_version = "11"
+
     info = {
         "marimo": __version__,
         "OS": platform.system(),
-        "OS Version": platform.release(),
+        "OS Version": os_version,
         # e.g., x86 or arm
         "Processor": platform.processor(),
         "Python Version": platform.python_version(),

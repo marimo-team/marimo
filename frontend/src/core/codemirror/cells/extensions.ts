@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { HOTKEYS } from "@/core/hotkeys/hotkeys";
-import { EditorView, KeyBinding, keymap } from "@codemirror/view";
-import { CellId, HTMLCellId } from "@/core/cells/ids";
-import { Extension, Prec } from "@codemirror/state";
+import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { type Extension, Prec } from "@codemirror/state";
 import { formatKeymapExtension } from "../extensions";
-import { CellActions } from "@/core/cells/cells";
+import type { CellActions } from "@/core/cells/cells";
 import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
@@ -272,6 +272,7 @@ export function cellMovementBundle(
 
 export interface CodeCallbacks {
   updateCellCode: CellActions["updateCellCode"];
+  afterToggleMarkdown: () => void;
 }
 
 /**
@@ -299,5 +300,5 @@ export function cellCodeEditingBundle(
     }
   });
 
-  return [onChangePlugin, formatKeymapExtension(cellId, updateCellCode)];
+  return [onChangePlugin, formatKeymapExtension(cellId, callbacks)];
 }

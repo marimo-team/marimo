@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { Variable, VariableName, Variables } from "./types";
+import type { Variable, VariableName, Variables } from "./types";
 import { useAtomValue } from "jotai";
 
 function initialState(): Variables {

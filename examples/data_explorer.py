@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -26,7 +26,7 @@ def __(df, mo, uploaded_file):
 
     mo.md(
         f"""
-        {mo.hstack([mo.md("**Upload a CSV.**")], "center")}
+        {mo.hstack([mo.md("**Upload a CSV.**")], justify="center")}
 
         {uploaded_file}
 

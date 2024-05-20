@@ -6,11 +6,8 @@ on:
   pull_request: {}
 
 env:
-  # Turbocache
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
-  TURBO_API: "https://cache.turbocache.build"
-  TURBO_RUN_SUMMARY: true
 
 jobs:
   build_wheel:
@@ -80,18 +77,14 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
-
-      # We tried to add uv, but got the following error:
-      # $ uv pip install marimo*whl
-      # > No solution found when resolving dependencies:
-      # - name: 🐍 Setup uv
-      #   uses: yezz123/setup-uv@v4
 
       - name: Install Python deps
         run: |
@@ -110,3 +103,40 @@ jobs:
       - name: Test CLI
         shell: bash
         run: pytest -v tests/_cli/test_cli.py tests/_cli/test_cli_export.py
+
+  test_examples:
+    name: Tests examples and smoke_tests
+    needs: build_wheel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: 🐍 Setup uv
+        uses: yezz123/setup-uv@v4
+        with:
+          uv-venv: marimo-venv
+
+      - name: Download wheel
+        uses: actions/download-artifact@v3
+        with:
+          name: testwheel
+
+      - name: Install Python deps
+        run: |
+          uv pip install pytest pytest-asyncio
+          uv pip install ./marimo*whl
+          uv pip install -r examples/requirements.txt
+
+      - name: Test examples
+        shell: bash
+        run: pytest -v -s tests/_smoke_tests/run_all.py
+        # TODO(msconick) remove continue-on-error when all tests pass
+        continue-on-error: true
