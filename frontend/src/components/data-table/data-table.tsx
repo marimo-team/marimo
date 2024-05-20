@@ -1,11 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo } from "react";
 import {
-  ColumnDef,
-  OnChangeFn,
-  PaginationState,
-  RowSelectionState,
-  SortingState,
+  type ColumnDef,
+  type OnChangeFn,
+  type PaginationState,
+  type RowSelectionState,
+  type SortingState,
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "./pagination";
-import { DownloadActionProps, DownloadAs } from "./download-actions";
+import { type DownloadActionProps, DownloadAs } from "./download-actions";
 import { cn } from "@/utils/cn";
 
 interface DataTableProps<TData> extends Partial<DownloadActionProps> {
@@ -76,7 +76,7 @@ const DataTableInternal = <TData,>({
 
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-2")}>
-      <div className={cn(className || "rounded-md border")}>
+      <div className={cn("overflow-hidden", className || "rounded-md border")}>
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
