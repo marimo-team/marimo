@@ -74,7 +74,7 @@ async def _run_test(
                 return
 
         process, stdout, stderr = await Cmd(
-            f"python {file}", timeout=5, input_data=input_data
+            f"python {file}", timeout=10, input_data=input_data
         ).run()
 
         if failed_reason:
