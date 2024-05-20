@@ -18,7 +18,7 @@ holoviews >= 1.14.0
 hvplot >= 0.7.0
 pypdf2 >= 3.0.1
 rich >= 11.0.0
-request >= 2.26.0
+requests >= 2.26.0
 seaborn >= 0.12.0
 sig-decomp == 0.1.1
 tiktoken >= 0.4.0
