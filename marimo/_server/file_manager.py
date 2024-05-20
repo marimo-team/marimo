@@ -139,7 +139,9 @@ class AppFileManager:
         self._assert_path_does_not_exist(new_filename)
 
         need_save = False
-        # Explicitly check filename to satisfy mypy.
+        # Check if filename is not None to satisfy mypy's type checking.
+        # This ensures that filename is treated as a non-optional str,
+        # preventing potential type errors in subsequent code.
         if self._is_named() and self.filename is not None:
             # Force a save after rename in case filetype changed.
             need_save = self.filename[-3:] != new_filename[-3:]
