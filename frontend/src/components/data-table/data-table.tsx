@@ -80,7 +80,7 @@ const DataTableInternal = <TData,>({
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="bg-muted/50">
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>
