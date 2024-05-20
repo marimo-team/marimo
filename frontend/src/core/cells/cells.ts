@@ -253,7 +253,8 @@ const {
       cellId: focusCellId,
       cell: state.cellHandles[focusCellId],
       config: state.cellData[focusCellId].config,
-      codeFocus: before ? "<<bottom>>" : "<<top>>",
+      codeFocus: before ? "bottom" : "top",
+      variableName: undefined,
     });
     return state;
   },
@@ -561,6 +562,7 @@ const {
         cell: state.cellHandles[nextCellId],
         config: state.cellData[nextCellId].config,
         codeFocus: before ? "bottom" : "top",
+        variableName: undefined,
       });
       return state;
     }
@@ -586,6 +588,7 @@ const {
           cell: state.cellHandles[nextCellId],
           config: state.cellData[nextCellId].config,
           codeFocus: undefined,
+          variableName: undefined,
         });
       }
 
