@@ -423,29 +423,3 @@ const CellCodeMirrorEditor = React.forwardRef(
 CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 
 export const CellEditor = memo(CellEditorInternal);
-
-export const getWordUnderCursor = (state: EditorState) => {
-  const { from, to } = state.selection.main;
-  let variableName: string;
-
-  if (from === to) {
-    const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
-    variableName = state.doc.sliceString(startToken, endToken);
-  } else {
-    variableName = state.doc.sliceString(from, to);
-  }
-
-  return variableName;
-};
-
-export const getCellIdOfDefinition = (
-  variables: Variables,
-  variableName: string,
-) => {
-  const variable = variables[variableName as VariableName];
-  if (!variable || variable.declaredBy.length === 0) {
-    return null;
-  }
-  const focusCellId = variable.declaredBy[0];
-  return focusCellId;
-};
