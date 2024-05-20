@@ -682,6 +682,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "slugify": "unicode-slugify",
         "smarkets": "smk-python-sdk",
         "snappy": "ctypes-snappy",
+        "snowflake": "snowflake-connector-python",
         "socketio": "gevent-socketio",
         "sockjs": "sockjs-tornado",
         "socks": "SocksiPy-branch",
