@@ -8,8 +8,6 @@ files:
 
   ###################
   # Errors
-  anywidget_compat.py:
-    failed_reason: "ModuleNotFoundError: No module named 'drawdata'"
   bugs/924.py:
     failed_reason: "ModuleNotFoundError: No module named 'micropip'"
   third_party/ipython_display.py:
