@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
+
 import marimo
 
-__generated_with = "0.1.0"
+__generated_with = "0.6.0"
 app = marimo.App()
 
 
@@ -19,7 +20,7 @@ def __(mo):
 
 @app.cell
 def __(mo):
-    mo.html("<script>console.log(document.querySelectorAll('p')[0].textContent)</script>")
+    mo.Html("<script>console.log(document.querySelectorAll('p')[0].textContent)</script>")
     return
 
 

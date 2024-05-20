@@ -1,0 +1,74 @@
+files:
+  ###################
+  # Inputs
+  ansi.py:
+    input: "y"
+  stdin.py:
+    input: "y"
+
+  ###################
+  # Errors
+  bugs/924.py:
+    failed_reason: "ModuleNotFoundError: No module named 'micropip'"
+  third_party/ipython_display.py:
+    failed_reason: "ModuleNotFoundError: No module named 'tikz'"
+  bugs/1055.py:
+    failed_reason: "ModuleNotFoundError: No module named 'manim_slides'"
+  bugs/1270.py:
+    failed_reason: "UDF failed: DataFrame constructor"
+  stop.py:
+    failed_reason: "MarimoStopError"
+  charts/1mil_flights.py:
+    failed_reason: "MarimoStopError"
+  errors.py:
+    failed_reason: "UnparsableError"
+  reactive_plots.py:
+    failed_reason: "MarimoStopError"
+  model_comparison/model_comparison.py:
+    failed_reason: "MarimoStopError"
+  third_party/duckdb_example.py:
+    failed_reason: "MarimoStopError"
+
+  ###################
+  # Not a marimo app
+  custom_server/my_server.py:
+    skip: true
+  # This runs plt.show() which blocks the test
+  bugs/1086.py:
+    skip: true
+  ws.py:
+    skip: true
+  embeddings/debugging_embeddings.py:
+    skip: true
+  embeddings/embedding_numbers.py:
+    skip: true
+  embeddings/interactive_cluster_analysis.py:
+    skip: true
+  embeddings/rotational_invariance.py:
+    skip: true
+  embeddings/google_scholar.py:
+    skip: true
+  embeddings/us_counties.py:
+    skip: true
+  ai/question-pdf.py:
+    skip: true
+  # Don't work on macos
+  optimization/smallest_enclosing_circle.py:
+    skip: true
+  optimization/regularization_and_sparsity.py:
+    skip: true
+  optimization/signals/examples.py:
+    skip: true
+  optimization/signals/app.py:
+    skip: true
+
+  ###################
+  # Should be fixed
+  refresh.py: # flaky
+    skip: true
+    failed_reason: "MarimoStopError"
+  iplot.py:
+    skip: true
+    failed_reason: "RuntimeError: cannot schedule new futures after interpreter shutdown"
+  pdb_test.py:
+    failed_reason: "AttributeError: module 'marimo' has no attribute 'pdb'"

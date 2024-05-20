@@ -11,6 +11,7 @@ repos:
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix]
+        exclude: marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
     rev: v1.21.0

@@ -3,10 +3,15 @@ from __future__ import annotations
 
 import platform
 import sys
-from typing import Union
+from typing import Any, Union, cast
 
 from marimo import __version__
-from marimo._utils.health import get_chrome_version, get_node_version, get_required_modules_list
+from marimo._utils.health import (
+    get_chrome_version,
+    get_node_version,
+    get_required_modules_list,
+)
+
 
 def is_win11() -> bool:
     """
@@ -15,7 +20,10 @@ def is_win11() -> bool:
     Returns:
         bool: True if the OS is Windows 11, False otherwise.
     """
-    return sys.getwindowsversion().build >= 22000
+    if hasattr(sys, "getwindowsversion"):
+        return cast(Any, sys).getwindowsversion().build >= 22000  # type: ignore[no-any-return]
+    return False
+
 
 def get_system_info() -> dict[str, Union[str, dict[str, str]]]:
     os_version = platform.release()
