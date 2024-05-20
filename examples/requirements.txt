@@ -3,12 +3,22 @@ langchain >= 0.0.245
 marimo >= 0.1.0
 matplotlib >= 3.2.0
 mortgage >= 1.0.5
-vega-datasets
+vega-datasets >= 0.9.0
+altair >= 5.3.0
 numpy >= 1.22.0
+polars  >= 0.20.0
 openai >= 0.27.8
 pandas >= 2.0.0
 pymde >= 0.1.18
+matplotlib >= 3.4.0
+pyarrow >= 6.0.0
+leafmap >= 0.3.0
+bokeh >= 3.0.0
+holoviews >= 1.14.0
+hvplot >= 0.7.0
 pypdf2 >= 3.0.1
+rich >= 11.0.0
+request >= 2.26.0
 seaborn >= 0.12.0
 sig-decomp == 0.1.1
 tiktoken >= 0.4.0

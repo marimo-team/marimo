@@ -14,6 +14,8 @@ files:
     failed_reason: "ModuleNotFoundError: No module named 'micropip'"
   third_party/ipython_display.py:
     failed_reason: "ModuleNotFoundError: No module named 'tikz'"
+  bugs/1055.py:
+    failed_reason: "ModuleNotFoundError: No module named 'manim_slides'"
   bugs/1270.py:
     failed_reason: "UDF failed: DataFrame constructor"
   stop.py:
@@ -24,6 +26,8 @@ files:
     failed_reason: "MarimoStopError"
   errors.py:
     failed_reason: "UnparsableError"
+  reactive_plots.py:
+    failed_reason: "MarimoStopError"
 
   ###################
   # Not a marimo app
@@ -31,6 +35,16 @@ files:
     skip: true
   # This runs plt.show() which blocks the test
   bugs/1086.py:
+    skip: true
+  embeddings/debugging_embeddings.py:
+    skip: true
+  embeddings/embedding_numbers.py:
+    skip: true
+  embeddings/interactive_cluster_analysis.py:
+    skip: true
+  embeddings/rotational_invariance.py:
+    skip: true
+  embeddings/google_scholar.py:
     skip: true
 
   ###################

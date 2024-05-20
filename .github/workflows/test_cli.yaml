@@ -152,4 +152,4 @@ jobs:
 
       - name: Test examples
         shell: bash
-        run: pytest -v -s marimo/_smoke_tests/tests/run_all.py
+        run: pytest -v -s tests/_smoke_tests/run_all.py
