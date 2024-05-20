@@ -188,7 +188,7 @@ const {
           id: newCellId,
           code,
           lastCodeRun,
-          edited: code !== lastCodeRun,
+          edited: Boolean(code) && code !== lastCodeRun,
         }),
       },
       cellRuntime: {
