@@ -102,7 +102,11 @@ jobs:
       - name: Install Python deps
         run: |
           uv pip install pytest
-          uv pip install ./marimo*whl
+          if [ ${{ matrix.os }} == "windows-latest" ]; then
+            uv pip install marimo*whl
+          else
+            uv pip install ./marimo*whl
+          fi
 
       - name: Test CLI
         shell: bash
@@ -137,8 +141,7 @@ jobs:
         run: |
           uv pip install pytest pytest-asyncio
           uv pip install ./marimo*whl
-          cd examples
-          uv pip install -r requirements.txt
+          uv pip install -r examples/requirements.txt
 
       - name: Test examples
         shell: bash
