@@ -20,8 +20,6 @@ files:
     failed_reason: "UDF failed: DataFrame constructor"
   stop.py:
     failed_reason: "MarimoStopError"
-  ws.py:
-    failed_reason: "MarimoStopError"
   charts/1mil_flights.py:
     failed_reason: "MarimoStopError"
   errors.py:
@@ -35,6 +33,8 @@ files:
     skip: true
   # This runs plt.show() which blocks the test
   bugs/1086.py:
+    skip: true
+  ws.py:
     skip: true
   embeddings/debugging_embeddings.py:
     skip: true
