@@ -94,8 +94,7 @@ class MetaUnderlineVariablePlugin {
     const cursor: TreeCursor = tree.cursorAt(pos);
 
     if (cursor.name === "VariableName") {
-      const from = cursor.from;
-      const to = cursor.to;
+      const { from, to } = cursor;
       if (
         this.hoveredRange &&
         this.hoveredRange.from === from &&

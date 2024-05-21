@@ -37,8 +37,7 @@ function getCellIdOfDefinition(
   if (!variable || variable.declaredBy.length === 0) {
     return null;
   }
-  const focusCellId = variable.declaredBy[0];
-  return focusCellId;
+  return variable.declaredBy[0];
 }
 
 function isPrivateVariable(variableName: string) {
@@ -50,7 +49,7 @@ function isPrivateVariable(variableName: string) {
  * @param view The editor view at which the command was invoked.
  */
 export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
-  const state = view.state;
+  const { state } = view;
   const variableName = getWordUnderCursor(state);
   if (!variableName) {
     return false;

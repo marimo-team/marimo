@@ -12,7 +12,7 @@ export function goToVariableDefinition(
   view: EditorView,
   variableName: string,
 ): boolean {
-  const state = view.state;
+  const { state } = view;
   const tree = syntaxTree(state);
 
   let found = false;

@@ -4,7 +4,6 @@ import { EditorView } from "@codemirror/view";
 import { describe, afterEach, test, expect } from "vitest";
 import { goToVariableDefinition } from "../commands";
 import { python } from "@codemirror/lang-python";
-import { invariant } from "@/utils/invariant";
 
 function createEditor(content: string) {
   const state = EditorState.create({
@@ -30,16 +29,14 @@ afterEach(() => {
 });
 
 describe("goToVariableDefinition", () => {
-  test("selects the variable when it exists", () => {
+  test("selects the variable when it exists", async () => {
     view = createEditor("#comment\nmyVar = 10\nprint(myVar)");
     const result = goToVariableDefinition(view, "myVar");
 
     expect(result).toBe(true);
-    requestAnimationFrame(() => {
-      invariant(view, "view should be defined");
-      expect(view.state.selection.main.from).toBe(12);
-      expect(view.state.selection.main.to).toBe(17);
-    });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(view.state.selection.main.from).toBe(12);
+    expect(view.state.selection.main.to).toBe(17);
   });
 
   test("does not select the variable when it does not exist", () => {
