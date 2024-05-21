@@ -8,11 +8,12 @@ import { invariant } from "@/utils/invariant";
  */
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[],
+  maxLines = 5000,
 ): OutputMessage[] {
   const newConsoleOutputs = [...consoleOutputs];
 
   if (newConsoleOutputs.length < 2) {
-    return handleCarriageReturns(newConsoleOutputs);
+    return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
   }
 
   const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
@@ -26,7 +27,7 @@ export function collapseConsoleOutputs(
     newConsoleOutputs.pop();
   }
 
-  return handleCarriageReturns(newConsoleOutputs);
+  return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
 }
 
 function shouldCollapse(
@@ -44,6 +45,7 @@ function shouldCollapse(
 
   return isTextPlain && isSameChannel && isNotStdin;
 }
+
 function handleCarriageReturns(
   consoleOutputs: OutputMessage[],
 ): OutputMessage[] {
@@ -88,4 +90,42 @@ function handleCarriageReturns(
     data: text,
   };
   return newConsoleOutputs;
+}
+
+function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
+  let nLines = 0;
+  let i;
+  for (i = consoleOutputs.length - 1; i >= 0 && nLines < limit; i--) {
+    const output = consoleOutputs[i];
+    if (output.mimetype === "text/plain") {
+      nLines += output.data.split("\n").length;
+    } else {
+      nLines++;
+    }
+  }
+
+  if (nLines < limit) {
+    return consoleOutputs;
+  }
+
+  const cutoff = i + 1;
+  const warningOutput: OutputMessage = {
+    channel: "stderr",
+    mimetype: "text/html",
+    data: `<pre>Streaming output truncated to last ${limit} lines.\n</pre>`,
+    timestamp: -1,
+  };
+  const output = consoleOutputs[cutoff];
+  if (output.mimetype == "text/plain") {
+    const output_lines = output.data.split("\n");
+    const nLinesAfterOutput = nLines - output_lines.length;
+    const nLinesToKeep = limit - nLinesAfterOutput;
+    return [
+      warningOutput,
+      { ...output, data: output_lines.slice(-nLinesToKeep).join("\n") },
+      ...consoleOutputs.slice(cutoff + 1),
+    ];
+  } else {
+    return [warningOutput, ...consoleOutputs.slice(cutoff + 1)];
+  }
 }
