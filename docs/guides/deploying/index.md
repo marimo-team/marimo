@@ -17,6 +17,7 @@ These guides help you deploy marimo notebooks.
 | {doc}`programmatically`         | Programmatically run the marimo backend for customization |
 | {doc}`deploying_docker`         | Deploying marimo notebooks and apps with Docker           |
 | {doc}`deploying_public_gallery` | Deploying marimo notebooks and apps to our public gallery |
+| {doc}`deploying_ploomber`       | Deploying marimo to Ploomber Cloud                        |
 
 ```{admonition} Sharing notebooks on the public web
 :class: tip
