@@ -107,3 +107,5 @@ marimo/_static/
 marimo/_lsp/
 
 .vscode
+
+.marimo.toml
