@@ -168,3 +168,25 @@ async def test_parent_bound_to_view(
     array = k.globals["array"]
     registry = get_context().ui_element_registry
     assert registry.bound_names(array._id) == set(["array", "child"])
+
+
+async def test_dont_delete_element_with_wrong_python_id(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get(
+                """
+                s = mo.ui.slider(1, 10)
+                """
+            ),
+        ]
+    )
+    # Make sure that the slider is registered
+    s = k.globals["s"]
+    assert get_context().ui_element_registry.get_object(s._id) == s
+
+    # If the Python id doesn't match, don't delete the object.
+    get_context().ui_element_registry.delete(s._id, -1)
+    assert get_context().ui_element_registry.get_object(s._id) == s

@@ -151,8 +151,10 @@ class UIElementRegistry:
             return
 
         ui_element = self._objects[object_id]()
-        del self._objects[object_id]
-
+        # We guard against UIElement's destructor racing against
+        # registration of another element when a cell re-runs by checking
+        # the Python object id. This isn't perfect because python ids can
+        # be reused ...
         registered_python_id = (
             id(ui_element) if ui_element is not None else None
         )
@@ -160,8 +162,6 @@ class UIElementRegistry:
             registered_python_id is not None
             and registered_python_id != python_id
         ):
-            # guards against UIElement's destructor racing against
-            # registration of another element when a cell re-runs
             return
 
         try:
@@ -175,3 +175,4 @@ class UIElementRegistry:
             del self._bindings[object_id]
         if object_id in self._constructing_cells:
             del self._constructing_cells[object_id]
+        del self._objects[object_id]
