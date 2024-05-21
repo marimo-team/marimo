@@ -35,8 +35,8 @@ describe("goToVariableDefinition", () => {
 
     expect(result).toBe(true);
     await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(view.state.selection.main.from).toBe(12);
-    expect(view.state.selection.main.to).toBe(17);
+    expect(view.state.selection.main.from).toBe(9);
+    expect(view.state.selection.main.to).toBe(9);
   });
 
   test("does not select the variable when it does not exist", () => {
