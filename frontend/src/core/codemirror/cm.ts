@@ -34,20 +34,20 @@ import {
   EditorView,
 } from "@codemirror/view";
 
-import { EditorState, Extension, Prec } from "@codemirror/state";
+import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 
-import { CompletionConfig, KeymapConfig } from "../config/config-schema";
-import { Theme } from "../../theme/useTheme";
+import type { CompletionConfig, KeymapConfig } from "../config/config-schema";
+import type { Theme } from "../../theme/useTheme";
 
 import { findReplaceBundle } from "./find-replace/extension";
 import {
-  CodeCallbacks,
-  MovementCallbacks,
+  type CodeCallbacks,
+  type MovementCallbacks,
   cellCodeEditingBundle,
   cellMovementBundle,
 } from "./cells/extensions";
-import { CellId } from "../cells/ids";
+import type { CellId } from "../cells/ids";
 import { keymapBundle } from "./keymaps/keymaps";
 import { scrollActiveLineIntoView } from "./extensions";
 import { copilotBundle } from "./copilot/extension";
@@ -58,6 +58,7 @@ import {
   clickablePlaceholderExtension,
   smartPlaceholderExtension,
 } from "./placeholder/extensions";
+import { goToDefinitionBundle } from "./go-to-definition/extension";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -91,6 +92,8 @@ export const setupCodeMirror = ({
     cellCodeEditingBundle(cellId, cellCodeCallbacks),
     // Comes last so that it can be overridden
     basicBundle(completionConfig, theme),
+    // Underline cmd+clickable placeholder
+    goToDefinitionBundle(),
     showPlaceholder
       ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
       : enableAI

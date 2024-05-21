@@ -34,7 +34,7 @@ import { clamp } from "@/utils/math";
 import type { LayoutState } from "../layout/layout";
 import { notebookIsRunning } from "./utils";
 import {
-  getEditorCodeAsPython,
+  splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
 
@@ -627,38 +627,18 @@ const {
       cellLogs: [],
     };
   },
-  splitCell: (state, action: { cellId: CellId; cursorPos: number }) => {
-    const { cellId, cursorPos } = action;
+  splitCell: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
     const index = state.cellIds.indexOf(cellId);
     const cell = state.cellData[cellId];
     const cellHandle = state.cellHandles[cellId].current;
 
     if (cellHandle?.editorView == null) {
-      // TODO: Because of this we can't do  the reducer tests like for the other functions
       return state;
     }
 
-    // Figure out if we're at the start or end of a line to adjust the cursor positions
-    const isCursorAtLineStart =
-      cell.code.length > 0 && cell.code[cursorPos - 1] === "\n";
-    const isCursorAtLineEnd =
-      cell.code.length > 0 && cell.code[cursorPos] === "\n";
-
-    const beforeAdjustedCursorPos = isCursorAtLineStart
-      ? cursorPos - 1
-      : cursorPos;
-    const afterAdjustedCursorPos = isCursorAtLineEnd
-      ? cursorPos + 1
-      : cursorPos;
-
-    const beforeCursorCode = getEditorCodeAsPython(
+    const { beforeCursorCode, afterCursorCode } = splitEditor(
       cellHandle.editorView,
-      0,
-      beforeAdjustedCursorPos,
-    );
-    const afterCursorCode = getEditorCodeAsPython(
-      cellHandle.editorView,
-      afterAdjustedCursorPos,
     );
 
     updateEditorCodeFromPython(cellHandle.editorView, beforeCursorCode);
@@ -673,7 +653,9 @@ const {
         [cellId]: {
           ...cell,
           code: beforeCursorCode,
-          edited: beforeCursorCode.trim() !== cell.lastCodeRun,
+          edited:
+            Boolean(beforeCursorCode) &&
+            beforeCursorCode.trim() !== cell.lastCodeRun?.trim(),
         },
         [newCellId]: createCell({
           id: newCellId,

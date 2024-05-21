@@ -28,10 +28,12 @@ marimo ships with the following IDE-like panels that help provide an overview
 of your notebook:
 
 1. **errors**: view errors in each cell;
-2. **variables**: explore variable values, see where they are defined and used;
-3. **dependency graph**: view dependencies between cells;
+2. **variables**: explore variable values, see where they are defined and used, with go-to-definition;
+3. **dependency graph**: view dependencies between cells, drill-down on nodes and edges;
 4. **table of contents**: corresponding to your markdown;
 5. **logs**: a continuous stream of stdout and stderr.
+6. **snippets** - searchable snippets to copy directly into your notebook
+7. **documentation** - move your text cursor over a symbol to see its documentation
 
 <div align="center">
 <figure>
@@ -54,6 +56,12 @@ and drag to move the cell):
 through the cell context menu.</figcaption>
 </figure>
 </div>
+
+## Go-to-definition
+
+- Click on a variable in the editor to see where it's defined and used
+- `Cmd/Ctrl-Click` on a variable to jump to its definition
+- Right-click on a variable to see a context menu with options to jump to its definition
 
 ## Keyboard shortcuts
 
@@ -127,6 +135,7 @@ A non-exhausted list of settings:
 - Formatting rules
 - GitHub Copilot
 - Autoreloading/Hot-reloading
+- Outputs above or below code cells
 
 ## Send feedback
 

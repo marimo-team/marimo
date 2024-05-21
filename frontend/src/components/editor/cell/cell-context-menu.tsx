@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { Fragment } from "react";
 import {
-  CellActionButtonProps,
+  type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
 import {
@@ -12,7 +12,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import { renderMinimalShortcut } from "@/components/shortcuts/renderShortcut";
-import { ActionButton } from "../actions/types";
+import type { ActionButton } from "../actions/types";
 import {
   ClipboardPasteIcon,
   CopyIcon,
@@ -20,7 +20,7 @@ import {
   ScissorsIcon,
   SearchIcon,
 } from "lucide-react";
-import { goToDefinition } from "@/core/codemirror/go-to-definition";
+import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -90,7 +90,7 @@ export const CellActionsContextMenu = ({ children, ...props }: Props) => {
         const { getEditorView } = props;
         const editorView = getEditorView();
         if (editorView) {
-          goToDefinition(editorView);
+          goToDefinitionAtCursorPosition(editorView);
         }
       },
     },

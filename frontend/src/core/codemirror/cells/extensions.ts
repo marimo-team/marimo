@@ -9,7 +9,7 @@ import { getEditorCodeAsPython } from "../language/utils";
 import { formattingChangeEffect } from "../format";
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
-import { goToDefinition } from "../go-to-definition";
+import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 
 export interface MovementCallbacks
   extends Pick<
@@ -246,7 +246,7 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        goToDefinition(ev);
+        goToDefinitionAtCursorPosition(ev);
         return true;
       },
     },
@@ -255,8 +255,7 @@ export function cellMovementBundle(
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
-        const cursorPos = ev.state.selection.main.head;
-        splitCell({ cellId, cursorPos });
+        splitCell({ cellId });
         requestAnimationFrame(() => {
           ev.contentDOM.blur();
           moveToNextCell({ cellId, before: false }); // focus new cell
