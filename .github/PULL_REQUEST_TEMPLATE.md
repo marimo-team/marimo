@@ -1,8 +1,9 @@
-# 📝 Summary
+## 📝 Summary
 
 <!-- 
-Provide a concise summary of what this pull request is addressing. If this PR
-fixes any issues, list them here by number (e.g., Fixes #123). 
+Provide a concise summary of what this pull request is addressing.
+
+If this PR fixes any issues, list them here by number (e.g., Fixes #123). 
 -->
 
 
@@ -22,8 +23,7 @@ Detail the specific changes made in this pull request. Explain the problem addre
 ## 📜 Reviewers
 
 <!-- 
-Tag potential reviewers from the community or maintainers who might be interested in reviewing this pull request. This helps expedite the review process and ensures that the PR receives timely attention.
--->
+Tag potential reviewers from the community or maintainers who might be interested in reviewing this pull request.
 
-<!-- Your PR will be reviewed more quickly if you can figure out the right person to tag with @ -->
+Your PR will be reviewed more quickly if you can figure out the right person to tag with @ -->
 @akshayka OR @mscolnick
