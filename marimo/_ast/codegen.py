@@ -13,7 +13,6 @@ from marimo._ast.app import App, _AppConfig
 from marimo._ast.cell import CellConfig, CellImpl
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name
-from marimo._cli.convert.markdown import convert_from_md_to_app
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -216,6 +215,8 @@ def get_app(filename: Optional[str]) -> Optional[App]:
         return None
 
     if filename.endswith(".md"):
+        from marimo._cli.convert.markdown import convert_from_md_to_app
+
         return convert_from_md_to_app(contents)
 
     spec = importlib.util.spec_from_file_location("marimo_app", filename)

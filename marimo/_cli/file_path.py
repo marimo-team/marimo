@@ -10,8 +10,6 @@ import urllib.request
 from tempfile import TemporaryDirectory
 from typing import Optional
 
-import click
-
 from marimo._cli.print import green
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.url import is_url
@@ -60,6 +58,7 @@ def validate_name(
         Optional TemporaryDirectory, returned to prevent it from being
           cleaned up
     """
+    import click
 
     if _is_github_issue_url(name):
         temp_dir = TemporaryDirectory()
@@ -147,6 +146,8 @@ def _is_static_marimo_notebook_url(url: str) -> tuple[bool, str]:
 
 
 def _handle_github_issue(url: str, temp_dir: TemporaryDirectory[str]) -> str:
+    import click
+
     issue_number = url.split("/")[-1]
     api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
     issue_response = urllib.request.urlopen(api_url).read().decode("utf-8")
