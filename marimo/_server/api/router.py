@@ -6,6 +6,9 @@ from typing import TYPE_CHECKING, List
 from marimo._server.api.endpoints.ai import router as ai_router
 from marimo._server.api.endpoints.assets import router as assets_router
 from marimo._server.api.endpoints.config import router as config_router
+from marimo._server.api.endpoints.datasources import (
+    router as datasources_router,
+)
 from marimo._server.api.endpoints.documentation import (
     router as documentation_router,
 )
@@ -44,6 +47,9 @@ def build_routes(base_url: str = "") -> List[BaseRoute]:
     )
     app_router.include_router(
         documentation_router, prefix="/api/documentation", name="documentation"
+    )
+    app_router.include_router(
+        datasources_router, prefix="/api/datasources", name="datasources"
     )
     app_router.include_router(ai_router, prefix="/api/ai", name="ai")
     app_router.include_router(home_router, prefix="/api/home", name="home")

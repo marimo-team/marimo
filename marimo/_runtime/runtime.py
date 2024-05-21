@@ -23,12 +23,14 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import MarimoConfig, OnCellChangeType
+from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
 from marimo._messaging.ops import (
     Alert,
     CellOp,
     CompletedRun,
+    DataColumnPreview,
     FunctionCallResult,
     HumanReadableStatus,
     InstallingPackageAlert,
@@ -88,6 +90,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
+    PreviewDatasetColumnRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
@@ -1284,6 +1287,31 @@ class Kernel:
             else:
                 self.graph.set_stale(cells_to_run)
 
+    async def preview_dataset_column(
+        self, request: PreviewDatasetColumnRequest
+    ) -> None:
+        """Preview a column of a dataset.
+
+        The dataset is loaded, and the column is displayed in the frontend.
+        """
+        try:
+            dataset = self.globals[request.table_name]
+            column_preview = get_column_preview(dataset, request)
+            if column_preview is None:
+                DataColumnPreview(
+                    error=f"Column {request.column_name} not found",
+                    column_name=request.column_name,
+                    table_name=request.table_name,
+                ).broadcast()
+            else:
+                column_preview.broadcast()
+        except Exception as e:
+            DataColumnPreview(
+                error=str(e),
+                column_name=request.column_name,
+                table_name=request.table_name,
+            ).broadcast()
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -1317,6 +1345,8 @@ class Kernel:
         elif isinstance(request, InstallMissingPackagesRequest):
             await self.install_missing_packages(request)
             CompletedRun().broadcast()
+        elif isinstance(request, PreviewDatasetColumnRequest):
+            await self.preview_dataset_column(request)
         elif isinstance(request, StopRequest):
             return None
         else:

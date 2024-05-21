@@ -4,7 +4,7 @@ import { BetweenHorizontalStartIcon, PlusIcon } from "lucide-react";
 import { PanelEmptyState } from "./empty-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { Snippet } from "@/core/network/types";
+import type { Snippet } from "@/core/network/types";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { readSnippets } from "@/core/network/requests";
 import {

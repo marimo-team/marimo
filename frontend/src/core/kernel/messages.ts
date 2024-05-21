@@ -1,12 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { LayoutType } from "@/components/editor/renderers/types";
+import type { LayoutType } from "@/components/editor/renderers/types";
 import type { CellConfig, CellStatus } from "../cells/types";
-import { CellId, UIElementId } from "../cells/ids";
-import { VariableName } from "../variables/types";
-import { RequestId } from "../network/DeferredRequestRegistry";
-import { Seconds } from "@/utils/time";
-import { AppConfig } from "../config/config-schema";
+import type { CellId, UIElementId } from "../cells/ids";
+import type { VariableName } from "../variables/types";
+import type { RequestId } from "../network/DeferredRequestRegistry";
+import type { Seconds } from "@/utils/time";
+import type { AppConfig } from "../config/config-schema";
+import type { DataTable } from "../network/types";
+import type { ColumnPreviewSummary } from "../datasets/types";
+import type { JsonString } from "@/utils/json/base64";
 
 export type OutputChannel =
   | "output"
@@ -273,6 +276,23 @@ export type OperationMessage =
           datatype?: string;
           value?: string;
         }>;
+      };
+    }
+  | {
+      op: "datasets";
+      data: {
+        tables: DataTable[];
+      };
+    }
+  | {
+      op: "data-column-preview";
+      data: {
+        table_name: string;
+        column_name: string;
+        chart_spec?: JsonString;
+        chart_code?: string;
+        error?: string;
+        summary?: ColumnPreviewSummary;
       };
     }
   | {

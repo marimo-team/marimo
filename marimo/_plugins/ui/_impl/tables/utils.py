@@ -27,10 +27,14 @@ MANAGERS: List[TableManagerFactory] = [
 
 
 def get_table_manager(data: Any) -> TableManager[Any]:
+    return get_table_manager_or_none(data) or DefaultTableManager(data)
+
+
+def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
     for manager_factory in MANAGERS:
         if DependencyManager.has(manager_factory.package_name()):
             manager = manager_factory.create()
             if manager.is_type(data):
                 return manager(data)
 
-    return DefaultTableManager(data)
+    return None

@@ -40,6 +40,13 @@ export const Sidebar: React.FC = () => {
         {renderIcon("dependencies")}
       </SidebarItem>
       <SidebarItem
+        tooltip="Data sources"
+        selected={selectedPanel === "datasources"}
+        onClick={() => openApplication("datasources")}
+      >
+        {renderIcon("datasources")}
+      </SidebarItem>
+      <SidebarItem
         tooltip="View outline"
         selected={selectedPanel === "outline"}
         onClick={() => openApplication("outline")}

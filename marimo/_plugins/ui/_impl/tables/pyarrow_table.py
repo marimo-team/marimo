@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 from typing import Any, Union, cast
 
+from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     FieldTypes,
@@ -24,6 +25,8 @@ class PyArrowTableManagerFactory(TableManagerFactory):
         class PyArrowTableManager(
             TableManager[Union[pa.Table, pa.RecordBatch]]
         ):
+            type = "pyarrow"
+
             def to_csv(self) -> bytes:
                 import pyarrow.csv as csv  # type: ignore
 
@@ -71,6 +74,63 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 if num < 0:
                     raise ValueError("Limit must be a positive integer")
                 return PyArrowTableManager(self.data.take(list(range(num))))
+
+            def get_summary(self, column: str) -> ColumnSummary:
+                # If column is not in the dataframe, return an empty summary
+                if column not in self.data.schema.names:
+                    return ColumnSummary()
+                idx = self.data.schema.get_field_index(column)
+                col = self.data.column(idx)
+
+                field_type = self._get_field_type(col)
+                if field_type == "unknown":
+                    return ColumnSummary()
+                if field_type == "string":
+                    return ColumnSummary(
+                        total=self.data.num_rows,
+                        nulls=col.null_count,
+                        unique=pa.compute.count_distinct(col).as_py(),
+                    )
+                if field_type == "boolean":
+                    return ColumnSummary(
+                        total=self.data.num_rows,
+                        nulls=col.null_count,
+                        true=pa.compute.sum(col).as_py(),
+                        false=self.data.num_rows
+                        - pa.compute.sum(col).as_py()
+                        - col.null_count,
+                    )
+                if field_type == "integer":
+                    return ColumnSummary(
+                        total=self.data.num_rows,
+                        nulls=col.null_count,
+                        unique=pa.compute.count_distinct(col).as_py(),
+                        min=pa.compute.min(col).as_py(),
+                        max=pa.compute.max(col).as_py(),
+                        mean=pa.compute.mean(col).as_py(),
+                    )
+                if field_type == "number":
+                    return ColumnSummary(
+                        total=self.data.num_rows,
+                        nulls=col.null_count,
+                        min=pa.compute.min(col).as_py(),
+                        max=pa.compute.max(col).as_py(),
+                        mean=pa.compute.mean(col).as_py(),
+                    )
+                if field_type == "date":
+                    return ColumnSummary(
+                        total=self.data.num_rows,
+                        nulls=col.null_count,
+                        min=pa.compute.min(col).as_py(),
+                        max=pa.compute.max(col).as_py(),
+                    )
+                return ColumnSummary()
+
+            def get_num_rows(self) -> int:
+                return self.data.num_rows
+
+            def get_num_columns(self) -> int:
+                return self.data.num_columns
 
             @staticmethod
             def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:

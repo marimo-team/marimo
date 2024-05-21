@@ -27,6 +27,7 @@ export function createErrorToastingRequests(
     sendStdin: "Failed to send stdin",
     readCode: "Failed to read code",
     readSnippets: "Failed to fetch snippets",
+    previewDatasetColumn: "Failed to fetch data sources",
     openFile: "Failed to open file",
     getUsageStats: "", // Empty string because we don't show a toast for this
     sendListFiles: "Failed to list files",

@@ -130,11 +130,18 @@ module.exports = {
         "delayed-show-200": "delayed-show 200ms ease-out",
         "delayed-show-400": "delayed-show 400ms ease-out",
       },
+      gridTemplateColumns: {
+        "auto-fit": "repeat(auto-fit, minmax(0, 1fr))",
+        "auto-fill": "repeat(auto-fill, minmax(0, 1fr))",
+        "auto-fill-200": "repeat(auto-fill, minmax(200px, 1fr))",
+        "2-fit": "repeat(2, minmax(0, max-content))",
+        "3-fit": "repeat(3, minmax(0, max-content))",
+      },
     },
   },
   plugins: [
     require("tailwindcss-animate"),
-    plugin(function ({ addUtilities }) {
+    plugin(({ addUtilities }) => {
       const newUtilities = {
         ".increase-pointer-area-x": {
           border: "none",

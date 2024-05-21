@@ -101,6 +101,17 @@ class InstallMissingPackagesRequest:
     manager: str
 
 
+@dataclass
+class PreviewDatasetColumnRequest:
+    # The source of the dataset
+    source: str
+    # The name of the dataset
+    # This currently corresponds to the variable name
+    table_name: str
+    # The name of the column
+    column_name: str
+
+
 ControlRequest = Union[
     ExecuteMultipleRequest,
     ExecuteStaleRequest,
@@ -112,4 +123,5 @@ ControlRequest = Union[
     SetUIElementValueRequest,
     StopRequest,
     InstallMissingPackagesRequest,
+    PreviewDatasetColumnRequest,
 ]

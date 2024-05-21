@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     FieldTypes,
@@ -21,6 +22,8 @@ class PolarsTableManagerFactory(TableManagerFactory):
         import polars as pl
 
         class PolarsTableManager(TableManager[pl.DataFrame]):
+            type = "polars"
+
             def to_csv(self) -> bytes:
                 return self.data.write_csv().encode("utf-8")
 
@@ -53,6 +56,58 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 if num < 0:
                     raise ValueError("Limit must be a positive integer")
                 return PolarsTableManager(self.data.head(num))
+
+            def get_summary(self, column: str) -> ColumnSummary:
+                # If column is not in the dataframe, return an empty summary
+                if column not in self.data.columns:
+                    return ColumnSummary()
+                col = self.data[column]
+                if col.is_utf8():
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.null_count(),
+                        unique=col.n_unique(),
+                    )
+                if col.is_boolean():
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.null_count(),
+                        true=col.sum(),
+                        false=col.count() - col.sum(),
+                    )
+                if col.is_temporal():
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.null_count(),
+                        min=col.min(),
+                        max=col.max(),
+                        mean=col.mean(),
+                        median=col.median(),
+                        p5=col.quantile(0.05),
+                        p25=col.quantile(0.25),
+                        p75=col.quantile(0.75),
+                        p95=col.quantile(0.95),
+                    )
+                return ColumnSummary(
+                    total=col.count(),
+                    nulls=col.null_count(),
+                    unique=col.n_unique() if col.is_integer() else None,
+                    min=col.min(),
+                    max=col.max(),
+                    mean=col.mean(),
+                    median=col.median(),
+                    std=col.std(),
+                    p5=col.quantile(0.05),
+                    p25=col.quantile(0.25),
+                    p75=col.quantile(0.75),
+                    p95=col.quantile(0.95),
+                )
+
+            def get_num_rows(self) -> int:
+                return self.data.height
+
+            def get_num_columns(self) -> int:
+                return self.data.width
 
             @staticmethod
             def _get_field_type(column: pl.Series) -> FieldType:

@@ -84,7 +84,8 @@ const htmlDevPlugin = (): Plugin => {
       copyElements.forEach((id) => {
         const element = devDoc.querySelector(id);
         if (!element) {
-          throw new Error(`Element ${id} not found.`);
+          console.warn(`Element ${id} not found.`);
+          return;
         }
         element.remove();
       });
@@ -93,7 +94,8 @@ const htmlDevPlugin = (): Plugin => {
       copyElements.forEach((id) => {
         const element = serverDoc.querySelector(id);
         if (!element) {
-          throw new Error(`Element ${id} not found.`);
+          console.warn(`Element ${id} not found.`);
+          return;
         }
         devDoc.head.append(element);
       });
