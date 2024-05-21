@@ -8,11 +8,12 @@ import { invariant } from "@/utils/invariant";
  */
 export function collapseConsoleOutputs(
   consoleOutputs: OutputMessage[],
+  maxLines = 5000,
 ): OutputMessage[] {
   const newConsoleOutputs = [...consoleOutputs];
 
   if (newConsoleOutputs.length < 2) {
-    return handleCarriageReturns(newConsoleOutputs);
+    return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
   }
 
   const lastOutput = newConsoleOutputs[newConsoleOutputs.length - 1];
@@ -26,7 +27,7 @@ export function collapseConsoleOutputs(
     newConsoleOutputs.pop();
   }
 
-  return truncateHead(handleCarriageReturns(newConsoleOutputs), 5000);
+  return truncateHead(handleCarriageReturns(newConsoleOutputs), maxLines);
 }
 
 function shouldCollapse(
@@ -92,18 +93,18 @@ function handleCarriageReturns(
 }
 
 function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
-  let n_lines = 0;
+  let nLines = 0;
   let i;
-  for (i = consoleOutputs.length - 1; i >= 0 && n_lines < limit; i--) {
+  for (i = consoleOutputs.length - 1; i >= 0 && nLines < limit; i--) {
     const output = consoleOutputs[i];
     if (output.mimetype === "text/plain") {
-      n_lines += output.data.split("\n").length;
+      nLines += output.data.split("\n").length;
     } else {
-      n_lines++;
+      nLines++;
     }
   }
 
-  if (n_lines < limit) {
+  if (nLines < limit) {
     return consoleOutputs;
   }
 
@@ -117,11 +118,11 @@ function truncateHead(consoleOutputs: OutputMessage[], limit: number) {
   const output = consoleOutputs[cutoff];
   if (output.mimetype == "text/plain") {
     const output_lines = output.data.split("\n");
-    const n_lines_after_output = n_lines - output_lines.length;
-    const n_lines_to_keep = limit - n_lines_after_output;
+    const nLinesAfterOutput = nLines - output_lines.length;
+    const nLinesToKeep = limit - nLinesAfterOutput;
     return [
       warningOutput,
-      { ...output, data: output_lines.slice(-n_lines_to_keep).join("\n") },
+      { ...output, data: output_lines.slice(-nLinesToKeep).join("\n") },
       ...consoleOutputs.slice(cutoff + 1),
     ];
   } else {
