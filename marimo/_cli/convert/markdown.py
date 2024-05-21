@@ -8,8 +8,6 @@ from typing import Any, Callable, Literal, Optional, Union
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
-import yaml
-
 # Markdown is a dependency of marimo, as such we utilize it as much as possible
 # to parse markdown.
 from markdown import Markdown
@@ -29,13 +27,6 @@ from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._cli.convert.utils import markdown_to_marimo
-
-# CSafeLoader is faster than SafeLoader.
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:
-    from yaml import SafeLoader  # type: ignore[assignment]
-
 
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
@@ -288,6 +279,14 @@ class FrontMatterPreprocessor(Preprocessor):
         )
 
     def run(self, lines: list[str]) -> list[str]:
+        import yaml
+
+        # CSafeLoader is faster than SafeLoader.
+        try:
+            from yaml import CSafeLoader as SafeLoader
+        except ImportError:
+            from yaml import SafeLoader  # type: ignore[assignment]
+
         if not lines:
             return lines
 
