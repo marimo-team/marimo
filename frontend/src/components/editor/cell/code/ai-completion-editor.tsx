@@ -34,6 +34,8 @@ interface Props {
   children: React.ReactNode;
 }
 
+const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
+
 export const AiCompletionEditor: React.FC<Props> = ({
   onChange,
   currentCode,
@@ -78,11 +80,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
       inputRef.current.select();
     }
   }, [enabled]);
-
-  const baseExtensions = [
-    customPythonLanguageSupport(),
-    EditorView.lineWrapping,
-  ];
 
   return (
     <div className="flex flex-col w-full rounded-[inherit] overflow-hidden">

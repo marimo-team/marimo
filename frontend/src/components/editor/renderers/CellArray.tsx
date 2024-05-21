@@ -24,10 +24,12 @@ import { PackageAlert } from "@/components/editor/package-alert";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
-import { SquareCodeIcon, SquareMIcon } from "lucide-react";
+import { SparklesIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
-import { autoInstantiateAtom } from "@/core/config/config";
+import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
+import { useBoolean } from "@/hooks/useBoolean";
+import { AddCellWithAI } from "../ai/add-cell-with-ai";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -150,15 +152,21 @@ export const CellArray: React.FC<CellArrayProps> = ({
 const AddCellButtons: React.FC = () => {
   const { createNewCell } = useCellActions();
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
+  const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const buttonClass = cn(
     "px-16 mb-0 rounded-none",
     "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
   );
 
-  return (
-    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4">
-      <div className="shadow-smSolid border border-border rounded opacity-0 transition-all duration-200 group-hover:opacity-100 overflow-hidden divide-x divide-border">
+  const renderBody = () => {
+    if (isAiButtonOpen) {
+      return <AddCellWithAI onClose={isAiButtonOpenActions.toggle} />;
+    }
+
+    return (
+      <>
         <Button
           className={buttonClass}
           variant="text"
@@ -185,6 +193,31 @@ const AddCellButtons: React.FC = () => {
           <SquareMIcon className="mr-2 size-4" />
           Markdown
         </Button>
+        {aiEnabled && (
+          <Button
+            className={buttonClass}
+            variant="text"
+            size="sm"
+            onClick={isAiButtonOpenActions.toggle}
+          >
+            <SparklesIcon className="mr-2 size-4" />
+            Generate with AI
+          </Button>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full">
+      <div
+        className={cn(
+          "shadow-sm border border-border rounded  transition-all duration-200 overflow-hidden divide-x divide-border",
+          !isAiButtonOpen && "opacity-0 group-hover:opacity-100 w-fit",
+          isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
+        )}
+      >
+        {renderBody()}
       </div>
     </div>
   );
