@@ -1,0 +1,23 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+import { EditorView } from "@codemirror/view";
+import { underlineField, createUnderlinePlugin } from "./underline";
+import { goToDefinition } from "./utils";
+
+/**
+ * Create a go-to-definition extension.
+ */
+export function goToDefinitionBundle() {
+  return [
+    underlineField,
+    createUnderlinePlugin((view, variableName) => {
+      goToDefinition(view, variableName);
+    }),
+    EditorView.baseTheme({
+      ".underline": {
+        textDecoration: "underline",
+        cursor: "pointer",
+        color: "hsl(var(--link))",
+      },
+    }),
+  ];
+}

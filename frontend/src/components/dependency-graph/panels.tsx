@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { memo } from "react";
-import { Edge, Panel } from "reactflow";
+import { type Edge, Panel } from "reactflow";
 import { Button } from "../ui/button";
 import {
   Rows3Icon,
@@ -13,18 +13,18 @@ import {
   SettingsIcon,
   MoreVerticalIcon,
 } from "lucide-react";
-import { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
+import type { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
 import { CellLink } from "../editor/links/cell-link";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "../variables/common";
-import { Variable, Variables } from "@/core/variables/types";
+import type { Variable, Variables } from "@/core/variables/types";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
 import { getCellEditorView } from "@/core/cells/cells";
-import { CellId } from "@/core/cells/ids";
-import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
+import type { CellId } from "@/core/cells/ids";
+import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 
 interface Props {
   view: GraphLayoutView;
@@ -120,7 +120,7 @@ export const GraphSelectionPanel: React.FC<{
   const highlightInCell = (cellId: CellId, variableName: string) => {
     const editorView = getCellEditorView(cellId);
     if (editorView) {
-      goToDefinition(editorView, variableName);
+      goToVariableDefinition(editorView, variableName);
     }
   };
 

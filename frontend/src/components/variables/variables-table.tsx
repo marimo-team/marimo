@@ -8,8 +8,8 @@ import {
   TableCell,
   Table,
 } from "../ui/table";
-import { Variable, Variables } from "@/core/variables/types";
-import { CellId } from "@/core/cells/ids";
+import type { Variable, Variables } from "@/core/variables/types";
+import type { CellId } from "@/core/cells/ids";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { cn } from "@/utils/cn";
 import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
@@ -17,16 +17,16 @@ import {
   useReactTable,
   getCoreRowModel,
   flexRender,
-  ColumnDef,
-  SortingState,
+  type ColumnDef,
+  type SortingState,
   getSortedRowModel,
-  ColumnSort,
+  type ColumnSort,
   getFilteredRowModel,
 } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../data-table/column-header";
 import { sortBy } from "lodash-es";
 import { getCellEditorView } from "@/core/cells/cells";
-import { goToDefinition } from "@/core/codemirror/find-replace/search-highlight";
+import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import { SearchInput } from "../ui/input";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "./common";
@@ -122,7 +122,7 @@ const COLUMNS = [
       const highlightInCell = (cellId: CellId) => {
         const editorView = getCellEditorView(cellId);
         if (editorView) {
-          goToDefinition(editorView, name);
+          goToVariableDefinition(editorView, name);
         }
       };
 

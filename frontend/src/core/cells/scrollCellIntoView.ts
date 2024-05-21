@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { RefObject } from "react";
+import type { RefObject } from "react";
 import { Logger } from "../../utils/Logger";
-import { CellId, HTMLCellId } from "./ids";
-import { CellHandle } from "@/components/editor/Cell";
-import { CellConfig } from "./types";
-import { goToDefinition } from "../codemirror/find-replace/search-highlight";
+import { type CellId, HTMLCellId } from "./ids";
+import type { CellHandle } from "@/components/editor/Cell";
+import type { CellConfig } from "./types";
+import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
 
 export function focusAndScrollCellIntoView({
   cellId,
@@ -57,7 +57,7 @@ export function focusAndScrollCellIntoView({
         },
       });
     } else if (variableName) {
-      goToDefinition(editor, variableName);
+      goToVariableDefinition(editor, variableName);
     }
   }
 

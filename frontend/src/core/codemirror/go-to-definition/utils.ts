@@ -1,0 +1,104 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+import type { EditorState } from "@codemirror/state";
+import { closeHoverTooltips, type EditorView } from "@codemirror/view";
+import { getPositionAtWordBounds } from "../completion/hints";
+import type { VariableName, Variables } from "../../variables/types";
+import { store } from "../../state/jotai";
+import { notebookAtom } from "../../cells/cells";
+import { variablesAtom } from "../../variables/state";
+import type { CellId } from "@/core/cells/ids";
+import { goToVariableDefinition } from "./commands";
+import { closeCompletion } from "@codemirror/autocomplete";
+
+/**
+ * Get the word under the cursor.
+ */
+function getWordUnderCursor(state: EditorState) {
+  const { from, to } = state.selection.main;
+  if (from === to) {
+    const { startToken, endToken } = getPositionAtWordBounds(state.doc, from);
+    return state.doc.sliceString(startToken, endToken);
+  }
+
+  return state.doc.sliceString(from, to);
+}
+
+/**
+ * Get the cell id of the definition of the given variable.
+ */
+function getCellIdOfDefinition(
+  variables: Variables,
+  variableName: string,
+): CellId | null {
+  if (!variableName) {
+    return null;
+  }
+  const variable = variables[variableName as VariableName];
+  if (!variable || variable.declaredBy.length === 0) {
+    return null;
+  }
+  const focusCellId = variable.declaredBy[0];
+  return focusCellId;
+}
+
+function isPrivateVariable(variableName: string) {
+  return variableName.startsWith("_");
+}
+
+/**
+ * Go to the definition of the variable under the cursor.
+ * @param view The editor view at which the command was invoked.
+ */
+export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
+  const state = view.state;
+  const variableName = getWordUnderCursor(state);
+  if (!variableName) {
+    return false;
+  }
+  // Close popovers/tooltips
+  closeCompletion(view);
+  view.dispatch({ effects: closeHoverTooltips });
+
+  return goToDefinition(view, variableName);
+}
+
+/**
+ * Go to the definition of the variable under the cursor.
+ * @param view The editor view at which the command was invoked.
+ */
+export function goToDefinition(
+  view: EditorView,
+  variableName: string,
+): boolean {
+  // The variable may exist in another cell
+  const editorWithVariable = getEditorForVariable(view, variableName);
+  if (!editorWithVariable) {
+    return false;
+  }
+  return goToVariableDefinition(editorWithVariable, variableName);
+}
+
+/**
+ * @param editor The editor view at which the command was invoked.
+ * @param variableName  The name of the variable to go to.
+ */
+function getEditorForVariable(
+  editor: EditorView,
+  variableName: string,
+): EditorView | null {
+  // If it's a private variable, we only want to go to the
+  // definition if it's in the same cell
+  if (isPrivateVariable(variableName)) {
+    return editor;
+  }
+
+  const variables = store.get(variablesAtom);
+
+  const cellId = getCellIdOfDefinition(variables, variableName);
+  if (cellId) {
+    const notebookState = store.get(notebookAtom);
+    return notebookState.cellHandles[cellId].current?.editorView ?? null;
+  }
+
+  return null;
+}

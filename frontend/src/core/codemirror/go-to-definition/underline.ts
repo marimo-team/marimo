@@ -11,14 +11,14 @@ import { syntaxTree } from "@codemirror/language";
 import type { TreeCursor } from "@lezer/common";
 
 // Decoration
-const underlineDeco = Decoration.mark({ class: "underline" });
+const underlineDecoration = Decoration.mark({ class: "underline" });
 
 // State Effects
 const addUnderline = StateEffect.define<{ from: number; to: number }>();
 const removeUnderline = StateEffect.define<{ from: number; to: number }>();
 
 // Underline Field
-const underlineField = StateField.define<DecorationSet>({
+export const underlineField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
   },
@@ -27,7 +27,7 @@ const underlineField = StateField.define<DecorationSet>({
     for (const effect of tr.effects) {
       if (effect.is(addUnderline)) {
         newUnderlines = underlines.update({
-          add: [underlineDeco.range(effect.value.from, effect.value.to)],
+          add: [underlineDecoration.range(effect.value.from, effect.value.to)],
         });
       } else if (effect.is(removeUnderline)) {
         newUnderlines = underlines.update({
@@ -41,14 +41,17 @@ const underlineField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-// Underline Plugin
-class UnderlinePlugin {
+// When meta is pressed, underline the variable name under the cursor
+class MetaUnderlineVariablePlugin {
   private view: EditorView;
   private commandKey: boolean;
   private hoveredRange: { from: number; to: number; position: number } | null;
-  private onClick: (variableName: string) => void;
+  private onClick: (view: EditorView, variableName: string) => void;
 
-  constructor(view: EditorView, onClick: (variableName: string) => void) {
+  constructor(
+    view: EditorView,
+    onClick: (view: EditorView, variableName: string) => void,
+  ) {
     this.view = view;
     this.commandKey = false;
     this.hoveredRange = null;
@@ -122,7 +125,7 @@ class UnderlinePlugin {
       );
       event.preventDefault();
       event.stopPropagation();
-      this.onClick(variableName);
+      this.onClick(this.view, variableName);
       // Move the cursor to the clicked position
       this.view.dispatch({
         selection: {
@@ -148,26 +151,7 @@ class UnderlinePlugin {
   }
 }
 
-const createUnderlinePlugin = (onClick: (variableName: string) => void) =>
-  ViewPlugin.define((view) => new UnderlinePlugin(view, onClick));
-
-export function goToDefinition(onClick: (variableName: string) => void) {
-  return [
-    underlineField,
-    createUnderlinePlugin(onClick),
-    EditorView.domEventHandlers({
-      click: (event, view) => {
-        // Prevent the default cursor behavior
-        event.preventDefault();
-        return true; // Indicate that the event was handled
-      },
-    }),
-    EditorView.baseTheme({
-      ".underline": {
-        textDecoration: "underline",
-        cursor: "pointer",
-        color: "hsl(var(--link))",
-      },
-    }),
-  ];
-}
+export const createUnderlinePlugin = (
+  onClick: (view: EditorView, variableName: string) => void,
+) =>
+  ViewPlugin.define((view) => new MetaUnderlineVariablePlugin(view, onClick));
