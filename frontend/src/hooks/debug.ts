@@ -16,9 +16,9 @@ export function useDebugMounting(name: string) {
   const renders = useRef(0);
 
   useEffect(() => {
-    Logger.debug(`[${name}] mounted`);
+    Logger.debug(`🐛 [${name}] mounted`);
     return () => {
-      Logger.debug(`[${name}] unmounted. Renders: ${renders.current}`);
+      Logger.debug(`🐛 [${name}] unmounted. Renders: ${renders.current}`);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

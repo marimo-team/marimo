@@ -16,8 +16,6 @@ interface UseWebSocketOptions {
   onError?: (event: WebSocketEventMap["error"]) => void;
 }
 
-let hasMounted = false;
-
 /**
  * A hook for creating a WebSocket connection with React.
  *
@@ -28,10 +26,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
-    if (hasMounted) {
-      Logger.warn("useWebSocket should only be called once.");
-    }
-    hasMounted = true;
     const socket: IReconnectingWebSocket = isPyodide()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
@@ -40,6 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,
+            startClosed: true,
           });
 
     onOpen && socket.addEventListener("open", onOpen);
@@ -51,6 +46,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
   });
 
   useEffect(() => {
+    // If it's closed, reconnect
+    // This starts closed, so we need to connect for the first time
+    if (ws.readyState === WebSocket.CLOSED) {
+      ws.reconnect();
+    }
+
     return () => {
       Logger.warn(
         "useWebSocket is unmounting. This likely means there is a bug.",

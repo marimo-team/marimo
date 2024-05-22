@@ -2,7 +2,7 @@
 import { EditApp } from "@/core/edit-app";
 import { AppChrome } from "../editor/chrome/wrapper/app-chrome";
 import { CommandPalette } from "../editor/controls/command-palette";
-import { AppConfig, UserConfig } from "@/core/config/config-schema";
+import type { AppConfig, UserConfig } from "@/core/config/config-schema";
 
 interface Props {
   userConfig: UserConfig;
