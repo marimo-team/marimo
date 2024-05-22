@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import io
 import mimetypes
 import os
@@ -61,7 +62,8 @@ class Exporter:
                 None,
             )
             files[filename_and_length] = build_data_url(
-                cast(KnownMimeType, mime_type), buffer_contents
+                cast(KnownMimeType, mime_type),
+                base64.b64encode(buffer_contents),
             )
 
         config = _deep_copy(DEFAULT_CONFIG)
