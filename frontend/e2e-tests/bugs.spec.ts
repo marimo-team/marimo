@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { test, expect } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
-import { createCellBelow, runCell } from "./helper";
+import { createCellBelow, maybeRestartKernel, runCell } from "./helper";
 
 const appUrl = getAppUrl("bugs.py");
 test.beforeEach(async ({ page }, info) => {
   await page.goto(appUrl);
   if (info.retry) {
     await page.reload();
+    await maybeRestartKernel(page);
   }
 });
 

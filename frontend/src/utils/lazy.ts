@@ -10,26 +10,17 @@ interface LazyComponentWithPreload<T> {
 export const reactLazyWithPreload = <T>(
   factory: () => Promise<{ default: React.ComponentType<T> }>,
 ): LazyComponentWithPreload<T> => {
-  let component: React.ComponentType<T> | null = null;
-  const init = factory().then((module) => {
-    component = module.default;
-  });
+  let component: Promise<{ default: React.ComponentType<T> }> | null = null;
 
-  const preload = () => {
-    init.then(() => {
-      if (!component) {
-        throw new Error("Component is not loaded");
-      }
-    });
+  const preload = async () => {
+    if (!component) {
+      component = factory();
+    }
+    return component;
   };
 
   const LazyComponent = React.lazy(() => {
-    return init.then(() => {
-      if (!component) {
-        throw new Error("Component is not loaded");
-      }
-      return { default: component };
-    });
+    return preload();
   });
 
   return {
