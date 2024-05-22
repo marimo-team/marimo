@@ -34,7 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,
-            startClosed: false,
+            startClosed: true,
           });
 
     onOpen && socket.addEventListener("open", onOpen);
