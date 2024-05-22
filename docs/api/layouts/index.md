@@ -11,6 +11,7 @@
   justify
   lazy
   nav_menu
+  routes
   sidebar
   stacks
   tree
@@ -37,6 +38,7 @@ them but just render their children in a certain way.
   marimo.left
   marimo.nav_menu
   marimo.right
+  marimo.routes
   marimo.sidebar
   marimo.tree
   marimo.vstack

@@ -37,7 +37,6 @@ WASM notebooks support most but not all Python features and packages. See our
 For a turnkey cloud solution, try [Marimo Cloud](/guides/deploying/deploying_marimo_cloud.md).
 ```
 
-
 ## Programmatically running the marimo backend
 
 When deploying marimo notebooks, you can run the marimo backend programmatically. This allows you to customize the backend to your needs and deploy it in your own environment.

@@ -1,4 +1,4 @@
-# Sidebar
+# Routes
 
 ```{eval-rst}
 .. marimo-embed::
@@ -11,7 +11,7 @@
                 mo.md("# marimo"),
                 mo.nav_menu(
                     {
-                        "#/home": f"{mo.icon('lucide:home')} Home",
+                        "#/": f"{mo.icon('lucide:home')} Home",
                         "#/about": f"{mo.icon('lucide:user')} About",
                         "#/contact": f"{mo.icon('lucide:phone')} Contact",
                         "Links": {
@@ -24,8 +24,18 @@
             ]
         )
         return
+
+    @app.cell
+    def __():
+        mo.routes({
+            "#/": mo.md("# Home"),
+            "#/about": mo.md("# About"),
+            "#/contact": mo.md("# Contact"),
+            mo.routes.CATCH_ALL: mo.md("# Home"),
+        })
+        return
 ```
 
 ```{eval-rst}
-.. autofunction:: marimo.sidebar
+.. autofunction:: marimo.routes
 ```
