@@ -1,7 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { NodeApi, NodeRendererProps, Tree } from "react-arborist";
+import { type NodeApi, type NodeRendererProps, Tree } from "react-arborist";
 
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, {
+  Suspense,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeftIcon,
   ChevronDownIcon,
@@ -15,10 +21,10 @@ import {
   UploadIcon,
   ViewIcon,
 } from "lucide-react";
-import { FileInfo } from "@/core/network/types";
+import type { FileInfo } from "@/core/network/types";
 import {
   FILE_TYPE_ICONS,
-  FileType,
+  type FileType,
   PYTHON_CODE_FOR_FILE_TYPE,
   guessFileType,
 } from "./types";
@@ -44,7 +50,7 @@ import { isPyodide } from "@/core/pyodide/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "@/components/icons/spinner";
-import { RequestingTree } from "./requesting-tree";
+import type { RequestingTree } from "./requesting-tree";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -81,7 +87,9 @@ export const FileExplorer: React.FC<{
           </Button>
           <span className="font-bold">{openFile.name}</span>
         </div>
-        <FileViewer file={openFile} />
+        <Suspense>
+          <FileViewer file={openFile} />
+        </Suspense>
       </>
     );
   }

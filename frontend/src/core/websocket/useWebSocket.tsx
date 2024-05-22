@@ -1,10 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { useEffect, useState } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
-import { IReconnectingWebSocket } from "./types";
+import type { IReconnectingWebSocket } from "./types";
 import { StaticWebsocket } from "./StaticWebsocket";
 import { isPyodide } from "../pyodide/utils";
 import { PyodideBridge, PyodideWebsocket } from "../pyodide/bridge";
+import { Logger } from "@/utils/Logger";
 
 interface UseWebSocketOptions {
   url: string;
@@ -14,6 +15,8 @@ interface UseWebSocketOptions {
   onClose?: (event: WebSocketEventMap["close"]) => void;
   onError?: (event: WebSocketEventMap["error"]) => void;
 }
+
+let hasMounted = false;
 
 /**
  * A hook for creating a WebSocket connection with React.
@@ -25,6 +28,10 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
+    if (hasMounted) {
+      Logger.warn("useWebSocket should only be called once.");
+    }
+    hasMounted = true;
     const socket: IReconnectingWebSocket = isPyodide()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
@@ -45,6 +52,9 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
   useEffect(() => {
     return () => {
+      Logger.warn(
+        "useWebSocket is unmounting. This likely means there is a bug.",
+      );
       onOpen && ws.removeEventListener("open", onOpen);
       onClose && ws.removeEventListener("close", onClose);
       onError && ws.removeEventListener("error", onError);
