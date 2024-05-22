@@ -17,7 +17,6 @@ import { TailwindIndicator } from "@/components/debug/indicator";
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { slotsController } from "./slots/slots";
 import { reactLazyWithPreload } from "@/utils/lazy";
-import { useDebugMounting } from "@/hooks/debug";
 
 // Lazy imports
 const LazyHomePage = reactLazyWithPreload(
@@ -45,7 +44,6 @@ preload(initialMode);
  * The root component of the Marimo app.
  */
 export const MarimoApp: React.FC = memo(() => {
-  useDebugMounting("MarimoApp");
   const [userConfig] = useUserConfig();
   const [appConfig] = useAppConfig();
   const editorFontSize = toRem(userConfig.display.code_editor_font_size);

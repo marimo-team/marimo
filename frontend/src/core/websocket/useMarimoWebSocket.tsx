@@ -32,7 +32,6 @@ import {
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { JsonString } from "@/utils/json/base64";
-import { useDebugMounting } from "@/hooks/debug";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -42,7 +41,6 @@ export function useMarimoWebSocket(opts: {
   autoInstantiate: boolean;
   setCells: (cells: CellData[], layout: LayoutState) => void;
 }) {
-  useDebugMounting("useMarimoWebSocket");
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);
   const { autoInstantiate, sessionId, setCells } = opts;

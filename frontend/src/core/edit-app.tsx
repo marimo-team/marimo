@@ -57,7 +57,6 @@ import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
-import { useDebugMounting } from "@/hooks/debug";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -65,7 +64,6 @@ interface AppProps {
 }
 
 export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
-  useDebugMounting("EditApp");
   const notebook = useNotebook();
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);

@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
 import type { IReconnectingWebSocket } from "./types";
 import { StaticWebsocket } from "./StaticWebsocket";
@@ -16,8 +16,6 @@ interface UseWebSocketOptions {
   onError?: (event: WebSocketEventMap["error"]) => void;
 }
 
-let hasMounted = false;
-
 /**
  * A hook for creating a WebSocket connection with React.
  *
@@ -26,12 +24,13 @@ let hasMounted = false;
 export function useWebSocket(options: UseWebSocketOptions) {
   const { onOpen, onMessage, onClose, onError, ...rest } = options;
 
+  const wsRef = useRef<IReconnectingWebSocket>(null);
+
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
-    if (hasMounted) {
-      Logger.warn("useWebSocket should only be called once.");
+    if (wsRef.current) {
+      return wsRef.current;
     }
-    hasMounted = true;
     const socket: IReconnectingWebSocket = isPyodide()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
@@ -49,6 +48,8 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
     return socket;
   });
+
+  wsRef.current = ws;
 
   useEffect(() => {
     return () => {
