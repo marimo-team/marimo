@@ -45,6 +45,36 @@ def replace(value: object) -> None:
 
 
 @mddoc
+def replace_at_index(value: object, idx: int) -> None:
+    """Replace a cell's output at the given index with value.
+
+    Call this function to replace an existing object in a cell's output. If idx
+    is equal to the length of the output, this is equivalent to an append.
+
+    **Args:**
+
+    - `value`: new object to replace an existing object
+    - `idx`: index of output to replace
+    """
+
+    ctx = get_context()
+    if ctx.execution_context is None or ctx.execution_context.output is None:
+        return
+    elif idx > len(ctx.execution_context.output):
+        raise IndexError(
+            f"idx is {idx}, must be <= {len(ctx.execution_context.output)}"
+        )
+    elif idx == len(ctx.execution_context.output):
+        ctx.execution_context.output.append(formatting.as_html(value))
+    else:
+        ctx.execution_context.output[idx] = formatting.as_html(value)
+    write_internal(
+        cell_id=ctx.execution_context.cell_id,
+        value=vstack(ctx.execution_context.output),
+    )
+
+
+@mddoc
 def append(value: object) -> None:
     """Append a new object to a cell's output.
 

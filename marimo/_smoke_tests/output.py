@@ -107,5 +107,11 @@ def __(time):
     return
 
 
+@app.cell
+def __(mo):
+    mo.output.append(mo.md("To be replaced."))
+    mo.output.replace_at_index(mo.md("Replaced at index"), 0)
+
+
 if __name__ == "__main__":
     app.run()
