@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/utils/cn";
 import { VariantProps, cva } from "class-variance-authority";
+import { Logger } from "@/utils/Logger";
 
 export const ErrorBanner = ({
   error,
@@ -24,6 +25,7 @@ export const ErrorBanner = ({
   if (!error) {
     return null;
   }
+  Logger.error(error);
 
   const message = prettyError(error);
 

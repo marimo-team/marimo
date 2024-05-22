@@ -87,10 +87,16 @@ export const DataExplorerComponent = ({
     if (!dataUrl) {
       return {};
     }
-    const chartData = await vegaLoadData(dataUrl, {
-      type: "csv",
-      parse: "auto",
-    });
+    const chartData = await vegaLoadData(
+      dataUrl,
+      {
+        type: "csv",
+        parse: "auto",
+      },
+      {
+        replacePeriod: true,
+      },
+    );
     const schema = cql.schema.build(chartData);
     actions.setSchema(schema);
     return { chartData, schema };

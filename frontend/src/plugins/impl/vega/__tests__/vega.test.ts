@@ -1,11 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import {
-  ZERO_WIDTH_SPACE,
-  uniquifyColumnNames,
-  vegaLoadData,
-  vegaLoader,
-} from "../loader";
+import { vegaLoadData, vegaLoader, exportedForTesting } from "../loader";
+
+const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
+  exportedForTesting;
 
 describe("vega loader", () => {
   it("should parse csv data with dates", async () => {
@@ -105,7 +103,7 @@ yield_error,yield_center
     const data = await vegaLoadData(
       csvData,
       { type: "csv", parse: "auto" },
-      true,
+      { handleBigInt: true },
     );
     expect(data).toMatchInlineSnapshot(`
       [
@@ -115,7 +113,11 @@ yield_error,yield_center
       ]
     `);
 
-    const dataWithoutFlag = await vegaLoadData(csvData, { type: "csv" }, false);
+    const dataWithoutFlag = await vegaLoadData(
+      csvData,
+      { type: "csv" },
+      { handleBigInt: false },
+    );
     expect(dataWithoutFlag).toMatchInlineSnapshot(`
       [
         {
@@ -172,6 +174,37 @@ describe("uniquifyColumnNames", () => {
     const csvData = '"Name,Name",Name,Name,Name\nAlice,Bob,Charlie,David';
     const expectedResult = `"Name,Name",Name,Name${ZERO_WIDTH_SPACE},Name${ZERO_WIDTH_SPACE}${ZERO_WIDTH_SPACE}\nAlice,Bob,Charlie,David`;
     const result = uniquifyColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+});
+
+describe("replacePeriodsInColumnNames", () => {
+  it("should handle empty cases", () => {
+    expect(replacePeriodsInColumnNames("")).toBe("");
+    expect(replacePeriodsInColumnNames(" ")).toBe(" ");
+    expect(replacePeriodsInColumnNames("\n")).toBe("\n");
+  });
+
+  it("should return the same header if no periods exist", () => {
+    const csvData = "Name,Age,Location\nAlice,30,New York";
+    const result = replacePeriodsInColumnNames(csvData);
+    expect(result).toBe(csvData);
+  });
+
+  it("should replace periods in headers", () => {
+    const csvData =
+      "user.name,user.age,user.location\nAlice,30.1,New York\nBob,30.5,New York";
+    const expectedResult =
+      "user․name,user․age,user․location\nAlice,30.1,New York\nBob,30.5,New York";
+    const result = replacePeriodsInColumnNames(csvData);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("should not replace periods in non-headers", () => {
+    const csvData = "Name,Age,Location\nAlice,30.1,New York\nBob,30.5,New York";
+    const expectedResult =
+      "Name,Age,Location\nAlice,30.1,New York\nBob,30.5,New York";
+    const result = replacePeriodsInColumnNames(csvData);
     expect(result).toBe(expectedResult);
   });
 });
