@@ -55,13 +55,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
       Logger.warn(
         "useWebSocket is unmounting. This likely means there is a bug.",
       );
+      ws.close();
       onOpen && ws.removeEventListener("open", onOpen);
       onClose && ws.removeEventListener("close", onClose);
       onError && ws.removeEventListener("error", onError);
       onMessage && ws.removeEventListener("message", onMessage);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ws]);
 
   return ws;
 }
