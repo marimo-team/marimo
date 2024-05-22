@@ -21,7 +21,7 @@ class routes(UIElement[str, str]):
     see these features, please let us know on GitHub:
     https://github.com/marimo-team/marimo/issues
 
-    For a simple-page-application (SPA) experience, use
+    For a simple-page-application (SPA) experience, you
     should use hash-based routing. For example, prefix
     your routes with `#/`.
 
