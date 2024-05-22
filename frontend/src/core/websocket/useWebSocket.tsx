@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ReconnectingWebSocket from "partysocket/ws";
 import type { IReconnectingWebSocket } from "./types";
 import { StaticWebsocket } from "./StaticWebsocket";
@@ -48,7 +48,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
   useEffect(() => {
     // If it's closed, reconnect
     // This starts closed, so we need to connect for the first time
-    if (ws.CLOSED) {
+    if (ws.readyState === WebSocket.CLOSED) {
       ws.reconnect();
     }
 
