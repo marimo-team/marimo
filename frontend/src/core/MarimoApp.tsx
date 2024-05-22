@@ -3,7 +3,8 @@ import "../css/index.css";
 import "../css/app/App.css";
 import "iconify-icon";
 
-import React, { PropsWithChildren, Suspense, memo } from "react";
+import type React from "react";
+import { type PropsWithChildren, Suspense, memo } from "react";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "../components/ui/tooltip";
 import { Toaster } from "../components/ui/toaster";
@@ -50,13 +51,13 @@ export const MarimoApp: React.FC = memo(() => {
   const renderBody = () => {
     if (initialMode === "home") {
       return <LazyHomePage.Component />;
-    } else if (initialMode === "read") {
-      return <LazyRunPage.Component appConfig={appConfig} />;
-    } else {
-      return (
-        <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
-      );
     }
+    if (initialMode === "read") {
+      return <LazyRunPage.Component appConfig={appConfig} />;
+    }
+    return (
+      <LazyEditPage.Component userConfig={userConfig} appConfig={appConfig} />
+    );
   };
 
   return (

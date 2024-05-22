@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import React from "react";
+import { invariant } from "./invariant";
 
 interface LazyComponentWithPreload<T> {
   preload: () => void;
@@ -17,17 +18,13 @@ export const reactLazyWithPreload = <T>(
 
   const preload = () => {
     init.then(() => {
-      if (!component) {
-        throw new Error("Component is not loaded");
-      }
+      invariant(component, "Component is not loaded");
     });
   };
 
   const LazyComponent = React.lazy(() => {
     return init.then(() => {
-      if (!component) {
-        throw new Error("Component is not loaded");
-      }
+      invariant(component, "Component is not loaded");
       return { default: component };
     });
   });
