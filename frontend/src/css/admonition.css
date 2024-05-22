@@ -1,16 +1,12 @@
 .admonition {
-  display: flex;
-  --admonition-padding: 1em;
-  --admonition-border-radius: 5px;
-  --admonition-title-font-weight: bold;
-  --admonition-title-text-transform: capitalize;
   --admonition-bg: var(--blue-1);
   --admonition-border: var(--blue-6);
   --admonition-heading-color: var(--blue-11);
 
-  padding: var(--admonition-padding);
+  display: flex;
+  padding: 1rem;
   border-left: 4px solid;
-  margin-bottom: 1em;
+  margin-bottom: 1rem;
   background-color: var(--admonition-bg);
   border-color: var(--admonition-border);
 
@@ -21,13 +17,15 @@
 }
 
 .admonition-title {
-  font-weight: var(--admonition-title-font-weight);
-  text-transform: var(--admonition-title-text-transform);
+  font-weight: bold;
+  text-transform: capitalize;
   color: var(--admonition-heading-color);
+
+  @apply tracking-wide;
 
   .paragraph {
     font-weight: initial;
-    @apply text-foreground;
+    @apply text-foreground tracking-normal;
   }
 }
 
