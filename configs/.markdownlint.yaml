@@ -18,3 +18,5 @@ MD001: false
 MD040: false
 # ol-prefix
 MD029: false
+# no-trailing-punctuation
+MD026: false

@@ -8,7 +8,6 @@ Marimo Cloud is currently in beta: if you'd like access, email us at
 [contact@marimo.io](mailto:contact@marimo.io) or book time on [our
 calendar](calendly.com/akshay-marimo) and we'll onboard you very quickly.
 
-
 ## Marimo Cloud
 
 Marimo Cloud seamlessly augments local development on marimo notebooks with
@@ -23,7 +22,7 @@ Today, marimo cloud has two main features:
 
 We have many more features planned for the near future, and **big ideas** on
 how Marimo Cloud can supercharge the entire lifecycle of working with and
-experimenting on data, from small workloads to very large ones as well. 
+experimenting on data, from small workloads to very large ones as well.
 
 ## Reach out to us!
 
