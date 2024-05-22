@@ -67,8 +67,13 @@ export const vegaLoader = createLoader();
 export function vegaLoadData(
   url: string,
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
-  handleBigInt = false,
+  opts: {
+    handleBigInt?: boolean;
+    replacePeriod?: boolean;
+  } = {},
 ): Promise<object[]> {
+  const { handleBigInt = false, replacePeriod = false } = opts;
+
   return vegaLoader.load(url).then((csvData) => {
     // CSV data comes columnar and may have duplicate column names.
     // We need to uniquify the column names before parsing since vega-loader
@@ -79,6 +84,11 @@ export function vegaLoadData(
     // we would need to store the data in columnar format.
     if (typeof csvData === "string") {
       csvData = uniquifyColumnNames(csvData);
+    }
+    // Replace periods in column names with a one-dot leader.
+    // Some downstream libraries use periods as a nested key separator.
+    if (typeof csvData === "string" && replacePeriod) {
+      csvData = replacePeriodsInColumnNames(csvData);
     }
 
     // We support enabling/disabling since the Table enables it
@@ -116,29 +126,54 @@ export function parseCsvData(csvData: string, handleBigInt = true): object[] {
   return data;
 }
 
-export function uniquifyColumnNames(csvData: string): string {
+/**
+ * Make column names unique by appending a zero-width space to the end of each duplicate column name.
+ */
+function uniquifyColumnNames(csvData: string): string {
   if (!csvData?.includes(",")) {
     return csvData;
   }
 
+  return mapColumnNames(csvData, (headerNames) => {
+    const existingNames = new Set<string>();
+    return headerNames.map((name) => {
+      const uniqueName = getUniqueKey(name, existingNames);
+      existingNames.add(uniqueName);
+      return uniqueName;
+    });
+  });
+}
+
+/**
+ * Replace periods in column names with a one-dot leader.
+ * This is because some downstream libraries use periods as a nested key separator.
+ */
+function replacePeriodsInColumnNames(csvData: string): string {
+  // This looks like a period but it's actually a one-dot leader
+  // https://www.compart.com/en/unicode/U+2024
+  const ONE_DOT_LEADER = "․";
+  if (!csvData?.includes(".")) {
+    return csvData;
+  }
+
+  return mapColumnNames(csvData, (headerNames) => {
+    return headerNames.map((name) => name.replaceAll(".", ONE_DOT_LEADER));
+  });
+}
+
+function mapColumnNames(
+  csvData: string,
+  fn: (names: string[]) => string[],
+): string {
   const lines = csvData.split("\n");
   const header = lines[0];
   const headerNames = header.split(",");
-
-  const existingNames = new Set<string>();
-  const newNames = [];
-  for (const name of headerNames) {
-    const uniqueName = getUniqueKey(name, existingNames);
-    newNames.push(uniqueName);
-    existingNames.add(uniqueName);
-  }
-
-  const uniqueHeader = newNames.join(",");
-  lines[0] = uniqueHeader;
+  const newNames = fn(headerNames);
+  lines[0] = newNames.join(",");
   return lines.join("\n");
 }
 
-export const ZERO_WIDTH_SPACE = "\u200B";
+const ZERO_WIDTH_SPACE = "\u200B";
 
 function getUniqueKey(key: string, existingKeys: Set<string>): string {
   let result = key;
@@ -150,3 +185,9 @@ function getUniqueKey(key: string, existingKeys: Set<string>): string {
 
   return result;
 }
+
+export const exportedForTesting = {
+  ZERO_WIDTH_SPACE,
+  uniquifyColumnNames,
+  replacePeriodsInColumnNames,
+};

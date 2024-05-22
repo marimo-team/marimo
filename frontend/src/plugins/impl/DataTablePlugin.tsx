@@ -107,7 +107,7 @@ export const LoadingDataTableComponent = memo(
       return vegaLoadData(
         props.data,
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
-        true,
+        { handleBigInt: true },
       );
     }, [props.data, props.fieldTypes]);
 
