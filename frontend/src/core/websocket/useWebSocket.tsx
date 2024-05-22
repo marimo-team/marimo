@@ -24,13 +24,8 @@ interface UseWebSocketOptions {
 export function useWebSocket(options: UseWebSocketOptions) {
   const { onOpen, onMessage, onClose, onError, ...rest } = options;
 
-  const wsRef = useRef<IReconnectingWebSocket>(null);
-
   // eslint-disable-next-line react/hook-use-state
   const [ws] = useState<IReconnectingWebSocket>(() => {
-    if (wsRef.current) {
-      return wsRef.current;
-    }
     const socket: IReconnectingWebSocket = isPyodide()
       ? new PyodideWebsocket(PyodideBridge.INSTANCE)
       : options.static
@@ -39,6 +34,7 @@ export function useWebSocket(options: UseWebSocketOptions) {
             // We don't want Infinity retries
             maxRetries: 10,
             debug: false,
+            startClosed: false,
           });
 
     onOpen && socket.addEventListener("open", onOpen);
@@ -49,9 +45,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
     return socket;
   });
 
-  wsRef.current = ws;
-
   useEffect(() => {
+    // If it's closed, reconnect
+    // This starts closed, so we need to connect for the first time
+    if (ws.CLOSED) {
+      ws.reconnect();
+    }
+
     return () => {
       Logger.warn(
         "useWebSocket is unmounting. This likely means there is a bug.",
