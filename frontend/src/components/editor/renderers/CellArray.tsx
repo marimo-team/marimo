@@ -156,7 +156,7 @@ const AddCellButtons: React.FC = () => {
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const buttonClass = cn(
-    "px-16 mb-0 rounded-none",
+    "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16",
     "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
   );
 
@@ -212,7 +212,7 @@ const AddCellButtons: React.FC = () => {
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full">
       <div
         className={cn(
-          "shadow-sm border border-border rounded  transition-all duration-200 overflow-hidden divide-x divide-border",
+          "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
           !isAiButtonOpen && "opacity-0 group-hover:opacity-100 w-fit",
           isAiButtonOpen && "opacity-100 w-full max-w-4xl shadow-lg",
         )}

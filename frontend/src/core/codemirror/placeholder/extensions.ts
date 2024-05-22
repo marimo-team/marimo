@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension } from "@codemirror/state";
+import type { Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 
 /**
@@ -73,12 +73,14 @@ export function clickablePlaceholderExtension(opts: {
   return [
     placeholder(placeholderText),
     EditorView.theme({
+      ".cm-placeholder": {
+        color: "var(--slate-8)",
+      },
       ".cm-clickable-placeholder": {
         cursor: "pointer !important",
         pointerEvents: "auto",
-        color: "var(--slate-10)",
+        color: "var(--slate-9)",
         textDecoration: "underline",
-        textDecorationThickness: "0.1em",
         textUnderlineOffset: "0.2em",
       },
       ".cm-clickable-placeholder:hover": {
