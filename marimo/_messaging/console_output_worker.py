@@ -49,6 +49,10 @@ def _write_console_output(
     ).broadcast(stream)
 
 
+def _can_merge_outputs(first: ConsoleMsg, second: ConsoleMsg) -> bool:
+    return first.stream == second.stream and first.mimetype == second.mimetype
+
+
 def _add_output_to_buffer(
     console_output: ConsoleMsg,
     outputs_buffered_per_cell: dict[CellId_t, list[ConsoleMsg]],
@@ -59,7 +63,7 @@ def _add_output_to_buffer(
         if cell_id in outputs_buffered_per_cell
         else None
     )
-    if buffer and buffer[-1].stream == console_output.stream:
+    if buffer and _can_merge_outputs(buffer[-1], console_output):
         buffer[-1].data += console_output.data
     elif buffer:
         buffer.append(console_output)
