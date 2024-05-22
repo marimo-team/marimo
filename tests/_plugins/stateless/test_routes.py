@@ -75,6 +75,6 @@ async def test_routes_non_lazy(k: Kernel, exec_req: ExecReqProvider) -> None:
     assert len(context.function_registry.namespaces.values()) == 0
 
     routes = k.globals["routes"]
-    children = "<div><span>42</span></div>" "<div><span>45</span></div>"
+    children = "<span>42</span>" "<span>45</span>"
     assert children in routes.text
     assert "data-routes='[&quot;#/&quot;, &quot;/(.*)&quot;]'" in routes.text
