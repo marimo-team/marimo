@@ -14,7 +14,7 @@ import { FilenameForm } from "@/components/editor/header/filename-form";
 import { WebSocketState } from "./websocket/types";
 import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
 import {
-  LastSavedNotebook,
+  type LastSavedNotebook,
   notebookIsRunningAtom,
   useCellActions,
   useNotebook,
@@ -25,7 +25,7 @@ import {
   notebookNeedsRun,
   notebookNeedsSave,
 } from "./cells/utils";
-import { AppConfig, UserConfig } from "./config/config-schema";
+import type { AppConfig, UserConfig } from "./config/config-schema";
 import { toggleAppMode, viewStateAtom } from "./mode";
 import { useHotkey } from "../hooks/useHotkey";
 import { useImperativeModal } from "../components/modal/ImperativeModal";
@@ -42,7 +42,7 @@ import { useAutoSave } from "./saving/useAutoSave";
 import { useEventListener } from "../hooks/useEventListener";
 import { toast } from "../components/ui/use-toast";
 import { SortableCellsProvider } from "../components/sort/SortableCellsProvider";
-import { CellId, HTMLCellId } from "./cells/ids";
+import { type CellId, HTMLCellId } from "./cells/ids";
 import { CellArray } from "../components/editor/renderers/CellArray";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
@@ -57,6 +57,7 @@ import { getSessionId } from "./kernel/session";
 import { updateQueryParams } from "@/utils/urls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { AppContainer } from "../components/editor/app-container";
+import { useDebugMounting } from "@/hooks/debug";
 
 interface AppProps {
   userConfig: UserConfig;
@@ -64,6 +65,7 @@ interface AppProps {
 }
 
 export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
+  useDebugMounting("EditApp");
   const notebook = useNotebook();
   const { setCells, updateCellCode } = useCellActions();
   const [viewState, setViewState] = useAtom(viewStateAtom);

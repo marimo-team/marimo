@@ -6,11 +6,11 @@ import { useWebSocket } from "@/core/websocket/useWebSocket";
 import { logNever } from "@/utils/assertNever";
 import { useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import { OperationMessage } from "@/core/kernel/messages";
-import { CellData } from "../cells/types";
+import type { OperationMessage } from "@/core/kernel/messages";
+import type { CellData } from "../cells/types";
 import { useErrorBoundary } from "react-error-boundary";
 import { Logger } from "@/utils/Logger";
-import { LayoutState, useLayoutActions } from "../layout/layout";
+import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { useVariablesActions } from "../variables/state";
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -19,7 +19,7 @@ import { prettyError } from "@/utils/errors";
 import { isStaticNotebook } from "../static/static-state";
 import { useRef } from "react";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
-import { SessionId } from "../kernel/session";
+import type { SessionId } from "../kernel/session";
 import { useBannersActions } from "../errors/state";
 import { useAlertActions } from "../alerts/state";
 import { generateUUID } from "@/utils/uuid";
@@ -31,7 +31,8 @@ import {
   handleRemoveUIElements,
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
-import { JsonString } from "@/utils/json/base64";
+import type { JsonString } from "@/utils/json/base64";
+import { useDebugMounting } from "@/hooks/debug";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -41,6 +42,7 @@ export function useMarimoWebSocket(opts: {
   autoInstantiate: boolean;
   setCells: (cells: CellData[], layout: LayoutState) => void;
 }) {
+  useDebugMounting("useMarimoWebSocket");
   // Track whether we want to try reconnecting.
   const shouldTryReconnecting = useRef<boolean>(true);
   const { autoInstantiate, sessionId, setCells } = opts;
