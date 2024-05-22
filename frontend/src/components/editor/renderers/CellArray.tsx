@@ -156,7 +156,7 @@ const AddCellButtons: React.FC = () => {
   const aiEnabled = useAtomValue(aiEnabledAtom);
 
   const buttonClass = cn(
-    "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16",
+    "mb-0 rounded-none px-4 sm:px-8 md:px-10 lg:px-16 tracking-wide",
     "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
   );
 
