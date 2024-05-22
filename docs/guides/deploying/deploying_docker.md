@@ -1,4 +1,4 @@
-# Deploying with Docker
+# Deploy with Docker
 
 ## Prerequisites
 

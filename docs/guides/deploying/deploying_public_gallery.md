@@ -1,4 +1,4 @@
-# Deploying to our public gallery
+# Deploy to our public gallery
 
 If you would like to deploy your application to our [public
 gallery](https://marimo.io/@public), please reach out on

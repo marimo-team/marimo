@@ -15,9 +15,10 @@ These guides help you deploy marimo notebooks.
 |                                 |                                                           |
 | :------------------------------ | :-------------------------------------------------------- |
 | {doc}`programmatically`         | Programmatically run the marimo backend for customization |
-| {doc}`deploying_docker`         | Deploying marimo notebooks and apps with Docker           |
-| {doc}`deploying_public_gallery` | Deploying marimo notebooks and apps to our public gallery |
-| {doc}`deploying_ploomber`       | Deploying marimo to Ploomber Cloud                        |
+| {doc}`deploying_docker`         | Deploy with Docker                                     |
+| {doc}`deploying_public_gallery` | Deploy our public gallery                              |
+| {doc}`deploying_marimo_cloud`   | Deploy to Marimo Cloud                                 |
+| {doc}`deploying_ploomber`       | Deploy to Ploomber Cloud                        |
 
 ```{admonition} Sharing notebooks on the public web
 :class: tip
@@ -29,6 +30,13 @@ entirely in the browser -- no backend required.
 WASM notebooks support most but not all Python features and packages. See our
 [guide on WASM notebooks](../../guides/wasm.md) to learn more.
 ```
+
+```{admonition} Marimo Cloud
+:class: tip
+
+For a turnkey cloud solution, try [Marimo Cloud](/guides/deploying/deploying_marimo_cloud.md).
+```
+
 
 ## Programmatically running the marimo backend
 
