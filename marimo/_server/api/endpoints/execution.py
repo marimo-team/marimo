@@ -108,7 +108,18 @@ async def run_cell(
     app_state.require_current_session().put_control_request(
         body.as_execution_request()
     )
+    print("Why does this not print?")
 
+    return SuccessResponse()
+
+
+@router.post("/run_scratch_code")
+@requires("edit")
+async def run_scratch_code(
+    *,
+    request: Request,
+) -> BaseResponse:
+    print(request)
     return SuccessResponse()
 
 
