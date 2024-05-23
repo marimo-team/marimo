@@ -4,6 +4,7 @@ from __future__ import annotations
 import platform
 import sys
 from typing import Any, Union, cast
+
 from marimo import __version__
 from marimo._utils.health import (
     get_chrome_version,
