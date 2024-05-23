@@ -2,10 +2,10 @@
   <img src="_static/marimo-logotype-thick.svg" width="210px">
 </p>
 
-**marimo** is a reactive notebook for Python that models notebooks
-as dataflow graphs: run a cell or interact with a UI element, and marimo
-automatically runs affected cells, keeping code and outputs consistent and
-preventing bugs before they happen. Every marimo notebook is stored as pure
+**marimo** is a reactive notebook for Python that models notebooks as dataflow
+graphs. Run a cell or interact with a UI element, and marimo automatically runs
+affected cells (or marks them as stale), keeping code and outputs consistent
+and preventing bugs before they happen. Every marimo notebook is stored as pure
 Python, executable as a script, and deployable as an app.
 
 ```{admonition} Built from the ground up
@@ -101,6 +101,7 @@ reproducibility, maintainability, composability, and shareability.
    Discord <https://discord.gg/JE7nhX6mD8>
    Newsletter <https://marimo.io/newsletter>
    Twitter <https://twitter.com/marimo_io>
+   Marimo Cloud Waitlist <https://marimo.io/cloud>
    Blog <https://marimo.io/blog>
 ```
 
