@@ -131,8 +131,26 @@ def __(mo):
         ```
 
         -->
+
+        <!-- from the notebook, should remain unchanged -->
         """
     )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("""
+      This is a markdown cell with an execution block in it
+      ```{python}
+      # To ambiguous to convert
+      ```
+      """)
+    return
+
+
+@app.cell
+def __():
     return
 
 
