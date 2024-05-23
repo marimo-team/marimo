@@ -4,8 +4,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import __version__
+from marimo._output.utils import uri_encode_component
 from tests._server.conftest import get_session_manager
-from tests._server.mocks import token_header, with_session
+from tests._server.mocks import token_header, with_read_session, with_session
 from tests.mocks import snapshotter
 
 if TYPE_CHECKING:
@@ -18,6 +19,8 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+CODE = uri_encode_component("import marimo as mo")
 
 
 @with_session(SESSION_ID)
@@ -36,6 +39,7 @@ def test_export_html(client: TestClient) -> None:
     )
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' not in body
+    assert CODE in body
 
 
 @with_session(SESSION_ID)
@@ -75,6 +79,43 @@ def test_export_html_no_code(client: TestClient) -> None:
     )
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' in body
+    assert CODE not in body
+
+
+# Read session forces empty code
+@with_read_session(SESSION_ID)
+def test_export_html_no_code_in_read(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": True,
+        },
+    )
+    body = response.text
+    assert '<marimo-code hidden=""></marimo-code>' in body
+    assert CODE not in body
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "include_code": False,
+        },
+    )
+    body = response.text
+    assert '<marimo-code hidden=""></marimo-code>' in body
+    assert CODE not in body
 
 
 @with_session(SESSION_ID)
@@ -102,3 +143,23 @@ def test_export_markdown(client: TestClient) -> None:
     assert response.status_code == 200
     assert f"marimo-version: {__version__}" in response.text
     assert "```{.python.marimo}" in response.text
+
+
+@with_read_session(SESSION_ID)
+def test_other_exports_dont_work_in_read(client: TestClient) -> None:
+    response = client.post(
+        "/api/export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 401
+    response = client.post(
+        "/api/export/script",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 401

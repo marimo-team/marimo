@@ -12,6 +12,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import Exporter
+from marimo._server.model import SessionMode
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
@@ -29,7 +30,7 @@ router = APIRouter()
 
 
 @router.post("/html")
-@requires("edit")
+@requires("read")
 async def export_as_html(
     *,
     request: Request,
@@ -40,6 +41,10 @@ async def export_as_html(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
+
+    # Only include the code and console if we are in edit mode
+    if app_state.mode != SessionMode.EDIT:
+        body.include_code = False
 
     html, filename = Exporter().export_as_html(
         file_manager=session.app_file_manager,

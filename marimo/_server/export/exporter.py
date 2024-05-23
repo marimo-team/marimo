@@ -8,7 +8,7 @@ import os
 from typing import cast
 
 from marimo import __version__
-from marimo._ast.cell import Cell, CellImpl
+from marimo._ast.cell import Cell, CellConfig, CellImpl
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -38,6 +38,7 @@ root = os.path.realpath(str(import_files("marimo").joinpath("_static")))
 class Exporter:
     def export_as_html(
         self,
+        *,
         file_manager: AppFileManager,
         session_view: SessionView,
         display_config: DisplayConfig,
@@ -69,12 +70,18 @@ class Exporter:
         config = _deep_copy(DEFAULT_CONFIG)
         config["display"] = display_config
 
-        code = file_manager.to_code() if request.include_code else ""
-        codes = (
-            file_manager.app.cell_manager.codes()
-            if request.include_code
-            else ["" for _ in cell_ids]
-        )
+        # code and console outputs are grouped together, but
+        # we can split them up in the future if desired.
+        if request.include_code:
+            code = file_manager.to_code()
+            codes = file_manager.app.cell_manager.codes()
+            configs = file_manager.app.cell_manager.configs()
+            console_outputs = session_view.get_cell_console_outputs(cell_ids)
+        else:
+            code = ""
+            codes = ["" for _ in cell_ids]
+            configs = [CellConfig() for _ in cell_ids]
+            console_outputs = {}
 
         html = static_notebook_template(
             html=index_html,
@@ -86,11 +93,9 @@ class Exporter:
             cell_ids=cell_ids,
             cell_names=list(file_manager.app.cell_manager.names()),
             cell_codes=list(codes),
-            cell_configs=list(file_manager.app.cell_manager.configs()),
+            cell_configs=list(configs),
             cell_outputs=session_view.get_cell_outputs(cell_ids),
-            cell_console_outputs=session_view.get_cell_console_outputs(
-                cell_ids
-            ),
+            cell_console_outputs=console_outputs,
             files=files,
             asset_url=request.asset_url,
         )

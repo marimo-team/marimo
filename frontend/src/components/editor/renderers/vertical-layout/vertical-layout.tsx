@@ -9,12 +9,27 @@ import { z } from "zod";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { AppMode } from "@/core/mode";
 import { ReadonlyPythonCode } from "@/components/editor/code/readonly-python-code";
-import { Code2Icon } from "lucide-react";
+import {
+  ChevronDown,
+  Code2Icon,
+  Download,
+  FolderDownIcon,
+  ImageIcon,
+} from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "@/components/ui/button";
 import { outputIsStale } from "@/core/cells/cell";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
+import {
+  DropdownMenuItem,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { downloadHTMLAsImage } from "@/utils/download";
+import { useFilename } from "@/core/saving/filename";
+import { downloadAsHTML } from "@/core/static/download-html";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -29,6 +44,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     // Default to showing code if the notebook is static
     return isStaticNotebook();
   });
+
   const evaluateCanShowCode = () => {
     const cellsHaveCode = cells.some((cell) => Boolean(cell.code));
 
@@ -65,28 +81,78 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           name={cell.name}
         />
       ))}
-      {canShowCode && (
-        <div
-          className={cn(
-            "right-0 top-0 z-50 m-4",
-            // If the notebook is static, we have a banner at the top, so
-            // we can't use fixed positioning. Ideally this is sticky, but the
-            // current dom structure makes that difficult.
-            isStaticNotebook() ? "absolute" : "fixed",
-          )}
-        >
-          <Button
-            variant="secondary"
-            onClick={() => setShowCode((prev) => !prev)}
-            size="sm"
-            data-testid="show-code"
-          >
-            <Code2Icon className="w-4 h-4 mr-2" />
-            {showCode ? "Hide code" : "Show code"}
-          </Button>
-        </div>
-      )}
+      <ActionButtons
+        canShowCode={canShowCode}
+        showCode={showCode}
+        onToggleShowCode={() => setShowCode((v) => !v)}
+      />
     </VerticalLayoutWrapper>
+  );
+};
+
+const ActionButtons: React.FC<{
+  canShowCode: boolean;
+  showCode: boolean;
+  onToggleShowCode: () => void;
+}> = ({ canShowCode, showCode, onToggleShowCode }) => {
+  const [filename] = useFilename();
+  const handleDownloadAsPNG = async () => {
+    const app = document.getElementById("App");
+    if (!app) {
+      return;
+    }
+    await downloadHTMLAsImage(app, filename || "screenshot.png");
+  };
+
+  const handleDownloadAsHTML = async () => {
+    const app = document.getElementById("App");
+    if (!app) {
+      return;
+    }
+    await downloadAsHTML({ filename: filename || "app" });
+  };
+
+  return (
+    <div
+      className={cn(
+        "right-0 top-0 z-50 m-4 no-print flex gap-2",
+        // If the notebook is static, we have a banner at the top, so
+        // we can't use fixed positioning. Ideally this is sticky, but the
+        // current dom structure makes that difficult.
+        isStaticNotebook() ? "absolute" : "fixed",
+      )}
+    >
+      {canShowCode && (
+        <Button
+          variant="secondary"
+          onClick={onToggleShowCode}
+          size="xs"
+          data-testid="show-code"
+        >
+          <Code2Icon className="w-4 h-4 mr-2" />
+          {showCode ? "Hide code" : "Show code"}
+        </Button>
+      )}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild={true}>
+          <Button variant="secondary" size="xs" data-testid="download-as">
+            <Download className="w-4 h-4 mr-2" />
+            Download as
+            <ChevronDown className="w-4 h-4 ml-2" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="no-print w-[220px]">
+          <DropdownMenuItem onSelect={handleDownloadAsHTML}>
+            <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
+            Download as HTML
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={handleDownloadAsPNG}>
+            <ImageIcon className="mr-2" size={14} strokeWidth={1.5} />
+            Download as PNG
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 
