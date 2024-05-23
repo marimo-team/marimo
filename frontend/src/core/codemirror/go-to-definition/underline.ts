@@ -108,7 +108,7 @@ class MetaUnderlineVariablePlugin {
   };
 
   private keydown = (event: KeyboardEvent) => {
-    if (event.key === "Meta" || event.key === "Ctrl") {
+    if (event.key === "Meta" || event.key === "Control") {
       this.commandKey = true;
     }
   };
@@ -133,7 +133,7 @@ class MetaUnderlineVariablePlugin {
   };
 
   private keyup = (event: KeyboardEvent) => {
-    if (event.key === "Meta" || event.key === "Ctrl") {
+    if (event.key === "Meta" || event.key === "Control") {
       this.commandKey = false;
       this.clearUnderline();
     }
