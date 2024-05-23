@@ -32,6 +32,8 @@ import {
   clearGlobalSearchQuery,
   setGlobalSearchQuery,
 } from "@/core/codemirror/find-replace/search-highlight";
+import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
+import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -261,6 +263,13 @@ export const FindReplace: React.FC = () => {
               {currentMatch + 1} of {matches.count}
             </span>
           )}
+        </div>
+        <div className="text-xs text-muted-foreground flex gap-1 mt-2">
+          Press{" "}
+          <KeyboardHotkeys
+            shortcut={HOTKEYS.getHotkey("cell.findAndReplace").key}
+          />{" "}
+          again to open the native browser search.
         </div>
       </div>
     </FocusScope>

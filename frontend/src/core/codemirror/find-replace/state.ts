@@ -91,13 +91,14 @@ export const findReplaceAtom = atomWithReducer<FindReplaceState, Action>(
 
 export function openFindReplacePanel(initialView?: EditorView): boolean {
   // If any radix dialog is open, don't open the find/replace panel
-  // they have role="dialog" and data-state="open" and has children
-  const element = document.querySelector('[role="dialog"][data-state="open"]');
-  if (
-    element &&
-    element instanceof HTMLElement &&
-    element.children.length > 0
-  ) {
+  // if they have role="dialog" and data-state="open" and has children
+  const element = document.querySelectorAll(
+    '[role="dialog"][data-state="open"]',
+  );
+  const someHasChildren = [...element].some(
+    (el) => el instanceof HTMLElement && el.childNodes.length > 0,
+  );
+  if (someHasChildren) {
     return false;
   }
 
