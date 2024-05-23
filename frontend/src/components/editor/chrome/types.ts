@@ -10,6 +10,7 @@ import {
   FileTextIcon,
   LucideIcon,
   SquareDashedBottomCodeIcon,
+  SquarePenIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -20,7 +21,8 @@ export type PanelType =
   | "dependencies"
   | "documentation"
   | "snippets"
-  | "logs";
+  | "logs"
+  | "scratchpad";
 
 export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
   errors: XCircleIcon,
@@ -31,6 +33,7 @@ export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
   documentation: TextSearchIcon,
   logs: FileTextIcon,
   snippets: SquareDashedBottomCodeIcon,
+  scratchpad: SquarePenIcon,
 };
 
 export const PANEL_TYPES: PanelType[] = Objects.keys(PANEL_ICONS);
