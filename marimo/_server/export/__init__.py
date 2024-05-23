@@ -78,6 +78,24 @@ async def run_app_then_export_as_html(
     return html, filename
 
 
+async def run_app_then_export_as_reactive_html(
+    path: MarimoPath,
+    include_code: bool,
+) -> tuple[str, str]:
+    import os
+
+    from marimo._islands.island_generator import MarimoIslandGenerator
+
+    generator = MarimoIslandGenerator.from_file(
+        path.absolute_name, display_code=include_code
+    )
+    await generator.build()
+    html = generator.render_html()
+    basename = os.path.basename(path.absolute_name)
+    filename = f"{os.path.splitext(basename)[0]}.html"
+    return html, filename
+
+
 async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
