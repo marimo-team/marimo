@@ -284,6 +284,17 @@ def test_md_to_python_code_injection() -> None:
     ```
 
     -->
+
+    <!-- from the notebook, should remain unchanged -->
+    ````{.python.marimo}
+    mo.md(\"""
+      This is a markdown cell with an execution block in it
+      ```{python}
+      # To ambiguous to convert
+      ```
+      \""")
+    ````
+
     """[1:]
     )
 
