@@ -25,5 +25,9 @@ test("it can clear and append output", async ({ page }) => {
   // Test that Cleared does not exist
   await expect(page.getByText("Cleared!")).not.toBeVisible();
 
+  // Test that Replaced by index is visible and To be replaced is not
+  await expect(page.getByText("To be replaced.")).not.toBeVisible();
+  await expect(page.getByText("Replaced by index!")).toBeVisible();
+
   await takeScreenshot(page, __filename);
 });

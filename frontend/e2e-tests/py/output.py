@@ -55,5 +55,12 @@ def __(loop_append, mo):
     return
 
 
+@app.cell
+def __(mo):
+    mo.output.append("To be replaced.")
+    mo.output.replace_at_index(mo.md("Replaced by index!"), 0)
+    return
+
+
 if __name__ == "__main__":
     app.run()

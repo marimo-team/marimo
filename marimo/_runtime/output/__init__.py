@@ -5,6 +5,12 @@ __all__ = [
     "append",
     "clear",
     "replace",
+    "replace_at_index",
 ]
 
-from marimo._runtime.output._output import append, clear, replace
+from marimo._runtime.output._output import (
+    append,
+    clear,
+    replace,
+    replace_at_index,
+)
