@@ -53,7 +53,7 @@ const customNumberParser = (v: string) => {
 // Pandas serializes booleans as True/False, but JSON (and vega) requires
 // lowercase
 const customBooleanParser = (v: string) => {
-  if (v == "True") {
+  if (v === "True") {
     return true;
   }
   if (v === "False") {
