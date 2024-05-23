@@ -5,6 +5,7 @@ import { typeParsers, createLoader, read, FieldTypes } from "./vega-loader";
 
 // Augment the typeParsers to support Date
 typeParsers.date = (value: string) => new Date(value).toISOString();
+const previousBooleanParser = typeParsers.boolean;
 const previousNumberParser = typeParsers.number;
 const previousIntegerParser = typeParsers.integer;
 
@@ -46,6 +47,22 @@ const customNumberParser = (v: string) => {
   }
   return previousNumberParser(v);
 };
+
+// Custom boolean parser:
+//
+// Pandas serializes booleans as True/False, but JSON (and vega) requires
+// lowercase
+const customBooleanParser = (v: string) => {
+  if (v === "True") {
+    return true;
+  }
+  if (v === "False") {
+    return false;
+  }
+  return previousBooleanParser(v);
+};
+
+typeParsers.boolean = customBooleanParser;
 
 function enableBigInt() {
   typeParsers.integer = customIntegerParser;
