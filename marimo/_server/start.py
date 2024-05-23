@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
 
 import uvicorn
@@ -19,6 +20,44 @@ from marimo._server.uvicorn_utils import initialize_signals
 from marimo._utils.paths import import_files
 
 DEFAULT_PORT = 2718
+PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
+
+
+def _resolve_proxy(
+    port: int, host: str, proxy: Optional[str]
+) -> tuple[int, str]:
+    """Provided that there is a proxy, utilize the host and port of the proxy.
+
+    -----------------         Communication has to be consistent
+    |   User        | ----    so Starlette only needs to know the
+    -----------------     |   external facing endpoint, while uvi-
+                          |   corn handles the actual running of
+                          v   the app.
+                  -----------------
+      e.g. nginx  |   Proxy       |
+                  -----------------
+                          |
+                          v
+                  -----------------
+        the app   |   marimo      |
+       (uvicorn)  -----------------
+
+
+    If the proxy is provided, it will default to port 80. Otherwise if the
+    proxy has a port specified, it will use that port.
+    e.g. `example.com:8080`
+    """
+    if not proxy:
+        return port, host
+
+    match = PROXY_REGEX.match(proxy)
+    # Our proxy has an explicit port defined, so return that.
+    if match:
+        external_host, external_port = match.groups()
+        return int(external_port), external_host
+
+    # A default to 80 is reasonable if a proxy is provided.
+    return 80, proxy
 
 
 def start(
@@ -31,6 +70,7 @@ def start(
     headless: bool,
     port: Optional[int],
     host: str,
+    proxy: Optional[str],
     watch: bool,
     cli_args: SerializedCLIArgs,
     base_url: str = "",
@@ -74,9 +114,12 @@ def start(
         enable_auth=not AuthToken.is_empty(session_manager.auth_token),
     )
 
+    (external_port, external_host) = _resolve_proxy(port, host, proxy)
+
+    app.state.port = external_port
+    app.state.host = external_host
+
     app.state.headless = headless
-    app.state.port = port
-    app.state.host = host or "localhost"
     app.state.watch = watch
     app.state.session_manager = session_manager
     app.state.base_url = base_url
