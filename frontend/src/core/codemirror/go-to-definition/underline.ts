@@ -15,7 +15,7 @@ const underlineDecoration = Decoration.mark({ class: "underline" });
 
 // State Effects
 const addUnderline = StateEffect.define<{ from: number; to: number }>();
-const removeUnderline = StateEffect.define<{ from: number; to: number }>();
+const removeUnderlines = StateEffect.define();
 
 // Underline Field
 export const underlineField = StateField.define<DecorationSet>({
@@ -29,11 +29,8 @@ export const underlineField = StateField.define<DecorationSet>({
         newUnderlines = underlines.update({
           add: [underlineDecoration.range(effect.value.from, effect.value.to)],
         });
-      } else if (effect.is(removeUnderline)) {
-        newUnderlines = underlines.update({
-          filter: (from, to) =>
-            from !== effect.value.from || to !== effect.value.to,
-        });
+      } else if (effect.is(removeUnderlines)) {
+        newUnderlines = Decoration.none;
       }
     }
     return newUnderlines;
@@ -144,7 +141,7 @@ class MetaUnderlineVariablePlugin {
 
   private clearUnderline() {
     if (this.hoveredRange) {
-      this.view.dispatch({ effects: removeUnderline.of(this.hoveredRange) });
+      this.view.dispatch({ effects: removeUnderlines.of(null) });
       this.hoveredRange = null;
     }
   }
