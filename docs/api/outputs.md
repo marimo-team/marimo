@@ -25,6 +25,10 @@ programmatically, using `mo.output.replace()` and `mo.output.append()`.
 .. autofunction:: marimo.output.clear
 ```
 
+```{eval-rst}
+.. autofunction:: marimo.output.replace_at_index
+```
+
 ```{admonition} Last expression replaces existing output
 :class: warning
 
