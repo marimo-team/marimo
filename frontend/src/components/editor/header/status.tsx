@@ -19,7 +19,7 @@ export const StatusOverlay: React.FC<{
 };
 
 const topLeftStatus =
-  "absolute top-3 left-4 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
+  "absolute top-4 left-4 m-0 ml-8 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
@@ -29,6 +29,7 @@ const DisconnectedIcon = () => (
   </Tooltip>
 );
 
+// TODO: click cursor on hover, tooltip about going to running cell
 const RunningIcon = () => (
   <div
     className={topLeftStatus}
