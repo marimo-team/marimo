@@ -73,7 +73,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       className={cn(
         "border-border no-print z-10",
         isOpen ? "resize-handle" : "resize-handle-collapsed",
-        panelLocation === "left" ? "vertical" : "horizontal",
+        panelLocation === "left" ? "vertical" : "horizontal"
       )}
     />
   );
@@ -116,7 +116,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "bg-white dark:bg-[var(--slate-1)] no-print",
-        isOpen && "ml-12 border-r border-l border-[var(--slate-7)]",
+        isOpen && "ml-12 border-r border-l border-[var(--slate-7)]"
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -143,6 +143,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     </Panel>
   );
 
+  // If we ever support panelLocation !== left, this layout needs to be
+  // updated.
   return (
     <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
       <PanelGroup
@@ -151,8 +153,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         direction={panelLocation === "left" ? "horizontal" : "vertical"}
         storage={createStorage(panelLocation)}
       >
-        {/*If we ever support panelLocation !== left, this layout needs to be
-        updated */}
         <Sidebar />
         {helperPane}
         {appBody}
