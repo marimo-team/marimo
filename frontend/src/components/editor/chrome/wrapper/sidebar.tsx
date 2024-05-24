@@ -17,7 +17,7 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md border-t border-border select-none no-print text-sm z-50 absolute">
+    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 absolute">
       <SidebarItem
         tooltip="View files"
         selected={selectedPanel === "files"}
