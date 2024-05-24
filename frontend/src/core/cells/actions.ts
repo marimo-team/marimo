@@ -2,8 +2,8 @@
 
 import { store } from "../state/jotai";
 import { Objects } from "@/utils/objects";
-import { EditorView } from "@codemirror/view";
-import { getCellEditorView, notebookAtom } from "./cells";
+import { notebookAtom } from "./cells";
+import { scrollAndHighlightCell } from "@/components/editor/links/cell-link";
 
 /**
  * Scroll to the first cell that is currently in "running" state.
@@ -17,9 +17,5 @@ export function notebookScrollToRunning() {
   if (!cell) {
     return;
   }
-  const view = getCellEditorView(cell[0]);
-  view?.dispatch({
-    selection: { anchor: 0 },
-    effects: [EditorView.scrollIntoView(0, { y: "center" })],
-  });
+  scrollAndHighlightCell(cell[0], "focus");
 }

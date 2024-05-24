@@ -19,7 +19,7 @@ export const StatusOverlay: React.FC<{
 };
 
 const topLeftStatus =
-  "absolute top-4 left-4 m-0 ml-8 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50";
+  "absolute top-4 left-4 m-0 ml-8 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-50 hover:cursor-pointer";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">
@@ -29,16 +29,16 @@ const DisconnectedIcon = () => (
   </Tooltip>
 );
 
-// TODO: click cursor on hover, tooltip about going to running cell
 const RunningIcon = () => (
-  <div
-    className={topLeftStatus}
-    data-testid="loading-indicator"
-    title={"Marimo is busy computing. Hang tight!"}
-    onClick={notebookScrollToRunning}
-  >
-    <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-  </div>
+  <Tooltip content={"Jump to running cell"} side="right">
+    <div
+      className={topLeftStatus}
+      data-testid="loading-indicator"
+      onClick={notebookScrollToRunning}
+    >
+      <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
+    </div>
+  </Tooltip>
 );
 
 const NoiseBackground = () => (
