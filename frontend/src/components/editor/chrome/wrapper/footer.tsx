@@ -1,12 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import React, { PropsWithChildren } from "react";
-import { MessageCircleQuestionIcon } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useChromeActions, useChromeState } from "../state";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
-import { FeedbackButton } from "../components/feedback-button";
 import { PANEL_ICONS, PanelType } from "../types";
 import { MachineStats } from "./machine-stats";
 
@@ -21,7 +19,7 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50">
       <FooterItem
         tooltip="View errors"
         selected={selectedPanel === "errors"}
@@ -30,62 +28,6 @@ export const Footer: React.FC = () => {
         {renderIcon("errors", errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
-      <FooterItem
-        tooltip="View files"
-        selected={selectedPanel === "files"}
-        onClick={() => openApplication("files")}
-      >
-        {renderIcon("files")}
-      </FooterItem>
-      <FooterItem
-        tooltip="Explore variables"
-        selected={selectedPanel === "variables"}
-        onClick={() => openApplication("variables")}
-      >
-        {renderIcon("variables")}
-      </FooterItem>
-      <FooterItem
-        tooltip="Explore dependencies"
-        selected={selectedPanel === "dependencies"}
-        onClick={() => openApplication("dependencies")}
-      >
-        {renderIcon("dependencies")}
-      </FooterItem>
-      <FooterItem
-        tooltip="View outline"
-        selected={selectedPanel === "outline"}
-        onClick={() => openApplication("outline")}
-      >
-        {renderIcon("outline")}
-      </FooterItem>
-      <FooterItem
-        tooltip="View live docs"
-        selected={selectedPanel === "documentation"}
-        onClick={() => openApplication("documentation")}
-      >
-        {renderIcon("documentation")}
-      </FooterItem>
-      <FooterItem
-        tooltip="Notebook logs"
-        selected={selectedPanel === "logs"}
-        onClick={() => openApplication("logs")}
-      >
-        {renderIcon("logs")}
-      </FooterItem>
-      <FooterItem
-        tooltip="Snippets"
-        selected={selectedPanel === "snippets"}
-        onClick={() => openApplication("snippets")}
-      >
-        {renderIcon("snippets")}
-      </FooterItem>
-
-      <FeedbackButton>
-        <FooterItem tooltip="Send feedback!" selected={false}>
-          <MessageCircleQuestionIcon className="h-5 w-5" />
-        </FooterItem>
-      </FeedbackButton>
-
       <div className="mx-auto" />
 
       <MachineStats />

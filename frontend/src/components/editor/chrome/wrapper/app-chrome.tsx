@@ -7,6 +7,7 @@ import {
   type ImperativePanelHandle,
 } from "react-resizable-panels";
 import { Footer } from "./footer";
+import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { useChromeActions, useChromeState } from "../state";
 import { cn } from "@/utils/cn";
@@ -114,8 +115,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "bg-white dark:bg-[var(--slate-1)] rounded-lg no-print shadow-mdNeutral",
-        isOpen && "m-4",
+        "bg-white dark:bg-[var(--slate-1)] no-print",
+        isOpen && "ml-12 border-r border-l border-[var(--slate-7)]",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -142,6 +143,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     </Panel>
   );
 
+  // If we ever support panelLocation !== left, this layout needs to be
+  // updated.
   return (
     <div className="flex flex-col flex-1 overflow-hidden absolute inset-0">
       <PanelGroup
@@ -150,8 +153,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         direction={panelLocation === "left" ? "horizontal" : "vertical"}
         storage={createStorage(panelLocation)}
       >
-        {panelLocation === "left" ? helperPane : appBody}
-        {panelLocation === "left" ? appBody : helperPane}
+        <Sidebar />
+        {helperPane}
+        {appBody}
       </PanelGroup>
       <ErrorBoundary>
         <Footer />
