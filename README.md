@@ -18,7 +18,7 @@
 </p>
 
 **marimo** is a reactive Python notebook: run a cell or interact with a UI
-element, and marimo automatically runs dependent cells (or (marks them as stale)[#expensive-notebooks]), keeping code and outputs
+element, and marimo automatically runs dependent cells (or <a href="#expensive-notebooks">marks them as stale</a>), keeping code and outputs
 consistent. marimo notebooks are stored as pure Python, executable as scripts,
 and deployable as apps.
 
