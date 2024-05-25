@@ -67,7 +67,7 @@ statically analyzing your code.
 <a name="expensive-notebooks"></a>
 
 **Compatible with expensive notebooks.** You can optionally disable expensive cells to
-prevent them from automatically running. or configure the runtime to be
+prevent them from automatically running, or configure the runtime to be
 lazy and mark affected stales as stale instead of automatically running them.
 
 **Batteries-included.** marimo comes with GitHub Copilot, Black code
