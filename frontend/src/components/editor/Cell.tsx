@@ -11,7 +11,12 @@ import {
   useRef,
 } from "react";
 
-import { saveCellConfig, sendRun, sendStdin } from "@/core/network/requests";
+import {
+  saveCellConfig,
+  sendRun,
+  sendRunScratchpad,
+  sendStdin,
+} from "@/core/network/requests";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { UserConfig } from "../../core/config/config-schema";
 import { CellConfig, CellData, CellRuntimeState } from "../../core/cells/types";
@@ -104,6 +109,7 @@ export interface CellProps
    */
   allowFocus: boolean;
   userConfig: UserConfig;
+  isScratchpad?: boolean;
 }
 
 // TODO(akshayka): a component for displaying/editing the cell's name.
@@ -144,6 +150,7 @@ const CellComponent = (
     userConfig,
     config: cellConfig,
     name,
+    isScratchpad,
   }: CellProps,
   ref: React.ForwardedRef<CellHandle>,
 ) => {
@@ -203,8 +210,9 @@ const CellComponent = (
     }
 
     const code = prepareToRunEffects();
+    const runCellFunction = isScratchpad ? sendRunScratchpad : sendRun;
 
-    await sendRun([cellId], [code]).catch((error) => {
+    await runCellFunction([cellId], [code]).catch((error) => {
       Logger.error("Error running cell", error);
     });
   });

@@ -102,6 +102,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         codes: codes,
       });
     },
+    sendRunScratchpad: (cellIds: CellId[], codes: string[]) => {
+      // Validate same lengths
+      invariant(cellIds.length === codes.length, "must be the same length");
+
+      return API.post<RunRequest>("/kernel/run_scratchpad", {
+        cellIds: cellIds,
+        codes: codes,
+      });
+    },
     sendInstantiate: (request: InstantiateRequest) => {
       // Validate same length
       invariant(

@@ -108,18 +108,23 @@ async def run_cell(
     app_state.require_current_session().put_control_request(
         body.as_execution_request()
     )
-    print("Why does this not print?")
 
     return SuccessResponse()
 
 
-@router.post("/run_scratch_code")
+@router.post("/run_scratchpad")
 @requires("edit")
 async def run_scratch_code(
     *,
     request: Request,
 ) -> BaseResponse:
-    print(request)
+    print("running scratch")
+    app_state = AppState(request)
+    body = await parse_request(request, cls=RunRequest)
+    app_state.require_current_session().put_control_request(
+        body.as_execution_request()
+    )
+
     return SuccessResponse()
 
 

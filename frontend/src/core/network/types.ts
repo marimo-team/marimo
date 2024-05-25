@@ -241,6 +241,7 @@ export interface EditRequests {
   sendSave: (request: SaveKernelRequest) => Promise<null>;
   sendStdin: (request: SendStdin) => Promise<null>;
   sendRun: (cellIds: CellId[], codes: string[]) => Promise<null>;
+  sendRunScratchpad: (cellIds: CellId[], codes: string[]) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
   sendFormat: (request: FormatRequest) => Promise<Record<CellId, string>>;
