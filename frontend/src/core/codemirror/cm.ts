@@ -58,7 +58,6 @@ import {
   clickablePlaceholderExtension,
   smartPlaceholderExtension,
 } from "./placeholder/extensions";
-import { goToDefinitionBundle } from "./go-to-definition/extension";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -93,7 +92,8 @@ export const setupCodeMirror = ({
     // Comes last so that it can be overridden
     basicBundle(completionConfig, theme),
     // Underline cmd+clickable placeholder
-    goToDefinitionBundle(),
+    // Temporarily disabled due to Issue #1462
+    // goToDefinitionBundle(),
     showPlaceholder
       ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
       : enableAI
