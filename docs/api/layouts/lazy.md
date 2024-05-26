@@ -12,6 +12,7 @@
     @app.cell
     def __():
         import time
+        import random
 
         def expensive_number():
             time.sleep(1)
