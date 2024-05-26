@@ -81,11 +81,13 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
           name={cell.name}
         />
       ))}
-      <ActionButtons
-        canShowCode={canShowCode}
-        showCode={showCode}
-        onToggleShowCode={() => setShowCode((v) => !v)}
-      />
+      {mode === "read" && (
+        <ActionButtons
+          canShowCode={canShowCode}
+          showCode={showCode}
+          onToggleShowCode={() => setShowCode((v) => !v)}
+        />
+      )}
     </VerticalLayoutWrapper>
   );
 };
