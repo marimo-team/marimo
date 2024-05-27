@@ -4,7 +4,7 @@ const ALLOW_DEV_VERSIONS = false;
 export function getPyodideVersion(marimoVersion: string) {
   return marimoVersion.includes("dev") && ALLOW_DEV_VERSIONS
     ? "dev"
-    : "v0.26.0";
+    : "v0.25.0";
 }
 
 export async function importPyodide(marimoVersion: string) {
