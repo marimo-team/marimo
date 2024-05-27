@@ -52,14 +52,9 @@ class MarimoIslandStub:
         # Leave output accessible for direct use for non-interactive cases e.g.
         # pdf.
         if self._output is None:
-            assert (
-                self._session_view is not None
-            ), "You must call build() before rendering"
-            assert (
-                self._internal_app is not None
-            ), "You must call build() accessing output"
-            outputs = self._session_view.get_cell_outputs([self._cell_id])
-            self._output = outputs.get(self._cell_id, None)
+            if self._session_view is not None:
+                outputs = self._session_view.get_cell_outputs([self._cell_id])
+                self._output = outputs.get(self._cell_id, None)
         return self._output
 
     @property
@@ -361,6 +356,7 @@ class MarimoIslandGenerator:
     def render_body(
         self,
         *,
+        include_initialization_indicator: bool = True,
         max_width: Optional[str] = None,
         margin: Optional[str] = None,
         style: Optional[str] = None,
@@ -370,7 +366,7 @@ class MarimoIslandGenerator:
         This should be included in the <body> tag of the page.
 
         *Args:*
-
+        - include_initialization_indicator (bool): It True, adds init loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -379,6 +375,54 @@ class MarimoIslandGenerator:
         rendered_stubs = []
         for stub in self._stubs:
             rendered_stubs.append(stub.render())
+
+        if include_initialization_indicator:
+            dummy_cell_id = self._app.cell_manager.create_cell_id()
+            dummy_input = "<marimo-cell-code hidden> '' </marimo-cell-code>"
+            dummy_output = dedent("""
+            <div class="marimo" style="--tw-bg-opacity: 0;">
+              <div class="flex flex-col items-center justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="size-20 animate-spin text-primary"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="size-20 animate-spin text-primary"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                </svg>
+                <div>Initializing...</div>
+              </div>
+            </div>
+            """)
+            dummy_stub = dedent(
+                f"""
+                <marimo-island
+                    data-app-id="{self._app_id}"
+                    data-cell-id="{dummy_cell_id}"
+                    data-reactive="{json.dumps(True)}"
+                >
+                    <marimo-cell-output>
+                    {dummy_output}
+                    </marimo-cell-output>
+                    {dummy_input}
+                </marimo-island>
+                """
+            )
+            rendered_stubs = [dummy_stub] + rendered_stubs
 
         body = "\n".join(rendered_stubs)
 
@@ -409,6 +453,7 @@ class MarimoIslandGenerator:
         *,
         version_override: str = __version__,
         _development_url: Union[str | bool] = False,
+        include_initialization_indicator: bool = True,
         max_width: Optional[str] = None,
         margin: Optional[str] = None,
         style: Optional[str] = None,
@@ -420,6 +465,7 @@ class MarimoIslandGenerator:
 
         - version_override (str): Marimo version to use for loaded js/css.
         - _development_url (str): If True, uses local marimo islands js.
+        - include_initialization_indicator (bool): It True, adds init loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -429,7 +475,10 @@ class MarimoIslandGenerator:
             _development_url=_development_url,
         )
         body = self.render_body(
-            max_width=max_width, margin=margin, style=style
+            include_initialization_indicator=include_initialization_indicator,
+            max_width=max_width,
+            margin=margin,
+            style=style,
         )
         title = (
             self._app_id
