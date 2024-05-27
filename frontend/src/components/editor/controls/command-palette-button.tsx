@@ -17,9 +17,9 @@ export const CommandPaletteButton: React.FC = () => {
         data-testid="command-palette-button"
         onClick={toggle}
         shape="rectangle"
-        color="white"
+        color="hint-green"
       >
-        <CommandIcon strokeWidth={1.5} />
+        <CommandIcon strokeWidth={1.5} size={18} />
       </Button>
     </Tooltip>
   );

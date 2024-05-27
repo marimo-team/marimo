@@ -122,7 +122,7 @@ export const RecoveryButton = (props: {
         className="rectangle"
         color={needsSave ? "yellow" : "gray"}
       >
-        <SaveIcon strokeWidth={1.5} />
+        <SaveIcon strokeWidth={1.5} size={18}/>
       </EditorButton>
     </Tooltip>
   );
