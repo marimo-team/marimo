@@ -207,6 +207,12 @@ edit_help_msg = "\n".join(
     help="Host to attach to.",
 )
 @click.option(
+    "--proxy",
+    default=None,
+    type=str,
+    help="Address of reverse proxy.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -233,6 +239,7 @@ edit_help_msg = "\n".join(
 def edit(
     port: Optional[int],
     host: str,
+    proxy: Optional[str],
     headless: bool,
     token: bool,
     token_password: Optional[str],
@@ -271,6 +278,7 @@ def edit(
         quiet=QUIET,
         host=host,
         port=port,
+        proxy=proxy,
         headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
@@ -297,6 +305,12 @@ def edit(
     help="Host to attach to.",
 )
 @click.option(
+    "--proxy",
+    default=None,
+    type=str,
+    help="Address of reverse proxy.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -321,6 +335,7 @@ def edit(
 def new(
     port: Optional[int],
     host: str,
+    proxy: Optional[str],
     headless: bool,
     token: bool,
     token_password: Optional[str],
@@ -331,6 +346,7 @@ def new(
         quiet=QUIET,
         host=host,
         port=port,
+        proxy=proxy,
         headless=headless,
         mode=SessionMode.EDIT,
         include_code=True,
@@ -365,6 +381,12 @@ Example:
     show_default=True,
     type=str,
     help="Host to attach to.",
+)
+@click.option(
+    "--proxy",
+    default=None,
+    type=str,
+    help="Address of reverse proxy.",
 )
 @click.option(
     "--headless",
@@ -421,6 +443,7 @@ Example:
 def run(
     port: Optional[int],
     host: str,
+    proxy: Optional[str],
     headless: bool,
     token: bool,
     token_password: Optional[str],
@@ -445,6 +468,7 @@ def run(
         quiet=QUIET,
         host=host,
         port=port,
+        proxy=proxy,
         headless=headless,
         mode=SessionMode.RUN,
         include_code=include_code,
@@ -500,6 +524,12 @@ Recommended sequence:
     help="Host to attach to.",
 )
 @click.option(
+    "--proxy",
+    default=None,
+    type=str,
+    help="Address of reverse proxy.",
+)
+@click.option(
     "--headless",
     is_flag=True,
     default=False,
@@ -529,6 +559,7 @@ Recommended sequence:
 def tutorial(
     port: Optional[int],
     host: str,
+    proxy: Optional[str],
     headless: bool,
     token: bool,
     token_password: Optional[str],
@@ -547,6 +578,7 @@ def tutorial(
         quiet=QUIET,
         host=host,
         port=port,
+        proxy=proxy,
         mode=SessionMode.EDIT,
         include_code=True,
         headless=headless,
