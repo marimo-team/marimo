@@ -10,7 +10,6 @@ on:
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
-  NODE_ENV: production
 
 jobs:
   publish_release:
@@ -43,6 +42,8 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
+        env:
+          NODE_ENV: production
 
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v5
@@ -90,6 +91,7 @@ jobs:
       - name: 📦 Rebuild frontend
         working-directory: frontend
         env:
+          NODE_ENV: production
           VITE_MARIMO_ISLANDS: "true"
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
         run: |
