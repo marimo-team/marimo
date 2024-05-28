@@ -44,8 +44,6 @@ jobs:
 
       - name: 📦 Build frontend
         run: make fe
-        env:
-          NODE_ENV: production
 
       - name: 🐍 Setup Python 3.10
         uses: actions/setup-python@v5

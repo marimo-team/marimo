@@ -5,7 +5,7 @@
 if [ "$NODE_ENV" = "development" ]; then
   cmd="pnpm turbo build -- --mode development"
 else
-  cmd="pnpm turbo build"
+  cmd="NODE_ENV=production pnpm turbo build"
 fi
 
 cd frontend
