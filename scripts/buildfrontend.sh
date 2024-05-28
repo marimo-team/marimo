@@ -5,6 +5,7 @@
 if [ "$NODE_ENV" = "development" ]; then
   cmd="pnpm turbo build -- --mode development"
 else
+  export NODE_ENV=production
   cmd="pnpm turbo build"
 fi
 

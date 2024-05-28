@@ -105,6 +105,7 @@ jobs:
       - name: 📦 Rebuild frontend
         working-directory: frontend
         env:
+          NODE_ENV: production
           VITE_MARIMO_ISLANDS: "true"
           VITE_MARIMO_VERSION: ${{ env.MARIMO_VERSION }}
         run: |
