@@ -3,7 +3,7 @@
   "pipeline": {
     "build": {
       "outputs": ["dist/**"],
-      "env": ["VITE_MARIMO_ISLANDS"]
+      "env": ["VITE_MARIMO_ISLANDS", "NODE_ENV"]
     },
     "typecheck": {},
     "test": {},
@@ -13,7 +13,7 @@
     },
     "build:islands": {
       "outputs": ["dist/**"],
-      "env": ["VITE_MARIMO_ISLANDS", "VITE_MARIMO_VERSION"]
+      "env": ["VITE_MARIMO_ISLANDS", "VITE_MARIMO_VERSION", "NODE_ENV"]
     },
     "dev": {
       "cache": false,

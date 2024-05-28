@@ -10,6 +10,7 @@ on:
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
+  NODE_ENV: production
 
 jobs:
   publish_release:
