@@ -353,10 +353,57 @@ class MarimoIslandGenerator:
             """
         ).strip()
 
+    def render_init_island(self) -> str:
+        """
+        Renders a static html MarimoIsland str which displays a spinning
+        initialization loader while Pyodide loads and disappears once
+        the kernel is ready to use.
+        """
+
+        init_cell_id = self._app.cell_manager.create_cell_id()
+        init_input = "<marimo-cell-code hidden> '' </marimo-cell-code>"
+        init_output = """
+        <div class="marimo" style="--tw-bg-opacity: 0;">
+          <div class="flex flex-col items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="size-20 animate-spin text-primary"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+            <div>Initializing...</div>
+          </div>
+        </div>
+        """
+        init_island = dedent(
+            f"""
+            <marimo-island
+                data-app-id="{self._app_id}"
+                data-cell-id="{init_cell_id}"
+                data-reactive="{json.dumps(True)}"
+            >
+                <marimo-cell-output>
+                {init_output}
+                </marimo-cell-output>
+                {init_input}
+            </marimo-island>
+            """
+        ).strip()
+
+        return init_island
+
     def render_body(
         self,
         *,
-        include_initialization_indicator: bool = True,
+        include_init_island: bool = True,
         max_width: Optional[str] = None,
         margin: Optional[str] = None,
         style: Optional[str] = None,
@@ -366,7 +413,7 @@ class MarimoIslandGenerator:
         This should be included in the <body> tag of the page.
 
         *Args:*
-        - include_initialization_indicator (bool): It True, adds init loader.
+        - include_init_island (bool): It True, adds initialization loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -376,45 +423,9 @@ class MarimoIslandGenerator:
         for stub in self._stubs:
             rendered_stubs.append(stub.render())
 
-        if include_initialization_indicator:
-            dummy_cell_id = self._app.cell_manager.create_cell_id()
-            dummy_input = "<marimo-cell-code hidden> '' </marimo-cell-code>"
-            dummy_output = dedent("""
-            <div class="marimo" style="--tw-bg-opacity: 0;">
-              <div class="flex flex-col items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  class="size-20 animate-spin text-primary"
-                >
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-                </svg>
-                <div>Initializing...</div>
-              </div>
-            </div>
-            """)
-            dummy_stub = dedent(
-                f"""
-                <marimo-island
-                    data-app-id="{self._app_id}"
-                    data-cell-id="{dummy_cell_id}"
-                    data-reactive="{json.dumps(True)}"
-                >
-                    <marimo-cell-output>
-                    {dummy_output}
-                    </marimo-cell-output>
-                    {dummy_input}
-                </marimo-island>
-                """
-            )
-            rendered_stubs = [dummy_stub] + rendered_stubs
+        if include_init_island:
+            init_island = self.render_init_island()
+            rendered_stubs = [init_island] + rendered_stubs
 
         body = "\n".join(rendered_stubs)
 
@@ -445,7 +456,7 @@ class MarimoIslandGenerator:
         *,
         version_override: str = __version__,
         _development_url: Union[str | bool] = False,
-        include_initialization_indicator: bool = True,
+        include_init_island: bool = True,
         max_width: Optional[str] = None,
         margin: Optional[str] = None,
         style: Optional[str] = None,
@@ -457,7 +468,7 @@ class MarimoIslandGenerator:
 
         - version_override (str): Marimo version to use for loaded js/css.
         - _development_url (str): If True, uses local marimo islands js.
-        - include_initialization_indicator (bool): It True, adds init loader.
+        - include_init_island (bool): It True, adds initialization loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -467,7 +478,7 @@ class MarimoIslandGenerator:
             _development_url=_development_url,
         )
         body = self.render_body(
-            include_initialization_indicator=include_initialization_indicator,
+            include_init_island=include_init_island,
             max_width=max_width,
             margin=margin,
             style=style,
