@@ -106,7 +106,9 @@ def create_application(
         mime_type = mimetypes.types_map.get(fmt, "binary")
         buff = io.BytesIO()
         figure_manager = figure_managers.get(figure_id)
-        figure_manager.canvas.figure.savefig(buff, format=fmt)
+        figure_manager.canvas.figure.savefig(
+            buff, format=fmt, bbox_inches="tight"
+        )
         return Response(content=buff.getvalue(), media_type=mime_type)
 
     async def websocket_endpoint(websocket: WebSocket) -> None:

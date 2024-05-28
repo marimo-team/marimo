@@ -35,7 +35,7 @@ class MatplotlibFormatter(FormatterFactory):
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
             buf = io.BytesIO()
-            artist.figure.savefig(buf, format="png")  # type: ignore
+            artist.figure.savefig(buf, format="png", bbox_inches="tight")  # type: ignore
             mimetype: KnownMimeType = "image/png"
             plot_bytes = base64.b64encode(buf.getvalue())
             return (
