@@ -23,7 +23,7 @@ class UserConfigManager:
     def save_config(self, config: MarimoConfig) -> MarimoConfig:
         import tomlkit
 
-        config_path = self._get_config_path()
+        config_path = self.get_config_path()
         LOGGER.debug("Saving user configuration to %s", config_path)
         # Remove the secret placeholders from the incoming config
         config = remove_secret_placeholders(config)
@@ -41,7 +41,7 @@ class UserConfigManager:
             return mask_secrets(self.config)
         return self.config
 
-    def _get_config_path(self) -> str:
+    def get_config_path(self) -> str:
         return get_config_path() or self._default_config_path()
 
     def _default_config_path(self) -> str:
