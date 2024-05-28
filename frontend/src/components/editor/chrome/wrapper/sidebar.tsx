@@ -86,7 +86,7 @@ const SidebarItem: React.FC<
   >
 > = ({ children, tooltip, selected, className, ...rest }) => {
   return (
-    <Tooltip content={tooltip} side="top" delayDuration={200}>
+    <Tooltip content={tooltip} side="right" delayDuration={200}>
       <div
         className={cn(
           "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",
