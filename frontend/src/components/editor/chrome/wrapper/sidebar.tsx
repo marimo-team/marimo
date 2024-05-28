@@ -17,7 +17,7 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 absolute">
+    <div className="h-full py-4 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50">
       <SidebarItem
         tooltip="View files"
         selected={selectedPanel === "files"}
@@ -86,7 +86,7 @@ const SidebarItem: React.FC<
   >
 > = ({ children, tooltip, selected, className, ...rest }) => {
   return (
-    <Tooltip content={tooltip} side="top" delayDuration={200}>
+    <Tooltip content={tooltip} side="right" delayDuration={200}>
       <div
         className={cn(
           "flex items-center p-2 text-sm mx-[1px] shadow-inset font-mono cursor-pointer rounded",

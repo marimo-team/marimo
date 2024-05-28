@@ -8,7 +8,6 @@ import {
   Undo2Icon,
 } from "lucide-react";
 
-import { cn } from "@/utils/cn";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
 import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
@@ -24,6 +23,7 @@ import { FindReplace } from "@/components/find-replace/find-replace";
 import { AppConfig } from "@/core/config/config-schema";
 import { useShouldShowInterrupt } from "../cell/useShouldShowInterrupt";
 import { CommandPaletteButton } from "./command-palette-button";
+import { cn } from "@/utils/cn";
 
 interface ControlsProps {
   filename: string | null;
@@ -96,8 +96,8 @@ export const Controls = ({
 
       <div
         className={cn(
-          bottomLeftControls,
-          appWidth === "normal" && "xl:flex-row",
+          bottomRightControls,
+          appWidth === "normal" && "xl:flex-row items-end",
         )}
       >
         {closed ? (
@@ -115,7 +115,7 @@ export const Controls = ({
               color={needsSave ? "yellow" : "hint-green"}
               onClick={handleSaveClick}
             >
-              <SaveIcon strokeWidth={1.5} />
+              <SaveIcon strokeWidth={1.5} size={18} />
             </Button>
           </Tooltip>
         )}
@@ -125,31 +125,33 @@ export const Controls = ({
             data-testid="hide-code-button"
             id="preview-button"
             shape="rectangle"
-            color="white"
+            color="hint-green"
             onClick={onTogglePresenting}
           >
             {presenting ? (
-              <EditIcon strokeWidth={1.5} />
+              <EditIcon strokeWidth={1.5} size={18} />
             ) : (
-              <LayoutTemplateIcon strokeWidth={1.5} />
+              <LayoutTemplateIcon strokeWidth={1.5} size={18} />
             )}
           </Button>
         </Tooltip>
 
         <CommandPaletteButton />
         <KeyboardShortcuts />
-      </div>
 
-      <div className={bottomRightControls}>
-        {undoControl}
-        {!closed && (
-          <RunControlButton
-            running={running}
-            needsRun={needsRun}
-            onRun={onRun}
-            onInterrupt={onInterrupt}
-          />
-        )}
+        <div />
+
+        <div className="flex flex-col gap-2 items-center">
+          {undoControl}
+          {!closed && (
+            <RunControlButton
+              running={running}
+              needsRun={needsRun}
+              onRun={onRun}
+              onInterrupt={onInterrupt}
+            />
+          )}
+        </div>
       </div>
     </>
   );
@@ -218,7 +220,4 @@ const topRightControls =
   "absolute top-3 right-5 m-0 flex items-center space-x-3 min-h-[28px] no-print pointer-events-auto z-30";
 
 const bottomRightControls =
-  "absolute bottom-5 right-5 flex items-center space-x-3 no-print pointer-events-auto z-30";
-
-const bottomLeftControls =
-  "absolute bottom-5 left-3 m-0 flex flex-col-reverse gap-2 items-center no-print pointer-events-auto z-50";
+  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30";
