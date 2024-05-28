@@ -41,7 +41,7 @@ export const underlineField = StateField.define<DecorationSet>({
 // When meta is pressed, underline the variable name under the cursor
 class MetaUnderlineVariablePlugin {
   private view: EditorView;
-  private commandKey: boolean;
+  private commandClickMode: boolean;
   private hoveredRange: { from: number; to: number; position: number } | null;
   private onClick: (view: EditorView, variableName: string) => void;
 
@@ -50,30 +50,50 @@ class MetaUnderlineVariablePlugin {
     onClick: (view: EditorView, variableName: string) => void,
   ) {
     this.view = view;
-    this.commandKey = false;
+    this.commandClickMode = false;
     this.hoveredRange = null;
     this.onClick = onClick;
 
-    window.addEventListener("mousemove", this.mousemove);
     window.addEventListener("keydown", this.keydown);
     window.addEventListener("keyup", this.keyup);
-    this.view.dom.addEventListener("click", this.click);
   }
 
   update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged) {
-      this.clearUnderline();
-    }
+    // We cannot add any transactions here (e.g. clearing underlines),
+    // otherwise CM fails with
+    // "Calls to EditorView.update are not allowed while an update is in progress"
   }
 
   destroy() {
-    window.removeEventListener("mousemove", this.mousemove);
     window.removeEventListener("keydown", this.keydown);
     window.removeEventListener("keyup", this.keyup);
+    this.view.dom.removeEventListener("mousemove", this.mousemove);
+    this.view.dom.removeEventListener("click", this.click);
   }
 
+  // Start the cmd+click mode
+  private keydown = (event: KeyboardEvent) => {
+    if (event.key === "Meta" || event.key === "Control") {
+      this.commandClickMode = true;
+      this.view.dom.addEventListener("mousemove", this.mousemove);
+      this.view.dom.addEventListener("click", this.click);
+    }
+  };
+
+  // Exit the cmd+click mode
+  private keyup = (event: KeyboardEvent) => {
+    if (this.commandClickMode) {
+      this.commandClickMode = false;
+      this.view.dom.removeEventListener("mousemove", this.mousemove);
+      this.view.dom.removeEventListener("click", this.click);
+      this.clearUnderline();
+    }
+  };
+
+  // While moving the mouse in cmd+click mode,
+  // Track the variables we are hovering
   private mousemove = (event: MouseEvent) => {
-    if (!this.commandKey) {
+    if (!this.commandClickMode) {
       this.clearUnderline();
       return;
     }
@@ -99,7 +119,9 @@ class MetaUnderlineVariablePlugin {
       ) {
         return;
       }
+      // Clear existing underlines
       this.clearUnderline();
+      // Set the underline
       this.hoveredRange = { from, to, position: pos };
       this.view.dispatch({ effects: addUnderline.of(this.hoveredRange) });
     } else {
@@ -107,12 +129,7 @@ class MetaUnderlineVariablePlugin {
     }
   };
 
-  private keydown = (event: KeyboardEvent) => {
-    if (event.key === "Meta" || event.key === "Control") {
-      this.commandKey = true;
-    }
-  };
-
+  // If we have a hovered range, go to it
   private click = (event: MouseEvent) => {
     if (this.hoveredRange) {
       const variableName = this.view.state.doc.sliceString(
@@ -132,11 +149,7 @@ class MetaUnderlineVariablePlugin {
     }
   };
 
-  private keyup = (event: KeyboardEvent) => {
-    this.commandKey = false;
-    this.clearUnderline();
-  };
-
+  // Only clear the underline if we have some underline
   private clearUnderline() {
     if (this.hoveredRange) {
       this.view.dispatch({ effects: removeUnderlines.of(null) });
