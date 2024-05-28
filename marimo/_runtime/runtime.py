@@ -25,45 +25,24 @@ from marimo._ast.visitor import Name, is_local
 from marimo._config.config import MarimoConfig, OnCellChangeType
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
-from marimo._messaging.ops import (
-    Alert,
-    CellOp,
-    CompletedRun,
-    FunctionCallResult,
-    HumanReadableStatus,
-    InstallingPackageAlert,
-    MissingPackageAlert,
-    PackageStatusType,
-    RemoveUIElements,
-    VariableDeclaration,
-    Variables,
-    VariableValue,
-    VariableValues,
-)
-from marimo._messaging.streams import (
-    ThreadSafeStderr,
-    ThreadSafeStdin,
-    ThreadSafeStdout,
-    ThreadSafeStream,
-)
+from marimo._messaging.ops import (Alert, CellOp, CompletedRun,
+                                   FunctionCallResult, HumanReadableStatus,
+                                   InstallingPackageAlert, MissingPackageAlert,
+                                   PackageStatusType, RemoveUIElements,
+                                   VariableDeclaration, Variables,
+                                   VariableValue, VariableValues)
+from marimo._messaging.streams import (ThreadSafeStderr, ThreadSafeStdin,
+                                       ThreadSafeStdout, ThreadSafeStream)
 from marimo._messaging.tracebacks import write_traceback
-from marimo._messaging.types import (
-    KernelMessage,
-    Stderr,
-    Stdin,
-    Stdout,
-    Stream,
-)
+from marimo._messaging.types import (KernelMessage, Stderr, Stdin, Stdout,
+                                     Stream)
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.complete import complete, completion_worker
-from marimo._runtime.context import (
-    ContextNotInitializedError,
-    ExecutionContext,
-    get_context,
-)
+from marimo._runtime.context import (ContextNotInitializedError,
+                                     ExecutionContext, get_context)
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import input_override
@@ -74,36 +53,24 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.module_watcher import (
-    ModuleWatcher,
-)
-from marimo._runtime.requests import (
-    AppMetadata,
-    CompletionRequest,
-    ControlRequest,
-    CreationRequest,
-    DeleteRequest,
-    ExecuteMultipleRequest,
-    ExecuteStaleRequest,
-    ExecutionRequest,
-    FunctionCallRequest,
-    InstallMissingPackagesRequest,
-    SetCellConfigRequest,
-    SetUIElementValueRequest,
-    SetUserConfigRequest,
-    StopRequest,
-)
+from marimo._runtime.reload.module_watcher import ModuleWatcher
+from marimo._runtime.requests import (AppMetadata, CompletionRequest,
+                                      ControlRequest, CreationRequest,
+                                      DeleteRequest, ExecuteMultipleRequest,
+                                      ExecuteStaleRequest, ExecutionRequest,
+                                      FunctionCallRequest,
+                                      InstallMissingPackagesRequest,
+                                      SetCellConfigRequest,
+                                      SetUIElementValueRequest,
+                                      SetUserConfigRequest, StopRequest)
 from marimo._runtime.runner import cell_runner
-from marimo._runtime.runner.hooks import (
-    ON_FINISH_HOOKS,
-    POST_EXECUTION_HOOKS,
-    PRE_EXECUTION_HOOKS,
-    PREPARATION_HOOKS,
-)
+from marimo._runtime.runner.hooks import (ON_FINISH_HOOKS,
+                                          POST_EXECUTION_HOOKS,
+                                          PRE_EXECUTION_HOOKS,
+                                          PREPARATION_HOOKS)
 from marimo._runtime.state import State
-from marimo._runtime.utils.set_ui_element_request_manager import (
-    SetUIElementRequestManager,
-)
+from marimo._runtime.utils.set_ui_element_request_manager import \
+    SetUIElementRequestManager
 from marimo._runtime.validate_graph import check_for_errors
 from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
 from marimo._server.types import QueueType
@@ -113,6 +80,8 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
 
@@ -998,6 +967,8 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
+        updated_components: list[UIElement[Any, Any]] = []
+
         # Resolve lenses on request, if any: any element that is a view
         # of another parent element is resolved to its parent. In particular,
         # interacting with a view triggers reactive execution through the
@@ -1065,6 +1036,8 @@ class Kernel:
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
                     write_traceback(tmpio.read())
+                else:
+                    updated_components.append(component)
 
             bound_names = (
                 name
@@ -1112,6 +1085,22 @@ class Kernel:
             # process any state updates that may have been queued by the
             # on_change handlers
             await self._run_cells(set())
+
+        for component in updated_components:
+            try:
+                component._on_update_completion()
+            except Exception:
+                # Internal marimo error
+                sys.stderr.write(
+                    "An exception was raised when completing a UIElement's"
+                    "update. This is a bug in marimo. "
+                    "Please copy the below traceback and paste it in an "
+                    "issue: https://github.com/marimo-team/marimo/issues\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any

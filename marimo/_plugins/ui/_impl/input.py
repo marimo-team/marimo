@@ -990,6 +990,7 @@ class button(UIElement[Any, Any]):
     ) -> None:
         self._on_click = (lambda _: value) if on_click is None else on_click
         self._initial_value = value
+        # This should be kept in sync with mo.ui.run_button()
         super().__init__(
             component_name=button._name,
             # frontend's value is always a counter
