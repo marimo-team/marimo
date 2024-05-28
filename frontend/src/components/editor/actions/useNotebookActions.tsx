@@ -42,7 +42,6 @@ import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { useRestartKernel } from "./useRestartKernel";
 import { createShareableLink } from "@/core/pyodide/share";
-import { Paths } from "@/utils/paths";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { PANEL_ICONS, PANEL_TYPES } from "../chrome/types";
 import { startCase } from "lodash-es";
@@ -136,7 +135,7 @@ export function useNotebookActions() {
               // Wait 2 seconds for the app to render
               await new Promise((resolve) => setTimeout(resolve, 2000));
 
-              await downloadHTMLAsImage(app, filename || "screenshot.png");
+              await downloadHTMLAsImage(app, document.title);
             });
 
             toasted.dismiss();
@@ -151,7 +150,7 @@ export function useNotebookActions() {
             const md = await exportAsMarkdown({ download: false });
             downloadBlob(
               new Blob([md], { type: "text/plain" }),
-              Filenames.toMarkdown(Paths.basename(filename || "notebook.py")),
+              Filenames.toMarkdown(document.title),
             );
           },
         },
@@ -162,7 +161,7 @@ export function useNotebookActions() {
             const code = await readCode();
             downloadBlob(
               new Blob([code.contents], { type: "text/plain" }),
-              Paths.basename(filename || "notebook.py"),
+              Filenames.toPY(document.title),
             );
           },
         },

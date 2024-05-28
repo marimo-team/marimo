@@ -97,13 +97,12 @@ const ActionButtons: React.FC<{
   showCode: boolean;
   onToggleShowCode: () => void;
 }> = ({ canShowCode, showCode, onToggleShowCode }) => {
-  const [filename] = useFilename();
   const handleDownloadAsPNG = async () => {
     const app = document.getElementById("App");
     if (!app) {
       return;
     }
-    await downloadHTMLAsImage(app, filename || "screenshot.png");
+    await downloadHTMLAsImage(app, document.title);
   };
 
   const handleDownloadAsHTML = async () => {
@@ -111,7 +110,7 @@ const ActionButtons: React.FC<{
     if (!app) {
       return;
     }
-    await downloadAsHTML({ filename: filename || "app" });
+    await downloadAsHTML({ filename: document.title });
   };
 
   return (

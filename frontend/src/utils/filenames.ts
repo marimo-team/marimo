@@ -9,6 +9,9 @@ export const Filenames = {
   toPNG: (filename: string): string => {
     return Filenames.replace(filename, "png");
   },
+  toPY: (filename: string): string => {
+    return Filenames.replace(filename, "py");
+  },
   withoutExtension: (filename: string): string => {
     // Just remove the last extension
     const parts = filename.split(".");
