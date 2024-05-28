@@ -40,7 +40,7 @@ def close_figures() -> None:
 def _internal_show(canvas: FigureCanvasBase) -> None:
     buf = io.BytesIO()
     buf.seek(0)
-    canvas.figure.savefig(buf, format="png")
+    canvas.figure.savefig(buf, format="png", bbox_inches="tight")
     plt.close(canvas.figure)
     mimetype: KnownMimeType = "image/png"
     plot_bytes = base64.b64encode(buf.getvalue())
