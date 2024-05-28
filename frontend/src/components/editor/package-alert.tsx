@@ -52,7 +52,7 @@ export const PackageAlert: React.FC = (props) => {
 
   if (isMissingPackageAlert(packageAlert)) {
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 w-[400px] z-[200] opacity-95">
         <Banner
           kind="danger"
           className="flex flex-col rounded py-3 px-5 animate-in slide-in-from-left"
@@ -128,7 +128,7 @@ export const PackageAlert: React.FC = (props) => {
     }
 
     return (
-      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-5 w-[400px] z-[200] opacity-95">
+      <div className="flex flex-col gap-4 mb-5 fixed top-5 left-12 w-[400px] z-[200] opacity-95">
         <Banner
           kind={status === "failed" ? "danger" : "info"}
           className="flex flex-col rounded pt-3 pb-4 px-5"
