@@ -57,7 +57,8 @@ class run_button(UIElement[Any, Any]):
         container
     """
 
-    _name: Final[str] = "marimo-button"
+    # We reuse the button plugin on the frontend, UI/logic are the same
+    _name: Final[str] = button._name
 
     def __init__(
         self,
@@ -71,8 +72,6 @@ class run_button(UIElement[Any, Any]):
     ) -> None:
         self._initial_value = False
         super().__init__(
-            # We reuse the button plugin on the frontend, since the UI
-            # is the same.
             component_name=button._name,
             # frontend's value is a counter
             initial_value=0,
