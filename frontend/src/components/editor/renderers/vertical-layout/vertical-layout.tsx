@@ -28,7 +28,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
-import { useFilename } from "@/core/saving/filename";
 import { downloadAsHTML } from "@/core/static/download-html";
 
 type VerticalLayout = null;
