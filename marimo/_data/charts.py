@@ -40,6 +40,7 @@ class NumberChartBuilder(ChartBuilder):
                 x=alt.X(column, type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -51,6 +52,7 @@ class NumberChartBuilder(ChartBuilder):
                 x=alt.X("{column}", type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
@@ -81,7 +83,7 @@ class StringChartBuilder(ChartBuilder):
                     y=alt.Y(column, type="nominal", sort="-x"),
                     x=alt.X("count", type="quantitative"),
                 )
-                .properties(title=f"Top 10 {column}")
+                .properties(title=f"Top 10 {column}", width="container")
             )
 
         return (
@@ -91,6 +93,7 @@ class StringChartBuilder(ChartBuilder):
                 y=alt.Y(column, type="nominal"),
                 x=alt.X("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -112,7 +115,7 @@ class StringChartBuilder(ChartBuilder):
                     y=alt.Y("{column}", type="nominal", sort="-x"),
                     x=alt.X("count", type="quantitative"),
                 )
-                .properties(title="Top 10 {column}")
+                .properties(title="Top 10 {column}", width="container")
             )
             _chart
             """
@@ -125,6 +128,7 @@ class StringChartBuilder(ChartBuilder):
                 y=alt.Y("{column}", type="nominal"),
                 x=alt.X("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
@@ -141,6 +145,7 @@ class DateChartBuilder(ChartBuilder):
                 x=alt.X(column, type="temporal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -152,6 +157,7 @@ class DateChartBuilder(ChartBuilder):
                 x=alt.X("{column}", type="temporal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
@@ -168,6 +174,7 @@ class BooleanChartBuilder(ChartBuilder):
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -179,6 +186,7 @@ class BooleanChartBuilder(ChartBuilder):
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
@@ -195,6 +203,7 @@ class IntegerChartBuilder(ChartBuilder):
                 x=alt.X(column, type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -206,6 +215,7 @@ class IntegerChartBuilder(ChartBuilder):
                 x=alt.X("{column}", type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
@@ -222,6 +232,7 @@ class UnknownChartBuilder(ChartBuilder):
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -233,6 +244,7 @@ class UnknownChartBuilder(ChartBuilder):
                 x=alt.X("{column}", type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
+            .properties(width="container")
         )
         _chart
         """
