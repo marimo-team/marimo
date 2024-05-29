@@ -75,7 +75,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     const prefix = this.lastQuotePrefix;
     const quoteType = this.lastQuoteType; // Already validated as QuoteType
 
-    const isOneLine = !code.includes("\n") && !code.includes('"""');
+    const isOneLine = !code.includes("\n");
     if (isOneLine) {
       const escapedCode = code.replaceAll(quoteType, `\\${quoteType}`);
       const start = `mo.md(${prefix}${quoteType}`;
@@ -83,11 +83,15 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       return [start + escapedCode + end, start.length];
     }
 
-    // Multiline code
-    const start = `mo.md(\n    ${prefix}"""\n`;
+    const multilineStart = `mo.md(\n    ${prefix}"""\n`;
+    const multilineEnd = `\n    """\n)`;
+
+    // Multiline code that needs formatting
     const escapedCode = code.replaceAll('"""', '\\"""');
-    const end = `\n    """)`;
-    return [start + indentOneTab(escapedCode) + end, start.length + 1];
+    return [
+      multilineStart + indentOneTab(escapedCode) + multilineEnd,
+      multilineStart.length + 1,
+    ];
   }
 
   isSupported(pythonCode: string): boolean {
