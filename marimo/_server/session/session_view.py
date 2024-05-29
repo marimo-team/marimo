@@ -36,7 +36,7 @@ class SessionView:
     def __init__(self) -> None:
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
-        # The most recent Variables operation.
+        # The most recent datasets operation.
         self.datasets: Datasets = Datasets(tables=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
