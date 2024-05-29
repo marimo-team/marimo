@@ -253,14 +253,16 @@ const DatasetTableItem: React.FC<{
         <span className="text-sm">{table.name}</span>
       </div>
       {renderRowsByColumns()}
-      <Button
-        className="group-hover:inline-flex hidden"
-        variant="text"
-        size="icon"
-        onClick={Events.stopPropagation(() => onAddTable(table))}
-      >
-        <PlusSquareIcon className="h-3 w-3" />
-      </Button>
+      <Tooltip content="Add table to notebook" delayDuration={400}>
+        <Button
+          className="group-hover:inline-flex hidden"
+          variant="text"
+          size="icon"
+          onClick={Events.stopPropagation(() => onAddTable(table))}
+        >
+          <PlusSquareIcon className="h-3 w-3" />
+        </Button>
+      </Tooltip>
     </CommandItem>
   );
 };
