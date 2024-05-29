@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { JsonString } from "@/utils/json/base64";
 import type { DataTable } from "../network/types";
 import { DataColumnPreview } from "../kernel/messages";
 
