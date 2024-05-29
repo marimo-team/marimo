@@ -90,40 +90,40 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        unique=pc.count_distinct(col).as_py(),
+                        unique=pc.count_distinct(col).as_py(),  # type: ignore[attr-defined]
                     )
                 if field_type == "boolean":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        true=pc.sum(col).as_py(),
+                        true=pc.sum(col).as_py(),  # type: ignore[attr-defined]
                         false=self.data.num_rows
-                        - pc.sum(col).as_py()
+                        - pc.sum(col).as_py()  # type: ignore[attr-defined]
                         - col.null_count,
                     )
                 if field_type == "integer":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        unique=pc.count_distinct(col).as_py(),
-                        min=pc.min(col).as_py(),
-                        max=pc.max(col).as_py(),
-                        mean=pc.mean(col).as_py(),
+                        unique=pc.count_distinct(col).as_py(),  # type: ignore[attr-defined]
+                        min=pc.min(col).as_py(),  # type: ignore[attr-defined]
+                        max=pc.max(col).as_py(),  # type: ignore[attr-defined]
+                        mean=pc.mean(col).as_py(),  # type: ignore[attr-defined]
                     )
                 if field_type == "number":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        min=pc.min(col).as_py(),
-                        max=pc.max(col).as_py(),
-                        mean=pc.mean(col).as_py(),
+                        min=pc.min(col).as_py(),  # type: ignore[attr-defined]
+                        max=pc.max(col).as_py(),  # type: ignore[attr-defined]
+                        mean=pc.mean(col).as_py(),  # type: ignore[attr-defined]
                     )
                 if field_type == "date":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        min=pc.min(col).as_py(),
-                        max=pc.max(col).as_py(),
+                        min=pc.min(col).as_py(),  # type: ignore[attr-defined]
+                        max=pc.max(col).as_py(),  # type: ignore[attr-defined]
                     )
                 return ColumnSummary()
 

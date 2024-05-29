@@ -31,7 +31,7 @@ class ChartParams:
 
 class NumberChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
@@ -58,7 +58,7 @@ class NumberChartBuilder(ChartBuilder):
 
 class StringChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
@@ -119,7 +119,7 @@ class StringChartBuilder(ChartBuilder):
 
 class DateChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
@@ -146,7 +146,7 @@ class DateChartBuilder(ChartBuilder):
 
 class BooleanChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
@@ -173,7 +173,7 @@ class BooleanChartBuilder(ChartBuilder):
 
 class IntegerChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
@@ -200,7 +200,7 @@ class IntegerChartBuilder(ChartBuilder):
 
 class UnknownChartBuilder(ChartBuilder):
     def altair(self, data: Any, column: str) -> Any:
-        import altair as alt
+        import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
         return (
             alt.Chart(data)
