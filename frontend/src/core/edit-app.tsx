@@ -115,11 +115,11 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       }
     });
 
-      return sendRename(name)
+    return sendRename(name)
       .then(() => {
         setFilename(name);
-         // Set document title: app_title takes precedence, then filename, then default
-        document.title = appConfig.app_title || name || "Untitled Notebook"; 
+        // Set document title: app_title takes precedence, then filename, then default
+        document.title = appConfig.app_title || name || "Untitled Notebook";
         return name;
       })
       .catch((error) => {
@@ -128,10 +128,10 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       });
   });
 
-  // Update document title whenever filename or app_title changes 
+  // Update document title whenever filename or app_title changes
   useEffect(() => {
     // Set document title: app_title takes precedence, then filename, then default
-    document.title = appConfig.app_title || filename || "Untitled Notebook"; 
+    document.title = appConfig.app_title || filename || "Untitled Notebook";
   }, [appConfig.app_title, filename]);
 
   const cells = notebookCells(notebook);

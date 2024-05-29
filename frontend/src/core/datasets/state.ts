@@ -4,6 +4,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { ColumnPreviewSummary, DatasetsState } from "./types";
 import { useAtomValue } from "jotai";
 import type { JsonString } from "@/utils/json/base64";
+import { VariableName } from "../variables/types";
 
 function initialState(): DatasetsState {
   return {
@@ -37,6 +38,14 @@ const {
       ...state,
       tables: dedupedTables,
     };
+  },
+  filterDatasetsFromVariables: (state, variableNames: VariableName[]) => {
+    const names = new Set(variableNames);
+    // Filter out tables that come from variables that are not in the list
+    const tables = state.tables.filter((table) => {
+      return table.variable_name && names.has(table.variable_name);
+    });
+    return { ...state, tables };
   },
   toggleTable: (state, tableName: string) => {
     const expandedTables = new Set(state.expandedTables);

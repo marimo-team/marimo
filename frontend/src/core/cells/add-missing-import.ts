@@ -44,19 +44,41 @@ export function maybeAddMissingImport(
 export function maybeAddMarimoImport(
   autoRun: boolean,
   createNewCell: CellActions["createNewCell"],
+  fromCellId?: CellId | null,
 ): boolean {
   return maybeAddMissingImport("marimo", "mo", (importStatement) => {
-    const cellId = CellId.create();
+    const newCellId = CellId.create();
     createNewCell({
-      cellId: "__end__",
+      cellId: fromCellId ?? "__end__",
       before: false,
       code: importStatement,
       lastCodeRun: autoRun ? importStatement : undefined,
-      newCellId: cellId,
+      newCellId: newCellId,
       autoFocus: false,
     });
     if (autoRun) {
-      void sendRun([cellId], [importStatement]);
+      void sendRun([newCellId], [importStatement]);
+    }
+  });
+}
+
+export function maybeAddAltairImport(
+  autoRun: boolean,
+  createNewCell: CellActions["createNewCell"],
+  fromCellId?: CellId | null,
+): boolean {
+  return maybeAddMissingImport("altair", "alt", (importStatement) => {
+    const newCellId = CellId.create();
+    createNewCell({
+      cellId: fromCellId ?? "__end__",
+      before: false,
+      code: importStatement,
+      lastCodeRun: autoRun ? importStatement : undefined,
+      newCellId: newCellId,
+      autoFocus: false,
+    });
+    if (autoRun) {
+      void sendRun([newCellId], [importStatement]);
     }
   });
 }

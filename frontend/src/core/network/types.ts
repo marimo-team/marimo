@@ -7,6 +7,7 @@ import type { RequestId } from "./DeferredRequestRegistry";
 import type { FilePath } from "@/utils/paths";
 import type { PackageManagerName } from "../config/config-schema";
 import type { SessionId } from "@/core/kernel/session";
+import { VariableName } from "../variables/types";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -186,6 +187,10 @@ export interface DataTableColumn {
 export interface DataTable {
   name: string;
   source: string;
+  /**
+   * The variable name if this is a variable in the notebook.
+   */
+  variable_name: VariableName | null;
   num_rows: number;
   num_columns: number;
   columns: DataTableColumn[];

@@ -51,7 +51,7 @@ export function useMarimoWebSocket(opts: {
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
-  const { addDatasets } = useDatasetsActions();
+  const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -100,6 +100,7 @@ export function useMarimoWebSocket(opts: {
             usedBy: v.used_by,
           })),
         );
+        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
         return;
       case "variable-values":
         setMetadata(

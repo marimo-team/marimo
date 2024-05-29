@@ -62,22 +62,23 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 if column not in self.data.columns:
                     return ColumnSummary()
                 col = self.data[column]
+                total = len(col)
                 if col.is_utf8():
                     return ColumnSummary(
-                        total=col.count(),
+                        total=total,
                         nulls=col.null_count(),
                         unique=col.n_unique(),
                     )
                 if col.is_boolean():
                     return ColumnSummary(
-                        total=col.count(),
+                        total=total,
                         nulls=col.null_count(),
                         true=col.sum(),
-                        false=col.count() - col.sum(),
+                        false=total - col.sum(),
                     )
                 if col.is_temporal():
                     return ColumnSummary(
-                        total=col.count(),
+                        total=total,
                         nulls=col.null_count(),
                         min=col.min(),
                         max=col.max(),
@@ -89,7 +90,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         p95=col.quantile(0.95),
                     )
                 return ColumnSummary(
-                    total=col.count(),
+                    total=total,
                     nulls=col.null_count(),
                     unique=col.n_unique() if col.is_integer() else None,
                     min=col.min(),

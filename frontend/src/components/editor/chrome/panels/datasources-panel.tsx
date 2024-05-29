@@ -31,10 +31,16 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import type { JsonString } from "@/utils/json/base64";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
+import {
+  maybeAddAltairImport,
+  maybeAddMarimoImport,
+} from "@/core/cells/add-missing-import";
+import { autoInstantiateAtom } from "@/core/config/config";
 
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
 
+  const autoInstantiate = useAtomValue(autoInstantiateAtom);
   const lastFocusedCellId = useAtomValue(lastFocusedCellIdAtom);
   const { tables, expandedColumns, expandedTables, columnsPreviews } =
     useDatasets();
@@ -52,6 +58,7 @@ export const DataSourcesPanel: React.FC = () => {
   }
 
   const handleAddColumn = (chartCode: string) => {
+    maybeAddAltairImport(autoInstantiate, createNewCell, lastFocusedCellId);
     createNewCell({
       code: chartCode,
       before: false,
@@ -60,6 +67,7 @@ export const DataSourcesPanel: React.FC = () => {
   };
 
   const handleAddTable = (table: DataTable) => {
+    maybeAddMarimoImport(autoInstantiate, createNewCell, lastFocusedCellId);
     createNewCell({
       code: `mo.ui.table(${table.name})`,
       before: false,

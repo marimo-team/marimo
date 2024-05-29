@@ -62,7 +62,11 @@ def _broadcast_datasets(
 ) -> None:
     del run_result
     tables = get_datasets_from_variables(
-        [(variable, runner.glbls[variable]) for variable in cell.defs]
+        [
+            (variable, runner.glbls[variable])
+            for variable in cell.defs
+            if variable in runner.glbls
+        ]
     )
     if tables:
         Datasets(tables=tables).broadcast()
