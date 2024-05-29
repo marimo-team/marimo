@@ -1,10 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import type { ColumnPreviewSummary, DatasetsState } from "./types";
+import type { DatasetsState } from "./types";
 import { useAtomValue } from "jotai";
-import type { JsonString } from "@/utils/json/base64";
 import { VariableName } from "../variables/types";
+import { DataColumnPreview } from "../kernel/messages";
 
 function initialState(): DatasetsState {
   return {
@@ -69,25 +69,10 @@ const {
   closeAllColumns: (state) => {
     return { ...state, expandedColumns: new Set() };
   },
-  addColumnPreview: (
-    state,
-    opts: {
-      table_name: string;
-      column_name: string;
-      chart_spec?: JsonString;
-      chart_code?: string;
-      error?: string;
-      summary?: ColumnPreviewSummary;
-    },
-  ) => {
-    const tableColumn = `${opts.table_name}:${opts.column_name}` as const;
+  addColumnPreview: (state, preview: DataColumnPreview) => {
+    const tableColumn = `${preview.table_name}:${preview.column_name}` as const;
     const columnsPreviews = new Map(state.columnsPreviews);
-    columnsPreviews.set(tableColumn, {
-      chart_spec: opts.chart_spec,
-      chart_code: opts.chart_code,
-      error: opts.error,
-      summary: opts.summary,
-    });
+    columnsPreviews.set(tableColumn, preview);
     return { ...state, columnsPreviews };
   },
 });

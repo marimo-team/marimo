@@ -170,6 +170,16 @@ export interface PackageInstallationStatus {
   [key: string]: "queued" | "installing" | "installed" | "failed";
 }
 
+export interface DataColumnPreview {
+  table_name: string;
+  column_name: string;
+  chart_max_rows_errors: boolean;
+  chart_spec?: JsonString;
+  chart_code?: string;
+  error?: string;
+  summary?: ColumnPreviewSummary;
+}
+
 /**
  * Message sent from the frontend to the kernel via the websocket.
  */
@@ -286,14 +296,7 @@ export type OperationMessage =
     }
   | {
       op: "data-column-preview";
-      data: {
-        table_name: string;
-        column_name: string;
-        chart_spec?: JsonString;
-        chart_code?: string;
-        error?: string;
-        summary?: ColumnPreviewSummary;
-      };
+      data: DataColumnPreview;
     }
   | {
       op: "query-params-set";

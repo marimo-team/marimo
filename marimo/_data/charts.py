@@ -57,60 +57,73 @@ class NumberChartBuilder(ChartBuilder):
 
 
 class StringChartBuilder(ChartBuilder):
+    def __init__(self, should_limit_to_10_items: bool) -> None:
+        self.should_limit_to_10_items = should_limit_to_10_items
+        super().__init__()
+
     def altair(self, data: Any, column: str) -> Any:
         import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
 
+        if self.should_limit_to_10_items:
+            return (
+                alt.Chart(data)
+                .transform_aggregate(count="count()", groupby=[column])
+                .transform_window(
+                    rank="rank()",
+                    sort=[
+                        alt.SortField("count", order="descending"),
+                        alt.SortField(column, order="ascending"),
+                    ],
+                )
+                .transform_filter(alt.datum.rank <= 10)
+                .mark_bar()
+                .encode(
+                    y=alt.Y(column, type="nominal", sort="-x"),
+                    x=alt.X("count", type="quantitative"),
+                )
+                .properties(title=f"Top 10 {column}")
+            )
+
         return (
             alt.Chart(data)
-            .transform_aggregate(count="count()", groupby=[column])
-            .transform_window(
-                rank="rank()",
-                sort=[
-                    alt.SortField("count", order="descending"),
-                    alt.SortField(column, order="ascending"),
-                ],
-            )
-            .transform_calculate(
-                **{
-                    column: alt.expr.if_(
-                        alt.datum.rank <= 10,
-                        alt.datum[column],
-                        "Other",
-                    )
-                },
-            )
-            .transform_filter(alt.datum.rank <= 11)
             .mark_bar()
             .encode(
-                y=alt.Y(column, type="nominal", sort="-x"),
-                x=alt.X("count", type="quantitative"),
+                y=alt.Y(column, type="nominal"),
+                x=alt.X("count()", type="quantitative"),
             )
         )
 
     def altair_code(self, data: str, column: str) -> str:
+        if self.should_limit_to_10_items:
+            return f"""
+            _chart = (
+                alt.Chart({data})
+                .transform_aggregate(count="count()", groupby=["{column}"])
+                .transform_window(
+                    rank="rank()",
+                    sort=[
+                        alt.SortField("count", order="descending"),
+                        alt.SortField("{column}", order="ascending"),
+                    ],
+                )
+                .transform_filter(alt.datum.rank <= 10)
+                .mark_bar()
+                .encode(
+                    y=alt.Y("{column}", type="nominal", sort="-x"),
+                    x=alt.X("count", type="quantitative"),
+                )
+                .properties(title="Top 10 {column}")
+            )
+            _chart
+            """
+
         return f"""
         _chart = (
             alt.Chart({data})
-            .transform_aggregate(count="count()", groupby=["{column}"])
-            .transform_window(
-                rank="rank()",
-                sort=[
-                    alt.SortField("count", order="descending"),
-                    alt.SortField("{column}", order="ascending"),
-                ],
-            )
-            .transform_calculate(
-                {column}=alt.expr.if_(
-                    alt.datum.rank <= 10,
-                    alt.datum["{column}"],
-                    "Other",
-                ),
-            )
-            .transform_filter(alt.datum.rank <= 11)
             .mark_bar()
             .encode(
-                y=alt.Y("{column}", type="nominal", sort="-x"),
-                x=alt.X("count", type="quantitative"),
+                y=alt.Y("{column}", type="nominal"),
+                x=alt.X("count()", type="quantitative"),
             )
         )
         _chart
@@ -123,7 +136,7 @@ class DateChartBuilder(ChartBuilder):
 
         return (
             alt.Chart(data)
-            .mark_bar()
+            .mark_line(point={"filled": False, "fill": "white"})
             .encode(
                 x=alt.X(column, type="temporal"),
                 y=alt.Y("count()", type="quantitative"),
@@ -134,7 +147,7 @@ class DateChartBuilder(ChartBuilder):
         return f"""
         _chart = (
             alt.Chart({data})
-            .mark_bar()
+            .mark_line(point={{"filled": False, "fill": "white"}})
             .encode(
                 x=alt.X("{column}", type="temporal"),
                 y=alt.Y("count()", type="quantitative"),
@@ -236,11 +249,15 @@ class WrapperChartBuilder(ChartBuilder):
         return dedent(self.delegate.altair_code(data, column)).strip()
 
 
-def get_chart_builder(column_type: DataType) -> ChartBuilder:
+def get_chart_builder(
+    column_type: DataType, should_limit_to_10_items: bool = False
+) -> ChartBuilder:
     if column_type == "number":
         return WrapperChartBuilder(NumberChartBuilder())
     if column_type == "string":
-        return WrapperChartBuilder(StringChartBuilder())
+        return WrapperChartBuilder(
+            StringChartBuilder(should_limit_to_10_items)
+        )
     if column_type == "date":
         return WrapperChartBuilder(DateChartBuilder())
     if column_type == "boolean":

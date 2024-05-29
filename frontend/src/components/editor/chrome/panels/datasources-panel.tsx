@@ -20,15 +20,11 @@ import { useAtomValue } from "jotai";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PanelEmptyState } from "./empty-state";
 import { previewDatasetColumn } from "@/core/network/requests";
-import type {
-  ColumnPreviewMap,
-  ColumnPreviewSummary,
-} from "@/core/datasets/types";
+import type { ColumnPreviewMap } from "@/core/datasets/types";
 import { prettyNumber } from "@/utils/numbers";
 import { Events } from "@/utils/events";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
-import type { JsonString } from "@/utils/json/base64";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
 import {
@@ -36,6 +32,7 @@ import {
   maybeAddMarimoImport,
 } from "@/core/cells/add-missing-import";
 import { autoInstantiateAtom } from "@/core/config/config";
+import { DataColumnPreview } from "@/core/kernel/messages";
 
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
@@ -311,14 +308,7 @@ const LazyVegaLite = React.lazy(() =>
 
 const DatasetColumnPreview: React.FC<{
   onAddColumnChart: (code: string) => void;
-  preview:
-    | {
-        chart_spec?: JsonString;
-        chart_code?: string;
-        error?: string;
-        summary?: ColumnPreviewSummary;
-      }
-    | undefined;
+  preview: DataColumnPreview | undefined;
 }> = ({ preview, onAddColumnChart }) => {
   const { theme } = useTheme();
 
@@ -359,7 +349,7 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 
-  const chart = preview.chart_spec ? (
+  const chart = preview.chart_spec && (
     <LazyVegaLite
       spec={JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec}
       width={"container" as unknown as number}
@@ -367,9 +357,9 @@ const DatasetColumnPreview: React.FC<{
       actions={false}
       theme={theme === "dark" ? "dark" : "vox"}
     />
-  ) : null;
+  );
 
-  const addChart = preview.chart_code ? (
+  const addChart = preview.chart_code && (
     <Tooltip content="Add chart to notebook" delayDuration={400}>
       <Button
         variant="outline"
@@ -382,11 +372,18 @@ const DatasetColumnPreview: React.FC<{
         <PlusSquareIcon className="h-3 w-3" />
       </Button>
     </Tooltip>
-  ) : null;
+  );
+
+  const chartMaxRowsWarning = preview.chart_max_rows_errors && (
+    <span className="text-xs text-muted-foreground">
+      Too many rows to render the chart.
+    </span>
+  );
 
   return (
     <div className="flex flex-col gap-2 relative">
       {addChart}
+      {chartMaxRowsWarning}
       {chart}
       {summary}
     </div>

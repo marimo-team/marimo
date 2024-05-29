@@ -74,7 +74,11 @@
     }
   },
   "mark": {
-    "type": "bar"
+    "point": {
+      "fill": "white",
+      "filled": false
+    },
+    "type": "line"
   }
 }
 
@@ -187,6 +191,46 @@
   },
   "encoding": {
     "x": {
+      "aggregate": "count",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "some_column",
+      "type": "nominal"
+    }
+  },
+  "mark": {
+    "type": "bar"
+  }
+}
+
+# string (limit to 10 items)
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "name": "data-afce120bec1de31b50bc39eae2fedbed"
+  },
+  "datasets": {
+    "data-afce120bec1de31b50bc39eae2fedbed": [
+      {
+        "some_column": 1
+      },
+      {
+        "some_column": 2
+      },
+      {
+        "some_column": 3
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
       "field": "count",
       "type": "quantitative"
     },
@@ -199,6 +243,7 @@
   "mark": {
     "type": "bar"
   },
+  "title": "Top 10 some_column",
   "transform": [
     {
       "aggregate": [
@@ -231,11 +276,7 @@
       ]
     },
     {
-      "as": "some_column",
-      "calculate": "if((datum.rank <= 10),datum['some_column'],'Other')"
-    },
-    {
-      "filter": "(datum.rank <= 11)"
+      "filter": "(datum.rank <= 10)"
     }
   ]
 }

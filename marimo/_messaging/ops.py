@@ -438,6 +438,7 @@ class DataColumnPreview(Op):
     table_name: str
     column_name: str
     chart_spec: Optional[str] = None
+    chart_max_rows_errors: bool = False
     chart_code: Optional[str] = None
     error: Optional[str] = None
     summary: Optional[ColumnSummary] = None

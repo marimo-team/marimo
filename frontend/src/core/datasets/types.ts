@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { JsonString } from "@/utils/json/base64";
 import type { DataTable } from "../network/types";
+import { DataColumnPreview } from "../kernel/messages";
 
 /**
  * A qualified column name, e.g. `table:column`.
@@ -26,15 +27,7 @@ export interface ColumnPreviewSummary {
   p95?: number;
 }
 
-export type ColumnPreviewMap = ReadonlyMap<
-  QualifiedColumn,
-  {
-    chart_spec?: JsonString;
-    chart_code?: string;
-    error?: string;
-    summary?: ColumnPreviewSummary;
-  }
->;
+export type ColumnPreviewMap = ReadonlyMap<QualifiedColumn, DataColumnPreview>;
 
 /**
  * The datasets state.
