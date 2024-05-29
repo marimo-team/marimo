@@ -1,9 +1,10 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
 from textwrap import dedent
-from typing import Any
+from typing import Any, cast
 
 from marimo._data.models import DataType
 
@@ -11,8 +12,11 @@ from marimo._data.models import DataType
 @abc.abstractmethod
 class ChartBuilder:
     @abc.abstractmethod
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         raise NotImplementedError
+
+    def altair_json(self, data: Any, column: str) -> str:
+        return cast(str, self.altair(data, column).to_json())
 
     @abc.abstractmethod
     def altair_code(self, data: str, column: str) -> str:
@@ -26,7 +30,7 @@ class ChartParams:
 
 
 class NumberChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -36,7 +40,6 @@ class NumberChartBuilder(ChartBuilder):
                 x=alt.X(column, type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -54,7 +57,7 @@ class NumberChartBuilder(ChartBuilder):
 
 
 class StringChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -82,7 +85,6 @@ class StringChartBuilder(ChartBuilder):
                 y=alt.Y(column, type="nominal", sort="-x"),
                 x=alt.X("count", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -116,7 +118,7 @@ class StringChartBuilder(ChartBuilder):
 
 
 class DateChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -126,7 +128,6 @@ class DateChartBuilder(ChartBuilder):
                 x=alt.X(column, type="temporal"),
                 y=alt.Y("count()", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -144,7 +145,7 @@ class DateChartBuilder(ChartBuilder):
 
 
 class BooleanChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -154,7 +155,6 @@ class BooleanChartBuilder(ChartBuilder):
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -172,7 +172,7 @@ class BooleanChartBuilder(ChartBuilder):
 
 
 class IntegerChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -182,7 +182,6 @@ class IntegerChartBuilder(ChartBuilder):
                 x=alt.X(column, type="quantitative", bin=True),
                 y=alt.Y("count()", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -200,7 +199,7 @@ class IntegerChartBuilder(ChartBuilder):
 
 
 class UnknownChartBuilder(ChartBuilder):
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         import altair as alt
 
         return (
@@ -210,7 +209,6 @@ class UnknownChartBuilder(ChartBuilder):
                 x=alt.X(column, type="nominal"),
                 y=alt.Y("count()", type="quantitative"),
             )
-            .to_json()
         )
 
     def altair_code(self, data: str, column: str) -> str:
@@ -231,7 +229,7 @@ class WrapperChartBuilder(ChartBuilder):
     def __init__(self, delegate: ChartBuilder):
         self.delegate = delegate
 
-    def altair_json(self, data: Any, column: str) -> str:
+    def altair(self, data: Any, column: str) -> Any:
         return self.delegate.altair_json(data, column)
 
     def altair_code(self, data: str, column: str) -> str:

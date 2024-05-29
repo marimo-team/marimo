@@ -1,8 +1,10 @@
+# Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime  # noqa: TCH003
-from typing import List, Literal, Optional, Union
+from datetime import date, datetime, time, timedelta  # noqa: TCH003
+from decimal import Decimal
+from typing import List, Literal, Optional, TypeAlias, Union
 
 DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
 
@@ -44,6 +46,13 @@ class DataTable:
     columns: List[DataTableColumn]
 
 
+NumericLiteral: TypeAlias = Union[int, float, Decimal]
+TemporalLiteral: TypeAlias = Union[date, time, datetime, timedelta]
+NonNestedLiteral: TypeAlias = Union[
+    NumericLiteral, TemporalLiteral, str, bool, bytes
+]
+
+
 @dataclass
 class ColumnSummary:
     """
@@ -54,15 +63,15 @@ class ColumnSummary:
     total: Optional[int] = None
     nulls: Optional[int] = None
     unique: Optional[int] = None
-    min: Optional[Union[float, datetime]] = None
-    max: Optional[Union[float, datetime]] = None
-    mean: Optional[Union[float, datetime]] = None
-    median: Optional[Union[float, datetime]] = None
-    std: Optional[float] = None
-    true: Optional[int] = None
-    false: Optional[int] = None
-    p5: Optional[Union[float, datetime]] = None
-    p25: Optional[Union[float, datetime]] = None
+    min: Optional[NonNestedLiteral] = None
+    max: Optional[NonNestedLiteral] = None
+    mean: Optional[NonNestedLiteral] = None
+    median: Optional[NonNestedLiteral] = None
+    std: Optional[NonNestedLiteral] = None
+    true: Optional[NonNestedLiteral] = None
+    false: Optional[NonNestedLiteral] = None
+    p5: Optional[NonNestedLiteral] = None
+    p25: Optional[NonNestedLiteral] = None
     # p50 is the median
-    p75: Optional[Union[float, datetime]] = None
-    p95: Optional[Union[float, datetime]] = None
+    p75: Optional[NonNestedLiteral] = None
+    p95: Optional[NonNestedLiteral] = None

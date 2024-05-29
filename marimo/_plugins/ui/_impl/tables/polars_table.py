@@ -1,9 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
-from marimo._data.models import ColumnSummary
+from marimo._data.models import ColumnSummary, NonNestedLiteral
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     FieldTypes,
@@ -80,10 +80,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return ColumnSummary(
                         total=total,
                         nulls=col.null_count(),
-                        min=col.min(),
-                        max=col.max(),
-                        mean=col.mean(),
-                        median=col.median(),
+                        min=cast(NonNestedLiteral, col.min()),
+                        max=cast(NonNestedLiteral, col.max()),
+                        mean=cast(NonNestedLiteral, col.mean()),
+                        median=cast(NonNestedLiteral, col.median()),
                         p5=col.quantile(0.05),
                         p25=col.quantile(0.25),
                         p75=col.quantile(0.75),
@@ -93,10 +93,10 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     total=total,
                     nulls=col.null_count(),
                     unique=col.n_unique() if col.is_integer() else None,
-                    min=col.min(),
-                    max=col.max(),
-                    mean=col.mean(),
-                    median=col.median(),
+                    min=cast(NonNestedLiteral, col.min()),
+                    max=cast(NonNestedLiteral, col.max()),
+                    mean=cast(NonNestedLiteral, col.mean()),
+                    median=cast(NonNestedLiteral, col.median()),
                     std=col.std(),
                     p5=col.quantile(0.05),
                     p25=col.quantile(0.25),

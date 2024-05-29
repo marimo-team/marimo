@@ -21,6 +21,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
     @staticmethod
     def create() -> type[TableManager[Any]]:
         import pyarrow as pa  # type: ignore
+        import pyarrow.compute as pc  # type: ignore
 
         class PyArrowTableManager(
             TableManager[Union[pa.Table, pa.RecordBatch]]
@@ -80,7 +81,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 if column not in self.data.schema.names:
                     return ColumnSummary()
                 idx = self.data.schema.get_field_index(column)
-                col = self.data.column(idx)
+                col: Any = self.data.column(idx)
 
                 field_type = self._get_field_type(col)
                 if field_type == "unknown":
@@ -89,40 +90,40 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        unique=pa.compute.count_distinct(col).as_py(),
+                        unique=pc.count_distinct(col).as_py(),
                     )
                 if field_type == "boolean":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        true=pa.compute.sum(col).as_py(),
+                        true=pc.sum(col).as_py(),
                         false=self.data.num_rows
-                        - pa.compute.sum(col).as_py()
+                        - pc.sum(col).as_py()
                         - col.null_count,
                     )
                 if field_type == "integer":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        unique=pa.compute.count_distinct(col).as_py(),
-                        min=pa.compute.min(col).as_py(),
-                        max=pa.compute.max(col).as_py(),
-                        mean=pa.compute.mean(col).as_py(),
+                        unique=pc.count_distinct(col).as_py(),
+                        min=pc.min(col).as_py(),
+                        max=pc.max(col).as_py(),
+                        mean=pc.mean(col).as_py(),
                     )
                 if field_type == "number":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        min=pa.compute.min(col).as_py(),
-                        max=pa.compute.max(col).as_py(),
-                        mean=pa.compute.mean(col).as_py(),
+                        min=pc.min(col).as_py(),
+                        max=pc.max(col).as_py(),
+                        mean=pc.mean(col).as_py(),
                     )
                 if field_type == "date":
                     return ColumnSummary(
                         total=self.data.num_rows,
                         nulls=col.null_count,
-                        min=pa.compute.min(col).as_py(),
-                        max=pa.compute.max(col).as_py(),
+                        min=pc.min(col).as_py(),
+                        max=pc.max(col).as_py(),
                     )
                 return ColumnSummary()
 
