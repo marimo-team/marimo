@@ -337,7 +337,7 @@ const DatasetColumnPreview: React.FC<{
   }
 
   const summary = (
-    <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 ">
+    <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
       {Object.entries(preview.summary).map(([key, value]) => {
         if (value == null) {
           return null;
