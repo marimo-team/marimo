@@ -20,4 +20,5 @@ if $cmd; then
   echo "Compilation succeeded.\n"
 else
   echo "Frontend compilation failed.\n"
+  exit 1
 fi

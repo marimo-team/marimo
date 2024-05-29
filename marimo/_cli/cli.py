@@ -12,6 +12,7 @@ import click
 import marimo._cli.cli_validators as validators
 from marimo import __version__, _loggers
 from marimo._ast import codegen
+from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
@@ -601,3 +602,4 @@ def env() -> None:
 
 main.command()(convert)
 main.add_command(export)
+main.add_command(config)
