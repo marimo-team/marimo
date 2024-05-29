@@ -17,7 +17,7 @@
 
     @app.cell
     def __():
-        mo.stop(b.value, "Click `run` to submit the slider's value")
+        mo.stop(not b.value, "Click `run` to submit the slider's value")
 
         s.value
         return

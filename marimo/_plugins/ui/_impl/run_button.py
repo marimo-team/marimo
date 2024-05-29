@@ -19,7 +19,7 @@ class run_button(UIElement[Any, Any]):
     ```python
     # a button that when clicked will have its value set to True;
     # any cells referencing that button will automatically run.
-    button = mo.ui.button()
+    button = mo.ui.run_button()
     button
     ```
 
