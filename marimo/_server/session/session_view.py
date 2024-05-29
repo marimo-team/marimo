@@ -5,9 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Optional, Union
 
 from marimo._ast.cell import CellId_t
+from marimo._data.models import DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
+    Datasets,
     Interrupted,
     MessageOperation,
     Variables,
@@ -34,6 +36,8 @@ class SessionView:
     def __init__(self) -> None:
         # List of operations we care about keeping track of.
         self.cell_operations: dict[CellId_t, CellOp] = {}
+        # The most recent Variables operation.
+        self.datasets: Datasets = Datasets(tables=[])
         # The most recent Variables operation.
         self.variable_operations: Variables = Variables(variables=[])
         # Map of variable name to value.
@@ -97,15 +101,24 @@ class SessionView:
         elif isinstance(operation, Variables):
             self.variable_operations = operation
 
-            # Remove any variable values that are no longer in scope.
-            names: set[str] = set(
+            # Set of variable names that are in scope.
+            variable_names: set[str] = set(
                 [v.name for v in self.variable_operations.variables]
             )
+
+            # Remove any variable values that are no longer in scope.
             next_values: dict[str, VariableValue] = {}
             for name, value in self.variable_values.items():
-                if name in names:
+                if name in variable_names:
                     next_values[name] = value
             self.variable_values = next_values
+
+            # Remove any table values that are no longer in scope.
+            next_tables: dict[str, DataTable] = {}
+            for table in self.datasets.tables:
+                if table.variable_name in variable_names:
+                    next_tables[table.name] = table
+            self.datasets = Datasets(tables=list(next_tables.values()))
 
         elif isinstance(operation, VariableValues):
             for value in operation.variables:
@@ -114,6 +127,12 @@ class SessionView:
         elif isinstance(operation, Interrupted):
             # Resolve stdin
             self.add_stdin("")
+        elif isinstance(operation, Datasets):
+            # Merge datasets, dedupe by table name and keep the latest.
+            tables = {t.name: t for t in self.datasets.tables}
+            for table in operation.tables:
+                tables[table.name] = table
+            self.datasets = Datasets(tables=list(tables.values()))
 
     def get_cell_outputs(
         self, ids: list[CellId_t]
@@ -142,6 +161,7 @@ class SessionView:
         all_ops: list[MessageOperation] = [
             self.variable_operations,
             VariableValues(variables=list(self.variable_values.values())),
+            self.datasets,
         ]
         all_ops.extend(self.cell_operations.values())
         return all_ops

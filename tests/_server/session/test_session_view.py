@@ -5,9 +5,11 @@ from typing import Any
 from unittest.mock import patch
 
 from marimo._ast.cell import CellId_t, CellStatusType
+from marimo._data.models import DataTable, DataTableColumn
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.ops import (
     CellOp,
+    Datasets,
     VariableDeclaration,
     Variables,
     VariableValue,
@@ -230,6 +232,94 @@ def test_add_variables() -> None:
     assert session_view.variable_values["var1"].datatype == "int"
     assert session_view.variable_values["var2"].value == "hello"
     assert session_view.variable_values["var2"].datatype == "str"
+
+
+def test_add_datasets() -> None:
+    session_view = SessionView()
+
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source="Local",
+                        name="table1",
+                        columns=[DataTableColumn(name="col1", type="boolean")],
+                        num_rows=1,
+                        num_columns=1,
+                        variable_name="df1",
+                    ),
+                    DataTable(
+                        source="Local",
+                        name="table2",
+                        columns=[DataTableColumn(name="col2", type="integer")],
+                        num_rows=2,
+                        num_columns=2,
+                        variable_name="df2",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert session_view.datasets.tables[0].name == "table1"
+    assert session_view.datasets.tables[1].name == "table2"
+    assert session_view.datasets.tables[0].variable_name == "df1"
+    assert session_view.datasets.tables[1].variable_name == "df2"
+
+    # Can add a new table and overwrite an existing table
+
+    session_view.add_raw_operation(
+        serialize(
+            Datasets(
+                tables=[
+                    DataTable(
+                        source="Local",
+                        name="table2",
+                        columns=[
+                            DataTableColumn(name="new_col", type="boolean")
+                        ],
+                        num_rows=20,
+                        num_columns=20,
+                        variable_name="df2",
+                    ),
+                    DataTable(
+                        source="Local",
+                        name="table3",
+                        columns=[],
+                        num_rows=3,
+                        num_columns=3,
+                        variable_name="df3",
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert session_view.datasets.tables[0].name == "table1"
+    # Updated
+    assert session_view.datasets.tables[1].name == "table2"
+    assert session_view.datasets.tables[1].columns[0].name == "new_col"
+    assert session_view.datasets.tables[1].num_rows == 20
+    # Added
+    assert session_view.datasets.tables[2].name == "table3"
+    assert session_view.datasets.tables[2].variable_name == "df3"
+
+    # Can filter out tables from new variables
+    session_view.add_raw_operation(
+        serialize(
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name="df2", declared_by=[cell_id], used_by=[]
+                    ),
+                ]
+            )
+        )
+    )
+
+    assert len(session_view.datasets.tables) == 1
+    assert session_view.datasets.tables[0].name == "table2"
 
 
 def test_add_cell_op() -> None:
