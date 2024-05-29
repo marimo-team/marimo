@@ -88,7 +88,9 @@ def _get_altair_chart(
     if not DependencyManager.has_altair() or not table.supports_altair():
         return None, None, False
 
-    from altair import MaxRowsError
+    from altair import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+        MaxRowsError,
+    )
 
     column_type = table.get_field_types()[request.column_name]
 
