@@ -1,5 +1,12 @@
 # Button
 
+```{admonition} Looking for a submit/run button?
+:class: tip
+
+If you're looking for a button to trigger computation on click, consider
+using [`mo.ui.run_button`](/api/inputs/run_button.md).
+```
+
 ```{eval-rst}
 .. marimo-embed::
     @app.cell

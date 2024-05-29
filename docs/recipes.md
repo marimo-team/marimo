@@ -388,6 +388,36 @@ form.value
 
 ## Working with buttons
 
+### Create a button that triggers computation when clicked
+
+**Use cases.** To trigger a computation on button click and only on button
+click, use [`mo.ui.run_button()`](/api/inputs/run_button.md).
+
+**Recipe.**
+
+1. Import packages
+
+```python
+import marimo as mo
+```
+
+2. Create a run button
+
+```python
+button = mo.ui.run_button()
+button
+```
+
+3. Run something only if the button has been clicked.
+
+```python
+mo.stop(not button.value, "Click 'run' to generate a random number")
+
+import random
+random.randint(0, 1000)
+```
+
+
 ### Create a counter button
 
 **Use cases.** A counter button, i.e. a button that counts the number of times

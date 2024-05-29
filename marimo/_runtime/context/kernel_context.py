@@ -44,6 +44,10 @@ class KernelRuntimeContext(RuntimeContext):
         return self._kernel.execution_context
 
     @property
+    def lazy(self) -> bool:
+        return self._kernel.lazy()
+
+    @property
     def cell_id(self) -> Optional[CellId_t]:
         """Get the cell id of the currently executing cell, if any."""
         if self._kernel.execution_context is not None:
