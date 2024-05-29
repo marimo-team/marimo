@@ -3,7 +3,7 @@ import { VegaLite, type SignalListeners, type View } from "react-vega";
 import { makeSelectable } from "./make-selectable";
 import { useMemo, useRef, useState } from "react";
 import { getSelectionParamNames } from "./params";
-import { VegaLiteSpec } from "./types";
+import type { VegaLiteSpec } from "./types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useDebugMounting, usePropsDidChange } from "@/hooks/debug";
@@ -16,6 +16,7 @@ import { useTheme } from "@/theme/useTheme";
 import { Objects } from "@/utils/objects";
 import { resolveVegaSpecData } from "./resolve-data";
 import { Events } from "@/utils/events";
+import { ErrorBanner } from "../common/error-banner";
 
 export interface Data {
   spec: VegaLiteSpec;
@@ -49,13 +50,17 @@ const VegaComponent = ({
   fieldSelection,
   spec,
 }: VegaComponentProps<VegaComponentState>) => {
-  const { data: resolvedSpec } = useAsyncData(async () => {
+  const { data: resolvedSpec, error } = useAsyncData(async () => {
     // We try to resolve the data before passing it to Vega
     // otherwise it will try to load it internally and flicker
     // Instead we can handle the loading state ourselves,
     // and show the previous chart until the new one is ready
     return resolveVegaSpecData(spec);
   }, [spec]);
+
+  if (error) {
+    return <ErrorBanner error={error} />;
+  }
 
   if (!resolvedSpec) {
     return null;

@@ -10,6 +10,7 @@ from typing import (
     cast,
 )
 
+from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
@@ -30,6 +31,8 @@ JsonTableData = Union[
 
 
 class DefaultTableManager(TableManager[JsonTableData]):
+    type = "dictionary"
+
     def __init__(self, data: JsonTableData):
         self.data = data
 
@@ -76,6 +79,20 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
 
         raise ValueError("No supported table libraries found.")
+
+    def get_summary(self, column: str) -> ColumnSummary:
+        del column
+        return ColumnSummary()
+
+    def get_num_rows(self) -> int:
+        if isinstance(self.data, dict):
+            return len(next(iter(self.data.values()), []))
+        return len(self.data)
+
+    def get_num_columns(self) -> int:
+        if isinstance(self.data, dict):
+            return len(self.data)
+        return 1
 
     @staticmethod
     def is_type(value: Any) -> bool:

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { TypedString } from "../typed";
+import type { TypedString } from "../typed";
 
-export type JsonString<T> = TypedString<"Json"> & {
+export type JsonString<T = unknown> = TypedString<"Json"> & {
   _of_: T;
 };
 

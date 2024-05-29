@@ -45,6 +45,7 @@ export const {
   sendInstallMissingPackages,
   readCode,
   readSnippets,
+  previewDatasetColumn,
   openFile,
   getUsageStats,
   sendListFiles,

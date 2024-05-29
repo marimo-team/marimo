@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime
 import unittest
 
 import pytest
 
+from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
@@ -18,7 +20,24 @@ class TestPandasTableManager(unittest.TestCase):
         import pandas as pd
 
         self.factory = PandasTableManagerFactory()
-        self.data = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        self.data = pd.DataFrame(
+            {
+                # Integer
+                "A": [1, 2, 3],
+                # String
+                "B": ["a", "b", "c"],
+                # Float
+                "C": [1.0, 2.0, 3.0],
+                # Boolean
+                "D": [True, False, True],
+                # DateTime
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+            }
+        )
         self.manager = self.factory.create()(self.data)
 
     def test_package_name(self) -> None:
@@ -42,7 +61,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
-        assert selected_manager.data.shape == (0, 2)
+        assert selected_manager.data.shape == (0, 5)
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
@@ -112,6 +131,9 @@ class TestPandasTableManager(unittest.TestCase):
         expected_field_types = {
             "A": "integer",
             "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "date",
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -216,3 +238,79 @@ class TestPandasTableManager(unittest.TestCase):
         limited_manager = self.manager.limit(limit)
         expected_data = self.data.head(limit)
         pd.testing.assert_frame_equal(limited_manager.data, expected_data)
+
+    def test_summary_integer(self) -> None:
+        column = "A"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=None,
+            min=1,
+            max=3,
+            mean=2.0,
+            median=2.0,
+            std=1.0,
+            p5=1.1,
+            p25=1.5,
+            p75=2.5,
+            p95=2.9,
+        )
+
+    def test_summary_string(self) -> None:
+        column = "B"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=3,
+        )
+
+    def test_summary_number(self) -> None:
+        column = "C"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            min=1.0,
+            max=3.0,
+            mean=2.0,
+            median=2.0,
+            std=1.0,
+            p5=1.1,
+            p25=1.5,
+            p75=2.5,
+            p95=2.9,
+        )
+
+    def test_summary_boolean(self) -> None:
+        column = "D"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            true=2,
+            false=1,
+        )
+
+    def test_summary_date(self) -> None:
+        column = "E"
+        summary = self.manager.get_summary(column)
+        import pandas as pd
+
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=None,
+            min=pd.Timestamp("2021-01-01 00:00:00"),
+            max=pd.Timestamp("2021-01-03 00:00:00"),
+            mean=pd.Timestamp("2021-01-02 00:00:00"),
+            median=pd.Timestamp("2021-01-02 00:00:00"),
+            std=None,
+            true=None,
+            false=None,
+            p5=pd.Timestamp("2021-01-01 02:24:00"),
+            p25=pd.Timestamp("2021-01-01 12:00:00"),
+            p75=pd.Timestamp("2021-01-02 12:00:00"),
+            p95=pd.Timestamp("2021-01-02 21:36:00"),
+        )

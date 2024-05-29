@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime
 import unittest
 
 import pytest
 
+from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
@@ -18,7 +20,24 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         import polars as pl
 
         self.factory = PolarsTableManagerFactory()
-        self.data = pl.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+        self.data = pl.DataFrame(
+            {
+                # Integer
+                "A": [1, 2, 3],
+                # String
+                "B": ["a", "b", "c"],
+                # Float
+                "C": [1.0, 2.0, 3.0],
+                # Boolean
+                "D": [True, False, True],
+                # DateTime
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+            }
+        )
         self.manager = self.factory.create()(self.data)
 
     def test_package_name(self) -> None:
@@ -34,7 +53,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         indices = [0, 2]
         selected_manager = self.manager.select_rows(indices)
         expected_data = self.data[indices]
-        assert selected_manager.data.frame_equal(expected_data)
+        assert selected_manager.data.equals(expected_data)
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
@@ -55,6 +74,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         expected_field_types = {
             "A": "integer",
             "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "date",
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -68,19 +90,19 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "F": [None, None, None],
                 "G": [set([1, 2]), set([3, 4]), set([5, 6])],
                 "H": [
-                    pl.Date(2021, 1, 1),
-                    pl.Date(2021, 1, 2),
-                    pl.Date(2021, 1, 3),
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
                 ],
                 "I": [
-                    pl.Time(0, 0, 0),
-                    pl.Time(1, 0, 0),
-                    pl.Time(2, 0, 0),
+                    "1 days",
+                    "2 days",
+                    "3 days",
                 ],
                 "J": [
-                    pl.Duration("ms"),
-                    pl.Duration("ms"),
-                    pl.Duration("ms"),
+                    "0-5",
+                    "5-10",
+                    "10-15",
                 ],
             }
         )
@@ -90,11 +112,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "C": "number",
             "D": "boolean",
             "E": "unknown",
-            "F": "number",
+            "F": "unknown",
             "G": "unknown",
-            "H": "unknown",
-            "I": "unknown",
-            "J": "unknown",
+            "H": "date",
+            "I": "string",
+            "J": "string",
         }
         assert (
             self.factory.create()(complex_data).get_field_types()
@@ -104,4 +126,70 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
     def test_limit(self) -> None:
         limited_manager = self.manager.limit(1)
         expected_data = self.data.head(1)
-        assert limited_manager.data.frame_equal(expected_data)
+        assert limited_manager.data.equals(expected_data)
+
+    def test_summary_integer(self) -> None:
+        column = "A"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=3,
+            min=1,
+            max=3,
+            mean=2.0,
+            median=2.0,
+            std=1.0,
+            p5=1.0,
+            p25=2.0,
+            p75=3.0,
+            p95=3.0,
+        )
+
+    def test_summary_string(self) -> None:
+        column = "B"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=3,
+        )
+
+    def test_summary_number(self) -> None:
+        column = "C"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            min=1.0,
+            max=3.0,
+            mean=2.0,
+            median=2.0,
+            std=1.0,
+            p5=1.0,
+            p25=2.0,
+            p75=3.0,
+            p95=3.0,
+        )
+
+    def test_summary_boolean(self) -> None:
+        column = "D"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            true=2,
+            false=1,
+        )
+
+    def test_summary_date(self) -> None:
+        column = "E"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            min=datetime.datetime(2021, 1, 1, 0, 0),
+            max=datetime.datetime(2021, 1, 3, 0, 0),
+            mean=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+        )

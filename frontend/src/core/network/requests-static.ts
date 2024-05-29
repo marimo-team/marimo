@@ -51,6 +51,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     sendStdin: throwNotInEditMode,
     readCode: throwNotInEditMode,
     readSnippets: throwNotInEditMode,
+    previewDatasetColumn: throwNotInEditMode,
     openFile: throwNotInEditMode,
     getUsageStats: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,

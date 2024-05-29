@@ -2,23 +2,22 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, Literal, TypeVar
+from typing import Any, Dict, Generic, TypeVar
 
 import marimo._output.data.data as mo_data
+from marimo._data.models import ColumnSummary, DataType
 from marimo._plugins.core.web_component import JSONType
 
 T = TypeVar("T")
 
 
-# This is the frontend type for how the frontend should parse the data
-FieldType = Literal[
-    "string", "boolean", "integer", "number", "date", "unknown"
-]
+FieldType = DataType
 FieldTypes = Dict[str, FieldType]
 
 
 class TableManager(abc.ABC, Generic[T]):
     DEFAULT_LIMIT = 10_000
+    type: str = ""
 
     def __init__(self, data: T) -> None:
         self.data = data
@@ -61,6 +60,21 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def is_type(value: Any) -> bool:
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_summary(self, column: str) -> ColumnSummary:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_num_rows(self) -> int:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_num_columns(self) -> int:
+        raise NotImplementedError
+
+    def supports_altair(self) -> bool:
+        return True
 
 
 class TableManagerFactory(abc.ABC):

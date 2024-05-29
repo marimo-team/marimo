@@ -33,6 +33,13 @@ export const Sidebar: React.FC = () => {
         {renderIcon("variables")}
       </SidebarItem>
       <SidebarItem
+        tooltip="Explore data sources"
+        selected={selectedPanel === "datasources"}
+        onClick={() => openApplication("datasources")}
+      >
+        {renderIcon("datasources")}
+      </SidebarItem>
+      <SidebarItem
         tooltip="Explore dependencies"
         selected={selectedPanel === "dependencies"}
         onClick={() => openApplication("dependencies")}

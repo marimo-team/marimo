@@ -1,12 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { LayoutType } from "@/components/editor/renderers/types";
+import type { LayoutType } from "@/components/editor/renderers/types";
 import type { CellConfig, CellStatus } from "../cells/types";
-import { CellId, UIElementId } from "../cells/ids";
-import { VariableName } from "../variables/types";
-import { RequestId } from "../network/DeferredRequestRegistry";
-import { Seconds } from "@/utils/time";
-import { AppConfig } from "../config/config-schema";
+import type { CellId, UIElementId } from "../cells/ids";
+import type { VariableName } from "../variables/types";
+import type { RequestId } from "../network/DeferredRequestRegistry";
+import type { Seconds } from "@/utils/time";
+import type { AppConfig } from "../config/config-schema";
+import type { DataTable } from "../network/types";
+import type { ColumnPreviewSummary } from "../datasets/types";
+import type { JsonString } from "@/utils/json/base64";
 
 export type OutputChannel =
   | "output"
@@ -167,6 +170,16 @@ export interface PackageInstallationStatus {
   [key: string]: "queued" | "installing" | "installed" | "failed";
 }
 
+export interface DataColumnPreview {
+  table_name: string;
+  column_name: string;
+  chart_max_rows_errors: boolean;
+  chart_spec?: JsonString;
+  chart_code?: string;
+  error?: string;
+  summary?: ColumnPreviewSummary;
+}
+
 /**
  * Message sent from the frontend to the kernel via the websocket.
  */
@@ -274,6 +287,16 @@ export type OperationMessage =
           value?: string;
         }>;
       };
+    }
+  | {
+      op: "datasets";
+      data: {
+        tables: DataTable[];
+      };
+    }
+  | {
+      op: "data-column-preview";
+      data: DataColumnPreview;
     }
   | {
       op: "query-params-set";

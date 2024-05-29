@@ -35,6 +35,7 @@ import type {
   UsageResponse,
   ExportAsMarkdownRequest,
   WorkspaceFilesRequest,
+  PreviewDatasetColumnRequest,
 } from "./types";
 import { invariant } from "@/utils/invariant";
 
@@ -154,6 +155,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     readSnippets: () => {
       return API.get<SnippetsResponse>("/documentation/snippets", {});
+    },
+    previewDatasetColumn: (request: PreviewDatasetColumnRequest) => {
+      return API.post<PreviewDatasetColumnRequest>(
+        "/datasources/preview_column",
+        request,
+      );
     },
     openFile: async (request) => {
       await API.post<{ path: string }>("/kernel/open", request);

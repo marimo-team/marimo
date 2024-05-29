@@ -1,7 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import sys
+from tempfile import TemporaryDirectory
 from typing import Generator, Iterator
 
 import pytest
@@ -9,6 +11,7 @@ import uvicorn
 from starlette.testclient import TestClient
 
 from marimo._config.manager import UserConfigManager
+from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.main import create_starlette_app
 from marimo._server.sessions import SessionManager
 from marimo._server.utils import initialize_asyncio
@@ -30,10 +33,20 @@ def client_with_lifespans() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def user_config_manager() -> UserConfigManager:
+    class TestUserConfigManager(UserConfigManager):
+        def _get_config_path(self) -> str:
+            tmp = TemporaryDirectory()
+            return os.path.join(tmp.name, CONFIG_FILENAME)
+
+    return TestUserConfigManager()
+
+
+@pytest.fixture
+def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
     app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = UserConfigManager()
+    app.state.config_manager = user_config_manager
     client = TestClient(app)
 
     # Mock out the server
