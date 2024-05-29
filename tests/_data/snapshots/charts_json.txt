@@ -35,7 +35,8 @@
   },
   "mark": {
     "type": "bar"
-  }
+  },
+  "width": "container"
 }
 
 # date
@@ -79,7 +80,8 @@
       "filled": false
     },
     "type": "line"
-  }
+  },
+  "width": "container"
 }
 
 # integer
@@ -120,7 +122,8 @@
   },
   "mark": {
     "type": "bar"
-  }
+  },
+  "width": "container"
 }
 
 # number
@@ -161,7 +164,8 @@
   },
   "mark": {
     "type": "bar"
-  }
+  },
+  "width": "container"
 }
 
 # string
@@ -201,7 +205,8 @@
   },
   "mark": {
     "type": "bar"
-  }
+  },
+  "width": "container"
 }
 
 # string (limit to 10 items)
@@ -278,7 +283,8 @@
     {
       "filter": "(datum.rank <= 10)"
     }
-  ]
+  ],
+  "width": "container"
 }
 
 # unknown
@@ -318,5 +324,6 @@
   },
   "mark": {
     "type": "bar"
-  }
+  },
+  "width": "container"
 }

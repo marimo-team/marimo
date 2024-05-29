@@ -6,6 +6,7 @@ _chart = (
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
 
@@ -17,6 +18,7 @@ _chart = (
         x=alt.X("some_column", type="temporal"),
         y=alt.Y("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
 
@@ -28,6 +30,7 @@ _chart = (
         x=alt.X("some_column", type="quantitative", bin=True),
         y=alt.Y("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
 
@@ -39,6 +42,7 @@ _chart = (
         x=alt.X("some_column", type="quantitative", bin=True),
         y=alt.Y("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
 
@@ -50,6 +54,7 @@ _chart = (
         y=alt.Y("some_column", type="nominal"),
         x=alt.X("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
 
@@ -70,7 +75,7 @@ _chart = (
         y=alt.Y("some_column", type="nominal", sort="-x"),
         x=alt.X("count", type="quantitative"),
     )
-    .properties(title="Top 10 some_column")
+    .properties(title="Top 10 some_column", width="container")
 )
 _chart
 
@@ -82,5 +87,6 @@ _chart = (
         x=alt.X("some_column", type="nominal"),
         y=alt.Y("count()", type="quantitative"),
     )
+    .properties(width="container")
 )
 _chart
