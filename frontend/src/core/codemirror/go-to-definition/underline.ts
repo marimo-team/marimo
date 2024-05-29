@@ -56,6 +56,7 @@ class MetaUnderlineVariablePlugin {
 
     window.addEventListener("keydown", this.keydown);
     window.addEventListener("keyup", this.keyup);
+    window.addEventListener("blur", this.windowBlur);
   }
 
   update(update: ViewUpdate) {
@@ -67,6 +68,7 @@ class MetaUnderlineVariablePlugin {
   destroy() {
     window.removeEventListener("keydown", this.keydown);
     window.removeEventListener("keyup", this.keyup);
+    window.removeEventListener("blur", this.windowBlur);
     this.view.dom.removeEventListener("mousemove", this.mousemove);
     this.view.dom.removeEventListener("click", this.click);
   }
@@ -82,6 +84,16 @@ class MetaUnderlineVariablePlugin {
 
   // Exit the cmd+click mode
   private keyup = (event: KeyboardEvent) => {
+    if (event.key === "Meta" || event.key === "Control") {
+      this.commandClickMode = false;
+      this.view.dom.removeEventListener("mousemove", this.mousemove);
+      this.view.dom.removeEventListener("click", this.click);
+      this.clearUnderline();
+    }
+  };
+
+  // Handle window blur event to reset state
+  private windowBlur = () => {
     if (this.commandClickMode) {
       this.commandClickMode = false;
       this.view.dom.removeEventListener("mousemove", this.mousemove);
