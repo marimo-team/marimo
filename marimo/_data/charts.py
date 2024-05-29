@@ -230,7 +230,7 @@ class WrapperChartBuilder(ChartBuilder):
         self.delegate = delegate
 
     def altair(self, data: Any, column: str) -> Any:
-        return self.delegate.altair_json(data, column)
+        return self.delegate.altair(data, column)
 
     def altair_code(self, data: str, column: str) -> str:
         return dedent(self.delegate.altair_code(data, column)).strip()

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta  # noqa: TCH003
 from decimal import Decimal
-from typing import List, Literal, Optional, TypeAlias, Union
+from typing import List, Literal, Optional, Union
 
 DataType = Literal["string", "boolean", "integer", "number", "date", "unknown"]
 
@@ -46,11 +46,9 @@ class DataTable:
     columns: List[DataTableColumn]
 
 
-NumericLiteral: TypeAlias = Union[int, float, Decimal]
-TemporalLiteral: TypeAlias = Union[date, time, datetime, timedelta]
-NonNestedLiteral: TypeAlias = Union[
-    NumericLiteral, TemporalLiteral, str, bool, bytes
-]
+NumericLiteral = Union[int, float, Decimal]
+TemporalLiteral = Union[date, time, datetime, timedelta]
+NonNestedLiteral = Union[NumericLiteral, TemporalLiteral, str, bool, bytes]
 
 
 @dataclass
