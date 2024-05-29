@@ -14,12 +14,6 @@ def __():
 
 
 @app.cell
-def __():
-    import altair as alt
-    return alt,
-
-
-@app.cell
 def __(data, mo):
     options = data.list_datasets()
     dropdown = mo.ui.dropdown(options)

@@ -316,17 +316,11 @@ const DatasetColumnPreview: React.FC<{
     return <span className="text-xs text-muted-foreground">Loading...</span>;
   }
 
-  if (preview.error) {
-    return (
-      <span className="text-xs text-muted-foreground">{preview.error}</span>
-    );
-  }
+  const error = preview.error && (
+    <span className="text-xs text-muted-foreground">{preview.error}</span>
+  );
 
-  if (!preview.summary) {
-    return <span className="text-xs text-muted-foreground">No data</span>;
-  }
-
-  const summary = (
+  const summary = preview.summary && (
     <div className="gap-x-16 gap-y-1 grid grid-cols-2-fit border rounded p-2 empty:hidden">
       {Object.entries(preview.summary).map(([key, value]) => {
         if (value == null) {
@@ -380,8 +374,13 @@ const DatasetColumnPreview: React.FC<{
     </span>
   );
 
+  if (!error && !summary && !chart && !chartMaxRowsWarning) {
+    return <span className="text-xs text-muted-foreground">No data</span>;
+  }
+
   return (
     <div className="flex flex-col gap-2 relative">
+      {error}
       {addChart}
       {chartMaxRowsWarning}
       {chart}

@@ -41,6 +41,14 @@ def get_column_preview(
             )
             summary = ColumnSummary()
 
+        # We require altair to render the chart
+        error = None
+        if not DependencyManager.has_altair():
+            error = (
+                "Altair is required to render charts. "
+                "Install it with `pip install altair`."
+            )
+
         # Get the chart for the column
         try:
             chart_spec, chart_code, chart_max_rows_errors = _get_altair_chart(
@@ -64,6 +72,7 @@ def get_column_preview(
             chart_spec=chart_spec,
             chart_code=chart_code,
             summary=summary,
+            error=error,
         )
     except Exception as e:
         LOGGER.warning(
