@@ -26,7 +26,7 @@ const quoteKinds = [
 ];
 // explode into all combinations
 const pairs = prefixKinds.flatMap((prefix) =>
-  quoteKinds.map(([start, end]) => [prefix + start, end]),
+  quoteKinds.map(([start, end]) => [prefix + start, end])
 );
 
 const regexes = pairs.map(
@@ -35,7 +35,7 @@ const regexes = pairs.map(
     [
       start,
       new RegExp(`^mo\\.md\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
-    ] as const,
+    ] as const
 );
 
 /**
@@ -155,7 +155,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 function splitQuotePrefix(quote: string): [PrefixKind, string] {
   // start with the longest prefix
   const prefixKindsByLength = [...prefixKinds].sort(
-    (a, b) => b.length - a.length,
+    (a, b) => b.length - a.length
   );
   for (const prefix of prefixKindsByLength) {
     if (quote.startsWith(prefix)) {
@@ -218,7 +218,7 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 // everything works fine, except for autocompletion of emojis
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
-    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
+    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json"
   ).then((res) => res.json() as unknown as Record<string, string[]>);
 
   return Object.entries(emojiList).map(([emoji, names]) => ({

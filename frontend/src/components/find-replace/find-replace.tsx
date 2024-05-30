@@ -4,7 +4,7 @@ import {
   openFindReplacePanel,
 } from "@/core/codemirror/find-replace/state";
 import { useAtom } from "jotai";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import {
@@ -42,6 +42,7 @@ export const FindReplace: React.FC = () => {
     count: number;
     position: Map<EditorView, Map<string, number>>;
   }>();
+  const findInputRef = useRef<HTMLInputElement>(null);
 
   useHotkey("cell.findAndReplace", () => {
     // if already open and focused, fallback to default behavior
@@ -51,6 +52,13 @@ export const FindReplace: React.FC = () => {
 
     return openFindReplacePanel();
   });
+
+  useEffect(() => {
+    if (state.isOpen && findInputRef.current) {
+      findInputRef.current.focus(); // Focus the input
+      findInputRef.current.select(); // Select all text in the input
+    }
+  }, [state.isOpen]); // Depend on isOpen to trigger when the panel opens
 
   useEffect(() => {
     if (!state.isOpen) {
@@ -118,6 +126,7 @@ export const FindReplace: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex flex-col flex-2 gap-2 w-[55%]">
             <Input
+              ref={findInputRef} // Attach the ref here
               data-testid="find-input"
               value={state.findText}
               autoFocus={true}
