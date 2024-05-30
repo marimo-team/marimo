@@ -98,6 +98,21 @@ class DependencyManager:
             ) from None
 
     @staticmethod
+    def require_pyarrow(why: str) -> None:
+        """
+        Raise an ModuleNotFoundError if pyarrow is not installed.
+
+        Args:
+            why: A string of the form "for <reason>" that will be appended
+
+        """
+        if not DependencyManager.has_pyarrow():
+            raise ModuleNotFoundError(
+                f"pyarrow is required {why}. "
+                + "You can install it with 'pip install pyarrow'"
+            ) from None
+
+    @staticmethod
     def has(pkg: str) -> bool:
         """Return True if any lib is installed."""
         return importlib.util.find_spec(pkg) is not None

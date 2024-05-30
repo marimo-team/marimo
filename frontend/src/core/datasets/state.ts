@@ -34,9 +34,12 @@ const {
       seen.add(key);
       return true;
     });
+    const sortedTables = dedupedTables.sort((a, b) => {
+      return a.name.localeCompare(b.name);
+    });
     return {
       ...state,
-      tables: dedupedTables,
+      tables: sortedTables,
     };
   },
   filterDatasetsFromVariables: (state, variableNames: VariableName[]) => {

@@ -16,7 +16,6 @@ from typing import (
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -159,18 +158,15 @@ class table(
         self._manager = get_table_manager(data)
         self._filtered_manager: Optional[TableManager[Any]] = None
 
-        totalRows = len(self._manager.data)
+        totalRows = self._manager.get_num_rows()
         hasMore = totalRows > TableManager.DEFAULT_LIMIT
         if hasMore:
             self._manager = self._manager.limit(TableManager.DEFAULT_LIMIT)
 
         # pagination defaults to True if there are more than 10 rows
         if pagination is None:
-            pagination = len(self._data) > 10
+            pagination = totalRows > 10
 
-        can_download = (
-            DependencyManager.has_pandas() or DependencyManager.has_polars()
-        )
         field_types = self._manager.get_field_types()
 
         super().__init__(
@@ -184,8 +180,10 @@ class table(
                 "pagination": pagination,
                 "page-size": page_size,
                 "field-types": field_types if field_types else None,
-                "selection": selection,
-                "show-download": can_download,
+                "selection": selection
+                if self._manager.supports_selection()
+                else None,
+                "show-download": self._manager.supports_download(),
                 "row-headers": self._manager.get_row_headers(),
             },
             on_change=on_change,

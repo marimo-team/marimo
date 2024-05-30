@@ -3,8 +3,11 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from marimo import _loggers
 from marimo._data.models import DataTable, DataTableColumn
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
+
+LOGGER = _loggers.marimo_logger()
 
 
 def get_datasets_from_variables(
@@ -22,16 +25,25 @@ def get_datasets_from_variables(
 def get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
     table = get_table_manager_or_none(value)
     if table is not None:
-        return DataTable(
-            name=variable_name,
-            variable_name=variable_name,
-            num_rows=table.get_num_rows(),
-            num_columns=table.get_num_columns(),
-            source=f"Local ({table.type})",
-            columns=[
+        try:
+            columns = [
                 DataTableColumn(name=column_name, type=column_type)
                 for column_name, column_type in table.get_field_types().items()
-            ],
-        )
+            ]
+            return DataTable(
+                name=variable_name,
+                variable_name=variable_name,
+                num_rows=table.get_num_rows(),
+                num_columns=table.get_num_columns(),
+                source=f"Local ({table.type})",
+                columns=columns,
+            )
+        except Exception as e:
+            LOGGER.error(
+                "Failed to get table data for variable %s",
+                variable_name,
+                exc_info=e,
+            )
+            return None
 
     return None

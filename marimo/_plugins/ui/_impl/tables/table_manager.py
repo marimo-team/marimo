@@ -31,6 +31,15 @@ class TableManager(abc.ABC, Generic[T]):
         """
         return mo_data.csv(self.to_csv()).url
 
+    def supports_download(self) -> bool:
+        return True
+
+    def supports_selection(self) -> bool:
+        return True
+
+    def supports_altair(self) -> bool:
+        return True
+
     @abc.abstractmethod
     def to_csv(self) -> bytes:
         raise NotImplementedError
@@ -72,9 +81,6 @@ class TableManager(abc.ABC, Generic[T]):
     @abc.abstractmethod
     def get_num_columns(self) -> int:
         raise NotImplementedError
-
-    def supports_altair(self) -> bool:
-        return True
 
 
 class TableManagerFactory(abc.ABC):
