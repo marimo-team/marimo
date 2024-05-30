@@ -83,4 +83,4 @@ def arrow_table_from_dataframe_protocol(
             if isinstance(result, pa.Table):
                 return result
 
-    return pi.from_dataframe(dfi_df)
+    return pi.from_dataframe(dfi_df)  # type: ignore[no-any-return]
