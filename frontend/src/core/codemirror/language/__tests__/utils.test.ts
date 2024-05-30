@@ -100,7 +100,7 @@ describe("splitEditor", () => {
 
     const result2 = splitEditor(mockEditor);
     expect(result2.beforeCursorCode).toEqual(
-      "print('Hello')\nprint('Goodbye')",
+      "print('Hello')\nprint('Goodbye')"
     );
     expect(result2.afterCursorCode).toEqual("");
   });
@@ -114,8 +114,8 @@ describe("splitEditor", () => {
       selection: { anchor: "Hello,".length },
     });
     const result = splitEditor(mockEditor);
-    expect(result.beforeCursorCode).toEqual("mo.md('Hello,')");
-    expect(result.afterCursorCode).toEqual("mo.md(' World!')");
+    expect(result.beforeCursorCode).toEqual('mo.md("Hello,")');
+    expect(result.afterCursorCode).toEqual('mo.md(" World!")');
   });
 
   it("handles markdown with variables", () => {
@@ -127,8 +127,7 @@ describe("splitEditor", () => {
       selection: { anchor: "{a}\n".length },
     });
     const result = splitEditor(mockEditor);
-    // '"""' should be preserved
-    expect(result.beforeCursorCode).toEqual('mo.md(f"""{a}""")');
-    expect(result.afterCursorCode).toEqual('mo.md(f"""{b}!""")');
+    expect(result.beforeCursorCode).toEqual('mo.md(f"{a}")');
+    expect(result.afterCursorCode).toEqual('mo.md(f"{b}!")');
   });
 });

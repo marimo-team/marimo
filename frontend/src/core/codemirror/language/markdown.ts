@@ -26,7 +26,7 @@ const quoteKinds = [
 ];
 // explode into all combinations
 const pairs = prefixKinds.flatMap((prefix) =>
-  quoteKinds.map(([start, end]) => [prefix + start, end]),
+  quoteKinds.map(([start, end]) => [prefix + start, end])
 );
 
 const regexes = pairs.map(
@@ -35,10 +35,8 @@ const regexes = pairs.map(
     [
       start,
       new RegExp(`^mo\\.md\\(\\s*${start}(.*)${end}\\s*\\)$`, "s"),
-    ] as const,
+    ] as const
 );
-
-type QuoteType = '"' | '"""'; // Define a type that restricts to either single or triple quotes
 
 /**
  * Language adapter for Markdown.
@@ -47,7 +45,6 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   type = "markdown" as const;
 
   lastQuotePrefix: PrefixKind = "";
-  lastQuoteType: QuoteType = '"'; // Use the new QuoteType here
 
   transformIn(pythonCode: string): [string, number] {
     if (!this.isSupported(pythonCode)) {
@@ -58,12 +55,14 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
       const match = pythonCode.match(regex);
       if (match) {
         const innerCode = match[1];
+
         const [quotePrefix, quoteType] = splitQuotePrefix(start);
+        // store the quote prefix for later when we transform out
         this.lastQuotePrefix = quotePrefix;
-        this.lastQuoteType = quoteType as QuoteType; // Cast to QuoteType
         const unescapedCode = innerCode.replaceAll(`\\${quoteType}`, quoteType);
 
         const offset = pythonCode.indexOf(innerCode);
+        // string-dedent expects the first and last line to be empty / contain only whitespace, so we pad with \n
         return [dedent(`\n${unescapedCode}\n`).trim(), offset];
       }
     }
@@ -72,26 +71,23 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   transformOut(code: string): [string, number] {
+    // Get the quote type from the last transformIn
+    // const prefix = upgradePrefixKind(this.lastQuotePrefix, code);
     const prefix = this.lastQuotePrefix;
-    const quoteType = this.lastQuoteType; // Already validated as QuoteType
 
     const isOneLine = !code.includes("\n");
     if (isOneLine) {
-      const escapedCode = code.replaceAll(quoteType, `\\${quoteType}`);
-      const start = `mo.md(${prefix}${quoteType}`;
-      const end = `${quoteType})`;
+      const escapedCode = code.replaceAll('"', '\\"');
+      const start = `mo.md(${prefix}"`;
+      const end = `")`;
       return [start + escapedCode + end, start.length];
     }
 
-    const multilineStart = `mo.md(\n    ${prefix}"""\n`;
-    const multilineEnd = `\n    """\n)`;
-
-    // Multiline code that needs formatting
+    // Multiline code
+    const start = `mo.md(\n    ${prefix}"""\n`;
     const escapedCode = code.replaceAll('"""', '\\"""');
-    return [
-      multilineStart + indentOneTab(escapedCode) + multilineEnd,
-      multilineStart.length + 1,
-    ];
+    const end = `\n    """\n)`;
+    return [start + indentOneTab(escapedCode) + end, start.length + 1];
   }
 
   isSupported(pythonCode: string): boolean {
@@ -159,14 +155,11 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
 function splitQuotePrefix(quote: string): [PrefixKind, string] {
   // start with the longest prefix
   const prefixKindsByLength = [...prefixKinds].sort(
-    (a, b) => b.length - a.length,
+    (a, b) => b.length - a.length
   );
   for (const prefix of prefixKindsByLength) {
     if (quote.startsWith(prefix)) {
-      const remaining = quote.slice(prefix.length);
-      if (remaining.startsWith('"""') || remaining.startsWith('"')) {
-        return [prefix, remaining];
-      }
+      return [prefix, quote.slice(prefix.length)];
     }
   }
   return ["", quote];
@@ -225,7 +218,7 @@ const emojiCompletionSource: CompletionSource = async (context) => {
 // everything works fine, except for autocompletion of emojis
 const getEmojiList = once(async (): Promise<Completion[]> => {
   const emojiList = await fetch(
-    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json",
+    "https://unpkg.com/emojilib@3.0.11/dist/emoji-en-US.json"
   ).then((res) => res.json() as unknown as Record<string, string[]>);
 
   return Object.entries(emojiList).map(([emoji, names]) => ({
