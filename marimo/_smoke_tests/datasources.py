@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.6.11"
+__generated_with = "0.6.13"
 app = marimo.App(width="full")
 
 
@@ -10,7 +10,14 @@ app = marimo.App(width="full")
 def __():
     import marimo as mo
     from vega_datasets import data
-    return data, mo
+    import pandas as pd
+    return data, mo, pd
+
+
+@app.cell
+def __(pd):
+    editable_table = pd.DataFrame({"a": [2, 2, 11], "b": [2, 5, 6]})
+    return editable_table,
 
 
 @app.cell
@@ -31,6 +38,7 @@ def __(data, dropdown, mo):
 @app.cell
 def __(df):
     import polars as pl
+
     polars_df = pl.DataFrame(df)
     return pl, polars_df
 
@@ -38,6 +46,7 @@ def __(df):
 @app.cell
 def __(df):
     import pyarrow as pa
+
     pyarrow_df = pa.Table.from_pandas(df)
     return pa, pyarrow_df
 

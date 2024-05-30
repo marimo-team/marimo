@@ -5,6 +5,7 @@ import type { DatasetsState } from "./types";
 import { useAtomValue } from "jotai";
 import { VariableName } from "../variables/types";
 import { DataColumnPreview } from "../kernel/messages";
+import { previewDatasetColumn } from "../network/requests";
 
 function initialState(): DatasetsState {
   return {
@@ -22,8 +23,25 @@ const {
   useActions,
 } = createReducerAndAtoms(initialState, {
   addDatasets: (state, datasets: Pick<DatasetsState, "tables">) => {
+    // Quietly in the background make requests to get the previews for
+    // opened columns, in the new tables
+    for (const table of datasets.tables) {
+      for (const column of table.columns) {
+        const tableColumn = `${table.name}:${column.name}` as const;
+        if (state.expandedColumns.has(tableColumn)) {
+          // Fire and forget
+          void previewDatasetColumn({
+            tableName: table.name,
+            columnName: column.name,
+            source: table.source,
+          });
+        }
+      }
+    }
+
     // Put new tables at the top
     const newTables = [...datasets.tables, ...state.tables];
+
     // Dedupe by name and source
     const seen = new Set();
     const dedupedTables = newTables.filter((table) => {
