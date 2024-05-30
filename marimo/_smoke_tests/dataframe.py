@@ -2,11 +2,11 @@
 
 import marimo
 
-__generated_with = "0.3.10"
+__generated_with = "0.6.12"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# 🤖 Lists/Dicts")
     return
@@ -61,13 +61,13 @@ def __(as_primitives):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# 🐼 Pandas")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.dataframe")
     return
@@ -80,7 +80,7 @@ def __(cars, mo):
     return dataframe,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.table")
     return
@@ -92,7 +92,7 @@ def __(dataframe, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## .value")
     return
@@ -110,7 +110,7 @@ def __(dataframe):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.data_explorer")
     return
@@ -122,13 +122,13 @@ def __(mo, pl_dataframe):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# 🐻‍❄️ Polars")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.table")
     return
@@ -141,7 +141,7 @@ def __(cars, mo, pl):
     return pl_dataframe,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.data_explorer")
     return
@@ -153,7 +153,7 @@ def __(mo, pl_dataframe):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("# 🏹 Arrow")
     return
@@ -166,7 +166,7 @@ def __(cars, mo, pa):
     return arrow_table,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## mo.ui.table")
     return
@@ -179,7 +179,7 @@ def __(arrow_table, mo):
     return arrow_table_el,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("## .value")
     return
@@ -189,6 +189,37 @@ def __(mo):
 def __(arrow_table_el):
     arrow_table_el.value
     return
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        rf"""
+        # 💽 Dataframe protocol
+        > See the [API](https://data-apis.org/dataframe-protocol/latest/API.html)
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    import dask.dataframe as dd
+
+    dask_df = dd.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
+    dask_df
+    return dask_df, dd
+
+
+@app.cell
+def __(mo):
+    import ibis
+
+    ibis.options.interactive = True
+
+    t = ibis.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv", table_name="penguins")
+    mo.ui.table(t)
+    return ibis, t
 
 
 @app.cell

@@ -20,6 +20,9 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
 )
+from marimo._plugins.ui._impl.tables.pyarrow_table import (
+    PyArrowTableManagerFactory,
+)
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 
 JsonTableData = Union[
@@ -35,6 +38,17 @@ class DefaultTableManager(TableManager[JsonTableData]):
 
     def __init__(self, data: JsonTableData):
         self.data = data
+
+    def supports_download(self) -> bool:
+        # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
+        return (
+            DependencyManager.has_pandas()
+            or DependencyManager.has_polars()
+            or DependencyManager.has_pyarrow()
+        )
+
+    def supports_selection(self) -> bool:
+        return True
 
     def to_data(self) -> JSONType:
         return self._normalize_data(self.data)
@@ -77,6 +91,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
             import polars as pl
 
             return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
+        if DependencyManager.has_pyarrow():
+            import pyarrow as pa
+
+            if isinstance(self.data, dict):
+                return PyArrowTableManagerFactory.create()(
+                    pa.Table.from_pydict(self.data)
+                )
+            return PyArrowTableManagerFactory.create()(
+                pa.Table.from_pylist(self._normalize_data(self.data))
+            )
 
         raise ValueError("No supported table libraries found.")
 
