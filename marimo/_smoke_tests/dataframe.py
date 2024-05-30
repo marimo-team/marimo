@@ -212,14 +212,41 @@ def __():
 
 
 @app.cell
-def __(mo):
+def __():
     import ibis
 
     ibis.options.interactive = True
 
-    t = ibis.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv", table_name="penguins")
-    mo.ui.table(t)
-    return ibis, t
+    ibis_data = ibis.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/penguins.csv", table_name="penguins")
+    ibis_data
+    return ibis, ibis_data
+
+
+@app.cell
+def __(ibis_data, mo):
+    ibis_penguins = mo.ui.table(ibis_data)
+    return ibis_penguins,
+
+
+@app.cell
+def __(alt, ibis_data):
+    _chart = (
+        alt.Chart(ibis_data)
+        .mark_bar()
+        .encode(
+            y=alt.Y("island", type="nominal"),
+            x=alt.X("count()", type="quantitative"),
+        )
+        .properties(width="container")
+    )
+    _chart
+    return
+
+
+@app.cell
+def __(ibis_penguins):
+    ibis_penguins.value
+    return
 
 
 @app.cell
@@ -229,9 +256,10 @@ def __():
     import polars as pl
     import pyarrow as pa
     import vega_datasets
+    import altair as alt
 
     cars = vega_datasets.data.cars()
-    return cars, mo, pa, pd, pl, vega_datasets
+    return alt, cars, mo, pa, pd, pl, vega_datasets
 
 
 if __name__ == "__main__":
