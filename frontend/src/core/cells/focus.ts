@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
-import { CellId } from "./ids";
-import { NotebookState, notebookAtom } from "./cells";
-import { EditorView } from "@codemirror/view";
-import { CellConfig, CellStatus } from "./types";
+import type { CellId } from "./ids";
+import { type NotebookState, notebookAtom } from "./cells";
+import type { EditorView } from "@codemirror/view";
+import type { CellConfig, CellStatus } from "./types";
 
 /**
  * Holds state for the last focused cell.

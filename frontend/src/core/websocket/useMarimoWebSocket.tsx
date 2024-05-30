@@ -32,6 +32,7 @@ import {
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { JsonString } from "@/utils/json/base64";
+import { useDatasetsActions } from "../datasets/state";
 
 /**
  * WebSocket that connects to the Marimo kernel and handles incoming messages.
@@ -49,6 +50,8 @@ export function useMarimoWebSocket(opts: {
   const { handleCellMessage } = useCellActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
+  const { addColumnPreview } = useDatasetsActions();
+  const { addDatasets, filterDatasetsFromVariables } = useDatasetsActions();
   const { setLayoutData } = useLayoutActions();
   const [connection, setConnection] = useAtom(connectionAtom);
   const { addBanner } = useBannersActions();
@@ -97,6 +100,7 @@ export function useMarimoWebSocket(opts: {
             usedBy: v.used_by,
           })),
         );
+        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
         return;
       case "variable-values":
         setMetadata(
@@ -148,6 +152,13 @@ export function useMarimoWebSocket(opts: {
 
       case "query-params-clear":
         queryParamHandlers.clear();
+        return;
+
+      case "datasets":
+        addDatasets(msg.data);
+        return;
+      case "data-column-preview":
+        addColumnPreview(msg.data);
         return;
 
       default:

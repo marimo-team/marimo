@@ -1,12 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { AppConfig, UserConfig } from "../config/config-schema";
-import { LayoutType } from "@/components/editor/renderers/types";
-import { CellId } from "../cells/ids";
-import { CellConfig } from "../cells/types";
-import { RequestId } from "./DeferredRequestRegistry";
-import { FilePath } from "@/utils/paths";
-import { PackageManagerName } from "../config/config-schema";
-import { SessionId } from "@/core/kernel/session";
+import type { AppConfig, UserConfig } from "../config/config-schema";
+import type { LayoutType } from "@/components/editor/renderers/types";
+import type { CellId } from "../cells/ids";
+import type { CellConfig } from "../cells/types";
+import type { RequestId } from "./DeferredRequestRegistry";
+import type { FilePath } from "@/utils/paths";
+import type { PackageManagerName } from "../config/config-schema";
+import type { SessionId } from "@/core/kernel/session";
+import { VariableName } from "../variables/types";
 
 // Ideally this would be generated from server.py, but for now we just
 // manually keep them in sync.
@@ -172,6 +173,29 @@ export interface SnippetsResponse {
   snippets: Snippet[];
 }
 
+export interface PreviewDatasetColumnRequest {
+  source: string;
+  tableName: string;
+  columnName: string;
+}
+
+export interface DataTableColumn {
+  name: string;
+  type: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
+}
+
+export interface DataTable {
+  name: string;
+  source: string;
+  /**
+   * The variable name if this is a variable in the notebook.
+   */
+  variable_name: VariableName | null;
+  num_rows: number;
+  num_columns: number;
+  columns: DataTableColumn[];
+}
+
 interface MarimoNotebook {
   name: string;
   path: string;
@@ -255,6 +279,7 @@ export interface EditRequests {
   ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   readSnippets: () => Promise<SnippetsResponse>;
+  previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   openFile: (request: { path: string }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // File explorer requests

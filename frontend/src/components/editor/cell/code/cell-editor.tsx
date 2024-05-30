@@ -323,6 +323,13 @@ const CellEditorInternal = ({
     serializedEditorState,
   ]);
 
+  // Destroy the editor when the component is unmounted
+  useEffect(() => {
+    return () => {
+      editorViewRef.current?.destroy();
+    };
+  }, [editorViewRef]);
+
   const showCode = async () => {
     if (hidden) {
       await saveCellConfig({ configs: { [cellId]: { hide_code: false } } });

@@ -89,6 +89,8 @@ export async function initialize() {
         return;
       case "variables":
       case "variable-values":
+      case "data-column-preview":
+      case "datasets":
         return;
       case "alert":
         // TODO: support toast with islands

@@ -116,18 +116,22 @@ class plotly(UIElement[PlotlySelection, List[Dict[str, Any]]]):
         if config is not None:
             resolved_config = config
         else:
-            resolved_name: str = renderer_name or cast(
-                str, pio.renderers.default
-            )
-            default_renderer: Any = pio.renderers[resolved_name]
-            if default_renderer is not None:
-                try:
+            try:
+                resolved_name: str = renderer_name or cast(
+                    str, pio.renderers.default
+                )
+                default_renderer: Any = (
+                    pio.renderers[resolved_name]
+                    if resolved_name and resolved_name in pio.renderers
+                    else None
+                )
+                if default_renderer is not None:
                     resolved_config = default_renderer.config or {}
-                except AttributeError:
-                    LOGGER.warning(
-                        "Could not find default renderer configuration. "
-                        "Using an empty configuration."
-                    )
+            except AttributeError:
+                LOGGER.warning(
+                    "Could not find default renderer configuration. "
+                    "Using an empty configuration."
+                )
 
         super().__init__(
             component_name=plotly.name,

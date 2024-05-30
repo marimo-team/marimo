@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from typing import Optional
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -17,7 +18,8 @@ LOGGER = _loggers.marimo_logger()
 
 
 class UserConfigManager:
-    def __init__(self) -> None:
+    def __init__(self, config_path: Optional[str] = None) -> None:
+        self._config_path = config_path
         self.config = load_config()
 
     def save_config(self, config: MarimoConfig) -> MarimoConfig:

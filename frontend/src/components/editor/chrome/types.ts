@@ -8,8 +8,9 @@ import {
   ScrollTextIcon,
   TextSearchIcon,
   FileTextIcon,
-  LucideIcon,
+  type LucideIcon,
   SquareDashedBottomCodeIcon,
+  DatabaseIcon,
 } from "lucide-react";
 
 export type PanelType =
@@ -20,12 +21,14 @@ export type PanelType =
   | "dependencies"
   | "documentation"
   | "snippets"
+  | "datasources"
   | "logs";
 
 export const PANEL_ICONS: Record<PanelType, LucideIcon> = {
   errors: XCircleIcon,
   files: FolderTreeIcon,
   variables: FunctionSquareIcon,
+  datasources: DatabaseIcon,
   dependencies: NetworkIcon,
   outline: ScrollTextIcon,
   documentation: TextSearchIcon,

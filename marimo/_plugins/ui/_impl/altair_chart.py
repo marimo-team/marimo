@@ -18,6 +18,9 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.charts.altair_transformer import (
+    register_transformers,
+)
 from marimo._utils import flatten
 
 LOGGER = _loggers.marimo_logger()
@@ -197,6 +200,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         DependencyManager.require_altair(why="to use `mo.ui.altair_chart`")
 
         import altair as alt
+
+        register_transformers()
 
         if not isinstance(chart, (alt.TopLevelMixin)):
             raise ValueError(

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     FieldTypes,
@@ -21,6 +22,8 @@ class PandasTableManagerFactory(TableManagerFactory):
         import pandas as pd
 
         class PandasTableManager(TableManager[pd.DataFrame]):
+            type = "pandas"
+
             def to_csv(self) -> bytes:
                 return self.data.to_csv(
                     index=False,
@@ -149,5 +152,60 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if dtype.startswith("complex"):
                     return "unknown"
                 return "unknown"
+
+            def get_summary(self, column: str) -> ColumnSummary:
+                # If column is not in the dataframe, return an empty summary
+                if column not in self.data.columns:
+                    return ColumnSummary()
+                col = self.data[column]
+
+                if col.dtype == "object":
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.isnull().sum(),
+                        unique=col.nunique(),
+                    )
+
+                if col.dtype == "bool":
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.isnull().sum(),
+                        true=col.sum(),
+                        false=col.count() - col.sum(),
+                    )
+
+                if col.dtype == "datetime64[ns]":
+                    return ColumnSummary(
+                        total=col.count(),
+                        nulls=col.isnull().sum(),
+                        min=col.min(),
+                        max=col.max(),
+                        mean=col.mean(),
+                        median=col.median(),
+                        p5=col.quantile(0.05),
+                        p25=col.quantile(0.25),
+                        p75=col.quantile(0.75),
+                        p95=col.quantile(0.95),
+                    )
+
+                return ColumnSummary(
+                    total=col.count(),
+                    nulls=col.isnull().sum(),
+                    min=col.min(),
+                    max=col.max(),
+                    mean=col.mean(),
+                    median=col.median(),
+                    std=col.std(),
+                    p5=col.quantile(0.05),
+                    p25=col.quantile(0.25),
+                    p75=col.quantile(0.75),
+                    p95=col.quantile(0.95),
+                )
+
+            def get_num_rows(self) -> int:
+                return self.data.shape[0]
+
+            def get_num_columns(self) -> int:
+                return self.data.shape[1]
 
         return PandasTableManager

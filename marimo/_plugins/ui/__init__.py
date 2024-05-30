@@ -27,6 +27,7 @@ __all__ = [
     "radio",
     "range_slider",
     "refresh",
+    "run_button",
     "slider",
     "switch",
     "table",
@@ -62,6 +63,7 @@ from marimo._plugins.ui._impl.input import (
 from marimo._plugins.ui._impl.microphone import microphone
 from marimo._plugins.ui._impl.plotly import plotly
 from marimo._plugins.ui._impl.refresh import refresh
+from marimo._plugins.ui._impl.run_button import run_button
 from marimo._plugins.ui._impl.switch import switch
 from marimo._plugins.ui._impl.table import table
 from marimo._plugins.ui._impl.tabs import tabs

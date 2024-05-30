@@ -1,0 +1,92 @@
+# boolean
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("some_column", type="nominal"),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# date
+_chart = (
+    alt.Chart(df)
+    .mark_line(point={"filled": False, "fill": "white"})
+    .encode(
+        x=alt.X("some_column", type="temporal"),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# integer
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("some_column", type="quantitative", bin=True),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# number
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("some_column", type="quantitative", bin=True),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# string
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("some_column", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# string (limit to 10 items)
+_chart = (
+    alt.Chart(df)
+    .transform_aggregate(count="count()", groupby=["some_column"])
+    .transform_window(
+        rank="rank()",
+        sort=[
+            alt.SortField("count", order="descending"),
+            alt.SortField("some_column", order="ascending"),
+        ],
+    )
+    .transform_filter(alt.datum.rank <= 10)
+    .mark_bar()
+    .encode(
+        y=alt.Y("some_column", type="nominal", sort="-x"),
+        x=alt.X("count", type="quantitative"),
+    )
+    .properties(title="Top 10 some_column", width="container")
+)
+_chart
+
+# unknown
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        x=alt.X("some_column", type="nominal"),
+        y=alt.Y("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart

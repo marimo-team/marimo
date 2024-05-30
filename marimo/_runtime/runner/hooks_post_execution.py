@@ -1,12 +1,20 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
+from marimo._data.get_datasets import get_datasets_from_variables
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import (
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
 )
-from marimo._messaging.ops import CellOp, VariableValue, VariableValues
+from marimo._messaging.ops import (
+    CellOp,
+    Datasets,
+    VariableValue,
+    VariableValues,
+)
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -45,6 +53,23 @@ def _broadcast_variables(
     ]
     if values:
         VariableValues(variables=values).broadcast()
+
+
+def _broadcast_datasets(
+    cell: CellImpl,
+    runner: cell_runner.Runner,
+    run_result: cell_runner.RunResult,
+) -> None:
+    del run_result
+    tables = get_datasets_from_variables(
+        [
+            (variable, runner.glbls[variable])
+            for variable in cell.defs
+            if variable in runner.glbls
+        ]
+    )
+    if tables:
+        Datasets(tables=tables).broadcast()
 
 
 def _store_reference_to_output(
@@ -161,6 +186,7 @@ POST_EXECUTION_HOOKS = [
     _set_status_idle,
     _store_reference_to_output,
     _broadcast_variables,
+    _broadcast_datasets,
     _broadcast_outputs,
     _reset_matplotlib_context,
 ]

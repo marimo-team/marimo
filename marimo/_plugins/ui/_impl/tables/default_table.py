@@ -10,6 +10,7 @@ from typing import (
     cast,
 )
 
+from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
@@ -18,6 +19,9 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
 )
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
+)
+from marimo._plugins.ui._impl.tables.pyarrow_table import (
+    PyArrowTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 
@@ -30,8 +34,18 @@ JsonTableData = Union[
 
 
 class DefaultTableManager(TableManager[JsonTableData]):
+    type = "dictionary"
+
     def __init__(self, data: JsonTableData):
         self.data = data
+
+    def supports_download(self) -> bool:
+        # If we have pandas/polars/pyarrow, we can convert to CSV or JSON
+        return (
+            DependencyManager.has_pandas()
+            or DependencyManager.has_polars()
+            or DependencyManager.has_pyarrow()
+        )
 
     def to_data(self) -> JSONType:
         return self._normalize_data(self.data)
@@ -74,8 +88,32 @@ class DefaultTableManager(TableManager[JsonTableData]):
             import polars as pl
 
             return PolarsTableManagerFactory.create()(pl.DataFrame(self.data))
+        if DependencyManager.has_pyarrow():
+            import pyarrow as pa
+
+            if isinstance(self.data, dict):
+                return PyArrowTableManagerFactory.create()(
+                    pa.Table.from_pydict(self.data)
+                )
+            return PyArrowTableManagerFactory.create()(
+                pa.Table.from_pylist(self._normalize_data(self.data))
+            )
 
         raise ValueError("No supported table libraries found.")
+
+    def get_summary(self, column: str) -> ColumnSummary:
+        del column
+        return ColumnSummary()
+
+    def get_num_rows(self) -> int:
+        if isinstance(self.data, dict):
+            return len(next(iter(self.data.values()), []))
+        return len(self.data)
+
+    def get_num_columns(self) -> int:
+        if isinstance(self.data, dict):
+            return len(self.data)
+        return 1
 
     @staticmethod
     def is_type(value: Any) -> bool:

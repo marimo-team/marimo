@@ -379,6 +379,10 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         if self._on_change is not None:
             self._on_change(self._value)
 
+    def _on_update_completion(self) -> None:
+        """Callback to run after the kernel has processed a value update."""
+        return
+
     def _clone(self) -> UIElement[S, T]:
         """Clone a UIElement, returning one with a different id
 

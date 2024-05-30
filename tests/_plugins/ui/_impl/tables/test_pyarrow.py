@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import datetime
 import unittest
 
 import pytest
 
+from marimo._data.models import ColumnSummary
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
@@ -18,7 +20,24 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         import pyarrow as pa
 
         self.factory = PyArrowTableManagerFactory()
-        self.data = pa.table({"A": [1, 2, 3], "B": ["a", "b", "c"]})  # type: ignore
+        self.data = pa.table(
+            {  # type: ignore
+                # Integer
+                "A": [1, 2, 3],
+                # String
+                "B": ["a", "b", "c"],
+                # Float
+                "C": [1.0, 2.0, 3.0],
+                # Boolean
+                "D": [True, False, True],
+                # DateTime
+                "E": [
+                    datetime.datetime(2021, 1, 1),
+                    datetime.datetime(2021, 1, 2),
+                    datetime.datetime(2021, 1, 3),
+                ],
+            }
+        )
         self.manager = self.factory.create()(self.data)
 
     def test_package_name(self) -> None:
@@ -54,6 +73,9 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         expected_field_types = {
             "A": "integer",
             "B": "string",
+            "C": "number",
+            "D": "boolean",
+            "E": "date",
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -82,3 +104,55 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         limited_manager = self.manager.limit(1)
         expected_data = self.data.take([0])
         assert limited_manager.data == expected_data
+
+    def test_summary_integer(self) -> None:
+        column = "A"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=3,
+            min=1,
+            max=3,
+            mean=2.0,
+        )
+
+    def test_summary_string(self) -> None:
+        column = "B"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            unique=3,
+        )
+
+    def test_summary_number(self) -> None:
+        column = "C"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            min=1.0,
+            max=3.0,
+            mean=2.0,
+        )
+
+    def test_summary_boolean(self) -> None:
+        column = "D"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            true=2,
+            false=1,
+        )
+
+    def test_summary_date(self) -> None:
+        column = "E"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
+            min=datetime.datetime(2021, 1, 1, 0, 0),
+            max=datetime.datetime(2021, 1, 3, 0, 0),
+        )

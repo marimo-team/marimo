@@ -23,12 +23,14 @@ from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
 from marimo._ast.visitor import Name, is_local
 from marimo._config.config import MarimoConfig, OnCellChangeType
+from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.errors import Error, MarimoSyntaxError, UnknownError
 from marimo._messaging.ops import (
     Alert,
     CellOp,
     CompletedRun,
+    DataColumnPreview,
     FunctionCallResult,
     HumanReadableStatus,
     InstallingPackageAlert,
@@ -74,9 +76,7 @@ from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
-from marimo._runtime.reload.module_watcher import (
-    ModuleWatcher,
-)
+from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.requests import (
     AppMetadata,
     CompletionRequest,
@@ -88,6 +88,7 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     FunctionCallRequest,
     InstallMissingPackagesRequest,
+    PreviewDatasetColumnRequest,
     SetCellConfigRequest,
     SetUIElementValueRequest,
     SetUserConfigRequest,
@@ -113,6 +114,8 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from marimo._plugins.ui._core.ui_element import UIElement
 
 LOGGER = _loggers.marimo_logger()
 
@@ -998,6 +1001,8 @@ class Kernel:
 
         Runs cells that reference the UI element by name.
         """
+        updated_components: list[UIElement[Any, Any]] = []
+
         # Resolve lenses on request, if any: any element that is a view
         # of another parent element is resolved to its parent. In particular,
         # interacting with a view triggers reactive execution through the
@@ -1065,6 +1070,8 @@ class Kernel:
                     traceback.print_exc(file=tmpio)
                     tmpio.seek(0)
                     write_traceback(tmpio.read())
+                else:
+                    updated_components.append(component)
 
             bound_names = (
                 name
@@ -1112,6 +1119,22 @@ class Kernel:
             # process any state updates that may have been queued by the
             # on_change handlers
             await self._run_cells(set())
+
+        for component in updated_components:
+            try:
+                component._on_update_completion()
+            except Exception:
+                # Internal marimo error
+                sys.stderr.write(
+                    "An exception was raised when completing a UIElement's"
+                    "update. This is a bug in marimo. "
+                    "Please copy the below traceback and paste it in an "
+                    "issue: https://github.com/marimo-team/marimo/issues\n"
+                )
+                tmpio = io.StringIO()
+                traceback.print_exc(file=tmpio)
+                tmpio.seek(0)
+                write_traceback(tmpio.read())
 
     def get_ui_initial_value(self, object_id: str) -> Any:
         """Get an initial value for a UIElement, if any
@@ -1284,6 +1307,31 @@ class Kernel:
             else:
                 self.graph.set_stale(cells_to_run)
 
+    async def preview_dataset_column(
+        self, request: PreviewDatasetColumnRequest
+    ) -> None:
+        """Preview a column of a dataset.
+
+        The dataset is loaded, and the column is displayed in the frontend.
+        """
+        try:
+            dataset = self.globals[request.table_name]
+            column_preview = get_column_preview(dataset, request)
+            if column_preview is None:
+                DataColumnPreview(
+                    error=f"Column {request.column_name} not found",
+                    column_name=request.column_name,
+                    table_name=request.table_name,
+                ).broadcast()
+            else:
+                column_preview.broadcast()
+        except Exception as e:
+            DataColumnPreview(
+                error=str(e),
+                column_name=request.column_name,
+                table_name=request.table_name,
+            ).broadcast()
+
     async def handle_message(self, request: ControlRequest) -> None:
         """Handle a message from the client.
 
@@ -1317,6 +1365,8 @@ class Kernel:
         elif isinstance(request, InstallMissingPackagesRequest):
             await self.install_missing_packages(request)
             CompletedRun().broadcast()
+        elif isinstance(request, PreviewDatasetColumnRequest):
+            await self.preview_dataset_column(request)
         elif isinstance(request, StopRequest):
             return None
         else:
