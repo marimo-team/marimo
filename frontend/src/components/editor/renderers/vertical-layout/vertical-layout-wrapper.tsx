@@ -16,7 +16,7 @@ export const VerticalLayoutWrapper: React.FC<PropsWithChildren<Props>> = ({
   children,
 }) => {
   return (
-    <div className={cn("px-1 sm:px-16 md:px-20", className)}>
+    <div className={cn("px-1 sm:px-16 md:px-20 xl:px-24", className)}>
       <div
         className={cn(
           // Large mobile bottom padding due to mobile browser navigation bar
