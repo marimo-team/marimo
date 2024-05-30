@@ -36,6 +36,8 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.datetime(2021, 1, 2),
                     datetime.datetime(2021, 1, 3),
                 ],
+                # List
+                "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
             }
         )
         self.manager = self.factory.create()(self.data)
@@ -61,7 +63,7 @@ class TestPandasTableManager(unittest.TestCase):
 
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
-        assert selected_manager.data.shape == (0, 5)
+        assert selected_manager.data.shape == (0, 6)
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
@@ -134,6 +136,7 @@ class TestPandasTableManager(unittest.TestCase):
             "C": "number",
             "D": "boolean",
             "E": "date",
+            "F": "string",
         }
         assert self.manager.get_field_types() == expected_field_types
 
@@ -313,4 +316,12 @@ class TestPandasTableManager(unittest.TestCase):
             p25=pd.Timestamp("2021-01-01 12:00:00"),
             p75=pd.Timestamp("2021-01-02 12:00:00"),
             p95=pd.Timestamp("2021-01-02 21:36:00"),
+        )
+
+    def test_summary_list(self) -> None:
+        column = "F"
+        summary = self.manager.get_summary(column)
+        assert summary == ColumnSummary(
+            total=3,
+            nulls=0,
         )

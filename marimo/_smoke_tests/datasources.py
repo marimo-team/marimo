@@ -16,8 +16,14 @@ def __():
 
 @app.cell
 def __(pd):
-    editable_table = pd.DataFrame({"a": [2, 2, 11], "b": [2, 5, 6]})
+    editable_table = pd.DataFrame({"a": [2, 2, 12], "b": [2, 5, 6]})
     return editable_table,
+
+
+@app.cell
+def __(pd):
+    df_with_list = pd.DataFrame([{"a": [1, 2, 3]}])
+    return df_with_list,
 
 
 @app.cell
