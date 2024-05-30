@@ -47,9 +47,6 @@ class DefaultTableManager(TableManager[JsonTableData]):
             or DependencyManager.has_pyarrow()
         )
 
-    def supports_selection(self) -> bool:
-        return True
-
     def to_data(self) -> JSONType:
         return self._normalize_data(self.data)
 
