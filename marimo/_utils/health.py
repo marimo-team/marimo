@@ -34,7 +34,7 @@ def get_required_modules_list() -> dict[str, str]:
         "tomlkit",
         "uvicorn",
         "starlette",
-        "websocket",
+        "websockets",
         "typing-extensions",
         "black",
     ]
