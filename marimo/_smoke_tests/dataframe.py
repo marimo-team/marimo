@@ -192,6 +192,12 @@ def __(arrow_table_el):
 
 
 @app.cell
+def __(arrow_table, mo):
+    mo.ui.data_explorer(arrow_table)
+    return
+
+
+@app.cell
 def __(mo):
     mo.md(
         rf"""
@@ -203,11 +209,11 @@ def __(mo):
 
 
 @app.cell
-def __():
+def __(dask_dfda):
     import dask.dataframe as dd
 
     dask_df = dd.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
-    dask_df
+    dask_dfda
     return dask_df, dd
 
 
@@ -223,29 +229,33 @@ def __():
 
 
 @app.cell
-def __(ibis_data, mo):
-    ibis_penguins = mo.ui.table(ibis_data)
-    return ibis_penguins,
+def __(mo):
+    mo.md(rf"## mo.ui.table")
+    return
 
 
 @app.cell
-def __(alt, ibis_data):
-    _chart = (
-        alt.Chart(ibis_data)
-        .mark_bar()
-        .encode(
-            y=alt.Y("island", type="nominal"),
-            x=alt.X("count()", type="quantitative"),
-        )
-        .properties(width="container")
-    )
-    _chart
-    return
+def __(ibis_data, mo):
+    ibis_penguins = mo.ui.table(ibis_data)
+    ibis_penguins
+    return ibis_penguins,
 
 
 @app.cell
 def __(ibis_penguins):
     ibis_penguins.value
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(rf"## mo.ui.data_explorer")
+    return
+
+
+@app.cell
+def __(ibis_data, mo):
+    mo.ui.data_explorer(ibis_data)
     return
 
 

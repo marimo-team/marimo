@@ -8,6 +8,7 @@ from marimo._plugins.ui._impl.tables.utils import get_table_manager
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    import pyarrow as pa
 
 
 import marimo._output.data.data as mo_data
@@ -39,7 +40,7 @@ class data_explorer(UIElement[Dict[str, Any], Dict[str, Any]]):
 
     def __init__(
         self,
-        df: Union[pd.DataFrame, pl.DataFrame],
+        df: Union[pd.DataFrame, pl.DataFrame, pa.Table],
         on_change: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self._data = df
