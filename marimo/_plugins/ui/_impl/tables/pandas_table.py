@@ -160,11 +160,19 @@ class PandasTableManagerFactory(TableManagerFactory):
                 col = self.data[column]
 
                 if col.dtype == "object":
-                    return ColumnSummary(
-                        total=col.count(),
-                        nulls=col.isnull().sum(),
-                        unique=col.nunique(),
-                    )
+                    try:
+                        return ColumnSummary(
+                            total=col.count(),
+                            nulls=col.isnull().sum(),
+                            unique=col.nunique(),
+                        )
+                    except TypeError:
+                        # If the column is not hashable,
+                        # we can't get the unique values
+                        return ColumnSummary(
+                            total=col.count(),
+                            nulls=col.isnull().sum(),
+                        )
 
                 if col.dtype == "bool":
                     return ColumnSummary(
