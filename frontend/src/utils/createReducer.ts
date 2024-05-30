@@ -68,11 +68,31 @@ export function createReducer<
   };
 }
 
+type Middleware<State> = (
+  prevState: State,
+  newState: State,
+  action: ReducerAction<any>,
+) => void;
+
 export function createReducerAndAtoms<
   State,
   RH extends ReducerHandlers<NoInfer<State>>,
->(initialState: () => State, reducers: RH) {
+>(
+  initialState: () => State,
+  reducers: RH,
+  middleware?: Array<Middleware<State>>,
+) {
   const { reducer, createActions } = createReducer(initialState, reducers);
+
+  const reducerWithMiddleware = (state: State, action: ReducerAction<any>) => {
+    const newState = reducer(state, action);
+    if (middleware) {
+      for (const mw of middleware) {
+        mw(state, newState, action);
+      }
+    }
+    return newState;
+  };
 
   const valueAtom = atom(initialState());
 
@@ -81,11 +101,16 @@ export function createReducerAndAtoms<
 
     return useMemo(() => {
       const actions = createActions((action) => {
-        setState((state) => reducer(state, action));
+        setState((state) => reducerWithMiddleware(state, action));
       });
       return actions;
     }, [setState]);
   }
 
-  return { reducer, createActions, valueAtom, useActions };
+  return {
+    reducer: reducerWithMiddleware,
+    createActions,
+    valueAtom,
+    useActions,
+  };
 }
