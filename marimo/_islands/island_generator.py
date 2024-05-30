@@ -413,7 +413,7 @@ class MarimoIslandGenerator:
         This should be included in the <body> tag of the page.
 
         *Args:*
-        - include_init_island (bool): It True, adds initialization loader.
+        - include_init_island (bool): If True, adds initialization loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
@@ -468,7 +468,7 @@ class MarimoIslandGenerator:
 
         - version_override (str): Marimo version to use for loaded js/css.
         - _development_url (str): If True, uses local marimo islands js.
-        - include_init_island (bool): It True, adds initialization loader.
+        - include_init_island (bool): If True, adds initialization loader.
         - max_width (str): CSS style max_width property.
         - margin (str): CSS style margin property.
         - style (str): CSS style. Overrides max_width and margin.
