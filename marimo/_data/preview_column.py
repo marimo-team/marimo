@@ -24,6 +24,8 @@ def get_column_preview(
 
     This may return a chart and a aggregation summary of the column.
     """
+    column_name = request.column_name
+    table_name = request.table_name
     try:
         table = get_table_manager_or_none(item)
         if table is None:
@@ -31,12 +33,12 @@ def get_column_preview(
 
         # Get the summary of the column
         try:
-            summary = table.get_summary(request.column_name)
+            summary = table.get_summary(column_name)
         except Exception as e:
             LOGGER.warning(
                 "Failed to get summary for column %s in table %s",
-                request.column_name,
-                request.table_name,
+                column_name,
+                table_name,
                 exc_info=e,
             )
             summary = ColumnSummary()
@@ -48,26 +50,38 @@ def get_column_preview(
                 "Altair is required to render charts. "
                 "Install it with `pip install altair`."
             )
+        else:
+            # Check for special characters that can't be escaped easily
+            # (e.g. backslash, quotes)
+            for char in ["\\", '"', "'"]:
+                if char in column_name:
+                    error = (
+                        f"Column names with `{char}` are not supported "
+                        "in charts. Consider renaming the column."
+                    )
+                    break
 
         # Get the chart for the column
-        try:
-            chart_spec, chart_code, chart_max_rows_errors = _get_altair_chart(
-                request, table, summary
-            )
-        except Exception as e:
-            LOGGER.warning(
-                "Failed to get chart for column %s in table %s",
-                request.column_name,
-                request.table_name,
-                exc_info=e,
-            )
-            chart_max_rows_errors = False
-            chart_spec = None
-            chart_code = None
+        chart_max_rows_errors = False
+        chart_spec = None
+        chart_code = None
+
+        if error is None:
+            try:
+                chart_spec, chart_code, chart_max_rows_errors = (
+                    _get_altair_chart(request, table, summary)
+                )
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to get chart for column %s in table %s",
+                    column_name,
+                    table_name,
+                    exc_info=e,
+                )
 
         return DataColumnPreview(
-            table_name=request.table_name,
-            column_name=request.column_name,
+            table_name=table_name,
+            column_name=column_name,
             chart_max_rows_errors=chart_max_rows_errors,
             chart_spec=chart_spec,
             chart_code=chart_code,
@@ -77,13 +91,13 @@ def get_column_preview(
     except Exception as e:
         LOGGER.warning(
             "Failed to get preview for column %s in table %s",
-            request.column_name,
-            request.table_name,
+            column_name,
+            table_name,
             exc_info=e,
         )
         return DataColumnPreview(
-            table_name=request.table_name,
-            column_name=request.column_name,
+            table_name=table_name,
+            column_name=column_name,
             error=str(e),
         )
 
