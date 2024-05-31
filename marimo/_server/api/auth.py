@@ -6,7 +6,9 @@ import secrets
 import typing
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+import starlette
 import starlette.status as status
+from packaging import version
 from starlette.datastructures import Secret
 from starlette.exceptions import HTTPException
 from starlette.middleware.sessions import SessionMiddleware
@@ -170,16 +172,28 @@ class CustomSessionMiddleware(SessionMiddleware):
 
         self.original_session_cookie = session_cookie
 
-        super().__init__(
-            app,
-            secret_key,
-            session_cookie,
-            max_age,
-            path,
-            same_site,
-            https_only,
-            domain,
-        )
+        if version.parse(starlette.__version__) >= version.parse("0.32.0"):
+            # Domain was added in 0.32.0; we currently don't use it.
+            super().__init__(
+                app,
+                secret_key,
+                session_cookie,
+                max_age,
+                path,
+                same_site,
+                https_only,
+                domain,
+            )
+        else:
+            super().__init__(
+                app,
+                secret_key,
+                session_cookie,
+                max_age,
+                path,
+                same_site,
+                https_only,
+            )
 
     async def __call__(
         self, scope: Scope, receive: Receive, send: Send
