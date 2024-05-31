@@ -23,4 +23,16 @@ export const Strings = {
 
     return startCase(str);
   },
+
+  htmlEscape: (str: string | undefined): string | undefined => {
+    if (!str) {
+      return str;
+    }
+    return str
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  },
 };

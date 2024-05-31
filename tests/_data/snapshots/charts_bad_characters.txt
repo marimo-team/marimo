@@ -1,0 +1,59 @@
+# col<angles
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("col<angles", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# col[0]brackets
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("col\[0\]brackets", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# col:colon
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("col\:colon", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# col.period
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("col\.period", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart
+
+# col\backslash
+_chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(
+        y=alt.Y("col\backslash", type="nominal"),
+        x=alt.X("count()", type="quantitative"),
+    )
+    .properties(width="container")
+)
+_chart

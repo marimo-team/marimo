@@ -255,10 +255,16 @@ class WrapperChartBuilder(ChartBuilder):
         self.delegate = delegate
 
     def altair(self, data: Any, column: str) -> Any:
-        return self.delegate.altair(data, column)
+        return self.delegate.altair(
+            data, _escape_special_path_characters(column)
+        )
 
     def altair_code(self, data: str, column: str) -> str:
-        return dedent(self.delegate.altair_code(data, column)).strip()
+        return dedent(
+            self.delegate.altair_code(
+                data, _escape_special_path_characters(column)
+            )
+        ).strip()
 
 
 def get_chart_builder(
@@ -278,3 +284,15 @@ def get_chart_builder(
         return WrapperChartBuilder(IntegerChartBuilder())
     if column_type == "unknown":
         return WrapperChartBuilder(UnknownChartBuilder())
+
+
+def _escape_special_path_characters(column: str) -> str:
+    """
+    Escape special characters in a column name that is a path.
+    """
+    return (
+        column.replace(".", "\\.")
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace(":", "\\:")
+    )

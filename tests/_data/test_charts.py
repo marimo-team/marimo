@@ -49,6 +49,25 @@ def test_charts_altair_code():
     snapshot("charts.txt", "\n\n".join(outputs))
 
 
+def test_charts_bad_characters():
+    outputs: List[str] = []
+    builder = get_chart_builder("string", False)
+    chars = {
+        "<": "angles",
+        "[0]": "brackets",
+        ":": "colon",
+        ".": "period",
+        "\\": "backslash",
+    }
+
+    for char, name in chars.items():
+        col = f"col{char}{name}"
+        code = builder.altair_code("df", col)
+        outputs.append(f"# {col}\n{code}")
+
+    snapshot("charts_bad_characters.txt", "\n\n".join(outputs))
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_charts_altair_json():
     outputs: List[str] = []
@@ -66,3 +85,17 @@ def test_charts_altair_json():
         outputs.append(f"# {title}\n{code}")
 
     snapshot("charts_json.txt", "\n\n".join(outputs))
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_charts_altair_json_bad_data():
+    import altair as alt
+    import pandas as pd
+
+    data = pd.DataFrame({"some[0]really.bad:column": [1, 2, 3]})
+
+    build = get_chart_builder("string", False)
+    code = build.altair_json(data, "some[0]really.bad:column")
+    # Validate it is valid JSON
+    alt.Chart.from_json(code)
+    snapshot("charts_json_bad_data.txt", code)

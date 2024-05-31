@@ -1,0 +1,39 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "name": "data-eb3498b073936ca31ff9c34a93aa6114"
+  },
+  "datasets": {
+    "data-eb3498b073936ca31ff9c34a93aa6114": [
+      {
+        "some[0]really.bad:column": 1
+      },
+      {
+        "some[0]really.bad:column": 2
+      },
+      {
+        "some[0]really.bad:column": 3
+      }
+    ]
+  },
+  "encoding": {
+    "x": {
+      "aggregate": "count",
+      "type": "quantitative"
+    },
+    "y": {
+      "field": "some\\[0\\]really\\.bad\\:column",
+      "type": "nominal"
+    }
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "width": "container"
+}

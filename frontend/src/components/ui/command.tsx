@@ -12,6 +12,7 @@ import {
   menuSeparatorVariants,
 } from "./menu-items";
 import { VariantProps } from "class-variance-authority";
+import { Strings } from "@/utils/strings";
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -136,6 +137,7 @@ const CommandItem = React.forwardRef<
     ref={ref}
     className={cn(menuItemVariants({ variant, inset }), className)}
     {...props}
+    value={Strings.htmlEscape(props.value)}
   />
 ));
 
