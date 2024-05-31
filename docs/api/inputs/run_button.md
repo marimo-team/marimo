@@ -2,6 +2,8 @@
 
 ```{eval-rst}
 .. marimo-embed::
+    :size: medium
+
     @app.cell
     def __():
         b = mo.ui.run_button()
