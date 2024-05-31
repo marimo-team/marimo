@@ -24,6 +24,7 @@
   radio
   range_slider
   refresh
+  run_button
   slider
   switch
   table
@@ -59,6 +60,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
   marimo.ui.radio
   marimo.ui.range_slider
   marimo.ui.refresh
+  marimo.ui.run_button
   marimo.ui.slider
   marimo.ui.switch
   marimo.ui.tabs
