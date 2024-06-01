@@ -100,7 +100,7 @@ describe("splitEditor", () => {
 
     const result2 = splitEditor(mockEditor);
     expect(result2.beforeCursorCode).toEqual(
-      "print('Hello')\nprint('Goodbye')"
+      "print('Hello')\nprint('Goodbye')",
     );
     expect(result2.afterCursorCode).toEqual("");
   });

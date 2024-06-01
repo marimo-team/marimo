@@ -41,6 +41,7 @@ export const Footer: React.FC = () => {
             : "Enable autorun on startup"
         }
         selected={false}
+        className="border-r"
         onClick={async () => {
           const newConfig = {
             ...config,
@@ -54,7 +55,7 @@ export const Footer: React.FC = () => {
           );
         }}
       >
-        <div className="font-prose text-sm flex items-center gap-1 border-r pr-2">
+        <div className="font-prose text-sm flex items-center gap-1">
           <span>on startup: </span>
           {config.runtime.auto_instantiate ? (
             <ZapIcon size={14} />
@@ -88,7 +89,7 @@ export const Footer: React.FC = () => {
           );
         }}
       >
-        <div className="font-prose text-sm flex items-center gap-1 border-r pr-2">
+        <div className="font-prose text-sm flex items-center gap-1">
           <span>on cell change: </span>
           {config.runtime.on_cell_change === "autorun" ? (
             <ZapIcon size={14} />
