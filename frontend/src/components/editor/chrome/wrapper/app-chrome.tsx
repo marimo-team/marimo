@@ -117,7 +117,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "bg-white dark:bg-[var(--slate-1)] no-print",
+        "dark:bg-[var(--slate-1)] no-print",
         isOpen && "border-r border-l border-[var(--slate-7)]",
       )}
       minSize={10}
