@@ -7,10 +7,15 @@ import { useAtomValue } from "jotai";
 import { cellErrorCount } from "@/core/cells/cells";
 import { PANEL_ICONS, PanelType } from "../types";
 import { MachineStats } from "./machine-stats";
+import { useUserConfig } from "@/core/config/config";
+import { ZapIcon, ZapOffIcon } from "lucide-react";
+import { saveUserConfig } from "@/core/network/requests";
+import { UserConfig } from "@/core/config/config-schema";
 
 export const Footer: React.FC = () => {
   const { selectedPanel } = useChromeState();
   const { openApplication } = useChromeActions();
+  const [config, setConfig] = useUserConfig();
   const errorCount = useAtomValue(cellErrorCount);
 
   const renderIcon = (type: PanelType, className?: string) => {
@@ -28,6 +33,72 @@ export const Footer: React.FC = () => {
         {renderIcon("errors", errorCount > 0 ? "text-destructive" : "")}
         <span className="ml-1 font-mono mt-[0.125rem]">{errorCount}</span>
       </FooterItem>
+
+      <FooterItem
+        tooltip={
+          config.runtime.auto_instantiate
+            ? "Disable autorun on startup"
+            : "Enable autorun on startup"
+        }
+        selected={false}
+        onClick={async () => {
+          const newConfig = {
+            ...config,
+            runtime: {
+              ...config.runtime,
+              auto_instantiate: !config.runtime.auto_instantiate,
+            },
+          };
+          await saveUserConfig({ config: newConfig }).then(() =>
+            setConfig(newConfig),
+          );
+        }}
+      >
+        <div className="font-prose text-sm flex items-center gap-1 border-r pr-2">
+          <span>on startup: </span>
+          {config.runtime.auto_instantiate ? (
+            <ZapIcon size={14} />
+          ) : (
+            <ZapOffIcon size={16} />
+          )}
+          <span>{config.runtime.auto_instantiate ? "autorun" : "lazy"}</span>
+        </div>
+      </FooterItem>
+
+      <FooterItem
+        tooltip={
+          config.runtime.on_cell_change === "autorun"
+            ? "Disable autorun"
+            : "Enable autorun"
+        }
+        selected={false}
+        onClick={async () => {
+          const newConfig: UserConfig = {
+            ...config,
+            runtime: {
+              ...config.runtime,
+              on_cell_change:
+                config.runtime.on_cell_change === "autorun"
+                  ? "lazy"
+                  : "autorun",
+            },
+          };
+          await saveUserConfig({ config: newConfig }).then(() =>
+            setConfig(newConfig),
+          );
+        }}
+      >
+        <div className="font-prose text-sm flex items-center gap-1 border-r pr-2">
+          <span>on cell change: </span>
+          {config.runtime.on_cell_change === "autorun" ? (
+            <ZapIcon size={14} />
+          ) : (
+            <ZapOffIcon size={16} />
+          )}
+          <span>{config.runtime.on_cell_change}</span>
+        </div>
+      </FooterItem>
+
       <div className="mx-auto" />
 
       <MachineStats />
