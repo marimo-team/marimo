@@ -1,0 +1,30 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.17.0.json",
+  "config": {
+    "view": {
+      "continuousHeight": 300,
+      "continuousWidth": 300
+    }
+  },
+  "data": {
+    "format": {
+      "type": "csv"
+    },
+    "url": "data:text/csv;base64,QQoxCjIKMwo="
+  },
+  "encoding": {
+    "x": {
+      "bin": true,
+      "field": "A",
+      "type": "quantitative"
+    },
+    "y": {
+      "aggregate": "count",
+      "type": "quantitative"
+    }
+  },
+  "mark": {
+    "type": "bar"
+  },
+  "width": "container"
+}

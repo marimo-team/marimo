@@ -111,6 +111,7 @@ def _get_altair_chart(
     if not DependencyManager.has_altair() or not table.supports_altair():
         return None, None, False
 
+    import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
     from altair import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         MaxRowsError,
     )
@@ -135,10 +136,22 @@ def _get_altair_chart(
 
     chart_max_rows_errors = False
     try:
-        chart_json = chart_builder.altair_json(
-            table.data,
-            request.column_name,
-        )
+        column_data = table.select_columns([request.column_name]).data
+        # Date types don't serialize well to csv,
+        # so we don't transform them
+        if column_type == "date":
+            # Default max_rows is 5_000, but we can support more.
+            with alt.data_transformers.enable("default", max_rows=20_000):
+                chart_json = chart_builder.altair_json(
+                    column_data,
+                    request.column_name,
+                )
+        else:
+            with alt.data_transformers.enable("marimo_inline_csv"):
+                chart_json = chart_builder.altair_json(
+                    column_data,
+                    request.column_name,
+                )
     except MaxRowsError:
         chart_json = None
         chart_max_rows_errors = True

@@ -37,6 +37,11 @@ class PandasTableManagerFactory(TableManagerFactory):
             ) -> TableManager[pd.DataFrame]:
                 return PandasTableManager(self.data.iloc[indices])
 
+            def select_columns(
+                self, columns: list[str]
+            ) -> TableManager[pd.DataFrame]:
+                return PandasTableManager(self.data[columns])
+
             def get_row_headers(
                 self,
             ) -> list[tuple[str, list[str | int | float]]]:

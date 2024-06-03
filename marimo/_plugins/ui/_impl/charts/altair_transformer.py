@@ -1,10 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import json
 from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
 
 import marimo._output.data.data as mo_data
+from marimo._output.utils import build_data_url
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -51,6 +53,20 @@ def _to_marimo_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
     data_csv = _data_to_csv_string(data)
     virtual_file = mo_data.csv(data_csv.encode("utf-8"))
     return {"url": virtual_file.url, "format": {"type": "csv"}}
+
+
+def _to_marimo_inline_csv(data: Data, **kwargs: Any) -> _ToCsvReturnUrlDict:
+    """
+    Custom implementation of altair.utils.data.to_csv that
+    inlines the CSV data in the URL.
+    """
+    del kwargs
+    data_csv = _data_to_csv_string(data)
+    url = build_data_url(
+        mimetype="text/csv",
+        data=base64.b64encode(data_csv.encode("utf-8")),
+    )
+    return {"url": url, "format": {"type": "csv"}}
 
 
 # Copied from https://github.com/altair-viz/altair/blob/0ca83784e2455f2b84d0f6d789af2abbe8814348/altair/utils/data.py#L263C1-L288C10
@@ -115,6 +131,7 @@ def register_transformers() -> None:
     # Default to CSV. Due to the columnar nature of CSV, it is more efficient
     # than JSON for large datasets (~80% smaller file size).
     alt.data_transformers.register("marimo", _to_marimo_csv)
+    alt.data_transformers.register("marimo_inline_csv", _to_marimo_inline_csv)
     alt.data_transformers.register("marimo_json", _to_marimo_json)
     alt.data_transformers.register(
         "marimo_csv",

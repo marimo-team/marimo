@@ -65,6 +65,14 @@ class TestPandasTableManager(unittest.TestCase):
         selected_manager = self.manager.select_rows([])
         assert selected_manager.data.shape == (0, 6)
 
+    def test_select_columns(self) -> None:
+        import pandas as pd
+
+        columns = ["A", "C"]
+        selected_manager = self.manager.select_columns(columns)
+        expected_data = self.data[columns]
+        pd.testing.assert_frame_equal(selected_manager.data, expected_data)
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers

@@ -50,6 +50,23 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     )
                 return PyArrowTableManager(self.data.take(indices))
 
+            def select_columns(
+                self, columns: list[str]
+            ) -> PyArrowTableManager:
+                if isinstance(self.data, pa.RecordBatch):
+                    return PyArrowTableManager(
+                        pa.RecordBatch.from_arrays(
+                            [
+                                self.data.column(
+                                    self.data.schema.get_field_index(col)
+                                )
+                                for col in columns
+                            ],
+                            names=columns,
+                        )
+                    )
+                return PyArrowTableManager(self.data.select(columns))
+
             def get_row_headers(
                 self,
             ) -> list[tuple[str, list[str | int | float]]]:

@@ -60,6 +60,12 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert selected_manager.data.shape == (0, 0)
         assert selected_manager.data.columns == []
 
+    def test_select_columns(self) -> None:
+        columns = ["A"]
+        selected_manager = self.manager.select_columns(columns)
+        expected_data = self.data.select(columns)
+        assert selected_manager.data.equals(expected_data)
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers

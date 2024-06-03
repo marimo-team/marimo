@@ -35,6 +35,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
             ) -> TableManager[pl.DataFrame]:
                 return PolarsTableManager(self.data[indices])
 
+            def select_columns(
+                self, columns: list[str]
+            ) -> TableManager[pl.DataFrame]:
+                return PolarsTableManager(self.data.select(columns))
+
             def get_row_headers(
                 self,
             ) -> list[tuple[str, list[str | int | float]]]:

@@ -59,6 +59,12 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
         selected_manager = self.manager.select_rows([])
         assert selected_manager.data.num_rows == 0
 
+    def test_select_columns(self) -> None:
+        columns = ["A"]
+        selected_manager = self.manager.select_columns(columns)
+        expected_data = self.data.select(columns)
+        assert selected_manager.data == expected_data
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers

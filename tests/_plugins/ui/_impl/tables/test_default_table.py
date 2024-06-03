@@ -28,6 +28,16 @@ class TestDefaultTable(unittest.TestCase):
         selected_manager = self.manager.select_rows([])
         assert selected_manager.data == []
 
+    def test_select_columns(self) -> None:
+        columns = ["A"]
+        selected_manager = self.manager.select_columns(columns)
+        expected_data = [
+            {"A": 1},
+            {"A": 2},
+            {"A": 3},
+        ]
+        assert selected_manager.data == expected_data
+
     def test_get_row_headers(self) -> None:
         expected_headers = []
         assert self.manager.get_row_headers() == expected_headers
@@ -64,6 +74,14 @@ class TestColumnarDefaultTable(unittest.TestCase):
     def test_select_rows_empty(self) -> None:
         selected_manager = self.manager.select_rows([])
         assert selected_manager.data == {"A": [], "B": []}
+
+    def test_select_columns(self) -> None:
+        columns = ["A"]
+        selected_manager = self.manager.select_columns(columns)
+        expected_data = {
+            "A": [1, 2, 3],
+        }
+        assert selected_manager.data == expected_data
 
     def test_get_row_headers(self) -> None:
         expected_headers = []
