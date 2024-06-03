@@ -67,6 +67,23 @@ class DefaultTableManager(TableManager[JsonTableData]):
         # Row major data
         return DefaultTableManager([self.data[i] for i in indices])
 
+    def select_columns(self, columns: List[str]) -> DefaultTableManager:
+        # Column major data
+        if isinstance(self.data, dict):
+            new_data: Dict[str, Any] = {
+                key: value
+                for key, value in self.data.items()
+                if key in columns
+            }
+            return DefaultTableManager(new_data)
+        # Row major data
+        return DefaultTableManager(
+            [
+                {key: row[key] for key in columns}
+                for row in self._normalize_data(self.data)
+            ]
+        )
+
     def limit(self, num: int) -> DefaultTableManager:
         if num < 0:
             raise ValueError("Limit must be a positive integer")

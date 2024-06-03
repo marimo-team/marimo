@@ -18,4 +18,6 @@ KnownMimeType = Literal[
     "video/mpeg",
     "text/html",
     "text/plain",
+    "text/markdown",
+    "text/csv",
 ]

@@ -53,6 +53,10 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def select_columns(self, columns: list[str]) -> TableManager[T]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_row_headers(self) -> list[tuple[str, list[str | int | float]]]:
         raise NotImplementedError
 
