@@ -54,6 +54,12 @@ def cache(filename: str, code: str) -> None:
 
 
 def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
+    # Replace non-breaking spaces with regular spaces -- some frontends
+    # send nbsp in place of space, which is a syntax error.
+    #
+    # See https://github.com/pyodide/pyodide/issues/3337,
+    #     https://github.com/marimo-team/marimo/issues/1546
+    code = code.replace("\u00A0", " ")
     module = compile(
         code,
         "<unknown>",

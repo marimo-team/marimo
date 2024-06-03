@@ -738,6 +738,17 @@ class TestExecution:
         assert k.graph.cells[er_1.cell_id].config.disabled
         assert "x" not in k.globals
 
+    async def test_run_code_with_nbsp(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+        # u00A0 is a non-breaking space (nbsp), which gets inserted on some
+        # platforms/browsers; marimo converts these characters to spaces ...
+        code = "x \u00A0 = 10"
+        await k.run([exec_req.get(code)])
+        assert not k.errors
+        assert k.globals["x"] == 10
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(
