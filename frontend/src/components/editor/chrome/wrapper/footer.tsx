@@ -24,7 +24,7 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-1 pr-4 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 divide-x">
       <FooterItem
         tooltip="View errors"
         selected={selectedPanel === "errors"}
@@ -41,7 +41,6 @@ export const Footer: React.FC = () => {
             : "Enable autorun on startup"
         }
         selected={false}
-        className="border-r"
         onClick={async () => {
           const newConfig = {
             ...config,
