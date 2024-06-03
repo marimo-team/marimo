@@ -185,9 +185,9 @@ const requestHandler = createRPCRequestHandler({
         import micropip
 
         try:
-          import pyaml
+          import yaml
         except ModuleNotFoundError:
-          await micropip.install("pyaml")
+          await micropip.install("pyyaml")
         `);
     }
 
