@@ -2,12 +2,12 @@ fail_fast: true
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.17
+    rev: v0.18
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.40.0
+    rev: v0.41.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix]
@@ -19,7 +19,7 @@ repos:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.4.7
     hooks:
       # Run the linter
       - id: ruff
