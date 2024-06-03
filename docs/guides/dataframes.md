@@ -161,9 +161,9 @@ modern, faster alternative to Pandas.
 
 **Example.**
 
-Check out a full example [here](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars.py),
+Check out a full example [here](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars_example.py),
 or run it yourself:
 
 ```bash
-marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars.py
+marimo edit https://raw.githubusercontent.com/marimo-team/marimo/main/examples/third_party/polars_example.py
 ```
