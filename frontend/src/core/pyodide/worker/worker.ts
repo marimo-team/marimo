@@ -179,6 +179,18 @@ const requestHandler = createRPCRequestHandler({
         `);
     }
 
+    // Special case to lazily install pyaml on export_markdown
+    if (functionName === "export_markdown") {
+      await self.pyodide.runPythonAsync(`
+        import micropip
+
+        try:
+          import yaml
+        except ModuleNotFoundError:
+          await micropip.install("pyyaml")
+        `);
+    }
+
     // Perform the function call to the Python bridge
     const bridge = await bridgeReady.promise;
 
