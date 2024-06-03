@@ -80,33 +80,35 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   const helpPaneBody = (
-    <Suspense>
-      <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
-        <div className="p-3 border-b flex justify-between items-center">
-          <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
-            {selectedPanel}
+    <ErrorBoundary>
+      <Suspense>
+        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+          <div className="p-3 border-b flex justify-between items-center">
+            <div className="text-sm text-[var(--slate-11)] uppercase tracking-wide font-semibold flex-1">
+              {selectedPanel}
+            </div>
+            <Button
+              data-testid="close-helper-pane"
+              className="m-0"
+              size="xs"
+              variant="text"
+              onClick={() => setIsOpen(false)}
+            >
+              <XIcon className="w-4 h-4" />
+            </Button>
           </div>
-          <Button
-            data-testid="close-helper-pane"
-            className="m-0"
-            size="xs"
-            variant="text"
-            onClick={() => setIsOpen(false)}
-          >
-            <XIcon className="w-4 h-4" />
-          </Button>
+          {selectedPanel === "files" && <FileExplorerPanel />}
+          {selectedPanel === "errors" && <ErrorsPanel />}
+          {selectedPanel === "variables" && <VariablePanel />}
+          {selectedPanel === "dependencies" && <DependencyGraphPanel />}
+          {selectedPanel === "outline" && <OutlinePanel />}
+          {selectedPanel === "datasources" && <DataSourcesPanel />}
+          {selectedPanel === "documentation" && <DocumentationPanel />}
+          {selectedPanel === "snippets" && <SnippetsPanel />}
+          {selectedPanel === "logs" && <LogsPanel />}
         </div>
-        {selectedPanel === "files" && <FileExplorerPanel />}
-        {selectedPanel === "errors" && <ErrorsPanel />}
-        {selectedPanel === "variables" && <VariablePanel />}
-        {selectedPanel === "dependencies" && <DependencyGraphPanel />}
-        {selectedPanel === "outline" && <OutlinePanel />}
-        {selectedPanel === "datasources" && <DataSourcesPanel />}
-        {selectedPanel === "documentation" && <DocumentationPanel />}
-        {selectedPanel === "snippets" && <SnippetsPanel />}
-        {selectedPanel === "logs" && <LogsPanel />}
-      </div>
-    </Suspense>
+      </Suspense>
+    </ErrorBoundary>
   );
 
   const helperPane = (

@@ -33,6 +33,7 @@ export const Strings = {
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replaceAll("'", "&#039;")
+      .replaceAll("\n", " ");
   },
 };
