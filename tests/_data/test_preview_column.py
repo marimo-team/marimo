@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from marimo._data.preview_column import get_column_preview
@@ -16,6 +18,10 @@ snapshot = snapshotter(__file__)
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows encodes base64 differently",
+)
 def test_get_column_preview() -> None:
     import pandas as pd
 

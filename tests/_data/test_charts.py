@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import sys
 from typing import List, Tuple
 
 import pytest
@@ -89,9 +88,6 @@ def test_charts_altair_json():
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="Windows encodes base64 differently"
-)
 def test_charts_altair_json_bad_data():
     import altair as alt
     import pandas as pd
