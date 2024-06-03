@@ -111,7 +111,7 @@ def _get_altair_chart(
     if not DependencyManager.has_altair() or not table.supports_altair():
         return None, None, False
 
-    import altair as alt
+    import altair as alt  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
     from altair import (  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
         MaxRowsError,
     )
