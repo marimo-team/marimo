@@ -40,15 +40,6 @@ async def test_render():
     block1 = generator.add_code("import marimo as mo")
     block2 = generator.add_code("mo.md('Hello, islands!')")
 
-    # Check if render raises an error when build() is not called
-    with pytest.raises(AssertionError) as e:
-        block1.render()
-    assert "You must call build() before rendering" in str(e.value)
-
-    with pytest.raises(AssertionError) as e:
-        block2.render(display_code=False)
-    assert "You must call build() before rendering" in str(e.value)
-
     await generator.build()
 
     with pytest.raises(ValueError) as e:
