@@ -84,7 +84,7 @@ for both Jupyter and Streamlit.
 <!---->
 ## Cell order
 
-In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
+In marimo, cells can be arranged in any order — marimo figures out the one true way to execute them based on variable declarations and references (in a ["topologically sorted"](https://en.wikipedia.org/wiki/Topological_sorting#:~:text=In%20computer%20science%2C%20a%20topological,before%20v%20in%20the%20ordering.) order)
 
 ```{.python.marimo}
 z.value
