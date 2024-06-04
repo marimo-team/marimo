@@ -14,8 +14,6 @@ from typing import (
     Union,
 )
 
-from altair import UndefinedType
-
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.rich_help import mddoc
@@ -247,7 +245,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             chart_selection = False
             legend_selection = False
 
-        self.dataframe: UndefinedType | pd.DataFrame = chart.data
+        self.dataframe: alt.UndefinedType | pd.DataFrame = chart.data
 
         # Private attributes
         self._chart = chart
@@ -270,6 +268,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         return self._chart_selection
 
     def _convert_value(self, value: ChartSelection) -> Any:
+        from altair import UndefinedType
+
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
@@ -344,6 +344,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
 
     @property
     def value(self) -> pd.DataFrame:
+        from altair import UndefinedType
+
         value = super().value
         if isinstance(value, UndefinedType):
             sys.stderr.write(
