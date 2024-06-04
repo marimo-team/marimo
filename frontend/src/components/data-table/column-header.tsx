@@ -6,10 +6,10 @@ import {
   ArrowDownWideNarrowIcon,
   ArrowDown10Icon,
   ArrowDown01Icon,
+  CopyIcon,
 } from "lucide-react";
 
 import { cn } from "@/utils/cn";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,16 +40,19 @@ export const DataTableColumnHeader = <TData, TValue>({
     sortFn === sortingFns.basic ? ArrowDown10Icon : ArrowDownWideNarrowIcon;
 
   return (
-    <div className={cn("group flex items-center space-x-2", className)}>
-      <span className="flex-1">{header}</span>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild={true}>
-          <Button
-            variant="ghost"
-            data-testid="data-table-sort-button"
-            size="xs"
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild={true}>
+        <div
+          className={cn(
+            "group flex items-center w-full select-none space-x-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2",
+            className,
+          )}
+          data-testid="data-table-sort-button"
+        >
+          <span className="flex-1">{header}</span>
+          <span
             className={cn(
-              "ml-3 h-5 data-[state=open]:bg-accent m-0 p-1",
+              "ml-3 h-5 m-0 p-1",
               !column.getIsSorted() &&
                 "invisible group-hover:visible data-[state=open]:visible",
             )}
@@ -61,28 +64,60 @@ export const DataTableColumnHeader = <TData, TValue>({
             ) : (
               <ChevronsUpDown className="h-3 w-3" />
             )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Asc
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-            Desc
-          </DropdownMenuItem>
-          {column.getIsSorted() && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => column.clearSorting()}>
-                <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
-                Clear
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </span>
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
+          <AscIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Asc
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
+          <DescIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Desc
+        </DropdownMenuItem>
+        {column.getIsSorted() && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => column.clearSorting()}>
+              <ChevronsUpDown className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+              Clear
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => navigator.clipboard.writeText(column.id)}
+        >
+          <CopyIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground/70" />
+          Copy column name
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+export const DataTableColumnHeaderWithSummary = <TData, TValue>({
+  column,
+  header,
+  summary,
+  className,
+}: DataTableColumnHeaderProps<TData, TValue> & {
+  summary: React.ReactNode;
+}) => {
+  return (
+    <div
+      className={cn(
+        "flex flex-col h-full py-2 justify-between items-start",
+        className,
+      )}
+    >
+      <DataTableColumnHeader
+        column={column}
+        header={header}
+        className={className}
+      />
+      {summary}
     </div>
   );
 };

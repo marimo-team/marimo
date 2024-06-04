@@ -16,6 +16,7 @@ from typing import (
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
+from marimo._data.models import NonNestedLiteral
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -25,7 +26,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import ListOrTuple, TableData
-from marimo._runtime.functions import Function
+from marimo._runtime.functions import EmptyArgs, Function
 
 LOGGER = _loggers.marimo_logger()
 
@@ -39,6 +40,22 @@ if TYPE_CHECKING:
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "json"]
+
+
+@dataclass
+class ColumnSummary:
+    column: str
+    nulls: Optional[int]
+    # int, float, datetime
+    min: Optional[NonNestedLiteral]
+    max: Optional[NonNestedLiteral]
+    # str
+    unique: Optional[int]
+
+
+@dataclass
+class ColumnSummaries:
+    summaries: List[ColumnSummary]
 
 
 @mddoc
@@ -193,6 +210,11 @@ class table(
                     arg_cls=DownloadAsArgs,
                     function=self.download_as,
                 ),
+                Function(
+                    name=self.get_column_summaries.__name__,
+                    arg_cls=EmptyArgs,
+                    function=self.get_column_summaries,
+                ),
             ),
         )
 
@@ -225,3 +247,20 @@ class table(
             return mo_data.json(manager.to_json()).url
         else:
             raise ValueError("format must be one of 'csv' or 'json'.")
+
+    def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
+        del args
+        summaries: List[ColumnSummary] = []
+        for column in self._manager.get_column_names():
+            summary = self._manager.get_summary(column)
+            summaries.append(
+                ColumnSummary(
+                    column=column,
+                    nulls=summary.nulls,
+                    min=summary.min,
+                    max=summary.max,
+                    unique=summary.unique,
+                )
+            )
+
+        return ColumnSummaries(summaries)

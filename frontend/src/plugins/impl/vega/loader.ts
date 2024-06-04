@@ -23,7 +23,12 @@ const customIntegerParser = (v: string) => {
     return v;
   }
 
-  if (isNumber(Number.parseInt(v))) {
+  const parsedInt = Number.parseInt(v);
+  if (isNumber(parsedInt)) {
+    const needsBigInt = Math.abs(parsedInt) > Number.MAX_SAFE_INTEGER;
+    if (!needsBigInt) {
+      return previousIntegerParser(v);
+    }
     try {
       return BigInt(v);
     } catch {

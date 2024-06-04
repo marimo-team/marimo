@@ -18,6 +18,7 @@ import { useAtom } from "jotai";
 import { includeOtherCellsAtom } from "@/core/ai/state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { useTheme } from "@/theme/useTheme";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -80,6 +81,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
       inputRef.current.select();
     }
   }, [enabled]);
+
+  const { theme } = useTheme();
 
   return (
     <div className="flex flex-col w-full rounded-[inherit] overflow-hidden">
@@ -170,7 +173,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         </Button>
       </div>
       {completion && enabled && (
-        <CodeMirrorMerge className="cm">
+        <CodeMirrorMerge className="cm" theme={theme}>
           <Original
             onChange={onChange}
             value={currentCode}

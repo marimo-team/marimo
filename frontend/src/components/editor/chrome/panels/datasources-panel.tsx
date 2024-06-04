@@ -345,9 +345,17 @@ const DatasetColumnPreview: React.FC<{
     </div>
   );
 
+  const updateSpec = (spec: TopLevelFacetedUnitSpec) => {
+    return {
+      ...spec,
+      config: { ...spec.config, background: "transparent" },
+    };
+  };
   const chart = preview.chart_spec && (
     <LazyVegaLite
-      spec={JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec}
+      spec={updateSpec(
+        JSON.parse(preview.chart_spec) as TopLevelFacetedUnitSpec,
+      )}
       width={"container" as unknown as number}
       height={100}
       actions={false}

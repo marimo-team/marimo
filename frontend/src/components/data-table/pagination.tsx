@@ -24,37 +24,39 @@ export const DataTablePagination = <TData,>({
 
     if (isAllPageSelected && !isAllSelected) {
       return (
-        <span>
-          {prettyNumber(selected)} selected
+        <>
+          <span>{prettyNumber(selected)} selected</span>
           <Button
             size="xs"
             data-testid="select-all-button"
             variant="link"
+            className="mb-0 h-6"
             onClick={() => table.toggleAllRowsSelected(true)}
           >
             Select all {prettyNumber(count)}
           </Button>
-        </span>
+        </>
       );
     }
 
     if (selected) {
       return (
-        <span>
-          {prettyNumber(selected)} selected
+        <>
+          <span>{prettyNumber(selected)} selected</span>
           <Button
             size="xs"
             data-testid="clear-selection-button"
             variant="link"
+            className="mb-0 h-6"
             onClick={() => table.toggleAllRowsSelected(false)}
           >
             Clear selection
           </Button>
-        </span>
+        </>
       );
     }
 
-    return `${prettyNumber(count)} items`;
+    return <span>{prettyNumber(count)} items</span>;
   };
   const currentPage = Math.min(
     table.getState().pagination.pageIndex + 1,
@@ -64,7 +66,9 @@ export const DataTablePagination = <TData,>({
 
   return (
     <div className="flex flex-1 items-center justify-between px-2">
-      <div className="text-sm text-muted-foreground">{renderTotal()}</div>
+      <div className="text-sm text-muted-foreground h-6 flex items-baseline">
+        {renderTotal()}
+      </div>
       <div className="flex items-center space-x-2">
         <Button
           size="xs"

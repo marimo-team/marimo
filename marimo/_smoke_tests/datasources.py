@@ -57,5 +57,11 @@ def __(df):
     return pa, pyarrow_df
 
 
+@app.cell
+def __(mo, polars_df):
+    mo.ui.table(polars_df)
+    return
+
+
 if __name__ == "__main__":
     app.run()

@@ -1,8 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { ColumnDef } from "@tanstack/react-table";
-import { DataTableColumnHeader } from "./column-header";
+import {
+  DataTableColumnHeader,
+  DataTableColumnHeaderWithSummary,
+} from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
+import { ColumnChartSpecModel } from "./chart-spec-model";
+import { FieldTypes } from "@/plugins/impl/vega/vega-loader";
+import { TableColumnSummary } from "./column-summary";
 
 interface ColumnInfo {
   key: string;
@@ -62,6 +68,7 @@ export function generateColumns<T>(
   selection: "single" | "multi" | null,
 ): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
+
   const columns = columnInfo.map(
     (info): ColumnDef<T> => ({
       id: info.key,
@@ -73,7 +80,13 @@ export function generateColumns<T>(
         return (row as any)[info.key];
       },
       header: ({ column }) => {
-        return <DataTableColumnHeader header={info.key} column={column} />;
+        return (
+          <DataTableColumnHeaderWithSummary
+            header={info.key}
+            column={column}
+            summary={<TableColumnSummary columnId={info.key} />}
+          />
+        );
       },
       cell: ({ renderValue, getValue }) => {
         const value = getValue();

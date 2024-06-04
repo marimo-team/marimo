@@ -86,6 +86,10 @@ class TableManager(abc.ABC, Generic[T]):
     def get_num_columns(self) -> int:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_column_names(self) -> list[str]:
+        raise NotImplementedError
+
 
 class TableManagerFactory(abc.ABC):
     @staticmethod

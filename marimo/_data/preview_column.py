@@ -30,6 +30,12 @@ def get_column_preview(
         table = get_table_manager_or_none(item)
         if table is None:
             return None
+        if table.get_num_rows() == 0:
+            return DataColumnPreview(
+                table_name=table_name,
+                column_name=column_name,
+                error="Table is empty",
+            )
 
         # Get the summary of the column
         try:
@@ -54,7 +60,7 @@ def get_column_preview(
             # Check for special characters that can't be escaped easily
             # (e.g. backslash, quotes)
             for char in ["\\", '"', "'"]:
-                if char in column_name:
+                if char in str(column_name):
                     error = (
                         f"Column names with `{char}` are not supported "
                         "in charts. Consider renaming the column."
@@ -72,6 +78,7 @@ def get_column_preview(
                     _get_altair_chart(request, table, summary)
                 )
             except Exception as e:
+                error = str(e)
                 LOGGER.warning(
                     "Failed to get chart for column %s in table %s",
                     column_name,

@@ -162,7 +162,7 @@ function PluginSlotInternal<T>(
         const objectId = getUIElementObjectId(hostElement);
         invariant(objectId, "Object ID should exist");
         const response = await FUNCTIONS_REGISTRY.request({
-          args: input.parse(args[0]),
+          args: prettyParse(input, args[0]),
           functionName: key,
           namespace: objectId,
         });
@@ -170,7 +170,7 @@ function PluginSlotInternal<T>(
           Logger.error(response.status);
           throw new Error(response.status.message);
         }
-        return output.parse(response.return_value);
+        return prettyParse(output, response.return_value);
       };
     }
 
@@ -469,4 +469,15 @@ export function isCustomMarimoElement(
   }
 
   return "__type__" in element && element.__type__ === customElementLocator;
+}
+
+function prettyParse<T>(schema: ZodSchema<T>, data: unknown): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    Logger.log("Failed to parse data", data, result.error);
+    throw new Error(
+      result.error.errors.map((e) => `${e.path}: ${e.message}`).join("\n"),
+    );
+  }
+  return result.data;
 }

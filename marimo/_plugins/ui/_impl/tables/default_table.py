@@ -132,6 +132,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return len(self.data)
         return 1
 
+    def get_column_names(self) -> List[str]:
+        if isinstance(self.data, dict):
+            return list(self.data.keys())
+        first = next(iter(self.data), None)
+        if isinstance(first, dict):
+            return list(first.keys())
+        return ["value"]
+
     @staticmethod
     def is_type(value: Any) -> bool:
         return isinstance(value, (list, tuple, dict))
