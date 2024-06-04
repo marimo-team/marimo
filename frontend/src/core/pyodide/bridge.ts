@@ -46,7 +46,7 @@ import { toast } from "@/components/ui/use-toast";
 import { generateUUID } from "@/utils/uuid";
 import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
-import { initialMode } from "../mode";
+import { getInitialAppMode } from "../mode";
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -140,7 +140,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
           ...userConfig.runtime,
           // Force auto_instantiate to true if the initial mode is read
           auto_instantiate:
-            initialMode === "read" ? true : userConfig.runtime.auto_instantiate,
+            getInitialAppMode() === "read"
+              ? true
+              : userConfig.runtime.auto_instantiate,
         },
       },
     });

@@ -4,6 +4,7 @@ import { atom } from "jotai";
 import { CellId } from "./cells/ids";
 import { store } from "./state/jotai";
 import { assertNever } from "@/utils/assertNever";
+import { Logger } from "@/utils/Logger";
 
 /**
  * This is the internal mode.
@@ -18,7 +19,8 @@ export type AppMode = "read" | "edit" | "present" | "home";
 export function getInitialAppMode(): AppMode {
   const tag = document.querySelector("marimo-mode");
   if (tag === null || !(tag instanceof HTMLElement)) {
-    throw new Error("internal-error: marimo-mode tag not found");
+    Logger.warn("internal-error: marimo-mode tag not found");
+    return "read";
   }
 
   const mode = tag.dataset.mode as AppMode | undefined;
