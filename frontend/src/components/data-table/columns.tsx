@@ -6,8 +6,6 @@ import {
 } from "./column-header";
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
-import { ColumnChartSpecModel } from "./chart-spec-model";
-import { FieldTypes } from "@/plugins/impl/vega/vega-loader";
 import { TableColumnSummary } from "./column-summary";
 
 interface ColumnInfo {

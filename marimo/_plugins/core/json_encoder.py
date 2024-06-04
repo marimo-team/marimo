@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import datetime
 import json
 from json import JSONEncoder
 from typing import Any
@@ -71,6 +72,10 @@ class WebComponentEncoder(JSONEncoder):
         # Handle set
         if isinstance(obj, set):
             return list(obj)
+
+        # Handle datetime objects
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
 
         # Fallthrough to default encoder
         return JSONEncoder.default(self, obj)
