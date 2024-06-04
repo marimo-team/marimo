@@ -222,7 +222,7 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
 
 const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
   const data = useMemo(() => parseCsvData(contents), [contents]);
-  const columns = useMemo(() => generateColumns(data, [], null, {}), [data]);
+  const columns = useMemo(() => generateColumns(data, [], null), [data]);
 
   return (
     <DataTable
