@@ -51,6 +51,9 @@ class ColumnSummary:
     max: Optional[NonNestedLiteral]
     # str
     unique: Optional[int]
+    # bool
+    true: Optional[NonNestedLiteral] = None
+    false: Optional[NonNestedLiteral] = None
 
 
 @dataclass
@@ -173,6 +176,7 @@ class table(
     ) -> None:
         self._data = data
         self._manager = get_table_manager(data)
+        self._unfiltered_manager = self._manager
         self._filtered_manager: Optional[TableManager[Any]] = None
 
         totalRows = self._manager.get_num_rows()
@@ -251,8 +255,8 @@ class table(
     def get_column_summaries(self, args: EmptyArgs) -> ColumnSummaries:
         del args
         summaries: List[ColumnSummary] = []
-        for column in self._manager.get_column_names():
-            summary = self._manager.get_summary(column)
+        for column in self._unfiltered_manager.get_column_names():
+            summary = self._unfiltered_manager.get_summary(column)
             summaries.append(
                 ColumnSummary(
                     column=column,
@@ -260,6 +264,8 @@ class table(
                     min=summary.min,
                     max=summary.max,
                     unique=summary.unique,
+                    true=summary.true,
+                    false=summary.false,
                 )
             )
 

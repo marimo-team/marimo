@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { ColumnChartSpecModel } from "./chart-spec-model";
 import { useTheme } from "@/theme/useTheme";
-import { prettyScientificNumber } from "@/utils/numbers";
+import { prettyNumber, prettyScientificNumber } from "@/utils/numbers";
 import { prettyDate } from "@/utils/dates";
 import { DelayMount } from "../utils/delay-mount";
 import { ChartSkeleton } from "../charts/chart-skeleton";
@@ -52,6 +52,18 @@ export const TableColumnSummary = <TData, TValue>({
 
     switch (type) {
       case "date":
+        // Without a chart
+        if (!spec) {
+          return (
+            <div className="flex flex-col whitespace-pre">
+              <span>min: {prettyDate(summary.min)}</span>
+              <span>max: {prettyDate(summary.max)}</span>
+              <span>unique: {prettyNumber(summary.unique)}</span>
+              <span>nulls: {prettyNumber(summary.nulls)}</span>
+            </div>
+          );
+        }
+
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
             <span>{prettyDate(summary.min)}</span>-
@@ -60,6 +72,28 @@ export const TableColumnSummary = <TData, TValue>({
         );
       case "integer":
       case "number":
+        // Without a chart
+        if (!spec) {
+          return (
+            <div className="flex flex-col whitespace-pre">
+              <span>
+                min:{" "}
+                {typeof summary.min === "number"
+                  ? prettyScientificNumber(summary.min)
+                  : summary.min}
+              </span>
+              <span>
+                max:{" "}
+                {typeof summary.max === "number"
+                  ? prettyScientificNumber(summary.max)
+                  : summary.max}
+              </span>
+              <span>unique: {prettyNumber(summary.unique)}</span>
+              <span>nulls: {prettyNumber(summary.nulls)}</span>
+            </div>
+          );
+        }
+
         if (
           typeof summary.min === "number" &&
           typeof summary.max === "number"
@@ -71,6 +105,7 @@ export const TableColumnSummary = <TData, TValue>({
             </div>
           );
         }
+
         return (
           <div className="flex justify-between w-full px-2 whitespace-pre">
             <span>{summary.min}</span>
@@ -78,22 +113,36 @@ export const TableColumnSummary = <TData, TValue>({
           </div>
         );
       case "boolean":
+        // Without a chart
+        if (!spec) {
+          return (
+            <div className="flex flex-col whitespace-pre">
+              <span>true: {prettyNumber(summary.true)}</span>
+              <span>false: {prettyNumber(summary.false)}</span>
+            </div>
+          );
+        }
+
+        if (summary.nulls == null || summary.nulls === 0) {
+          return null;
+        }
+
         return (
-          <div>
-            <span className="whitespace-pre">nulls: {summary.nulls}</span>
+          <div className="flex flex-col whitespace-pre">
+            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
       case "string":
         return (
-          <div className="flex flex-col">
-            <span className="whitespace-pre">unique: {summary.unique}</span>
-            <span className="whitespace-pre">nulls: {summary.nulls}</span>
+          <div className="flex flex-col whitespace-pre">
+            <span>unique: {prettyNumber(summary.unique)}</span>
+            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
       case "unknown":
         return (
-          <div>
-            <span className="whitespace-pre">nulls: {summary.nulls}</span>
+          <div className="flex flex-col whitespace-pre">
+            <span>nulls: {prettyNumber(summary.nulls)}</span>
           </div>
         );
     }

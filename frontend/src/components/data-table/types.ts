@@ -5,4 +5,6 @@ export interface ColumnHeaderSummary {
   max?: number | string | undefined | null;
   unique?: number | null;
   nulls?: number | null;
+  true?: number | null;
+  false?: number | null;
 }

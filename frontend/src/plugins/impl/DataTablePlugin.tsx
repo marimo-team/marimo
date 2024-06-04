@@ -20,9 +20,9 @@ import { prettyNumber } from "@/utils/numbers";
 import { ColumnChartSpecModel } from "@/components/data-table/chart-spec-model";
 import { ColumnChartContext } from "@/components/data-table/column-summary";
 import { Logger } from "@/utils/Logger";
-import { ColumnHeaderSummary } from "@/components/data-table/column-header-summary";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
+import { ColumnHeaderSummary } from "@/components/data-table/types";
 
 /**
  * Arguments for a data table
@@ -88,6 +88,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             max: z.union([z.number(), z.string()]).nullish(),
             unique: z.number().nullish(),
             nulls: z.number().nullish(),
+            true: z.number().nullish(),
+            false: z.number().nullish(),
           }),
         ),
       }),
@@ -199,12 +201,16 @@ const DataTableComponent = ({
   data: unknown[];
   columnSummaries?: ColumnHeaderSummary[];
 }): JSX.Element => {
+  const resultsAreClipped = hasMore && totalRows > 0;
+
   const chartSpecModel = useMemo(() => {
     if (!fieldTypes || !data || !columnSummaries) {
       return ColumnChartSpecModel.EMPTY;
     }
-    return new ColumnChartSpecModel(data, fieldTypes, columnSummaries);
-  }, [data, fieldTypes, columnSummaries]);
+    return new ColumnChartSpecModel(data, fieldTypes, columnSummaries, {
+      includeCharts: !resultsAreClipped,
+    });
+  }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
   const columns = useMemo(
     () => generateColumns(data, generateIndexColumns(rowHeaders), selection),
     [data, selection, rowHeaders],

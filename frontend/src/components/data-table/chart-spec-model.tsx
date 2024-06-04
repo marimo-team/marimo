@@ -7,12 +7,17 @@ import { ColumnHeaderSummary } from "./types";
 export class ColumnChartSpecModel<T> {
   private columnSummaries = new Map<string | number, ColumnHeaderSummary>();
 
-  public static readonly EMPTY = new ColumnChartSpecModel([], {}, []);
+  public static readonly EMPTY = new ColumnChartSpecModel([], {}, [], {
+    includeCharts: false,
+  });
 
   constructor(
     private readonly data: T[],
     private readonly fieldTypes: Record<string, VegaType>,
     readonly summaries: ColumnHeaderSummary[],
+    private readonly opts: {
+      includeCharts: boolean;
+    },
   ) {
     this.columnSummaries = new Map(summaries.map((s) => [s.column, s]));
   }
@@ -21,7 +26,7 @@ export class ColumnChartSpecModel<T> {
     return {
       summary: this.columnSummaries.get(column),
       type: this.fieldTypes[column],
-      spec: this.getVegaSpec(column),
+      spec: this.opts.includeCharts ? this.getVegaSpec(column) : undefined,
     };
   }
 

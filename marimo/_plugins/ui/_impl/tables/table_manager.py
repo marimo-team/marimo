@@ -16,7 +16,7 @@ FieldTypes = Dict[str, FieldType]
 
 
 class TableManager(abc.ABC, Generic[T]):
-    DEFAULT_LIMIT = 10_000
+    DEFAULT_LIMIT = 20_000
     type: str = ""
 
     def __init__(self, data: T) -> None:
