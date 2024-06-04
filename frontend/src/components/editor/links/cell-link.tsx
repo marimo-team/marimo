@@ -67,13 +67,13 @@ export function scrollAndHighlightCell(
       cell.classList.add("error-outline");
       setTimeout(() => {
         cell.classList.remove("error-outline");
-      }, 1500);
+      }, 2000);
     }
     if (variant === "focus") {
       cell.classList.add("focus-outline");
       setTimeout(() => {
         cell.classList.remove("focus-outline");
-      }, 1500);
+      }, 2000);
     }
 
     return true;
