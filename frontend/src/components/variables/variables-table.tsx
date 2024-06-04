@@ -25,11 +25,12 @@ import {
 } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../data-table/column-header";
 import { sortBy } from "lodash-es";
-import { getCellEditorView } from "@/core/cells/cells";
+import { getCellEditorView, useCellNames } from "@/core/cells/cells";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import { SearchInput } from "../ui/input";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { VariableName } from "./common";
+import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 
 interface Props {
   className?: string;
@@ -40,9 +41,14 @@ interface Props {
   variables: Variables;
 }
 
+interface ResolvedVariable extends Variable {
+  declaredByNames: string[];
+  usedByNames: string[];
+}
+
 /* Column Definitions */
 
-function columnDefOf<T>(columnDef: ColumnDef<Variable, T>) {
+function columnDefOf<T>(columnDef: ColumnDef<ResolvedVariable, T>) {
   return columnDef;
 }
 
@@ -101,7 +107,15 @@ const COLUMNS = [
   }),
   columnDefOf({
     id: ColumnIds.defs,
-    accessorFn: (v) => [v.declaredBy, v.usedBy, v.name] as const,
+    // Include declaredByNames and usedByNames for filtering
+    accessorFn: (v) =>
+      [
+        v.declaredBy,
+        v.usedBy,
+        v.name,
+        v.declaredByNames,
+        v.usedByNames,
+      ] as const,
     enableSorting: true,
     sortingFn: "basic",
     header: ({ column }) => (
@@ -181,7 +195,7 @@ const COLUMNS = [
  * Defaults to the order they are defined in the notebook
  */
 function sortData(
-  variables: Variable[],
+  variables: ResolvedVariable[],
   sort: ColumnSort | undefined,
   cellIdToIndex: Map<CellId, number>,
 ) {
@@ -190,7 +204,7 @@ function sortData(
     sort = { id: ColumnIds.defs, desc: false };
   }
 
-  let sortedVariables: Variable[] = [];
+  let sortedVariables: ResolvedVariable[] = [];
   switch (sort.id) {
     case ColumnIds.name:
       sortedVariables = sortBy(variables, (v) => v.name);
@@ -212,12 +226,31 @@ export const VariableTable: React.FC<Props> = memo(
   ({ className, cellIds, variables }) => {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = React.useState("");
+    const cellNames = useCellNames();
+
+    const resolvedVariables: ResolvedVariable[] = useMemo(() => {
+      const getName = (id: CellId) => {
+        const name = cellNames[id];
+        if (name === DEFAULT_CELL_NAME) {
+          return `cell-${cellIds.indexOf(id)}`;
+        }
+        return name ?? `cell-${cellIds.indexOf(id)}`;
+      };
+
+      return Object.values(variables).map((variable) => {
+        return {
+          ...variable,
+          declaredByNames: variable.declaredBy.map(getName),
+          usedByNames: variable.usedBy.map(getName),
+        };
+      });
+    }, [variables, cellNames, cellIds]);
 
     const sortedVariables = useMemo(() => {
       const cellIdToIndex = new Map<CellId, number>();
       cellIds.forEach((id, index) => cellIdToIndex.set(id, index));
-      return sortData(Object.values(variables), sorting[0], cellIdToIndex);
-    }, [variables, sorting, cellIds]);
+      return sortData(resolvedVariables, sorting[0], cellIdToIndex);
+    }, [resolvedVariables, sorting, cellIds]);
 
     const table = useReactTable({
       data: sortedVariables,
