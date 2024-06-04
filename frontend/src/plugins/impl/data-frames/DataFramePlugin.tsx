@@ -168,6 +168,8 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={false}
           download_as={Functions.THROW}
+          showColumnSummary={false}
+          get_column_summaries={getColumnSummaries}
           value={Arrays.EMPTY}
           setValue={Functions.NOOP}
           selection={null}
@@ -177,6 +179,10 @@ export const DataFrameComponent = memo(
   },
 );
 DataFrameComponent.displayName = "DataFrameComponent";
+
+function getColumnSummaries() {
+  return Promise.resolve({ summaries: [] });
+}
 
 function prettyNumber(value: number): string {
   return new Intl.NumberFormat().format(value);

@@ -221,4 +221,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_num_columns(self) -> int:
                 return self.data.shape[1]
 
+            def get_column_names(self) -> list[str]:
+                return self.data.columns.tolist()
+
         return PandasTableManager

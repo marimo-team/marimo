@@ -309,15 +309,22 @@ class WebsocketHandler(SessionConsumer):
         async def listen_for_messages() -> None:
             while True:
                 (op, data) = await self.message_queue.get()
-                await self.websocket.send_text(
-                    json.dumps(
-                        {
-                            "op": op,
-                            "data": data,
-                        },
-                        cls=WebComponentEncoder,
+                try:
+                    await self.websocket.send_text(
+                        json.dumps(
+                            {
+                                "op": op,
+                                "data": data,
+                            },
+                            cls=WebComponentEncoder,
+                        )
                     )
-                )
+                except TypeError as e:
+                    # This is a deserialization error
+                    LOGGER.error(
+                        "Failed to send message to frontend: %s", str(e)
+                    )
+                    LOGGER.error("Message: %s", data)
 
         async def listen_for_disconnect() -> None:
             try:

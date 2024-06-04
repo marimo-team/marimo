@@ -115,6 +115,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def get_num_columns(self) -> int:
                 return self.data.width
 
+            def get_column_names(self) -> list[str]:
+                return self.data.columns
+
             @staticmethod
             def _get_field_type(column: pl.Series) -> FieldType:
                 if column.is_utf8():

@@ -33,6 +33,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   pagination?: boolean;
   pageSize?: number;
   selection?: "single" | "multi" | null;
+  showColumnSummary?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
@@ -104,7 +105,11 @@ const DataTableInternal = <TData,>({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className="whitespace-nowrap truncate max-w-[300px]"
+                      title={String(cell.getValue())}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

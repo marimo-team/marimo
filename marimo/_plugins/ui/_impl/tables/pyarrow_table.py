@@ -150,6 +150,9 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_num_columns(self) -> int:
                 return self.data.num_columns
 
+            def get_column_names(self) -> list[str]:
+                return self.data.schema.names
+
             @staticmethod
             def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:
                 if isinstance(column, pa.NullArray):

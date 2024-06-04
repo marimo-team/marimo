@@ -7,7 +7,11 @@ import {
   getEditorViewMode,
   toggleMarkdown,
 } from "@/core/codemirror/format";
-import { hasOnlyOneCellAtom, useCellActions } from "@/core/cells/cells";
+import {
+  hasOnlyOneCellAtom,
+  useCellActions,
+  useCellIds,
+} from "@/core/cells/cells";
 import {
   ImageIcon,
   Code2Icon,
@@ -77,10 +81,14 @@ export function useCellActionButtons({ cell }: Props) {
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const autoInstantiate = useAtomValue(autoInstantiateAtom);
+  const cellIds = useCellIds();
+
   if (!cell) {
     return [];
   }
+
   const { cellId, config, getEditorView, name, hasOutput, status } = cell;
+  const cellIdx = cellIds.indexOf(cellId);
   const editorView = getEditorView();
 
   const toggleDisabled = async () => {
@@ -125,7 +133,7 @@ export function useCellActionButtons({ cell }: Props) {
               <div className="flex items-center justify-between">
                 <Label htmlFor="cell-name">Cell name</Label>
                 <NameCellInput
-                  placeholder={`cell_${cellId}`}
+                  placeholder={`cell_${cellIdx}`}
                   value={name}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -144,7 +152,7 @@ export function useCellActionButtons({ cell }: Props) {
         },
         rightElement: (
           <NameCellInput
-            placeholder={`cell_${cellId}`}
+            placeholder={`cell_${cellIdx}`}
             value={name}
             onChange={(newName) => updateCellName({ cellId, name: newName })}
           />
