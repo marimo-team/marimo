@@ -256,6 +256,13 @@ def test_dropdown() -> None:
     assert dd.value == 2
 
 
+def test_dropdown_too_many_options() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.dropdown(options={str(i): i for i in range(2000)})
+
+    assert "maximum number" in str(e.value)
+
+
 def test_multiselect() -> None:
     options_list = ["Apples", "Oranges", "Bananas"]
     ms = ui.multiselect(options=options_list)
@@ -292,6 +299,13 @@ def test_multiselect() -> None:
 
     with pytest.raises(ValueError):
         ms = ui.multiselect(options=options_list, max_selections=-10)
+
+
+def test_multiselect_too_many_options() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.multiselect(options={str(i): i for i in range(2000)})
+
+    assert "maximum number" in str(e.value)
 
 
 def test_button() -> None:

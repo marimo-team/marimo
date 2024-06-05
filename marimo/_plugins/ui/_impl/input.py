@@ -800,6 +800,7 @@ class dropdown(UIElement[List[str], Any]):
         container
     """
 
+    _MAX_OPTIONS: Final[int] = 1000
     _name: Final[str] = "marimo-dropdown"
     _selected_key: Optional[str] = None
 
@@ -813,6 +814,17 @@ class dropdown(UIElement[List[str], Any]):
         on_change: Optional[Callable[[Any], None]] = None,
         full_width: bool = False,
     ) -> None:
+        if len(options) > dropdown._MAX_OPTIONS:
+            raise ValueError(
+                "The maximum number of dropdown options allowed "
+                f"is {dropdown._MAX_OPTIONS}, but your dropdown has "
+                f"{len(options)} options. "
+                "If you really want to expose that many options, consider "
+                "using `mo.ui.text()` to let the user type an option name, "
+                "and `mo.ui.table()` to present the options matching the "
+                "user's query.",
+            )
+
         if not isinstance(options, dict):
             options = {option: option for option in options}
 
@@ -889,6 +901,7 @@ class multiselect(UIElement[List[str], List[object]]):
     - `max_selections`: maximum number of items that can be selected
     """
 
+    _MAX_OPTIONS: Final[int] = 1000
     _name: Final[str] = "marimo-multiselect"
 
     def __init__(
@@ -901,6 +914,17 @@ class multiselect(UIElement[List[str], List[object]]):
         full_width: bool = False,
         max_selections: Optional[int] = None,
     ) -> None:
+        if len(options) > multiselect._MAX_OPTIONS:
+            raise ValueError(
+                "The maximum number of options allowed "
+                f"is {multiselect._MAX_OPTIONS}, but your multiselect has "
+                f"{len(options)} options. "
+                "If you really want to expose that many options, consider "
+                "using `mo.ui.text()` to let the user type an option name, "
+                "and `mo.ui.table()` to present the options matching the "
+                "user's query.",
+            )
+
         if not isinstance(options, dict):
             options = {option: option for option in options}
 

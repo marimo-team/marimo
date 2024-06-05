@@ -744,7 +744,7 @@ class TestExecution:
         k = any_kernel
         # u00A0 is a non-breaking space (nbsp), which gets inserted on some
         # platforms/browsers; marimo converts these characters to spaces ...
-        code = "x \u00A0 = 10"
+        code = "x \u00a0 = 10"
         await k.run([exec_req.get(code)])
         assert not k.errors
         assert k.globals["x"] == 10
