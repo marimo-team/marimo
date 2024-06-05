@@ -1368,7 +1368,7 @@ class Kernel:
         """
         # acquiring and releasing an RLock takes ~100ns; the overhead is
         # negligible because the lock is coarse.
-        with self._globals_lock:
+        with self.lock_globals():
             if isinstance(request, CreationRequest):
                 await self.instantiate(request)
                 CompletedRun().broadcast()
