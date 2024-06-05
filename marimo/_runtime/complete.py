@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import html
-from typing import cast
+from typing import Any, cast
 
 import jedi  # type: ignore # noqa: F401
 import jedi.api  # type: ignore # noqa: F401
@@ -19,6 +19,12 @@ from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
 
 LOGGER = loggers.marimo_logger()
+
+
+# Don't execute properties or __get_item__: when falling back to the Jedi
+# interpreter, this leads to an incorrect type hint of properties as modules,
+# but at least it prevents execution of side-effecting code.
+jedi.settings.allow_unsafe_interpreter_executions = False
 
 
 def _is_dunder_name(name: str) -> bool:
@@ -146,9 +152,17 @@ def _get_type_hint(completion: jedi.api.classes.BaseName) -> str:
 
 def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
     if completion.type != "statement":
-        return _get_docstring(completion)
+        try:
+            return _get_docstring(completion)
+        except Exception as e:
+            LOGGER.debug("jedi failed to get docstring: %s", str(e))
+            return ""
     else:
-        return _get_type_hint(completion)
+        try:
+            return _get_type_hint(completion)
+        except Exception as e:
+            LOGGER.debug("jedi failed to get type hint: %s", str(e))
+            return ""
 
 
 def _get_completion_options(
@@ -203,18 +217,20 @@ def _drain_queue(
 def completion_worker(
     completion_queue: QueueType[CompletionRequest],
     graph: dataflow.DirectedGraph,
+    glbls: dict[str, Any],
     stream: Stream,
 ) -> None:
     """Code completion worker"""
 
     while True:
         request = _drain_queue(completion_queue)
-        complete(request, graph, stream)
+        complete(request, graph, glbls, stream)
 
 
 def complete(
     request: CompletionRequest,
     graph: dataflow.DirectedGraph,
+    glbls: dict[str, Any],
     stream: Stream,
     docstrings_limit: int = 1000,
 ) -> None:
@@ -234,6 +250,17 @@ def complete(
     try:
         script = jedi.Script("\n".join(codes + [request.document]))
         completions = script.complete()
+        if not completions:
+            # Jedi fails to statically analyze some libraries, like ibis,
+            # so we fall back to interpreter-based completions.
+            #
+            # TODO(akshayka): Jedi makes a shallow-copy of glbls; however, this
+            # is still not thread-safe because the main thread may mutate the
+            # entries of glbls. We disallow unsafe interpreter executions, so
+            # hopefully this is fine.
+            script = jedi.Interpreter(request.document, [glbls])
+            completions = script.complete()
+
         prefix_length = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
@@ -246,7 +273,7 @@ def complete(
             and len(request.document) >= 1
             and request.document[-1] != "."
         ):
-            # Don't complete ...
+            # Empty prefix, not dot notation; don't complete ...
             completions = []
 
             # Get docstring in function context. A bit of a hack, since

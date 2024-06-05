@@ -59,7 +59,7 @@ def compile_cell(code: str, cell_id: CellId_t) -> CellImpl:
     #
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
-    code = code.replace("\u00A0", " ")
+    code = code.replace("\u00a0", " ")
     module = compile(
         code,
         "<unknown>",

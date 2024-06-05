@@ -400,14 +400,25 @@ class Kernel:
         """Must be called after context is initialized"""
         threading.Thread(
             target=completion_worker,
-            args=(completion_queue, self.graph, get_context().stream),
+            args=(
+                completion_queue,
+                self.graph,
+                self.globals,
+                get_context().stream,
+            ),
             daemon=True,
         ).start()
 
     def code_completion(
         self, request: CompletionRequest, docstrings_limit: int
     ) -> None:
-        complete(request, self.graph, get_context().stream, docstrings_limit)
+        complete(
+            request,
+            self.graph,
+            self.globals,
+            get_context().stream,
+            docstrings_limit,
+        )
 
     @contextlib.contextmanager
     def _install_execution_context(
