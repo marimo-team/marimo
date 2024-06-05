@@ -245,7 +245,7 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
             chart_selection = False
             legend_selection = False
 
-        self.dataframe = chart.data
+        self.dataframe: alt.UndefinedType | pd.DataFrame = chart.data
 
         # Private attributes
         self._chart = chart
@@ -268,12 +268,20 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
         return self._chart_selection
 
     def _convert_value(self, value: ChartSelection) -> Any:
+        from altair import UndefinedType
+
         self._chart_selection = value
         flat, _ = flatten.flatten(value)
         if not value or not flat:
             import pandas as pd
 
             return pd.DataFrame()
+
+        # When using layered charts, you can no longer access the
+        # chart data directly
+        # Instead, we should push user to call .apply_selection(df)
+        if isinstance(self.dataframe, UndefinedType):
+            return self.dataframe
 
         # If we have transforms, we need to filter the dataframe
         # with those transforms, before applying the selection
@@ -291,3 +299,59 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
                 return _filter_dataframe(self.dataframe, value)
 
         return _filter_dataframe(self.dataframe, value)
+
+    def apply_selection(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply the selection to a DataFrame.
+
+        This method is useful when you have a layered chart and you want to
+        apply the selection to a DataFrame.
+
+        **Example.**
+
+        ```python
+        import altair as alt
+        import marimo as mo
+        from vega_datasets import data
+
+        cars = data.cars()
+
+        _chart = (
+            alt.Chart(cars)
+            .mark_point()
+            .encode(
+                x="Horsepower",
+                y="Miles_per_Gallon",
+                color="Origin",
+            )
+        )
+
+        chart = mo.ui.altair_chart(_chart)
+        chart
+
+        # In another cell
+        selected_df = chart.apply_selection(cars)
+        ```
+
+        **Args.**
+
+        - `df`: a Pandas DataFrame to apply the selection to
+
+        **Returns.**
+
+        - a Pandas DataFrame of the plot data filtered by the selections
+        """
+        return _filter_dataframe(df, self.selections)
+
+    @property
+    def value(self) -> pd.DataFrame:
+        from altair import UndefinedType
+
+        value = super().value
+        if isinstance(value, UndefinedType):
+            sys.stderr.write(
+                "The underlying chart data is not available in layered"
+                " or stacked charts. "
+                "Use `.apply_selection(df)` to filter a DataFrame"
+                " based on the selection.",
+            )
+        return value
