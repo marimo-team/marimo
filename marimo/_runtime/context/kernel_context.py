@@ -1,9 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import threading
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from marimo._messaging.types import Stderr, Stdout
@@ -30,7 +29,6 @@ class KernelRuntimeContext(RuntimeContext):
     """Encapsulates runtime state for a session."""
 
     _kernel: Kernel
-    _globals_lock: threading.RLock = field(default_factory=threading.RLock)
     _id_provider: Optional[IDProvider] = None
 
     @property
@@ -40,10 +38,6 @@ class KernelRuntimeContext(RuntimeContext):
     @property
     def globals(self) -> dict[str, Any]:
         return self._kernel.globals
-
-    @property
-    def globals_lock(self) -> threading.RLock:
-        return self._globals_lock
 
     @property
     def execution_context(self) -> ExecutionContext | None:

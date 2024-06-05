@@ -332,7 +332,7 @@ def complete(
     - `request`: the completion request
     - `graph`: dataflow graph backing the marimo program
     - `glbls`: global namespace
-    - `glbls_lock`: lock protecting the global namespace, for interpeter-based
+    - `glbls_lock`: lock protecting the global namespace, for interpreter-based
          completion
     - `stream`: Stream through which to communicate completion results
     - `docstrings_limit`: limit past which we won't attempt to fetch type hints
