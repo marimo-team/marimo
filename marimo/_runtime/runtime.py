@@ -288,6 +288,7 @@ class Kernel:
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
         self._globals_lock = threading.RLock()
+        self._completion_worker_started = False
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -395,6 +396,17 @@ class Kernel:
     def globals(self) -> dict[Any, Any]:
         return self._module.__dict__
 
+    @contextlib.contextmanager
+    def lock_globals(self) -> Iterator[None]:
+        # The only other thread accessing globals is the completion worker. If
+        # we haven't started a completion worker, there's no need to lock
+        # globals.
+        if self._completion_worker_started:
+            with self._globals_lock:
+                yield
+        else:
+            yield
+
     def start_completion_worker(
         self, completion_queue: QueueType[CompletionRequest]
     ) -> None:
@@ -410,6 +422,7 @@ class Kernel:
             ),
             daemon=True,
         ).start()
+        self._completion_worker_started = True
 
     def code_completion(
         self, request: CompletionRequest, docstrings_limit: int
