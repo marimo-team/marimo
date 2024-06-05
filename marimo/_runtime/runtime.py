@@ -287,6 +287,7 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+        self._globals_lock = threading.RLock()
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -404,6 +405,7 @@ class Kernel:
                 completion_queue,
                 self.graph,
                 self.globals,
+                self._globals_lock,
                 get_context().stream,
             ),
             daemon=True,
@@ -416,6 +418,7 @@ class Kernel:
             request,
             self.graph,
             self.globals,
+            self._globals_lock,
             get_context().stream,
             docstrings_limit,
         )
@@ -1347,41 +1350,46 @@ class Kernel:
         """Handle a message from the client.
 
         The message is dispatched to the appropriate method based on its type.
+
+        Coarsely locks globals to avoid race conditions with code completion.
         """
-        if isinstance(request, CreationRequest):
-            await self.instantiate(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, ExecuteMultipleRequest):
-            await self.run(request.execution_requests)
-            CompletedRun().broadcast()
-        elif isinstance(request, ExecuteStaleRequest):
-            await self.run_stale_cells()
-        elif isinstance(request, SetCellConfigRequest):
-            await self.set_cell_config(request)
-        elif isinstance(request, SetUserConfigRequest):
-            self.set_user_config(request)
-        elif isinstance(request, SetUIElementValueRequest):
-            await self.set_ui_element_value(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, FunctionCallRequest):
-            status, ret = await self.function_call_request(request)
-            FunctionCallResult(
-                function_call_id=request.function_call_id,
-                return_value=ret,
-                status=status,
-            ).broadcast()
-            CompletedRun().broadcast()
-        elif isinstance(request, DeleteRequest):
-            await self.delete(request)
-        elif isinstance(request, InstallMissingPackagesRequest):
-            await self.install_missing_packages(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, PreviewDatasetColumnRequest):
-            await self.preview_dataset_column(request)
-        elif isinstance(request, StopRequest):
-            return None
-        else:
-            raise ValueError(f"Unknown request {request}")
+        # acquiring and releasing an RLock takes ~100ns; the overhead is
+        # negligible because the lock is coarse.
+        with self._globals_lock:
+            if isinstance(request, CreationRequest):
+                await self.instantiate(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, ExecuteMultipleRequest):
+                await self.run(request.execution_requests)
+                CompletedRun().broadcast()
+            elif isinstance(request, ExecuteStaleRequest):
+                await self.run_stale_cells()
+            elif isinstance(request, SetCellConfigRequest):
+                await self.set_cell_config(request)
+            elif isinstance(request, SetUserConfigRequest):
+                self.set_user_config(request)
+            elif isinstance(request, SetUIElementValueRequest):
+                await self.set_ui_element_value(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, FunctionCallRequest):
+                status, ret = await self.function_call_request(request)
+                FunctionCallResult(
+                    function_call_id=request.function_call_id,
+                    return_value=ret,
+                    status=status,
+                ).broadcast()
+                CompletedRun().broadcast()
+            elif isinstance(request, DeleteRequest):
+                await self.delete(request)
+            elif isinstance(request, InstallMissingPackagesRequest):
+                await self.install_missing_packages(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, PreviewDatasetColumnRequest):
+                await self.preview_dataset_column(request)
+            elif isinstance(request, StopRequest):
+                return None
+            else:
+                raise ValueError(f"Unknown request {request}")
 
 
 def launch_kernel(
