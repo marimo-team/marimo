@@ -312,8 +312,8 @@ def complete(
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
     stream: Stream,
-    docstrings_limit: int = 40,
-    timeout: float = 1,
+    docstrings_limit: int = 80,
+    timeout: float | None = None,
     prefer_interpreter_completion: bool = False,
 ) -> None:
     """Gets code completions for a request.
@@ -405,6 +405,14 @@ def complete(
             return
 
         prefix = request.document[-prefix_length:]
+        if timeout is None and isinstance(script, jedi.Interpreter):
+            # We're holding the globals lock; set a short timeout so we don't
+            # block the kernel
+            timeout = 1
+        elif timeout is None:
+            # We're not blocking the kernel so we can afford to take longer
+            timeout = 2
+
         options = _get_completion_options(
             completions,
             script,
