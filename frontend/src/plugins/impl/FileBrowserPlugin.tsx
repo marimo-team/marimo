@@ -16,6 +16,7 @@ import { renderHTML } from "../core/RenderHTML";
 import { PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
+import { Button } from "@/components/ui/button";
 
 /**
  * Arguments for a file browser component.
@@ -146,14 +147,15 @@ export const FileBrowser = ({
     files = [];
   }
 
-  // For checkbox logic
+  // List of selected file paths
   const selectedPaths = new Set(value.map((x) => x.path));
 
-  // For displaying selected files
+  // Rendered list of selected files
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   /**
    * Set new path from user input or selection.
+   *
    * @param {string} newPath - New path
    */
   function setNewPath(newPath: string) {
@@ -162,8 +164,13 @@ export const FileBrowser = ({
       newPath = Paths.dirname(path);
     }
 
+    if (newPath === "") {
+      return;
+    }
+
     // If restricting navigation, check if path is outside bounds
     const outsideInitialPath = newPath.length < initialPath.length;
+
     if (restrictNavigation && outsideInitialPath) {
       toast({
         title: "Access denied",
@@ -177,19 +184,18 @@ export const FileBrowser = ({
     setPath(newPath);
   }
 
-  /**
-   * Handles file selection.
-   * @param {string} path - Path of selected file
-   * @param {string} name - Name of selected file
-   */
-  const selectFile = (path: string, name: string) => {
-    const fileInfo: FileInfo = {
+  function createFileInfo(path: string, name: string): FileInfo {
+    return {
       id: path,
       name: name,
       path: path,
       is_directory: false,
       is_marimo_file: false,
     };
+  }
+
+  function handleSelection(path: string, name: string) {
+    const fileInfo = createFileInfo(path, name);
 
     if (multiple) {
       if (selectedPaths.has(path)) {
@@ -200,7 +206,29 @@ export const FileBrowser = ({
     } else {
       setValue([fileInfo]);
     }
-  };
+  }
+
+  function deselectAllFiles() {
+    setValue(value.filter((x) => Paths.dirname(x.path) !== path));
+  }
+
+  function selectAllFiles() {
+    if (!files) {
+      return;
+    }
+
+    const filesInView = [];
+
+    for (const file of files) {
+      if (file.is_directory || selectedPaths.has(file.path)) {
+        continue;
+      }
+      const fileInfo = createFileInfo(file.path, file.name);
+      filesInView.push(fileInfo);
+    }
+
+    setValue([...value, ...filesInView]);
+  }
 
   // Create rows for directories and files
   const fileRows = [];
@@ -226,7 +254,7 @@ export const FileBrowser = ({
     const filePath = pathBuilder.join(path, file.name);
 
     // Click handler
-    const handleClick = file.is_directory ? setNewPath : selectFile;
+    const handleClick = file.is_directory ? setNewPath : handleSelection;
 
     // Table row styles
     const isSelected = selectedPaths.has(filePath);
@@ -269,13 +297,44 @@ export const FileBrowser = ({
 
   label = label ?? "Browse and select file(s)...";
 
+  const labelText = (
+    <span className="markdown">
+      <strong>{renderHTML({ html: label })}</strong>
+    </span>
+  );
+
   return (
     <section>
-      <span className="markdown">
-        <strong>{renderHTML({ html: label })}</strong>
-      </span>
+      {multiple ? (
+        <div className="grid grid-cols-12 gap-2">
+          <div className="col-span-8 flex flex-row items-center">
+            {labelText}
+          </div>
+          <div className="col-span-2 flex flex-row items-center">
+            <Button
+              size="xs"
+              className="w-full"
+              onClick={() => selectAllFiles()}
+            >
+              {renderHTML({ html: "Select all" })}
+            </Button>
+          </div>
+          <div className="col-span-2 flex flex-row items-center">
+            <Button
+              variant="secondary"
+              size="xs"
+              className="w-full"
+              onClick={() => deselectAllFiles()}
+            >
+              {renderHTML({ html: "Deselect all" })}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        labelText
+      )}
       <NativeSelect
-        className="mt-3 w-full"
+        className="mt-2 w-full"
         placeholder={path}
         value={path}
         onChange={(e) => setNewPath(e.target.value)}
