@@ -15,9 +15,10 @@ import { Button } from "../inputs/Inputs";
 import { CopyIcon, DownloadIcon, SaveIcon } from "lucide-react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { hotkeysAtom } from "@/core/config/config";
+import { useAtomValue } from "jotai";
 
 interface Props {
   file: FileInfo;
@@ -27,6 +28,7 @@ const unsavedContentsForFile = new Map<string, string>();
 
 export const FileViewer: React.FC<Props> = ({ file }) => {
   const { theme } = useTheme();
+  const hotkeys = useAtomValue(hotkeysAtom);
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
 
@@ -200,7 +202,7 @@ export const FileViewer: React.FC<Props> = ({ file }) => {
             // Command S for save
             keymap.of([
               {
-                key: HOTKEYS.getHotkey("global.save").key,
+                key: hotkeys.getHotkey("global.save").key,
                 stopPropagation: true,
                 run: () => {
                   if (internalValue !== data.contents) {

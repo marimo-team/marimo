@@ -59,6 +59,7 @@ import {
   smartPlaceholderExtension,
 } from "./placeholder/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
+import { HotkeyProvider } from "../hotkeys/hotkeys";
 
 export interface CodeMirrorSetupOpts {
   cellId: CellId;
@@ -69,6 +70,7 @@ export interface CodeMirrorSetupOpts {
   completionConfig: CompletionConfig;
   keymapConfig: KeymapConfig;
   theme: Theme;
+  hotkeys: HotkeyProvider;
 }
 
 /**
@@ -83,15 +85,16 @@ export const setupCodeMirror = ({
   completionConfig,
   keymapConfig,
   theme,
+  hotkeys,
 }: CodeMirrorSetupOpts): Extension[] => {
   return [
     // Editor keymaps (vim or defaults) based on user config
     keymapBundle(keymapConfig, cellMovementCallbacks),
     // Cell editing
-    cellMovementBundle(cellId, cellMovementCallbacks),
-    cellCodeEditingBundle(cellId, cellCodeCallbacks),
+    cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
+    cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
     // Comes last so that it can be overridden
-    basicBundle(completionConfig, theme),
+    basicBundle(completionConfig, theme, hotkeys),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
     showPlaceholder
@@ -125,6 +128,7 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 export const basicBundle = (
   completionConfig: CompletionConfig,
   theme: Theme,
+  hotkeys: HotkeyProvider,
 ): Extension[] => {
   return [
     ///// View
@@ -160,12 +164,12 @@ export const basicBundle = (
     keymap.of([...foldKeymap, ...lintKeymap]),
 
     ///// Language Support
-    adaptiveLanguageConfiguration(completionConfig),
+    adaptiveLanguageConfiguration(completionConfig, hotkeys),
 
     ///// Editing
     historyCompartment.of(history()),
     EditorState.allowMultipleSelections.of(true),
-    findReplaceBundle(),
+    findReplaceBundle(hotkeys),
     keymap.of([
       {
         key: "Tab",

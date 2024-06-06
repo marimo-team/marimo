@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { CompletionConfig } from "@/core/config/config-schema";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { Extension } from "@codemirror/state";
 
 /**
@@ -12,5 +13,8 @@ export interface LanguageAdapter {
   transformIn(code: string): [string, number];
   transformOut(code: string): [string, number];
   isSupported(code: string): boolean;
-  getExtension(completionConfig: CompletionConfig): Extension;
+  getExtension(
+    completionConfig: CompletionConfig,
+    hotkeys: HotkeyProvider,
+  ): Extension;
 }

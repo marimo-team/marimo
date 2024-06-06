@@ -55,9 +55,11 @@ class KeymapConfig(TypedDict, total=False):
     **Keys.**
 
     - `preset`: one of `"default"` or `"vim"`
+    - `overrides`: a dict of keymap actions to their keymap override
     """
 
     preset: Literal["default", "vim"]
+    overrides: Dict[str, str]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -190,7 +192,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "cell_output": "above",
     },
     "formatting": {"line_length": 79},
-    "keymap": {"preset": "default"},
+    "keymap": {"preset": "default", "overrides": {}},
     "runtime": {
         "auto_instantiate": True,
         "auto_reload": "off",
@@ -218,6 +220,13 @@ def merge_config(
     config: MarimoConfig, new_config: MarimoConfig
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration."""
+    # Remove the keymap overrides from the incoming config,
+    # so that they don't get merged into the new config
+    if new_config.get("keymap", {}).get("overrides") is not None:
+        # Clone config to avoid modifying the original
+        config = _deep_copy(config)
+        config.get("keymap", {}).pop("overrides", {})
+
     merged = cast(
         MarimoConfig,
         deep_merge(

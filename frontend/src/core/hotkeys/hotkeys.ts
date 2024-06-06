@@ -314,6 +314,9 @@ export function isHotkeyAction(x: string): x is HotkeyAction {
   return x in DEFAULT_HOT_KEY;
 }
 
+export function getDefaultHotkey(action: HotkeyAction): ResolvedHotkey {
+  return new HotkeyProvider(DEFAULT_HOT_KEY).getHotkey(action);
+}
 export interface IHotkeyProvider {
   getHotkey(action: HotkeyAction): ResolvedHotkey;
 }
@@ -386,8 +389,3 @@ export class OverridingHotkeyProvider extends HotkeyProvider {
     };
   }
 }
-
-export const HOTKEYS = new OverridingHotkeyProvider({
-  // Override default hotkeys here.
-  // This can be from the user's settings.
-});

@@ -26,10 +26,14 @@ import { PackageManagerNames } from "../../core/config/config-schema";
 import { Kbd } from "../ui/kbd";
 import { NumberField } from "@/components/ui/number-field";
 import { useRef } from "react";
+import { useSetAtom } from "jotai";
+import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
+import { Button } from "../ui/button";
 
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
   const formElement = useRef<HTMLFormElement>(null);
+  const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
 
   // Create form
   const form = useForm<UserConfig>({
@@ -206,6 +210,21 @@ export const UserConfigForm: React.FC = () => {
                   </NativeSelect>
                 </FormControl>
                 <FormMessage />
+                <div>
+                  <Button
+                    variant="link"
+                    size="xs"
+                    className="mb-0 px-0"
+                    type="button"
+                    onClick={(evt) => {
+                      evt.preventDefault();
+                      evt.stopPropagation();
+                      setKeyboardShortcutsOpen(true);
+                    }}
+                  >
+                    Edit Keyboard Shortcuts
+                  </Button>
+                </div>
               </FormItem>
             )}
           />

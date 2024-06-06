@@ -1,12 +1,20 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HotkeyAction, HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { Kbd } from "../ui/kbd";
 import { DropdownMenuShortcut } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
+import { hotkeysAtom } from "@/core/config/config";
+import { useAtomValue } from "jotai";
+import { cn } from "@/utils/cn";
 
 export function renderShortcut(shortcut: HotkeyAction) {
-  const hotkey = HOTKEYS.getHotkey(shortcut);
+  return <Shortcut shortcut={shortcut} />;
+}
+
+const Shortcut: React.FC<{ shortcut: HotkeyAction }> = ({ shortcut }) => {
+  const hotkeys = useAtomValue(hotkeysAtom);
+  const hotkey = hotkeys.getHotkey(shortcut);
 
   return (
     <span className="flex">
@@ -14,15 +22,16 @@ export function renderShortcut(shortcut: HotkeyAction) {
       <KeyboardHotkeys shortcut={hotkey.key} />
     </span>
   );
-}
+};
 
-export const KeyboardHotkeys: React.FC<{ shortcut: string }> = ({
-  shortcut,
-}) => {
+export const KeyboardHotkeys: React.FC<{
+  className?: string;
+  shortcut: string;
+}> = ({ shortcut, className }) => {
   const keys = shortcut.split("-");
 
   return (
-    <div className="flex gap-1">
+    <div className={cn("flex gap-1", className)}>
       {keys.map(prettyPrintHotkey).map(([label, symbol]) => {
         if (symbol) {
           return (
@@ -44,7 +53,14 @@ export const KeyboardHotkeys: React.FC<{ shortcut: string }> = ({
 };
 
 export function renderMinimalShortcut(shortcut: HotkeyAction) {
-  const hotkey = HOTKEYS.getHotkey(shortcut);
+  return <MinimalShortcut shortcut={shortcut} />;
+}
+
+const MinimalShortcut: React.FC<{ shortcut: HotkeyAction }> = ({
+  shortcut,
+}) => {
+  const hotkeys = useAtomValue(hotkeysAtom);
+  const hotkey = hotkeys.getHotkey(shortcut);
   const keys = hotkey.key.split("-");
 
   return (
@@ -66,7 +82,7 @@ export function renderMinimalShortcut(shortcut: HotkeyAction) {
       })}
     </DropdownMenuShortcut>
   );
-}
+};
 
 function prettyPrintHotkey(key: string): [label: string, symbol?: string] {
   const platform = isPlatformMac() ? "mac" : "default";

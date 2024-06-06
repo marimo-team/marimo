@@ -3,7 +3,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "../cells/ids";
 import { formatEditorViews, toggleMarkdown } from "./format";
 import { smartScrollIntoView } from "../../utils/scroll";
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { invariant } from "@/utils/invariant";
 import type { CodeCallbacks } from "./cells/extensions";
 
@@ -13,11 +13,12 @@ import type { CodeCallbacks } from "./cells/extensions";
 export function formatKeymapExtension(
   cellId: CellId,
   callbacks: CodeCallbacks,
+  hotkeys: HotkeyProvider,
 ) {
   const { updateCellCode, afterToggleMarkdown } = callbacks;
   return keymap.of([
     {
-      key: HOTKEYS.getHotkey("cell.format").key,
+      key: hotkeys.getHotkey("cell.format").key,
       preventDefault: true,
       run: (ev) => {
         formatEditorViews({ [cellId]: ev }, updateCellCode);
@@ -25,7 +26,7 @@ export function formatKeymapExtension(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.viewAsMarkdown").key,
+      key: hotkeys.getHotkey("cell.viewAsMarkdown").key,
       preventDefault: true,
       run: (ev) => {
         const response = toggleMarkdown(cellId, ev, updateCellCode);

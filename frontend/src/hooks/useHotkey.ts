@@ -5,10 +5,12 @@ import { parseShortcut } from "../core/hotkeys/shortcuts";
 import { useEventListener } from "./useEventListener";
 import { useEvent } from "./useEvent";
 import { useSetRegisteredAction } from "../core/hotkeys/actions";
-import { HOTKEYS, HotkeyAction } from "@/core/hotkeys/hotkeys";
+import { HotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Objects } from "@/utils/objects";
 import { Logger } from "@/utils/Logger";
 import { Functions } from "@/utils/functions";
+import { hotkeysAtom } from "@/core/config/config";
+import { useAtomValue } from "jotai";
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
@@ -21,12 +23,13 @@ type HotkeyHandler = () => boolean | void | undefined | Promise<void>;
  */
 export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const { registerAction, unregisterAction } = useSetRegisteredAction();
+  const hotkeys = useAtomValue(hotkeysAtom);
 
   const isNOOP = callback === Functions.NOOP;
   const memoizeCallback = useEvent(() => callback());
 
   const listener = useEvent((e: KeyboardEvent) => {
-    const key = HOTKEYS.getHotkey(shortcut).key;
+    const key = hotkeys.getHotkey(shortcut).key;
     if (parseShortcut(key)(e)) {
       const response = callback();
       // Prevent default if the callback does not return false
@@ -57,9 +60,10 @@ export function useHotkeysOnElement<T extends HotkeyAction>(
   element: HTMLElement | null,
   handlers: Record<T, HotkeyHandler>,
 ) {
+  const hotkeys = useAtomValue(hotkeysAtom);
   useEventListener(element, "keydown", (e) => {
     for (const [shortcut, callback] of Objects.entries(handlers)) {
-      const key = HOTKEYS.getHotkey(shortcut).key;
+      const key = hotkeys.getHotkey(shortcut).key;
       if (parseShortcut(key)(e)) {
         Logger.debug("Satisfied", key, e);
         const response = callback();
