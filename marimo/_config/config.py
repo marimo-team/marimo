@@ -224,7 +224,8 @@ def merge_config(
     # so that they don't get merged into the new config
     if new_config.get("keymap", {}).get("overrides") is not None:
         # Clone config to avoid modifying the original
-        config = _deep_copy(config).get("keymap", {}).pop("overrides", {})
+        config = _deep_copy(config)
+        config.get("keymap", {}).pop("overrides", {})
 
     merged = cast(
         MarimoConfig,

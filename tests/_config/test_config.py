@@ -29,7 +29,7 @@ def test_configure_full() -> None:
                 "autosave_delay": 2,
                 "format_on_save": False,
             },
-            keymap={"preset": "vim"},
+            keymap={"preset": "vim", "overrides": {}},
             package_management={"manager": "pip"},
         )
     )
