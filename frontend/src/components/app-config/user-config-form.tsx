@@ -237,10 +237,10 @@ export const UserConfigForm: React.FC = () => {
           <SettingSubtitle>Display</SettingSubtitle>
           <FormField
             control={form.control}
-            name="display.width"
+            name="display.default_width"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Width</FormLabel>
+                <FormLabel>Default width</FormLabel>
                 <FormControl>
                   <NativeSelect
                     data-testid="user-config-width-select"
@@ -258,7 +258,8 @@ export const UserConfigForm: React.FC = () => {
                 </FormControl>
                 <FormMessage />
                 <FormDescription>
-                  The default app width for new notebooks.
+                  The default app width for new notebooks; overriden by
+                  "width" in the application config.
                 </FormDescription>
               </FormItem>
             )}

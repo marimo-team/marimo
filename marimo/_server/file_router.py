@@ -6,7 +6,7 @@ import os
 from typing import List, Optional
 
 from marimo import _loggers
-from marimo._config.config import MarimoConfig
+from marimo._config.config import WidthType
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_manager import AppFileManager
 from marimo._server.models.home import MarimoFile
@@ -62,34 +62,34 @@ class AppFileRouter(abc.ABC):
         return NewFileAppFileRouter()
 
     def get_single_app_file_manager(
-        self, user_config: MarimoConfig | None = None
+        self, default_width: WidthType | None = None
     ) -> AppFileManager:
         key = self.get_unique_file_key()
         assert key is not None, "Expected a single file"
-        return self.get_file_manager(key, user_config)
+        return self.get_file_manager(key, default_width)
 
     def get_file_manager(
         self,
         key: MarimoFileKey,
-        user_config: MarimoConfig | None = None,
+        default_width: WidthType | None = None,
     ) -> AppFileManager:
         """
         Given a key, return an AppFileManager.
         """
         if key.startswith(AppFileRouter.NEW_FILE):
-            return AppFileManager(None, user_config)
+            return AppFileManager(None, default_width)
 
         for file in self.files:
             if file.path == key:
-                return AppFileManager(file.path, user_config)
+                return AppFileManager(file.path, default_width)
 
         # Absolute path
         if os.path.isabs(key):
-            return AppFileManager(key, user_config)
+            return AppFileManager(key, default_width)
 
         # Relative path
         if os.path.exists(key):
-            return AppFileManager(key, user_config)
+            return AppFileManager(key, default_width)
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,

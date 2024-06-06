@@ -52,7 +52,8 @@ def create_session(
 
     user_config = merge_default_config(user_config)
     app_file_manager = AppFileManager(
-        filename=filename, user_config=user_config
+        filename=filename,
+        default_width=user_config["display"]["default_width"],
     )
     app = app_file_manager.app
 

@@ -61,7 +61,7 @@ export const UserConfigSchema = z
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
-        width: z.enum(APP_WIDTHS).default("medium"),
+        default_width: z.enum(APP_WIDTHS).default("medium"),
       })
       .default({}),
     package_management: z

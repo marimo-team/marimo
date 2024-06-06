@@ -11,7 +11,6 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    Literal,
     Mapping,
     Optional,
 )
@@ -31,6 +30,7 @@ from marimo._ast.errors import (
     MultipleDefinitionError,
     UnparsableError,
 )
+from marimo._config.config import WidthType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
@@ -54,8 +54,7 @@ class _AppConfig:
     a single marimo program.
     """
 
-    # TODO(akshayka): rename normal -> compact
-    width: Literal["normal", "medium", "full"] = "normal"
+    width: WidthType = "normal"
     app_title: Optional[str] = None
 
     # The file path of the layout file, relative to the app file.

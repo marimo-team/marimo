@@ -8,7 +8,7 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig
+from marimo._config.config import WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
@@ -23,20 +23,15 @@ LOGGER = _loggers.marimo_logger()
 
 class AppFileManager:
     def __init__(
-        self,
-        filename: Optional[str],
-        user_config: MarimoConfig | None = None,
+        self, filename: Optional[str], default_width: WidthType | None = None
     ) -> None:
         self.filename = filename
-        # If provided, user_config overrides default app config for new apps
-        self._user_config = user_config
+        self._default_width: WidthType | None = default_width
         self.app = self._load_app(self.path)
 
     @staticmethod
-    def from_app(
-        app: InternalApp, user_config: MarimoConfig | None = None
-    ) -> AppFileManager:
-        manager = AppFileManager(None, user_config)
+    def from_app(app: InternalApp) -> AppFileManager:
+        manager = AppFileManager(None)
         manager.app = app
         return manager
 
@@ -126,10 +121,12 @@ class AppFileManager:
         """Read the app from the file."""
         app = codegen.get_app(path)
         if app is None:
-            # User configuration determines app configuration defaults
-            kwargs = {}
-            if self._user_config is not None:
-                kwargs["width"] = self._user_config["display"]["width"]
+            kwargs = (
+                {"width": self._default_width}
+                if self._default_width is not None
+                # App decides its own default width
+                else {}
+            )
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
                 cell_id=None,

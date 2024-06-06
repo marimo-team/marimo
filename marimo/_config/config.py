@@ -88,6 +88,10 @@ class RuntimeConfig(TypedDict):
     on_cell_change: OnCellChangeType
 
 
+# TODO(akshayka): normal -> compact (handle in merge_configs)
+WidthType = Literal["normal", "medium", "full"]
+
+
 @mddoc
 class DisplayConfig(TypedDict):
     """Configuration for display.
@@ -102,8 +106,7 @@ class DisplayConfig(TypedDict):
     theme: Literal["light", "dark", "system"]
     code_editor_font_size: int
     cell_output: Literal["above", "below"]
-    # TODO(akshayka): rename normal -> compact
-    width: Literal["normal", "medium", "full"]
+    default_width: WidthType
 
 
 @mddoc
@@ -192,7 +195,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "theme": "light",
         "code_editor_font_size": 14,
         "cell_output": "above",
-        "width": "medium",
+        "default_width": "medium",
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
