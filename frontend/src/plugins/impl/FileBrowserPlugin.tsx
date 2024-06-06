@@ -18,6 +18,9 @@ import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/utils/cn";
+import { Label } from "@/components/ui/label";
+import { PluralWords } from "@/utils/pluralize";
 
 /**
  * Arguments for a file browser component.
@@ -106,6 +109,8 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
     />
   ));
 
+const PARENT_DIRECTORY = "..";
+
 /**
  * @param value - array of selected (filename, path) tuples
  * @param setValue - sets selected files as component value
@@ -157,18 +162,19 @@ export const FileBrowser = ({
     files = [];
   }
 
-  const delimiter = path.includes("/") ? "/" : "\\";
-  const pathBuilder = new PathBuilder(delimiter);
+  const pathBuilder = PathBuilder.guessDeliminator(path);
+  const delimiter = pathBuilder.deliminator;
 
   const selectedPaths = new Set(value.map((x) => x.path));
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   const canSelectDirectories =
     selectionMode === "directory" || selectionMode === "all";
+  const canSelectFiles = selectionMode === "file" || selectionMode === "all";
 
   function setNewPath(newPath: string) {
     // Navigate to parent directory
-    if (newPath === "..") {
+    if (newPath === PARENT_DIRECTORY) {
       if (path === delimiter) {
         return;
       }
@@ -236,7 +242,7 @@ export const FileBrowser = ({
       return;
     }
 
-    const filesInView = [];
+    const filesInView: FileInfo[] = [];
 
     for (const file of files) {
       if (!canSelectDirectories && file.is_directory) {
@@ -254,19 +260,19 @@ export const FileBrowser = ({
   }
 
   // Create rows for directories and files
-  const fileRows = [];
+  const fileRows: React.ReactNode[] = [];
 
   // Parent directory ".." row button
   fileRows.push(
     <TableRow
-      className="hover:bg-primary hover:bg-opacity-25"
+      className="hover:bg-primary hover:bg-opacity-25 select-none"
       key={"Parent directory"}
-      onClick={() => setNewPath("..")}
+      onClick={() => setNewPath(PARENT_DIRECTORY)}
     >
-      <TableCell className="w-1/12">
-        <CornerLeftUp className="ml-2" size={16} />
+      <TableCell className="w-[50px] pl-4">
+        <CornerLeftUp size={16} />
       </TableCell>
-      <TableCell className="w-11/12">..</TableCell>
+      <TableCell>{PARENT_DIRECTORY}</TableCell>
     </TableRow>,
   );
 
@@ -280,13 +286,6 @@ export const FileBrowser = ({
     // Click handler
     const handleClick = file.is_directory ? setNewPath : handleSelection;
 
-    // Table row styles
-    const isSelected = selectedPaths.has(filePath);
-
-    const tableRowStyles = isSelected
-      ? "bg-primary bg-opacity-25 hover:bg-primary hover:bg-opacity-50"
-      : "hover:bg-primary hover:bg-opacity-25";
-
     // Icon
     const fileType: FileType = file.is_directory
       ? "directory"
@@ -294,27 +293,53 @@ export const FileBrowser = ({
 
     const Icon = FILE_TYPE_ICONS[fileType];
 
-    fileRows.push(
-      <TableRow
-        key={file.id}
-        className={tableRowStyles}
-        onClick={() => handleClick(filePath, file.name, file.is_directory)}
-      >
-        <TableCell className="w-1/12">
-          {isSelected || canSelectDirectories ? (
+    const isSelected = selectedPaths.has(filePath);
+    const renderCheckboxOrIcon = () => {
+      if (
+        (canSelectDirectories && file.is_directory) ||
+        (canSelectFiles && !file.is_directory)
+      ) {
+        return (
+          <>
             <Checkbox
               checked={isSelected}
               onClick={(e) => {
                 handleSelection(filePath, file.name, file.is_directory);
                 e.stopPropagation();
               }}
-              className="ml-2"
+              className={cn("", {
+                "hidden group-hover:flex": !isSelected,
+              })}
             />
-          ) : (
-            <Icon size={16} className="ml-2" />
-          )}
+            <Icon
+              size={16}
+              className={cn("mr-2", {
+                hidden: isSelected,
+                "group-hover:hidden": !isSelected,
+              })}
+            />
+          </>
+        );
+      }
+
+      return <Icon size={16} className="mr-2" />;
+    };
+
+    fileRows.push(
+      <TableRow
+        key={file.id}
+        className={cn(
+          "hover:bg-primary hover:bg-opacity-25 group select-none",
+          {
+            "bg-primary bg-opacity-25": isSelected,
+          },
+        )}
+        onClick={() => handleClick(filePath, file.name, file.is_directory)}
+      >
+        <TableCell className="w-[50px] pl-4">
+          {renderCheckboxOrIcon()}
         </TableCell>
-        <TableCell className="w-11/12">{file.name}</TableCell>
+        <TableCell>{file.name}</TableCell>
       </TableRow>,
     );
   }
@@ -330,17 +355,18 @@ export const FileBrowser = ({
 
   parentDirectories.reverse();
 
-  label = label ?? "Browse and select file(s)...";
+  const selectionKindLabel =
+    selectionMode === "all"
+      ? PluralWords.of("file", "folder")
+      : selectionMode === "directory"
+        ? PluralWords.of("folder")
+        : PluralWords.of("file");
+  const renderHeader = () => {
+    label = label ?? `Select ${selectionKindLabel.join(" and ", 2)}...`;
+    const labelText = <Label>{renderHTML({ html: label })}</Label>;
 
-  const labelText = (
-    <span className="markdown">
-      <strong>{renderHTML({ html: label })}</strong>
-    </span>
-  );
-
-  return (
-    <section>
-      {multiple ? (
+    if (multiple) {
+      return (
         <div className="grid grid-cols-2 items-center border-1">
           <div className="justify-self-start mb-1">{labelText}</div>
           <div className="justify-self-end">
@@ -358,9 +384,15 @@ export const FileBrowser = ({
             </Button>
           </div>
         </div>
-      ) : (
-        labelText
-      )}
+      );
+    }
+
+    return labelText;
+  };
+
+  return (
+    <div>
+      {renderHeader()}
       <NativeSelect
         className="mt-2 w-full"
         placeholder={path}
@@ -379,14 +411,34 @@ export const FileBrowser = ({
       >
         <Table className="cursor-pointer table-fixed">{fileRows}</Table>
       </div>
-      <aside className="mt-4">
-        {value.length > 0 ? (
-          <span className="markdown">
-            <strong>{value.length} file(s) selected</strong>
-            <ul style={{ margin: 0 }}>{selectedFiles}</ul>
-          </span>
-        ) : null}
-      </aside>
-    </section>
+      <div className="mt-4">
+        {value.length > 0 && (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs">
+                {value.length} {selectionKindLabel.join(" or ", value.length)}{" "}
+                selected
+              </span>
+              <button
+                className={cn(
+                  "text-xs text-destructive hover:underline cursor-pointer",
+                )}
+                onClick={() => setValue([])}
+              >
+                clear all
+              </button>
+            </div>
+            <div className="markdown">
+              <ul
+                style={{ marginBlock: 0 }}
+                className="m-0 text-xs text-muted-foreground"
+              >
+                {selectedFiles}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 };

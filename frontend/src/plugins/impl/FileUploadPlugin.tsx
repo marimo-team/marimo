@@ -216,14 +216,14 @@ export const FileUpload = (props: FileUploadProps): JSX.Element => {
                 </span>
               </Tooltip>
 
-              <span className="text-xs text-destructive hover:underline hover:cursor-pointer">
-                <button
-                  className={cn("text-destructive", "hover:underline")}
-                  onClick={() => setValue([])}
-                >
-                  Click to clear files.
-                </button>
-              </span>
+              <button
+                className={cn(
+                  "text-xs cursor-pointer text-destructive hover:underline",
+                )}
+                onClick={() => setValue([])}
+              >
+                Click to clear files.
+              </button>
             </>
           ) : null}
         </div>
