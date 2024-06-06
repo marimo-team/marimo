@@ -1,4 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
+from __future__ import annotations
+
 from marimo._config.config import (
     DEFAULT_CONFIG,
     MarimoConfig,
@@ -62,6 +64,50 @@ def test_merge_config() -> None:
 
     assert new_config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert new_config["ai"]["open_ai"]["model"] == "davinci"
+
+
+def test_merge_config_with_keymap_overrides() -> None:
+    prev_config = merge_default_config(
+        MarimoConfig(
+            keymap={
+                "preset": "default",
+                "overrides": {
+                    "run-all": "ctrl-enter",
+                },
+            },
+        )
+    )
+    assert prev_config["keymap"]["preset"] == "default"
+    assert prev_config["keymap"]["overrides"]["run-all"] == "ctrl-enter"
+
+    new_config = merge_config(
+        prev_config,
+        MarimoConfig(
+            keymap={
+                "preset": "vim",
+                "overrides": {
+                    "run-cell": "ctrl-enter",
+                },
+            },
+        ),
+    )
+
+    assert new_config["keymap"]["preset"] == "vim"
+    assert "run-all" not in new_config["keymap"]["overrides"]
+    assert new_config["keymap"]["overrides"]["run-cell"] == "ctrl-enter"
+
+    new_config = merge_config(
+        prev_config,
+        MarimoConfig(
+            keymap={
+                "preset": "vim",
+                "overrides": {},
+            },
+        ),
+    )
+
+    assert new_config["keymap"]["preset"] == "vim"
+    assert new_config["keymap"]["overrides"] == {}
 
 
 def test_mask_secrets() -> None:

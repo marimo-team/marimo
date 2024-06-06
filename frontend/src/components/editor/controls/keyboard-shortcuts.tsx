@@ -125,7 +125,7 @@ export const KeyboardShortcuts: React.FC = () => {
       return (
         <div key={action}>
           <Input
-            value={newShortcut.join("+")}
+            defaultValue={newShortcut.join("+")}
             placeholder={hotkey.name}
             onKeyDown={(e) => {
               e.preventDefault();
@@ -153,7 +153,28 @@ export const KeyboardShortcuts: React.FC = () => {
               if (e.shiftKey) {
                 next.push("Shift");
               }
-              next.push(e.key);
+
+              // We don't allow `-` to be a shortcut key, since it's used to
+              // separate keys in the shortcut string
+              if (e.key === "-") {
+                return;
+              }
+              // If escape is pressed, without any modifier keys, cancel editing
+              // We don't allow escape to be a shortcut key along, since it's used to
+              // remove focus from many elements
+              if (e.key === "Escape" && next.length === 0) {
+                setEditingShortcut(null);
+                setNewShortcut([]);
+                return;
+              }
+
+              let key = e.key.toLowerCase();
+              // Handle edge cases
+              if (e.key === " ") {
+                key = "Space";
+              }
+
+              next.push(key);
 
               handleNewShortcut(next);
             }}

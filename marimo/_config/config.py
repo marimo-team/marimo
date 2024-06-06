@@ -220,6 +220,11 @@ def merge_config(
     config: MarimoConfig, new_config: MarimoConfig
 ) -> MarimoConfig:
     """Merge a user configuration with a new configuration."""
+    # Remove the keymap overrides from the incoming config,
+    # so that they don't get merged into the new config
+    if new_config.get("keymap", {}).get("overrides") is not None:
+        config.get("keymap", {}).pop("overrides", {})
+
     merged = cast(
         MarimoConfig,
         deep_merge(
