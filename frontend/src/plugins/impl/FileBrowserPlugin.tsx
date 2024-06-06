@@ -17,27 +17,31 @@ import { FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /**
  * Arguments for a file browser component.
+ *
+ * @param initialPath - the path to display on component render
+ * @param filetypes - filetype filter
+ * @param selectionMode - permit selection of files or directories
+ * @param multiple - whether to allow the user to select multiple files
+ * @param label - label for the file browser
+ * @param restrictNavigation - whether to prevent user from accessing
+ * directories outside the initial path
  */
 interface Data {
-  /** @param initialPath - the path to display on component render */
   initialPath: string;
-  /** @param filetypes - filter directory lists by file types */
   filetypes: string[];
-  /** @param multiple - whether to allow the user to select multiple files */
+  selectionMode: string;
   multiple: boolean;
-  /** @param label - label for the file browser */
   label: string | null;
-  /**
-   * @param restrictNavigation - whether to prevent the user from accessing
-   * directories outside the initial path
-   */
   restrictNavigation: boolean;
 }
 
 /**
+ * File object.
+ *
  * @param id - File id
  * @param path - File path
  * @param name - File name
@@ -66,6 +70,7 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
     z.object({
       initialPath: z.string(),
       filetypes: z.array(z.string()),
+      selectionMode: z.string(),
       multiple: z.boolean(),
       label: z.string().nullable(),
       restrictNavigation: z.boolean(),
@@ -110,10 +115,14 @@ interface FileBrowserProps extends Data, PluginFunctions {
   setValue: (value: S) => void;
 }
 
+/**
+ * File browser component.
+ */
 export const FileBrowser = ({
   value,
   setValue,
   initialPath,
+  selectionMode,
   multiple,
   label,
   restrictNavigation,
@@ -154,6 +163,9 @@ export const FileBrowser = ({
   const selectedPaths = new Set(value.map((x) => x.path));
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
+  const canSelectDirectories =
+    selectionMode === "directory" || selectionMode === "all";
+
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
@@ -185,18 +197,22 @@ export const FileBrowser = ({
     setSelectAllLabel("Select all");
   }
 
-  function createFileInfo(path: string, name: string): FileInfo {
+  function createFileInfo(
+    path: string,
+    name: string,
+    isDirectory: boolean,
+  ): FileInfo {
     return {
       id: path,
       name: name,
       path: path,
-      is_directory: false,
+      is_directory: isDirectory,
       is_marimo_file: false,
     };
   }
 
-  function handleSelection(path: string, name: string) {
-    const fileInfo = createFileInfo(path, name);
+  function handleSelection(path: string, name: string, isDirectory: boolean) {
+    const fileInfo = createFileInfo(path, name, isDirectory);
 
     if (multiple) {
       if (selectedPaths.has(path)) {
@@ -223,10 +239,13 @@ export const FileBrowser = ({
     const filesInView = [];
 
     for (const file of files) {
-      if (file.is_directory || selectedPaths.has(file.path)) {
+      if (!canSelectDirectories && file.is_directory) {
         continue;
       }
-      const fileInfo = createFileInfo(file.path, file.name);
+      if (selectedPaths.has(file.path)) {
+        continue;
+      }
+      const fileInfo = createFileInfo(file.path, file.name, file.is_directory);
       filesInView.push(fileInfo);
     }
 
@@ -279,10 +298,21 @@ export const FileBrowser = ({
       <TableRow
         key={file.id}
         className={tableRowStyles}
-        onClick={() => handleClick(filePath, file.name)}
+        onClick={() => handleClick(filePath, file.name, file.is_directory)}
       >
         <TableCell className="w-1/12">
-          <Icon size={16} className="ml-2" />
+          {isSelected || canSelectDirectories ? (
+            <Checkbox
+              checked={isSelected}
+              onClick={(e) => {
+                handleSelection(filePath, file.name, file.is_directory);
+                e.stopPropagation();
+              }}
+              className="ml-2"
+            />
+          ) : (
+            <Icon size={16} className="ml-2" />
+          )}
         </TableCell>
         <TableCell className="w-11/12">{file.name}</TableCell>
       </TableRow>,
