@@ -84,7 +84,10 @@ const DataTableInternal = <TData,>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead
+                      key={header.id}
+                      className="h-auto min-h-10 whitespace-nowrap"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
