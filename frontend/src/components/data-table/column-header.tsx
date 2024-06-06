@@ -44,7 +44,7 @@ export const DataTableColumnHeader = <TData, TValue>({
       <DropdownMenuTrigger asChild={true}>
         <div
           className={cn(
-            "group flex items-center w-full select-none space-x-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
+            "group flex items-center space-between w-full select-none gap-2 border hover:border-border border-transparent hover:bg-[var(--slate-3)] data-[state=open]:bg-[var(--slate-3)] data-[state=open]:border-border rounded px-2 -mx-2",
             className,
           )}
           data-testid="data-table-sort-button"
@@ -52,7 +52,7 @@ export const DataTableColumnHeader = <TData, TValue>({
           <span className="flex-1">{header}</span>
           <span
             className={cn(
-              "ml-3 h-5 m-0 p-1",
+              "h-5 py-1 px-2 mr-2",
               !column.getIsSorted() &&
                 "invisible group-hover:visible data-[state=open]:visible",
             )}
