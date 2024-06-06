@@ -43,6 +43,7 @@ test("default UserConfig - empty", () => {
         "line_length": 79,
       },
       "keymap": {
+        "overrides": {},
         "preset": "default",
       },
       "package_management": {
@@ -89,6 +90,7 @@ test("default UserConfig - one level", () => {
         "line_length": 79,
       },
       "keymap": {
+        "overrides": {},
         "preset": "default",
       },
       "package_management": {
