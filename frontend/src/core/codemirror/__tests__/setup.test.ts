@@ -5,6 +5,7 @@ import { EditorState, type Extension } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 vi.mock("@/core/config/config", () => ({
   parseAppConfig: () => ({}),
@@ -48,7 +49,9 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     keymapConfig: {
       preset: "default",
+      overrides: {},
     },
+    hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
     ...config,
   });
@@ -99,7 +102,7 @@ describe("snapshot all duplicate keymaps", () => {
 
   test("vim keymaps", () => {
     const extensions = setup({
-      keymapConfig: { preset: "vim" },
+      keymapConfig: { preset: "vim", overrides: {} },
     });
     const duplicates = getDuplicateKeymaps(
       EditorState.create({ extensions: extensions }),

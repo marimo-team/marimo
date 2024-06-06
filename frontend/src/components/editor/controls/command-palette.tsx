@@ -1,5 +1,4 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React from "react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -13,7 +12,7 @@ import {
 import { useRegisteredActions } from "../../../core/hotkeys/actions";
 import { useRecentCommands } from "../../../hooks/useRecentCommands";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
-import { HOTKEYS, HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
+import { HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { atom, useAtom, useAtomValue } from "jotai";
 import { useNotebookActions } from "../actions/useNotebookActions";
 import { Objects } from "@/utils/objects";
@@ -22,6 +21,8 @@ import { isParentAction, flattenActions } from "../actions/types";
 import { useCellActionButtons } from "../actions/useCellActionButton";
 import { lastFocusedCellAtom } from "@/core/cells/focus";
 import { useConfigActions } from "../actions/useConfigActions";
+import { hotkeysAtom } from "@/core/config/config";
+import { useEventListener } from "@/hooks/useEventListener";
 
 export const commandPaletteAtom = atom(false);
 
@@ -29,6 +30,7 @@ export const CommandPalette = () => {
   const [open, setOpen] = useAtom(commandPaletteAtom);
   const registeredActions = useRegisteredActions();
   const lastFocusedCell = useAtomValue(lastFocusedCellAtom);
+  const hotkeys = useAtomValue(hotkeysAtom);
   // Cell actions
   let cellActions = useCellActionButtons({ cell: lastFocusedCell }).flat();
   cellActions = flattenActions(cellActions);
@@ -51,23 +53,19 @@ export const CommandPalette = () => {
   const { recentCommands, addRecentCommand } = useRecentCommands();
   const recentCommandsSet = new Set(recentCommands);
 
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (parseShortcut(HOTKEYS.getHotkey("global.commandPalette").key)(e)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [setOpen]);
+  useEventListener(document, "keydown", (e) => {
+    if (parseShortcut(hotkeys.getHotkey("global.commandPalette").key)(e)) {
+      e.preventDefault();
+      setOpen((open) => !open);
+    }
+  });
 
   const renderShortcutCommandItem = (shortcut: HotkeyAction) => {
     const action = registeredActions[shortcut];
     if (!action) {
       return null;
     }
-    const hotkey = HOTKEYS.getHotkey(shortcut);
+    const hotkey = hotkeys.getHotkey(shortcut);
 
     return (
       <CommandItem
@@ -110,7 +108,7 @@ export const CommandPalette = () => {
         <span>{label}</span>
         {hotkey && (
           <CommandShortcut>
-            <KeyboardHotkeys shortcut={HOTKEYS.getHotkey(hotkey).key} />
+            <KeyboardHotkeys shortcut={hotkeys.getHotkey(hotkey).key} />
           </CommandShortcut>
         )}
       </CommandItem>
@@ -145,7 +143,7 @@ export const CommandPalette = () => {
           </>
         )}
         <CommandGroup heading="Commands">
-          {HOTKEYS.iterate().map((shortcut) => {
+          {hotkeys.iterate().map((shortcut) => {
             if (recentCommandsSet.has(shortcut)) {
               return null; // Don't show recent commands in the main list
             }

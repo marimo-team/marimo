@@ -14,6 +14,8 @@ import {
 } from "@codemirror/autocomplete";
 import { once } from "lodash-es";
 import { enhancedMarkdownExtension } from "../markdown/extension";
+import { CompletionConfig } from "@/core/config/config-schema";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 const prefixKinds = ["", "f", "r", "fr", "rf"] as const;
 type PrefixKind = (typeof prefixKinds)[number];
@@ -108,7 +110,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
     return regexes.some(([, regex]) => regex.test(pythonCode));
   }
 
-  getExtension(): Extension {
+  getExtension(
+    _completionConfig: CompletionConfig,
+    hotkeys: HotkeyProvider,
+  ): Extension {
     return [
       markdown({
         codeLanguages: languages,
@@ -141,7 +146,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
           },
         ],
       }),
-      enhancedMarkdownExtension(),
+      enhancedMarkdownExtension(hotkeys),
       autocompletion({
         activateOnTyping: true,
         override: [emojiCompletionSource],

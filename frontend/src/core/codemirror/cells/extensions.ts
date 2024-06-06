@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { EditorView, type KeyBinding, keymap } from "@codemirror/view";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
 import { type Extension, Prec } from "@codemirror/state";
@@ -34,6 +34,7 @@ export interface MovementCallbacks
 export function cellMovementBundle(
   cellId: CellId,
   callbacks: MovementCallbacks,
+  hotkeys: HotkeyProvider,
 ): Extension[] {
   const {
     onRun,
@@ -52,9 +53,9 @@ export function cellMovementBundle(
     aiCellCompletion,
   } = callbacks;
 
-  const hotkeys: KeyBinding[] = [
+  const keybindings: KeyBinding[] = [
     {
-      key: HOTKEYS.getHotkey("cell.run").key,
+      key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -63,7 +64,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.runAndNewBelow").key,
+      key: hotkeys.getHotkey("cell.runAndNewBelow").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -74,7 +75,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.runAndNewAbove").key,
+      key: hotkeys.getHotkey("cell.runAndNewAbove").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -85,7 +86,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.delete").key,
+      key: hotkeys.getHotkey("cell.delete").key,
       preventDefault: true,
       stopPropagation: true,
       run: (cm) => {
@@ -102,7 +103,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.moveDown").key,
+      key: hotkeys.getHotkey("cell.moveDown").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -111,7 +112,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.moveUp").key,
+      key: hotkeys.getHotkey("cell.moveUp").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -156,7 +157,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.focusDown").key,
+      key: hotkeys.getHotkey("cell.focusDown").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -165,7 +166,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.focusUp").key,
+      key: hotkeys.getHotkey("cell.focusUp").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -174,7 +175,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.sendToBottom").key,
+      key: hotkeys.getHotkey("cell.sendToBottom").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -183,7 +184,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.sendToTop").key,
+      key: hotkeys.getHotkey("cell.sendToTop").key,
       preventDefault: true,
       stopPropagation: true,
       run: () => {
@@ -192,7 +193,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.createAbove").key,
+      key: hotkeys.getHotkey("cell.createAbove").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -202,7 +203,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.createBelow").key,
+      key: hotkeys.getHotkey("cell.createBelow").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -212,7 +213,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.hideCode").key,
+      key: hotkeys.getHotkey("cell.hideCode").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -230,7 +231,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.aiCompletion").key,
+      key: hotkeys.getHotkey("cell.aiCompletion").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -242,7 +243,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.goToDefinition").key,
+      key: hotkeys.getHotkey("cell.goToDefinition").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -251,7 +252,7 @@ export function cellMovementBundle(
       },
     },
     {
-      key: HOTKEYS.getHotkey("cell.splitCell").key,
+      key: hotkeys.getHotkey("cell.splitCell").key,
       preventDefault: true,
       stopPropagation: true,
       run: (ev) => {
@@ -266,7 +267,7 @@ export function cellMovementBundle(
   ];
 
   // Highest priority so that we can override the default keymap
-  return [Prec.high(keymap.of(hotkeys))];
+  return [Prec.high(keymap.of(keybindings))];
 }
 
 export interface CodeCallbacks {
@@ -280,6 +281,7 @@ export interface CodeCallbacks {
 export function cellCodeEditingBundle(
   cellId: CellId,
   callbacks: CodeCallbacks,
+  hotkeys: HotkeyProvider,
 ): Extension[] {
   const { updateCellCode } = callbacks;
 
@@ -299,5 +301,5 @@ export function cellCodeEditingBundle(
     }
   });
 
-  return [onChangePlugin, formatKeymapExtension(cellId, callbacks)];
+  return [onChangePlugin, formatKeymapExtension(cellId, callbacks, hotkeys)];
 }

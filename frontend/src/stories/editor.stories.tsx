@@ -8,6 +8,7 @@ import { basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { copilotBundle } from "@/core/codemirror/copilot/extension";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 const meta: Meta = {
   title: "Editor",
@@ -63,6 +64,7 @@ export const Primary: Story = {
         extensions={basicBundle(
           { activate_on_typing: false, copilot: false },
           ctx.globals.theme,
+          new OverridingHotkeyProvider({}),
         )}
       />
     </div>

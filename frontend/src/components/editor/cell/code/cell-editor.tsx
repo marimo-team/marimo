@@ -40,6 +40,7 @@ import { lastFocusedCellIdAtom } from "@/core/cells/focus";
 import type { LanguageAdapter } from "@/core/codemirror/language/types";
 import { autoInstantiateAtom } from "@/core/config/config";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 export interface CellEditorProps
   extends Pick<CellRuntimeState, "status">,
@@ -186,6 +187,7 @@ const CellEditorInternal = ({
       completionConfig: userConfig.completion,
       keymapConfig: userConfig.keymap,
       theme,
+      hotkeys: new OverridingHotkeyProvider(userConfig.keymap.overrides),
     });
 
     extensions.push(
@@ -265,6 +267,7 @@ const CellEditorInternal = ({
             reconfigureLanguageEffect(
               editorViewRef.current,
               userConfig.completion,
+              new OverridingHotkeyProvider(userConfig.keymap.overrides),
             ),
           ],
         });
@@ -318,6 +321,7 @@ const CellEditorInternal = ({
     editorViewRef,
     extensions,
     userConfig.completion,
+    userConfig.keymap,
     clearSerializedEditorState,
     cellId,
     serializedEditorState,

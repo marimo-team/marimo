@@ -12,6 +12,7 @@
   coming_from_jupyter
   outputs
   editor_features
+  hotkeys
   dataframes
   plotting
   state
@@ -38,6 +39,7 @@ These guides cover marimo's core concepts.
 | {doc}`runtime_configuration`         | Configure how and when cells are run                    |
 | {doc}`outputs`                       | Markdown, plots, and other visual outputs               |
 | {doc}`editor_features`               | View variables, cell dependencies, errors, and more     |
+| {doc}`hotkeys`                       | Keyboard shortcuts                                      |
 | {doc}`dataframes`                    | Working with dataframes                                 |
 | {doc}`plotting`                      | Interactive and reactive plots                          |
 | {doc}`state`                         | Mutable, reactive state                                 |

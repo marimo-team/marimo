@@ -72,6 +72,7 @@ const props: CellProps = {
     },
     keymap: {
       preset: "default",
+      overrides: {},
     },
     formatting: {
       line_length: 79,

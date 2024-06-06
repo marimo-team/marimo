@@ -7,6 +7,7 @@ import {
   parseUserConfig,
 } from "./config-schema";
 import { store } from "../state/jotai";
+import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
 
 /**
  * Atom for storing the user config.
@@ -15,6 +16,15 @@ export const userConfigAtom = atom<UserConfig>(parseUserConfig());
 
 export const autoInstantiateAtom = atom((get) => {
   return get(userConfigAtom).runtime.auto_instantiate;
+});
+
+export const hotkeyOverridesAtom = atom((get) => {
+  return get(userConfigAtom).keymap.overrides;
+});
+
+export const hotkeysAtom = atom((get) => {
+  const overrides = get(hotkeyOverridesAtom);
+  return new OverridingHotkeyProvider(overrides);
 });
 
 /**

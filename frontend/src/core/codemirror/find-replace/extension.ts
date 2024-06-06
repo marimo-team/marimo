@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import {
   highlightSelectionMatches,
   selectNextOccurrence,
@@ -12,7 +12,7 @@ import {
   searchState,
 } from "./search-highlight";
 
-export function findReplaceBundle() {
+export function findReplaceBundle(hotkeys: HotkeyProvider) {
   return [
     keymap.of([
       {
@@ -22,12 +22,12 @@ export function findReplaceBundle() {
         run: closeFindReplacePanel,
       },
       {
-        key: HOTKEYS.getHotkey("cell.selectNextOccurrence").key,
+        key: hotkeys.getHotkey("cell.selectNextOccurrence").key,
         preventDefault: true,
         run: selectNextOccurrence,
       },
       {
-        key: HOTKEYS.getHotkey("cell.findAndReplace").key,
+        key: hotkeys.getHotkey("cell.findAndReplace").key,
         preventDefault: true,
         run: openFindReplacePanel,
       },

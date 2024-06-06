@@ -55,9 +55,11 @@ class KeymapConfig(TypedDict, total=False):
     **Keys.**
 
     - `preset`: one of `"default"` or `"vim"`
+    - `overrides`: a dict of keymap actions to their keymap override
     """
 
     preset: Literal["default", "vim"]
+    overrides: Dict[str, str]
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
@@ -190,7 +192,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "cell_output": "above",
     },
     "formatting": {"line_length": 79},
-    "keymap": {"preset": "default"},
+    "keymap": {"preset": "default", "overrides": {}},
     "runtime": {
         "auto_instantiate": True,
         "auto_reload": "off",

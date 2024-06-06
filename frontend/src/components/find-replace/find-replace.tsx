@@ -3,7 +3,7 @@ import {
   findReplaceAtom,
   openFindReplacePanel,
 } from "@/core/codemirror/find-replace/state";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import React, { useEffect, useState, useRef } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -33,7 +33,7 @@ import {
   setGlobalSearchQuery,
 } from "@/core/codemirror/find-replace/search-highlight";
 import { KeyboardHotkeys } from "../shortcuts/renderShortcut";
-import { HOTKEYS } from "@/core/hotkeys/hotkeys";
+import { hotkeysAtom } from "@/core/config/config";
 
 export const FindReplace: React.FC = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -43,6 +43,7 @@ export const FindReplace: React.FC = () => {
     position: Map<EditorView, Map<string, number>>;
   }>();
   const findInputRef = useRef<HTMLInputElement>(null);
+  const hotkeys = useAtomValue(hotkeysAtom);
 
   useHotkey("cell.findAndReplace", () => {
     // if already open and focused, fallback to default behavior
@@ -276,7 +277,7 @@ export const FindReplace: React.FC = () => {
         <div className="text-xs text-muted-foreground flex gap-1 mt-2">
           Press{" "}
           <KeyboardHotkeys
-            shortcut={HOTKEYS.getHotkey("cell.findAndReplace").key}
+            shortcut={hotkeys.getHotkey("cell.findAndReplace").key}
           />{" "}
           again to open the native browser search.
         </div>

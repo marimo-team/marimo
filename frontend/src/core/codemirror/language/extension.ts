@@ -11,11 +11,15 @@ import { EditorView, Panel, keymap, showPanel } from "@codemirror/view";
 import { MarkdownLanguageAdapter } from "./markdown";
 import { clamp } from "@/utils/math";
 import { CompletionConfig } from "@/core/config/config-schema";
-import { completionConfigState } from "../config/extension";
+import {
+  completionConfigState,
+  hotkeysProviderState,
+} from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 
 export const LanguageAdapters: Record<
   LanguageAdapter["type"],
@@ -99,6 +103,7 @@ function updateLanguageAdapterAndCode(
   const currentLanguage = view.state.field(languageAdapterState);
   const code = view.state.doc.toString();
   const completionConfig = view.state.facet(completionConfigState);
+  const hotkeysProvider = view.state.facet(hotkeysProviderState);
 
   // Update the code
   const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
@@ -115,7 +120,7 @@ function updateLanguageAdapterAndCode(
     effects: [
       setLanguageAdapter.of(nextLanguage),
       languageCompartment.reconfigure(
-        nextLanguage.getExtension(completionConfig),
+        nextLanguage.getExtension(completionConfig, hotkeysProvider),
       ),
       // Clear history
       historyCompartment.reconfigure([]),
@@ -155,12 +160,14 @@ function createLanguagePanel(view: EditorView): Panel {
  */
 export function adaptiveLanguageConfiguration(
   completionConfig: CompletionConfig,
+  hotkeysProvider: HotkeyProvider,
 ) {
   return [
     completionConfigState.of(completionConfig),
+    hotkeysProviderState.of(hotkeysProvider),
     languageToggle(completionConfig),
     languageCompartment.of(
-      LanguageAdapters.python().getExtension(completionConfig),
+      LanguageAdapters.python().getExtension(completionConfig, hotkeysProvider),
     ),
     languageAdapterState,
   ];
@@ -194,9 +201,10 @@ export function switchLanguage(
 export function reconfigureLanguageEffect(
   view: EditorView,
   completionConfig: CompletionConfig,
+  hotkeysProvider: HotkeyProvider,
 ) {
   const language = view.state.field(languageAdapterState);
   return languageCompartment.reconfigure(
-    language.getExtension(completionConfig),
+    language.getExtension(completionConfig, hotkeysProvider),
   );
 }
