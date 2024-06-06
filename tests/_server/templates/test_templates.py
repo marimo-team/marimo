@@ -28,7 +28,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
         self.base_url = "/subpath"
         self.user_config = DEFAULT_CONFIG
-        self.server_token = "token"
+        self.server_token = SkewProtectionToken("token")
         self.app_config = _AppConfig()
         self.filename = "notebook.py"
         self.mode = SessionMode.RUN
@@ -45,7 +45,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert self.base_url in result
-        assert self.server_token in result
+        assert str(self.server_token) in result
         assert self.filename in result
         assert "read" in result
 
@@ -61,7 +61,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert self.base_url in result
-        assert self.server_token in result
+        assert str(self.server_token) in result
         assert "<title>marimo</title>" in result
         assert "read" in result
 
@@ -77,7 +77,7 @@ class TestNotebookPageTemplate(unittest.TestCase):
         )
 
         assert self.base_url in result
-        assert self.server_token in result
+        assert str(self.server_token) in result
         assert self.filename in result
         assert "edit" in result
 
@@ -93,7 +93,7 @@ class TestHomePageTemplate(unittest.TestCase):
 
         self.base_url = "/subpath"
         self.user_config = DEFAULT_CONFIG
-        self.server_token = "token"
+        self.server_token = SkewProtectionToken("token")
 
     def test_home_page_template(self) -> None:
         result = templates.home_page_template(
@@ -104,7 +104,7 @@ class TestHomePageTemplate(unittest.TestCase):
         )
 
         assert self.base_url in result
-        assert self.server_token in result
+        assert str(self.server_token) in result
         assert json.dumps(self.user_config) in result
         assert "marimo" in result
         assert json.dumps({}) in result
