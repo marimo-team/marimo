@@ -258,7 +258,7 @@ export const UserConfigForm: React.FC = () => {
                 </FormControl>
                 <FormMessage />
                 <FormDescription>
-                  The default app width for new notebooks; overriden by
+                  The default app width for new notebooks; overridden by
                   "width" in the application config.
                 </FormDescription>
               </FormItem>
