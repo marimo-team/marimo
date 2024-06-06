@@ -287,6 +287,8 @@ class Kernel:
         self.stderr = stderr
         self.stdin = stdin
         self.enqueue_control_request = enqueue_control_request
+        self._globals_lock = threading.RLock()
+        self._completion_worker_started = False
 
         self.debugger = debugger_override
         if self.debugger is not None:
@@ -394,20 +396,45 @@ class Kernel:
     def globals(self) -> dict[Any, Any]:
         return self._module.__dict__
 
+    @contextlib.contextmanager
+    def lock_globals(self) -> Iterator[None]:
+        # The only other thread accessing globals is the completion worker. If
+        # we haven't started a completion worker, there's no need to lock
+        # globals.
+        if self._completion_worker_started:
+            with self._globals_lock:
+                yield
+        else:
+            yield
+
     def start_completion_worker(
         self, completion_queue: QueueType[CompletionRequest]
     ) -> None:
         """Must be called after context is initialized"""
         threading.Thread(
             target=completion_worker,
-            args=(completion_queue, self.graph, get_context().stream),
+            args=(
+                completion_queue,
+                self.graph,
+                self.globals,
+                self._globals_lock,
+                get_context().stream,
+            ),
             daemon=True,
         ).start()
+        self._completion_worker_started = True
 
     def code_completion(
         self, request: CompletionRequest, docstrings_limit: int
     ) -> None:
-        complete(request, self.graph, get_context().stream, docstrings_limit)
+        complete(
+            request,
+            self.graph,
+            self.globals,
+            self._globals_lock,
+            get_context().stream,
+            docstrings_limit,
+        )
 
     @contextlib.contextmanager
     def _install_execution_context(
@@ -1336,41 +1363,46 @@ class Kernel:
         """Handle a message from the client.
 
         The message is dispatched to the appropriate method based on its type.
+
+        Coarsely locks globals to avoid race conditions with code completion.
         """
-        if isinstance(request, CreationRequest):
-            await self.instantiate(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, ExecuteMultipleRequest):
-            await self.run(request.execution_requests)
-            CompletedRun().broadcast()
-        elif isinstance(request, ExecuteStaleRequest):
-            await self.run_stale_cells()
-        elif isinstance(request, SetCellConfigRequest):
-            await self.set_cell_config(request)
-        elif isinstance(request, SetUserConfigRequest):
-            self.set_user_config(request)
-        elif isinstance(request, SetUIElementValueRequest):
-            await self.set_ui_element_value(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, FunctionCallRequest):
-            status, ret = await self.function_call_request(request)
-            FunctionCallResult(
-                function_call_id=request.function_call_id,
-                return_value=ret,
-                status=status,
-            ).broadcast()
-            CompletedRun().broadcast()
-        elif isinstance(request, DeleteRequest):
-            await self.delete(request)
-        elif isinstance(request, InstallMissingPackagesRequest):
-            await self.install_missing_packages(request)
-            CompletedRun().broadcast()
-        elif isinstance(request, PreviewDatasetColumnRequest):
-            await self.preview_dataset_column(request)
-        elif isinstance(request, StopRequest):
-            return None
-        else:
-            raise ValueError(f"Unknown request {request}")
+        # acquiring and releasing an RLock takes ~100ns; the overhead is
+        # negligible because the lock is coarse.
+        with self.lock_globals():
+            if isinstance(request, CreationRequest):
+                await self.instantiate(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, ExecuteMultipleRequest):
+                await self.run(request.execution_requests)
+                CompletedRun().broadcast()
+            elif isinstance(request, ExecuteStaleRequest):
+                await self.run_stale_cells()
+            elif isinstance(request, SetCellConfigRequest):
+                await self.set_cell_config(request)
+            elif isinstance(request, SetUserConfigRequest):
+                self.set_user_config(request)
+            elif isinstance(request, SetUIElementValueRequest):
+                await self.set_ui_element_value(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, FunctionCallRequest):
+                status, ret = await self.function_call_request(request)
+                FunctionCallResult(
+                    function_call_id=request.function_call_id,
+                    return_value=ret,
+                    status=status,
+                ).broadcast()
+                CompletedRun().broadcast()
+            elif isinstance(request, DeleteRequest):
+                await self.delete(request)
+            elif isinstance(request, InstallMissingPackagesRequest):
+                await self.install_missing_packages(request)
+                CompletedRun().broadcast()
+            elif isinstance(request, PreviewDatasetColumnRequest):
+                await self.preview_dataset_column(request)
+            elif isinstance(request, StopRequest):
+                return None
+            else:
+                raise ValueError(f"Unknown request {request}")
 
 
 def launch_kernel(
