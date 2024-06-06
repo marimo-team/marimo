@@ -17,7 +17,7 @@ def assert_config(override: MarimoConfig) -> None:
 
 
 def test_configure_partial_keymap() -> None:
-    assert_config(MarimoConfig(keymap={"preset": "vim"}))
+    assert_config(MarimoConfig(keymap={"preset": "vim", "overrides": {}}))
 
 
 def test_configure_full() -> None:
