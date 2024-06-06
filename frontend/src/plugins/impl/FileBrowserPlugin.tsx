@@ -120,6 +120,7 @@ export const FileBrowser = ({
   list_directory,
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useState(initialPath);
+  const [selectAllLabel, setSelectAllLabel] = useState("Select all");
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -153,19 +154,18 @@ export const FileBrowser = ({
   // Rendered list of selected files
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
-  /**
-   * Set new path from user input or selection.
-   *
-   * @param {string} newPath - New path
-   */
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
-      newPath = Paths.dirname(path);
-    }
+      if (path === "") {
+        return;
+      }
 
-    if (newPath === "") {
-      return;
+      newPath = Paths.dirname(path);
+
+      if (newPath === "") {
+        newPath = path.includes("/") ? "/" : "\\";
+      }
     }
 
     // If restricting navigation, check if path is outside bounds
@@ -182,6 +182,7 @@ export const FileBrowser = ({
     }
 
     setPath(newPath);
+    setSelectAllLabel("Select all");
   }
 
   function createFileInfo(path: string, name: string): FileInfo {
@@ -200,6 +201,7 @@ export const FileBrowser = ({
     if (multiple) {
       if (selectedPaths.has(path)) {
         setValue(value.filter((x) => x.path !== path));
+        setSelectAllLabel("Select all");
       } else {
         setValue([...value, fileInfo]);
       }
@@ -210,6 +212,7 @@ export const FileBrowser = ({
 
   function deselectAllFiles() {
     setValue(value.filter((x) => Paths.dirname(x.path) !== path));
+    setSelectAllLabel("Select all");
   }
 
   function selectAllFiles() {
@@ -228,6 +231,7 @@ export const FileBrowser = ({
     }
 
     setValue([...value, ...filesInView]);
+    setSelectAllLabel("Deselect all");
   }
 
   // Create rows for directories and files
@@ -306,27 +310,20 @@ export const FileBrowser = ({
   return (
     <section>
       {multiple ? (
-        <div className="grid grid-cols-12 gap-2">
-          <div className="col-span-8 flex flex-row items-center">
-            {labelText}
-          </div>
-          <div className="col-span-2 flex flex-row items-center">
+        <div className="grid grid-cols-2 items-center border-1">
+          <div className="justify-self-start mb-1">{labelText}</div>
+          <div className="justify-self-end">
             <Button
               size="xs"
+              variant="link"
               className="w-full"
-              onClick={() => selectAllFiles()}
+              onClick={
+                selectAllLabel === "Select all"
+                  ? () => selectAllFiles()
+                  : () => deselectAllFiles()
+              }
             >
-              {renderHTML({ html: "Select all" })}
-            </Button>
-          </div>
-          <div className="col-span-2 flex flex-row items-center">
-            <Button
-              variant="secondary"
-              size="xs"
-              className="w-full"
-              onClick={() => deselectAllFiles()}
-            >
-              {renderHTML({ html: "Deselect all" })}
+              {renderHTML({ html: selectAllLabel })}
             </Button>
           </div>
         </div>
