@@ -21,7 +21,7 @@ export const Paths = {
 };
 
 export class PathBuilder {
-  constructor(private deliminator: "/" | "\\") {}
+  constructor(public readonly deliminator: "/" | "\\") {}
 
   static guessDeliminator(path: string): PathBuilder {
     return path.includes("/") ? new PathBuilder("/") : new PathBuilder("\\");
