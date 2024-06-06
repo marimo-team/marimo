@@ -13,7 +13,7 @@ import {
   guessFileType,
 } from "@/components/editor/file-tree/types";
 import { renderHTML } from "../core/RenderHTML";
-import { PathBuilder, Paths } from "@/utils/paths";
+import { FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
 import { Button } from "@/components/ui/button";
@@ -148,23 +148,23 @@ export const FileBrowser = ({
     files = [];
   }
 
-  // List of selected file paths
-  const selectedPaths = new Set(value.map((x) => x.path));
+  const delimiter = path.includes("/") ? "/" : "\\";
+  const pathBuilder = new PathBuilder(delimiter);
 
-  // Rendered list of selected files
+  const selectedPaths = new Set(value.map((x) => x.path));
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
-      if (path === "") {
+      if (path === delimiter) {
         return;
       }
 
       newPath = Paths.dirname(path);
 
       if (newPath === "") {
-        newPath = path.includes("/") ? "/" : "\\";
+        newPath = delimiter;
       }
     }
 
@@ -251,11 +251,12 @@ export const FileBrowser = ({
     </TableRow>,
   );
 
-  const delimiter = path.includes("/") ? "/" : "\\";
-  const pathBuilder = new PathBuilder(delimiter);
-
   for (const file of files) {
-    const filePath = pathBuilder.join(path, file.name);
+    let filePath = pathBuilder.join(path, file.name);
+
+    if (filePath.startsWith("//")) {
+      filePath = filePath.slice(1) as FilePath;
+    }
 
     // Click handler
     const handleClick = file.is_directory ? setNewPath : handleSelection;
