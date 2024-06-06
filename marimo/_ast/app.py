@@ -54,6 +54,7 @@ class _AppConfig:
     a single marimo program.
     """
 
+    # TODO(akshayka): rename normal -> compact
     width: Literal["normal", "medium", "full"] = "normal"
     app_title: Optional[str] = None
 

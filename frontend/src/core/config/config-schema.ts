@@ -13,6 +13,7 @@ export const PackageManagerNames = [
 ] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
+export const APP_WIDTHS = ["normal", "medium", "full"] as const;
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -60,6 +61,7 @@ export const UserConfigSchema = z
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
+        width: z.enum(APP_WIDTHS).default("medium"),
       })
       .default({}),
     package_management: z
@@ -103,7 +105,6 @@ export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
 
-export const APP_WIDTHS = ["normal", "medium", "full"] as const;
 export const AppTitleSchema = z
   .string()
   .regex(new RegExp("^[A-Za-z0-9-_' ]*$"), {

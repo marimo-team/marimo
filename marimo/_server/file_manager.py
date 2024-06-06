@@ -8,28 +8,35 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.app import App, InternalApp, _AppConfig
 from marimo._ast.cell import CellConfig
+from marimo._config.config import MarimoConfig
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
     save_layout_config,
 )
 from marimo._server.api.status import HTTPException, HTTPStatus
-from marimo._server.models.models import (
-    SaveRequest,
-)
+from marimo._server.models.models import SaveRequest
 from marimo._server.utils import canonicalize_filename
 
 LOGGER = _loggers.marimo_logger()
 
 
 class AppFileManager:
-    def __init__(self, filename: Optional[str]) -> None:
+    def __init__(
+        self,
+        filename: Optional[str],
+        user_config: MarimoConfig | None = None,
+    ) -> None:
         self.filename = filename
+        # If provided, user_config overrides default app config for new apps
+        self._user_config = user_config
         self.app = self._load_app(self.path)
 
     @staticmethod
-    def from_app(app: InternalApp) -> AppFileManager:
-        manager = AppFileManager(None)
+    def from_app(
+        app: InternalApp, user_config: MarimoConfig | None = None
+    ) -> AppFileManager:
+        manager = AppFileManager(None, user_config)
         manager.app = app
         return manager
 
@@ -115,12 +122,15 @@ class AppFileManager:
         if self._is_unnamed():
             self.rename(filename)
 
-    @staticmethod
-    def _load_app(path: Optional[str]) -> InternalApp:
+    def _load_app(self, path: Optional[str]) -> InternalApp:
         """Read the app from the file."""
         app = codegen.get_app(path)
         if app is None:
-            empty_app = InternalApp(App())
+            # User configuration determines app configuration defaults
+            kwargs = {}
+            if self._user_config is not None:
+                kwargs["width"] = self._user_config["display"]["width"]
+            empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(
                 cell_id=None,
                 code="",

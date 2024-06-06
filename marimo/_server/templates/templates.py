@@ -61,7 +61,6 @@ def notebook_page_template(
         "{{ mode }}",
         "read" if mode == SessionMode.RUN else "edit",
     )
-
     return html
 
 

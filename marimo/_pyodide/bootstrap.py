@@ -47,7 +47,13 @@ def create_session(
     def write_kernel_message(op: KernelMessage) -> None:
         message_callback(json.dumps({"op": op[0], "data": op[1]}))
 
-    app_file_manager = AppFileManager(filename=filename)
+    # Lazy import to decrease startup time
+    from marimo._config.config import merge_default_config
+
+    user_config = merge_default_config(user_config)
+    app_file_manager = AppFileManager(
+        filename=filename, user_config=user_config
+    )
     app = app_file_manager.app
 
     # We want this message to be performant, so any expensive operations
@@ -71,8 +77,6 @@ def create_session(
         )
     )
 
-    # Lazy import to increase startup time
-    from marimo._config.config import merge_default_config
     from marimo._pyodide.pyodide_session import PyodideBridge, PyodideSession
 
     session = PyodideSession(
@@ -80,7 +84,7 @@ def create_session(
         SessionMode.EDIT,
         write_kernel_message,
         AppMetadata(query_params=query_params, filename=filename, cli_args={}),
-        merge_default_config(user_config),
+        user_config,
     )
 
     bridge = PyodideBridge(session)

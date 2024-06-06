@@ -492,7 +492,9 @@ class SessionManager:
             self.auth_token = AuthToken.random()
             self.skew_protection_token = SkewProtectionToken.random()
         else:
-            app = file_router.get_single_app_file_manager().app
+            app = file_router.get_single_app_file_manager(
+                user_config=user_config_manager.get_config()
+            ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
             # servers for the same app (going to sleep or autoscaling),
@@ -504,7 +506,9 @@ class SessionManager:
         """
         Get the app manager for the given key.
         """
-        return self.file_router.get_file_manager(key)
+        return self.file_router.get_file_manager(
+            key, self.user_config_manager.get_config()
+        )
 
     def create_session(
         self,
@@ -516,7 +520,9 @@ class SessionManager:
         """Create a new session"""
         LOGGER.debug("Creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            app_file_manager = self.file_router.get_file_manager(file_key)
+            app_file_manager = self.file_router.get_file_manager(
+                file_key, self.user_config_manager.get_config()
+            )
 
             if app_file_manager.path:
                 self.recents.touch(app_file_manager.path)
