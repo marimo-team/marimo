@@ -1214,9 +1214,10 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
     **Initialization Args.**
 
-    - `initial_path`: the directory to start from.
+    - `initial_path`: starting directory, default current working directory.
     - `filetypes`: the file types to display in each directory; for example,
        `filetypes=[".txt", ".csv"]`. If `None`, all files are displayed.
+    - `selection_mode`: either "file" or "directory".
     - `multiple`: if True, allow the user to select multiple files.
     - `restrict_navigation`: if True, prevent the user from navigating
        any level above the given path.
@@ -1230,6 +1231,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         self,
         initial_path: str = "",
         filetypes: Optional[Sequence[str]] = None,
+        selection_mode: str = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
         *,
@@ -1237,6 +1239,19 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
         on_change: Optional[Callable[[Sequence[FileInfo]], None]] = None,
     ) -> None:
         self.filetypes = filetypes
+
+        if (
+            selection_mode != "file"
+            and selection_mode != "directory"
+            and selection_mode != "all"
+        ):
+            raise ValueError(
+                "Invalid argument for selection_mode. "
+                + "Must be either 'file' or 'directory'."
+            )
+        else:
+            self.filetypes = None
+            self.selection_mode = selection_mode
 
         if not initial_path:
             initial_path = os.getcwd()
@@ -1247,6 +1262,7 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
             label=label,
             args={
                 "initial-path": initial_path,
+                "selection-mode": selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
                 "restrict-navigation": restrict_navigation,
@@ -1267,6 +1283,9 @@ class file_browser(UIElement[List[Dict[str, Any]], Sequence[FileInfo]]):
 
         for file in files_in_path:
             _, extension = os.path.splitext(file.name)
+
+            if self.selection_mode == "directory" and not file.is_directory:
+                continue
 
             if self.filetypes and not file.is_directory:
                 if extension not in self.filetypes:

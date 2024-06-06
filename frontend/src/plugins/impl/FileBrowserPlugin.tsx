@@ -13,30 +13,35 @@ import {
   guessFileType,
 } from "@/components/editor/file-tree/types";
 import { renderHTML } from "../core/RenderHTML";
-import { PathBuilder, Paths } from "@/utils/paths";
+import { FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { CornerLeftUp } from "lucide-react";
 import { Logger } from "@/utils/Logger";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /**
  * Arguments for a file browser component.
+ *
+ * @param initialPath - the path to display on component render
+ * @param filetypes - filetype filter
+ * @param selectionMode - permit selection of files or directories
+ * @param multiple - whether to allow the user to select multiple files
+ * @param label - label for the file browser
+ * @param restrictNavigation - whether to prevent user from accessing
+ * directories outside the initial path
  */
 interface Data {
-  /** @param initialPath - the path to display on component render */
   initialPath: string;
-  /** @param filetypes - filter directory lists by file types */
   filetypes: string[];
-  /** @param multiple - whether to allow the user to select multiple files */
+  selectionMode: string;
   multiple: boolean;
-  /** @param label - label for the file browser */
   label: string | null;
-  /**
-   * @param restrictNavigation - whether to prevent the user from accessing
-   * directories outside the initial path
-   */
   restrictNavigation: boolean;
 }
 
 /**
+ * File object.
+ *
  * @param id - File id
  * @param path - File path
  * @param name - File name
@@ -65,6 +70,7 @@ export const FileBrowserPlugin = createPlugin<S>("marimo-file-browser")
     z.object({
       initialPath: z.string(),
       filetypes: z.array(z.string()),
+      selectionMode: z.string(),
       multiple: z.boolean(),
       label: z.string().nullable(),
       restrictNavigation: z.boolean(),
@@ -109,16 +115,21 @@ interface FileBrowserProps extends Data, PluginFunctions {
   setValue: (value: S) => void;
 }
 
+/**
+ * File browser component.
+ */
 export const FileBrowser = ({
   value,
   setValue,
   initialPath,
+  selectionMode,
   multiple,
   label,
   restrictNavigation,
   list_directory,
 }: FileBrowserProps): JSX.Element | null => {
   const [path, setPath] = useState(initialPath);
+  const [selectAllLabel, setSelectAllLabel] = useState("Select all");
 
   const { data, loading, error } = useAsyncData(
     () =>
@@ -146,24 +157,32 @@ export const FileBrowser = ({
     files = [];
   }
 
-  // For checkbox logic
-  const selectedPaths = new Set(value.map((x) => x.path));
+  const delimiter = path.includes("/") ? "/" : "\\";
+  const pathBuilder = new PathBuilder(delimiter);
 
-  // For displaying selected files
+  const selectedPaths = new Set(value.map((x) => x.path));
   const selectedFiles = value.map((x) => <li key={x.id}>{x.path}</li>);
 
-  /**
-   * Set new path from user input or selection.
-   * @param {string} newPath - New path
-   */
+  const canSelectDirectories =
+    selectionMode === "directory" || selectionMode === "all";
+
   function setNewPath(newPath: string) {
     // Navigate to parent directory
     if (newPath === "..") {
+      if (path === delimiter) {
+        return;
+      }
+
       newPath = Paths.dirname(path);
+
+      if (newPath === "") {
+        newPath = delimiter;
+      }
     }
 
     // If restricting navigation, check if path is outside bounds
     const outsideInitialPath = newPath.length < initialPath.length;
+
     if (restrictNavigation && outsideInitialPath) {
       toast({
         title: "Access denied",
@@ -175,32 +194,64 @@ export const FileBrowser = ({
     }
 
     setPath(newPath);
+    setSelectAllLabel("Select all");
   }
 
-  /**
-   * Handles file selection.
-   * @param {string} path - Path of selected file
-   * @param {string} name - Name of selected file
-   */
-  const selectFile = (path: string, name: string) => {
-    const fileInfo: FileInfo = {
+  function createFileInfo(
+    path: string,
+    name: string,
+    isDirectory: boolean,
+  ): FileInfo {
+    return {
       id: path,
       name: name,
       path: path,
-      is_directory: false,
+      is_directory: isDirectory,
       is_marimo_file: false,
     };
+  }
+
+  function handleSelection(path: string, name: string, isDirectory: boolean) {
+    const fileInfo = createFileInfo(path, name, isDirectory);
 
     if (multiple) {
       if (selectedPaths.has(path)) {
         setValue(value.filter((x) => x.path !== path));
+        setSelectAllLabel("Select all");
       } else {
         setValue([...value, fileInfo]);
       }
     } else {
       setValue([fileInfo]);
     }
-  };
+  }
+
+  function deselectAllFiles() {
+    setValue(value.filter((x) => Paths.dirname(x.path) !== path));
+    setSelectAllLabel("Select all");
+  }
+
+  function selectAllFiles() {
+    if (!files) {
+      return;
+    }
+
+    const filesInView = [];
+
+    for (const file of files) {
+      if (!canSelectDirectories && file.is_directory) {
+        continue;
+      }
+      if (selectedPaths.has(file.path)) {
+        continue;
+      }
+      const fileInfo = createFileInfo(file.path, file.name, file.is_directory);
+      filesInView.push(fileInfo);
+    }
+
+    setValue([...value, ...filesInView]);
+    setSelectAllLabel("Deselect all");
+  }
 
   // Create rows for directories and files
   const fileRows = [];
@@ -219,14 +270,15 @@ export const FileBrowser = ({
     </TableRow>,
   );
 
-  const delimiter = path.includes("/") ? "/" : "\\";
-  const pathBuilder = new PathBuilder(delimiter);
-
   for (const file of files) {
-    const filePath = pathBuilder.join(path, file.name);
+    let filePath = pathBuilder.join(path, file.name);
+
+    if (filePath.startsWith("//")) {
+      filePath = filePath.slice(1) as FilePath;
+    }
 
     // Click handler
-    const handleClick = file.is_directory ? setNewPath : selectFile;
+    const handleClick = file.is_directory ? setNewPath : handleSelection;
 
     // Table row styles
     const isSelected = selectedPaths.has(filePath);
@@ -246,10 +298,21 @@ export const FileBrowser = ({
       <TableRow
         key={file.id}
         className={tableRowStyles}
-        onClick={() => handleClick(filePath, file.name)}
+        onClick={() => handleClick(filePath, file.name, file.is_directory)}
       >
         <TableCell className="w-1/12">
-          <Icon size={16} className="ml-2" />
+          {isSelected || canSelectDirectories ? (
+            <Checkbox
+              checked={isSelected}
+              onClick={(e) => {
+                handleSelection(filePath, file.name, file.is_directory);
+                e.stopPropagation();
+              }}
+              className="ml-2"
+            />
+          ) : (
+            <Icon size={16} className="ml-2" />
+          )}
         </TableCell>
         <TableCell className="w-11/12">{file.name}</TableCell>
       </TableRow>,
@@ -269,13 +332,37 @@ export const FileBrowser = ({
 
   label = label ?? "Browse and select file(s)...";
 
+  const labelText = (
+    <span className="markdown">
+      <strong>{renderHTML({ html: label })}</strong>
+    </span>
+  );
+
   return (
     <section>
-      <span className="markdown">
-        <strong>{renderHTML({ html: label })}</strong>
-      </span>
+      {multiple ? (
+        <div className="grid grid-cols-2 items-center border-1">
+          <div className="justify-self-start mb-1">{labelText}</div>
+          <div className="justify-self-end">
+            <Button
+              size="xs"
+              variant="link"
+              className="w-full"
+              onClick={
+                selectAllLabel === "Select all"
+                  ? () => selectAllFiles()
+                  : () => deselectAllFiles()
+              }
+            >
+              {renderHTML({ html: selectAllLabel })}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        labelText
+      )}
       <NativeSelect
-        className="mt-3 w-full"
+        className="mt-2 w-full"
         placeholder={path}
         value={path}
         onChange={(e) => setNewPath(e.target.value)}
