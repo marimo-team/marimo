@@ -45,16 +45,10 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.exceptions import InvalidSessionException
-from marimo._server.file_manager import (
-    AppFileManager,
-)
+from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.ids import SessionId
-from marimo._server.model import (
-    ConnectionState,
-    SessionConsumer,
-    SessionMode,
-)
+from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.session_view import SessionView
@@ -492,7 +486,11 @@ class SessionManager:
             self.auth_token = AuthToken.random()
             self.skew_protection_token = SkewProtectionToken.random()
         else:
-            app = file_router.get_single_app_file_manager().app
+            app = file_router.get_single_app_file_manager(
+                default_width=user_config_manager.get_config()["display"][
+                    "default_width"
+                ]
+            ).app
             codes = "".join(code for code in app.cell_manager.codes())
             # Because run-mode is read-only and we could have multiple
             # servers for the same app (going to sleep or autoscaling),
@@ -504,7 +502,12 @@ class SessionManager:
         """
         Get the app manager for the given key.
         """
-        return self.file_router.get_file_manager(key)
+        return self.file_router.get_file_manager(
+            key,
+            default_width=self.user_config_manager.get_config()["display"][
+                "default_width"
+            ],
+        )
 
     def create_session(
         self,
@@ -516,7 +519,12 @@ class SessionManager:
         """Create a new session"""
         LOGGER.debug("Creating new session for id %s", session_id)
         if session_id not in self.sessions:
-            app_file_manager = self.file_router.get_file_manager(file_key)
+            app_file_manager = self.file_router.get_file_manager(
+                file_key,
+                default_width=self.user_config_manager.get_config()["display"][
+                    "default_width"
+                ],
+            )
 
             if app_file_manager.path:
                 self.recents.touch(app_file_manager.path)

@@ -10,7 +10,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { UserConfig, UserConfigSchema } from "../../core/config/config-schema";
+import {
+  APP_WIDTHS,
+  UserConfig,
+  UserConfigSchema,
+} from "../../core/config/config-schema";
 import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { saveUserConfig } from "../../core/network/requests";
@@ -231,6 +235,35 @@ export const UserConfigForm: React.FC = () => {
         </div>
         <div className="flex flex-col gap-3">
           <SettingSubtitle>Display</SettingSubtitle>
+          <FormField
+            control={form.control}
+            name="display.default_width"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Default width</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="user-config-width-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={field.value}
+                    disabled={field.disabled}
+                    className="inline-flex mr-2"
+                  >
+                    {APP_WIDTHS.map((option) => (
+                      <option value={option} key={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+                <FormDescription>
+                  The default app width for new notebooks; overridden by
+                  "width" in the application config.
+                </FormDescription>
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="display.theme"

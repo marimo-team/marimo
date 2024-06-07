@@ -97,7 +97,7 @@ export const Controls = ({
       <div
         className={cn(
           bottomRightControls,
-          appWidth === "normal" && "xl:flex-row items-end",
+          appWidth === "compact" && "xl:flex-row items-end",
         )}
       >
         {closed ? (

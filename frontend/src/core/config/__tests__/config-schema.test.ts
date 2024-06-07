@@ -6,7 +6,7 @@ test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
   {
-    "width": "normal",
+    "width": "medium",
   }
   `);
 });
@@ -36,6 +36,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "default_width": "medium",
         "theme": "light",
       },
       "experimental": {},
@@ -83,6 +84,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "above",
         "code_editor_font_size": 14,
+        "default_width": "medium",
         "theme": "light",
       },
       "experimental": {},

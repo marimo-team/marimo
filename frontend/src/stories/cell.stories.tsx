@@ -64,6 +64,7 @@ const props: CellProps = {
       theme: "light",
       code_editor_font_size: 14,
       cell_output: "above",
+      default_width: "medium",
     },
     runtime: {
       auto_instantiate: true,
