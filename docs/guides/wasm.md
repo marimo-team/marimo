@@ -142,7 +142,8 @@ notebooks in your own webpages.
 
 By default, WASM notebooks expose your Python code to viewers. If you've
 enabled read-only mode, you can exclude code with
-`&include-code=false`.
+`&include-code=false`. If you want to include code but have it be hidden
+by default, use the parameter `&show-code=false`.
 
 A sufficiently determined user would still be able
 to obtain your code, so **don't** think of this as a security feature; instead,
