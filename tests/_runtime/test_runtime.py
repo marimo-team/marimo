@@ -789,6 +789,7 @@ class TestExecution:
                         1 / 0
                     except ZeroDivisionError as exc:
                         e = exc
+                        exc = e
                     """
                 ),
             ]
