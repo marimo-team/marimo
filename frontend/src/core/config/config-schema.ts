@@ -13,7 +13,11 @@ export const PackageManagerNames = [
 ] as const;
 export type PackageManagerName = (typeof PackageManagerNames)[number];
 
-export const APP_WIDTHS = ["normal", "medium", "full"] as const;
+export const APP_WIDTHS = ["compact", "medium", "full"] as const;
+/**
+ * normal == compact, but normal is deprecated
+ */
+const VALID_APP_WIDTHS = ["normal", ...APP_WIDTHS] as const;
 export const UserConfigSchema = z
   .object({
     completion: z
@@ -61,7 +65,15 @@ export const UserConfigSchema = z
         theme: z.enum(["light", "dark", "system"]).default("light"),
         code_editor_font_size: z.number().nonnegative().default(14),
         cell_output: z.enum(["above", "below"]).default("above"),
-        default_width: z.enum(APP_WIDTHS).default("medium"),
+        default_width: z
+          .enum(VALID_APP_WIDTHS)
+          .default("medium")
+          .transform((width) => {
+            if (width === "normal") {
+              return "compact";
+            }
+            return width;
+          }),
       })
       .default({}),
     package_management: z
@@ -112,10 +124,18 @@ export const AppTitleSchema = z
   });
 export const AppConfigSchema = z
   .object({
-    width: z.enum(APP_WIDTHS).default("normal"),
+    width: z
+      .enum(VALID_APP_WIDTHS)
+      .default("medium")
+      .transform((width) => {
+        if (width === "normal") {
+          return "compact";
+        }
+        return width;
+      }),
     app_title: AppTitleSchema.nullish(),
   })
-  .default({ width: "normal" });
+  .default({ width: "medium" });
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export function parseAppConfig() {

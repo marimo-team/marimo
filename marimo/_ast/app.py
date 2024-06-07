@@ -54,7 +54,7 @@ class _AppConfig:
     a single marimo program.
     """
 
-    width: WidthType = "normal"
+    width: WidthType = "compact"
     app_title: Optional[str] = None
 
     # The file path of the layout file, relative to the app file.

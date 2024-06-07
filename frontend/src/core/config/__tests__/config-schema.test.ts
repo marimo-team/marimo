@@ -6,7 +6,7 @@ test("default AppConfig", () => {
   const defaultConfig = AppConfigSchema.parse({});
   expect(defaultConfig).toMatchInlineSnapshot(`
   {
-    "width": "normal",
+    "width": "medium",
   }
   `);
 });

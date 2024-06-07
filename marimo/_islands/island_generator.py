@@ -433,7 +433,7 @@ class MarimoIslandGenerator:
             margin = "auto"
         if max_width is None:
             width = self._config.width
-            if width == "normal":
+            if width == "compact" or width == "normal":
                 max_width = "740px"
             elif width == "medium":
                 max_width = "1110px"
