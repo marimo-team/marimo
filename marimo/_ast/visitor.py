@@ -255,7 +255,8 @@ class ScopedVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.Try) or (
             sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
         ):
-            assert isinstance(node, ast.Try) or isinstance(node, ast.TryStar)
+            if sys.version_info < (3, 11):
+                assert isinstance(node, ast.Try)
             # "Try" nodes have "handlers" that introduce exception context
             # variables that are tied to the try block, and don't exist beyond
             # it.
