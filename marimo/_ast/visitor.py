@@ -57,6 +57,7 @@ class Block:
 @dataclass
 class ObscuredScope:
     """The scope in which a name is hidden."""
+
     # Variable id if this block hides a name
     obscured: Optional[str] = None
 
@@ -188,7 +189,7 @@ class ScopedVisitor(ast.NodeVisitor):
         block_idx = 0 if name in self.block_stack[-1].global_names else -1
         self._define_in_block(name, variable_data, block_idx=block_idx)
 
-    def _push_block(self, is_comprehension: bool, obscured : Optional[str]=None) -> None:
+    def _push_block(self, is_comprehension: bool) -> None:
         """Push a block onto the block stack."""
         self.block_stack.append(Block(is_comprehension=is_comprehension))
 
@@ -196,7 +197,7 @@ class ScopedVisitor(ast.NodeVisitor):
         """Pop a block from the block stack."""
         self.block_stack.pop()
 
-    def _push_obscured_scope(self, obscured : str) -> None:
+    def _push_obscured_scope(self, obscured: str) -> None:
         """Push scope onto the stack."""
         self.obscured_scope_stack.append(ObscuredScope(obscured=obscured))
 
@@ -251,10 +252,12 @@ class ScopedVisitor(ast.NodeVisitor):
             self.visit(node.value)
             self.visit(node.key)
             self._pop_block()
-        elif isinstance(node, ast.Try) or (sys.version_info >= (3, 11) and
-                                           isinstance(node, ast.TryStar)):
-            # Try nodes have handlers that introduce exception handler names that
-            # are tied to the try block.
+        elif isinstance(node, ast.Try) or (
+            sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
+        ):
+            # "Try" nodes have "handlers" that introduce exception context
+            # variables that are tied to the try block, and don't exist beyond
+            # it.
             for stmt in node.body:
                 self.visit(stmt)
             for handler in node.handlers:
@@ -381,12 +384,10 @@ class ScopedVisitor(ast.NodeVisitor):
         # with our implemented visitors does the right thing (foo.bar[.*]
         # generates a ref to foo if foo has not been def'd).
         #
-        # NB: Nodes like Try nodes have handlers that introduce exception
-        # handler names, which have the behavior of deleting the name
-        # afterwards. We traverse blocks to see if the name is "obscured" in
-        # this way.
+        # NB: Nodes like "Try" nodes introduce variable names that do not exist
+        # beyond their inner scope. We traverse blocks to see if the name is
+        # "obscured" in this way.
 
-        # Guards against obscured names.
         for scope in self.obscured_scope_stack:
             if node.id == scope.obscured:
                 self.generic_visit(node)
