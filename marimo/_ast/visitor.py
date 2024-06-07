@@ -197,7 +197,7 @@ class ScopedVisitor(ast.NodeVisitor):
         """Pop a block from the block stack."""
         self.block_stack.pop()
 
-    def _push_obscured_scope(self, obscured: str) -> None:
+    def _push_obscured_scope(self, obscured: Optional[str]) -> None:
         """Push scope onto the stack."""
         self.obscured_scope_stack.append(ObscuredScope(obscured=obscured))
 
@@ -255,6 +255,7 @@ class ScopedVisitor(ast.NodeVisitor):
         elif isinstance(node, ast.Try) or (
             sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
         ):
+            assert isinstance(node, ast.Try) or isinstance(node, ast.TryStar)
             # "Try" nodes have "handlers" that introduce exception context
             # variables that are tied to the try block, and don't exist beyond
             # it.
