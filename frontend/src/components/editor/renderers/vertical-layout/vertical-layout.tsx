@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
+import {isPyodide} from "@/core/pyodide/utils";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -41,7 +42,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const { invisible } = useDelayVisibility(cells.length, mode);
   const [showCode, setShowCode] = useState(() => {
     // Default to showing code if the notebook is static
-    return isStaticNotebook();
+    return isStaticNotebook() || isPyodide();
   });
 
   const evaluateCanShowCode = () => {
