@@ -25,6 +25,7 @@
 
   .paragraph {
     font-weight: initial;
+    text-transform: none;
 
     @apply text-foreground tracking-normal;
   }
