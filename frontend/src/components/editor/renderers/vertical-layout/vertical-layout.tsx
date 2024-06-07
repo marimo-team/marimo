@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { downloadHTMLAsImage } from "@/utils/download";
 import { downloadAsHTML } from "@/core/static/download-html";
-import {isPyodide} from "@/core/pyodide/utils";
+import { isPyodide } from "@/core/pyodide/utils";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -40,9 +40,14 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   mode,
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const showCodeDefault = urlParams.get("show-code");
   const [showCode, setShowCode] = useState(() => {
     // Default to showing code if the notebook is static
-    return isStaticNotebook() || isPyodide();
+    return showCodeDefault === null
+      ? isStaticNotebook() || isPyodide()
+      : showCodeDefault === "true";
   });
 
   const evaluateCanShowCode = () => {
@@ -53,7 +58,6 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     // If it is a static-notebook or wasm-read-only-notebook, code is always included,
     // but it can be turned it off via a query parameter (include-code=false)
 
-    const urlParams = new URLSearchParams(window.location.search);
     const includeCode = urlParams.get("include-code");
     return mode === "read" && includeCode !== "false" && cellsHaveCode;
   };
