@@ -14,15 +14,13 @@ from marimo._runtime.copy import (
     shallow_copy,
 )
 
-CellId_t = str
-
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
 ]
 
 UNCLONABLE_MODULES = ["_asyncio", "marimo._ast"]
 
-EXECUTION_TYPES = {}
+EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
 
 class MarimoMissingRefError(BaseException):
@@ -99,20 +97,21 @@ class DefaultExecutor(Executor):
 class StrictExecutor(Executor):
     @staticmethod
     async def execute_cell_async(cell: CellImpl, glbls: dict[str, Any]) -> Any:
-        lcls = StrictExecutor.sanitize_inputs(cell, glbls)
+        backup = StrictExecutor.sanitize_inputs(cell, glbls)
         try:
-            response = await DefaultExecutor.execute_cell_async(cell, lcls)
+            response = await DefaultExecutor.execute_cell_async(cell, glbls)
         finally:
-            StrictExecutor.update_outputs(cell, glbls, lcls)
+            # Restore globals from backup and backfill outputs
+            StrictExecutor.update_outputs(cell, glbls, backup)
         return response
 
     @staticmethod
     def execute_cell(cell: CellImpl, glbls: dict[str, Any]) -> Any:
-        lcls = StrictExecutor.sanitize_inputs(cell, glbls)
+        backup = StrictExecutor.sanitize_inputs(cell, glbls)
         try:
-            response = DefaultExecutor.execute_cell(cell, lcls)
+            response = DefaultExecutor.execute_cell(cell, glbls)
         finally:
-            StrictExecutor.update_outputs(cell, glbls, lcls)
+            StrictExecutor.update_outputs(cell, glbls, backup)
         return response
 
     @staticmethod
@@ -128,10 +127,10 @@ class StrictExecutor(Executor):
                 "__builtin__",
                 "__doc__",
                 "__file__",
-                "__loader__",
                 "__marimo__",
                 "__name__",
                 "__package__",
+                "__loader__",
                 "__spec__",
                 "input",
             ]
@@ -177,14 +176,27 @@ class StrictExecutor(Executor):
                         f"name `{ref}` is referenced before definition."
                     )
                 raise MarimoMissingRefError(ref)
-        return lcls
+
+        # NOTE: Execution expects the globals dictionaty by memory reference,
+        # so we need to clear it and update it with the sanitized locals,
+        # returning a backup of the original globals for later restoration.
+        # This must be performed at the end of the function to ensure valid
+        # state.
+        backup = {**glbls}
+        glbls.clear()
+        glbls.update(lcls)
+        return backup
 
     @staticmethod
     def update_outputs(
-        cell: CellImpl, glbls: dict[str, Any], lcls: dict[str, Any]
+        cell: CellImpl, glbls: dict[str, Any], backup: dict[str, Any]
     ) -> None:
+        # NOTE: After execution, restore global state and update outputs.
+        lcls = {**glbls}
+        glbls.clear()
+        glbls.update(backup)
+
         defs = cell.defs
-        print(glbls)
         for df in defs:
             if df in lcls:
                 # Overwrite will delete the reference.
@@ -192,7 +204,6 @@ class StrictExecutor(Executor):
                 glbls[df] = lcls[df]
             elif df in glbls:
                 del glbls[df]
-        print(glbls)
 
         from marimo._plugins.ui._core.ui_element import UIElement
 
@@ -206,9 +217,9 @@ class StrictExecutor(Executor):
 
 
 def is_instance_by_name(obj: object, name: str) -> bool:
-    obj_name = ""
     if not (hasattr(obj, "__module__") and hasattr(obj, "__class__")):
-        obj_name = f"{obj.__module__}.{obj.__class__.__name__}"
+        return False
+    obj_name = f"{obj.__module__}.{obj.__class__.__name__}"
     return obj_name == name
 
 

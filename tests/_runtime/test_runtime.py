@@ -54,7 +54,6 @@ class TestExecution:
             ]
         )
 
-        print(k.globals)
         assert not k.errors
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
@@ -705,10 +704,14 @@ class TestExecution:
 
                     pickle_output = None
                     pickle_output = pickle.dumps(foo)
+                    post_pickle_var = 1
                     """
                 ),
             ]
         )
+        assert not k.errors
+        assert "post_pickle_var" in k.globals
+        assert k.globals["post_pickle_var"] == 1
         assert k.globals["pickle_output"] is not None
 
     def test_sys_path_updated(self, tmp_path: pathlib.Path) -> None:
