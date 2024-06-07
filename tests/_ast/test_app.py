@@ -278,7 +278,7 @@ class TestApp:
     @staticmethod
     def test_app_width_default() -> None:
         app = App()
-        assert app._config.width == "normal"
+        assert app._config.width == "compact"
 
     @staticmethod
     def test_app_config_extra_args_ignored() -> None:

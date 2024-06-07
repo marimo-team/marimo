@@ -88,8 +88,9 @@ class RuntimeConfig(TypedDict):
     on_cell_change: OnCellChangeType
 
 
-# TODO(akshayka): normal -> compact (handle in merge_configs)
-WidthType = Literal["normal", "medium", "full"]
+# TODO(akshayka): remove normal, migrate to compact
+# normal == compact
+WidthType = Literal["normal", "compact", "medium", "full"]
 
 
 @mddoc
