@@ -749,6 +749,57 @@ class TestExecution:
         assert not k.errors
         assert k.globals["x"] == 10
 
+    @staticmethod
+    async def test_exception_not_captured(
+        any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er_1 := exec_req.get(
+                    """
+                    exc = None
+                    try:
+                        1 / 0
+                    except ZeroDivisionError as exc:
+                        e = exc
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "exc" not in k.globals
+        assert "exc" not in k.graph.cells[er_1.cell_id].refs
+        assert "exc" in k.graph.cells[er_1.cell_id].defs
+        assert "e" in k.globals
+        assert isinstance(k.globals["e"], ZeroDivisionError)
+
+    @staticmethod
+    async def test_exception_scope_not_captured(
+        any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = any_kernel
+
+        await k.run(
+            [
+                er_1 := exec_req.get(
+                    """
+                    try:
+                        1 / 0
+                    except ZeroDivisionError as exc:
+                        e = exc
+                        exc = e
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "exc" not in k.globals
+        assert "exc" not in k.graph.cells[er_1.cell_id].refs
+        assert "exc" not in k.graph.cells[er_1.cell_id].defs
+        assert "e" in k.globals
+
 
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(

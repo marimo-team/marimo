@@ -706,6 +706,68 @@ def test_from_import_star() -> None:
     assert not v.variable_data
 
 
+def test_try_block() -> None:
+    code = "\n".join(
+        [
+            "f = 2",
+            "try:",
+            "  v = 1 / 0",
+            "except TypeError as e:",
+            "  err = e",
+            "  e = 0",
+            "  x = out_of_scope",
+            "  print(f'caught {type(e)} with nested {e.exceptions}')",
+            "except OSError as f:",
+            "  err2 = f",
+            "  try:",
+            "    y = 1 / 0",
+            "  except ZeroDivisionError as g:",
+            "    err3 = g",
+            "else:",
+            "  w = 1",
+            "finally:",
+            "  z = 3",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    # T should not be among the refs or defs
+    assert "out_of_scope" in v.refs
+    assert "e" not in v.refs
+    assert "f" not in v.refs
+    assert "g" not in v.refs
+    assert v.defs == set(["f", "v", "w", "x", "y", "z", "err", "err2", "err3"])
+
+
+@pytest.mark.skipif("sys.version_info < (3, 11)")
+def test_try_star_block() -> None:
+    code = "\n".join(
+        [
+            "try:",
+            (
+                "  raise ExceptionGroup('eg', "
+                "[ValueError(1), TypeError(2), OSError(3)])"
+            ),
+            "except* TypeError as e:",
+            "  print(f'caught {type(e)} with nested {e.exceptions}')",
+            "except* OSError as f:",
+            "  print(f'caught {type(f)} with nested {f.exceptions}')",
+            "else:",
+            "  print('Type and Os not raised')",
+            "finally:",
+            "  print('finally')",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    # T should not be among the refs or defs
+    assert v.defs == set([])
+    assert "e" not in v.refs
+    assert "f" not in v.refs
+
+
 @pytest.mark.skipif("sys.version_info < (3, 12)")
 def test_type_alias_scoped() -> None:
     expr = "type alias[T] = list[T]"

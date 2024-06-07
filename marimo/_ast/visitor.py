@@ -55,6 +55,14 @@ class Block:
 
 
 @dataclass
+class ObscuredScope:
+    """The scope in which a name is hidden."""
+
+    # Variable id if this block hides a name
+    obscured: Optional[str] = None
+
+
+@dataclass
 class RefData:
     """Metadata about variables referenced but not defined by a cell"""
 
@@ -67,6 +75,7 @@ class RefData:
 class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
+        self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
         self._refs: dict[Name, RefData] = {}
         # Unique prefix used to mangle cell-local variable names
@@ -188,6 +197,14 @@ class ScopedVisitor(ast.NodeVisitor):
         """Pop a block from the block stack."""
         self.block_stack.pop()
 
+    def _push_obscured_scope(self, obscured: Optional[str]) -> None:
+        """Push scope onto the stack."""
+        self.obscured_scope_stack.append(ObscuredScope(obscured=obscured))
+
+    def _pop_obscured_scope(self) -> None:
+        """Pop scope from the stack."""
+        self.obscured_scope_stack.pop()
+
     def generic_visit(self, node: ast.AST) -> None:
         """Visits the children of node and manages the block stack.
 
@@ -235,6 +252,24 @@ class ScopedVisitor(ast.NodeVisitor):
             self.visit(node.value)
             self.visit(node.key)
             self._pop_block()
+        elif isinstance(node, ast.Try) or (
+            sys.version_info >= (3, 11) and isinstance(node, ast.TryStar)
+        ):
+            if sys.version_info < (3, 11):
+                assert isinstance(node, ast.Try)
+            # "Try" nodes have "handlers" that introduce exception context
+            # variables that are tied to the try block, and don't exist beyond
+            # it.
+            for stmt in node.body:
+                self.visit(stmt)
+            for handler in node.handlers:
+                self._push_obscured_scope(obscured=handler.name)
+                self.visit(handler)
+                self._pop_obscured_scope()
+            for stmt in node.orelse:
+                self.visit(stmt)
+            for stmt in node.finalbody:
+                self.visit(stmt)
         elif sys.version_info >= (3, 12) and isinstance(node, ast.TypeAlias):
             self.visit(node.name)
             self._push_block(is_comprehension=False)
@@ -350,6 +385,16 @@ class ScopedVisitor(ast.NodeVisitor):
         # are not tracked at the attribute level. The default behavior
         # with our implemented visitors does the right thing (foo.bar[.*]
         # generates a ref to foo if foo has not been def'd).
+        #
+        # NB: Nodes like "Try" nodes introduce variable names that do not exist
+        # beyond their inner scope. We traverse blocks to see if the name is
+        # "obscured" in this way.
+
+        for scope in self.obscured_scope_stack:
+            if node.id == scope.obscured:
+                self.generic_visit(node)
+                return
+
         if isinstance(node.ctx, ast.Store):
             node.id = self._if_local_then_mangle(node.id)
             self._define(node.id, VariableData(kind="variable"))
