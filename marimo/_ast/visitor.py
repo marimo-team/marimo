@@ -202,7 +202,7 @@ class ScopedVisitor(ast.NodeVisitor):
         self.obscured_scope_stack.append(ObscuredScope(obscured=obscured))
 
     def _pop_obscured_scope(self) -> None:
-        """Push scope onto the stack."""
+        """Pop scope from the stack."""
         self.obscured_scope_stack.pop()
 
     def generic_visit(self, node: ast.AST) -> None:
