@@ -210,18 +210,26 @@ async def test_cached_vfile_disposal(
                 import io
                 import marimo as mo
                 import functools
+                import weakref
                 """
             ),
             exec_req.get(
                 """
-                vfiles = []
+                class namespace:
+                  ...
+                vfiles = namespace()
+                vfiles.files = []
+                ref = weakref.ref(vfiles)
+
                 def create_vfile(arg):
                     del arg
                     bytestream = io.BytesIO(b"hello world")
                     return mo.pdf(bytestream)
                 """
             ),
-            append_vfile := exec_req.get("vfiles.append(create_vfile(1))"),
+            append_vfile := exec_req.get(
+                "ref().files.append(create_vfile(1))"
+            ),
         ]
     )
     ctx = get_context()
@@ -232,7 +240,7 @@ async def test_cached_vfile_disposal(
     assert ctx.virtual_file_registry.refcount(vfile) == 1
 
     # clear the list, refcount should be decremented
-    await k.run([exec_req.get("vfiles[:] = []")])
+    await k.run([exec_req.get("ref().files[:] = []")])
     # NB: this test may be flaky! refcount decremented when `__del__` is called
     # but we can't rely on when it will be called.
     await k.run([exec_req.get("import gc; gc.collect()")])

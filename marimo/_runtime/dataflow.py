@@ -9,11 +9,10 @@ from marimo import _loggers
 from marimo._ast.cell import (
     CellId_t,
     CellImpl,
-    execute_cell,
-    execute_cell_async,
 )
 from marimo._ast.compiler import code_key
 from marimo._ast.visitor import Name
+from marimo._runtime.executor import execute_cell, execute_cell_async
 
 if TYPE_CHECKING:
     from collections.abc import Collection

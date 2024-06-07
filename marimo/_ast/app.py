@@ -20,8 +20,6 @@ from marimo._ast.cell import (
     Cell,
     CellConfig,
     CellId_t,
-    execute_cell,
-    execute_cell_async,
 )
 from marimo._ast.compiler import cell_factory
 from marimo._ast.errors import (
@@ -36,6 +34,10 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.types import NoopStream
 from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
+from marimo._runtime.executor import (
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._runtime.patches import patch_main_module_context
 
 if TYPE_CHECKING:

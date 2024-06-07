@@ -119,19 +119,21 @@ async def test_non_stale_not_run(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run(
         [
             exec_req.get("import marimo as mo"),
+            exec_req.get("import weakref"),
             exec_req.get(
                 """
                 class ns:
                     ...
                 private = ns()
                 private.counter = 0
+                ref = weakref.ref(private)
                 """
             ),
             exec_req.get("state, set_state = mo.state(0)"),
             exec_req.get("set_state(1); x = 0"),
             # this cell runs as a result of the dag; the setter above
             # shouldn't cause it to re-run, even though it calls the getter
-            exec_req.get("x; private.counter += state()"),
+            exec_req.get("x; ref().counter += state()"),
         ]
     )
 

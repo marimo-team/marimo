@@ -8,6 +8,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.ops import CellOp
 from marimo._runtime.control_flow import MarimoStopError
+from marimo._runtime.executor import MarimoMissingRefError
 from marimo._runtime.runner import cell_runner
 
 LOGGER = _loggers.marimo_logger()
@@ -42,6 +43,15 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
                     msg=(
                         "This cell wasn't run because an "
                         "ancestor was stopped with `mo.stop`: "
+                    ),
+                    raising_cell=raising_cell,
+                )
+            if isinstance(exception, MarimoMissingRefError):
+                data = MarimoAncestorStoppedError(
+                    msg=(
+                        "This cell wasn't run because an "
+                        "ancestor failed to resolve the reference "
+                        f"`{exception.ref}`: "
                     ),
                     raising_cell=raising_cell,
                 )

@@ -53,6 +53,9 @@ class TestExecution:
                 er2 := ExecutionRequest(cell_id="2", code="z = x + y"),
             ]
         )
+
+        print(k.globals)
+        assert not k.errors
         assert k.globals["x"] == 1
         assert k.globals["y"] == 2
         assert k.globals["z"] == 3
@@ -597,15 +600,24 @@ class TestExecution:
                 exec_req.get(
                     "from runtime_data.cell_ui_element import make_slider"
                 ),
+                exec_req.get("import weakref"),
                 exec_req.get("_, defs = make_slider.run()"),
                 exec_req.get("_, second_defs = make_slider.run()"),
-                exec_req.get("counter = [0]"),
+                exec_req.get(
+                    """
+                        class namespace:
+                            ...
+                        ns = namespace()
+                        ns.count = 0
+                        ref = weakref.ref(ns)
+                        """
+                ),
                 er := exec_req.get("slider_value = defs['slider'].value + 1"),
-                exec_req.get("second_defs; counter[0] += 1"),
+                exec_req.get("second_defs; ref().count += 1"),
             ]
         )
         assert k.globals["defs"]["slider"].value == 0
-        assert k.globals["counter"][0] == 1
+        assert k.globals["ns"].count == 1
         assert k.globals["slider_value"] == 1
         element_id = k.globals["defs"]["slider"]._id
 
@@ -620,7 +632,7 @@ class TestExecution:
         assert k.globals["slider_value"] == 6
         # reactive execution on the slider in `defs` shouldn't trigger reactive
         # execution on `second_defs`
-        assert k.globals["counter"][0] == 1
+        assert k.globals["ns"].count == 1
 
     async def test_set_ui_element_value_not_found_doesnt_fail(
         self,
@@ -904,13 +916,15 @@ class TestDisable:
             [
                 exec_req.get(
                     """
+                        import weakref
                         class namespace:
                             ...
                         ns = namespace()
                         ns.count = 0
+                        ref = weakref.ref(ns)
                         """
                 ),
-                (er_2 := exec_req.get("ns.count += 1")),
+                er_2 := exec_req.get("ref().count += 1"),
             ]
         )
         assert k.globals["ns"].count == 1
@@ -940,17 +954,17 @@ class TestDisable:
         graph = k.graph
         await k.run(
             [
-                (
-                    er_1 := exec_req.get(
-                        """
+                er_1 := exec_req.get(
+                    """
                         class namespace:
                             ...
                         ns = namespace()
                         ns.count = 0
+                        import weakref
+                        ref = weakref.ref(ns)
                         """
-                    )
                 ),
-                er_2 := exec_req.get("ns.count += 1"),
+                er_2 := exec_req.get("ref().count += 1"),
             ]
         )
         assert k.globals["ns"].count == 1
@@ -970,6 +984,8 @@ class TestDisable:
                         ...
                     ns = namespace()
                     ns.count = 10
+                    import weakref
+                    ref = weakref.ref(ns)
                     """,
                 )
             ]

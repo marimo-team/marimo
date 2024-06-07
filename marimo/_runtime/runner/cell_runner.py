@@ -14,14 +14,18 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional
 from marimo._ast.cell import (
     CellId_t,
     CellImpl,
-    execute_cell,
-    execute_cell_async,
 )
-from marimo._config.config import OnCellChangeType
+from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
+from marimo._messaging.errors import MarimoAncestorStoppedError
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
+from marimo._runtime.executor import (
+    MarimoMissingRefError,
+    execute_cell,
+    execute_cell_async,
+)
 from marimo._runtime.marimo_pdb import MarimoPdb
 
 LOGGER = marimo_logger()
@@ -62,6 +66,7 @@ class Runner:
         glbls: dict[Any, Any],
         debugger: MarimoPdb | None,
         execution_mode: OnCellChangeType = "autorun",
+        execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
         execution_context: Callable[
             [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
@@ -98,6 +103,7 @@ class Runner:
         # runtime globals
         self.glbls = glbls
         self.execution_mode = execution_mode
+        self.execution_type = execution_type
 
         # cells that the runner will run, subtracting out cells with errors:
         #
@@ -288,7 +294,9 @@ class Runner:
         try:
             if cell.is_coroutine():
                 return_value_future = asyncio.ensure_future(
-                    execute_cell_async(cell, self.glbls)
+                    execute_cell_async(
+                        cell, self.glbls, execution_type=self.execution_type
+                    )
                 )
                 if threading.current_thread() == threading.main_thread():
                     # edit mode: need to handle user interrupts
@@ -299,7 +307,9 @@ class Runner:
                     # by user anyway.
                     return_value = await return_value_future
             else:
-                return_value = execute_cell(cell, self.glbls)
+                return_value = execute_cell(
+                    cell, self.glbls, execution_type=self.execution_type
+                )
             run_result = RunResult(output=return_value, exception=None)
         except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:
             # User interrupt
@@ -320,6 +330,25 @@ class Runner:
             run_result = RunResult(output=e.output, exception=e)
             # don't print a traceback, since quitting is the intended
             # behavior (like sys.exit())
+        except MarimoMissingRefError as e:
+            # In strict mode, marimo refuses to evaluate a cell if there are
+            # missing definitions. Since the cell hasn't run, this is a pre
+            # check error, but still mark descendants as cancelled.
+            self.cancel(cell_id)
+            try:
+                (blamed_cell, *_) = self.graph.get_defining_cells(e.ref)
+            except KeyError:
+                # This should never happen, but just in case
+                blamed_cell = e.ref
+
+            output = MarimoAncestorStoppedError(
+                msg=(
+                    "This cell wasn't run because an "
+                    f"ancestor failed to provide a reference `{e.ref}`: "
+                ),
+                raising_cell=blamed_cell,
+            )
+            run_result = RunResult(output=output, exception=e)
         except BaseException as e:
             # Catch-all: some libraries have bugs and raise BaseExceptions,
             # which shouldn't crash the marimo kernel

@@ -434,27 +434,3 @@ class Cell:
 
 def is_ws(char: str) -> bool:
     return char == " " or char == "\n" or char == "\t"
-
-
-async def execute_cell_async(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
-    if cell.body is None:
-        return None
-    assert cell.last_expr is not None
-
-    if _is_coroutine(cell.body):
-        await eval(cell.body, glbls)
-    else:
-        exec(cell.body, glbls)
-
-    if _is_coroutine(cell.last_expr):
-        return await eval(cell.last_expr, glbls)
-    else:
-        return eval(cell.last_expr, glbls)
-
-
-def execute_cell(cell: CellImpl, glbls: dict[Any, Any]) -> Any:
-    if cell.body is None:
-        return None
-    assert cell.last_expr is not None
-    exec(cell.body, glbls)
-    return eval(cell.last_expr, glbls)
