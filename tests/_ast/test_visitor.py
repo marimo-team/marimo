@@ -127,7 +127,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["f"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"f": VariableData(kind="function")}
+    assert v.variable_data == {
+        "f": VariableData(kind="function", required_refs={"x"})
+    }
 
     expr = "class F(): x = x"
     v = visitor.ScopedVisitor()
@@ -135,7 +137,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["F"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"F": VariableData(kind="class")}
+    assert v.variable_data == {
+        "F": VariableData(kind="class", required_refs={"x"})
+    }
 
     expr = "{x: x}"
     v = visitor.ScopedVisitor()
@@ -243,7 +247,7 @@ def test_walrus_leaks_to_global_in_comprehension() -> None:
         "b": VariableData(kind="variable"),
         "c": VariableData(kind="variable"),
         "d": VariableData(kind="variable"),
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"a"}),
     }
 
 
@@ -292,7 +296,7 @@ def test_walrus_in_comp_in_fn_block_does_not_leak_to_global() -> None:
     assert v.defs == set(["f"])  # x should _not_ leak to global scope
     assert v.refs == set(["range"])  # x should leak to f's scope
     assert v.variable_data == {
-        "f": VariableData(kind="function"),
+        "f": VariableData(kind="function", required_refs={"range"}),
     }
 
 
@@ -334,7 +338,7 @@ def test_function_with_args() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"z"}),
     }
 
 
@@ -350,8 +354,9 @@ def test_function_with_defaults() -> None:
     v.visit(mod)
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "y", "a"])
+    # TODO: Are these required refs?
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "y", "a"}),
     }
 
 
@@ -370,7 +375,7 @@ def test_async_function_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set("z")
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"z"}),
         "x": VariableData(kind="variable"),
     }
 
@@ -389,7 +394,7 @@ def test_global_def() -> None:
     assert v.defs == set(["foo", "x"])
     assert v.refs == set()
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x"}),
         "x": VariableData(kind="variable"),
     }
 
@@ -408,7 +413,7 @@ def test_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "print"}),
     }
 
 
@@ -428,7 +433,7 @@ def test_nested_local_def_and_global_ref() -> None:
     assert v.defs == set(["foo"])
     assert v.refs == set(["x", "print"])
     assert v.variable_data == {
-        "foo": VariableData(kind="function"),
+        "foo": VariableData(kind="function", required_refs={"x", "print"}),
     }
 
 

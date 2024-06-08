@@ -453,6 +453,7 @@ class ScopedVisitor(ast.NodeVisitor):
         ]
         for name in node.names:
             self.block_stack[-1].global_names.add(name)
+            self._add_ref(name, deleted=False)
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias_node in node.names:
