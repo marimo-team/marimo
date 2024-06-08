@@ -63,7 +63,9 @@ export const AppConfigForm: React.FC = () => {
           control={form.control}
           name="width"
           render={({ field }) => (
-            <FormItem>
+            <FormItem
+              className={"flex flex-row items-center space-x-1 space-y-0"}
+            >
               <FormLabel>Width</FormLabel>
               <FormControl>
                 <NativeSelect
@@ -89,8 +91,8 @@ export const AppConfigForm: React.FC = () => {
           name="app_title"
           render={({ field }) => (
             <div className="flex flex-col gap-y-1">
-              <FormItem className="mb-2">
-                <FormLabel>Application title</FormLabel>
+              <FormItem className="flex flex-row items-center space-x-1 space-y-0">
+                <FormLabel>App title</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
