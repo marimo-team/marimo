@@ -34,6 +34,8 @@ import { useSetAtom } from "jotai";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Button } from "../ui/button";
 
+const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
+
 export const UserConfigForm: React.FC = () => {
   const [config, setConfig] = useUserConfig();
   const formElement = useRef<HTMLFormElement>(null);
@@ -73,7 +75,8 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="save.autosave"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">Autosave</FormLabel>
                   <FormControl>
                     <Checkbox
                       data-testid="autosave-checkbox"
@@ -84,7 +87,6 @@ export const UserConfigForm: React.FC = () => {
                       }}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal">Autosave</FormLabel>
                 </FormItem>
               )}
             />
@@ -93,7 +95,7 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="save.autosave_delay"
             render={({ field }) => (
-              <FormItem className="mb-2">
+              <FormItem className={formItemClasses}>
                 <FormLabel>Autosave delay (seconds)</FormLabel>
                 <FormControl>
                   <span className="inline-flex mr-2">
@@ -122,7 +124,8 @@ export const UserConfigForm: React.FC = () => {
               control={form.control}
               name="save.format_on_save"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">Format on save</FormLabel>
                   <FormControl>
                     <Checkbox
                       data-testid="format-on-save-checkbox"
@@ -133,7 +136,6 @@ export const UserConfigForm: React.FC = () => {
                       }}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal">Format on save</FormLabel>
                 </FormItem>
               )}
             />
@@ -142,29 +144,32 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="formatting.line_length"
             render={({ field }) => (
-              <FormItem className="mb-2">
-                <FormLabel>Line length</FormLabel>
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Line length</FormLabel>
+                  <FormControl>
+                    <span className="inline-flex mr-2">
+                      <NumberField
+                        data-testid="line-length-input"
+                        className="m-0 w-24"
+                        {...field}
+                        value={field.value}
+                        minValue={1}
+                        maxValue={1000}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          onSubmit(form.getValues());
+                        }}
+                      />
+                    </span>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
                 <FormDescription>
                   Maximum line length when formatting code.
                 </FormDescription>
-                <FormControl>
-                  <span className="inline-flex mr-2">
-                    <NumberField
-                      data-testid="line-length-input"
-                      className="m-0 w-24"
-                      {...field}
-                      value={field.value}
-                      minValue={1}
-                      maxValue={1000}
-                      onChange={(value) => {
-                        field.onChange(value);
-                        onSubmit(form.getValues());
-                      }}
-                    />
-                  </span>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              </div>
             )}
           />
           <FormField
@@ -172,7 +177,8 @@ export const UserConfigForm: React.FC = () => {
             name="completion.activate_on_typing"
             render={({ field }) => (
               <div className="flex flex-col space-y-1">
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">Autocomplete</FormLabel>
                   <FormControl>
                     <Checkbox
                       data-testid="autocomplete-checkbox"
@@ -183,7 +189,6 @@ export const UserConfigForm: React.FC = () => {
                       }}
                     />
                   </FormControl>
-                  <FormLabel className="font-normal">Autocomplete</FormLabel>
                 </FormItem>
                 <FormDescription>
                   When unchecked, code completion is still available through a
@@ -196,24 +201,27 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="keymap.preset"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Keymap</FormLabel>
-                <FormControl>
-                  <NativeSelect
-                    data-testid="keymap-select"
-                    onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value}
-                    disabled={field.disabled}
-                    className="inline-flex mr-2"
-                  >
-                    {KEYMAP_PRESETS.map((option) => (
-                      <option value={option} key={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </FormControl>
-                <FormMessage />
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Keymap</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="keymap-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {KEYMAP_PRESETS.map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
                 <div>
                   <Button
                     variant="link"
@@ -229,7 +237,7 @@ export const UserConfigForm: React.FC = () => {
                     Edit Keyboard Shortcuts
                   </Button>
                 </div>
-              </FormItem>
+              </div>
             )}
           />
         </div>
@@ -239,36 +247,39 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="display.default_width"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Default width</FormLabel>
-                <FormControl>
-                  <NativeSelect
-                    data-testid="user-config-width-select"
-                    onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value}
-                    disabled={field.disabled}
-                    className="inline-flex mr-2"
-                  >
-                    {APP_WIDTHS.map((option) => (
-                      <option value={option} key={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </FormControl>
-                <FormMessage />
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Default width</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="user-config-width-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {APP_WIDTHS.map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
                 <FormDescription>
-                  The default app width for new notebooks; overridden by
-                  "width" in the application config.
+                  The default app width for new notebooks; overridden by "width"
+                  in the application config.
                 </FormDescription>
-              </FormItem>
+              </div>
             )}
           />
           <FormField
             control={form.control}
             name="display.theme"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={formItemClasses}>
                 <FormLabel>Theme</FormLabel>
                 <FormControl>
                   <NativeSelect
@@ -293,7 +304,7 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="display.code_editor_font_size"
             render={({ field }) => (
-              <FormItem className="mb-2">
+              <FormItem className={formItemClasses}>
                 <FormLabel>Code editor font size</FormLabel>
                 <FormControl>
                   <span className="inline-flex mr-2">
@@ -319,28 +330,31 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="display.cell_output"
             render={({ field }) => (
-              <FormItem className="mb-2">
-                <FormLabel>Cell output area</FormLabel>
-                <FormControl>
-                  <NativeSelect
-                    data-testid="cell-output-select"
-                    onChange={(e) => field.onChange(e.target.value)}
-                    value={field.value}
-                    disabled={field.disabled}
-                    className="inline-flex mr-2"
-                  >
-                    {["above", "below"].map((option) => (
-                      <option value={option} key={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </FormControl>
-                <FormMessage />
+              <div className="flex flex-col space-y-1">
+                <FormItem className={formItemClasses}>
+                  <FormLabel>Cell output area</FormLabel>
+                  <FormControl>
+                    <NativeSelect
+                      data-testid="cell-output-select"
+                      onChange={(e) => field.onChange(e.target.value)}
+                      value={field.value}
+                      disabled={field.disabled}
+                      className="inline-flex mr-2"
+                    >
+                      {["above", "below"].map((option) => (
+                        <option value={option} key={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
                 <FormDescription>
                   Where to display cell's output.
                 </FormDescription>
-              </FormItem>
+              </div>
             )}
           />
         </div>
@@ -352,7 +366,7 @@ export const UserConfigForm: React.FC = () => {
             disabled={isWasm}
             name="package_management.manager"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={formItemClasses}>
                 <FormLabel>Manager</FormLabel>
                 <FormControl>
                   <NativeSelect
@@ -380,7 +394,10 @@ export const UserConfigForm: React.FC = () => {
             control={form.control}
             name="runtime.auto_instantiate"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+              <FormItem className={formItemClasses}>
+                <FormLabel className="font-normal">
+                  Autorun on startup
+                </FormLabel>
                 <FormControl>
                   <Checkbox
                     data-testid="auto-instantiate-checkbox"
@@ -389,9 +406,6 @@ export const UserConfigForm: React.FC = () => {
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
-                <FormLabel className="font-normal">
-                  Autorun on startup
-                </FormLabel>
               </FormItem>
             )}
           />
@@ -400,7 +414,8 @@ export const UserConfigForm: React.FC = () => {
             name="runtime.on_cell_change"
             render={({ field }) => (
               <div className="flex flex-col gap-y-1">
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">On cell change</FormLabel>
                   <FormControl>
                     <NativeSelect
                       data-testid="on-cell-change-select"
@@ -415,7 +430,6 @@ export const UserConfigForm: React.FC = () => {
                       ))}
                     </NativeSelect>
                   </FormControl>
-                  <FormLabel className="font-normal">On cell change</FormLabel>
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically run cells or just mark
@@ -432,7 +446,10 @@ export const UserConfigForm: React.FC = () => {
             name="runtime.auto_reload"
             render={({ field }) => (
               <div className="flex flex-col gap-y-1">
-                <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                <FormItem className={formItemClasses}>
+                  <FormLabel className="font-normal">
+                    On module change
+                  </FormLabel>
                   <FormControl>
                     <NativeSelect
                       data-testid="auto-reload-select"
@@ -448,9 +465,6 @@ export const UserConfigForm: React.FC = () => {
                       ))}
                     </NativeSelect>
                   </FormControl>
-                  <FormLabel className="font-normal">
-                    On module change
-                  </FormLabel>
                 </FormItem>
                 <FormDescription>
                   Whether marimo should automatically reload modules before
@@ -465,24 +479,24 @@ export const UserConfigForm: React.FC = () => {
         <div className="flex flex-col gap-3">
           <SettingSubtitle>AI Assist</SettingSubtitle>
           <p className="text-sm text-muted-secondary">
-            You will need to store an API key in your{" "}
-            <Kbd className="inline">~/.marimo.toml</Kbd> file. See the{" "}
+            Add an API key to <Kbd className="inline">~/.marimo.toml</Kbd> to
+            activate marimo's AI assistant; see{" "}
             <a
               className="text-link hover:underline"
               href="https://docs.marimo.io/guides/ai_completion.html"
               target="_blank"
               rel="noreferrer"
             >
-              documentation
+              docs
             </a>{" "}
-            for more information.
+            for more info.
           </p>
           <FormField
             control={form.control}
             disabled={isWasm}
             name="ai.open_ai.base_url"
             render={({ field }) => (
-              <FormItem className="mb-2">
+              <FormItem className={formItemClasses}>
                 <FormLabel>Base URL</FormLabel>
                 <FormControl>
                   <Input
@@ -503,7 +517,7 @@ export const UserConfigForm: React.FC = () => {
             disabled={isWasm}
             name="ai.open_ai.model"
             render={({ field: { value, onChange, ...field } }) => (
-              <FormItem className="mb-2">
+              <FormItem className={formItemClasses}>
                 <FormLabel>Model</FormLabel>
                 <FormControl>
                   <Input
