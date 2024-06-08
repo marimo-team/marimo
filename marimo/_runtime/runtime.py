@@ -324,9 +324,9 @@ class Kernel:
         self.reactive_execution_mode: OnCellChangeType = user_config[
             "runtime"
         ]["on_cell_change"]
-        self.execution_type: ExecutionType = user_config["runtime"][
-            "execution_type"
-        ]
+        self.execution_type: ExecutionType = user_config.get(
+            "experimental", {}
+        ).get("execution_type", "relaxed")
         self._update_runtime_from_user_config(user_config)
 
         # Set up the execution context

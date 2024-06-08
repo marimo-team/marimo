@@ -273,7 +273,7 @@ class App:
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
-                    outputs[cid] = execute_cell(cell._cell, glbls)
+                    outputs[cid] = execute_cell(cell._cell, glbls, self._graph)
                     for hook in post_execute_hooks:
                         hook()
             return self._outputs_and_defs(outputs, glbls)
@@ -295,7 +295,9 @@ class App:
                     self._execution_context = ExecutionContext(
                         cell_id=cid, setting_element_value=False
                     )
-                    outputs[cid] = await execute_cell_async(cell._cell, glbls)
+                    outputs[cid] = await execute_cell_async(
+                        cell._cell, glbls, self._graph
+                    )
                     for hook in post_execute_hooks:
                         hook()
                     self._execution_context = None

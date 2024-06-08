@@ -319,6 +319,42 @@ class DirectedGraph:
     def get_stale(self) -> set[CellId_t]:
         return set([cid for cid, cell in self.cells.items() if cell.stale])
 
+    def get_transitive_references(
+        self,
+        refs: set[Name],
+        inclusive: bool = True,
+    ) -> set[Name]:
+        """Return a set of the passed-in cells' references and their
+        references on the block (function / class) level.
+
+        If inclusive, includes the references of the passed-in cells in the
+        set.
+        """
+        # TODO: Consider caching on the graph level and updating on register /
+        # delete
+        processed = set()
+        queue = set(refs & self.definitions.keys())
+        while queue:
+            # Should ideally be one cell per ref, but for completion, stay
+            # agnostic to potenital cycles.
+            cells = set().union(*[self.definitions[ref] for ref in queue])
+            for cell_id in cells:
+                data = self.cells[cell_id].variable_data
+                variables = set(data.keys())
+                # intersection of variables and queue
+                newly_processed = variables & queue
+                processed.update(newly_processed)
+                queue.difference_update(newly_processed)
+                for variable in newly_processed:
+                    queue.update(
+                        (data[variable].required_refs - processed)
+                        & self.definitions.keys()
+                    )
+
+        if inclusive:
+            return processed
+        return processed - refs
+
 
 def transitive_closure(
     graph: DirectedGraph,
@@ -484,11 +520,11 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            await execute_cell_async(graph.cells[cid], glbls)
+            await execute_cell_async(graph.cells[cid], glbls, graph)
 
         Runner._substitute_refs(cell_impl, glbls, kwargs)
         output = await execute_cell_async(
-            graph.cells[cell_impl.cell_id], glbls
+            graph.cells[cell_impl.cell_id], glbls, graph
         )
         defs = Runner._returns(cell_impl, glbls)
         return output, defs
@@ -523,9 +559,9 @@ class Runner:
 
         glbls: dict[str, Any] = {}
         for cid in topological_sort(graph, ancestor_ids):
-            execute_cell(graph.cells[cid], glbls)
+            execute_cell(graph.cells[cid], glbls, graph)
 
         self._substitute_refs(cell_impl, glbls, kwargs)
-        output = execute_cell(graph.cells[cell_impl.cell_id], glbls)
+        output = execute_cell(graph.cells[cell_impl.cell_id], glbls, graph)
         defs = Runner._returns(cell_impl, glbls)
         return output, defs

@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Callable, Type
+from typing import TYPE_CHECKING, Any, Callable, Optional, Type
 
 from marimo._ast.cell import CellImpl, _is_coroutine
 from marimo._runtime.copy import (
@@ -13,6 +13,9 @@ from marimo._runtime.copy import (
     ZeroCopy,
     shallow_copy,
 )
+
+if TYPE_CHECKING:
+    from marimo._runtime.dataflow import DirectedGraph
 
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
@@ -31,6 +34,7 @@ class MarimoMissingRefError(BaseException):
 def register_execution_type(
     key: str,
 ) -> Callable[[Type[Executor]], Type[Executor]]:
+    # Potentially expose as part of custom kernel API
     def wrapper(cls: Type[Executor]) -> Type[Executor]:
         EXECUTION_TYPES[key] = cls
         return cls
@@ -41,35 +45,51 @@ def register_execution_type(
 async def execute_cell_async(
     cell: CellImpl,
     glbls: dict[str, Any],
+    graph: DirectedGraph,
     execution_type: str = "relaxed",
 ) -> Any:
     return await EXECUTION_TYPES[execution_type].execute_cell_async(
-        cell, glbls
+        cell, glbls, graph
     )
 
 
 def execute_cell(
-    cell: CellImpl, glbls: dict[str, Any], execution_type: str = "relaxed"
+    cell: CellImpl,
+    glbls: dict[str, Any],
+    graph: DirectedGraph,
+    execution_type: str = "relaxed",
 ) -> Any:
-    return EXECUTION_TYPES[execution_type].execute_cell(cell, glbls)
+    return EXECUTION_TYPES[execution_type].execute_cell(cell, glbls, graph)
 
 
 class Executor(ABC):
     @staticmethod
     @abstractmethod
-    def execute_cell(cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    def execute_cell(
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        graph: DirectedGraph,
+    ) -> Any:
         pass
 
     @staticmethod
     @abstractmethod
-    async def execute_cell_async(cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    async def execute_cell_async(
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        graph: DirectedGraph,
+    ) -> Any:
         pass
 
 
 @register_execution_type("relaxed")
 class DefaultExecutor(Executor):
     @staticmethod
-    async def execute_cell_async(cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    async def execute_cell_async(
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        _graph: Optional[DirectedGraph] = None,
+    ) -> Any:
         if cell.body is None:
             return None
         assert cell.last_expr is not None
@@ -85,7 +105,11 @@ class DefaultExecutor(Executor):
             return eval(cell.last_expr, glbls)
 
     @staticmethod
-    def execute_cell(cell: CellImpl, glbls: dict[str, Any]) -> Any:
+    def execute_cell(
+        cell: CellImpl,
+        glbls: dict[str, Any],
+        _graph: Optional[DirectedGraph] = None,
+    ) -> Any:
         if cell.body is None:
             return None
         assert cell.last_expr is not None
@@ -96,8 +120,14 @@ class DefaultExecutor(Executor):
 @register_execution_type("strict")
 class StrictExecutor(Executor):
     @staticmethod
-    async def execute_cell_async(cell: CellImpl, glbls: dict[str, Any]) -> Any:
-        backup = StrictExecutor.sanitize_inputs(cell, glbls)
+    async def execute_cell_async(
+        cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
+    ) -> Any:
+        # Manage globals and references, but refer to the default beyond that.
+
+        backup = StrictExecutor.sanitize_inputs(
+            cell, graph.get_transitive_references(cell.refs), glbls
+        )
         try:
             response = await DefaultExecutor.execute_cell_async(cell, glbls)
         finally:
@@ -106,8 +136,12 @@ class StrictExecutor(Executor):
         return response
 
     @staticmethod
-    def execute_cell(cell: CellImpl, glbls: dict[str, Any]) -> Any:
-        backup = StrictExecutor.sanitize_inputs(cell, glbls)
+    def execute_cell(
+        cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
+    ) -> Any:
+        backup = StrictExecutor.sanitize_inputs(
+            cell, graph.get_transitive_references(cell.refs), glbls
+        )
         try:
             response = DefaultExecutor.execute_cell(cell, glbls)
         finally:
@@ -116,7 +150,7 @@ class StrictExecutor(Executor):
 
     @staticmethod
     def sanitize_inputs(
-        cell: CellImpl, glbls: dict[str, Any]
+        cell: CellImpl, refs: set[str], glbls: dict[str, Any]
     ) -> dict[str, Any]:
         # Some attributes should remain global
         lcls = {
@@ -136,7 +170,13 @@ class StrictExecutor(Executor):
             ]
             if key in glbls
         }
-        refs = cell.refs
+        # for key, data in cell.variable_data.items():
+        #     if data.required_refs:
+        #         transitive_refs = set(
+        #             [k for k, v in data.required_refs.items()
+        #              if not v.deleted]
+        #         )
+        #         refs.update(transitive_refs)
 
         from asyncio import Future
 
@@ -151,6 +191,7 @@ class StrictExecutor(Executor):
                         (State, SetFunctor, ZeroCopy, Future, UIElement),
                     )
                     or inspect.ismodule(glbls[ref])
+                    or inspect.isfunction(glbls[ref])
                     or from_unclonable_module(glbls[ref])
                     or is_unclonable_type(glbls[ref])
                 ):

@@ -295,7 +295,10 @@ class Runner:
             if cell.is_coroutine():
                 return_value_future = asyncio.ensure_future(
                     execute_cell_async(
-                        cell, self.glbls, execution_type=self.execution_type
+                        cell,
+                        self.glbls,
+                        self.graph,
+                        execution_type=self.execution_type,
                     )
                 )
                 if threading.current_thread() == threading.main_thread():
@@ -308,7 +311,10 @@ class Runner:
                     return_value = await return_value_future
             else:
                 return_value = execute_cell(
-                    cell, self.glbls, execution_type=self.execution_type
+                    cell,
+                    self.glbls,
+                    self.graph,
+                    execution_type=self.execution_type,
                 )
             run_result = RunResult(output=return_value, exception=None)
         except (MarimoInterrupt, asyncio.exceptions.CancelledError) as e:

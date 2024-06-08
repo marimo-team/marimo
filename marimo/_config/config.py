@@ -90,7 +90,6 @@ class RuntimeConfig(TypedDict):
     auto_instantiate: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     on_cell_change: OnCellChangeType
-    execution_type: ExecutionType
 
 
 # TODO(akshayka): remove normal, migrate to compact
@@ -209,7 +208,6 @@ DEFAULT_CONFIG: MarimoConfig = {
         "auto_instantiate": True,
         "auto_reload": "off",
         "on_cell_change": "autorun",
-        "execution_type": "relaxed",
     },
     "save": {
         "autosave": "after_delay",

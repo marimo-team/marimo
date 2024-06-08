@@ -29,6 +29,10 @@ class ImportData:
 class VariableData:
     kind: Literal["function", "class", "import", "variable"] = "variable"
 
+    # If kind == function or class, it may be dependent on externally defined
+    # variables.
+    required_refs: set[Name] = field(default_factory=set)
+
     # For kind == import
     import_data: Optional[ImportData] = None
 
@@ -75,6 +79,7 @@ class RefData:
 class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
+        self.ref_stack: list[dict[Name, RefData]] = [{}]
         self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
         self._refs: dict[Name, RefData] = {}
@@ -152,6 +157,7 @@ class ScopedVisitor(ast.NodeVisitor):
             deleted=deleted,
             parent_blocks=self.block_stack[:-1],
         )
+        self.ref_stack[-1][name] = self._refs[name]
 
     def _remove_ref(self, name: Name) -> None:
         """Remove a referenced name."""
@@ -281,21 +287,37 @@ class ScopedVisitor(ast.NodeVisitor):
             # Other nodes that don't introduce a new scope
             super().generic_visit(node)
 
+    def _visit_and_get_refs(self, node: ast.AST) -> dict[Name, RefData]:
+        self.ref_stack.append({})
+        self.generic_visit(node)
+        refs = self.ref_stack.pop()
+        self.ref_stack[-1].update(refs)
+        return refs
+
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="class"))
-        self.generic_visit(node)
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="class", required_refs=set(refs.keys())),
+        )
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="function"))
-        self.generic_visit(node)
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="function", required_refs=set(refs.keys())),
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         node.name = self._if_local_then_mangle(node.name)
-        self._define(node.name, VariableData(kind="function"))
-        self.generic_visit(node)
+        refs = self._visit_and_get_refs(node)
+        self._define(
+            node.name,
+            VariableData(kind="function", required_refs=set(refs.keys())),
+        )
 
     def visit_arg(self, node: ast.arg) -> None:
         node.arg = self._if_local_then_mangle(node.arg)
