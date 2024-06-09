@@ -15,7 +15,7 @@ from typing import (
 )
 
 T = TypeVar("T")
-Ref = Union[weakref.ReferenceType[T], Callable[[], T]]
+Ref = Union[weakref.ref[T], Callable[[], T]]
 
 
 class CloneError(Exception):
