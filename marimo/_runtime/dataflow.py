@@ -346,10 +346,13 @@ class DirectedGraph:
                 processed.update(newly_processed)
                 queue.difference_update(newly_processed)
                 for variable in newly_processed:
-                    queue.update(
-                        (data[variable].required_refs - processed)
-                        & self.definitions.keys()
-                    )
+                    to_process = data[variable].required_refs - processed
+                    queue.update(to_process & self.definitions.keys())
+                    # Private variables referenced by public functions have to
+                    # be included.
+                    for maybe_private in to_process - self.definitions.keys():
+                        if maybe_private.startswith(f"_cell_{cell_id}_"):
+                            processed.add(maybe_private)
 
         if inclusive:
             return processed

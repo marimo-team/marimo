@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Optional, Type
@@ -123,13 +124,38 @@ class StrictExecutor(Executor):
     async def execute_cell_async(
         cell: CellImpl, glbls: dict[str, Any], graph: DirectedGraph
     ) -> Any:
-        # Manage globals and references, but refer to the default beyond that.
-
+        # Manage globals and references, but refers to the default beyond that.
         backup = StrictExecutor.sanitize_inputs(
             cell, graph.get_transitive_references(cell.refs), glbls
         )
         try:
             response = await DefaultExecutor.execute_cell_async(cell, glbls)
+        # The best static analysis can do for variable level references is to
+        # use the top level definition. For example, consider the following
+        # cells:
+        # --- Cell 1 ---
+        # >> X = 1
+        # >> Y = 2
+        # >> l = lambda x: x + X
+        # >> L = l # Static analysis can fail on reassignment
+        # >> l = lambda x: x + Y
+        #
+        # --- Cell 2 ---
+        # >> L(1) # This fails because:
+        #    globals = {'X': 1, 'l': lambda x: x + Y, 'L': lambda x: x + Y}
+        #
+        # The code could be taken to use the last definition of `l`, but theres
+        # the case of condition definition and dynamic definition, so making a
+        # best effort and resolving the error at runtime is the best approach.
+        #
+        # marimo lint (#1543) could potentially detect these runtime
+        # problems. Throwing a compilation error seems excessive since if
+        # carefully managed, the code could still be correct.
+        except NameError as name_error:
+            (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
+            if missing_name in graph.definitions:
+                raise MarimoMissingRefError(missing_name) from name_error
+            raise name_error
         finally:
             # Restore globals from backup and backfill outputs
             StrictExecutor.update_outputs(cell, glbls, backup)
@@ -144,6 +170,11 @@ class StrictExecutor(Executor):
         )
         try:
             response = DefaultExecutor.execute_cell(cell, glbls)
+        except NameError as name_error:
+            (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
+            if missing_name in graph.definitions:
+                raise MarimoMissingRefError(missing_name) from name_error
+            raise name_error
         finally:
             StrictExecutor.update_outputs(cell, glbls, backup)
         return response
@@ -170,13 +201,6 @@ class StrictExecutor(Executor):
             ]
             if key in glbls
         }
-        # for key, data in cell.variable_data.items():
-        #     if data.required_refs:
-        #         transitive_refs = set(
-        #             [k for k, v in data.required_refs.items()
-        #              if not v.deleted]
-        #         )
-        #         refs.update(transitive_refs)
 
         from asyncio import Future
 
@@ -218,11 +242,11 @@ class StrictExecutor(Executor):
                     )
                 raise MarimoMissingRefError(ref)
 
-        # NOTE: Execution expects the globals dictionaty by memory reference,
+        # NOTE: Execution expects the globals dictionary by memory reference,
         # so we need to clear it and update it with the sanitized locals,
         # returning a backup of the original globals for later restoration.
         # This must be performed at the end of the function to ensure valid
-        # state.
+        # state in case of failure.
         backup = {**glbls}
         glbls.clear()
         glbls.update(lcls)
@@ -246,15 +270,22 @@ class StrictExecutor(Executor):
             elif df in glbls:
                 del glbls[df]
 
+        for df in backup:
+            if df.startswith(f"_cell_{cell.cell_id}_"):
+                del glbls[df]
+
         from marimo._plugins.ui._core.ui_element import UIElement
 
+        # Private UI elements should still be in memory.
+        # Or a required ref.
+        required = set()
+        for variable in cell.variable_data.values():
+            required.update(variable.required_refs)
+
         for df in lcls:
-            if (
-                df not in glbls
-                and df.startswith(f"_cell_{cell.cell_id}_")
-                and isinstance(lcls[df], UIElement)
-            ):
-                glbls[df] = lcls[df]
+            if df.startswith(f"_cell_{cell.cell_id}_"):
+                if df in required or isinstance(lcls[df], UIElement):
+                    glbls[df] = lcls[df]
 
 
 def is_instance_by_name(obj: object, name: str) -> bool:

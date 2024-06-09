@@ -103,7 +103,19 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
+
+    expr = "x=1; x = x"
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(expr)
+    v.visit(mod)
+    assert v.defs == set(["x"])
+    assert v.refs == set()
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "(x := x)"
     v = visitor.ScopedVisitor()
@@ -111,7 +123,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "x += x"
     v = visitor.ScopedVisitor()
@@ -119,7 +133,9 @@ def test_assign_same_name() -> None:
     v.visit(mod)
     assert v.defs == set(["x"])
     assert v.refs == set(["x"])
-    assert v.variable_data == {"x": VariableData(kind="variable")}
+    assert v.variable_data == {
+        "x": VariableData(kind="variable", required_refs={"x"})
+    }
 
     expr = "def f(): x = x; return x"
     v = visitor.ScopedVisitor()
@@ -815,3 +831,30 @@ def test_type_var_generic_function() -> None:
     assert v.defs == set(["test"])
     # U should not be a ref
     assert v.refs == set()
+
+
+def test_private_ref_requirement_caught() -> None:
+    code = "\n".join(
+        [
+            "x = 1",
+            "_x = 1",
+            "def foo():",
+            "  z = _x + x + X",
+        ]
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert len(v.defs & set(["foo", "x"])) == 2
+    assert len(v.defs - set(["foo", "x"])) == 1
+    (private,) = v.defs - set(["foo", "x"])
+    assert private.startswith("_")
+    assert private.endswith("_x")
+    assert v.refs == set(["X"])
+    assert v.variable_data == {
+        private: VariableData(kind="variable"),
+        "x": VariableData(kind="variable"),
+        "foo": VariableData(
+            kind="function", required_refs={"X", "x", private}
+        ),
+    }
