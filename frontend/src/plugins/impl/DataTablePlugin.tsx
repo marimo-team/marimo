@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -23,6 +23,7 @@ import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
+import { SortingState } from "@tanstack/react-table";
 
 /**
  * Arguments for a data table
@@ -50,6 +51,10 @@ type Functions = {
   get_column_summaries: (opts: {}) => Promise<{
     summaries: ColumnHeaderSummary[];
   }>;
+  sort_values: (req: {
+    by: string | null;
+    descending: boolean;
+  }) => Promise<unknown[]>;
 };
 
 type S = Array<string | number>;
@@ -94,6 +99,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         ),
       }),
     ),
+    sort_values: rpc
+      .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
+      .output(z.array(z.unknown())),
   })
   .renderer((props) => {
     if (typeof props.data.data === "string") {
@@ -136,6 +144,7 @@ export const LoadingDataTableComponent = memo(
         { handleBigInt: true },
       );
     }, [props.data, props.fieldTypes, props.totalRows]);
+
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
         if (props.totalRows === 0) {
@@ -194,6 +203,7 @@ const DataTableComponent = ({
   showColumnSummary,
   fieldTypes,
   download_as: downloadAs,
+  sort_values: sortValues,
   columnSummaries,
   className,
   setValue,
@@ -211,12 +221,42 @@ const DataTableComponent = ({
       includeCharts: !resultsAreClipped,
     });
   }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
+
   const columns = useMemo(
     () => generateColumns(data, generateIndexColumns(rowHeaders), selection),
     [data, selection, rowHeaders],
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
+
+  const [tableData, setTableData] = useState(data);
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Duplicate identifier 'data'
+  // const { data, loading, error } = useAsyncData(
+  //   () =>
+  //     sort_values({
+  //       by: sorting[0].id,
+  //       descending: sorting[0].desc,
+  //     }),
+  //   [sorting],
+  // );
+
+  useEffect(() => {
+    if (sorting.length === 0) {
+      setTableData(data);
+    }
+
+    async function fetchSortedData() {
+      const sortedData = await sortValues({
+        by: sorting[0].id,
+        descending: sorting[0].desc,
+      });
+      setTableData(sortedData);
+    }
+
+    fetchSortedData();
+  }, [sorting]);
 
   return (
     <>
@@ -228,9 +268,11 @@ const DataTableComponent = ({
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
-            data={data}
+            data={tableData}
             columns={columns}
             className={className}
+            sorting={sorting}
+            setSorting={setSorting}
             pagination={pagination}
             pageSize={pageSize}
             rowSelection={rowSelection}

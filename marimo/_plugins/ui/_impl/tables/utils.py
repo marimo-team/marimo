@@ -67,7 +67,7 @@ def arrow_table_from_dataframe_protocol(
     to an Arrow Table
     """
     import pyarrow as pa
-    import pyarrow.interchange as pi
+    import pyarrow.interchange as pi  # type: ignore
 
     # First check if the dataframe object has a method to convert to arrow.
     # Give this preference over the pyarrow from_dataframe function

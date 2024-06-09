@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType
@@ -39,6 +39,11 @@ class TableManager(abc.ABC, Generic[T]):
 
     def supports_altair(self) -> bool:
         return True
+
+    def sort_values(
+        self, by: Optional[str], descending: bool
+    ) -> TableManager[T]:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def to_csv(self) -> bytes:

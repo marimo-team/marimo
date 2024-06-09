@@ -30,6 +30,8 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   className?: string;
   columns: Array<ColumnDef<TData>>;
   data: TData[];
+  sorting?: SortingState;
+  setSorting?: OnChangeFn<SortingState>;
   pagination?: boolean;
   pageSize?: number;
   selection?: "single" | "multi" | null;
@@ -43,13 +45,14 @@ const DataTableInternal = <TData,>({
   className,
   columns,
   data,
+  sorting,
+  setSorting,
   rowSelection,
   pageSize = 10,
   downloadAs,
   pagination = false,
   onRowSelectionChange,
 }: DataTableProps<TData>) => {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [paginationState, setPaginationState] = React.useState<PaginationState>(
     { pageSize: pageSize, pageIndex: 0 },
   );
@@ -63,6 +66,7 @@ const DataTableInternal = <TData,>({
     getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
     // sorting
     onSortingChange: setSorting,
+    manualSorting: true,
     getSortedRowModel: getSortedRowModel(),
     // selection
     onRowSelectionChange: onRowSelectionChange,
