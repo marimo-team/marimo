@@ -232,31 +232,27 @@ const DataTableComponent = ({
   const [tableData, setTableData] = useState(data);
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // Duplicate identifier 'data'
-  // const { data, loading, error } = useAsyncData(
-  //   () =>
-  //     sort_values({
-  //       by: sorting[0].id,
-  //       descending: sorting[0].desc,
-  //     }),
-  //   [sorting],
-  // );
+  useEffect(() => {
+    setSorting([]);
+  }, [data]);
 
   useEffect(() => {
     if (sorting.length === 0) {
       setTableData(data);
+      return;
     }
 
-    async function fetchSortedData() {
+    const fetchSortedData = async () => {
+      const sortKey = columns.length > 2 ? sorting[0].id : null;
       const sortedData = await sortValues({
-        by: sorting[0].id,
+        by: sortKey,
         descending: sorting[0].desc,
       });
       setTableData(sortedData);
-    }
+    };
 
     fetchSortedData();
-  }, [sorting]);
+  }, [sorting, sortValues]);
 
   return (
     <>

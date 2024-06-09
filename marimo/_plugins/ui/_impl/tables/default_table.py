@@ -145,9 +145,14 @@ class DefaultTableManager(TableManager[JsonTableData]):
         self, by: Optional[str], descending: bool
     ) -> DefaultTableManager:
         if isinstance(self.data, dict):
-            data = sorted(
-                self.data.items(), key=lambda x: x[by], reverse=descending
-            )
+            data = {}
+
+            sort_column = list(enumerate(self.data[by]))
+            sort_index = sorted(sort_column, key=lambda x: x[1], reverse=descending)
+
+            for key, _ in self.data.items():
+                data[key] = [self.data[key][i] for i, _ in sort_index]
+
             return DefaultTableManager(data)
 
         if by is not None:

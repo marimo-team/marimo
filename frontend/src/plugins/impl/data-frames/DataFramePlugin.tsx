@@ -168,6 +168,7 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={false}
           download_as={Functions.THROW}
+          sort_values={Functions.THROW}
           showColumnSummary={false}
           get_column_summaries={getColumnSummaries}
           value={Arrays.EMPTY}
