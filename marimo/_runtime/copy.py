@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import weakref
 from copy import copy
 from typing import (
@@ -15,7 +16,11 @@ from typing import (
 )
 
 T = TypeVar("T")
-Ref = Union[weakref.ref[T], Callable[[], T]]
+if sys.version_info < (3, 9):
+    # Future does not seem to work for this in CI.
+    Ref = Union["weakref.ReferenceType[T]", Callable[[], T]]
+else:
+    Ref = Union[weakref.ReferenceType[T], Callable[[], T]]
 
 
 class CloneError(Exception):
