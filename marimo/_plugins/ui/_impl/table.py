@@ -134,10 +134,11 @@ class table(
         - as a single column: a list of values
     - `pagination`: whether to paginate; if `False`, all rows will be shown
       defaults to `True` when above 10 rows, `False` otherwise
-    - `page_size`: the number of rows to show per page.
-      defaults to 10
     - `selection`: 'single' or 'multi' to enable row selection, or `None` to
         disable
+    - `page_size`: the number of rows to show per page.
+      defaults to 10
+    - `show_column_summaries`: whether to show column summaries when the user
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
@@ -157,6 +158,7 @@ class table(
         pagination: Optional[bool] = None,
         selection: Optional[Literal["single", "multi"]] = "multi",
         page_size: int = 10,
+        show_column_summaries: bool = True,
         *,
         label: str = "",
         on_change: Optional[
@@ -205,6 +207,7 @@ class table(
                 if self._manager.supports_selection()
                 else None,
                 "show-download": self._manager.supports_download(),
+                "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
             },
             on_change=on_change,

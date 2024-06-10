@@ -33,7 +33,6 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   pagination?: boolean;
   pageSize?: number;
   selection?: "single" | "multi" | null;
-  showColumnSummary?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
 }
@@ -86,7 +85,7 @@ const DataTableInternal = <TData,>({
                   return (
                     <TableHead
                       key={header.id}
-                      className="h-auto min-h-10 whitespace-nowrap"
+                      className="h-auto min-h-10 whitespace-nowrap align-baseline"
                     >
                       {header.isPlaceholder
                         ? null
