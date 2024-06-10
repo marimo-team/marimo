@@ -307,7 +307,6 @@ def build_ref_predicate(
 
     >>> def foo():
     ...     return bar()
-    ...
 
     here `foo` is a function with `bar` as a reference in the execution body,
     so if `foo` is a reference, both `bar` and `foo` should be included in the
@@ -323,7 +322,12 @@ def build_ref_predicate(
     However, `foo` may return a object or another function, which in turn may
     have references; so if x doesn't match the very low bar 'primitive', its
     `required_refs` are included in the graph.
+
+    NB: lambdas, as anonymous functions, do not have a name to refer to them-
+    so visitor injects the dummy variable `_lambda` into the `required_refs` to
+    denote their presence.
     """
+
     def check_ref(ref: Name) -> bool:
         return ref in glbls and (
             inspect.isfunction(glbls[ref])
