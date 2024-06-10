@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo._data.models import ColumnSummary, DataType
@@ -49,11 +49,11 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def select_rows(self, indices: list[int]) -> TableManager[T]:
+    def select_rows(self, indices: list[int]) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def select_columns(self, columns: list[str]) -> TableManager[T]:
+    def select_columns(self, columns: list[str]) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -66,7 +66,7 @@ class TableManager(abc.ABC, Generic[T]):
         return {}
 
     @abc.abstractmethod
-    def limit(self, num: int) -> TableManager[T]:
+    def limit(self, num: int) -> TableManager[Any]:
         raise NotImplementedError
 
     @staticmethod
@@ -79,7 +79,9 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_num_rows(self) -> int:
+    def get_num_rows(self, force: bool = True) -> Optional[int]:
+        # This can be expensive to compute,
+        # so we allow optionals
         raise NotImplementedError
 
     @abc.abstractmethod
