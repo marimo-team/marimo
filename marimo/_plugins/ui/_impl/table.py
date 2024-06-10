@@ -138,7 +138,7 @@ class table(
         disable
     - `page_size`: the number of rows to show per page.
       defaults to 10
-    - `show_column_summaries`: whether to show column summaries when the user
+    - `show_column_summaries`: whether to show column summaries
     - `label`: text label for the element
     - `on_change`: optional callback to run when this element's value changes
     """
