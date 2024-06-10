@@ -23,17 +23,23 @@ describe("parseOutline", () => {
       {
         "items": [
           {
-            "id": "welcome-to-marimo",
+            "by": {
+              "id": "welcome-to-marimo",
+            },
             "level": 1,
             "name": "Welcome to marimo! 🌊🍃",
           },
           {
-            "id": "what-is-marimo",
+            "by": {
+              "id": "what-is-marimo",
+            },
             "level": 2,
             "name": "What is marimo?",
           },
           {
-            "id": "how-do-i-use-marimo",
+            "by": {
+              "id": "how-do-i-use-marimo",
+            },
             "level": 2,
             "name": "How do I use marimo?",
           },
@@ -65,42 +71,58 @@ describe("parseOutline", () => {
       {
         "items": [
           {
-            "id": "experiment-1",
+            "by": {
+              "id": "experiment-1",
+            },
             "level": 1,
             "name": "Experiment 1",
           },
           {
-            "id": "setup",
+            "by": {
+              "id": "setup",
+            },
             "level": 2,
             "name": "Setup",
           },
           {
-            "id": "instructions",
+            "by": {
+              "id": "instructions",
+            },
             "level": 2,
             "name": "Instructions",
           },
           {
-            "id": "experiment-2",
+            "by": {
+              "id": "experiment-2",
+            },
             "level": 1,
             "name": "Experiment 2",
           },
           {
-            "id": "setup",
+            "by": {
+              "id": "setup",
+            },
             "level": 2,
             "name": "Setup",
           },
           {
-            "id": "instructions",
+            "by": {
+              "id": "instructions",
+            },
             "level": 2,
             "name": "Instructions",
           },
           {
-            "id": "ack",
+            "by": {
+              "id": "ack",
+            },
             "level": 1,
             "name": "Acknowledgements",
           },
           {
-            "id": "marimo",
+            "by": {
+              "id": "marimo",
+            },
             "level": 3,
             "name": "marimo",
           },
@@ -143,6 +165,32 @@ describe("parseOutline", () => {
       channel: "output",
       data: html,
     });
-    expect(outline).toEqual({ items: [] });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "by": {
+              "path": "//H1[contains(., "foo")]",
+            },
+            "level": 1,
+            "name": "foo",
+          },
+          {
+            "by": {
+              "path": "//H2[contains(., "bar")]",
+            },
+            "level": 2,
+            "name": "bar",
+          },
+          {
+            "by": {
+              "path": "//H3[contains(., "baz")]",
+            },
+            "level": 3,
+            "name": "baz",
+          },
+        ],
+      }
+    `);
   });
 });
