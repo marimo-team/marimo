@@ -6,6 +6,7 @@ import { keymap } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { Objects } from "@/utils/objects";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { PythonLanguageAdapter } from "../language/python";
 
 vi.mock("@/core/config/config", () => ({
   parseAppConfig: () => ({}),
@@ -18,8 +19,8 @@ function namedFunction(name: string) {
   return fn;
 }
 
-function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
-  return setupCodeMirror({
+function getOpts() {
+  return {
     cellId: "0" as CellId,
     showPlaceholder: false,
     enableAI: false,
@@ -53,8 +54,11 @@ function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
     },
     hotkeys: new OverridingHotkeyProvider({}),
     theme: "light",
-    ...config,
-  });
+  } as const;
+}
+
+function setup(config: Partial<CodeMirrorSetupOpts> = {}): Extension[] {
+  return setupCodeMirror({ ...getOpts(), ...config });
 }
 
 function prettyPrintKeymaps(state: EditorState) {
@@ -115,13 +119,43 @@ describe("snapshot all duplicate keymaps", () => {
 });
 
 test("placeholder adds another extension", () => {
-  const withPlaceholder = setup({ showPlaceholder: true }).flat();
-  const withoutPlaceholder = setup({ showPlaceholder: false }).flat();
-  expect(withPlaceholder.length - 1).toBe(withoutPlaceholder.length);
+  const opts = getOpts();
+  const withAI = new PythonLanguageAdapter()
+    .getExtension(
+      opts.completionConfig,
+      opts.hotkeys,
+      "marimo-import",
+      opts.cellMovementCallbacks,
+    )
+    .flat();
+  const withoutAI = new PythonLanguageAdapter()
+    .getExtension(
+      opts.completionConfig,
+      opts.hotkeys,
+      "none",
+      opts.cellMovementCallbacks,
+    )
+    .flat();
+  expect(withAI.length - 1).toBe(withoutAI.length);
 });
 
 test("ai adds more extensions", () => {
-  const withAI = setup({ enableAI: true }).flat();
-  const withoutAI = setup({ enableAI: false }).flat();
+  const opts = getOpts();
+  const withAI = new PythonLanguageAdapter()
+    .getExtension(
+      opts.completionConfig,
+      opts.hotkeys,
+      "ai",
+      opts.cellMovementCallbacks,
+    )
+    .flat();
+  const withoutAI = new PythonLanguageAdapter()
+    .getExtension(
+      opts.completionConfig,
+      opts.hotkeys,
+      "none",
+      opts.cellMovementCallbacks,
+    )
+    .flat();
   expect(withAI.length - 2).toBe(withoutAI.length);
 });
