@@ -8,8 +8,9 @@ from tests.conftest import ExecReqProvider
 
 
 async def test_virtual_file_creation(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -28,8 +29,9 @@ async def test_virtual_file_creation(
 
 
 async def test_virtual_file_deletion(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             er := exec_req.get(
@@ -51,8 +53,9 @@ async def test_virtual_file_deletion(
 
 
 async def test_cached_virtual_file_not_deleted(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -94,8 +97,9 @@ async def test_cached_virtual_file_not_deleted(
 
 
 async def test_cell_deletion_clears_vfiles(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -125,8 +129,9 @@ async def test_cell_deletion_clears_vfiles(
 
 
 async def test_vfile_refcount_incremented(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -159,8 +164,9 @@ async def test_vfile_refcount_incremented(
 
 
 async def test_vfile_refcount_decremented(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -201,8 +207,9 @@ async def test_vfile_refcount_decremented(
 
 
 async def test_cached_vfile_disposal(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     await k.run(
         [
             exec_req.get(
@@ -253,8 +260,9 @@ async def test_cached_vfile_disposal(
 
 
 async def test_virtual_files_not_supported(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     get_context().virtual_files_supported = False
 
     await k.run(

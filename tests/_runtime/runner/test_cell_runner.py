@@ -5,7 +5,10 @@ from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
 
-async def test_cell_output(k: Kernel, exec_req: ExecReqProvider) -> None:
+async def test_cell_output(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
     # run the cell to populate the graph, globals
     await k.run([er := exec_req.get("'hello'; 123")])
 
@@ -21,8 +24,9 @@ async def test_cell_output(k: Kernel, exec_req: ExecReqProvider) -> None:
 
 
 async def test_traceback_includes_lineno(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     # Raise an exception and test that the runner generates a traceback that
     # includes the line number where the exception was raised
     #
@@ -50,8 +54,9 @@ async def test_traceback_includes_lineno(
 
 
 async def test_base_exception_caught(
-    k: Kernel, exec_req: ExecReqProvider
+    execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
+    k = execution_kernel
     # Raise an exception and test that the runner generates a traceback that
     # includes the line number where the exception was raised
     #

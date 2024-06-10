@@ -816,6 +816,169 @@ class TestExecution:
         assert "e" in k.globals
 
 
+class TestStrictExecution:
+    @staticmethod
+    async def test_cell_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = lambda x: x + _x + X + Y
+                  """
+                ),
+                exec_req.get(
+                    """
+                V = L(1)
+                V
+                """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_lambda(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""Y = 1"""),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: x + _x + X + Y]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert k.globals["V"] == 4
+
+    @staticmethod
+    async def test_cell_indirect_private(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             Y = 1
+                             _y = 1
+                             def f(x):
+                                return x + _y
+                             """),
+                exec_req.get(
+                    """
+                  _x = 1
+                  X = 1
+                  L = [lambda x: f(x + _x + X + Y)]
+                  """
+                ),
+                exec_req.get("V = L[0](1)"),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "Y" in k.globals
+        assert "L" in k.globals
+        assert "V" in k.globals
+        assert "f" in k.globals
+        assert k.globals["V"] == 5
+
+    @staticmethod
+    async def test_cell_copy_works(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             class namespace:
+                                ...
+                             X = namespace()
+                             X.count = 1
+                             """),
+                exec_req.get(
+                    """
+                  X.count += 1
+                  V0 = X.count
+                  """
+                ),
+                exec_req.get(
+                    """
+                  X.count += 10
+                  V1 = X.count
+                  """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "V0" in k.globals
+        assert "V1" in k.globals
+        assert k.globals["X"].count == 1
+        assert k.globals["V0"] == 2
+        assert k.globals["V1"] == 11
+
+    @staticmethod
+    async def test_cell_zero_copy_works(
+        strict_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        k = strict_kernel
+        await k.run(
+            [
+                exec_req.get("""
+                             import marimo as mo
+                             class namespace:
+                                ...
+                             X = namespace()
+                             X.count = 1
+                             X = mo.copy.zero_copy(X)
+                             """),
+                exec_req.get(
+                    """
+                  mo.copy.unwrap_copy(X).count += 1
+                  V0 = X.count
+                  """
+                ),
+                exec_req.get(
+                    """
+                  mo.copy.unwrap_copy(X).count += 10
+                  V1 = X.count
+                  """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert "X" in k.globals
+        assert "V0" in k.globals
+        assert "V1" in k.globals
+        assert k.globals["X"].count == 12
+        assert k.globals["V0"] in (2, 12)
+        if k.globals["V0"] == 2:
+            assert k.globals["V1"] == 12
+        else:
+            assert k.globals["V1"] == 11
+
+
 class TestStoredOutput:
     async def test_ui_element_in_output_stored(
         self, any_kernel: Kernel, exec_req: ExecReqProvider

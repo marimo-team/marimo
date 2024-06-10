@@ -319,6 +319,12 @@ class ScopedVisitor(ast.NodeVisitor):
             VariableData(kind="function", required_refs=refs),
         )
 
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        # Inject the dummy name `_lambda` into ref scope to denote there's a
+        # callable that might require additional refs.
+        self.ref_stack[-1].add("_lambda")
+        self.generic_visit(node)
+
     def visit_arg(self, node: ast.arg) -> None:
         node.arg = self._if_local_then_mangle(node.arg)
         self._define(node.arg, VariableData(kind="variable"))

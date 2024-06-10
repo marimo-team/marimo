@@ -145,6 +145,11 @@ def strict_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
+@pytest.fixture(params=["k", "strict_kernel"])
+def execution_kernel(request: Any) -> Kernel:
+    return request.getfixturevalue(request.param)
+
+
 @pytest.fixture(params=["k", "strict_kernel", "lazy_kernel"])
 def any_kernel(request: Any) -> Kernel:
     return request.getfixturevalue(request.param)

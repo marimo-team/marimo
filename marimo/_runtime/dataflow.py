@@ -11,7 +11,7 @@ from marimo._ast.cell import (
     CellImpl,
 )
 from marimo._ast.compiler import code_key
-from marimo._ast.visitor import Name
+from marimo._ast.visitor import Name, VariableData
 from marimo._runtime.executor import execute_cell, execute_cell_async
 
 if TYPE_CHECKING:
@@ -323,17 +323,22 @@ class DirectedGraph:
         self,
         refs: set[Name],
         inclusive: bool = True,
+        predicate: Callable[[Name, VariableData], bool] | None = None,
     ) -> set[Name]:
         """Return a set of the passed-in cells' references and their
         references on the block (function / class) level.
 
         If inclusive, includes the references of the passed-in cells in the
         set.
+
+        If predicate, only references satisfying predicate(ref) are included
         """
         # TODO: Consider caching on the graph level and updating on register /
         # delete
         processed = set()
         queue = set(refs & self.definitions.keys())
+        predicate = predicate or (lambda *_: True)
+
         while queue:
             # Should ideally be one cell per ref, but for completion, stay
             # agnostic to potenital cycles.
@@ -346,13 +351,16 @@ class DirectedGraph:
                 processed.update(newly_processed)
                 queue.difference_update(newly_processed)
                 for variable in newly_processed:
-                    to_process = data[variable].required_refs - processed
-                    queue.update(to_process & self.definitions.keys())
-                    # Private variables referenced by public functions have to
-                    # be included.
-                    for maybe_private in to_process - self.definitions.keys():
-                        if maybe_private.startswith(f"_cell_{cell_id}_"):
-                            processed.add(maybe_private)
+                    if predicate(variable, data[variable]):
+                        to_process = data[variable].required_refs - processed
+                        queue.update(to_process & self.definitions.keys())
+                        # Private variables referenced by public functions have
+                        # to be included.
+                        for maybe_private in (
+                            to_process - self.definitions.keys()
+                        ):
+                            if maybe_private.startswith(f"_cell_{cell_id}_"):
+                                processed.add(maybe_private)
 
         if inclusive:
             return processed
