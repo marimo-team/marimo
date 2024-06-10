@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Extension } from "@codemirror/state";
+import { Extension, Prec } from "@codemirror/state";
 import { LanguageAdapter } from "./types";
 import {
   pythonLanguage,
@@ -14,6 +14,13 @@ import {
 import { CompletionConfig } from "@/core/config/config-schema";
 import { autocompletion } from "@codemirror/autocomplete";
 import { completer } from "../completion/completer";
+import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { PlaceholderType } from "../config/extension";
+import {
+  smartPlaceholderExtension,
+  clickablePlaceholderExtension,
+} from "../placeholder/extensions";
+import { MovementCallbacks } from "../cells/extensions";
 
 /**
  * Language adapter for Python.
@@ -33,7 +40,12 @@ export class PythonLanguageAdapter implements LanguageAdapter {
     return true;
   }
 
-  getExtension(completionConfig: CompletionConfig): Extension {
+  getExtension(
+    completionConfig: CompletionConfig,
+    _hotkeys: HotkeyProvider,
+    placeholderType: PlaceholderType,
+    cellMovementCallbacks: MovementCallbacks,
+  ): Extension[] {
     return [
       // Whether or not to require keypress to activate autocompletion (default
       // keymap is Ctrl+Space)
@@ -49,6 +61,16 @@ export class PythonLanguageAdapter implements LanguageAdapter {
         override: [completer],
       }),
       customPythonLanguageSupport(),
+      placeholderType === "marimo-import"
+        ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
+        : placeholderType === "ai"
+          ? clickablePlaceholderExtension({
+              beforeText: "Start coding or ",
+              linkText: "generate",
+              afterText: " with AI.",
+              onClick: cellMovementCallbacks.aiCellCompletion,
+            })
+          : [],
     ];
   }
 }

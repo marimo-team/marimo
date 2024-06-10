@@ -44,7 +44,10 @@ const RecoveryModal = (props: {
         <DialogTitle className="text-accent mb-6">
           Download unsaved changes?
         </DialogTitle>
-        <DialogDescription className="markdown">
+        <DialogDescription
+          className="markdown break-words"
+          style={{ wordBreak: "break-word" }}
+        >
           <p>This app has unsaved changes. To recover:</p>
 
           <ol>

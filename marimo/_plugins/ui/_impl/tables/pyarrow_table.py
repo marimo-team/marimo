@@ -144,7 +144,8 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                     )
                 return ColumnSummary()
 
-            def get_num_rows(self) -> int:
+            def get_num_rows(self, force: bool = True) -> int:
+                del force
                 return self.data.num_rows
 
             def get_num_columns(self) -> int:

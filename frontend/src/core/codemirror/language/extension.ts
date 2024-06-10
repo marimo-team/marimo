@@ -14,12 +14,15 @@ import { CompletionConfig } from "@/core/config/config-schema";
 import {
   completionConfigState,
   hotkeysProviderState,
+  movementCallbacksState,
+  placeholderState,
 } from "../config/extension";
 import { historyCompartment } from "../editing/extensions";
 import { history } from "@codemirror/commands";
 import { formattingChangeEffect } from "../format";
 import { getEditorCodeAsPython } from "./utils";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { CodeMirrorSetupOpts } from "../cm";
 
 export const LanguageAdapters: Record<
   LanguageAdapter["type"],
@@ -104,7 +107,8 @@ function updateLanguageAdapterAndCode(
   const code = view.state.doc.toString();
   const completionConfig = view.state.facet(completionConfigState);
   const hotkeysProvider = view.state.facet(hotkeysProviderState);
-
+  const placeholderType = view.state.facet(placeholderState);
+  const movementCallbacks = view.state.facet(movementCallbacksState);
   // Update the code
   const [codeOut, cursorDiff1] = currentLanguage.transformOut(code);
   const [newCode, cursorDiff2] = nextLanguage.transformIn(codeOut);
@@ -120,7 +124,12 @@ function updateLanguageAdapterAndCode(
     effects: [
       setLanguageAdapter.of(nextLanguage),
       languageCompartment.reconfigure(
-        nextLanguage.getExtension(completionConfig, hotkeysProvider),
+        nextLanguage.getExtension(
+          completionConfig,
+          hotkeysProvider,
+          placeholderType,
+          movementCallbacks,
+        ),
       ),
       // Clear history
       historyCompartment.reconfigure([]),
@@ -159,15 +168,44 @@ function createLanguagePanel(view: EditorView): Panel {
  * Set of extensions to enable adaptive language configuration.
  */
 export function adaptiveLanguageConfiguration(
-  completionConfig: CompletionConfig,
-  hotkeysProvider: HotkeyProvider,
+  opts: Pick<
+    CodeMirrorSetupOpts,
+    | "completionConfig"
+    | "hotkeys"
+    | "showPlaceholder"
+    | "enableAI"
+    | "cellMovementCallbacks"
+  >,
 ) {
+  const {
+    showPlaceholder,
+    enableAI,
+    completionConfig,
+    hotkeys,
+    cellMovementCallbacks,
+  } = opts;
+
+  const placeholderType = showPlaceholder
+    ? "marimo-import"
+    : enableAI
+      ? "ai"
+      : "none";
+
   return [
+    // Store state
     completionConfigState.of(completionConfig),
-    hotkeysProviderState.of(hotkeysProvider),
+    hotkeysProviderState.of(hotkeys),
+    placeholderState.of(placeholderType),
+    movementCallbacksState.of(cellMovementCallbacks),
+    // Language adapter
     languageToggle(completionConfig),
     languageCompartment.of(
-      LanguageAdapters.python().getExtension(completionConfig, hotkeysProvider),
+      LanguageAdapters.python().getExtension(
+        completionConfig,
+        hotkeys,
+        placeholderType,
+        cellMovementCallbacks,
+      ),
     ),
     languageAdapterState,
   ];
@@ -204,7 +242,14 @@ export function reconfigureLanguageEffect(
   hotkeysProvider: HotkeyProvider,
 ) {
   const language = view.state.field(languageAdapterState);
+  const placeholderType = view.state.facet(placeholderState);
+  const movementCallbacks = view.state.facet(movementCallbacksState);
   return languageCompartment.reconfigure(
-    language.getExtension(completionConfig, hotkeysProvider),
+    language.getExtension(
+      completionConfig,
+      hotkeysProvider,
+      placeholderType,
+      movementCallbacks,
+    ),
   );
 }

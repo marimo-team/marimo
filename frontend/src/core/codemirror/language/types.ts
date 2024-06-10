@@ -2,6 +2,8 @@
 import { CompletionConfig } from "@/core/config/config-schema";
 import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { Extension } from "@codemirror/state";
+import { PlaceholderType } from "../config/extension";
+import { MovementCallbacks } from "../cells/extensions";
 
 /**
  * A language adapter is a class that can transform code from one language to
@@ -16,5 +18,7 @@ export interface LanguageAdapter {
   getExtension(
     completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
-  ): Extension;
+    placeholderType: PlaceholderType,
+    movementCallbacks: MovementCallbacks,
+  ): Extension[];
 }

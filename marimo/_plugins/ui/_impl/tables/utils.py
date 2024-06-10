@@ -1,10 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List
+from typing import Any, List
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.df_protocol_table import (
+    DataFrameProtocolTableManager,
+)
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -19,9 +22,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.types import DataFrameLike
-
-if TYPE_CHECKING:
-    import pyarrow
 
 MANAGERS: List[TableManagerFactory] = [
     PandasTableManagerFactory(),
@@ -45,17 +45,11 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
             if manager.is_type(data):
                 return manager(data)
 
-    # If we have a DataFrameLike object, try to convert it the pyarrow table
+    # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
     if isinstance(data, DataFrameLike):
-        DependencyManager.require_pyarrow(
-            "For table support using the dataframe protocol"
-        )
-        return PyArrowTableManagerFactory.create()(
-            arrow_table_from_dataframe_protocol(data)
-        )
+        return DataFrameProtocolTableManager(data)
 
     return None
-
 
 # Copied from Altair
 # https://github.com/vega/altair/blob/18a2c3c237014591d172284560546a2f0ac1a883/altair/utils/data.py#L343

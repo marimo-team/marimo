@@ -18,13 +18,17 @@ function getOutline(html: string): Outline {
       continue;
     }
 
-    const id = heading.id;
-    if (!id) {
-      continue;
-    }
-
     const level = Number.parseInt(heading.tagName[1], 10);
-    items.push({ name, id, level });
+    const id = heading.id;
+    if (id) {
+      items.push({ name, level, by: { id } });
+    } else {
+      items.push({
+        name,
+        level,
+        by: { path: `//${heading.tagName}[contains(., "${name}")]` },
+      });
+    }
   }
 
   return { items };

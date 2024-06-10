@@ -222,14 +222,16 @@ const DatasetTableItem: React.FC<{
   isExpanded: boolean;
 }> = ({ table, onExpand, onAddTable, isExpanded }) => {
   const renderRowsByColumns = () => {
-    if (table.num_rows == null || table.num_columns == null) {
+    if (table.num_rows == null && table.num_columns == null) {
       return null;
     }
+
+    const label = [`${table.num_rows} rows`, `${table.num_columns} columns`];
 
     return (
       <div className="flex flex-row gap-2 items-center pl-6 group-hover:hidden">
         <span className="text-xs text-muted-foreground">
-          {table.num_rows} rows, {table.num_columns} columns
+          {label.join(", ")}
         </span>
       </div>
     );
