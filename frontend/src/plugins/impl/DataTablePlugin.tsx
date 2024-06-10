@@ -39,7 +39,7 @@ interface Data<T> {
   pageSize: number;
   selection: "single" | "multi" | null;
   showDownload: boolean;
-  showColumnSummary: boolean;
+  showColumnSummaries: boolean;
   rowHeaders: Array<[string, string[]]>;
   fieldTypes?: Record<string, VegaType> | null;
 }
@@ -66,7 +66,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       pageSize: z.number().default(10),
       selection: z.enum(["single", "multi"]).nullable().default(null),
       showDownload: z.boolean().default(false),
-      showColumnSummary: z.boolean().default(true),
+      showColumnSummaries: z.boolean().default(true),
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
       fieldTypes: z
         .record(
@@ -191,7 +191,7 @@ const DataTableComponent = ({
   value,
   showDownload,
   rowHeaders,
-  showColumnSummary,
+  showColumnSummaries,
   fieldTypes,
   download_as: downloadAs,
   columnSummaries,
@@ -212,8 +212,14 @@ const DataTableComponent = ({
     });
   }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
   const columns = useMemo(
-    () => generateColumns(data, generateIndexColumns(rowHeaders), selection),
-    [data, selection, rowHeaders],
+    () =>
+      generateColumns({
+        items: data,
+        rowHeaders: generateIndexColumns(rowHeaders),
+        selection,
+        showColumnSummaries: showColumnSummaries,
+      }),
+    [data, selection, rowHeaders, showColumnSummaries],
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
@@ -235,7 +241,6 @@ const DataTableComponent = ({
             pageSize={pageSize}
             rowSelection={rowSelection}
             downloadAs={showDownload ? downloadAs : undefined}
-            showColumnSummary={showColumnSummary}
             onRowSelectionChange={(updater) => {
               if (selection === "single") {
                 const nextValue =

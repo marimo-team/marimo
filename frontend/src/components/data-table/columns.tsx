@@ -60,11 +60,17 @@ function getColumnInfo<T>(items: T[]): ColumnInfo[] {
   return [...keys.values()];
 }
 
-export function generateColumns<T>(
-  items: T[],
-  rowHeaders: Array<ColumnDef<T>>,
-  selection: "single" | "multi" | null,
-): Array<ColumnDef<T>> {
+export function generateColumns<T>({
+  items,
+  rowHeaders,
+  selection,
+  showColumnSummaries,
+}: {
+  items: T[];
+  rowHeaders: Array<ColumnDef<T>>;
+  selection: "single" | "multi" | null;
+  showColumnSummaries: boolean;
+}): Array<ColumnDef<T>> {
   const columnInfo = getColumnInfo(items);
 
   const columns = columnInfo.map(
@@ -78,6 +84,10 @@ export function generateColumns<T>(
         return (row as any)[info.key];
       },
       header: ({ column }) => {
+        if (!showColumnSummaries) {
+          return <DataTableColumnHeader header={info.key} column={column} />;
+        }
+
         return (
           <DataTableColumnHeaderWithSummary
             header={info.key}
