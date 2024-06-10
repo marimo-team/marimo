@@ -12,7 +12,6 @@ import { MarkdownLanguageAdapter } from "./markdown";
 import { clamp } from "@/utils/math";
 import { CompletionConfig } from "@/core/config/config-schema";
 import {
-  PlaceholderType,
   completionConfigState,
   hotkeysProviderState,
   movementCallbacksState,
@@ -168,7 +167,16 @@ function createLanguagePanel(view: EditorView): Panel {
 /**
  * Set of extensions to enable adaptive language configuration.
  */
-export function adaptiveLanguageConfiguration(opts: CodeMirrorSetupOpts) {
+export function adaptiveLanguageConfiguration(
+  opts: Pick<
+    CodeMirrorSetupOpts,
+    | "completionConfig"
+    | "hotkeys"
+    | "showPlaceholder"
+    | "enableAI"
+    | "cellMovementCallbacks"
+  >,
+) {
   const {
     showPlaceholder,
     enableAI,
