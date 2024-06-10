@@ -3,7 +3,7 @@
 The marimo CLI lets you run any notebook as an app: `marimo run` lays out
 the notebook as an app and starts a web server that hosts the resulting app.
 
-By default, apps are laid out as a concetentation of their outputs, with
+By default, apps are laid out as a concatenation of their outputs, with
 code hidden. You can customize the layout using marimo's built-in drag-and-drop
 grid editor; you can also choose to include code in the app view.
 

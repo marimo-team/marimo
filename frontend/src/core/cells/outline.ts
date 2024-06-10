@@ -5,7 +5,13 @@
  */
 export interface OutlineItem {
   name: string;
-  id: string;
+  by:
+    | {
+        id: string;
+      }
+    | {
+        path: string;
+      };
   level: number;
 }
 

@@ -30,7 +30,7 @@ def get_column_preview(
         table = get_table_manager_or_none(item)
         if table is None:
             return None
-        if table.get_num_rows() == 0:
+        if table.get_num_rows(force=True) == 0:
             return DataColumnPreview(
                 table_name=table_name,
                 column_name=column_name,

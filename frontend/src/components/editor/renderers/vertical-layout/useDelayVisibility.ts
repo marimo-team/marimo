@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { AppMode } from "@/core/mode";
-import { getAllEditorViews } from "@/core/cells/cells";
+import { getNotebook } from "@/core/cells/cells";
 import { useState, useEffect } from "react";
 
 export function useDelayVisibility(numCells: number, mode: AppMode) {
@@ -28,8 +28,14 @@ export function useDelayVisibility(numCells: number, mode: AppMode) {
 }
 
 function focusFirstEditor() {
-  const editors = getAllEditorViews();
-  if (editors.length > 0) {
-    editors[0].focus();
+  const { cellIds, cellData, cellHandles } = getNotebook();
+  // Focus on the first cell if it's been mounted and is not hidden
+  for (const cellId of cellIds) {
+    const handle = cellHandles[cellId];
+    const hidden = cellData[cellId].config.hide_code;
+    if (!hidden && handle?.current?.editorView) {
+      handle.current.editorView.focus();
+      return;
+    }
   }
 }

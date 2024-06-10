@@ -54,11 +54,11 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def select_rows(self, indices: list[int]) -> TableManager[T]:
+    def select_rows(self, indices: list[int]) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def select_columns(self, columns: list[str]) -> TableManager[T]:
+    def select_columns(self, columns: list[str]) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -71,7 +71,7 @@ class TableManager(abc.ABC, Generic[T]):
         return {}
 
     @abc.abstractmethod
-    def limit(self, num: int) -> TableManager[T]:
+    def limit(self, num: int) -> TableManager[Any]:
         raise NotImplementedError
 
     @staticmethod
@@ -84,7 +84,9 @@ class TableManager(abc.ABC, Generic[T]):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_num_rows(self) -> int:
+    def get_num_rows(self, force: bool = True) -> Optional[int]:
+        # This can be expensive to compute,
+        # so we allow optionals
         raise NotImplementedError
 
     @abc.abstractmethod

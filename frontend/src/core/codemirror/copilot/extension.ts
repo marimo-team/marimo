@@ -23,6 +23,11 @@ export const copilotBundle = (): Extension => {
           return "";
         }
 
+        // If no text, don't fetch
+        if (view.doc.length === 0) {
+          return "";
+        }
+
         // wait 10ms so that the view is updated first
         await new Promise((resolve) => setTimeout(resolve, 10));
 

@@ -15,35 +15,35 @@ def get_datasets_from_variables(
 ) -> List[DataTable]:
     tables: List[DataTable] = []
     for variable_name, value in variables:
-        table = get_data_table(value, variable_name)
+        table = _get_data_table(value, variable_name)
         if table is not None:
             tables.append(table)
 
     return tables
 
 
-def get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
-    table = get_table_manager_or_none(value)
-    if table is not None:
-        try:
-            columns = [
-                DataTableColumn(name=column_name, type=column_type)
-                for column_name, column_type in table.get_field_types().items()
-            ]
-            return DataTable(
-                name=variable_name,
-                variable_name=variable_name,
-                num_rows=table.get_num_rows(),
-                num_columns=table.get_num_columns(),
-                source=f"Local ({table.type})",
-                columns=columns,
-            )
-        except Exception as e:
-            LOGGER.error(
-                "Failed to get table data for variable %s",
-                variable_name,
-                exc_info=e,
-            )
+def _get_data_table(value: object, variable_name: str) -> Optional[DataTable]:
+    try:
+        table = get_table_manager_or_none(value)
+        if table is None:
             return None
 
-    return None
+        columns = [
+            DataTableColumn(name=column_name, type=column_type)
+            for column_name, column_type in table.get_field_types().items()
+        ]
+        return DataTable(
+            name=variable_name,
+            variable_name=variable_name,
+            num_rows=table.get_num_rows(force=False),
+            num_columns=table.get_num_columns(),
+            source=f"Local ({table.type})",
+            columns=columns,
+        )
+    except Exception as e:
+        LOGGER.error(
+            "Failed to get table data for variable %s",
+            variable_name,
+            exc_info=e,
+        )
+        return None

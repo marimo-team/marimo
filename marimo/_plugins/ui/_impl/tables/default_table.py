@@ -123,7 +123,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
         del column
         return ColumnSummary()
 
-    def get_num_rows(self) -> int:
+    def get_num_rows(self, force: bool = True) -> int:
+        del force
         if isinstance(self.data, dict):
             return len(next(iter(self.data.values()), []))
         return len(self.data)

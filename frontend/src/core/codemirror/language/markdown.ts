@@ -93,6 +93,10 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   }
 
   isSupported(pythonCode: string): boolean {
+    if (pythonCode.trim() === "") {
+      return true;
+    }
+
     if (pythonCode.trim() === "mo.md()") {
       return true;
     }
@@ -113,7 +117,7 @@ export class MarkdownLanguageAdapter implements LanguageAdapter {
   getExtension(
     _completionConfig: CompletionConfig,
     hotkeys: HotkeyProvider,
-  ): Extension {
+  ): Extension[] {
     return [
       markdown({
         codeLanguages: languages,

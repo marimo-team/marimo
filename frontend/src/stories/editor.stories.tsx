@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { EditorState, Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
-import { basicBundle } from "../core/codemirror/cm";
+import { CodeMirrorSetupOpts, basicBundle } from "../core/codemirror/cm";
 import { python } from "@codemirror/lang-python";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
 import { copilotBundle } from "@/core/codemirror/copilot/extension";
@@ -61,11 +61,11 @@ export const Primary: Story = {
   render: (args, ctx) => (
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
-        extensions={basicBundle(
-          { activate_on_typing: false, copilot: false },
-          ctx.globals.theme,
-          new OverridingHotkeyProvider({}),
-        )}
+        extensions={basicBundle({
+          completionConfig: { activate_on_typing: false, copilot: false },
+          theme: ctx.globals.theme,
+          hotkeys: new OverridingHotkeyProvider({}),
+        } as unknown as CodeMirrorSetupOpts)}
       />
     </div>
   ),

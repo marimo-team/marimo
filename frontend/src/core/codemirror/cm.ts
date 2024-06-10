@@ -54,10 +54,6 @@ import { copilotBundle } from "./copilot/extension";
 import { hintTooltip } from "./completion/hints";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { historyCompartment } from "./editing/extensions";
-import {
-  clickablePlaceholderExtension,
-  smartPlaceholderExtension,
-} from "./placeholder/extensions";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import { HotkeyProvider } from "../hotkeys/hotkeys";
 
@@ -76,17 +72,15 @@ export interface CodeMirrorSetupOpts {
 /**
  * Setup CodeMirror for a cell
  */
-export const setupCodeMirror = ({
-  cellId,
-  showPlaceholder,
-  enableAI,
-  cellMovementCallbacks,
-  cellCodeCallbacks,
-  completionConfig,
-  keymapConfig,
-  theme,
-  hotkeys,
-}: CodeMirrorSetupOpts): Extension[] => {
+export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
+  const {
+    cellId,
+    cellMovementCallbacks,
+    cellCodeCallbacks,
+    keymapConfig,
+    hotkeys,
+  } = opts;
+
   return [
     // Editor keymaps (vim or defaults) based on user config
     keymapBundle(keymapConfig, cellMovementCallbacks),
@@ -94,19 +88,9 @@ export const setupCodeMirror = ({
     cellMovementBundle(cellId, cellMovementCallbacks, hotkeys),
     cellCodeEditingBundle(cellId, cellCodeCallbacks, hotkeys),
     // Comes last so that it can be overridden
-    basicBundle(completionConfig, theme, hotkeys),
+    basicBundle(opts),
     // Underline cmd+clickable placeholder
     goToDefinitionBundle(),
-    showPlaceholder
-      ? Prec.highest(smartPlaceholderExtension("import marimo as mo"))
-      : enableAI
-        ? clickablePlaceholderExtension({
-            beforeText: "Start coding or ",
-            linkText: "generate",
-            afterText: " with AI.",
-            onClick: cellMovementCallbacks.aiCellCompletion,
-          })
-        : [],
   ];
 };
 
@@ -125,11 +109,9 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
 };
 
 // Based on codemirror's basicSetup extension
-export const basicBundle = (
-  completionConfig: CompletionConfig,
-  theme: Theme,
-  hotkeys: HotkeyProvider,
-): Extension[] => {
+export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
+  const { theme, hotkeys } = opts;
+
   return [
     ///// View
     EditorView.lineWrapping,
@@ -164,7 +146,7 @@ export const basicBundle = (
     keymap.of([...foldKeymap, ...lintKeymap]),
 
     ///// Language Support
-    adaptiveLanguageConfiguration(completionConfig, hotkeys),
+    adaptiveLanguageConfiguration(opts),
 
     ///// Editing
     historyCompartment.of(history()),

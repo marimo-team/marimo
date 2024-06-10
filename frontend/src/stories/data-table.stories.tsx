@@ -20,8 +20,8 @@ export const Default = {
           last_name: "Schrute",
         },
       ]}
-      columns={generateColumns(
-        [
+      columns={generateColumns({
+        items: [
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -31,9 +31,10 @@ export const Default = {
             last_name: "Schrute",
           },
         ],
-        [],
-        null,
-      )}
+        rowHeaders: [],
+        selection: null,
+        showColumnSummaries: false,
+      })}
     />
   ),
 
@@ -44,8 +45,8 @@ export const Empty1 = {
   render: () => (
     <DataTable
       data={[]}
-      columns={generateColumns(
-        [
+      columns={generateColumns({
+        items: [
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -55,9 +56,10 @@ export const Empty1 = {
             last_name: "Schrute",
           },
         ],
-        [],
-        null,
-      )}
+        rowHeaders: [],
+        selection: null,
+        showColumnSummaries: false,
+      })}
     />
   ),
 
@@ -82,8 +84,8 @@ export const Pagination = {
           last_name: "Schrute",
         },
       ]}
-      columns={generateColumns(
-        [
+      columns={generateColumns({
+        items: [
           {
             first_name: "Michael",
             last_name: "Scott",
@@ -93,9 +95,10 @@ export const Pagination = {
             last_name: "Schrute",
           },
         ],
-        [],
-        null,
-      )}
+        rowHeaders: [],
+        selection: null,
+        showColumnSummaries: false,
+      })}
       pagination={true}
     />
   ),
