@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, TypedDict, Union
 
 import marimo._output.data.data as mo_data
 from marimo._output.utils import build_data_url
+from marimo._plugins.ui._impl.tables.utils import (
+    get_table_manager,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -93,23 +96,7 @@ def _data_to_json_string(data: _DataType) -> str:
 
 def _data_to_csv_string(data: _DataType) -> str:
     """Return a CSV string representation of the input data"""
-    import altair as alt
-    import pandas as pd
-
-    if isinstance(data, pd.DataFrame):
-        sanitized = alt.utils.sanitize_dataframe(data)
-        as_str = sanitized.to_csv(index=False, na_rep="null")
-        assert isinstance(as_str, str)
-        return as_str
-    elif isinstance(data, dict):
-        if "values" not in data:
-            raise KeyError("values expected in data dict, but not present")
-        return pd.DataFrame.from_dict(data["values"]).to_csv(index=False)
-    else:
-        raise NotImplementedError(
-            "to_marimo_csv only works with data expressed as a DataFrame"
-            + " or as a dict"
-        )
+    return get_table_manager(data).to_csv().decode("utf-8")
 
 
 def register_transformers() -> None:

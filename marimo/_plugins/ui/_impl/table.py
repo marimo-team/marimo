@@ -181,7 +181,7 @@ class table(
         self._unfiltered_manager = self._manager
         self._filtered_manager: Optional[TableManager[Any]] = None
 
-        totalRows = self._manager.get_num_rows()
+        totalRows = self._manager.get_num_rows(force=True) or 0
         hasMore = totalRows > TableManager.DEFAULT_LIMIT
         if hasMore:
             self._manager = self._manager.limit(TableManager.DEFAULT_LIMIT)

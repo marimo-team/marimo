@@ -1,10 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List
+from typing import Any, List
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
+from marimo._plugins.ui._impl.tables.df_protocol_table import (
+    DataFrameProtocolTableManager,
+)
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
@@ -19,9 +22,6 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.types import DataFrameLike
-
-if TYPE_CHECKING:
-    import pyarrow
 
 MANAGERS: List[TableManagerFactory] = [
     PandasTableManagerFactory(),
@@ -45,42 +45,8 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
             if manager.is_type(data):
                 return manager(data)
 
-    # If we have a DataFrameLike object, try to convert it the pyarrow table
+    # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
     if isinstance(data, DataFrameLike):
-        DependencyManager.require_pyarrow(
-            "For table support using the dataframe protocol"
-        )
-        return PyArrowTableManagerFactory.create()(
-            arrow_table_from_dataframe_protocol(data)
-        )
+        return DataFrameProtocolTableManager(data)
 
     return None
-
-
-# Copied from Altair
-# https://github.com/vega/altair/blob/18a2c3c237014591d172284560546a2f0ac1a883/altair/utils/data.py#L343
-def arrow_table_from_dataframe_protocol(
-    dfi_df: DataFrameLike,
-) -> "pyarrow.lib.Table":
-    """
-    Convert a DataFrame Interchange Protocol compatible object
-    to an Arrow Table
-    """
-    import pyarrow as pa
-    import pyarrow.interchange as pi
-
-    # First check if the dataframe object has a method to convert to arrow.
-    # Give this preference over the pyarrow from_dataframe function
-    # since the object
-    # has more control over the conversion, and may have broader compatibility.
-    # This is the case for Polars, which supports Date32 columns in
-    # direct conversion
-    # while pyarrow does not yet support this type in from_dataframe
-    for convert_method_name in ("arrow", "to_arrow", "to_arrow_table"):
-        convert_method = getattr(dfi_df, convert_method_name, None)
-        if callable(convert_method):
-            result = convert_method()
-            if isinstance(result, pa.Table):
-                return result
-
-    return pi.from_dataframe(dfi_df)  # type: ignore[no-any-return]
