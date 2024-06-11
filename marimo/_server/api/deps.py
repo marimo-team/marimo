@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
+from marimo import _loggers as loggers
 from marimo._config.manager import UserConfigManager
 from marimo._server.ids import SessionId
 from marimo._server.model import SessionMode
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.websockets import WebSocket
     from uvicorn import Server
+
+LOGGER = loggers.marimo_logger()
 
 
 class AppStateBase:
@@ -125,6 +128,10 @@ class AppState(AppStateBase):
         session_id = self.require_current_session_id()
         session = self.session_manager.get_session(session_id)
         if session is None:
+            LOGGER.warning(
+                "Valid sessions: %s",
+                list(self.session_manager.sessions.keys()),
+            )
             raise ValueError(f"Invalid session id: {session_id}")
         return session
 
