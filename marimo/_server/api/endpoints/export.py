@@ -36,7 +36,20 @@ async def export_as_html(
     request: Request,
 ) -> HTMLResponse:
     """
-    Export the notebook as HTML.
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsHTMLRequest"
+    responses:
+        200:
+            description: Export the notebook as HTML
+            content:
+                text/html:
+                    schema:
+                        type: string
+        400:
+            description: File must be saved before downloading
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsHTMLRequest)
@@ -74,7 +87,20 @@ async def export_as_script(
     request: Request,
 ) -> PlainTextResponse:
     """
-    Export the notebook as a script.
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsScriptRequest"
+    responses:
+        200:
+            description: Export the notebook as a script
+            content:
+                text/plain:
+                    schema:
+                        type: string
+        400:
+            description: File must be saved before downloading
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsScriptRequest)
@@ -103,7 +129,20 @@ async def export_as_markdown(
     request: Request,
 ) -> PlainTextResponse:
     """
-    Export the notebook as a markdown.
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsMarkdownRequest"
+    responses:
+        200:
+            description: Export the notebook as a markdown
+            content:
+                text/plain:
+                    schema:
+                        type: string
+        400:
+            description: File must be saved before downloading
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsMarkdownRequest)

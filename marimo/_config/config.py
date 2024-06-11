@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 
 if sys.version_info < (3, 11):
     from typing_extensions import NotRequired
@@ -15,6 +16,7 @@ from marimo._utils.deep_merge import deep_merge
 
 
 @mddoc
+@dataclass
 class CompletionConfig(TypedDict):
     """Configuration for code completion.
 
@@ -33,6 +35,7 @@ class CompletionConfig(TypedDict):
 
 
 @mddoc
+@dataclass
 class SaveConfig(TypedDict):
     """Configuration for saving.
 
@@ -49,6 +52,7 @@ class SaveConfig(TypedDict):
 
 
 @mddoc
+@dataclass
 class KeymapConfig(TypedDict, total=False):
     """Configuration for keymaps.
 
@@ -66,6 +70,7 @@ OnCellChangeType = Literal["lazy", "autorun"]
 
 
 @mddoc
+@dataclass
 class RuntimeConfig(TypedDict):
     """Configuration for runtime.
 
@@ -89,11 +94,12 @@ class RuntimeConfig(TypedDict):
 
 
 # TODO(akshayka): remove normal, migrate to compact
-# normal == compact
+# normal ==
 WidthType = Literal["normal", "compact", "medium", "full"]
 
 
 @mddoc
+@dataclass
 class DisplayConfig(TypedDict):
     """Configuration for display.
 
@@ -111,6 +117,7 @@ class DisplayConfig(TypedDict):
 
 
 @mddoc
+@dataclass
 class FormattingConfig(TypedDict):
     """Configuration for code formatting.
 
@@ -122,6 +129,7 @@ class FormattingConfig(TypedDict):
     line_length: int
 
 
+@dataclass
 class ServerConfig(TypedDict):
     """Configuration for the server.
 
@@ -137,6 +145,7 @@ class ServerConfig(TypedDict):
     follow_symlink: bool
 
 
+@dataclass
 class PackageManagementConfig(TypedDict):
     """Configuration options for package management.
 
@@ -148,6 +157,7 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
+@dataclass
 class AiConfig(TypedDict):
     """Configuration options for AI.
 
@@ -159,6 +169,7 @@ class AiConfig(TypedDict):
     open_ai: OpenAiConfig
 
 
+@dataclass
 class OpenAiConfig(TypedDict):
     """Configuration options for OpenAI or OpenAI-compatible services.
 
@@ -175,6 +186,7 @@ class OpenAiConfig(TypedDict):
 
 
 @mddoc
+@dataclass
 class MarimoConfig(TypedDict):
     """Configuration for the marimo editor"""
 

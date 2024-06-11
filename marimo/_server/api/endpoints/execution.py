@@ -38,7 +38,18 @@ async def set_ui_element_values(
     request: Request,
 ) -> BaseResponse:
     """
-    Set UI element values.
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateComponentValuesRequest"
+    responses:
+        200:
+            description: Set UI element values
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateComponentValuesRequest)
@@ -55,7 +66,18 @@ async def instantiate(
     request: Request,
 ) -> BaseResponse:
     """
-    Instantiate the kernel.
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/InstantiateRequest"
+    responses:
+        200:
+            description: Instantiate a component
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=InstantiateRequest)
@@ -69,7 +91,20 @@ async def function_call(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Invoke an RPC"""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/FunctionCallRequest"
+    responses:
+        200:
+            description: Invoke an RPC
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=FunctionCallRequest)
     app_state.require_current_session().put_control_request(body)
@@ -83,7 +118,15 @@ async def interrupt(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Interrupt the kernel's execution."""
+    """
+    responses:
+        200:
+            description: Interrupt the kernel's execution
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     app_state.require_current_session().try_interrupt()
 
@@ -96,13 +139,20 @@ async def run_cell(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Run multiple cells (and their descendants).
-
-    Updates cell code in the kernel if needed; registers new cells
-    for unseen cell IDs.
-
-    Only allowed in edit mode.
     """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/RunRequest"
+    responses:
+        200:
+            description: Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
     app_state = AppState(request)
     body = await parse_request(request, cls=RunRequest)
     app_state.require_current_session().put_control_request(
@@ -119,9 +169,14 @@ async def restart_session(
     request: Request,
 ) -> BaseResponse:
     """
-    Restart a session. This does not restart the
-    kernel or affect other sessions
-    """
+    responses:
+        200:
+            description: Restart the current session without affecting other sessions.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
     app_state = AppState(request)
     # This just closes the session, and the frontend will
     # do a full reload, which will restart the session.
@@ -137,7 +192,15 @@ async def shutdown(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Shutdown the kernel."""
+    """
+    responses:
+        200:
+            description: Shutdown the kernel
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     LOGGER.debug("Received shutdown request")
     app_state = AppState(request)
     session_manager = app_state.session_manager

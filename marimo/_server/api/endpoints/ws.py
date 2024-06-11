@@ -49,6 +49,11 @@ class WebSocketCodes(IntEnum):
 async def websocket_endpoint(
     websocket: WebSocket,
 ) -> None:
+    """
+    responses:
+        200:
+            description: Websocket endpoint
+    """
     app_state = AppState(websocket)
     session_id = app_state.query_params(SESSION_QUERY_PARAM_KEY)
     if session_id is None:

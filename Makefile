@@ -57,6 +57,10 @@ fe-lint:
 fe-typecheck:
 	cd frontend; pnpm turbo typecheck
 
+.PHONY: fe-codegen
+fe-codegen:
+	cd openapi; pnpm install; pnpm codegen
+
 .PHONY: py-check
 # check python
 py-check:

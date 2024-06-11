@@ -23,6 +23,15 @@ _SNIPPETS: list[Snippets] = []
 async def load_snippets(
     request: Request,
 ) -> Snippets:
+    """
+    responses:
+        200:
+            description: Load the snippets for the documentation page
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/Snippets"
+    """
     del request
     if not _SNIPPETS:
         _SNIPPETS.append(await read_snippets())

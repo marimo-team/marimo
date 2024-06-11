@@ -38,8 +38,18 @@ async def read_code(
     *,
     request: Request,
 ) -> ReadCodeResponse:
+    """
+    responses:
+        200:
+            description: Read the code from the server
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ReadCodeResponse"
+        400:
+            description: File must be saved before downloading
+    """
     app_state = AppState(request)
-    """Handler for reading code from the server."""
     session = app_state.require_current_session()
 
     if not session.app_file_manager.path:
@@ -59,7 +69,20 @@ async def rename_file(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Rename the current app."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/RenameFileRequest"
+    responses:
+        200:
+            description: Rename the current app
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     body = await parse_request(request, cls=RenameFileRequest)
     app_state = AppState(request)
     session = app_state.require_current_session()
@@ -82,7 +105,22 @@ async def open_file(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Open a file."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/OpenFileRequest"
+    responses:
+        200:
+            description: Open a file
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File does not exist
+    """
     body = await parse_request(request, cls=OpenFileRequest)
 
     # Validate file exists
@@ -117,7 +155,20 @@ async def save(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Save the current app."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SaveRequest"
+    responses:
+        200:
+            description: Save the current app
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveRequest)
     session = app_state.require_current_session()
@@ -132,7 +183,20 @@ async def save_app_config(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Save the current app."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SaveAppConfigurationRequest"
+    responses:
+        200:
+            description: Save the app configuration
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveAppConfigurationRequest)
     session = app_state.require_current_session()
