@@ -951,17 +951,17 @@ class TestStrictExecution:
                                 ...
                              X = namespace()
                              X.count = 1
-                             X = mo.copy.zero_copy(X)
+                             X = mo._runtime.copy.zero_copy(X)
                              """),
                 exec_req.get(
                     """
-                  mo.copy.unwrap_copy(X).count += 1
+                  mo._runtime.copy.unwrap_copy(X).count += 1
                   V0 = X.count
                   """
                 ),
                 exec_req.get(
                     """
-                  mo.copy.unwrap_copy(X).count += 10
+                  mo._runtime.copy.unwrap_copy(X).count += 10
                   V1 = X.count
                   """
                 ),
