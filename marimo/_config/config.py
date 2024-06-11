@@ -94,7 +94,7 @@ class RuntimeConfig(TypedDict):
 
 
 # TODO(akshayka): remove normal, migrate to compact
-# normal ==
+# normal == compact
 WidthType = Literal["normal", "compact", "medium", "full"]
 
 
