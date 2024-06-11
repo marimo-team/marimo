@@ -119,6 +119,12 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def get_column_names(self) -> list[str]:
                 return self.data.columns
 
+            def sort_values(
+                self, by: str, descending: bool
+            ) -> PolarsTableManager:
+                sorted_data = self.data.sort(by, descending=descending)
+                return PolarsTableManager(sorted_data)
+
             @staticmethod
             def _get_field_type(column: pl.Series) -> FieldType:
                 if column.is_utf8():

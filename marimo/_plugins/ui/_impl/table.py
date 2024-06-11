@@ -61,6 +61,12 @@ class ColumnSummaries:
     summaries: List[ColumnSummary]
 
 
+@dataclass
+class SortValuesArgs:
+    by: str
+    descending: bool
+
+
 @mddoc
 class table(
     UIElement[List[str], Union[List[JSONType], "pd.DataFrame", "pl.DataFrame"]]
@@ -203,9 +209,9 @@ class table(
                 "pagination": pagination,
                 "page-size": page_size,
                 "field-types": field_types if field_types else None,
-                "selection": selection
-                if self._manager.supports_selection()
-                else None,
+                "selection": (
+                    selection if self._manager.supports_selection() else None
+                ),
                 "show-download": self._manager.supports_download(),
                 "show-column-summaries": show_column_summaries,
                 "row-headers": self._manager.get_row_headers(),
@@ -221,6 +227,11 @@ class table(
                     name=self.get_column_summaries.__name__,
                     arg_cls=EmptyArgs,
                     function=self.get_column_summaries,
+                ),
+                Function(
+                    name=self.sort_values.__name__,
+                    arg_cls=SortValuesArgs,
+                    function=self.sort_values,
                 ),
             ),
         )
@@ -273,3 +284,10 @@ class table(
             )
 
         return ColumnSummaries(summaries)
+
+    def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
+        return (
+            self._unfiltered_manager.sort_values(args.by, args.descending)
+            .limit(TableManager.DEFAULT_LIMIT)
+            .to_data()
+        )

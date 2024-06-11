@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 import pytest
@@ -8,6 +9,11 @@ import pytest
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager
 from marimo._plugins.ui._impl.utils.dataframe import TableData
 from marimo._runtime.runtime import Kernel
+
+
+@pytest.fixture
+def dtm():
+    return DefaultTableManager([])
 
 
 def _normalize_data(data: Any) -> list[dict[str, Any]]:
@@ -90,3 +96,109 @@ def test_normalize_data(executing_kernel: Kernel) -> None:
         str(e.value) == "data must be a sequence of JSON-serializable types, "
         "or a sequence of dicts."
     )
+
+
+def test_sort_1d_list_of_strings(dtm):
+    data = ["banana", "apple", "cherry", "date", "elderberry"]
+    dtm.data = _normalize_data(data)
+    sorted_data = dtm.sort_values(by="value", descending=False).data
+    expected_data = [
+        {"value": "apple"},
+        {"value": "banana"},
+        {"value": "cherry"},
+        {"value": "date"},
+        {"value": "elderberry"},
+    ]
+    assert sorted_data == expected_data
+
+
+def test_sort_1d_list_of_integers(dtm):
+    data = [42, 17, 23, 99, 8]
+    dtm.data = _normalize_data(data)
+    sorted_data = dtm.sort_values(by="value", descending=False).data
+    expected_data = [
+        {"value": 8},
+        {"value": 17},
+        {"value": 23},
+        {"value": 42},
+        {"value": 99},
+    ]
+    assert sorted_data == expected_data
+
+
+def test_sort_list_of_dicts(dtm):
+    data = [
+        {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
+        {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
+        {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
+        {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
+        {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
+    ]
+    dtm.data = _normalize_data(data)
+    sorted_data = dtm.sort_values(by="age", descending=True).data
+
+    with pytest.raises(Exception):
+        dtm.sort_values(by="missing_column", descending=True).data
+
+    expected_data = [
+        {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
+        {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
+        {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
+        {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
+        {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
+    ]
+    assert sorted_data == expected_data
+
+
+def test_sort_dict_of_lists(dtm):
+    data = {
+        "company": [
+            "Company A",
+            "Company B",
+            "Company C",
+            "Company D",
+            "Company E",
+        ],
+        "type": ["Tech", "Finance", "Health", "Tech", "Finance"],
+        "net_worth": [1000, 2000, 1500, 1800, 1700],
+    }
+    dtm.data = _normalize_data(data)
+    sorted_data = dtm.sort_values(by="net_worth", descending=False).data
+
+    with pytest.raises(Exception):
+        dtm.sort_values(by="missing_column", descending=True).data
+
+    expected_data = {
+        "company": [
+            "Company A",
+            "Company C",
+            "Company E",
+            "Company D",
+            "Company B",
+        ],
+        "type": ["Tech", "Health", "Finance", "Tech", "Finance"],
+        "net_worth": [1000, 1500, 1700, 1800, 2000],
+    }
+    assert sorted_data == _normalize_data(expected_data)
+
+
+def test_sort_dict_of_tuples(dtm):
+    data = {
+        "key1": (42, 17, 23),
+        "key2": (99, 8, 4),
+        "key3": (34, 65, 12),
+        "key4": (1, 2, 3),
+        "key5": (7, 9, 11),
+    }
+    dtm.data = _normalize_data(data)
+    sorted_data = dtm.sort_values(by="key1", descending=True).data
+
+    with pytest.raises(Exception):
+        dtm.sort_values(by="missing_column", descending=True).data
+
+    expected_data = [
+        {"key1": 42, "key2": 99, "key3": 34, "key4": 1, "key5": 7},
+        {"key1": 23, "key2": 4, "key3": 12, "key4": 3, "key5": 11},
+        {"key1": 17, "key2": 8, "key3": 65, "key4": 2, "key5": 9},
+    ]
+    assert sorted_data == _normalize_data(expected_data)

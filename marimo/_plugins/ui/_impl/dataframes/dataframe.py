@@ -15,6 +15,7 @@ from typing import (
 )
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.dataframes.handlers import TransformsContainer
 from marimo._plugins.ui._impl.dataframes.transforms import Transformations
 from marimo._plugins.ui._impl.tables.pandas_table import (
@@ -50,6 +51,12 @@ class GetColumnValuesArgs:
 class GetColumnValuesResponse:
     values: List[str | int | float]
     too_many_values: bool
+
+
+@dataclass
+class SortValuesArgs:
+    by: str
+    descending: bool
 
 
 class ColumnNotFound(Exception):
@@ -154,6 +161,11 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
                     arg_cls=GetColumnValuesArgs,
                     function=self.get_column_values,
                 ),
+                Function(
+                    name=self.sort_values.__name__,
+                    arg_cls=SortValuesArgs,
+                    function=self.sort_values,
+                ),
             ),
         )
 
@@ -216,3 +228,11 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             sys.stderr.write(error)
             self._error = error
             return self._data
+
+    def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
+        LIMIT = 100
+        return (
+            self._manager.sort_values(args.by, args.descending)
+            .limit(LIMIT)
+            .to_data()
+        )

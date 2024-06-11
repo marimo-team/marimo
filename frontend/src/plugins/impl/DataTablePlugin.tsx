@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { memo, useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { DataTable } from "../../components/data-table/data-table";
 import {
@@ -23,6 +23,7 @@ import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
+import { OnChangeFn, SortingState } from "@tanstack/react-table";
 
 /**
  * Arguments for a data table
@@ -50,6 +51,10 @@ type Functions = {
   get_column_summaries: (opts: {}) => Promise<{
     summaries: ColumnHeaderSummary[];
   }>;
+  sort_values: (req: {
+    by: string | null;
+    descending: boolean;
+  }) => Promise<object[] | string>;
 };
 
 type S = Array<string | number>;
@@ -94,24 +99,16 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         ),
       }),
     ),
+    sort_values: rpc
+      .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
+      .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
   .renderer((props) => {
-    if (typeof props.data.data === "string") {
-      return (
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-        />
-      );
-    }
     return (
-      <DataTableComponent
+      <LoadingDataTableComponent
         {...props.data}
         {...props.functions}
-        data={props.data.data}
+        data={props.data.data as string | (string & unknown[])}
         value={props.value}
         setValue={props.setValue}
       />
@@ -122,23 +119,53 @@ interface DataTableProps extends Data<unknown>, Functions {
   className?: string;
   value: S;
   setValue: (value: S) => void;
+  sorting?: SortingState;
+  setSorting?: OnChangeFn<SortingState>;
 }
 
 export const LoadingDataTableComponent = memo(
-  (props: DataTableProps & { data: string }) => {
+  (props: DataTableProps & { data: string | (string & unknown[]) }) => {
+    const isDirectRender = typeof props.data !== "string";
+
+    const initialData = props.data;
+    const sortValues = props.sort_values;
+    const rowHeaders = props.rowHeaders;
+
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [tableData, setTableData] = useState(initialData);
+
+    useEffect(() => {
+      const getSortedData = async () => {
+        if (sorting.length === 0) {
+          setTableData(initialData);
+          return;
+        }
+
+        const sortedData = await sortValues({
+          by: sorting[0].id,
+          descending: sorting[0].desc,
+        });
+
+        setTableData(sortedData as string | (string & unknown[]));
+      };
+
+      getSortedData();
+    }, [sorting, sortValues, initialData, rowHeaders.length]);
+
     const { data, loading, error } = useAsyncData<unknown[]>(() => {
-      if (!props.data || props.totalRows === 0) {
+      if (!tableData || props.totalRows === 0 || isDirectRender) {
         return Promise.resolve([]);
       }
       return vegaLoadData(
-        props.data,
+        tableData,
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
         { handleBigInt: true },
       );
-    }, [props.data, props.fieldTypes, props.totalRows]);
+    }, [tableData, props.fieldTypes, props.totalRows]);
+
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
-        if (props.totalRows === 0) {
+        if (isDirectRender || props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
         return props.get_column_summaries({});
@@ -169,11 +196,26 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    if (typeof props.data !== "string") {
+      return (
+        <DataTableComponent
+          {...props}
+          data={tableData as unknown[] | (string & unknown[])}
+          value={props.value}
+          setValue={props.setValue}
+          sorting={sorting}
+          setSorting={setSorting}
+        />
+      );
+    }
+
     return (
       <DataTableComponent
         {...props}
         data={data || Arrays.EMPTY}
         columnSummaries={columnSummaries?.summaries}
+        sorting={sorting}
+        setSorting={setSorting}
       />
     );
   },
@@ -194,9 +236,12 @@ const DataTableComponent = ({
   showColumnSummaries,
   fieldTypes,
   download_as: downloadAs,
+  sort_values: sortValues,
   columnSummaries,
   className,
   setValue,
+  sorting,
+  setSorting,
 }: DataTableProps & {
   data: unknown[];
   columnSummaries?: ColumnHeaderSummary[];
@@ -211,6 +256,7 @@ const DataTableComponent = ({
       includeCharts: !resultsAreClipped,
     });
   }, [data, fieldTypes, columnSummaries, resultsAreClipped]);
+
   const columns = useMemo(
     () =>
       generateColumns({
@@ -237,6 +283,8 @@ const DataTableComponent = ({
             data={data}
             columns={columns}
             className={className}
+            sorting={sorting}
+            setSorting={setSorting}
             pagination={pagination}
             pageSize={pageSize}
             rowSelection={rowSelection}

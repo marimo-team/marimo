@@ -5,6 +5,7 @@ import { useState } from "react";
 import { DataFrameComponent } from "@/plugins/impl/data-frames/DataFramePlugin";
 import { Transformations } from "@/plugins/impl/data-frames/schema";
 import { ColumnId } from "@/plugins/impl/data-frames/types";
+import { Functions } from "@/utils/functions";
 
 const meta: Meta = {
   title: "DataFrame",
@@ -38,6 +39,7 @@ export const DataFrame: StoryObj = {
           setValue(v);
         }}
         get_dataframe={() => Promise.reject(new Error("not implemented"))}
+        sort_values={Functions.THROW}
       />
     );
   },

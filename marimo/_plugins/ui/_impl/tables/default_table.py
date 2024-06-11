@@ -141,6 +141,11 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return list(first.keys())
         return ["value"]
 
+    def sort_values(self, by: str, descending: bool) -> DefaultTableManager:
+        normalized = self._normalize_data(self.data)
+        data = sorted(normalized, key=lambda x: x[by], reverse=descending)
+        return DefaultTableManager(data)
+
     @staticmethod
     def is_type(value: Any) -> bool:
         return isinstance(value, (list, tuple, dict))
