@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
 import unittest
+from datetime import date
 from typing import Any, Dict
 
 from marimo._plugins.ui._impl.tables.default_table import DefaultTableManager

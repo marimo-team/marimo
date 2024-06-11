@@ -42,6 +42,10 @@ type PluginFunctions = {
     values: unknown[];
     too_many_values: boolean;
   }>;
+  sort_values: (req: {
+    by: string | null;
+    descending: boolean;
+  }) => Promise<object[] | string>;
 };
 
 // Value is selection, but it is not currently exposed to the user
@@ -74,6 +78,9 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         too_many_values: z.boolean(),
       }),
     ),
+    sort_values: rpc
+      .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
+      .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
   .renderer((props) => (
     <TooltipProvider>
@@ -104,6 +111,7 @@ export const DataFrameComponent = memo(
     setValue,
     get_dataframe,
     get_column_values,
+    sort_values,
   }: DataTableProps): JSX.Element => {
     const { data, error } = useAsyncData(
       () => get_dataframe({}),
@@ -168,7 +176,7 @@ export const DataFrameComponent = memo(
           rowHeaders={row_headers || Arrays.EMPTY}
           showDownload={false}
           download_as={Functions.THROW}
-          sort_values={Functions.THROW}
+          sort_values={sort_values}
           showColumnSummaries={false}
           get_column_summaries={getColumnSummaries}
           value={Arrays.EMPTY}
