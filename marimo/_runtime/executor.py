@@ -345,7 +345,7 @@ def build_ref_predicate(
 
         # This errs on the side of including too much, but that's a better user
         # experience than not having definitions available.
-        return not isinstance(glbls[ref], PRIMITIVES) and (
+        return ref in glbls and not isinstance(glbls[ref], PRIMITIVES) and (
             "_lambda" in data.required_refs
             or any(map(check_ref, data.required_refs | {ref}))
         )
