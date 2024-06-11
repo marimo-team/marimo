@@ -72,6 +72,9 @@ class APIRouter(Router):
 
                 return JSONResponse(content=json.dumps(response))
 
+            # Set docstring of wrapper_func to the docstring of func
+            wrapper_func.__doc__ = func.__doc__
+
             self.add_route(
                 path=self.prefix + path,
                 endpoint=wrapper_func,
@@ -114,6 +117,9 @@ class APIRouter(Router):
                     )
 
                 return response  # type: ignore[no-any-return]
+
+            # Set docstring of wrapper_func to the docstring of func
+            wrapper_func.__doc__ = func.__doc__
 
             self.add_route(
                 path=self.prefix + path,

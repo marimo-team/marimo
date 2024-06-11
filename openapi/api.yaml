@@ -1,0 +1,1355 @@
+components:
+  schemas:
+    AiCompletionRequest:
+      properties:
+        code:
+          type: string
+        include_other_code:
+          type: string
+        prompt:
+          type: string
+      required:
+      - prompt
+      - include_other_code
+      - code
+      type: object
+    AppMetadata:
+      properties:
+        cli_args:
+          additionalProperties:
+            oneOf:
+            - type: string
+            - type: boolean
+            - type: integer
+            - type: number
+            - items:
+                oneOf:
+                - type: string
+                - type: boolean
+                - type: integer
+                - type: number
+              type: array
+          type: object
+        filename:
+          nullable: true
+          type: string
+        query_params:
+          additionalProperties:
+            oneOf:
+            - type: string
+            - items:
+                type: string
+              type: array
+          type: object
+      required:
+      - query_params
+      - cli_args
+      type: object
+    BaseResponse:
+      properties:
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
+    CellConfig:
+      properties:
+        disabled:
+          type: boolean
+        hide_code:
+          type: boolean
+      type: object
+    CompletionRequest:
+      properties:
+        cell_id:
+          type: string
+        document:
+          type: string
+        id:
+          type: string
+      required:
+      - id
+      - document
+      - cell_id
+      type: object
+    CreationRequest:
+      properties:
+        execution_requests:
+          items:
+            $ref: '#/components/schemas/ExecutionRequest'
+          type: array
+        set_ui_element_value_request:
+          properties:
+            ids_and_values:
+              items:
+                prefixItems:
+                - type: string
+                - {}
+                type: array
+              type: array
+            token:
+              type: string
+          required:
+          - ids_and_values
+          type: object
+      required:
+      - execution_requests
+      - set_ui_element_value_request
+      type: object
+    DeleteRequest:
+      properties:
+        cell_id:
+          type: string
+      required:
+      - cell_id
+      type: object
+    ExecuteMultipleRequest:
+      properties:
+        execution_requests:
+          items:
+            $ref: '#/components/schemas/ExecutionRequest'
+          type: array
+      required:
+      - execution_requests
+      type: object
+    ExecuteStaleRequest:
+      properties: {}
+      type: object
+    ExecutionRequest:
+      properties:
+        cell_id:
+          type: string
+        code:
+          type: string
+      required:
+      - cell_id
+      - code
+      type: object
+    ExportAsHTMLRequest:
+      properties:
+        asset_url:
+          nullable: true
+          type: string
+        download:
+          type: boolean
+        files:
+          items:
+            type: string
+          type: array
+        include_code:
+          type: boolean
+      required:
+      - download
+      - files
+      - include_code
+      type: object
+    ExportAsMarkdownRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      type: object
+    ExportAsScriptRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      type: object
+    FileCreateRequest:
+      properties:
+        contents:
+          nullable: true
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        type:
+          type: string
+      required:
+      - path
+      - type
+      - name
+      type: object
+    FileCreateResponse:
+      properties:
+        info:
+          $ref: '#/components/schemas/FileInfo'
+          nullable: true
+        message:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
+    FileDeleteRequest:
+      properties:
+        path:
+          type: string
+      required:
+      - path
+      type: object
+    FileDeleteResponse:
+      properties:
+        message:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
+    FileDetailsRequest:
+      properties:
+        path:
+          type: string
+      required:
+      - path
+      type: object
+    FileDetailsResponse:
+      properties:
+        contents:
+          nullable: true
+          type: string
+        file:
+          $ref: '#/components/schemas/FileInfo'
+        mime_type:
+          nullable: true
+          type: string
+      required:
+      - file
+      type: object
+    FileInfo:
+      properties:
+        children:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        id:
+          type: string
+        is_directory:
+          type: boolean
+        is_marimo_file:
+          type: boolean
+        last_modified_date:
+          nullable: true
+          type: number
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - id
+      - path
+      - name
+      - is_directory
+      - is_marimo_file
+      type: object
+    FileListRequest:
+      properties:
+        path:
+          nullable: true
+          type: string
+      type: object
+    FileListResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/FileInfo'
+          type: array
+        root:
+          type: string
+      required:
+      - files
+      - root
+      type: object
+    FileMoveRequest:
+      properties:
+        new_path:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - new_path
+      type: object
+    FileMoveResponse:
+      properties:
+        info:
+          $ref: '#/components/schemas/FileInfo'
+          nullable: true
+        message:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
+    FileUpdateRequest:
+      properties:
+        contents:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - contents
+      type: object
+    FileUpdateResponse:
+      properties:
+        info:
+          $ref: '#/components/schemas/FileInfo'
+          nullable: true
+        message:
+          nullable: true
+          type: string
+        success:
+          type: boolean
+      required:
+      - success
+      type: object
+    FormatRequest:
+      properties:
+        codes:
+          additionalProperties:
+            type: string
+          type: object
+        line_length:
+          type: integer
+      required:
+      - codes
+      - line_length
+      type: object
+    FormatResponse:
+      properties:
+        codes:
+          additionalProperties:
+            type: string
+          type: object
+      required:
+      - codes
+      type: object
+    FunctionCallRequest:
+      properties:
+        args:
+          additionalProperties: {}
+          type: object
+        function_call_id:
+          type: string
+        function_name:
+          type: string
+        namespace:
+          type: string
+      required:
+      - function_call_id
+      - namespace
+      - function_name
+      - args
+      type: object
+    InstallMissingPackagesRequest:
+      properties:
+        manager:
+          type: string
+      required:
+      - manager
+      type: object
+    InstantiateRequest:
+      properties:
+        object_ids:
+          items:
+            type: string
+          type: array
+        values:
+          items:
+            nullable: true
+            oneOf:
+            - type: string
+            - type: boolean
+            - type: integer
+            - type: number
+          type: array
+      required:
+      - object_ids
+      - values
+      type: object
+    MarimoConfig:
+      properties:
+        ai:
+          properties:
+            open_ai:
+              properties:
+                api_key:
+                  type: string
+                base_url:
+                  type: string
+                model:
+                  type: string
+              required:
+              - api_key
+              - model
+              - base_url
+              type: object
+          required:
+          - open_ai
+          type: object
+        completion:
+          properties:
+            activate_on_typing:
+              type: boolean
+            copilot:
+              type: boolean
+          required:
+          - activate_on_typing
+          - copilot
+          type: object
+        display:
+          properties:
+            cell_output:
+              enum:
+              - above
+              - below
+            code_editor_font_size:
+              type: integer
+            default_width:
+              enum:
+              - normal
+              - compact
+              - medium
+              - full
+            theme:
+              enum:
+              - light
+              - dark
+              - system
+          required:
+          - theme
+          - code_editor_font_size
+          - cell_output
+          - default_width
+          type: object
+        experimental:
+          additionalProperties: {}
+          type: object
+        formatting:
+          properties:
+            line_length:
+              type: integer
+          required:
+          - line_length
+          type: object
+        keymap:
+          properties:
+            overrides:
+              additionalProperties:
+                type: string
+              type: object
+            preset:
+              enum:
+              - default
+              - vim
+          required:
+          - preset
+          - overrides
+          type: object
+        package_management:
+          properties:
+            manager:
+              enum:
+              - pip
+              - rye
+              - uv
+              - poetry
+              - pixi
+          required:
+          - manager
+          type: object
+        runtime:
+          properties:
+            auto_instantiate:
+              type: boolean
+            auto_reload:
+              enum:
+              - 'off'
+              - lazy
+              - autorun
+            on_cell_change:
+              enum:
+              - lazy
+              - autorun
+          required:
+          - auto_instantiate
+          - auto_reload
+          - on_cell_change
+          type: object
+        save:
+          properties:
+            autosave:
+              enum:
+              - 'off'
+              - after_delay
+            autosave_delay:
+              type: integer
+            format_on_save:
+              type: boolean
+          required:
+          - autosave
+          - autosave_delay
+          - format_on_save
+          type: object
+        server:
+          properties:
+            browser:
+              oneOf:
+              - enum:
+                - default
+              - type: string
+            follow_symlink:
+              type: boolean
+          required:
+          - browser
+          - follow_symlink
+          type: object
+      required:
+      - completion
+      - display
+      - formatting
+      - keymap
+      - runtime
+      - save
+      - server
+      - package_management
+      - ai
+      - experimental
+      type: object
+    MarimoFile:
+      properties:
+        initialization_id:
+          nullable: true
+          type: string
+        last_modified:
+          type: number
+        name:
+          type: string
+        path:
+          type: string
+        session_id:
+          nullable: true
+          type: string
+      required:
+      - name
+      - path
+      - last_modified
+      type: object
+    OpenFileRequest:
+      properties:
+        path:
+          type: string
+      required:
+      - path
+      type: object
+    PreviewDatasetColumnRequest:
+      properties:
+        column_name:
+          type: string
+        source:
+          type: string
+        table_name:
+          type: string
+      required:
+      - source
+      - table_name
+      - column_name
+      type: object
+    ReadCodeResponse:
+      properties:
+        contents:
+          type: string
+      required:
+      - contents
+      type: object
+    RecentFilesResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/MarimoFile'
+          type: array
+      required:
+      - files
+      type: object
+    RenameFileRequest:
+      properties:
+        filename:
+          type: string
+      required:
+      - filename
+      type: object
+    RunRequest:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+      required:
+      - cell_ids
+      - codes
+      type: object
+    SaveAppConfigurationRequest:
+      properties:
+        config:
+          additionalProperties: {}
+          type: object
+      required:
+      - config
+      type: object
+    SaveRequest:
+      properties:
+        cell_ids:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        configs:
+          items:
+            $ref: '#/components/schemas/CellConfig'
+          type: array
+        filename:
+          type: string
+        layout:
+          additionalProperties: {}
+          nullable: true
+          type: object
+        names:
+          items:
+            type: string
+          type: array
+      required:
+      - cell_ids
+      - codes
+      - names
+      - configs
+      - filename
+      type: object
+    SaveUserConfigurationRequest:
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+      required:
+      - config
+      type: object
+    SetCellConfigRequest:
+      properties:
+        configs:
+          additionalProperties:
+            additionalProperties:
+              additionalProperties: true
+              type: object
+            type: object
+          type: object
+      required:
+      - configs
+      type: object
+    SetUIElementValueRequest:
+      properties:
+        ids_and_values:
+          items:
+            prefixItems:
+            - type: string
+            - {}
+            type: array
+          type: array
+        token:
+          type: string
+      required:
+      - ids_and_values
+      type: object
+    SetUserConfigRequest:
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+      required:
+      - config
+      type: object
+    ShutdownSessionRequest:
+      properties:
+        session_id:
+          type: string
+      required:
+      - session_id
+      type: object
+    Snippet:
+      properties:
+        sections:
+          items:
+            $ref: '#/components/schemas/SnippetSection'
+          type: array
+        title:
+          type: string
+      required:
+      - title
+      - sections
+      type: object
+    SnippetSection:
+      properties:
+        code:
+          nullable: true
+          type: string
+        html:
+          nullable: true
+          type: string
+        id:
+          type: string
+      required:
+      - id
+      type: object
+    Snippets:
+      properties:
+        snippets:
+          items:
+            $ref: '#/components/schemas/Snippet'
+          type: array
+      required:
+      - snippets
+      type: object
+    StdinRequest:
+      properties:
+        text:
+          type: string
+      required:
+      - text
+      type: object
+    StopRequest:
+      properties: {}
+      type: object
+    SuccessResponse:
+      properties:
+        success:
+          type: boolean
+      type: object
+    UpdateComponentValuesRequest:
+      properties:
+        object_ids:
+          items:
+            type: string
+          type: array
+        values:
+          items:
+            nullable: true
+            oneOf:
+            - type: string
+            - type: boolean
+            - type: integer
+            - type: number
+          type: array
+      required:
+      - object_ids
+      - values
+      type: object
+    WorkspaceFilesRequest:
+      properties:
+        include_markdown:
+          type: boolean
+      type: object
+    WorkspaceFilesResponse:
+      properties:
+        files:
+          items:
+            $ref: '#/components/schemas/MarimoFile'
+          type: array
+      required:
+      - files
+      type: object
+info:
+  title: marimo API
+  version: 0.6.17
+openapi: 3.1.0
+paths:
+  /@file/{filename_and_length}:
+    get:
+      parameters:
+      - description: The filename and byte length of the virtual file
+        in: path
+        name: filename_and_length
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+          description: Get a virtual file
+        404:
+          description: Invalid byte length in virtual file request
+  /api/ai/completion:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiCompletionRequest'
+        description: The prompt to get AI completion for
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+          description: Get AI completion for a prompt
+  /api/datasources/preview_column:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewDatasetColumnRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Preview a column in a dataset
+  /api/documentation/snippets:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snippets'
+          description: Load the snippets for the documentation page
+  /api/export/html:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsHTMLRequest'
+      responses:
+        200:
+          content:
+            text/html:
+              schema:
+                type: string
+          description: Export the notebook as HTML
+        400:
+          description: File must be saved before downloading
+  /api/export/markdown:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Export the notebook as a markdown
+        400:
+          description: File must be saved before downloading
+  /api/export/script:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsScriptRequest'
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Export the notebook as a script
+        400:
+          description: File must be saved before downloading
+  /api/files/create:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileCreateRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileCreateResponse'
+          description: Create a new file or directory
+  /api/files/delete:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileDeleteRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDeleteResponse'
+          description: Delete a file or directory
+  /api/files/file_details:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileDetailsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDetailsResponse'
+          description: Get details of a specific file or directory
+  /api/files/list_files:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileListRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListResponse'
+          description: List files and directories in a given path
+  /api/files/move:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileMoveRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMoveResponse'
+          description: Move a file or directory
+  /api/files/update:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUpdateRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUpdateResponse'
+          description: Update a file or directory
+  /api/home/recent_files:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecentFilesResponse'
+          description: Get the recent files
+  /api/home/running_notebooks:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceFilesResponse'
+          description: Get the running files
+  /api/home/shutdown_session:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShutdownSessionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceFilesResponse'
+          description: Shutdown the current session
+  /api/home/workspace_files:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceFilesRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceFilesResponse'
+          description: Get the files in the workspace
+  /api/kernel/code_autocomplete:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Complete a code fragment
+  /api/kernel/delete:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Delete a cell
+  /api/kernel/format:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormatRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormatResponse'
+          description: Format code
+  /api/kernel/function_call:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionCallRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Invoke an RPC
+  /api/kernel/install_missing_packages:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallMissingPackagesRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Install missing packages
+  /api/kernel/instantiate:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstantiateRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Instantiate a component
+  /api/kernel/interrupt:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Interrupt the kernel's execution
+  /api/kernel/open:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenFileRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Open a file
+        400:
+          description: File does not exist
+  /api/kernel/read_code:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadCodeResponse'
+          description: Read the code from the server
+        400:
+          description: File must be saved before downloading
+  /api/kernel/rename:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameFileRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Rename the current app
+  /api/kernel/restart_session:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Restart the current session without affecting other sessions.
+  /api/kernel/run:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Run a cell. Updates cell code in the kernel if needed; registers
+            new cells for unseen cell IDs. Only allowed in edit mode.
+  /api/kernel/save:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Save the current app
+  /api/kernel/save_app_config:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveAppConfigurationRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Save the app configuration
+  /api/kernel/save_user_config:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Update the user config on disk and in the kernel. Only allowed
+            in edit mode.
+  /api/kernel/set_cell_config:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetCellConfigRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set the configuration of a cell
+  /api/kernel/set_ui_element_value:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateComponentValuesRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set UI element values
+  /api/kernel/shutdown:
+    post:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Shutdown the kernel
+  /api/kernel/stdin:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StdinRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Send input to the stdin stream
+  /api/status:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  filenames:
+                    items:
+                      type: string
+                    type: array
+                  lsp_running:
+                    type: boolean
+                  mode:
+                    type: string
+                  node_version:
+                    type: string
+                  requirements:
+                    items:
+                      type: string
+                    type: array
+                  sessions:
+                    type: integer
+                  status:
+                    type: string
+                  version:
+                    type: string
+                type: object
+          description: Get the status of the application
+  /api/usage:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  cpu:
+                    properties:
+                      percent:
+                        type: number
+                    type: object
+                  memory:
+                    properties:
+                      available:
+                        type: integer
+                      free:
+                        type: integer
+                      percent:
+                        type: number
+                      total:
+                        type: integer
+                      used:
+                        type: integer
+                    type: object
+                type: object
+          description: Get the current memory and CPU usage of the application
+  /api/version:
+    get:
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Get the version of the application
+  /auth/login:
+    post:
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              properties:
+                password:
+                  description: Access token or password
+                  type: string
+              type: object
+      responses:
+        200:
+          content:
+            text/html:
+              schema:
+                type: string
+          description: Login page
+        302:
+          description: Redirect to the next URL
+          headers:
+            Location:
+              schema:
+                type: string
+      summary: Submit login form
+      tags:
+      - auth
+

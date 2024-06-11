@@ -5,7 +5,6 @@ import time
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Iterable,
     Optional,
     TypeVar,
@@ -17,7 +16,6 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._utils.debounce import debounce
-from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -52,14 +50,6 @@ class _Progress(Html):
         self.show_eta = show_eta
         self.start_time = time.time()
         super().__init__(self._get_text())
-
-    def __del__(
-        self, _python_exiting: Callable[..., bool] = python_exiting
-    ) -> None:
-        if _python_exiting():
-            return
-
-        super().__del__()
 
     def update_progress(
         self,

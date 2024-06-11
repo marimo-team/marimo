@@ -14,6 +14,7 @@ from marimo import __version__, _loggers
 from marimo._ast import codegen
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
+from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
@@ -603,3 +604,4 @@ def env() -> None:
 main.command()(convert)
 main.add_command(export)
 main.add_command(config)
+main.add_command(development)

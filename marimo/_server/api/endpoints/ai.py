@@ -99,6 +99,23 @@ async def ai_completion(
     *,
     request: Request,
 ) -> StreamingResponse:
+    """
+    requestBody:
+        description: The prompt to get AI completion for
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/AiCompletionRequest"
+    responses:
+        200:
+            description: Get AI completion for a prompt
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        additionalProperties: true
+    """
     app_state = AppState(request)
     app_state.require_current_session()
     config = app_state.config_manager.get_config(hide_secrets=False)

@@ -1,18 +1,35 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Literal, final
+import weakref
+from typing import TYPE_CHECKING, Any, Literal, final
 
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import flatten_string
-from marimo._utils.exiting import python_exiting
 
 if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._plugins.ui._impl.batch import batch as batch_plugin
+
+
+def _hypertext_cleanup(virtual_filenames: list[str]) -> None:
+    """Cleanup side-effects related to initialization of Html."""
+    from marimo._runtime.context import (
+        ContextNotInitializedError,
+        get_context,
+    )
+
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
+    if ctx is not None and ctx.virtual_files_supported:
+        for f in virtual_filenames:
+            ctx.virtual_file_registry.dereference(f)
 
 
 @mddoc
@@ -75,9 +92,9 @@ class Html(MIME):
         # Virtual File Refcounting
         #
         # HTML elements are responsible for maintaining the reference counts
-        # of virtual files: virtual files cannot be disposed when HTML elements
-        # reference them. For example, a user might cache HTML referencing a
-        # virtual file if they create it using functools.cache.
+        # of virtual files: virtual files cannot be disposed while HTML
+        # elements reference them. For example, a user might cache HTML
+        # referencing a virtual file if they create it using functools.cache.
         #
         # flatten the text to make sure searching isn't broken by newlines
         flat_text = flatten_string(self._text)
@@ -86,34 +103,11 @@ class Html(MIME):
                 ctx.virtual_file_registry.reference(virtual_filename)
                 self._virtual_filenames.append(virtual_filename)
 
-    # bind the function python_exiting to ensure it still exists at Python
-    # destruction time; for graceful exits when running as a script
-    def __del__(
-        self, _python_exiting: Callable[..., bool] = python_exiting
-    ) -> None:
-        """Cleanup side-effects related to initialization.
-
-        Subclasses MUST implement a __del__ method that ends by calling
-        this method.
-        """
-        if _python_exiting():
-            # imports can fail when python is exiting; clean-up
-            # is not important when exiting anyway
-            return
-
-        from marimo._runtime.context import (
-            ContextNotInitializedError,
-            get_context,
+        # Dereference virtual files on object destruction
+        finalizer = weakref.finalize(
+            self, _hypertext_cleanup, self._virtual_filenames
         )
-
-        try:
-            ctx = get_context()
-        except ContextNotInitializedError:
-            return
-
-        if ctx is not None and ctx.virtual_files_supported:
-            for f in self._virtual_filenames:
-                ctx.virtual_file_registry.dereference(f)
+        finalizer.atexit = False
 
     @property
     def text(self) -> str:

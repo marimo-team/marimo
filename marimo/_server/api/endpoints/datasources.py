@@ -26,6 +26,20 @@ router = APIRouter()
 async def preview_column(
     request: Request,
 ) -> BaseResponse:
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PreviewDatasetColumnRequest"
+    responses:
+        200:
+            description: Preview a column in a dataset
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
     app_state = AppState(request)
     body = await parse_request(request, PreviewDatasetColumnRequest)
     app_state.require_current_session().put_control_request(body)

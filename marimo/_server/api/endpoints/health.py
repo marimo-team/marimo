@@ -33,6 +33,36 @@ router.add_route("/healthz", health_check, methods=["GET"])
 @router.get("/api/status")
 @requires("edit")
 async def status(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: Get the status of the application
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            status:
+                                type: string
+                            filenames:
+                                type: array
+                                items:
+                                    type: string
+                            mode:
+                                type: string
+                            sessions:
+                                type: integer
+                            version:
+                                type: string
+                            requirements:
+                                type: array
+                                items:
+                                    type: string
+                            node_version:
+                                type: string
+                            lsp_running:
+                                type: boolean
+    """
     app_state = AppState(request)
     files = [
         session.app_file_manager.filename or "__new__"
@@ -54,6 +84,15 @@ async def status(request: Request) -> JSONResponse:
 
 @router.get("/api/version")
 async def version(request: Request) -> PlainTextResponse:
+    """
+    responses:
+        200:
+            description: Get the version of the application
+            content:
+                text/plain:
+                    schema:
+                        type: string
+    """
     del request  # Unused
     return PlainTextResponse(__version__)
 
@@ -61,6 +100,34 @@ async def version(request: Request) -> PlainTextResponse:
 @router.get("/api/usage")
 @requires("edit")
 async def usage(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: Get the current memory and CPU usage of the application
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            memory:
+                                type: object
+                                properties:
+                                    total:
+                                        type: integer
+                                    available:
+                                        type: integer
+                                    percent:
+                                        type: number
+                                    used:
+                                        type: integer
+                                    free:
+                                        type: integer
+                            cpu:
+                                type: object
+                                properties:
+                                    percent:
+                                        type: number
+    """  # noqa: E501
     del request
     import psutil
 
