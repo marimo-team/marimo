@@ -149,7 +149,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
             data = {}
 
             sort_column = list(enumerate(self.data[by]))
-            sort_index = sorted(sort_column, key=lambda x: x[1], reverse=descending)
+            sort_index = sorted(
+                sort_column, key=lambda x: x[1], reverse=descending
+            )
 
             for key, _ in self.data.items():
                 data[key] = [self.data[key][i] for i, _ in sort_index]

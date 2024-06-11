@@ -225,4 +225,13 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_column_names(self) -> list[str]:
                 return self.data.columns.tolist()
 
+            def sort_values(
+                self, by: str | None, descending: bool
+            ) -> PandasTableManager:
+                if not by:
+                    return PandasTableManager(self.data)
+                ascending = not descending
+                sorted_data = self.data.sort_values(by, ascending=ascending)
+                return PandasTableManager(sorted_data)
+
         return PandasTableManager

@@ -154,6 +154,15 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def get_column_names(self) -> list[str]:
                 return self.data.schema.names
 
+            def sort_values(
+                self, by: str | None, descending: bool
+            ) -> PyArrowTableManager:
+                if not by:
+                    return PyArrowTableManager(self.data)
+                ascending = not descending
+                sorted_data = self.data.sort_values(by, ascending=ascending)
+                return PyArrowTableManager(sorted_data)
+
             @staticmethod
             def _get_field_type(column: pa.Array[Any, Any]) -> FieldType:
                 if isinstance(column, pa.NullArray):

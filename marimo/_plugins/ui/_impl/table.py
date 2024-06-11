@@ -285,5 +285,9 @@ class table(
 
         return ColumnSummaries(summaries)
 
-    def sort_values(self, args: SortValuesArgs) -> List[JSONType]:
-        return self._manager.sort_values(args.by, args.descending).to_data()
+    def sort_values(self, args: SortValuesArgs) -> JSONType:
+        return (
+            self._unfiltered_manager.sort_values(args.by, args.descending)
+            .limit(TableManager.DEFAULT_LIMIT)
+            .to_data()
+        )
