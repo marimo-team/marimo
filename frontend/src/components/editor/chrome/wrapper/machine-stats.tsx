@@ -39,7 +39,12 @@ export const MachineStats: React.FC = (props) => {
 
   return (
     <div className="flex gap-3">
-      {data && <MemoryUsageBar memory={data.memory} />}
+      {data && (
+        <MemoryUsageBar
+          memory={data.memory}
+          processMemory={data.processMemory}
+        />
+      )}
       {data && <CPUBar cpu={data.cpu} />}
       <BackendConnection connection={connection.state} />
     </div>
@@ -67,18 +72,26 @@ const BackendConnection: React.FC<{ connection: WebSocketState }> = ({
   );
 };
 
-const MemoryUsageBar: React.FC<{ memory: UsageResponse["memory"] }> = ({
-  memory,
-}) => {
+const MemoryUsageBar: React.FC<{
+  memory: UsageResponse["memory"];
+  processMemory: UsageResponse["processMemory"];
+}> = ({ memory, processMemory }) => {
   const { percent, total, used } = memory;
   const roundedPercent = Math.round(percent);
   return (
     <Tooltip
       delayDuration={200}
       content={
-        <span>
-          <b>Memory:</b> {asGB(used)} / {asGB(total)} GB ({roundedPercent}%)
-        </span>
+        <div className="flex flex-col gap-1">
+          <span>
+            <b>Memory:</b> {asGB(used)} / {asGB(total)} GB ({roundedPercent}%)
+          </span>
+          {Object.entries(processMemory).map(([name, mem]) => (
+            <span key={name}>
+              <b>{name}:</b> {asGB(mem)} GB
+            </span>
+          ))}
+        </div>
       }
     >
       <div className="flex items-center gap-1">

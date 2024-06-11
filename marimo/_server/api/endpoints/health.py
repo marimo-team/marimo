@@ -145,6 +145,8 @@ async def usage(request: Request) -> JSONResponse:
 
     memory = psutil.virtual_memory()
     cpu = psutil.cpu_percent(interval=1)
+    # Process memory
+    process = psutil.Process()
 
     return JSONResponse(
         {
@@ -154,6 +156,10 @@ async def usage(request: Request) -> JSONResponse:
                 "percent": memory.percent,
                 "used": memory.used,
                 "free": memory.free,
+            },
+            "processMemory": {
+                "rss": process.memory_info().rss,
+                "vms": process.memory_info().vms,
             },
             "cpu": {
                 "percent": cpu,
