@@ -23,7 +23,7 @@ import { Logger } from "@/utils/Logger";
 import { LoadingTable } from "@/components/data-table/loading-table";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
-import { SortingState } from "@tanstack/react-table";
+import { OnChangeFn, SortingState } from "@tanstack/react-table";
 
 /**
  * Arguments for a data table
@@ -54,7 +54,7 @@ type Functions = {
   sort_values: (req: {
     by: string | null;
     descending: boolean;
-  }) => Promise<unknown[]>;
+  }) => Promise<any>;
 };
 
 type S = Array<string | number>;
@@ -75,10 +75,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
       fieldTypes: z
         .record(
-          z.enum(["boolean", "integer", "number", "date", "string", "unknown"]),
+          z.enum(["boolean", "integer", "number", "date", "string", "unknown"])
         )
         .nullish(),
-    }),
+    })
   )
   .withFunctions<Functions>({
     download_as: rpc
@@ -95,16 +95,17 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             nulls: z.number().nullish(),
             true: z.number().nullish(),
             false: z.number().nullish(),
-          }),
+          })
         ),
-      }),
+      })
     ),
     sort_values: rpc
       .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
-      .output(z.array(z.unknown())),
+      .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
   .renderer((props) => {
     if (typeof props.data.data === "string") {
+      const [sorting, setSorting] = useState<SortingState>([]);
       return (
         <LoadingDataTableComponent
           {...props.data}
@@ -112,6 +113,8 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
           data={props.data.data}
           value={props.value}
           setValue={props.setValue}
+          sorting={sorting}
+          setSorting={setSorting}
         />
       );
     }
@@ -130,20 +133,42 @@ interface DataTableProps extends Data<unknown>, Functions {
   className?: string;
   value: S;
   setValue: (value: S) => void;
+  sorting?: SortingState;
+  setSorting?: OnChangeFn<SortingState>;
 }
 
 export const LoadingDataTableComponent = memo(
   (props: DataTableProps & { data: string }) => {
+    const [tableData, setTableData] = useState(props.data);
+
+    useEffect(() => {
+      const getSortedData = async () => {
+        if (!props.sorting || props.sorting.length === 0) {
+          setTableData(props.data);
+          return;
+        }
+
+        const sortedData = await props.sort_values({
+          by: props.sorting[0].id,
+          descending: props.sorting[0].desc,
+        });
+
+        setTableData(sortedData);
+      };
+
+      getSortedData();
+    }, [props.sorting, props.sort_values]);
+
     const { data, loading, error } = useAsyncData<unknown[]>(() => {
-      if (!props.data || props.totalRows === 0) {
+      if (!tableData || props.totalRows === 0) {
         return Promise.resolve([]);
       }
       return vegaLoadData(
-        props.data,
+        tableData,
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
-        { handleBigInt: true },
+        { handleBigInt: true }
       );
-    }, [props.data, props.fieldTypes, props.totalRows]);
+    }, [tableData, props.fieldTypes, props.totalRows]);
 
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
@@ -183,9 +208,11 @@ export const LoadingDataTableComponent = memo(
         {...props}
         data={data || Arrays.EMPTY}
         columnSummaries={columnSummaries?.summaries}
+        sorting={props.sorting}
+        setSorting={props.setSorting}
       />
     );
-  },
+  }
 );
 LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 
@@ -207,6 +234,8 @@ const DataTableComponent = ({
   columnSummaries,
   className,
   setValue,
+  sorting,
+  setSorting,
 }: DataTableProps & {
   data: unknown[];
   columnSummaries?: ColumnHeaderSummary[];
@@ -230,35 +259,34 @@ const DataTableComponent = ({
         selection,
         showColumnSummaries: showColumnSummaries,
       }),
-    [data, selection, rowHeaders, showColumnSummaries],
+    [data, selection, rowHeaders, showColumnSummaries]
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
 
-  const [tableData, setTableData] = useState(data);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // const [tableData, setTableData] = useState(data);
 
-  useEffect(() => {
-    setSorting([]);
-  }, [data]);
+  // useEffect(() => {
+  //   setSorting([]);
+  // }, [data]);
 
-  useEffect(() => {
-    if (sorting.length === 0) {
-      setTableData(data);
-      return;
-    }
+  // useEffect(() => {
+  //   if (sorting.length === 0) {
+  //     setTableData(data);
+  //     return;
+  //   }
 
-    const fetchSortedData = async () => {
-      const sortKey = columns.length > 2 ? sorting[0].id : null;
-      const sortedData = await sortValues({
-        by: sortKey,
-        descending: sorting[0].desc,
-      });
-      setTableData(sortedData);
-    };
+  //   const fetchSortedData = async () => {
+  //     const sortKey = columns.length > 2 ? sorting[0].id : null;
+  //     const sortedData = await sortValues({
+  //       by: sortKey,
+  //       descending: sorting[0].desc,
+  //     });
+  //     setTableData(sortedData);
+  //   };
 
-    fetchSortedData();
-  }, [sorting, sortValues]);
+  //   fetchSortedData();
+  // }, [sorting, sortValues]);
 
   return (
     <>
@@ -270,7 +298,7 @@ const DataTableComponent = ({
       <ColumnChartContext.Provider value={chartSpecModel}>
         <Labeled label={label} align="top" fullWidth={true}>
           <DataTable
-            data={tableData}
+            data={data}
             columns={columns}
             className={className}
             sorting={sorting}
