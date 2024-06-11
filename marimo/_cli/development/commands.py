@@ -112,7 +112,9 @@ def _generate_schema() -> dict[str, Any]:
     return schemas.get_schema(routes=build_routes())
 
 
-@click.group(help="""Various commands for the marimo development.""")
+@click.group(
+    help="""Various commands for the marimo development.""", hidden=True
+)
 def development() -> None:
     pass
 
