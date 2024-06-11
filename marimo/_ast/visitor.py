@@ -31,6 +31,14 @@ class VariableData:
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
+    #
+    # NB: This is populated by `ScopedVisitor.ref_stack`. Ref stack holds the
+    # references required for the current context, it's more general than a
+    # "block", since it covers all variable level interactions.
+    # e.g.
+    # >> x = foo + bar
+    # x has the required refs foo and bar, and ref_stack holds that context
+    # while traversing the tree.
     required_refs: set[Name] = field(default_factory=set)
 
     # For kind == import
@@ -68,7 +76,7 @@ class ObscuredScope:
 
 @dataclass
 class RefData:
-    """Metadata about variables referenced but not defined by a cell"""
+    """Metadata about variables referenced but not defined by a cell."""
 
     # Whether the ref was deleted
     deleted: bool
@@ -79,6 +87,7 @@ class RefData:
 class ScopedVisitor(ast.NodeVisitor):
     def __init__(self, mangle_prefix: Optional[str] = None) -> None:
         self.block_stack: list[Block] = [Block()]
+        # Names to be loaded into a variable required_refs
         self.ref_stack: list[set[Name]] = [set()]
         self.obscured_scope_stack: list[ObscuredScope] = []
         # Mapping from referenced names to their metadata
@@ -288,9 +297,20 @@ class ScopedVisitor(ast.NodeVisitor):
             super().generic_visit(node)
 
     def _visit_and_get_refs(self, node: ast.AST) -> set[Name]:
+        """Create a ref scope for the variable to be declared (e.g. function,
+        class), visit the children the node, propagate the refs to the higher
+        scope and then return the refs."""
         self.ref_stack.append(set())
         self.generic_visit(node)
         refs = self.ref_stack.pop()
+        # The scope a level up from the one just investigated also is dependent
+        # on these refs. Consider the case:
+        # >> def foo():
+        # >>   def bar(): <- current scope
+        # >>     print(x)
+        #
+        # the variable `foo` needs to be aware that it may require the ref `x`
+        # during execution.
         self.ref_stack[-1].update(refs)
         return refs
 
