@@ -21,6 +21,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 from marimo import _loggers as loggers
@@ -44,7 +45,10 @@ LOGGER = loggers.marimo_logger()
 
 
 def serialize(datacls: Any) -> dict[str, JSONType]:
-    return json.loads(json.dumps(datacls, cls=WebComponentEncoder))
+    return cast(
+        dict[str, JSONType],
+        json.loads(json.dumps(datacls, cls=WebComponentEncoder)),
+    )
 
 
 @dataclass
