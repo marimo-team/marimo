@@ -40,9 +40,7 @@ class TableManager(abc.ABC, Generic[T]):
     def supports_altair(self) -> bool:
         return True
 
-    def sort_values(
-        self, by: Optional[str], descending: bool
-    ) -> TableManager[T]:
+    def sort_values(self, by: str, descending: bool) -> TableManager[T]:
         raise NotImplementedError
 
     @abc.abstractmethod

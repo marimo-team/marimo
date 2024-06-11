@@ -141,12 +141,8 @@ export const LoadingDataTableComponent = memo(
           return;
         }
 
-        const sortKey = sorting[0].id;
-        const isList = sortKey === "value" && rowHeaders.length === 0;
-        const by = isList ? null : sortKey;
-
         const sortedData = await sortValues({
-          by: by,
+          by: sorting[0].id,
           descending: sorting[0].desc,
         });
 

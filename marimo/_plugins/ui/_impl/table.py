@@ -63,7 +63,7 @@ class ColumnSummaries:
 
 @dataclass
 class SortValuesArgs:
-    by: Optional[str]
+    by: str
     descending: bool
 
 
@@ -286,10 +286,6 @@ class table(
         return ColumnSummaries(summaries)
 
     def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
-        if not args.by and self._unfiltered_manager.type != "dictionary":
-            return self._manager.limit(
-                TableManager.DEFAULT_LIMIT
-            ).to_data()
         return (
             self._unfiltered_manager.sort_values(args.by, args.descending)
             .limit(TableManager.DEFAULT_LIMIT)

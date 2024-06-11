@@ -5,7 +5,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Optional,
     Sequence,
     Union,
     cast,
@@ -142,27 +141,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return list(first.keys())
         return ["value"]
 
-    def sort_values(
-        self, by: Optional[str], descending: bool
-    ) -> DefaultTableManager:
-        if isinstance(self.data, dict):
-            data = {}
-
-            sort_column = list(enumerate(self.data[by]))
-            sort_index = sorted(
-                sort_column, key=lambda x: x[1], reverse=descending
-            )
-
-            for key, _ in self.data.items():
-                data[key] = [self.data[key][i] for i, _ in sort_index]
-
-            return DefaultTableManager(data)
-
-        if by is not None:
-            data = sorted(self.data, key=lambda x: x[by], reverse=descending)
-        else:
-            data = sorted(self.data, reverse=descending)
-
+    def sort_values(self, by: str, descending: bool) -> DefaultTableManager:
+        normalized = self._normalize_data(self.data)
+        data = sorted(normalized, key=lambda x: x[by], reverse=descending)
         return DefaultTableManager(data)
 
     @staticmethod
