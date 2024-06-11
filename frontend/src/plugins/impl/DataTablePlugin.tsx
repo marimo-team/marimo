@@ -54,7 +54,7 @@ type Functions = {
   sort_values: (req: {
     by: string | null;
     descending: boolean;
-  }) => Promise<any>;
+  }) => Promise<object[] | string>;
 };
 
 type S = Array<string | number>;
@@ -75,10 +75,10 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       rowHeaders: z.array(z.tuple([z.string(), z.array(z.any())])),
       fieldTypes: z
         .record(
-          z.enum(["boolean", "integer", "number", "date", "string", "unknown"])
+          z.enum(["boolean", "integer", "number", "date", "string", "unknown"]),
         )
         .nullish(),
-    })
+    }),
   )
   .withFunctions<Functions>({
     download_as: rpc
@@ -95,34 +95,20 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             nulls: z.number().nullish(),
             true: z.number().nullish(),
             false: z.number().nullish(),
-          })
+          }),
         ),
-      })
+      }),
     ),
     sort_values: rpc
       .input(z.object({ by: z.string().nullable(), descending: z.boolean() }))
       .output(z.union([z.string(), z.array(z.object({}).passthrough())])),
   })
   .renderer((props) => {
-    if (typeof props.data.data === "string") {
-      const [sorting, setSorting] = useState<SortingState>([]);
-      return (
-        <LoadingDataTableComponent
-          {...props.data}
-          {...props.functions}
-          data={props.data.data}
-          value={props.value}
-          setValue={props.setValue}
-          sorting={sorting}
-          setSorting={setSorting}
-        />
-      );
-    }
     return (
-      <DataTableComponent
+      <LoadingDataTableComponent
         {...props.data}
         {...props.functions}
-        data={props.data.data}
+        data={props.data.data as string | (string & unknown[])}
         value={props.value}
         setValue={props.setValue}
       />
@@ -138,41 +124,52 @@ interface DataTableProps extends Data<unknown>, Functions {
 }
 
 export const LoadingDataTableComponent = memo(
-  (props: DataTableProps & { data: string }) => {
-    const [tableData, setTableData] = useState(props.data);
+  (props: DataTableProps & { data: string | (string & unknown[]) }) => {
+    const isDirectRender = typeof props.data !== "string";
+
+    const initialData = props.data;
+    const sortValues = props.sort_values;
+    const rowHeaders = props.rowHeaders;
+
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [tableData, setTableData] = useState(initialData);
 
     useEffect(() => {
       const getSortedData = async () => {
-        if (!props.sorting || props.sorting.length === 0) {
-          setTableData(props.data);
+        if (sorting.length === 0) {
+          setTableData(initialData);
           return;
         }
 
-        const sortedData = await props.sort_values({
-          by: props.sorting[0].id,
-          descending: props.sorting[0].desc,
+        const sortKey = sorting[0].id;
+        const isList = sortKey === "value" && rowHeaders.length === 0;
+        const by = isList ? null : sortKey;
+
+        const sortedData = await sortValues({
+          by: by,
+          descending: sorting[0].desc,
         });
 
-        setTableData(sortedData);
+        setTableData(sortedData as string | (string & unknown[]));
       };
 
       getSortedData();
-    }, [props.sorting, props.sort_values]);
+    }, [sorting, sortValues, initialData, rowHeaders.length]);
 
     const { data, loading, error } = useAsyncData<unknown[]>(() => {
-      if (!tableData || props.totalRows === 0) {
+      if (!tableData || props.totalRows === 0 || isDirectRender) {
         return Promise.resolve([]);
       }
       return vegaLoadData(
         tableData,
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
-        { handleBigInt: true }
+        { handleBigInt: true },
       );
     }, [tableData, props.fieldTypes, props.totalRows]);
 
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
-        if (props.totalRows === 0) {
+        if (isDirectRender || props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
         return props.get_column_summaries({});
@@ -203,16 +200,29 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    if (typeof props.data !== "string") {
+      return (
+        <DataTableComponent
+          {...props}
+          data={tableData as unknown[] | (string & unknown[])}
+          value={props.value}
+          setValue={props.setValue}
+          sorting={sorting}
+          setSorting={setSorting}
+        />
+      );
+    }
+
     return (
       <DataTableComponent
         {...props}
         data={data || Arrays.EMPTY}
         columnSummaries={columnSummaries?.summaries}
-        sorting={props.sorting}
-        setSorting={props.setSorting}
+        sorting={sorting}
+        setSorting={setSorting}
       />
     );
-  }
+  },
 );
 LoadingDataTableComponent.displayName = "LoadingDataTableComponent";
 
@@ -259,34 +269,10 @@ const DataTableComponent = ({
         selection,
         showColumnSummaries: showColumnSummaries,
       }),
-    [data, selection, rowHeaders, showColumnSummaries]
+    [data, selection, rowHeaders, showColumnSummaries],
   );
 
   const rowSelection = Object.fromEntries((value || []).map((v) => [v, true]));
-
-  // const [tableData, setTableData] = useState(data);
-
-  // useEffect(() => {
-  //   setSorting([]);
-  // }, [data]);
-
-  // useEffect(() => {
-  //   if (sorting.length === 0) {
-  //     setTableData(data);
-  //     return;
-  //   }
-
-  //   const fetchSortedData = async () => {
-  //     const sortKey = columns.length > 2 ? sorting[0].id : null;
-  //     const sortedData = await sortValues({
-  //       by: sortKey,
-  //       descending: sorting[0].desc,
-  //     });
-  //     setTableData(sortedData);
-  //   };
-
-  //   fetchSortedData();
-  // }, [sorting, sortValues]);
 
   return (
     <>
