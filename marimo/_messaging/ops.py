@@ -6,9 +6,10 @@ Messages that the kernel sends to the frontend.
 
 from __future__ import annotations
 
+import json
 import sys
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from types import ModuleType
 from typing import (
     Any,
@@ -20,7 +21,6 @@ from typing import (
     Sequence,
     Tuple,
     Union,
-    cast,
 )
 
 from marimo import _loggers as loggers
@@ -34,6 +34,7 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.streams import OUTPUT_MAX_BYTES
 from marimo._messaging.types import Stream
 from marimo._output.hypertext import Html
+from marimo._plugins.core.json_encoder import WebComponentEncoder
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
@@ -43,7 +44,7 @@ LOGGER = loggers.marimo_logger()
 
 
 def serialize(datacls: Any) -> dict[str, JSONType]:
-    return cast(Dict[str, JSONType], asdict(datacls))
+    return json.loads(json.dumps(datacls, cls=WebComponentEncoder))
 
 
 @dataclass
@@ -63,8 +64,18 @@ class Op:
             else:
                 stream = ctx.stream
 
-        LOGGER.debug("Broadcasting op: %s", self)
-        stream.write(op=self.name, data=serialize(self))
+        try:
+            stream.write(op=self.name, data=self.serialize())
+        except Exception as e:
+            LOGGER.exception(
+                "Error serializing op %s: %s",
+                self.__class__.__name__,
+                e,
+            )
+            return
+
+    def serialize(self) -> dict[str, Any]:
+        return serialize(self)
 
 
 @dataclass
@@ -254,6 +265,27 @@ class FunctionCallResult(Op):
     function_call_id: str
     return_value: JSONType
     status: HumanReadableStatus
+
+    def serialize(self) -> dict[str, Any]:
+        try:
+            return super().serialize()
+        except Exception as e:
+            LOGGER.exception(
+                "Error serializing function call result %s: %s",
+                self.__class__.__name__,
+                e,
+            )
+            return serialize(
+                FunctionCallResult(
+                    function_call_id=self.function_call_id,
+                    return_value=None,
+                    status=HumanReadableStatus(
+                        code="error",
+                        title="Error calling function",
+                        message="Failed to serialize function call result",
+                    ),
+                )
+            )
 
 
 @dataclass
