@@ -36,7 +36,15 @@ async def read_code(
     *,
     request: Request,
 ) -> RecentFilesResponse:
-    """Get the recent files."""
+    """
+    responses:
+        200:
+            description: Get the recent files
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/RecentFilesResponse"
+    """
     app_state = AppState(request)
     files = app_state.session_manager.recents.get_recents()
     return RecentFilesResponse(files=files)
@@ -48,7 +56,20 @@ async def workspace_files(
     *,
     request: Request,
 ) -> WorkspaceFilesResponse:
-    """Get the files in the workspace."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/WorkspaceFilesRequest"
+    responses:
+        200:
+            description: Get the files in the workspace
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+    """
     body = await parse_request(request, cls=WorkspaceFilesRequest)
     session_manager = AppState(request).session_manager
 
@@ -88,7 +109,15 @@ async def running_notebooks(
     *,
     request: Request,
 ) -> WorkspaceFilesResponse:
-    """Get the running files."""
+    """
+    responses:
+        200:
+            description: Get the running files
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+    """
     app_state = AppState(request)
     return WorkspaceFilesResponse(files=_get_active_sessions(app_state))
 
@@ -99,7 +128,20 @@ async def shutdown_session(
     *,
     request: Request,
 ) -> WorkspaceFilesResponse:
-    """Shutdown the current session."""
+    """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ShutdownSessionRequest"
+    responses:
+        200:
+            description: Shutdown the current session
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/WorkspaceFilesResponse"
+    """
     app_state = AppState(request)
     body = await parse_request(request, cls=ShutdownSessionRequest)
     app_state.session_manager.close_session(body.session_id)

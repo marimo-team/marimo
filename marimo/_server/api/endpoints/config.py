@@ -31,10 +31,15 @@ async def save_user_config(
     *,
     request: Request,
 ) -> BaseResponse:
-    """Update the user config on disk and in the kernel.
-
-    Only allowed in edit mode.
     """
+    responses:
+        200:
+            description: Update the user config on disk and in the kernel. Only allowed in edit mode.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """  # noqa: E501
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveUserConfigurationRequest)
     config = app_state.config_manager.save_config(body.config)

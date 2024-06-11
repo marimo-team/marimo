@@ -104,7 +104,26 @@ STATIC_FILES = [
 def virtual_file(
     request: Request,
 ) -> Response:
-    """Handler for virtual files."""
+    """
+    parameters:
+        - in: path
+          name: filename_and_length
+          required: true
+          schema:
+            type: string
+          description: The filename and byte length of the virtual file
+    responses:
+        200:
+            description: Get a virtual file
+            content:
+                application/octet-stream:
+                    schema:
+                        type: string
+        404:
+            description: Invalid virtual file request
+        404:
+            description: Invalid byte length in virtual file request
+    """
     filename_and_length = request.path_params["filename_and_length"]
 
     LOGGER.debug("Getting virtual file: %s", filename_and_length)

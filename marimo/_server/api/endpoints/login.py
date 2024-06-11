@@ -71,6 +71,32 @@ LOGIN_PAGE = """
 
 @router.post("/login")
 async def login_submit(request: Request) -> Response:
+    """
+    tags: [auth]
+    summary: Submit login form
+    requestBody:
+        content:
+            application/x-www-form-urlencoded:
+                schema:
+                    type: object
+                    properties:
+                        password:
+                            type: string
+                            description: Access token or password
+    responses:
+        302:
+            description: Redirect to the next URL
+            headers:
+                Location:
+                    schema:
+                        type: string
+        200:
+            description: Login page
+            content:
+                text/html:
+                    schema:
+                        type: string
+    """
     error = ""
     redirect_url = request.query_params.get("next", "/")
 
