@@ -157,10 +157,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             def sort_values(
                 self, by: str | None, descending: bool
             ) -> PyArrowTableManager:
-                if not by:
-                    return PyArrowTableManager(self.data)
-                ascending = not descending
-                sorted_data = self.data.sort_values(by, ascending=ascending)
+                sorted_data = self.data.sort_values(by, ascending=not descending)
                 return PyArrowTableManager(sorted_data)
 
             @staticmethod

@@ -122,10 +122,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
             def sort_values(
                 self, by: str | None, descending: bool
             ) -> PolarsTableManager:
-                if not by:
-                    return PolarsTableManager(self.data)
-                ascending = not descending
-                sorted_data = self.data.sort_values(by, ascending=ascending)
+                sorted_data = self.data.sort_values(by, ascending=not descending)
                 return PolarsTableManager(sorted_data)
 
             @staticmethod
