@@ -333,3 +333,8 @@ class TestPandasTableManager(unittest.TestCase):
             total=3,
             nulls=0,
         )
+
+    def test_sort_values(self) -> None:
+        sorted_df = self.manager.sort_values("A", descending=True).data
+        expected_df = self.data.sort_values("A", ascending=False)
+        assert sorted_df.equals(expected_df)

@@ -162,3 +162,8 @@ class TestPyArrowTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
         )
+
+    def test_sort_values(self) -> None:
+        sorted_df = self.manager.sort_values("A", descending=True).data
+        expected_df = self.data.sort_by([("A", "descending")])
+        assert sorted_df.equals(expected_df)
