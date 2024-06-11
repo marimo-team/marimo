@@ -226,9 +226,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return self.data.columns.tolist()
 
             def sort_values(
-                self, by: str | None, descending: bool
+                self, by: str, descending: bool
             ) -> PandasTableManager:
-                sorted_data = self.data.sort_values(by, ascending=not descending)
+                sorted_data = self.data.sort_values(
+                    by, ascending=not descending
+                )
                 return PandasTableManager(sorted_data)
 
         return PandasTableManager
