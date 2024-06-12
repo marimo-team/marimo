@@ -33,11 +33,8 @@ export const DataTableColumnHeader = <TData, TValue>({
     return <div className={cn(className)}>{header}</div>;
   }
 
-  const sortFn = column.getSortingFn();
-  const AscIcon =
-    sortFn === sortingFns.basic ? ArrowDown01Icon : ArrowDownNarrowWideIcon;
-  const DescIcon =
-    sortFn === sortingFns.basic ? ArrowDown10Icon : ArrowDownWideNarrowIcon;
+  const AscIcon = ArrowDownNarrowWideIcon;
+  const DescIcon = ArrowDownWideNarrowIcon;
 
   return (
     <DropdownMenu modal={false}>

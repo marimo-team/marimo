@@ -10,9 +10,9 @@ from marimo._plugins.core.web_component import JSONType
 
 T = TypeVar("T")
 
-
+ColumnName = str
 FieldType = DataType
-FieldTypes = Dict[str, FieldType]
+FieldTypes = Dict[ColumnName, FieldType]
 
 
 class TableManager(abc.ABC, Generic[T]):
@@ -40,7 +40,8 @@ class TableManager(abc.ABC, Generic[T]):
     def supports_altair(self) -> bool:
         return True
 
-    def sort_values(self, by: str, descending: bool) -> TableManager[T]:
+    @abc.abstractmethod
+    def sort_values(self, by: ColumnName, descending: bool) -> TableManager[T]:
         raise NotImplementedError
 
     @abc.abstractmethod

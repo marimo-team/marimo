@@ -25,6 +25,9 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { ColumnHeaderSummary } from "@/components/data-table/types";
 import { OnChangeFn, SortingState } from "@tanstack/react-table";
 
+type CsvURL = string;
+type TableData<T> = T[] | CsvURL;
+
 /**
  * Arguments for a data table
  *
@@ -33,7 +36,7 @@ import { OnChangeFn, SortingState } from "@tanstack/react-table";
  */
 interface Data<T> {
   label: string | null;
-  data: T[] | string;
+  data: TableData<T>;
   hasMore: boolean;
   totalRows: number;
   pagination: boolean;
@@ -51,10 +54,10 @@ type Functions = {
   get_column_summaries: (opts: {}) => Promise<{
     summaries: ColumnHeaderSummary[];
   }>;
-  sort_values: (req: {
+  sort_values: <T>(req: {
     by: string | null;
     descending: boolean;
-  }) => Promise<object[] | string>;
+  }) => Promise<TableData<T>>;
 };
 
 type S = Array<string | number>;
@@ -108,64 +111,66 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       <LoadingDataTableComponent
         {...props.data}
         {...props.functions}
-        data={props.data.data as string | (string & unknown[])}
+        data={props.data.data}
         value={props.value}
         setValue={props.setValue}
       />
     );
   });
 
-interface DataTableProps extends Data<unknown>, Functions {
+interface DataTableProps<T> extends Data<T>, Functions {
   className?: string;
   value: S;
   setValue: (value: S) => void;
-  sorting?: SortingState;
+  sorting: SortingState;
   setSorting?: OnChangeFn<SortingState>;
 }
 
 export const LoadingDataTableComponent = memo(
-  (props: DataTableProps & { data: string | (string & unknown[]) }) => {
-    const isDirectRender = typeof props.data !== "string";
-
-    const initialData = props.data;
+  <T extends {}>(
+    props: Omit<DataTableProps<T>, "sorting"> & { data: TableData<T> },
+  ) => {
     const sortValues = props.sort_values;
-    const rowHeaders = props.rowHeaders;
-
     const [sorting, setSorting] = useState<SortingState>([]);
-    const [tableData, setTableData] = useState(initialData);
 
-    useEffect(() => {
-      const getSortedData = async () => {
-        if (sorting.length === 0) {
-          setTableData(initialData);
-          return;
+    const { data, loading, error } = useAsyncData<T[]>(async () => {
+      // If there is no data, return an empty array
+      if (props.totalRows === 0) {
+        return [];
+      }
+
+      // Table data is a url string or an array of objects
+      let tableData = props.data;
+
+      // If we have sort configuration, fetch the sorted data
+      if (sorting.length > 0) {
+        if (sorting.length > 1) {
+          Logger.warn("Multiple sort columns are not supported");
         }
-
-        const sortedData = await sortValues({
+        const sortedData = await sortValues<T>({
           by: sorting[0].id,
           descending: sorting[0].desc,
         });
 
-        setTableData(sortedData as string | (string & unknown[]));
-      };
-
-      getSortedData();
-    }, [sorting, sortValues, initialData, rowHeaders.length]);
-
-    const { data, loading, error } = useAsyncData<unknown[]>(() => {
-      if (!tableData || props.totalRows === 0 || isDirectRender) {
-        return Promise.resolve([]);
+        tableData = sortedData;
       }
+
+      // If we already have the data, return it
+      if (Array.isArray(tableData)) {
+        return tableData;
+      }
+
+      // Otherwise, load the data from the URL
       return vegaLoadData(
         tableData,
         { type: "csv", parse: getVegaFieldTypes(props.fieldTypes) },
         { handleBigInt: true },
       );
-    }, [tableData, props.fieldTypes, props.totalRows]);
+    }, [sorting, sortValues, props.fieldTypes, props.data]);
 
     const { data: columnSummaries, error: columnSummariesError } =
       useAsyncData(() => {
-        if (isDirectRender || props.totalRows === 0) {
+        if (props.totalRows === 0) {
           return Promise.resolve({ summaries: [] });
         }
         return props.get_column_summaries({});
@@ -185,9 +190,10 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
+    let errorComponent: React.ReactNode = null;
     if (error) {
-      return (
-        <Alert variant="destructive">
+      errorComponent = (
+        <Alert variant="destructive" className="mb-2">
           <AlertTitle>Error</AlertTitle>
           <div className="text-md">
             {error.message || "An unknown error occurred"}
@@ -196,27 +202,17 @@ export const LoadingDataTableComponent = memo(
       );
     }
 
-    if (typeof props.data !== "string") {
-      return (
+    return (
+      <>
+        {errorComponent}
         <DataTableComponent
           {...props}
-          data={tableData as unknown[] | (string & unknown[])}
-          value={props.value}
-          setValue={props.setValue}
+          data={data || Arrays.EMPTY}
+          columnSummaries={columnSummaries?.summaries}
           sorting={sorting}
           setSorting={setSorting}
         />
-      );
-    }
-
-    return (
-      <DataTableComponent
-        {...props}
-        data={data || Arrays.EMPTY}
-        columnSummaries={columnSummaries?.summaries}
-        sorting={sorting}
-        setSorting={setSorting}
-      />
+      </>
     );
   },
 );
@@ -242,7 +238,7 @@ const DataTableComponent = ({
   setValue,
   sorting,
   setSorting,
-}: DataTableProps & {
+}: DataTableProps<unknown> & {
   data: unknown[];
   columnSummaries?: ColumnHeaderSummary[];
 }): JSX.Element => {

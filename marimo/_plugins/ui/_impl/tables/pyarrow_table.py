@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import io
-from typing import Any, Literal, Union, cast
+from typing import Any, Union, cast
 
 from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -155,12 +156,11 @@ class PyArrowTableManagerFactory(TableManagerFactory):
                 return self.data.schema.names
 
             def sort_values(
-                self, by: str, descending: bool
+                self, by: ColumnName, descending: bool
             ) -> PyArrowTableManager:
-                ascending: Literal["ascending", "descending"] = (
-                    "ascending" if not descending else "descending"
+                sorted_data = self.data.sort_by(  # type: ignore
+                    [(by, "ascending" if not descending else "descending")]
                 )
-                sorted_data = self.data.sort_by([(by, ascending)])  # type: ignore
                 return PyArrowTableManager(sorted_data)
 
             @staticmethod

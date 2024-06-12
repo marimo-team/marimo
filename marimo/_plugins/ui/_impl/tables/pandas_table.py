@@ -5,6 +5,7 @@ from typing import Any
 
 from marimo._data.models import ColumnSummary
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -226,7 +227,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return self.data.columns.tolist()
 
             def sort_values(
-                self, by: str, descending: bool
+                self, by: ColumnName, descending: bool
             ) -> PandasTableManager:
                 sorted_data = self.data.sort_values(
                     by, ascending=not descending

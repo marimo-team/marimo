@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from marimo._data.models import ColumnSummary, NonNestedLiteral
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -120,7 +121,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 return self.data.columns
 
             def sort_values(
-                self, by: str, descending: bool
+                self, by: ColumnName, descending: bool
             ) -> PolarsTableManager:
                 sorted_data = self.data.sort(by, descending=descending)
                 return PolarsTableManager(sorted_data)

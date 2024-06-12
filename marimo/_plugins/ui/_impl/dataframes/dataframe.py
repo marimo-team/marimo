@@ -21,6 +21,7 @@ from marimo._plugins.ui._impl.dataframes.transforms import Transformations
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
 )
+from marimo._plugins.ui._impl.tables.table_manager import ColumnName
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -55,7 +56,7 @@ class GetColumnValuesResponse:
 
 @dataclass
 class SortValuesArgs:
-    by: str
+    by: ColumnName
     descending: bool
 
 
@@ -102,6 +103,10 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
     """
 
     _name: Final[str] = "marimo-dataframe"
+
+    # Only get the first 100 (for performance reasons)
+    # Could make this configurable in the arguments later if desired.
+    DISPLAY_LIMIT = 100
 
     def __init__(
         self,
@@ -173,20 +178,18 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
         return [[name, dtype] for name, dtype in self._data.dtypes.items()]  # type: ignore
 
     def get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
-        # Only get the first 100 (for performance reasons)
-        # Could make this configurable in the arguments later if desired.
-        LIMIT = 100
-
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
-        manager = PandasTableManagerFactory.create()(self._value.head(LIMIT))
+        manager = PandasTableManagerFactory.create()(
+            self._value.head(self.DISPLAY_LIMIT)
+        )
         url = mo_data.csv(manager.to_csv()).url
         total_rows = len(self._value)
         return GetDataFrameResponse(
             url=url,
             total_rows=total_rows,
-            has_more=total_rows > LIMIT,
+            has_more=total_rows > self.DISPLAY_LIMIT,
             row_headers=manager.get_row_headers(),
         )
 
@@ -230,9 +233,8 @@ class dataframe(UIElement[Dict[str, Any], "pd.DataFrame"]):
             return self._data
 
     def sort_values(self, args: SortValuesArgs) -> Union[JSONType, str]:
-        LIMIT = 100
         return (
             self._manager.sort_values(args.by, args.descending)
-            .limit(LIMIT)
+            .limit(self.DISPLAY_LIMIT)
             .to_data()
         )
