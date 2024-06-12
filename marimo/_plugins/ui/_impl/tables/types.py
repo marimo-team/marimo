@@ -11,3 +11,11 @@ class DataFrameLike(Protocol):
     def __dataframe__(
         self, nan_as_null: bool = False, allow_copy: bool = True
     ) -> DataFrame: ...
+
+
+def is_dataframe_like(value: object) -> bool:
+    return (
+        isinstance(value, DataFrameLike)
+        and hasattr(value, "__dataframe__")
+        and callable(value.__dataframe__)
+    )

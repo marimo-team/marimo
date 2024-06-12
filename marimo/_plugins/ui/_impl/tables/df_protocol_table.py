@@ -17,7 +17,10 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
 )
-from marimo._plugins.ui._impl.tables.types import DataFrameLike
+from marimo._plugins.ui._impl.tables.types import (
+    DataFrameLike,
+    is_dataframe_like,
+)
 
 if TYPE_CHECKING:
     import pyarrow as pa  # type: ignore
@@ -54,7 +57,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     @staticmethod
     def is_type(value: Any) -> bool:
-        return isinstance(value, DataFrameLike)
+        return is_dataframe_like(value)
 
     def select_rows(
         self, indices: list[int]

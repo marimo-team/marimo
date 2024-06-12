@@ -21,7 +21,9 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.types import DataFrameLike
+from marimo._plugins.ui._impl.tables.types import (
+    is_dataframe_like,
+)
 
 MANAGERS: List[TableManagerFactory] = [
     PandasTableManagerFactory(),
@@ -46,7 +48,7 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
                 return manager(data)
 
     # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
-    if isinstance(data, DataFrameLike):
+    if is_dataframe_like(data):
         return DataFrameProtocolTableManager(data)
 
     return None
