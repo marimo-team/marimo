@@ -41,7 +41,9 @@ class TableManager(abc.ABC, Generic[T]):
         return True
 
     @abc.abstractmethod
-    def sort_values(self, by: ColumnName, descending: bool) -> TableManager[T]:
+    def sort_values(
+        self, by: ColumnName, descending: bool
+    ) -> TableManager[Any]:
         raise NotImplementedError
 
     @abc.abstractmethod

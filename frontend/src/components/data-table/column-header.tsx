@@ -1,11 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Column, sortingFns } from "@tanstack/react-table";
+import { Column } from "@tanstack/react-table";
 import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
   ArrowDownWideNarrowIcon,
-  ArrowDown10Icon,
-  ArrowDown01Icon,
   CopyIcon,
 } from "lucide-react";
 
