@@ -49,7 +49,9 @@ describe("asURL function", () => {
     test('should handle relative path starting with "./"', () => {
       const path = "./path/to/resource";
       const result = asURL(path);
-      expect(result.toString()).toBe("https://example.com/path/to/resource");
+      expect(result.toString()).toBe(
+        "https://example.com/base/path/to/resource",
+      );
     });
 
     test('should handle absolute path starting with "/"', () => {
