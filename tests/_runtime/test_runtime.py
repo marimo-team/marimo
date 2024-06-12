@@ -293,7 +293,7 @@ class TestExecution:
                         cell_id="1", code="s = mo.ui.slider(0, 10, value=1)"
                     ),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest(
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                     [(id_provider.take_id(), 2)]
                 ),
             )
