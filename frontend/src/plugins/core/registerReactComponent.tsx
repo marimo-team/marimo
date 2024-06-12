@@ -378,17 +378,23 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
           // We need to create a new stylesheet because we can't use the same
           // stylesheet otherwise the browser will throw an error.
           const newSheet = new CSSStyleSheet();
-          newSheet.replaceSync(
-            Array.from(sheet.cssRules)
-              .map((rule) => {
-                if (rule.cssText.includes("@import")) {
-                  // @import rules are not supported in adoptedStyleSheets
-                  return "";
-                }
-                return rule.cssText;
-              })
-              .join("\n"),
-          );
+          try {
+            newSheet.replaceSync(
+              Array.from(sheet.cssRules)
+                .map((rule) => {
+                  if (rule.cssText.includes("@import")) {
+                    // @import rules are not supported in adoptedStyleSheets
+                    return "";
+                  }
+                  return rule.cssText;
+                })
+                .join("\n"),
+            );
+          } catch {
+            // It is possible that the stylesheet is not accessible due to CORS
+            // We can ignore this error
+          }
+
           styleSheetCache.set(sheetUniqueKey, newSheet);
         }
       }
@@ -417,9 +423,16 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         }
 
         const style = document.createElement("style");
-        style.textContent = Array.from(sheet.cssRules)
-          .map((rule) => rule.cssText)
-          .join("\n");
+        try {
+          style.textContent = Array.from(sheet.cssRules)
+            .map((rule) => rule.cssText)
+            .join("\n");
+        } catch {
+          // It is possible that the stylesheet is not accessible due to CORS
+          // We can ignore this error
+          return [];
+        }
+
         return [style];
       });
 
@@ -441,6 +454,11 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
 // or from our assetUrl (in the case of a static notebook)
 function shouldCopyStyleSheet(sheet: CSSStyleSheet): boolean {
   if (!sheet.href) {
+    return false;
+  }
+
+  // Must end with .css
+  if (!sheet.href.endsWith(".css")) {
     return false;
   }
 
