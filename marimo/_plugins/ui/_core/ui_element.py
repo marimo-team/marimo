@@ -113,6 +113,14 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
         slotted_html: any html to slot in the custom element
         functions: any functions to register with the graph
         """
+        # Validate parameters from a user
+        if not isinstance(component_name, str):
+            raise TypeError("component_name must be a string")
+        if label is not None and not isinstance(label, str):
+            raise TypeError("label must be a string or None")
+        if on_change is not None and not callable(on_change):
+            raise TypeError("on_change must be a callable or None")
+
         # arguments stored in signature order for cloning
         self._args = (
             component_name,
@@ -268,6 +276,23 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
                 "cell."
             )
         return self._value
+
+    @value.setter
+    def value(self, value: T) -> None:
+        del value
+        raise RuntimeError(
+            "Setting the value of a UIElement is not allowed. "
+            "If you need to imperatively set the value of a UIElement, "
+            "consider using mo.state()."
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "on_change":
+            raise RuntimeError(
+                "Setting the on_change handler of a UIElement is not allowed. "
+                "You must set the on_change in the constructor."
+            )
+        super().__setattr__(name, value)
 
     @mddoc
     def form(
