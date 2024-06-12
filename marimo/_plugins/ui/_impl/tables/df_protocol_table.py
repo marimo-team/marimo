@@ -32,6 +32,12 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def __init__(self, data: DataFrameLike):
         self.data = data
         self._df = data.__dataframe__()
+
+        if not hasattr(self._df, "num_columns"):
+            raise ValueError(
+                "The DataFrameLike object must have a num_columns method"
+            )
+
         self._delegate: Optional[
             TableManager[Union[pa.Table, pa.RecordBatch]]
         ] = None

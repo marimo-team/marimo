@@ -49,6 +49,9 @@ def get_table_manager_or_none(data: Any) -> TableManager[Any] | None:
 
     # If we have a DataFrameLike object, use the DataFrameProtocolTableManager
     if is_dataframe_like(data):
-        return DataFrameProtocolTableManager(data)
+        try:
+            return DataFrameProtocolTableManager(data)
+        except Exception:
+            return None
 
     return None
