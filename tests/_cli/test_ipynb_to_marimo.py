@@ -101,3 +101,33 @@ def test_unparsable() -> None:
     assert codes[0] == "!echo hello, world\n\nx = 0"
     assert codes[1] == "x"
     assert names == ["__", "__"]
+
+
+def test_multiple_defs() -> None:
+    codes, _ = get_codes("multiple_defs")
+
+    assert len(codes) == 7
+    assert codes[0] == "_x = 0\n_x"
+    assert codes[1] == "_x = 1\n_x"
+    assert codes[2] == "y = 0"
+    assert codes[3] == "y = 1"
+    assert codes[4] == "y"
+    assert (
+        codes[5]
+        == textwrap.dedent(
+            """
+            for _i in range(3):
+                print(_i)
+            """
+        ).strip()
+    )
+    assert (
+        codes[6]
+        == textwrap.dedent(
+            """
+            for _i in range(4):
+                print(_i)
+
+            """
+        ).strip()
+    )

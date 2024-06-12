@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 
 from marimo import _loggers
 from marimo._ast.cell import (
@@ -288,22 +288,20 @@ class DirectedGraph:
                     queue.append(parent_id)
         return False
 
-    # these two helper functions could be written as concise
-    # `any` expressions using assignment expressions, but
-    # that's a silly reason to make Python < 3.8 incompatible
-    # with marimo.
-    def get_multiply_defined(self) -> Optional[Name]:
+    def get_multiply_defined(self) -> list[Name]:
+        names = []
         for name, definers in self.definitions.items():
             if len(definers) > 1:
-                return name
-        return None
+                names.append(name)
+        return names
 
-    def get_deleted_nonlocal_ref(self) -> Optional[Name]:
+    def get_deleted_nonlocal_ref(self) -> list[Name]:
+        names = []
         for cell in self.cells.values():
             for ref in cell.deleted_refs:
                 if ref in self.definitions:
-                    return ref
-        return None
+                    names.append(ref)
+        return names
 
     def descendants(self, cell_id: CellId_t) -> set[CellId_t]:
         return transitive_closure(self, set([cell_id]), inclusive=False)
