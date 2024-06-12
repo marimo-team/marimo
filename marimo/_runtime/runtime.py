@@ -79,7 +79,7 @@ from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.requests import (
     AppMetadata,
-    CompletionRequest,
+    CodeCompletionRequest,
     ControlRequest,
     CreationRequest,
     DeleteRequest,
@@ -408,7 +408,7 @@ class Kernel:
             yield
 
     def start_completion_worker(
-        self, completion_queue: QueueType[CompletionRequest]
+        self, completion_queue: QueueType[CodeCompletionRequest]
     ) -> None:
         """Must be called after context is initialized"""
         threading.Thread(
@@ -425,7 +425,7 @@ class Kernel:
         self._completion_worker_started = True
 
     def code_completion(
-        self, request: CompletionRequest, docstrings_limit: int
+        self, request: CodeCompletionRequest, docstrings_limit: int
     ) -> None:
         complete(
             request,
@@ -1408,7 +1408,7 @@ class Kernel:
 def launch_kernel(
     control_queue: QueueType[ControlRequest],
     set_ui_element_queue: QueueType[SetUIElementValueRequest],
-    completion_queue: QueueType[CompletionRequest],
+    completion_queue: QueueType[CodeCompletionRequest],
     input_queue: QueueType[str],
     socket_addr: tuple[str, int],
     is_edit_mode: bool,

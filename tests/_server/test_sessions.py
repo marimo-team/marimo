@@ -148,7 +148,7 @@ def test_kernel_manager_interrupt(tmp_path) -> None:
                 ]
             ),
             set_ui_element_value_request=SetUIElementValueRequest(
-                ids_and_values=[]
+                object_ids=[], values=[]
             ),
         )
     )

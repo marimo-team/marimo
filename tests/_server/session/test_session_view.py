@@ -126,7 +126,7 @@ def test_session_view_variable_values() -> None:
 def test_ui_values() -> None:
     session_view = SessionView()
     session_view.add_control_request(
-        SetUIElementValueRequest([("test_ui", 123)])
+        SetUIElementValueRequest.from_ids_and_values([("test_ui", 123)])
     )
     assert "test_ui" in session_view.ui_values
     assert session_view.ui_values["test_ui"] == 123
@@ -134,7 +134,9 @@ def test_ui_values() -> None:
     # Can add multiple values
     # and can overwrite values
     session_view.add_control_request(
-        SetUIElementValueRequest([("test_ui2", 456), ("test_ui", 789)])
+        SetUIElementValueRequest.from_ids_and_values(
+            [("test_ui2", 456), ("test_ui", 789)]
+        )
     )
     assert "test_ui2" in session_view.ui_values
     assert "test_ui" in session_view.ui_values
@@ -145,7 +147,7 @@ def test_ui_values() -> None:
     session_view.add_control_request(
         CreationRequest(
             execution_requests=(),
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
                 [("test_ui3", 101112)]
             ),
         )
@@ -157,9 +159,8 @@ def test_last_run_code() -> None:
     session_view = SessionView()
     session_view.add_control_request(
         ExecuteMultipleRequest(
-            execution_requests=[
-                ExecutionRequest(cell_id=cell_id, code="print('hello')"),
-            ]
+            cell_ids=[cell_id],
+            codes=["print('hello')"],
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"
@@ -167,12 +168,8 @@ def test_last_run_code() -> None:
     # Can overwrite values and add multiple
     session_view.add_control_request(
         ExecuteMultipleRequest(
-            execution_requests=[
-                ExecutionRequest(cell_id=cell_id, code="print('hello world')"),
-                ExecutionRequest(
-                    cell_id="cell_2", code="print('hello world')"
-                ),
-            ]
+            cell_ids=[cell_id, "cell_2"],
+            codes=["print('hello world')", "print('hello world')"],
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello world')"
@@ -184,7 +181,9 @@ def test_last_run_code() -> None:
             execution_requests=(
                 ExecutionRequest(cell_id=cell_id, code="print('hello')"),
             ),
-            set_ui_element_value_request=SetUIElementValueRequest([]),
+            set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                []
+            ),
         )
     )
     assert session_view.last_executed_code[cell_id] == "print('hello')"

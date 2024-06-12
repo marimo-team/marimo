@@ -56,7 +56,10 @@ export class RuntimeState {
 
     const value = this.uiElementRegistry.lookupValue(objectId);
     if (value !== undefined) {
-      this.sendComponentValues([{ objectId: objectId, value: value }]).catch(
+      this.sendComponentValues({
+        objectIds: [objectId],
+        values: [value],
+      }).catch(
         // This happens if the run failed to register (401, 403, network
         // error, etc.) A run may fail if the kernel is restarted or the
         // notebook is closed.

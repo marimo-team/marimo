@@ -18,7 +18,7 @@ from marimo._server.models.models import (
     ReadCodeResponse,
     RenameFileRequest,
     SaveAppConfigurationRequest,
-    SaveRequest,
+    SaveNotebookRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
@@ -160,7 +160,7 @@ async def save(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/SaveRequest"
+                    $ref: "#/components/schemas/SaveNotebookRequest"
     responses:
         200:
             description: Save the current app
@@ -170,7 +170,7 @@ async def save(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=SaveRequest)
+    body = await parse_request(request, cls=SaveNotebookRequest)
     session = app_state.require_current_session()
     session.app_file_manager.save(body)
 

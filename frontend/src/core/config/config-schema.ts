@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { Logger } from "@/utils/Logger";
 import { getMarimoAppConfig, getMarimoUserConfig } from "../dom/marimo-tag";
+import { MarimoConfig } from "../network/types";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -100,6 +101,7 @@ export const UserConfigSchema = z
       // Pass through so that we don't remove any extra keys that the user has added.
       .passthrough()
       .default({}),
+    server: z.object({}).passthrough().default({}),
   })
   // Pass through so that we don't remove any extra keys that the user has added
   .passthrough()
@@ -111,8 +113,9 @@ export const UserConfigSchema = z
     runtime: {},
     display: {},
     experimental: {},
+    server: {},
   });
-export type UserConfig = z.infer<typeof UserConfigSchema>;
+export type UserConfig = MarimoConfig;
 export type SaveConfig = UserConfig["save"];
 export type CompletionConfig = UserConfig["completion"];
 export type KeymapConfig = UserConfig["keymap"];
@@ -157,7 +160,7 @@ export function parseUserConfig(): UserConfig {
         Logger.log(`🧪 Experimental feature "${key}" is enabled.`);
       }
     }
-    return parsed;
+    return parsed as UserConfig;
   } catch (error) {
     Logger.error(
       `Marimo got an unexpected value in the configuration file: ${error}`,
@@ -167,5 +170,5 @@ export function parseUserConfig(): UserConfig {
 }
 
 export function defaultUserConfig(): UserConfig {
-  return UserConfigSchema.parse({});
+  return UserConfigSchema.parse({}) as UserConfig;
 }

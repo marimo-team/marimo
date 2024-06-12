@@ -15,7 +15,7 @@ from marimo._messaging.ops import CompletionResult
 from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
-from marimo._runtime.requests import CompletionRequest
+from marimo._runtime.requests import CodeCompletionRequest
 from marimo._server.types import QueueType
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
@@ -246,8 +246,8 @@ def _write_no_completions(stream: Stream, completion_id: str) -> None:
 
 
 def _drain_queue(
-    completion_queue: QueueType[CompletionRequest],
-) -> CompletionRequest:
+    completion_queue: QueueType[CodeCompletionRequest],
+) -> CodeCompletionRequest:
     """Drain the queue of completion requests, returning the most recent one"""
 
     request = completion_queue.get()
@@ -307,7 +307,7 @@ def _get_completions(
 
 
 def complete(
-    request: CompletionRequest,
+    request: CodeCompletionRequest,
     graph: dataflow.DirectedGraph,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
@@ -440,7 +440,7 @@ def complete(
 
 
 def completion_worker(
-    completion_queue: QueueType[CompletionRequest],
+    completion_queue: QueueType[CodeCompletionRequest],
     graph: dataflow.DirectedGraph,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,

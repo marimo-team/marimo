@@ -16,6 +16,8 @@ from typing import (
     get_type_hints,
 )
 
+from marimo._server.models.base import to_camel_case
+
 
 def _python_type_to_openapi_type(
     py_type: Any, processed_classes: Dict[Type[Any], str]
@@ -106,7 +108,9 @@ def _python_type_to_openapi_type(
 
 
 def dataclass_to_openapi_spec(
-    cls: Type[Any], processed_classes: Optional[Dict[Type[Any], str]] = None
+    cls: Type[Any],
+    processed_classes: Optional[Dict[Type[Any], str]] = None,
+    camel_case: bool = False,
 ) -> Dict[str, Any]:
     """Convert a dataclass to an OpenAPI schema.
 
@@ -136,8 +140,9 @@ def dataclass_to_openapi_spec(
     required: List[str] = []
 
     for field in fields:
+        field_name = to_camel_case(field.name) if camel_case else field.name
         field_type = get_type_hints(cls)[field.name]
-        properties[field.name] = _python_type_to_openapi_type(
+        properties[field_name] = _python_type_to_openapi_type(
             field_type, processed_classes
         )
         if (
@@ -145,7 +150,7 @@ def dataclass_to_openapi_spec(
             and field.default_factory is dataclasses.MISSING
             and not _is_optional(field_type)
         ):
-            required.append(field.name)
+            required.append(field_name)
 
     schema: Dict[str, Any] = {
         "type": "object",

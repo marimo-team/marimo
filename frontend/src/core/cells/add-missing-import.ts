@@ -57,7 +57,7 @@ export function maybeAddMarimoImport(
       autoFocus: false,
     });
     if (autoRun) {
-      void sendRun([newCellId], [importStatement]);
+      void sendRun({ cellIds: [newCellId], codes: [importStatement] });
     }
   });
 }
@@ -78,7 +78,7 @@ export function maybeAddAltairImport(
       autoFocus: false,
     });
     if (autoRun) {
-      void sendRun([newCellId], [importStatement]);
+      void sendRun({ cellIds: [newCellId], codes: [importStatement] });
     }
   });
 }

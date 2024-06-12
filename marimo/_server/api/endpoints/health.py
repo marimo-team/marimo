@@ -122,11 +122,23 @@ async def usage(request: Request) -> JSONResponse:
                                         type: integer
                                     free:
                                         type: integer
+                                required:
+                                    - total
+                                    - available
+                                    - percent
+                                    - used
+                                    - free
                             cpu:
                                 type: object
                                 properties:
                                     percent:
                                         type: number
+                                required:
+                                    - percent
+                        required:
+                            - memory
+                            - cpu
+
     """  # noqa: E501
     del request
     import psutil

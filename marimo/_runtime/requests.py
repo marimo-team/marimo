@@ -16,7 +16,7 @@ T = TypeVar("T")
 ListOrValue = Union[T, List[T]]
 SerializedQueryParams = Dict[str, ListOrValue[str]]
 Primitive = Union[str, bool, int, float]
-SerializedCLIArgs = Dict[str, ListOrValue[Union[Primitive]]]
+SerializedCLIArgs = Dict[str, ListOrValue[Primitive]]
 
 
 @dataclass
@@ -31,15 +31,48 @@ class ExecuteStaleRequest: ...
 
 @dataclass
 class ExecuteMultipleRequest:
-    execution_requests: List[ExecutionRequest]
+    # ids of cells to run
+    cell_ids: List[CellId_t]
+    # code to register/run for each cell
+    codes: List[str]
+
+    @property
+    def execution_requests(self) -> List[ExecutionRequest]:
+        return [
+            ExecutionRequest(cell_id=cell_id, code=code)
+            for cell_id, code in zip(self.cell_ids, self.codes)
+        ]
+
+    def __post_init__(self) -> None:
+        assert len(self.cell_ids) == len(
+            self.codes
+        ), "Mismatched cell_ids and codes"
 
 
 @dataclass
 class SetUIElementValueRequest:
-    # (object id, value) tuples
-    ids_and_values: List[Tuple[UIElementId, Any]]
+    object_ids: List[UIElementId]
+    values: List[Any]
     # uniquely identifies the request
     token: str = field(default_factory=lambda: str(uuid4()))
+
+    def __post_init__(self):
+        assert len(self.object_ids) == len(
+            self.values
+        ), "Mismatched object_ids and values"
+
+    @staticmethod
+    def from_ids_and_values(
+        ids_and_values: List[Tuple[UIElementId, Any]],
+    ) -> SetUIElementValueRequest:
+        object_ids, values = zip(*ids_and_values)
+        return SetUIElementValueRequest(
+            object_ids=list(object_ids), values=list(values)
+        )
+
+    @property
+    def ids_and_values(self) -> List[Tuple[UIElementId, Any]]:
+        return list(zip(self.object_ids, self.values))
 
 
 @dataclass
@@ -63,7 +96,7 @@ class AppMetadata:
 @dataclass
 class SetCellConfigRequest:
     # Map from Cell ID to (possibly partial) CellConfig
-    configs: Dict[CellId_t, Dict[str, object]]
+    configs: Dict[CellId_t, Dict[str, Any]]
 
 
 @dataclass
@@ -89,7 +122,7 @@ class StopRequest:
 
 
 @dataclass
-class CompletionRequest:
+class CodeCompletionRequest:
     id: CompletionRequestId
     document: str
     cell_id: CellId_t

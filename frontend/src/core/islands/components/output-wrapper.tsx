@@ -110,7 +110,10 @@ export const MarimoOutputWrapper: React.FC<Props> = ({
           tooltip="Re-run cell"
           icon={<PlayIcon className="size-3" />}
           action={async () => {
-            await sendRun([cellId], [codeCallback()]).catch((error) => {
+            await sendRun({
+              cellIds: [cellId],
+              codes: [codeCallback()],
+            }).catch((error) => {
               Logger.error(error);
             });
           }}

@@ -1,241 +1,239 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import type { CellId } from "../cells/ids";
-import { API } from "./api";
-import type {
-  CodeCompletionRequest,
-  DeleteRequest,
-  FormatResponse,
-  FormatRequest,
-  InstantiateRequest,
-  RenameRequest,
-  RunRequest,
-  SaveKernelRequest,
-  SetComponentValuesRequest,
-  SaveUserConfigRequest,
-  SaveAppConfigRequest,
-  SaveCellConfigRequest,
-  SendFunctionRequest,
-  RunRequests,
-  EditRequests,
-  SendStdin,
-  SendInstallMissingPackages,
-  FileListResponse,
-  FileCreateRequest,
-  FileOperationResponse,
-  FileDeleteRequest,
-  FileUpdateRequest,
-  FileDetailsResponse,
-  FileMoveRequest,
-  SnippetsResponse,
-  RecentFilesResponse,
-  WorkspaceFilesResponse,
-  RunningNotebooksResponse,
-  ShutdownSessionRequest,
-  ExportAsHTMLRequest,
-  UsageResponse,
-  ExportAsMarkdownRequest,
-  WorkspaceFilesRequest,
-  PreviewDatasetColumnRequest,
-} from "./types";
-import { invariant } from "@/utils/invariant";
+import { API, marimoClient } from "./api";
+import type { RunRequests, EditRequests } from "./types";
+
+const { handleResponse, handleResponseReturnNull } = API;
 
 export function createNetworkRequests(): EditRequests & RunRequests {
   return {
-    sendComponentValues: (valueUpdates) => {
-      const objectIds: string[] = [];
-      const values: unknown[] = [];
-      for (const update of valueUpdates) {
-        objectIds.push(update.objectId);
-        values.push(update.value);
-      }
-
-      return API.post<SetComponentValuesRequest>(
-        "/kernel/set_ui_element_value",
-        {
-          objectIds: objectIds,
-          values: values,
-        },
-      );
+    sendComponentValues: (request) => {
+      return marimoClient
+        .POST("/api/kernel/set_ui_element_value", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendRestart: () => {
-      return API.post("/kernel/restart_session", {});
+      return marimoClient
+        .POST("/api/kernel/restart_session")
+        .then(handleResponseReturnNull);
     },
-    sendRename: (filename: string | null) => {
-      return API.post<RenameRequest>("/kernel/rename", {
-        filename: filename,
-      });
+    sendRename: (request) => {
+      return marimoClient
+        .POST("/api/kernel/rename", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
-    sendSave: (request: SaveKernelRequest) => {
-      // Validate same length
-      invariant(
-        request.cellIds.length === request.codes.length,
-        "cell ids and codes must be the same length",
-      );
-      invariant(
-        request.codes.length === request.names.length,
-        "cell ids and names must be the same length",
-      );
-      invariant(
-        request.codes.length === request.configs.length,
-        "cell ids and configs must be the same length",
-      );
-
-      return API.post<SaveKernelRequest>("/kernel/save", request);
+    sendSave: (request) => {
+      return marimoClient
+        .POST("/api/kernel/save", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
-    sendFormat: (request: FormatRequest) => {
-      return API.post<FormatRequest, FormatResponse>(
-        "/kernel/format",
-        request,
-      ).then((res) => res.codes);
+    sendFormat: (request) => {
+      return marimoClient
+        .POST("/api/kernel/format", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     sendInterrupt: () => {
-      return API.post("/kernel/interrupt", {});
+      return marimoClient
+        .POST("/api/kernel/interrupt")
+        .then(handleResponseReturnNull);
     },
     sendShutdown: () => {
-      return API.post("/kernel/shutdown", {});
+      return marimoClient
+        .POST("/api/kernel/shutdown")
+        .then(handleResponseReturnNull);
     },
-    sendRun: (cellIds: CellId[], codes: string[]) => {
-      // Validate same length
-      invariant(cellIds.length === codes.length, "must be the same length");
-
-      return API.post<RunRequest>("/kernel/run", {
-        cellIds: cellIds,
-        codes: codes,
-      });
+    sendRun: (request) => {
+      return marimoClient
+        .POST("/api/kernel/run", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
-    sendInstantiate: (request: InstantiateRequest) => {
-      // Validate same length
-      invariant(
-        request.objectIds.length === request.values.length,
-        "must be the same length",
-      );
-
-      return API.post<InstantiateRequest>("/kernel/instantiate", request);
+    sendInstantiate: (request) => {
+      return marimoClient
+        .POST("/api/kernel/instantiate", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
-    sendDeleteCell: (cellId) => {
-      return API.post<DeleteRequest>("/kernel/delete", {
-        cellId: cellId,
-      });
+    sendDeleteCell: (request) => {
+      return marimoClient
+        .POST("/api/kernel/delete", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendCodeCompletionRequest: (request) => {
-      return API.post<CodeCompletionRequest>(
-        "/kernel/code_autocomplete",
-        request,
-      );
+      return marimoClient
+        .POST("/api/kernel/code_autocomplete", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     saveUserConfig: (request) => {
-      return API.post<SaveUserConfigRequest>(
-        "/kernel/save_user_config",
-        request,
-      );
+      return marimoClient
+        .POST("/api/kernel/save_user_config", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     saveAppConfig: (request) => {
-      return API.post<SaveAppConfigRequest>("/kernel/save_app_config", request);
+      return marimoClient
+        .POST("/api/kernel/save_app_config", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     saveCellConfig: (request) => {
-      return API.post<SaveCellConfigRequest>(
-        "/kernel/set_cell_config",
-        request,
-      );
+      return marimoClient
+        .POST("/api/kernel/set_cell_config", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendFunctionRequest: (request) => {
-      return API.post<SendFunctionRequest>("/kernel/function_call", request);
+      return marimoClient
+        .POST("/api/kernel/function_call", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendStdin: (request) => {
-      return API.post<SendStdin>("/kernel/stdin", request);
+      return marimoClient
+        .POST("/api/kernel/stdin", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     sendInstallMissingPackages: (request) => {
-      return API.post<SendInstallMissingPackages>(
-        "/kernel/install_missing_packages",
-        request,
-      );
+      return marimoClient
+        .POST("/api/kernel/install_missing_packages", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     readCode: () => {
-      return API.post<{}, { contents: string }>("/kernel/read_code", {});
+      return marimoClient.POST("/api/kernel/read_code").then(handleResponse);
     },
     readSnippets: () => {
-      return API.get<SnippetsResponse>("/documentation/snippets", {});
+      return marimoClient
+        .GET("/api/documentation/snippets")
+        .then(handleResponse);
     },
-    previewDatasetColumn: (request: PreviewDatasetColumnRequest) => {
-      return API.post<PreviewDatasetColumnRequest>(
-        "/datasources/preview_column",
-        request,
-      );
+    previewDatasetColumn: (request) => {
+      return marimoClient
+        .POST("/api/datasources/preview_column", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
     },
     openFile: async (request) => {
-      await API.post<{ path: string }>("/kernel/open", request);
-      await API.post("/kernel/restart_session", {});
+      await marimoClient
+        .POST("/api/kernel/open", {
+          body: request,
+        })
+        .then(handleResponseReturnNull);
+      await marimoClient
+        .POST("/api/kernel/restart_session")
+        .then(handleResponseReturnNull);
       window.location.reload();
       return null;
     },
     getUsageStats: () => {
-      return API.get<UsageResponse>("/usage", {});
+      return marimoClient.GET("/api/usage").then(handleResponse);
     },
     sendListFiles: (request) => {
-      return API.post<{ path: string | undefined }, FileListResponse>(
-        "/files/list_files",
-        request,
-      );
+      return marimoClient
+        .POST("/api/files/list_files", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     sendCreateFileOrFolder: (request) => {
-      return API.post<FileCreateRequest, FileOperationResponse>(
-        "/files/create",
-        request,
-      );
+      return marimoClient
+        .POST("/api/files/create", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     sendDeleteFileOrFolder: (request) => {
-      return API.post<FileDeleteRequest, FileOperationResponse>(
-        "/files/delete",
-        request,
-      );
+      return marimoClient
+        .POST("/api/files/delete", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     sendRenameFileOrFolder: (request) => {
-      return API.post<FileMoveRequest, FileOperationResponse>(
-        "/files/move",
-        request,
-      );
+      return marimoClient
+        .POST("/api/files/move", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     sendUpdateFile: (request) => {
-      return API.post<FileUpdateRequest, FileOperationResponse>(
-        "/files/update",
-        request,
-      );
+      return marimoClient
+        .POST("/api/files/update", {
+          body: request,
+        })
+        .then(handleResponse);
     },
-    sendFileDetails: (request: { path: string }) => {
-      return API.post<{ path: string }, FileDetailsResponse>(
-        "/files/file_details",
-        request,
-      );
+    sendFileDetails: (request) => {
+      return marimoClient
+        .POST("/api/files/file_details", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     getRecentFiles: () => {
-      return API.post<{}, RecentFilesResponse>("/home/recent_files", {});
+      return marimoClient.POST("/api/home/recent_files").then(handleResponse);
     },
     getWorkspaceFiles: (request) => {
-      return API.post<WorkspaceFilesRequest, WorkspaceFilesResponse>(
-        "/home/workspace_files",
-        request,
-      );
+      return marimoClient
+        .POST("/api/home/workspace_files", {
+          body: request,
+        })
+        .then(handleResponse);
     },
     getRunningNotebooks: () => {
-      return API.post<{}, RunningNotebooksResponse>(
-        "/home/running_notebooks",
-        {},
-      );
+      return marimoClient
+        .POST("/api/home/running_notebooks")
+        .then(handleResponse);
     },
-    shutdownSession: (request: ShutdownSessionRequest) => {
-      return API.post("/home/shutdown_session", request);
+    shutdownSession: (request) => {
+      return marimoClient
+        .POST("/api/home/shutdown_session", {
+          body: request,
+        })
+        .then(handleResponse);
     },
-    exportAsHTML: async (request: ExportAsHTMLRequest) => {
+    exportAsHTML: async (request) => {
       if (
         process.env.NODE_ENV === "development" ||
         process.env.NODE_ENV === "test"
       ) {
         request.assetUrl = window.location.origin;
       }
-      return API.post("/export/html", request);
+      return marimoClient
+        .POST("/api/export/html", {
+          body: request,
+          parseAs: "text",
+        })
+        .then(handleResponse);
     },
-    exportAsMarkdown: async (request: ExportAsMarkdownRequest) => {
-      return API.post("/export/markdown", request);
+    exportAsMarkdown: async (request) => {
+      return marimoClient
+        .POST("/api/export/markdown", {
+          body: request,
+          parseAs: "text",
+        })
+        .then(handleResponse);
     },
   };
 }

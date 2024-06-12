@@ -140,7 +140,7 @@ class TestExecution:
 
         element_id = k.globals["s"]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest([(element_id, 5)])
+            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["s"].value == 5
 
@@ -180,7 +180,9 @@ class TestExecution:
 
         # Set a child of the array to 5 ...
         child_id = k.globals["array"][0]._id
-        await k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values([(child_id, 5)])
+        )
 
         # Make sure the array and its child are updated
         assert k.globals["array"].value == [5]
@@ -217,7 +219,9 @@ class TestExecution:
 
         array_id = k.globals["array"]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest([(array_id, {"0": 5})])
+            SetUIElementValueRequest.from_ids_and_values(
+                [(array_id, {"0": 5})]
+            )
         )
         assert k.globals["array"].value == [5]
         if k.lazy():
@@ -247,7 +251,9 @@ class TestExecution:
         # Set a child of the array and make sure its on_change handler is
         # called
         child_id = k.globals["array"][0]._id
-        await k.set_ui_element_value(SetUIElementValueRequest([(child_id, 5)]))
+        await k.set_ui_element_value(
+            SetUIElementValueRequest.from_ids_and_values([(child_id, 5)])
+        )
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
@@ -270,7 +276,7 @@ class TestExecution:
         # This shouldn't crash the kernel, and s's value should still be
         # updated
         await k.set_ui_element_value(
-            SetUIElementValueRequest([(element_id, 5)])
+            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["_cell_1_s"].value == 5
 
@@ -610,7 +616,7 @@ class TestExecution:
         element_id = k.globals["defs"]["slider"]._id
 
         await k.set_ui_element_value(
-            SetUIElementValueRequest([(element_id, 5)])
+            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["defs"]["slider"].value == 5
         if k.lazy():
@@ -629,7 +635,9 @@ class TestExecution:
         # smoke test -- this shouldn't raise an exception
         k = any_kernel
         await k.set_ui_element_value(
-            SetUIElementValueRequest([("does not exist", None)])
+            SetUIElementValueRequest.from_ids_and_values(
+                [("does not exist", None)]
+            )
         )
 
     async def test_interrupt(

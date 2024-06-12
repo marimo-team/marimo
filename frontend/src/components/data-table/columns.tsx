@@ -7,6 +7,7 @@ import {
 import { Checkbox } from "../ui/checkbox";
 import { MimeCell } from "./mime-cell";
 import { TableColumnSummary } from "./column-summary";
+import { uniformSample } from "./uniformSample";
 
 interface ColumnInfo {
   key: string;
@@ -176,22 +177,4 @@ function isPrimitiveOrNullish(value: unknown): boolean {
   }
   const isObject = typeof value === "object";
   return !isObject;
-}
-
-/**
- * Uniformly sample n items from an array
- */
-export function uniformSample<T>(items: T[], n: number): T[] {
-  if (items.length <= n) {
-    return items;
-  }
-  const sample: T[] = [];
-  const step = items.length / n;
-  for (let i = 0; i < n - 1; i++) {
-    const idx = Math.floor(i * step);
-    sample.push(items[idx]);
-  }
-  const last = items.at(-1) as T;
-  sample.push(last);
-  return sample;
 }

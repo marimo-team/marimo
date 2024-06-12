@@ -5,6 +5,7 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { CellId } from "../core/cells/ids";
 import { Logger } from "@/utils/Logger";
 import { Milliseconds, Seconds } from "@/utils/time";
+import { defaultUserConfig } from "@/core/config/config-schema";
 
 const meta: Meta<typeof Cell> = {
   title: "Cell",
@@ -50,40 +51,7 @@ const props: CellProps = {
   setStdinResponse: Logger.log,
   clearSerializedEditorState: Logger.log,
   config: {},
-  userConfig: {
-    completion: {
-      activate_on_typing: true,
-      copilot: false,
-    },
-    save: {
-      autosave: "off",
-      autosave_delay: 1000,
-      format_on_save: false,
-    },
-    display: {
-      theme: "light",
-      code_editor_font_size: 14,
-      cell_output: "above",
-      default_width: "medium",
-    },
-    runtime: {
-      auto_instantiate: true,
-      on_cell_change: "autorun",
-      auto_reload: "off",
-    },
-    keymap: {
-      preset: "default",
-      overrides: {},
-    },
-    formatting: {
-      line_length: 79,
-    },
-    package_management: {
-      manager: "pip",
-    },
-    ai: {},
-    experimental: {},
-  },
+  userConfig: defaultUserConfig(),
 };
 
 export const Primary: Story = {

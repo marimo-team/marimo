@@ -18,7 +18,10 @@ const defaultValues: ExperimentalFeatures = {
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
   feature: T,
 ): ExperimentalFeatures[T] {
-  return getUserConfig().experimental?.[feature] ?? defaultValues[feature];
+  return (
+    (getUserConfig().experimental?.[feature] as ExperimentalFeatures[T]) ??
+    defaultValues[feature]
+  );
 }
 
 function setFeatureFlag(

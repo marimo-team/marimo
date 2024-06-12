@@ -51,7 +51,7 @@ function useRunCells() {
       ref.registerRun();
     }
 
-    await sendRun(cellIds, codes).catch((error) => {
+    await sendRun({ cellIds: cellIds, codes: codes }).catch((error) => {
       Logger.error(error);
     });
   });

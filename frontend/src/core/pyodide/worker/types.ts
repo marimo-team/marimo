@@ -4,19 +4,22 @@ import type {
   CodeCompletionRequest,
   ExportAsHTMLRequest,
   FileCreateRequest,
+  FileCreateResponse,
   FileDeleteRequest,
+  FileDeleteResponse,
   FileDetailsResponse,
   FileListRequest,
   FileListResponse,
   FileMoveRequest,
-  FileOperationResponse,
+  FileMoveResponse,
   FileUpdateRequest,
+  FileUpdateResponse,
   FormatRequest,
   FormatResponse,
-  SaveAppConfigRequest,
-  SaveKernelRequest,
-  SaveUserConfigRequest,
-  SnippetsResponse,
+  SaveAppConfigurationRequest,
+  SaveNotebookRequest,
+  SaveUserConfigurationRequest,
+  Snippets,
 } from "../../network/types";
 import { OperationMessage } from "@/core/kernel/messages";
 import { JsonString } from "@/utils/json/base64";
@@ -60,24 +63,22 @@ export interface RawBridge {
   put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
-  read_snippets(): Promise<SnippetsResponse>;
+  read_snippets(): Promise<Snippets>;
   format(request: FormatRequest): Promise<FormatResponse>;
-  save(request: SaveKernelRequest): Promise<string>;
-  save_app_config(request: SaveAppConfigRequest): Promise<string>;
-  save_user_config(request: SaveUserConfigRequest): Promise<null>;
+  save(request: SaveNotebookRequest): Promise<string>;
+  save_app_config(request: SaveAppConfigurationRequest): Promise<string>;
+  save_user_config(request: SaveUserConfigurationRequest): Promise<null>;
   rename_file(request: string): Promise<string>;
   list_files(request: FileListRequest): Promise<FileListResponse>;
   file_details(request: { path: string }): Promise<FileDetailsResponse>;
   create_file_or_directory(
     request: FileCreateRequest,
-  ): Promise<FileOperationResponse>;
+  ): Promise<FileCreateResponse>;
   delete_file_or_directory(
     request: FileDeleteRequest,
-  ): Promise<FileOperationResponse>;
-  move_file_or_directory(
-    request: FileMoveRequest,
-  ): Promise<FileOperationResponse>;
-  update_file(request: FileUpdateRequest): Promise<FileOperationResponse>;
+  ): Promise<FileDeleteResponse>;
+  move_file_or_directory(request: FileMoveRequest): Promise<FileMoveResponse>;
+  update_file(request: FileUpdateRequest): Promise<FileUpdateResponse>;
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
   set_interrupt_buffer(request: Uint8Array): Promise<string>;

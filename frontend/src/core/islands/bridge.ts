@@ -1,18 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  EditRequests,
-  InstantiateRequest,
-  RunRequests,
-  SendFunctionRequest,
-  ValueUpdate,
-} from "../network/types";
+import { EditRequests, RunRequests } from "../network/types";
 import { Deferred } from "@/utils/Deferred";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "@/core/pyodide/rpc";
 import { OperationMessage } from "../kernel/messages";
 import { JsonString } from "@/utils/json/base64";
-import { CellId } from "@/core/cells/ids";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
 import workerUrl from "./worker/worker.tsx?worker&url";
@@ -103,31 +96,29 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     this.rpc.proxy.send.consumerReady({});
   }
 
-  sendComponentValues = async (valueUpdates: ValueUpdate[]): Promise<null> => {
-    await this.putControlRequest({
-      ids_and_values: valueUpdates.map((update) => [
-        update.objectId,
-        update.value,
-      ]),
-    });
-    return null;
-  };
-  sendInstantiate = async (request: InstantiateRequest): Promise<null> => {
-    return null;
-  };
-  sendFunctionRequest = async (request: SendFunctionRequest): Promise<null> => {
+  sendComponentValues: RunRequests["sendComponentValues"] = async (
+    request,
+  ): Promise<null> => {
     await this.putControlRequest(request);
     return null;
   };
-  sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
-    await this.rpc.proxy.request.loadPackages(codes.join("\n"));
 
-    await this.putControlRequest({
-      execution_requests: cellIds.map((cellId, index) => ({
-        cell_id: cellId,
-        code: codes[index],
-      })),
-    });
+  sendInstantiate: RunRequests["sendInstantiate"] = async (
+    request,
+  ): Promise<null> => {
+    return null;
+  };
+
+  sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
+    request,
+  ): Promise<null> => {
+    await this.putControlRequest(request);
+    return null;
+  };
+
+  sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
+    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
+    await this.putControlRequest(request);
     return null;
   };
 
