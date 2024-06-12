@@ -1,11 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { Column, sortingFns } from "@tanstack/react-table";
+import { Column } from "@tanstack/react-table";
 import {
   ChevronsUpDown,
   ArrowDownNarrowWideIcon,
   ArrowDownWideNarrowIcon,
-  ArrowDown10Icon,
-  ArrowDown01Icon,
   CopyIcon,
 } from "lucide-react";
 
@@ -33,11 +31,8 @@ export const DataTableColumnHeader = <TData, TValue>({
     return <div className={cn(className)}>{header}</div>;
   }
 
-  const sortFn = column.getSortingFn();
-  const AscIcon =
-    sortFn === sortingFns.basic ? ArrowDown01Icon : ArrowDownNarrowWideIcon;
-  const DescIcon =
-    sortFn === sortingFns.basic ? ArrowDown10Icon : ArrowDownWideNarrowIcon;
+  const AscIcon = ArrowDownNarrowWideIcon;
+  const DescIcon = ArrowDownWideNarrowIcon;
 
   return (
     <DropdownMenu modal={false}>

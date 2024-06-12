@@ -13,6 +13,7 @@ from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
@@ -102,6 +103,11 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     def get_column_names(self) -> list[str]:
         return list(self._df.column_names())
+
+    def sort_values(
+        self, by: ColumnName, descending: bool
+    ) -> TableManager[DataFrameLike]:
+        return self._ensure_delegate().sort_values(by, descending)
 
     @staticmethod
     def _get_field_type(column: Column) -> FieldType:

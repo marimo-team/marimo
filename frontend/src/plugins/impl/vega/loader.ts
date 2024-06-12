@@ -86,14 +86,14 @@ export const vegaLoader = createLoader();
  *
  * This resolves to an array of objects, where each object represents a row.
  */
-export function vegaLoadData(
+export function vegaLoadData<T = object>(
   url: string,
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
   opts: {
     handleBigInt?: boolean;
     replacePeriod?: boolean;
   } = {},
-): Promise<object[]> {
+): Promise<T[]> {
   const { handleBigInt = false, replacePeriod = false } = opts;
 
   const isCsv = format?.type === "csv";
@@ -134,7 +134,7 @@ export function vegaLoadData(
       disableBigInt();
     }
 
-    return results;
+    return results as T[];
   });
 }
 

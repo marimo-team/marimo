@@ -68,6 +68,48 @@ class TestDefaultTable(unittest.TestCase):
             {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
         ]
         assert sorted_data == expected_data
+        # reverse sort
+        sorted_data = self.manager.sort_values(
+            by="name", descending=False
+        ).data
+        expected_data = [
+            {"name": "Alice", "age": 30, "birth_year": date(1994, 5, 24)},
+            {"name": "Bob", "age": 25, "birth_year": date(1999, 7, 14)},
+            {"name": "Charlie", "age": 35, "birth_year": date(1989, 12, 1)},
+            {"name": "Dave", "age": 28, "birth_year": date(1996, 3, 5)},
+            {"name": "Eve", "age": 22, "birth_year": date(2002, 1, 30)},
+        ]
+        assert sorted_data == expected_data
+
+    def test_sort_single_values(self) -> None:
+        manager = DefaultTableManager([1, 3, 2])
+        sorted_data = manager.sort_values(by="value", descending=True).data
+        expected_data = [{"value": 3}, {"value": 2}, {"value": 1}]
+        assert sorted_data == expected_data
+        # reverse sort
+        sorted_data = manager.sort_values(by="value", descending=False).data
+        expected_data = [{"value": 1}, {"value": 2}, {"value": 3}]
+        assert sorted_data == expected_data
+
+    def test_mixed_values(self) -> None:
+        manager = DefaultTableManager([1, "foo", 2, False])
+        sorted_data = manager.sort_values(by="value", descending=True).data
+        expected_data = [
+            {"value": "foo"},
+            {"value": False},
+            {"value": 2},
+            {"value": 1},
+        ]
+        assert sorted_data == expected_data
+        # reverse sort
+        sorted_data = manager.sort_values(by="value", descending=False).data
+        expected_data = [
+            {"value": 1},
+            {"value": 2},
+            {"value": False},
+            {"value": "foo"},
+        ]
+        assert sorted_data == expected_data
 
 
 class TestColumnarDefaultTable(unittest.TestCase):

@@ -23,7 +23,10 @@ from marimo._plugins.ui._impl.tables.polars_table import (
 from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
-from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
+    TableManager,
+)
 
 JsonTableData = Union[
     Sequence[Union[str, int, float, bool, MIME, None]],
@@ -141,9 +144,17 @@ class DefaultTableManager(TableManager[JsonTableData]):
             return list(first.keys())
         return ["value"]
 
-    def sort_values(self, by: str, descending: bool) -> DefaultTableManager:
+    def sort_values(
+        self, by: ColumnName, descending: bool
+    ) -> DefaultTableManager:
         normalized = self._normalize_data(self.data)
-        data = sorted(normalized, key=lambda x: x[by], reverse=descending)
+        try:
+            data = sorted(normalized, key=lambda x: x[by], reverse=descending)
+        except TypeError:
+            # Handle when all values are not comparable
+            data = sorted(
+                normalized, key=lambda x: str(x[by]), reverse=descending
+            )
         return DefaultTableManager(data)
 
     @staticmethod
