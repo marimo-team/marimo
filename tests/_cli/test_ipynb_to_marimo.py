@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import textwrap
 from typing import TYPE_CHECKING
+
+import pytest
 
 from marimo._ast import codegen
 from marimo._cli.convert.ipynb import convert_from_ipynb_file
@@ -103,6 +106,9 @@ def test_unparsable() -> None:
     assert names == ["__", "__"]
 
 
+@pytest.mark.skipif(
+    sys.version_info <= (3, 8), reason="Feature not supported in python 3.8"
+)
 def test_multiple_defs() -> None:
     codes, _ = get_codes("multiple_defs")
 

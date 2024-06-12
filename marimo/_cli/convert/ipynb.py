@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 
 from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer
@@ -15,6 +16,10 @@ from marimo._runtime.dataflow import DirectedGraph
 
 
 def fixup_multiple_definitions(sources: list[str]) -> list[str]:
+    if sys.version_info <= (3, 8):
+        # ast.unparse not available in Python 3.8
+        return sources
+
     try:
         cells = [
             compile_cell(source, cell_id=str(i))
