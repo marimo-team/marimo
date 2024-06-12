@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import textwrap
 from typing import TYPE_CHECKING
+
+import pytest
 
 from marimo._ast import codegen
 from marimo._cli.convert.ipynb import convert_from_ipynb_file
@@ -101,3 +104,36 @@ def test_unparsable() -> None:
     assert codes[0] == "!echo hello, world\n\nx = 0"
     assert codes[1] == "x"
     assert names == ["__", "__"]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
+)
+def test_multiple_defs() -> None:
+    codes, _ = get_codes("multiple_defs")
+
+    assert len(codes) == 7
+    assert codes[0] == "_x = 0\n_x"
+    assert codes[1] == "_x = 1\n_x"
+    assert codes[2] == "y = 0"
+    assert codes[3] == "y = 1"
+    assert codes[4] == "y"
+    assert (
+        codes[5]
+        == textwrap.dedent(
+            """
+            for _i in range(3):
+                print(_i)
+            """
+        ).strip()
+    )
+    assert (
+        codes[6]
+        == textwrap.dedent(
+            """
+            for _i in range(4):
+                print(_i)
+
+            """
+        ).strip()
+    )

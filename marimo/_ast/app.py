@@ -215,17 +215,18 @@ class App:
                 raise CycleError(
                     "This app can't be run because it has cycles."
                 )
-            name = self._graph.get_multiply_defined()
-            if name is not None:
+            multiply_defined_names = self._graph.get_multiply_defined()
+            if multiply_defined_names:
                 raise MultipleDefinitionError(
                     "This app can't be run because it has multiple "
-                    f"definitions of the name {name}"
+                    f"definitions of the name {multiply_defined_names[0]}"
                 )
-            ref = self._graph.get_deleted_nonlocal_ref()
-            if ref is not None:
+            deleted_nonlocal_refs = self._graph.get_deleted_nonlocal_ref()
+            if deleted_nonlocal_refs:
                 raise DeleteNonlocalError(
                     "This app can't be run because at least one cell "
-                    f"deletes one of its refs (the ref's name is {ref})"
+                    "deletes one of its refs (the ref's name is "
+                    f"{deleted_nonlocal_refs[0]})"
                 )
             self._execution_order = dataflow.topological_sort(
                 self._graph, list(self._cell_manager.valid_cell_ids())
