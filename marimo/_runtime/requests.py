@@ -65,6 +65,8 @@ class SetUIElementValueRequest:
     def from_ids_and_values(
         ids_and_values: List[Tuple[UIElementId, Any]],
     ) -> SetUIElementValueRequest:
+        if not ids_and_values:
+            return SetUIElementValueRequest(object_ids=[], values=[])
         object_ids, values = zip(*ids_and_values)
         return SetUIElementValueRequest(
             object_ids=list(object_ids), values=list(values)
