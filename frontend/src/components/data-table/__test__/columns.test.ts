@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, test } from "vitest";
-import { uniformSample } from "../columns";
+import { uniformSample } from "../uniformSample";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];

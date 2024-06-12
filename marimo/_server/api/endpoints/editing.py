@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._runtime.requests import (
-    CompletionRequest,
+    CodeCompletionRequest,
     DeleteRequest,
     InstallMissingPackagesRequest,
     SetCellConfigRequest,
@@ -38,7 +38,7 @@ async def code_complete(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/CompletionRequest"
+                    $ref: "#/components/schemas/CodeCompletionRequest"
     responses:
         200:
             description: Complete a code fragment
@@ -48,7 +48,7 @@ async def code_complete(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=CompletionRequest)
+    body = await parse_request(request, cls=CodeCompletionRequest)
     app_state.require_current_session().put_completion_request(body)
 
     return SuccessResponse()

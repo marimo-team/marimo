@@ -55,7 +55,7 @@ jobs:
         run: pnpm turbo typecheck
 
       - name: 🧪 Test
-        run: pnpm turbo test
+        run: pnpm test
 
       - name: 📦 Build
         run: pnpm turbo build

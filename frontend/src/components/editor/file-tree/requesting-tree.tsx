@@ -6,7 +6,7 @@ import type {
   sendDeleteFileOrFolder,
   sendRenameFileOrFolder,
 } from "@/core/network/requests";
-import { FileInfo, FileOperationResponse } from "@/core/network/types";
+import { FileInfo, FileUpdateResponse } from "@/core/network/types";
 import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
 import { FilePath, PathBuilder } from "@/utils/paths";
@@ -34,7 +34,7 @@ export class RequestingTree {
       try {
         const data = await this.callbacks.listFiles({ path: this.rootPath });
         this.delegate = new SimpleTree(data.files);
-        this.rootPath = data.root;
+        this.rootPath = data.root as FilePath;
         this.path = PathBuilder.guessDeliminator(data.root);
       } catch (error) {
         toast({
@@ -74,7 +74,7 @@ export class RequestingTree {
     if (!node) {
       return;
     }
-    const currentPath = node.data.path;
+    const currentPath = node.data.path as FilePath;
     const newPath = this.path.join(this.path.dirname(currentPath), name);
     await this.callbacks
       .renameFileOrFolder({
@@ -100,7 +100,7 @@ export class RequestingTree {
         }
         const newPath = this.path.join(
           parentPath,
-          this.path.basename(node.data.path),
+          this.path.basename(node.data.path as FilePath),
         );
         this.delegate.update({ id, changes: { path: newPath } });
         return this.callbacks
@@ -167,7 +167,7 @@ export class RequestingTree {
     return path;
   };
 
-  private handleResponse = (response: FileOperationResponse): void => {
+  private handleResponse = (response: FileUpdateResponse): void => {
     if (!response.success) {
       toast({
         title: "Failed",

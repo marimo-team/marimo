@@ -4,18 +4,18 @@ components:
       properties:
         code:
           type: string
-        include_other_code:
+        includeOtherCode:
           type: string
         prompt:
           type: string
       required:
       - prompt
-      - include_other_code
+      - includeOtherCode
       - code
       type: object
     AppMetadata:
       properties:
-        cli_args:
+        cliArgs:
           additionalProperties:
             oneOf:
             - type: string
@@ -33,7 +33,7 @@ components:
         filename:
           nullable: true
           type: string
-        query_params:
+        queryParams:
           additionalProperties:
             oneOf:
             - type: string
@@ -42,8 +42,8 @@ components:
               type: array
           type: object
       required:
-      - query_params
-      - cli_args
+      - queryParams
+      - cliArgs
       type: object
     BaseResponse:
       properties:
@@ -56,12 +56,12 @@ components:
       properties:
         disabled:
           type: boolean
-        hide_code:
+        hideCode:
           type: boolean
       type: object
-    CompletionRequest:
+    CodeCompletionRequest:
       properties:
-        cell_id:
+        cellId:
           type: string
         document:
           type: string
@@ -70,64 +70,57 @@ components:
       required:
       - id
       - document
-      - cell_id
+      - cellId
       type: object
     CreationRequest:
       properties:
-        execution_requests:
+        executionRequests:
           items:
             $ref: '#/components/schemas/ExecutionRequest'
           type: array
-        set_ui_element_value_request:
-          properties:
-            ids_and_values:
-              items:
-                prefixItems:
-                - type: string
-                - {}
-                type: array
-              type: array
-            token:
-              type: string
-          required:
-          - ids_and_values
-          type: object
+        setUiElementValueRequest:
+          $ref: '#/components/schemas/SetUIElementValueRequest'
       required:
-      - execution_requests
-      - set_ui_element_value_request
+      - executionRequests
+      - setUiElementValueRequest
       type: object
     DeleteRequest:
       properties:
-        cell_id:
+        cellId:
           type: string
       required:
-      - cell_id
+      - cellId
       type: object
     ExecuteMultipleRequest:
       properties:
-        execution_requests:
+        cellIds:
           items:
-            $ref: '#/components/schemas/ExecutionRequest'
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
           type: array
       required:
-      - execution_requests
+      - cellIds
+      - codes
       type: object
     ExecuteStaleRequest:
       properties: {}
       type: object
     ExecutionRequest:
       properties:
-        cell_id:
+        cellId:
           type: string
         code:
           type: string
       required:
-      - cell_id
+      - cellId
       - code
       type: object
     ExportAsHTMLRequest:
       properties:
-        asset_url:
+        assetUrl:
           nullable: true
           type: string
         download:
@@ -136,12 +129,12 @@ components:
           items:
             type: string
           type: array
-        include_code:
+        includeCode:
           type: boolean
       required:
       - download
       - files
-      - include_code
+      - includeCode
       type: object
     ExportAsMarkdownRequest:
       properties:
@@ -217,7 +210,7 @@ components:
           type: string
         file:
           $ref: '#/components/schemas/FileInfo'
-        mime_type:
+        mimeType:
           nullable: true
           type: string
       required:
@@ -231,11 +224,11 @@ components:
           type: array
         id:
           type: string
-        is_directory:
+        isDirectory:
           type: boolean
-        is_marimo_file:
+        isMarimoFile:
           type: boolean
-        last_modified_date:
+        lastModifiedDate:
           nullable: true
           type: number
         name:
@@ -246,8 +239,8 @@ components:
       - id
       - path
       - name
-      - is_directory
-      - is_marimo_file
+      - isDirectory
+      - isMarimoFile
       type: object
     FileListRequest:
       properties:
@@ -269,13 +262,13 @@ components:
       type: object
     FileMoveRequest:
       properties:
-        new_path:
+        newPath:
           type: string
         path:
           type: string
       required:
       - path
-      - new_path
+      - newPath
       type: object
     FileMoveResponse:
       properties:
@@ -319,11 +312,11 @@ components:
           additionalProperties:
             type: string
           type: object
-        line_length:
+        lineLength:
           type: integer
       required:
       - codes
-      - line_length
+      - lineLength
       type: object
     FormatResponse:
       properties:
@@ -339,16 +332,16 @@ components:
         args:
           additionalProperties: {}
           type: object
-        function_call_id:
+        functionCallId:
           type: string
-        function_name:
+        functionName:
           type: string
         namespace:
           type: string
       required:
-      - function_call_id
+      - functionCallId
       - namespace
-      - function_name
+      - functionName
       - args
       type: object
     InstallMissingPackagesRequest:
@@ -360,21 +353,15 @@ components:
       type: object
     InstantiateRequest:
       properties:
-        object_ids:
+        objectIds:
           items:
             type: string
           type: array
         values:
-          items:
-            nullable: true
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
+          items: {}
           type: array
       required:
-      - object_ids
+      - objectIds
       - values
       type: object
     MarimoConfig:
@@ -528,22 +515,22 @@ components:
       type: object
     MarimoFile:
       properties:
-        initialization_id:
+        initializationId:
           nullable: true
           type: string
-        last_modified:
+        lastModified:
           type: number
         name:
           type: string
         path:
           type: string
-        session_id:
+        sessionId:
           nullable: true
           type: string
       required:
       - name
       - path
-      - last_modified
+      - lastModified
       type: object
     OpenFileRequest:
       properties:
@@ -554,16 +541,16 @@ components:
       type: object
     PreviewDatasetColumnRequest:
       properties:
-        column_name:
+        columnName:
           type: string
         source:
           type: string
-        table_name:
+        tableName:
           type: string
       required:
       - source
-      - table_name
-      - column_name
+      - tableName
+      - columnName
       type: object
     ReadCodeResponse:
       properties:
@@ -590,7 +577,7 @@ components:
       type: object
     RunRequest:
       properties:
-        cell_ids:
+        cellIds:
           items:
             type: string
           type: array
@@ -599,7 +586,7 @@ components:
             type: string
           type: array
       required:
-      - cell_ids
+      - cellIds
       - codes
       type: object
     SaveAppConfigurationRequest:
@@ -610,9 +597,9 @@ components:
       required:
       - config
       type: object
-    SaveRequest:
+    SaveNotebookRequest:
       properties:
-        cell_ids:
+        cellIds:
           items:
             type: string
           type: array
@@ -635,7 +622,7 @@ components:
             type: string
           type: array
       required:
-      - cell_ids
+      - cellIds
       - codes
       - names
       - configs
@@ -652,9 +639,7 @@ components:
       properties:
         configs:
           additionalProperties:
-            additionalProperties:
-              additionalProperties: true
-              type: object
+            additionalProperties: {}
             type: object
           type: object
       required:
@@ -662,17 +647,18 @@ components:
       type: object
     SetUIElementValueRequest:
       properties:
-        ids_and_values:
+        objectIds:
           items:
-            prefixItems:
-            - type: string
-            - {}
-            type: array
+            type: string
           type: array
         token:
           type: string
+        values:
+          items: {}
+          type: array
       required:
-      - ids_and_values
+      - objectIds
+      - values
       type: object
     SetUserConfigRequest:
       properties:
@@ -683,10 +669,10 @@ components:
       type: object
     ShutdownSessionRequest:
       properties:
-        session_id:
+        sessionId:
           type: string
       required:
-      - session_id
+      - sessionId
       type: object
     Snippet:
       properties:
@@ -739,26 +725,20 @@ components:
       type: object
     UpdateComponentValuesRequest:
       properties:
-        object_ids:
+        objectIds:
           items:
             type: string
           type: array
         values:
-          items:
-            nullable: true
-            oneOf:
-            - type: string
-            - type: boolean
-            - type: integer
-            - type: number
+          items: {}
           type: array
       required:
-      - object_ids
+      - objectIds
       - values
       type: object
     WorkspaceFilesRequest:
       properties:
-        include_markdown:
+        includeMarkdown:
           type: boolean
       type: object
     WorkspaceFilesResponse:
@@ -1017,7 +997,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CompletionRequest'
+              $ref: '#/components/schemas/CodeCompletionRequest'
       responses:
         200:
           content:
@@ -1175,7 +1155,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SaveRequest'
+              $ref: '#/components/schemas/SaveNotebookRequest'
       responses:
         200:
           content:
@@ -1199,6 +1179,11 @@ paths:
           description: Save the app configuration
   /api/kernel/save_user_config:
     post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveUserConfigurationRequest'
       responses:
         200:
           content:
@@ -1300,6 +1285,8 @@ paths:
                     properties:
                       percent:
                         type: number
+                    required:
+                    - percent
                     type: object
                   memory:
                     properties:
@@ -1313,7 +1300,16 @@ paths:
                         type: integer
                       used:
                         type: integer
+                    required:
+                    - total
+                    - available
+                    - percent
+                    - used
+                    - free
                     type: object
+                required:
+                - memory
+                - cpu
                 type: object
           description: Get the current memory and CPU usage of the application
   /api/version:

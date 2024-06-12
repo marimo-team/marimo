@@ -204,7 +204,7 @@ const CellComponent = (
 
     const code = prepareToRunEffects();
 
-    await sendRun([cellId], [code]).catch((error) => {
+    await sendRun({ cellIds: [cellId], codes: [code] }).catch((error) => {
       Logger.error("Error running cell", error);
     });
   });

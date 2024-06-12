@@ -86,7 +86,7 @@ class QueueManager:
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue: QueueType[requests.CompletionRequest] = (
+        self.completion_queue: QueueType[requests.CodeCompletionRequest] = (
             context.Queue() if context is not None else queue.Queue()
         )
 
@@ -356,7 +356,7 @@ class Session:
         self.session_view.add_control_request(request)
 
     def put_completion_request(
-        self, request: requests.CompletionRequest
+        self, request: requests.CodeCompletionRequest
     ) -> None:
         self._queue_manager.completion_queue.put(request)
 
@@ -424,7 +424,9 @@ class Session:
             CreationRequest(
                 execution_requests=execution_requests,
                 set_ui_element_value_request=SetUIElementValueRequest(
-                    request.zip(), token=str(uuid4())
+                    object_ids=request.object_ids,
+                    values=request.values,
+                    token=str(uuid4()),
                 ),
             )
         )

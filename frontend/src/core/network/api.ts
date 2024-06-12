@@ -3,6 +3,7 @@ import { once } from "@/utils/once";
 import { Logger } from "../../utils/Logger";
 import { getMarimoServerToken } from "../dom/marimo-tag";
 import { getSessionId } from "../kernel/session";
+import { createMarimoClient } from "@marimo-team/marimo-api";
 
 const getServerTokenOnce = once(() => {
   return getMarimoServerToken();
@@ -92,4 +93,37 @@ export const API = {
       "Marimo-Server-Token": getServerTokenOnce(),
     };
   },
+  handleResponse: <T>(response: {
+    data?: T | undefined;
+    error?: Error;
+    response: Response;
+  }): Promise<T> => {
+    if (response.error) {
+      return Promise.reject(response.error);
+    }
+    return Promise.resolve(response.data as T);
+  },
+  handleResponseReturnNull: (response: {
+    error?: Error;
+    response: Response;
+  }): Promise<null> => {
+    if (response.error) {
+      return Promise.reject(response.error);
+    }
+    return Promise.resolve(null);
+  },
 };
+
+export const marimoClient = createMarimoClient({
+  // eslint-disable-next-line ssr-friendly/no-dom-globals-in-module-scope
+  baseUrl: typeof document === "undefined" ? undefined : document.baseURI,
+});
+
+marimoClient.use({
+  onRequest: (req) => {
+    for (const [key, value] of Object.entries(API.headers())) {
+      req.headers.set(key, value);
+    }
+    return req;
+  },
+});

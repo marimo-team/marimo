@@ -52,6 +52,7 @@ class SetUIElementRequestManager:
             for ui_id, value in request.ids_and_values:
                 merged[ui_id] = value
         return SetUIElementValueRequest(
-            ids_and_values=[(ui_id, value) for ui_id, value in merged.items()],
+            object_ids=list(merged.keys()),
+            values=list(merged.values()),
             token="",
         )

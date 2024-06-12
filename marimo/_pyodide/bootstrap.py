@@ -14,7 +14,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.file_manager import AppFileManager
 from marimo._server.model import SessionMode
-from marimo._server.models.models import SaveRequest
+from marimo._server.models.models import SaveNotebookRequest
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
@@ -33,7 +33,9 @@ def instantiate(session: PyodideSession) -> None:
     session.put_control_request(
         CreationRequest(
             execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(list()),
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[], values=[]
+            ),
         )
     )
 
@@ -97,6 +99,6 @@ def save_file(
     request: str,
     filename: str,
 ) -> None:
-    parsed = parse_raw(json.loads(request), SaveRequest)
+    parsed = parse_raw(json.loads(request), SaveNotebookRequest)
     app_file_manager = AppFileManager(filename=filename)
     app_file_manager.save(parsed)

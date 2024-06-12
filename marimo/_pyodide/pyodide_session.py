@@ -24,7 +24,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import (
     AppMetadata,
-    CompletionRequest,
+    CodeCompletionRequest,
     ControlRequest,
     SetUIElementValueRequest,
 )
@@ -56,7 +56,7 @@ from marimo._server.models.models import (
     FormatResponse,
     ReadCodeResponse,
     SaveAppConfigurationRequest,
-    SaveRequest,
+    SaveNotebookRequest,
 )
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
@@ -80,7 +80,7 @@ class AsyncQueueManager:
         ]()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue = asyncio.Queue[requests.CompletionRequest]()
+        self.completion_queue = asyncio.Queue[requests.CodeCompletionRequest]()
 
         # Input messages for the user's Python code are sent through the
         # input queue
@@ -141,7 +141,7 @@ class PyodideSession:
             self._queue_manager.set_ui_element_queue.put_nowait(request)
 
     def put_completion_request(
-        self, request: requests.CompletionRequest
+        self, request: requests.CodeCompletionRequest
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
@@ -169,7 +169,7 @@ class PyodideBridge:
         self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), requests.CompletionRequest)
+        parsed = parse_raw(json.loads(request), requests.CodeCompletionRequest)
         self.session.put_completion_request(parsed)
 
     def read_code(self) -> str:
@@ -189,7 +189,7 @@ class PyodideBridge:
         return json.dumps(deep_to_camel_case(dataclasses.asdict(response)))
 
     def save(self, request: str) -> None:
-        parsed = parse_raw(json.loads(request), SaveRequest)
+        parsed = parse_raw(json.loads(request), SaveNotebookRequest)
         self.session.app_manager.save(parsed)
 
     def save_app_config(self, request: str) -> None:
@@ -300,7 +300,7 @@ class PyodideBridge:
 def launch_pyodide_kernel(
     control_queue: asyncio.Queue[ControlRequest],
     set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
-    completion_queue: asyncio.Queue[CompletionRequest],
+    completion_queue: asyncio.Queue[CodeCompletionRequest],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
     is_edit_mode: bool,

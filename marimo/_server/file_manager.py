@@ -15,7 +15,7 @@ from marimo._runtime.layout.layout import (
     save_layout_config,
 )
 from marimo._server.api.status import HTTPException, HTTPStatus
-from marimo._server.models.models import SaveRequest
+from marimo._server.models.models import SaveNotebookRequest
 from marimo._server.utils import canonicalize_filename
 
 LOGGER = _loggers.marimo_logger()
@@ -200,7 +200,7 @@ class AppFileManager:
                 new_config,
             )
 
-    def save(self, request: SaveRequest) -> None:
+    def save(self, request: SaveNotebookRequest) -> None:
         """Save the current app."""
         cell_ids, codes, configs, names, filename, layout = (
             request.cell_ids,

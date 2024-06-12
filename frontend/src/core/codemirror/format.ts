@@ -36,7 +36,10 @@ export async function formatEditorViews(
     lineLength: getUserConfig().formatting.line_length,
   });
 
-  for (const [cellId, formattedCode] of Objects.entries(formatResponse)) {
+  for (const [_cellId, formattedCode] of Objects.entries(
+    formatResponse.codes,
+  )) {
+    const cellId = _cellId as CellId;
     const originalCode = codes[cellId];
     const view = views[cellId];
 

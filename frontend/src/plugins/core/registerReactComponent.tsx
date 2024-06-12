@@ -151,8 +151,8 @@ function PluginSlotInternal<T>(
     const methods: PluginFunctions = {};
     for (const [key, schemas] of Objects.entries(plugin.functions)) {
       const { input, output } = schemas as {
-        input: ZodSchema<unknown>;
-        output: ZodSchema<unknown>;
+        input: ZodSchema<Record<string, unknown>>;
+        output: ZodSchema<Record<string, unknown>>;
       };
       methods[key] = async (...args: unknown[]) => {
         invariant(
