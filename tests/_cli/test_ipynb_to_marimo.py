@@ -107,7 +107,7 @@ def test_unparsable() -> None:
 
 
 @pytest.mark.skipif(
-    sys.version_info <= (3, 8), reason="Feature not supported in python 3.8"
+    sys.version_info < (3, 9), reason="Feature not supported in python 3.8"
 )
 def test_multiple_defs() -> None:
     codes, _ = get_codes("multiple_defs")
