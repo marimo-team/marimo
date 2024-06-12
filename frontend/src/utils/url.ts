@@ -9,7 +9,7 @@
  */
 export function asURL(path: string): URL {
   if (path.startsWith("./")) {
-    return new URL(path.slice(1), document.baseURI);
+    return new URL(path, document.baseURI);
   }
 
   if (path.startsWith("/")) {
