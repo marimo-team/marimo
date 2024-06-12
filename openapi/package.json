@@ -7,10 +7,10 @@
   "type": "module",
   "license": "Apache-2.0",
   "files": [
-    "dist"
+    "src"
   ],
   "scripts": {
-    "codegen": "npx openapi-typescript ./api.yaml -o ./src/api.d.ts"
+    "codegen": "npx openapi-typescript ./api.yaml -o ./src/api.ts"
   },
   "devDependencies": {
     "openapi-typescript": "^6.7.6",

@@ -56,7 +56,7 @@ class SetUIElementValueRequest:
     # uniquely identifies the request
     token: str = field(default_factory=lambda: str(uuid4()))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert len(self.object_ids) == len(
             self.values
         ), "Mismatched object_ids and values"

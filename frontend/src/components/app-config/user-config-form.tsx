@@ -44,7 +44,7 @@ export const UserConfigForm: React.FC = () => {
   // Create form
   const form = useForm<UserConfig>({
     resolver: zodResolver(UserConfigSchema),
-    defaultValues: config as DefaultValues<UserConfig>,
+    defaultValues: config,
   });
 
   const onSubmit = async (values: UserConfig) => {
