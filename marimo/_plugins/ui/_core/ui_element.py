@@ -286,17 +286,13 @@ class UIElement(Html, Generic[S, T], metaclass=abc.ABCMeta):
             "consider using mo.state()."
         )
 
-    @property
-    def on_change(self) -> Optional[Callable[[T], None]]:
-        return self._on_change
-
-    @on_change.setter
-    def on_change(self, on_change: Optional[Callable[[T], None]]) -> None:
-        del on_change
-        raise RuntimeError(
-            "Setting the on_change handler of a UIElement is not allowed. "
-            "You must set the on_change in the constructor."
-        )
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "on_change":
+            raise RuntimeError(
+                "Setting the on_change handler of a UIElement is not allowed. "
+                "You must set the on_change in the constructor."
+            )
+        super().__setattr__(name, value)
 
     @mddoc
     def form(
