@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from types import ModuleType
 from typing import (
     Any,
@@ -44,11 +44,19 @@ from marimo._runtime.layout.layout import LayoutConfig
 LOGGER = loggers.marimo_logger()
 
 
-def serialize(datacls: Any) -> dict[str, JSONType]:
-    return cast(
-        dict[str, JSONType],
-        json.loads(json.dumps(datacls, cls=WebComponentEncoder)),
-    )
+def serialize(datacls: Any) -> Dict[str, JSONType]:
+    try:
+        # Try to serialize as a dataclass
+        return cast(
+            Dict[str, JSONType],
+            asdict(datacls),
+        )
+    except Exception:
+        # If that fails, try to serialize using the WebComponentEncoder
+        return cast(
+            Dict[str, JSONType],
+            json.loads(json.dumps(datacls, cls=WebComponentEncoder)),
+        )
 
 
 @dataclass
@@ -272,7 +280,7 @@ class FunctionCallResult(Op):
 
     def serialize(self) -> dict[str, Any]:
         try:
-            return super().serialize()
+            return serialize(self)
         except Exception as e:
             LOGGER.exception(
                 "Error serializing function call result %s: %s",
