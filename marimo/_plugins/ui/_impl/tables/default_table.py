@@ -145,7 +145,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return ["value"]
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
-        return self._as_table_manager().get_unique_column_values(column)
+        return sorted(
+            self._as_table_manager().get_unique_column_values(column)
+        )
 
     def sort_values(
         self, by: ColumnName, descending: bool

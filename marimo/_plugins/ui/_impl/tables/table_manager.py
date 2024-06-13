@@ -73,10 +73,6 @@ class TableManager(abc.ABC, Generic[T]):
         return {}
 
     @abc.abstractmethod
-    def get_numpy_types(self) -> NumpyTypes:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def limit(self, num: int) -> TableManager[Any]:
         raise NotImplementedError
 
