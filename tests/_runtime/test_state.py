@@ -202,3 +202,19 @@ async def test_set_state_with_overridden_eq(
     )
 
     assert type(k.globals["x"]).__name__ == "A"
+
+
+async def test_set_state_not_strict_copied(
+    strict_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = strict_kernel
+    await k.run(
+        [
+            exec_req.get("import marimo as mo"),
+            exec_req.get("state, set_state = mo.state(None)"),
+            exec_req.get("a, b = state, set_state"),
+        ]
+    )
+
+    assert id(k.globals["a"]) == id(k.globals["state"])
+    assert id(k.globals["b"]) == id(k.globals["set_state"])

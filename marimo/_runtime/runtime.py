@@ -21,7 +21,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._ast.cell import CellConfig, CellId_t
 from marimo._ast.compiler import compile_cell
-from marimo._ast.visitor import Name, is_local
+from marimo._ast.visitor import Name
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._data.preview_column import get_column_preview
 from marimo._messaging.cell_output import CellChannel
@@ -111,6 +111,7 @@ from marimo._server.types import QueueType
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
+from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence

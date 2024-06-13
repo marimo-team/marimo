@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 from uuid import uuid4
 
+from marimo._utils.variables import is_local
+
 Name = str
 
 
@@ -43,10 +45,6 @@ class VariableData:
 
     # For kind == import
     import_data: Optional[ImportData] = None
-
-
-def is_local(name: str) -> bool:
-    return name.startswith("_") and not name.startswith("__")
 
 
 @dataclass

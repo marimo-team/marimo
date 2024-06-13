@@ -18,8 +18,9 @@ from marimo._ast.cell import (
     CellId_t,
     CellImpl,
 )
-from marimo._ast.visitor import ScopedVisitor, is_local
+from marimo._ast.visitor import ScopedVisitor
 from marimo._utils.tmpdir import get_tmpdir
+from marimo._utils.variables import is_local
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

@@ -13,6 +13,7 @@ from marimo._ast.cell import (
 from marimo._ast.compiler import code_key
 from marimo._ast.visitor import Name, VariableData
 from marimo._runtime.executor import execute_cell, execute_cell_async
+from marimo._utils.variables import is_mangled_local
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -359,7 +360,7 @@ class DirectedGraph:
                         for maybe_private in (
                             to_process - self.definitions.keys()
                         ):
-                            if maybe_private.startswith(f"_cell_{cell_id}_"):
+                            if is_mangled_local(maybe_private, cell_id):
                                 processed.add(maybe_private)
 
         if inclusive:

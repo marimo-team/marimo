@@ -16,16 +16,19 @@ from marimo._runtime.copy import (
     ZeroCopy,
     shallow_copy,
 )
+from marimo._utils.variables import is_mangled_local
 
 if TYPE_CHECKING:
     from marimo._ast.visitor import Name, VariableData
     from marimo._runtime.dataflow import DirectedGraph
 
+
 UNCLONABLE_TYPES = [
     "marimo._runtime.state.State",
+    "marimo._runtime.state.SetFunctor",
 ]
 
-UNCLONABLE_MODULES = ["_asyncio", "marimo._ast"]
+UNCLONABLE_MODULES = ["_asyncio", "marimo._ast", "marimo._plugins.ui"]
 PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
@@ -223,17 +226,12 @@ class StrictExecutor(Executor):
             if key in glbls
         }
 
-        from asyncio import Future
-
-        from marimo._plugins.ui._core.ui_element import UIElement
-        from marimo._runtime.state import SetFunctor, State
-
         for ref in refs:
             if ref in glbls:
                 if (
                     isinstance(
                         glbls[ref],
-                        (State, SetFunctor, ZeroCopy, Future, UIElement),
+                        (ZeroCopy),
                     )
                     or inspect.ismodule(glbls[ref])
                     or inspect.isfunction(glbls[ref])
@@ -288,31 +286,35 @@ class StrictExecutor(Executor):
                 # Overwrite will delete the reference.
                 # Weak copy holds on with references.
                 glbls[df] = lcls[df]
+            # Captures the case where a variable was previously defined by the
+            # cell but this most recent run did not define it. The value is now
+            # stale and needs to be flushed.
             elif df in glbls:
                 del glbls[df]
 
+        # Flush all private variables from memory
         for df in backup:
-            if df.startswith(f"_cell_{cell.cell_id}_"):
+            if is_mangled_local(df, cell.cell_id):
                 del glbls[df]
 
-        from marimo._plugins.ui._core.ui_element import UIElement
-
-        # Private UI elements should still be in memory.
-        # Or a required ref.
-        required = set()
-        for variable in cell.variable_data.values():
-            required.update(variable.required_refs)
-
+        # Now repopulate all private variables.
         for df in lcls:
-            if df.startswith(f"_cell_{cell.cell_id}_"):
-                if df in required or isinstance(lcls[df], UIElement):
-                    glbls[df] = lcls[df]
+            if is_mangled_local(df, cell.cell_id):
+                glbls[df] = lcls[df]
 
 
 def build_ref_predicate(
     glbls: dict[str, Any],
 ) -> Callable[[Name, VariableData], bool]:
     """
+    Builds a predicate function to determine if a reference should be included
+
+    Args:
+        glbls: The global variables dictionary to base the predicate on
+    Returns:
+        A function that takes a variable name and associated data and
+        returns True if its reference should be included in a reference search.
+
     All declared variables are tied together under the graph of required_refs.
     Strict execution gets the minimum graph of definitions for execution.
     Certain definitions, like lambdas, functions, and classes contain an
@@ -384,6 +386,7 @@ def is_unclonable_type(obj: object) -> bool:
 
 
 def from_unclonable_module(obj: object) -> bool:
+    obj = obj if hasattr(obj, "__module__") else obj.__class__
     return hasattr(obj, "__module__") and any(
         [obj.__module__.startswith(name) for name in UNCLONABLE_MODULES]
     )
