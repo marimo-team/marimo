@@ -15,7 +15,11 @@ from marimo._server.main import create_starlette_app
 from marimo._server.model import SessionMode
 from marimo._server.sessions import LspServer, SessionManager
 from marimo._server.tokens import AuthToken
-from marimo._server.utils import find_free_port, initialize_asyncio
+from marimo._server.utils import (
+    find_free_port,
+    initialize_asyncio,
+    initialize_fd_limit,
+)
 from marimo._server.uvicorn_utils import initialize_signals
 from marimo._utils.paths import import_files
 
@@ -125,7 +129,12 @@ def start(
     app.state.base_url = base_url
     app.state.config_manager = user_config_mgr
 
+    # Resource initialization
+    # Increase the limit on open file descriptors to prevent resource
+    # exhaustion when opening multiple notebooks in the same server.
+    initialize_fd_limit(limit=4096)
     initialize_signals()
+
     server = uvicorn.Server(
         uvicorn.Config(
             app,
