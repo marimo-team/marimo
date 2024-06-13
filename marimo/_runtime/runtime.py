@@ -298,6 +298,8 @@ class Kernel:
             file=self.app_metadata.filename, input_override=input_override
         )
         if self.app_metadata.filename is not None:
+            # TODO(akshayka): When a file is renamed / moved to another folder,
+            # we need to update sys.path.
             try:
                 notebook_directory = str(
                     pathlib.Path(self.app_metadata.filename).parent.absolute()
@@ -308,6 +310,13 @@ class Kernel:
                 LOGGER.warning(
                     "Failed to add directory to path (error %e)", str(e)
                 )
+        elif "" not in sys.path:
+            # an empty string represents ...
+            #   the current directory, when using
+            #      marimo edit filename.py / marimo run
+            #   the marimo home directory, when using
+            #      marimo edit (ie homepage)
+            sys.path.insert(0, "")
 
         self.graph = dataflow.DirectedGraph()
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
@@ -338,8 +347,6 @@ class Kernel:
 
         if not is_pyodide():
             patches.patch_micropip(self.globals)
-        # an empty string represents the current directory
-        exec("import sys; sys.path.append(''); del sys", self.globals)
         exec("import marimo as __marimo__", self.globals)
 
     def lazy(self) -> bool:
