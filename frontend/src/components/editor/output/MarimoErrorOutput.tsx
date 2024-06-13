@@ -140,7 +140,6 @@ export const MarimoErrorOutput = ({
           </div>
         );
       case "strict-exception":
-        titleContents = error.exception_type;
         return error.blamed_cell == null ? (
           <Fragment key={idx}>
             <p>{error.msg}</p>

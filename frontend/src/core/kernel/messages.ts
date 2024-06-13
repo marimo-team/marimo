@@ -38,6 +38,12 @@ export type MarimoError =
   | { type: "cycle"; edges_with_vars: Array<[CellId, string[], CellId]> }
   | { type: "multiple-defs"; name: string; cells: CellId[] }
   | { type: "delete-nonlocal"; name: string; cells: CellId[] }
+  | {
+      type: "strict-exception";
+      msg: string;
+      ref: string;
+      blamed_cell: CellId;
+    }
   | { type: "unknown"; msg?: string };
 
 export type OutputMessage =
