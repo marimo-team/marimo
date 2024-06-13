@@ -338,3 +338,7 @@ class TestPandasTableManager(unittest.TestCase):
         sorted_df = self.manager.sort_values("A", descending=True).data
         expected_df = self.data.sort_values("A", ascending=False)
         assert sorted_df.equals(expected_df)
+
+    def test_get_unique_column_values(self) -> None:
+        column = "B"
+        assert self.manager.get_unique_column_values(column) == ["a", "b", "c"]

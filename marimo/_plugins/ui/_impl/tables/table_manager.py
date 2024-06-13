@@ -98,6 +98,10 @@ class TableManager(abc.ABC, Generic[T]):
     def get_column_names(self) -> list[str]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        raise NotImplementedError
+
 
 class TableManagerFactory(abc.ABC):
     @staticmethod

@@ -104,6 +104,11 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def get_column_names(self) -> list[str]:
         return list(self._df.column_names())
 
+    def get_unique_column_values(
+        self, column: ColumnName
+    ) -> list[str | int | float]:
+        return self._ensure_delegate().get_unique_column_values(column)
+
     def sort_values(
         self, by: ColumnName, descending: bool
     ) -> TableManager[DataFrameLike]:

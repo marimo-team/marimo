@@ -226,6 +226,11 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_column_names(self) -> list[str]:
                 return self.data.columns.tolist()
 
+            def get_unique_column_values(
+                self, column: str
+            ) -> list[str | int | float]:
+                return self.data[column].unique().tolist()
+
             def sort_values(
                 self, by: ColumnName, descending: bool
             ) -> PandasTableManager:
