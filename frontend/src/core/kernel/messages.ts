@@ -233,6 +233,10 @@ export type OperationMessage =
          */
         last_executed_code: Record<CellId, string | undefined> | undefined;
         /**
+         * The last execution time
+         */
+        last_execution_time: Record<CellId, number | undefined> | undefined;
+        /**
          * App config
          */
         app_config: AppConfig;

@@ -40,6 +40,7 @@ export function handleKernelReady(
     ui_values,
     cell_ids,
     last_executed_code = {},
+    last_execution_time = {},
     app_config,
   } = data;
 
@@ -65,6 +66,7 @@ export function handleKernelReady(
       edited: edited,
       name: names[i],
       lastCodeRun: last_executed_code[cellId] ?? null,
+      lastExecutionTime: last_execution_time[cellId] ?? null,
       config: configs[i],
     });
   });

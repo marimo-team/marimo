@@ -30,6 +30,7 @@ import { aiEnabledAtom, autoInstantiateAtom } from "@/core/config/config";
 import { useAtomValue } from "jotai";
 import { useBoolean } from "@/hooks/useBoolean";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
+import { Milliseconds } from "@/utils/time";
 
 interface CellArrayProps {
   notebook: NotebookState;
@@ -122,7 +123,9 @@ export const CellArray: React.FC<CellArrayProps> = ({
           stopped={cell.stopped}
           staleInputs={cell.staleInputs}
           runStartTimestamp={cell.runStartTimestamp}
-          runElapsedTimeMs={cell.runElapsedTimeMs}
+          runElapsedTimeMs={
+            cell.runElapsedTimeMs ?? (cell.lastExecutionTime as Milliseconds)
+          }
           serializedEditorState={cell.serializedEditorState}
           showDeleteButton={cells.length > 1 && !cell.config.hide_code}
           createNewCell={createNewCell}

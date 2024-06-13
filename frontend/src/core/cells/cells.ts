@@ -111,6 +111,7 @@ function initialNotebookState(): NotebookState {
         code: deserializeBase64(code),
         edited: false,
         lastCodeRun: null,
+        lastExecutionTime: null,
         config: deserializeJson(deserializeBase64(config)),
         serializedEditorState: null,
       };
@@ -161,6 +162,7 @@ const {
       before: boolean;
       code?: string;
       lastCodeRun?: string;
+      lastExecutionTime?: number;
       newCellId?: CellId;
       autoFocus?: boolean;
     },
@@ -170,6 +172,7 @@ const {
       before,
       code,
       lastCodeRun = null,
+      lastExecutionTime = null,
       autoFocus = true,
     } = action;
     const newCellId = action.newCellId || CellId.create();
@@ -188,6 +191,7 @@ const {
           id: newCellId,
           code,
           lastCodeRun,
+          lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
       },
@@ -451,6 +455,7 @@ const {
         ...cell,
         edited: false,
         lastCodeRun: cell.code.trim(),
+        lastExecutionTime: cell.lastExecutionTime,
       };
     });
   },
