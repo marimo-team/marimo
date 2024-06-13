@@ -31,8 +31,23 @@ PRIMITIVES = (weakref.ref, str, numbers.Number, type(None))
 EXECUTION_TYPES: dict[str, Type[Executor]] = {}
 
 
+class MarimoStrictExecutionError(BaseException):
+    """Error raised when a cell cannot be evaluated due to missing
+    definitions."""
+
+    def __init__(self, message: str, ref: str, blaming_cell: str) -> None:
+        super().__init__(message)
+        self.ref = ref
+        self.blaming_cell = blaming_cell
+
+
+class MarimoNameError(NameError):
+    """Wrap a name error to rethrow later."""
+
+
 class MarimoMissingRefError(BaseException):
     def __init__(self, ref: str) -> None:
+        super().__init__(f"Missing reference: {ref}")
         self.ref = ref
 
 
@@ -156,7 +171,7 @@ class StrictExecutor(Executor):
         # marimo lint (#1543) could potentially detect these runtime
         # problems. Throwing a compilation error seems excessive since if
         # carefully managed, the code could still be correct.
-        except NameError as name_error:
+        except MarimoNameError as name_error:
             (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
             if missing_name in graph.definitions:
                 raise MarimoMissingRefError(missing_name) from name_error
@@ -176,7 +191,7 @@ class StrictExecutor(Executor):
         backup = StrictExecutor.sanitize_inputs(cell, refs, glbls)
         try:
             response = DefaultExecutor.execute_cell(cell, glbls)
-        except NameError as name_error:
+        except MarimoNameError as name_error:
             (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
             if missing_name in graph.definitions:
                 raise MarimoMissingRefError(missing_name) from name_error
@@ -243,7 +258,7 @@ class StrictExecutor(Executor):
                         ) from e
             elif ref not in glbls["__builtins__"]:
                 if ref in cell.defs:
-                    raise NameError(
+                    raise MarimoNameError(
                         f"name `{ref}` is referenced before definition."
                     )
                 raise MarimoMissingRefError(ref)

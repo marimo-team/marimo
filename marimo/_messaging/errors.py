@@ -34,6 +34,14 @@ class MarimoInterruptionError:
 
 
 @dataclass
+class MarimoAncestorPreventedError:
+    msg: str
+    raising_cell: CellId_t
+    blamed_cell: CellId_t
+    type: str = "ancestor-prevented"
+
+
+@dataclass
 class MarimoAncestorStoppedError:
     msg: str
     raising_cell: CellId_t
@@ -66,6 +74,7 @@ Error = Union[
     MultipleDefinitionError,
     DeleteNonlocalError,
     MarimoAncestorStoppedError,
+    MarimoAncestorPreventedError,
     MarimoExceptionRaisedError,
     MarimoInterruptionError,
     MarimoSyntaxError,

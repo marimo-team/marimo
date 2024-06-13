@@ -28,6 +28,12 @@ export type MarimoError =
       msg: string;
       raising_cell?: CellId;
     }
+  | {
+      type: "ancestor-prevented";
+      msg: string;
+      raising_cell: CellId;
+      blamed_cell: CellId;
+    }
   | { type: "ancestor-stopped"; msg: string; raising_cell: CellId }
   | { type: "cycle"; edges_with_vars: Array<[CellId, string[], CellId]> }
   | { type: "multiple-defs"; name: string; cells: CellId[] }

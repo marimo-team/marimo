@@ -74,7 +74,7 @@ export function transitionCell(
       nextCell.interrupted = true;
       didInterruptFromThisMessage = true;
     } else if (
-      message.output.data.some((error) => error.type === "ancestor-stopped")
+      message.output.data.some((error) => error.type.includes("ancestor"))
     ) {
       // The cell didn't run, but it was intentional, so don't count as
       // errored.

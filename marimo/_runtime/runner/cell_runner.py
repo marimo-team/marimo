@@ -17,12 +17,12 @@ from marimo._ast.cell import (
 )
 from marimo._config.config import ExecutionType, OnCellChangeType
 from marimo._loggers import marimo_logger
-from marimo._messaging.errors import MarimoAncestorStoppedError
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.executor import (
     MarimoMissingRefError,
+    MarimoStrictExecutionError,
     execute_cell,
     execute_cell_async,
 )
@@ -346,15 +346,16 @@ class Runner:
             except KeyError:
                 # This should never happen, but just in case
                 blamed_cell = e.ref
-
-            output = MarimoAncestorStoppedError(
-                msg=(
-                    "This cell wasn't run because an "
-                    f"ancestor failed to provide a reference `{e.ref}`: "
-                ),
-                raising_cell=blamed_cell,
-            )
-            run_result = RunResult(output=output, exception=e)
+            # try to raise from previous exception.
+            try:
+                raise MarimoStrictExecutionError(
+                    f"marimo was unable to resolve "
+                    f"a reference to `{e.ref}` in cell:",
+                    e.ref,
+                    blamed_cell,
+                ) from e
+            except MarimoStrictExecutionError as inner_e:
+                run_result = RunResult(output=None, exception=inner_e)
         except BaseException as e:
             # Catch-all: some libraries have bugs and raise BaseExceptions,
             # which shouldn't crash the marimo kernel

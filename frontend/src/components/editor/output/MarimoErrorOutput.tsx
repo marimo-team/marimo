@@ -139,6 +139,38 @@ export const MarimoErrorOutput = ({
             </Tip>
           </div>
         );
+      case "strict-exception":
+        titleContents = error.exception_type;
+        return error.blamed_cell == null ? (
+          <Fragment key={idx}>
+            <p>{error.msg}</p>
+            <Tip>
+              Something is wrong with your declaration of {error.ref}. Fix any
+              discrepancies, or turn off strict execution.
+            </Tip>
+          </Fragment>
+        ) : (
+          <div key={idx}>
+            {error.msg}
+            <CellLinkError cellId={error.blamed_cell} />
+            <Tip>
+              Ensure that <CellLinkError cellId={error.blamed_cell} />
+              defines the variable {error.ref}, or turn off strict execution.
+            </Tip>
+          </div>
+        );
+      case "ancestor-prevented":
+        titleContents = "Ancestor prevented from running";
+        alertVariant = "default";
+        textColor = "text-secondary-foreground";
+        return (
+          <div key={idx}>
+            {error.msg}
+            (<CellLinkError cellId={error.raising_cell} />
+            blames
+            <CellLinkError cellId={error.blamed_cell} />)
+          </div>
+        );
       case "ancestor-stopped":
         titleContents = "Ancestor stopped";
         alertVariant = "default";
