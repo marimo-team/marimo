@@ -55,7 +55,7 @@ jobs:
         run: pnpm turbo typecheck
 
       - name: 🧪 Test
-        run: pnpm turbo test
+        run: pnpm test
 
       - name: 📦 Build
         run: pnpm turbo build
@@ -182,17 +182,7 @@ jobs:
           fi
           uv pip install --upgrade pip
           uv pip install .[testcore,testoptional]
-          # Only collect coverage on the 3.11
-          if [ "${{ matrix.python-version }}" == "3.11" ]; then
-            pytest -v tests/ -k "not test_cli" --cov=marimo --cov-branch
-          else
-            pytest -v tests/ -k "not test_cli"
-          fi
-      - name: Upload coverage reports to Codecov
-        if: ${{ matrix.python-version == '3.11' && matrix.os == 'ubuntu-latest' }}
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          pytest -v tests/ -k "not test_cli"
 
   typos:
     name: Check for typos

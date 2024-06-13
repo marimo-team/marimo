@@ -12,7 +12,7 @@ import { ParentSchema } from "../rpc";
 import { Logger } from "../../../utils/Logger";
 import { TRANSPORT_ID } from "./constants";
 import { getPyodideVersion, importPyodide } from "./getPyodideVersion";
-import { SaveKernelRequest } from "@/core/network/types";
+import { SaveNotebookRequest } from "@/core/network/types";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 
@@ -66,7 +66,7 @@ const requestHandler = createRPCRequestHandler({
     await pyodideReadyPromise; // Make sure loading is done
     return WasmFileSystem.readNotebook(self.pyodide);
   },
-  saveNotebook: async (opts: SaveKernelRequest) => {
+  saveNotebook: async (opts: SaveNotebookRequest) => {
     await pyodideReadyPromise; // Make sure loading is done
     const saveFile = self.pyodide.runPython(`
       from marimo._pyodide.bootstrap import save_file

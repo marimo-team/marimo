@@ -70,6 +70,22 @@ def initialize_asyncio() -> None:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
+def initialize_fd_limit(limit: int) -> None:
+    """Raise the limit on open file descriptors.
+
+    Not applicable on Windows.
+    """
+    try:
+        import resource
+    except ImportError:
+        # Windows
+        return
+
+    old_soft, old_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if limit > old_soft and limit <= old_hard:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (limit, old_hard))
+
+
 T = TypeVar("T")
 
 

@@ -1,33 +1,19 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from "@/utils/Logger";
-import type { CellId } from "../cells/ids";
 import type {
-  CodeCompletionRequest,
   EditRequests,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
-  FileCreateRequest,
-  FileDeleteRequest,
+  FileCreateResponse,
+  FileDeleteResponse,
   FileDetailsResponse,
-  FileListRequest,
   FileListResponse,
-  FileMoveRequest,
-  FileOperationResponse,
-  FileUpdateRequest,
-  FormatRequest,
+  FileMoveResponse,
+  FileUpdateResponse,
   FormatResponse,
-  InstantiateRequest,
   RunRequests,
-  SaveAppConfigRequest,
-  SaveCellConfigRequest,
-  SaveKernelRequest,
-  SaveUserConfigRequest,
-  SendFunctionRequest,
-  SendInstallMissingPackages,
-  SendStdin,
-  SnippetsResponse,
-  ValueUpdate,
+  Snippets,
 } from "../network/types";
 import type { IReconnectingWebSocket } from "../websocket/types";
 import { fallbackFileStore, notebookFileStore } from "./store";
@@ -37,7 +23,7 @@ import { createShareableLink } from "./share";
 import { PyodideRouter } from "./router";
 import { getMarimoVersion } from "../dom/marimo-tag";
 import { getWorkerRPC } from "./rpc";
-import { API } from "../network/api";
+import { API, marimoClient } from "../network/api";
 import { parseUserConfig } from "../config/config-schema";
 import { throwNotImplemented } from "@/utils/functions";
 import type { WorkerSchema } from "./worker/worker";
@@ -47,6 +33,8 @@ import { generateUUID } from "@/utils/uuid";
 import { store } from "../state/jotai";
 import { notebookIsRunningAtom } from "../cells/cells";
 import { getInitialAppMode } from "../mode";
+
+const { handleResponseReturnNull } = API;
 
 export class PyodideBridge implements RunRequests, EditRequests {
   static INSTANCE = new PyodideBridge();
@@ -167,7 +155,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     this.rpc.proxy.send.consumerReady({});
   }
 
-  sendRename = async (filename: string | null): Promise<null> => {
+  sendRename: EditRequests["sendRename"] = async ({ filename }) => {
     if (filename === null) {
       return null;
     }
@@ -182,7 +170,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendSave = async (request: SaveKernelRequest): Promise<null> => {
+  sendSave: EditRequests["sendSave"] = async (request) => {
     await this.saveRpc.proxy.request.saveNotebook(request);
     const code = await this.readCode();
     if (code.contents) {
@@ -192,7 +180,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendStdin = async (request: SendStdin): Promise<null> => {
+  sendStdin: EditRequests["sendStdin"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "put_input",
       payload: request.text,
@@ -200,52 +188,44 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendRun = async (cellIds: CellId[], codes: string[]): Promise<null> => {
-    await this.rpc.proxy.request.loadPackages(codes.join("\n"));
+  sendRun: EditRequests["sendRun"] = async (request) => {
+    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
 
-    await this.putControlRequest({
-      execution_requests: cellIds.map((cellId, index) => ({
-        cell_id: cellId,
-        code: codes[index],
-      })),
-    });
+    await this.putControlRequest(request);
     return null;
   };
-  sendInterrupt = async (): Promise<null> => {
+  sendInterrupt: EditRequests["sendInterrupt"] = async () => {
     if (this.interruptBuffer !== undefined) {
       // 2 sends a SIGINT
       this.interruptBuffer[0] = 2;
     }
     return null;
   };
-  sendShutdown = async (): Promise<null> => {
+  sendShutdown: EditRequests["sendShutdown"] = async () => {
     window.close();
     return null;
   };
-  sendFormat = async (
-    request: FormatRequest,
-  ): Promise<Record<CellId, string>> => {
+  sendFormat: EditRequests["sendFormat"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "format",
       payload: request,
     });
-    return (response as FormatResponse).codes;
+    return response as FormatResponse;
   };
-  sendDeleteCell = async (cellId: CellId): Promise<null> => {
-    await this.putControlRequest({
-      cell_id: cellId,
-    });
+
+  sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
+    await this.putControlRequest(request);
     return null;
   };
-  sendInstallMissingPackages = async (
-    request: SendInstallMissingPackages,
-  ): Promise<null> => {
-    this.putControlRequest(request);
-    return null;
-  };
-  sendCodeCompletionRequest = async (
-    request: CodeCompletionRequest,
-  ): Promise<null> => {
+
+  sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
+    async (request) => {
+      this.putControlRequest(request);
+      return null;
+    };
+  sendCodeCompletionRequest: EditRequests["sendCodeCompletionRequest"] = async (
+    request,
+  ) => {
     // Because the Pyodide worker is single-threaded, sending
     // code completion requests while the kernel is running is useless
     // and runs the risk of choking the kernel
@@ -259,20 +239,18 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  saveUserConfig = async (request: SaveUserConfigRequest): Promise<null> => {
+  saveUserConfig: EditRequests["saveUserConfig"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "save_user_config",
       payload: request,
     });
 
-    return API.post<SaveUserConfigRequest>(
-      "/kernel/save_user_config",
-      request,
-      { baseUrl: "/" },
-    );
+    return marimoClient
+      .POST("/api/kernel/save_user_config", { body: request })
+      .then(handleResponseReturnNull);
   };
 
-  saveAppConfig = async (request: SaveAppConfigRequest): Promise<null> => {
+  saveAppConfig: EditRequests["saveAppConfig"] = async (request) => {
     await this.rpc.proxy.request.bridge({
       functionName: "save_app_config",
       payload: request,
@@ -280,10 +258,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  saveCellConfig = async (request: SaveCellConfigRequest): Promise<null> => {
-    await this.putControlRequest({
-      configs: request.configs,
-    });
+  saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
+    await this.putControlRequest(request);
     return null;
   };
 
@@ -298,20 +274,20 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  readCode = async (): Promise<{ contents: string }> => {
+  readCode: EditRequests["readCode"] = async () => {
     const contents = await this.saveRpc.proxy.request.readNotebook();
     return { contents };
   };
 
-  readSnippets = async (): Promise<SnippetsResponse> => {
+  readSnippets: EditRequests["readSnippets"] = async () => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "read_snippets",
       payload: undefined,
     });
-    return response as SnippetsResponse;
+    return response as Snippets;
   };
 
-  openFile = async (request: { path: string }): Promise<null> => {
+  openFile: EditRequests["openFile"] = async ({ path }) => {
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,
@@ -320,78 +296,69 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendListFiles = async (
-    request: FileListRequest,
-  ): Promise<FileListResponse> => {
+  sendListFiles: EditRequests["sendListFiles"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "list_files",
       payload: request,
     });
     return response as FileListResponse;
   };
-  sendComponentValues = async (valueUpdates: ValueUpdate[]): Promise<null> => {
+  sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
     await this.putControlRequest({
-      ids_and_values: valueUpdates.map((update) => [
-        update.objectId,
-        update.value,
-      ]),
+      ...request,
       token: generateUUID(),
     });
     return null;
   };
 
-  sendInstantiate = async (request: InstantiateRequest): Promise<null> => {
+  sendInstantiate: RunRequests["sendInstantiate"] = async (request) => {
     return null;
   };
 
-  sendFunctionRequest = async (request: SendFunctionRequest): Promise<null> => {
+  sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (request) => {
     await this.putControlRequest(request);
     return null;
   };
 
-  sendCreateFileOrFolder = async (
-    request: FileCreateRequest,
-  ): Promise<FileOperationResponse> => {
+  sendCreateFileOrFolder: EditRequests["sendCreateFileOrFolder"] = async (
+    request,
+  ) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "create_file_or_directory",
       payload: request,
     });
-    return response as FileOperationResponse;
+    return response as FileCreateResponse;
   };
 
-  sendDeleteFileOrFolder = async (
-    request: FileDeleteRequest,
-  ): Promise<FileOperationResponse> => {
+  sendDeleteFileOrFolder: EditRequests["sendDeleteFileOrFolder"] = async (
+    request,
+  ) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "delete_file_or_directory",
       payload: request,
     });
-    return response as FileOperationResponse;
+    return response as FileDeleteResponse;
   };
 
-  sendRenameFileOrFolder = async (
-    request: FileMoveRequest,
-  ): Promise<FileOperationResponse> => {
+  sendRenameFileOrFolder: EditRequests["sendRenameFileOrFolder"] = async (
+    request,
+  ) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "move_file_or_directory",
       payload: request,
     });
-    return response as FileOperationResponse;
+    return response as FileMoveResponse;
   };
 
-  sendUpdateFile = async (
-    request: FileUpdateRequest,
-  ): Promise<FileOperationResponse> => {
+  sendUpdateFile: EditRequests["sendUpdateFile"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "update_file",
       payload: request,
     });
-    return response as FileOperationResponse;
+    return response as FileUpdateResponse;
   };
 
-  sendFileDetails = async (request: {
-    path: string;
-  }): Promise<FileDetailsResponse> => {
+  sendFileDetails: EditRequests["sendFileDetails"] = async (request) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "file_details",
       payload: request,
@@ -399,7 +366,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as FileDetailsResponse;
   };
 
-  exportAsHTML = async (request: ExportAsHTMLRequest): Promise<string> => {
+  exportAsHTML: EditRequests["exportAsHTML"] = async (
+    request: ExportAsHTMLRequest,
+  ) => {
     if (
       process.env.NODE_ENV === "development" ||
       process.env.NODE_ENV === "test"
@@ -413,9 +382,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as string;
   };
 
-  exportAsMarkdown = async (
+  exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
     request: ExportAsMarkdownRequest,
-  ): Promise<string> => {
+  ) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
       payload: request,
@@ -423,7 +392,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as string;
   };
 
-  previewDatasetColumn = throwNotImplemented;
+  previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
+    request,
+  ) => {
+    await this.putControlRequest(request);
+    return null;
+  };
   getUsageStats = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

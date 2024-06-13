@@ -6,7 +6,6 @@ import {
   PlusSquareIcon,
   XIcon,
 } from "lucide-react";
-import type { DataTable, DataTableColumn } from "@/core/network/types";
 import { Command, CommandInput, CommandItem } from "@/components/ui/command";
 import { CommandList } from "cmdk";
 
@@ -32,7 +31,11 @@ import {
   maybeAddMarimoImport,
 } from "@/core/cells/add-missing-import";
 import { autoInstantiateAtom } from "@/core/config/config";
-import { DataColumnPreview } from "@/core/kernel/messages";
+import {
+  DataColumnPreview,
+  DataTable,
+  DataTableColumn,
+} from "@/core/kernel/messages";
 
 export const DataSourcesPanel: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");

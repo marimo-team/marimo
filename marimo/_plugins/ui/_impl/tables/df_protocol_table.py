@@ -13,11 +13,15 @@ from marimo._plugins.ui._impl.tables.pyarrow_table import (
     PyArrowTableManagerFactory,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     FieldType,
     FieldTypes,
     TableManager,
 )
-from marimo._plugins.ui._impl.tables.types import DataFrameLike
+from marimo._plugins.ui._impl.tables.types import (
+    DataFrameLike,
+    is_dataframe_like,
+)
 
 if TYPE_CHECKING:
     import pyarrow as pa  # type: ignore
@@ -29,6 +33,12 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
     def __init__(self, data: DataFrameLike):
         self.data = data
         self._df = data.__dataframe__()
+
+        if not hasattr(self._df, "num_columns"):
+            raise ValueError(
+                "The DataFrameLike object must have a num_columns method"
+            )
+
         self._delegate: Optional[
             TableManager[Union[pa.Table, pa.RecordBatch]]
         ] = None
@@ -54,7 +64,7 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     @staticmethod
     def is_type(value: Any) -> bool:
-        return isinstance(value, DataFrameLike)
+        return is_dataframe_like(value)
 
     def select_rows(
         self, indices: list[int]
@@ -93,6 +103,11 @@ class DataFrameProtocolTableManager(TableManager[DataFrameLike]):
 
     def get_column_names(self) -> list[str]:
         return list(self._df.column_names())
+
+    def sort_values(
+        self, by: ColumnName, descending: bool
+    ) -> TableManager[DataFrameLike]:
+        return self._ensure_delegate().sort_values(by, descending)
 
     @staticmethod
     def _get_field_type(column: Column) -> FieldType:

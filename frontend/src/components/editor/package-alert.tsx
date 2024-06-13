@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DefaultValues, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import {
   Form,
   FormControl,
@@ -276,7 +276,7 @@ export const PackageManagerForm: React.FC = () => {
   // Create form
   const form = useForm<UserConfig>({
     resolver: zodResolver(UserConfigSchema),
-    defaultValues: config as DefaultValues<UserConfig>,
+    defaultValues: config,
   });
 
   const onSubmit = async (values: UserConfig) => {

@@ -355,3 +355,8 @@ class altair_chart(UIElement[ChartSelection, "pd.DataFrame"]):
                 " based on the selection.",
             )
         return value
+
+    @value.setter
+    def value(self, value: pd.DataFrame) -> None:
+        del value
+        raise RuntimeError("Setting the value of a UIElement is not allowed.")

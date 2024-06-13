@@ -24,7 +24,7 @@ import { assertExists } from "@/utils/assertExists";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { RunningNotebooksResponse } from "@/core/network/types";
+import { WorkspaceFilesResponse } from "@/core/network/types";
 import { ConfigButton } from "../app-config/app-config-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ const HomePage: React.FC = () => {
 
   const fileResponse = useAsyncData(async () => {
     const [workspace, recents] = await Promise.all([
-      getWorkspaceFiles({ includeMarkdown }),
+      getWorkspaceFiles({ includeMarkdown: includeMarkdown }),
       getRecentFiles(),
     ]);
     return { workspace, recents };
@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
             [
               file.path,
               {
-                sessionId: file.sessionId,
+                sessionId: file.sessionId as SessionId,
                 initializationId: file.initializationId,
               },
             ],
@@ -143,8 +143,8 @@ const NotebookList: React.FC<{
   files: Array<{
     name: string;
     path: string;
-    sessionId?: string;
-    initializationId?: string;
+    sessionId?: string | null;
+    initializationId?: string | null;
   }>;
   runningNotebooks: Map<
     string,
@@ -153,7 +153,7 @@ const NotebookList: React.FC<{
       initializationId: string;
     }
   >;
-  setRunningNotebooks: (data: RunningNotebooksResponse) => void;
+  setRunningNotebooks: (data: WorkspaceFilesResponse) => void;
 }> = ({ control, header, files, runningNotebooks, setRunningNotebooks }) => {
   const { openConfirm, closeModal } = useImperativeModal();
 

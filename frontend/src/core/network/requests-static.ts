@@ -1,11 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
-import {
-  EditRequests,
-  InstantiateRequest,
-  RunRequests,
-  SendFunctionRequest,
-} from "./types";
+import { EditRequests, RunRequests } from "./types";
 import { Logger } from "@/utils/Logger";
 
 export function createStaticRequests(): EditRequests & RunRequests {
@@ -14,7 +9,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
   };
 
   return {
-    sendComponentValues: async (valueUpdates) => {
+    sendComponentValues: async () => {
       toast({
         title: "Static notebook",
         description:
@@ -23,11 +18,11 @@ export function createStaticRequests(): EditRequests & RunRequests {
       Logger.log("Updating UI elements is not supported in static mode");
       return null;
     },
-    sendInstantiate: async (request: InstantiateRequest) => {
+    sendInstantiate: async () => {
       Logger.log("Viewing as static notebook");
       return null;
     },
-    sendFunctionRequest: async (request: SendFunctionRequest) => {
+    sendFunctionRequest: async () => {
       toast({
         title: "Static notebook",
         description:

@@ -86,17 +86,19 @@ export const vegaLoader = createLoader();
  *
  * This resolves to an array of objects, where each object represents a row.
  */
-export function vegaLoadData(
+export function vegaLoadData<T = object>(
   url: string,
   format: DataFormat | undefined | { type: "csv"; parse: "auto" },
   opts: {
     handleBigInt?: boolean;
     replacePeriod?: boolean;
   } = {},
-): Promise<object[]> {
+): Promise<T[]> {
   const { handleBigInt = false, replacePeriod = false } = opts;
 
-  return vegaLoader.load(url).then((csvData) => {
+  const isCsv = format?.type === "csv";
+
+  return vegaLoader.load(url).then((csvOrJsonData) => {
     // CSV data comes columnar and may have duplicate column names.
     // We need to uniquify the column names before parsing since vega-loader
     // returns an array of objects which drops duplicate keys.
@@ -104,13 +106,13 @@ export function vegaLoadData(
     // We make the column names unique by appending a number to the end of
     // each duplicate column name. If we want to preserve the original key
     // we would need to store the data in columnar format.
-    if (typeof csvData === "string") {
-      csvData = uniquifyColumnNames(csvData);
+    if (isCsv && typeof csvOrJsonData === "string") {
+      csvOrJsonData = uniquifyColumnNames(csvOrJsonData);
     }
     // Replace periods in column names with a one-dot leader.
     // Some downstream libraries use periods as a nested key separator.
-    if (typeof csvData === "string" && replacePeriod) {
-      csvData = replacePeriodsInColumnNames(csvData);
+    if (isCsv && typeof csvOrJsonData === "string" && replacePeriod) {
+      csvOrJsonData = replacePeriodsInColumnNames(csvOrJsonData);
     }
 
     // We support enabling/disabling since the Table enables it
@@ -120,20 +122,19 @@ export function vegaLoadData(
     }
 
     // Always set parse to auto for csv data, to be able to parse dates and floats
-    const results =
-      format && format.type === "csv"
-        ? // csv -> json
-          read(csvData, {
-            ...format,
-            parse: (format.parse as FieldTypes) || "auto",
-          })
-        : read(csvData, format);
+    const results = isCsv
+      ? // csv -> json
+        read(csvOrJsonData, {
+          ...format,
+          parse: (format.parse as FieldTypes) || "auto",
+        })
+      : read(csvOrJsonData, format);
 
     if (handleBigInt) {
       disableBigInt();
     }
 
-    return results;
+    return results as T[];
   });
 }
 

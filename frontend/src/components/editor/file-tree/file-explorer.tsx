@@ -51,6 +51,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Spinner } from "@/components/icons/spinner";
 import type { RequestingTree } from "./requesting-tree";
+import { FilePath } from "@/utils/paths";
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -249,7 +250,9 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const handleOpenMarimoFile = async (evt: Event) => {
     evt.stopPropagation();
     evt.preventDefault();
-    const path = tree ? tree.relativeFromRoot(node.data.path) : node.data.path;
+    const path = tree
+      ? tree.relativeFromRoot(node.data.path as FilePath)
+      : node.data.path;
     window.open(`/?file=${path}`, "_blank");
   };
 

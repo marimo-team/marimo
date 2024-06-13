@@ -7,9 +7,25 @@ import type { VariableName } from "../variables/types";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import type { Seconds } from "@/utils/time";
 import type { AppConfig } from "../config/config-schema";
-import type { DataTable } from "../network/types";
 import type { ColumnPreviewSummary } from "../datasets/types";
 import type { JsonString } from "@/utils/json/base64";
+
+export interface DataTableColumn {
+  name: string;
+  type: "string" | "boolean" | "integer" | "number" | "date" | "unknown";
+}
+
+export interface DataTable {
+  name: string;
+  source: string;
+  /**
+   * The variable name if this is a variable in the notebook.
+   */
+  variable_name: VariableName | null;
+  num_rows: number;
+  num_columns: number;
+  columns: DataTableColumn[];
+}
 
 export type OutputChannel =
   | "output"

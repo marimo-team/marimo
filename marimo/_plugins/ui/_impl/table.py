@@ -22,6 +22,7 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.table_manager import (
+    ColumnName,
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -63,7 +64,7 @@ class ColumnSummaries:
 
 @dataclass
 class SortValuesArgs:
-    by: str
+    by: ColumnName
     descending: bool
 
 

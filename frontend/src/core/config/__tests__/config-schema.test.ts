@@ -60,6 +60,7 @@ test("default UserConfig - empty", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
+      "server": {},
     }
   `);
 });
@@ -108,6 +109,7 @@ test("default UserConfig - one level", () => {
         "autosave_delay": 1000,
         "format_on_save": false,
       },
+      "server": {},
     }
   `);
 

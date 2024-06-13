@@ -47,6 +47,20 @@ def test_dataclass_to_openapi() -> None:
     }
 
 
+def test_dataclass_to_openapi_with_camelcase() -> None:
+    openapi_spec = dataclass_to_openapi_spec(Address, camel_case=True)
+    assert openapi_spec == {
+        "type": "object",
+        "properties": {
+            "street": {"type": "string"},
+            "city": {"type": "string"},
+            "zipCode": {"type": "integer", "nullable": True},
+            "kind": {"enum": ["home", "work"]},
+        },
+        "required": ["street", "city", "kind"],
+    }
+
+
 @dataclasses.dataclass
 class Node:
     value: int

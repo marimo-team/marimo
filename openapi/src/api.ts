@@ -302,7 +302,7 @@ export interface paths {
     post: {
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["CompletionRequest"];
+          "application/json": components["schemas"]["CodeCompletionRequest"];
         };
       };
       responses: {
@@ -499,7 +499,7 @@ export interface paths {
     post: {
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["SaveRequest"];
+          "application/json": components["schemas"]["SaveNotebookRequest"];
         };
       };
       responses: {
@@ -531,6 +531,11 @@ export interface paths {
   };
   "/api/kernel/save_user_config": {
     post: {
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SaveUserConfigurationRequest"];
+        };
+      };
       responses: {
         /** @description Update the user config on disk and in the kernel. Only allowed in edit mode. */
         200: {
@@ -632,15 +637,15 @@ export interface paths {
         200: {
           content: {
             "application/json": {
-              cpu?: {
-                percent?: number;
+              cpu: {
+                percent: number;
               };
-              memory?: {
-                available?: number;
-                free?: number;
-                percent?: number;
-                total?: number;
-                used?: number;
+              memory: {
+                available: number;
+                free: number;
+                percent: number;
+                total: number;
+                used: number;
               };
             };
           };
@@ -696,11 +701,11 @@ export interface components {
   schemas: {
     AiCompletionRequest: {
       code: string;
-      include_other_code: string;
+      includeOtherCode: string;
       prompt: string;
     };
     AppMetadata: {
-      cli_args: {
+      cliArgs: {
         [key: string]:
           | string
           | boolean
@@ -708,7 +713,7 @@ export interface components {
           | (string | boolean | number)[];
       };
       filename?: string | null;
-      query_params: {
+      queryParams: {
         [key: string]: string | string[];
       };
     };
@@ -717,36 +722,34 @@ export interface components {
     };
     CellConfig: {
       disabled?: boolean;
-      hide_code?: boolean;
+      hideCode?: boolean;
     };
-    CompletionRequest: {
-      cell_id: string;
+    CodeCompletionRequest: {
+      cellId: string;
       document: string;
       id: string;
     };
     CreationRequest: {
-      execution_requests: components["schemas"]["ExecutionRequest"][];
-      set_ui_element_value_request: {
-        ids_and_values: [string, unknown][];
-        token?: string;
-      };
+      executionRequests: components["schemas"]["ExecutionRequest"][];
+      setUiElementValueRequest: components["schemas"]["SetUIElementValueRequest"];
     };
     DeleteRequest: {
-      cell_id: string;
+      cellId: string;
     };
     ExecuteMultipleRequest: {
-      execution_requests: components["schemas"]["ExecutionRequest"][];
+      cellIds: string[];
+      codes: string[];
     };
     ExecuteStaleRequest: Record<string, never>;
     ExecutionRequest: {
-      cell_id: string;
+      cellId: string;
       code: string;
     };
     ExportAsHTMLRequest: {
-      asset_url?: string | null;
+      assetUrl?: string | null;
       download: boolean;
       files: string[];
-      include_code: boolean;
+      includeCode: boolean;
     };
     ExportAsMarkdownRequest: {
       download: boolean;
@@ -778,14 +781,14 @@ export interface components {
     FileDetailsResponse: {
       contents?: string | null;
       file: components["schemas"]["FileInfo"];
-      mime_type?: string | null;
+      mimeType?: string | null;
     };
     FileInfo: {
       children?: components["schemas"]["FileInfo"][];
       id: string;
-      is_directory: boolean;
-      is_marimo_file: boolean;
-      last_modified_date?: number | null;
+      isDirectory: boolean;
+      isMarimoFile: boolean;
+      lastModifiedDate?: number | null;
       name: string;
       path: string;
     };
@@ -797,7 +800,7 @@ export interface components {
       root: string;
     };
     FileMoveRequest: {
-      new_path: string;
+      newPath: string;
       path: string;
     };
     FileMoveResponse: {
@@ -818,7 +821,7 @@ export interface components {
       codes: {
         [key: string]: string;
       };
-      line_length: number;
+      lineLength: number;
     };
     FormatResponse: {
       codes: {
@@ -829,16 +832,16 @@ export interface components {
       args: {
         [key: string]: unknown;
       };
-      function_call_id: string;
-      function_name: string;
+      functionCallId: string;
+      functionName: string;
       namespace: string;
     };
     InstallMissingPackagesRequest: {
       manager: string;
     };
     InstantiateRequest: {
-      object_ids: string[];
-      values: (string | boolean | number | null)[];
+      objectIds: string[];
+      values: unknown[];
     };
     MarimoConfig: {
       ai: {
@@ -897,19 +900,19 @@ export interface components {
       };
     };
     MarimoFile: {
-      initialization_id?: string | null;
-      last_modified: number;
+      initializationId?: string | null;
+      lastModified: number;
       name: string;
       path: string;
-      session_id?: string | null;
+      sessionId?: string | null;
     };
     OpenFileRequest: {
       path: string;
     };
     PreviewDatasetColumnRequest: {
-      column_name: string;
+      columnName: string;
       source: string;
-      table_name: string;
+      tableName: string;
     };
     ReadCodeResponse: {
       contents: string;
@@ -921,7 +924,7 @@ export interface components {
       filename: string;
     };
     RunRequest: {
-      cell_ids: string[];
+      cellIds: string[];
       codes: string[];
     };
     SaveAppConfigurationRequest: {
@@ -929,8 +932,8 @@ export interface components {
         [key: string]: unknown;
       };
     };
-    SaveRequest: {
-      cell_ids: string[];
+    SaveNotebookRequest: {
+      cellIds: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
       filename: string;
@@ -945,21 +948,20 @@ export interface components {
     SetCellConfigRequest: {
       configs: {
         [key: string]: {
-          [key: string]: {
-            [key: string]: unknown;
-          };
+          [key: string]: unknown;
         };
       };
     };
     SetUIElementValueRequest: {
-      ids_and_values: [string, unknown][];
+      objectIds: string[];
       token?: string;
+      values: unknown[];
     };
     SetUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
     ShutdownSessionRequest: {
-      session_id: string;
+      sessionId: string;
     };
     Snippet: {
       sections: components["schemas"]["SnippetSection"][];
@@ -981,11 +983,11 @@ export interface components {
       success?: boolean;
     };
     UpdateComponentValuesRequest: {
-      object_ids: string[];
-      values: (string | boolean | number | null)[];
+      objectIds: string[];
+      values: unknown[];
     };
     WorkspaceFilesRequest: {
-      include_markdown?: boolean;
+      includeMarkdown?: boolean;
     };
     WorkspaceFilesResponse: {
       files: components["schemas"]["MarimoFile"][];

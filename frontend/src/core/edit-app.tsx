@@ -101,7 +101,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
     sessionId: getSessionId(),
   });
 
-  const handleFilenameChange = useEvent(async (name: string | null) => {
+  const handleFilenameChange = useEvent(async (name: string) => {
     if (connection.state !== WebSocketState.OPEN) {
       alertSaveFailed();
       return null;
@@ -115,7 +115,7 @@ export const EditApp: React.FC<AppProps> = ({ userConfig, appConfig }) => {
       }
     });
 
-    return sendRename(name)
+    return sendRename({ filename: name })
       .then(() => {
         setFilename(name);
         // Set document title: app_title takes precedence, then filename, then default

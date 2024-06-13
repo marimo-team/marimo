@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import json
 from json import JSONEncoder
@@ -12,7 +13,11 @@ from marimo._dependencies.dependencies import DependencyManager
 class WebComponentEncoder(JSONEncoder):
     """Custom JSON encoder for WebComponents"""
 
-    def default(self, obj: Any) -> Any:
+    def default(self, o: Any) -> Any:
+        obj = o
+        if dataclasses.is_dataclass(obj):
+            return dataclasses.asdict(obj)
+
         # Handle numpy objects
         if DependencyManager.has_numpy():
             import numpy as np

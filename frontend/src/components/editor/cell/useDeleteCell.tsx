@@ -19,7 +19,7 @@ export function useDeleteCellCallback() {
     const { cellId } = opts;
     // Optimistic update
     deleteCell({ cellId });
-    sendDeleteCell(cellId).catch(() => {
+    sendDeleteCell({ cellId: cellId }).catch(() => {
       // Fall back on failure
       undoDeleteCell();
     });

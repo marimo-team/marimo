@@ -42,10 +42,10 @@ type PluginFunctions = {
     values: unknown[];
     too_many_values: boolean;
   }>;
-  sort_values: (req: {
+  sort_values: <T>(req: {
     by: string | null;
     descending: boolean;
-  }) => Promise<object[] | string>;
+  }) => Promise<T[] | string>;
 };
 
 // Value is selection, but it is not currently exposed to the user

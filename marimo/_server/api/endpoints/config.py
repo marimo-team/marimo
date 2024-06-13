@@ -32,6 +32,11 @@ async def save_user_config(
     request: Request,
 ) -> BaseResponse:
     """
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SaveUserConfigurationRequest"
     responses:
         200:
             description: Update the user config on disk and in the kernel. Only allowed in edit mode.

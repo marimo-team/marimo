@@ -33,6 +33,7 @@ def _generate_schema() -> dict[str, Any]:
         snippets.SnippetSection,
         snippets.Snippet,
         snippets.Snippets,
+        requests.SetUIElementValueRequest,
         # Requests/responses
         completion.AiCompletionRequest,
         export.ExportAsHTMLRequest,
@@ -64,13 +65,13 @@ def _generate_schema() -> dict[str, Any]:
         models.RenameFileRequest,
         models.RunRequest,
         models.SaveAppConfigurationRequest,
-        models.SaveRequest,
+        models.SaveNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,
         models.SuccessResponse,
         models.UpdateComponentValuesRequest,
-        requests.CompletionRequest,
+        requests.CodeCompletionRequest,
         requests.CreationRequest,
         requests.DeleteRequest,
         requests.ExecuteMultipleRequest,
@@ -80,10 +81,11 @@ def _generate_schema() -> dict[str, Any]:
         requests.InstallMissingPackagesRequest,
         requests.PreviewDatasetColumnRequest,
         requests.SetCellConfigRequest,
-        requests.SetUIElementValueRequest,
         requests.SetUserConfigRequest,
         requests.StopRequest,
     ]
+
+    dont_camel_case = {MarimoConfig}
 
     processed_classes: Dict[Type[Any], str] = {}
 
@@ -94,7 +96,7 @@ def _generate_schema() -> dict[str, Any]:
         if cls in processed_classes:
             del processed_classes[cls]
         component_schemas[cls.__name__] = dataclass_to_openapi_spec(
-            cls, processed_classes
+            cls, processed_classes, camel_case=cls not in dont_camel_case
         )
 
     schemas = SchemaGenerator(

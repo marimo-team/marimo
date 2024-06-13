@@ -336,7 +336,7 @@ const CellEditorInternal = ({
 
   const showCode = async () => {
     if (hidden) {
-      await saveCellConfig({ configs: { [cellId]: { hide_code: false } } });
+      await saveCellConfig({ configs: { [cellId]: { hideCode: false } } });
       updateCellConfig({ cellId, config: { hide_code: false } });
       // Focus on the editor view
       editorViewRef.current?.focus();
