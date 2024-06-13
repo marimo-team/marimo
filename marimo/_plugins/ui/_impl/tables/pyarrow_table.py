@@ -160,7 +160,7 @@ class PyArrowTableManagerFactory(TableManagerFactory):
             ) -> list[str | int | float]:
                 idx = self.data.schema.get_field_index(column)
                 col: Any = self.data.column(idx)
-                return pc.unique(col).to_pylist()  # type: ignore[attr-defined]
+                return pc.unique(col).to_pylist()  # type: ignore[attr-defined, no-any-return]
 
             def sort_values(
                 self, by: ColumnName, descending: bool

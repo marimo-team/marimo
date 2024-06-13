@@ -102,7 +102,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
 
     def __init__(
         self,
-        df: Any,
+        df: DataFrameType,
         on_change: Optional[Callable[[DataFrameType], None]] = None,
         page_size: Optional[int] = 5,
     ) -> None:
@@ -127,7 +127,9 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
         self._data = df
         self._handler = handler
         self._manager = get_table_manager(df)
-        self._transform_container = TransformsContainer(df, handler)
+        self._transform_container = TransformsContainer[DataFrameType](
+            df, handler
+        )
         self._error: Optional[str] = None
 
         super().__init__(
@@ -140,7 +142,7 @@ class dataframe(UIElement[Dict[str, Any], DataFrameType]):
             args={
                 "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
-                "total": len(df),
+                "total": self._manager.get_num_rows(),
                 "page-size": page_size,
             },
             functions=(

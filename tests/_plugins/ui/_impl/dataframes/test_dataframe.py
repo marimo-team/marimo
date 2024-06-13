@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -10,23 +12,34 @@ from marimo._plugins.ui._impl.dataframes.dataframe import (
     GetColumnValuesResponse,
 )
 
-HAS_DEPS = DependencyManager.has_pandas()
+HAS_DEPS = (
+    DependencyManager.has_pandas()
+    and DependencyManager.has_numpy()
+    and DependencyManager.has_polars()
+)
 
 if HAS_DEPS:
-    import numpy as np
     import pandas as pd
+    import polars as pl
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe() -> None:
-    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]})
-
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
+        pl.DataFrame({"A": [1, 2, 3], "B": ["a", "a", "a"]}),
+    ],
+)
+def test_dataframe(
+    df: Any,
+) -> None:
     subject = ui.dataframe(df)
 
     assert subject.value is df
     assert subject._component_args["columns"] == [
-        ["A", np.dtype("int64")],
-        ["B", np.dtype("O")],
+        ["A", "integer"],
+        ["B", "string"],
     ]
     assert subject.get_column_values(
         GetColumnValuesArgs(column="A")
@@ -40,15 +53,21 @@ def test_dataframe() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_dataframe_numeric_columns() -> None:
-    df = pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]})
-
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame({1: [1, 2, 3], 2: ["a", "a", "a"]}),
+    ],
+)
+def test_dataframe_numeric_columns(
+    df: Any,
+) -> None:
     subject = ui.dataframe(df)
 
     assert subject.value is df
     assert subject._component_args["columns"] == [
-        [1, np.dtype("int64")],
-        [2, np.dtype("O")],
+        [1, "integer"],
+        [2, "string"],
     ]
 
     assert subject.get_column_values(

@@ -189,7 +189,8 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
                 str(transform.column_id): numpy_type_to_polars_type(
                     transform.data_type
                 )
-            }
+            },
+            strict=transform.errors == "raise",
         )
 
     @staticmethod
@@ -288,8 +289,13 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
         aggs: list[pl.Expr] = []
         from polars import col
 
-        for column_id in transform.column_ids:
-            column_id = str(column_id)
+        group_by_column_id_set = set(transform.column_ids)
+        agg_columns = [
+            column_id
+            for column_id in df.columns
+            if column_id not in group_by_column_id_set
+        ]
+        for column_id in agg_columns:
             agg_func = transform.aggregation
             if agg_func == "count":
                 aggs.append(col(column_id).count().alias(f"{column_id}_count"))
@@ -308,46 +314,40 @@ class PolarsTransformHandler(TransformHandler["pl.DataFrame"]):
             else:
                 assert_never(agg_func)
 
-        return df.group_by(transform.column_ids).agg(aggs)
+        return df.group_by(transform.column_ids, maintain_order=True).agg(aggs)
 
     @staticmethod
     def handle_aggregate(
         df: "pl.DataFrame", transform: AggregateTransform
     ) -> "pl.DataFrame":
-        agg_exprs: list[pl.Expr] = []
-        from polars import col
+        import polars as pl
 
-        for column_id in transform.column_ids:
-            column_id = str(column_id)
-            for agg_func in transform.aggregations:
-                if agg_func == "count":
-                    agg_exprs.append(
-                        col(column_id).count().alias(f"{column_id}_count")
-                    )
-                elif agg_func == "sum":
-                    agg_exprs.append(
-                        col(column_id).sum().alias(f"{column_id}_sum")
-                    )
-                elif agg_func == "mean":
-                    agg_exprs.append(
-                        col(column_id).mean().alias(f"{column_id}_mean")
-                    )
-                elif agg_func == "median":
-                    agg_exprs.append(
-                        col(column_id).median().alias(f"{column_id}_median")
-                    )
-                elif agg_func == "min":
-                    agg_exprs.append(
-                        col(column_id).min().alias(f"{column_id}_min")
-                    )
-                elif agg_func == "max":
-                    agg_exprs.append(
-                        col(column_id).max().alias(f"{column_id}_max")
-                    )
-                else:
-                    assert_never(agg_func)
+        selected_df = df.select(transform.column_ids)
+        result_df = pl.DataFrame()
+        for agg_func in transform.aggregations:
+            if agg_func == "count":
+                agg_df = selected_df.count()
+            elif agg_func == "sum":
+                agg_df = selected_df.sum()
+            elif agg_func == "mean":
+                agg_df = selected_df.mean()
+            elif agg_func == "median":
+                agg_df = selected_df.median()
+            elif agg_func == "min":
+                agg_df = selected_df.min()
+            elif agg_func == "max":
+                agg_df = selected_df.max()
+            else:
+                assert_never(agg_func)
 
-        return df.groupby(transform.column_ids).agg(agg_exprs)
+            # Rename all
+            agg_df = agg_df.rename(
+                {column: f"{column}_{agg_func}" for column in agg_df.columns}
+            )
+            # Add to result
+            result_df = result_df.hstack(agg_df)
+
+        return result_df
 
     @staticmethod
     def handle_select_columns(

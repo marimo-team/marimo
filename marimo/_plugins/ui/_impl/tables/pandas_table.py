@@ -229,7 +229,7 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
-                return self.data[column].unique().tolist()
+                return self.data[column].unique().tolist()  # type: ignore[no-any-return]
 
             def sort_values(
                 self, by: ColumnName, descending: bool
