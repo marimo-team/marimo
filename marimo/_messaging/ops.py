@@ -338,6 +338,8 @@ class KernelReady(Op):
     ui_values: Optional[Dict[str, JSONType]]
     # If the kernel was resumed, the last executed code for each cell
     last_executed_code: Optional[Dict[CellId_t, str]]
+    # If the kernel was resumed, the last execution time for each cell
+    last_execution_time: Optional[Dict[CellId_t, float]]
     # App config
     app_config: _AppConfig
 

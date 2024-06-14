@@ -28,6 +28,7 @@ export function createCell({
   name = DEFAULT_CELL_NAME,
   code = "",
   lastCodeRun = null,
+  lastExecutionTime = null,
   edited = false,
   config = {},
   serializedEditorState = null,
@@ -39,6 +40,7 @@ export function createCell({
     code: code,
     edited: edited,
     lastCodeRun: lastCodeRun,
+    lastExecutionTime: lastExecutionTime,
     serializedEditorState: serializedEditorState,
   };
 }
@@ -72,6 +74,8 @@ export interface CellData {
   edited: boolean;
   /** snapshot of code that was last run */
   lastCodeRun: string | null;
+  /** last execution time */
+  lastExecutionTime: number | null;
   /** cell configuration */
   config: CellConfig;
   /** serialized state of the underlying editor */

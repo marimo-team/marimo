@@ -74,6 +74,7 @@ def create_session(
                     resumed=False,
                     ui_values={},
                     last_executed_code={},
+                    last_execution_time={},
                     app_config=app.config,
                 )
             ),

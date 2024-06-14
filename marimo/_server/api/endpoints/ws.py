@@ -115,6 +115,7 @@ class WebsocketHandler(SessionConsumer):
         resumed: bool,
         ui_values: dict[str, JSONType],
         last_executed_code: dict[CellId_t, str],
+        last_execution_time: dict[CellId_t, float],
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
@@ -154,6 +155,7 @@ class WebsocketHandler(SessionConsumer):
             )
 
             last_executed_code = {}
+            last_execution_time = {}
 
         await self.message_queue.put(
             (
@@ -168,6 +170,7 @@ class WebsocketHandler(SessionConsumer):
                         resumed=resumed,
                         ui_values=ui_values,
                         last_executed_code=last_executed_code,
+                        last_execution_time=last_execution_time,
                         app_config=app.config,
                     )
                 ),
@@ -213,6 +216,7 @@ class WebsocketHandler(SessionConsumer):
             resumed=True,
             ui_values=session.get_current_state().ui_values,
             last_executed_code=session.get_current_state().last_executed_code,
+            last_execution_time=session.get_current_state().last_execution_time,
         )
         await self.write_operation(
             Banner(
@@ -305,7 +309,11 @@ class WebsocketHandler(SessionConsumer):
             self.status = ConnectionState.OPEN
             # Let the frontend know it can instantiate the app.
             await self._write_kernel_ready(
-                new_session, resumed=False, ui_values={}, last_executed_code={}
+                new_session,
+                resumed=False,
+                ui_values={},
+                last_executed_code={},
+                last_execution_time={},
             )
             return new_session
 

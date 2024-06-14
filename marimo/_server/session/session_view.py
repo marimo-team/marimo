@@ -1,8 +1,9 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from marimo._ast.cell import CellId_t
 from marimo._data.models import DataTable
@@ -46,6 +47,8 @@ class SessionView:
         self.ui_values: dict[str, Any] = {}
         # Map of cell id to the last code that was executed in that cell.
         self.last_executed_code: dict[CellId_t, str] = {}
+        # Map of cell id to the last cell execution time
+        self.last_execution_time: dict[CellId_t, float] = {}
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -98,6 +101,13 @@ class SessionView:
             self.cell_operations[operation.cell_id] = merge_cell_operation(
                 previous, operation
             )
+            if not previous:
+                return
+            if previous.status == "queued" and operation.status == "running":
+                self.save_execution_time(operation, "start")
+            if previous.status == "running" and operation.status == "idle":
+                self.save_execution_time(operation, "end")
+
         elif isinstance(operation, Variables):
             self.variable_operations = operation
 
@@ -155,6 +165,24 @@ class SessionView:
             if cell_op is not None and cell_op.console:
                 outputs[cell_id] = as_list(cell_op.console)
         return outputs
+
+    def save_execution_time(
+        self, operation: MessageOperation, event: Literal["start", "end"]
+    ) -> None:
+        """Updates execution time for given cell."""
+        if not isinstance(operation, CellOp):
+            return
+        cell_id = operation.cell_id
+
+        if event == "start":
+            time_elapsed = operation.timestamp
+        elif event == "end":
+            start = self.last_execution_time.get(cell_id)
+            start = start if start else 0
+            time_elapsed = time.time() - start
+            time_elapsed = round(time_elapsed * 1000)
+
+        self.last_execution_time[cell_id] = time_elapsed
 
     @property
     def operations(self) -> list[MessageOperation]:

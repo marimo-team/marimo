@@ -29,6 +29,7 @@ def create_response(
         "resumed": False,
         "ui_values": {},
         "last_executed_code": {},
+        "last_execution_time": {},
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
     }
